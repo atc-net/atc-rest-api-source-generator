@@ -1,0 +1,42 @@
+global using System;
+global using System.Collections.Concurrent;
+global using System.Collections.Generic;
+global using System.Globalization;
+global using System.IO;
+global using System.Runtime.CompilerServices;
+global using System.Text.RegularExpressions;
+global using System.Threading;
+global using System.Threading.Tasks;
+
+global using FluentValidation;
+
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Logging;
+
+global using Showcase.Api.Contracts.Services;
+global using Showcase.Api.Domain.Repositories;
+global using Showcase.Generated.Accounts.Handlers;
+global using Showcase.Generated.Accounts.Models;
+global using Showcase.Generated.Accounts.Parameters;
+global using Showcase.Generated.Accounts.Results;
+global using Showcase.Generated.Files.Handlers;
+global using Showcase.Generated.Files.Parameters;
+global using Showcase.Generated.Files.Results;
+global using Showcase.Generated.Notifications.Handlers;
+global using Showcase.Generated.Notifications.Models;
+global using Showcase.Generated.Notifications.Parameters;
+global using Showcase.Generated.Notifications.Results;
+global using Showcase.Generated.Tasks.Handlers;
+global using Showcase.Generated.Tasks.Parameters;
+global using Showcase.Generated.Tasks.Results;
+global using Showcase.Generated.Testings.Handlers;
+global using Showcase.Generated.Testings.Models;
+global using Showcase.Generated.Testings.Parameters;
+global using Showcase.Generated.Testings.Results;
+global using Showcase.Generated.Users.Handlers;
+global using Showcase.Generated.Users.Models;
+global using Showcase.Generated.Users.Parameters;
+global using Showcase.Generated.Users.Results;
+global using Showcase.Generated.Webhooks.Handlers;
+global using Showcase.Generated.Webhooks.Parameters;
+global using Showcase.Generated.Webhooks.Results;

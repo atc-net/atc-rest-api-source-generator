@@ -1,0 +1,301 @@
+openapi: 3.0.3
+info:
+  title: Retry Sample API
+  description: API demonstrating resilience/retry extensions (x-retry-*)
+  version: 1.0.0
+
+# Root level - global retry policy
+x-retry-policy: standard
+x-retry-max-attempts: 3
+x-retry-delay-seconds: 1
+x-retry-backoff: exponential
+x-retry-use-jitter: true
+x-retry-timeout-seconds: 30
+x-retry-handle-429: true
+
+paths:
+  # 1. Public endpoint - inherits global retry
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health check (global retry policy)
+      tags:
+        - public
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  # 2. Path-level retry policy override
+  /orders:
+    x-retry-policy: orders-fast
+    x-retry-max-attempts: 2
+    x-retry-delay-seconds: 0.5
+    x-retry-timeout-seconds: 10
+    get:
+      operationId: listOrders
+      summary: List orders (fast retry policy)
+      tags:
+        - orders
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+    post:
+      operationId: createOrder
+      summary: Create order (retry disabled for non-idempotent)
+      tags:
+        - orders
+      # Disable retry for POST (not idempotent)
+      x-retry-enabled: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  # 3. Operation-level retry override
+  /orders/{orderId}:
+    x-retry-policy: orders-fast
+    parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getOrderById
+      summary: Get order (inherits orders-fast)
+      tags:
+        - orders
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: Not Found
+    delete:
+      operationId: deleteOrder
+      summary: Delete order (idempotent - can retry)
+      tags:
+        - orders
+      # Operation override - more retries for delete
+      x-retry-policy: orders-delete
+      x-retry-max-attempts: 5
+      x-retry-delay-seconds: 2
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Not Found
+
+  # 4. External API calls - aggressive retry with circuit breaker
+  /external/payment:
+    x-retry-policy: external-service
+    x-retry-max-attempts: 5
+    x-retry-delay-seconds: 3
+    x-retry-backoff: exponential
+    x-retry-timeout-seconds: 60
+    x-retry-circuit-breaker: true
+    post:
+      operationId: processPayment
+      summary: Process payment (circuit breaker enabled)
+      tags:
+        - external
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResult'
+        '503':
+          description: Service Unavailable
+
+  # 5. Long-running operation - no retry, extended timeout
+  /reports/generate:
+    post:
+      operationId: generateReport
+      summary: Generate report (no retry, long timeout)
+      tags:
+        - reports
+      x-retry-enabled: false
+      x-retry-timeout-seconds: 600
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportRequest'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportJob'
+
+  # 6. Constant backoff (no jitter)
+  /notifications:
+    x-retry-policy: notifications-constant
+    x-retry-max-attempts: 3
+    x-retry-delay-seconds: 5
+    x-retry-backoff: constant
+    x-retry-use-jitter: false
+    post:
+      operationId: sendNotification
+      summary: Send notification (constant backoff)
+      tags:
+        - notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Notification'
+      responses:
+        '202':
+          description: Accepted
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    Order:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        customerName:
+          type: string
+        totalAmount:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - customerName
+      properties:
+        customerName:
+          type: string
+        items:
+          type: array
+          items:
+            type: string
+
+    PaymentRequest:
+      type: object
+      required:
+        - orderId
+        - amount
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+
+    PaymentResult:
+      type: object
+      required:
+        - transactionId
+        - status
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        processedAt:
+          type: string
+          format: date-time
+
+    ReportRequest:
+      type: object
+      required:
+        - reportType
+      properties:
+        reportType:
+          type: string
+        dateFrom:
+          type: string
+          format: date
+        dateTo:
+          type: string
+          format: date
+
+    ReportJob:
+      type: object
+      required:
+        - jobId
+        - status
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        estimatedCompletionTime:
+          type: string
+          format: date-time
+
+    Notification:
+      type: object
+      required:
+        - recipient
+        - message
+      properties:
+        recipient:
+          type: string
+        message:
+          type: string
+        priority:
+          type: string

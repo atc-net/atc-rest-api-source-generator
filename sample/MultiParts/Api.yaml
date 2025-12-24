@@ -1,0 +1,237 @@
+openapi: 3.0.4
+info:
+  title: Multi-Part Demo API
+  description: Demo API showcasing multi-part specification support
+  contact:
+    name: ATC Team
+  version: 1.0.0
+servers:
+  - url: https://api.example.com/v1
+    description: Production server
+paths:
+  /products:
+    get:
+      tags:
+        - Products
+      summary: List all products
+      operationId: listProducts
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            minimum: 0
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: A list of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+    post:
+      tags:
+        - Products
+      summary: Create a new product
+      operationId: createProduct
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+        required: true
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+  '/products/{productId}':
+    get:
+      tags:
+        - Products
+      summary: Get a product by ID
+      operationId: getProductById
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+    delete:
+      tags:
+        - Products
+      summary: Delete a product
+      operationId: deleteProduct
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Product deleted
+        '404':
+          description: Product not found
+  /users:
+    get:
+      tags:
+        - Users
+      summary: List all users
+      operationId: listUsers
+      responses:
+        '200':
+          description: A list of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      tags:
+        - Users
+      summary: Create a new user
+      operationId: createUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+        required: true
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  '/users/{userId}':
+    get:
+      tags:
+        - Users
+      summary: Get a user by ID
+      operationId: getUserById
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+components:
+  schemas:
+    Product:
+      required:
+        - id
+        - name
+        - price
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          maxLength: 200
+          minLength: 1
+          type: string
+        description:
+          maxLength: 1000
+          type: string
+        price:
+          minimum: 0
+          type: number
+          format: decimal
+        category:
+          type: string
+        inStock:
+          type: boolean
+          default: true
+    CreateProductRequest:
+      required:
+        - name
+        - price
+      type: object
+      properties:
+        name:
+          maxLength: 200
+          minLength: 1
+          type: string
+        description:
+          maxLength: 1000
+          type: string
+        price:
+          minimum: 0
+          type: number
+          format: decimal
+        category:
+          type: string
+    User:
+      required:
+        - id
+        - name
+        - email
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          maxLength: 100
+          minLength: 1
+          type: string
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+    CreateUserRequest:
+      required:
+        - name
+        - email
+      type: object
+      properties:
+        name:
+          maxLength: 100
+          minLength: 1
+          type: string
+        email:
+          type: string
+          format: email
+tags:
+  - name: Users
+    description: User management operations
+  - name: Products
+    description: Product management operations

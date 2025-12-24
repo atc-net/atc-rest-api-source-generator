@@ -1,0 +1,13 @@
+<MudThemeProvider @ref="mudThemeProvider" @bind-IsDarkMode="isDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<CascadingValue Value="this">
+    <Router AppAssembly="@typeof(App).Assembly" NotFoundPage="@typeof(Pages.NotFoundPage)">
+        <Found Context="routeData">
+            <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+    </Router>
+</CascadingValue>

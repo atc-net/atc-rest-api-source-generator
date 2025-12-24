@@ -1,0 +1,28 @@
+openapi: 3.0.3
+info:
+  title: Multi-Part Test API
+  description: Test API for multi-part specification support
+  version: 1.0.0
+  contact:
+    name: ATC Team
+servers:
+  - url: https://api.example.com/v1
+    description: Production server
+tags:
+  - name: Users
+    description: User management operations
+  - name: Products
+    description: Product management operations
+components:
+  schemas:
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string

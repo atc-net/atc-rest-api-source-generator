@@ -1,0 +1,6 @@
+{
+    "validateSpecificationStrategy": "Standard",
+    "generationMode": "EndpointPerOperation",
+    "includeDeprecated": false,
+    "clientSuffix": "Client"
+}

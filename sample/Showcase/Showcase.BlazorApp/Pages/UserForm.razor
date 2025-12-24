@@ -1,0 +1,179 @@
+@page "/users/create"
+@page "/users/{UserId}/edit"
+
+<PageTitle>@(IsEdit ? "Edit User" : "Create User")</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">@(IsEdit ? "Edit User" : "Create New User")</MudText>
+
+<EditForm Model="@model" OnValidSubmit="OnValidSubmit">
+    <DataAnnotationsValidator />
+
+    <MudGrid>
+        <MudItem xs="12" md="8">
+
+            <MudCard Elevation="2" Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Personal Information</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="model.FirstName" Label="First Name" Variant="Variant.Outlined"
+                                          For="@(() => model.FirstName)" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="model.LastName" Label="Last Name" Variant="Variant.Outlined"
+                                          For="@(() => model.LastName)" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="model.Email" Label="Email" Variant="Variant.Outlined"
+                                          For="@(() => model.Email)" InputType="InputType.Email" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="model.Phone" Label="Phone" Variant="Variant.Outlined"
+                                          For="@(() => model.Phone)" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="model.Website" Label="Website" Variant="Variant.Outlined"
+                                          For="@(() => model.Website)" InputType="InputType.Url" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudDatePicker @bind-Date="model.DateOfBirth" Label="Date of Birth" Variant="Variant.Outlined"
+                                           DateFormat="yyyy-MM-dd" For="@(() => model.DateOfBirth)" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="model.Bio" Label="Bio" Variant="Variant.Outlined"
+                                          For="@(() => model.Bio)" Lines="3" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="model.AvatarUrl" Label="Avatar URL" Variant="Variant.Outlined"
+                                          For="@(() => model.AvatarUrl)" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+
+            <MudCard Elevation="2" Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Account Settings</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12" sm="6">
+                            <MudSelect @bind-Value="model.Role" Label="Role" Variant="Variant.Outlined"
+                                       For="@(() => model.Role)" Required="true">
+                                @foreach (UserRole role in Enum.GetValues<UserRole>())
+                                {
+                                    <MudSelectItem Value="@role">@role</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" Class="d-flex align-center">
+                            <MudSwitch @bind-Value="model.IsActive" Label="Active" Color="Color.Success"
+                                       For="@(() => model.IsActive)" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+
+            <MudCard Elevation="2" Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Address</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="model.Street" Label="Street Address" Variant="Variant.Outlined"
+                                          For="@(() => model.Street)" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="model.City" Label="City" Variant="Variant.Outlined"
+                                          For="@(() => model.City)" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="model.State" Label="State/Province" Variant="Variant.Outlined"
+                                          For="@(() => model.State)" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="model.PostalCode" Label="Postal Code" Variant="Variant.Outlined"
+                                          For="@(() => model.PostalCode)" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="model.Country" Label="Country" Variant="Variant.Outlined"
+                                          For="@(() => model.Country)" Required="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="model.CountryCode" Label="Country Code" Variant="Variant.Outlined"
+                                          For="@(() => model.CountryCode)" MaxLength="2" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudNumericField @bind-Value="model.Latitude" Label="Latitude" Variant="Variant.Outlined"
+                                             For="@(() => model.Latitude)" Format="F6" />
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudNumericField @bind-Value="model.Longitude" Label="Longitude" Variant="Variant.Outlined"
+                                             For="@(() => model.Longitude)" Format="F6" />
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+
+            <MudCardActions Class="pa-0">
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                           Disabled="isLoading">
+                    @if (isLoading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    @(IsEdit ? "Update" : "Create")
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" Href="/users" Class="ml-2">
+                    Cancel
+                </MudButton>
+            </MudCardActions>
+        </MudItem>
+    <MudItem xs="12" md="4">
+        <MudCard Elevation="2">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Preview</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent Class="d-flex flex-column align-center">
+                <MudAvatar Size="Size.Large" Style="width: 120px; height: 120px;">
+                    @if (!string.IsNullOrEmpty(model.AvatarUrl))
+                    {
+                        <MudImage Src="@model.AvatarUrl" Alt="@model.FirstName" />
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.h4">@model.FirstName?.FirstOrDefault()@model.LastName?.FirstOrDefault()</MudText>
+                    }
+                </MudAvatar>
+                <MudText Typo="Typo.h6" Class="mt-3">@model.FirstName @model.LastName</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@model.Email</MudText>
+                <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(model.Role)" Class="mt-2">@model.Role</MudChip>
+            </MudCardContent>
+        </MudCard>
+
+        <MudCard Elevation="2" Class="mt-4">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Validation</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudText Typo="Typo.caption">
+                    <ValidationSummary />
+                </MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    </MudGrid>
+</EditForm>

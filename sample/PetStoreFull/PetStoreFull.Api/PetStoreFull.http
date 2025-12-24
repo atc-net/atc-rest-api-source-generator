@@ -1,0 +1,207 @@
+@PetStoreFull_Api_HostAddress = http://localhost:5046
+
+# Get Scalar UI
+GET {{PetStoreFull_Api_HostAddress}}/
+Accept: text/html
+
+###
+
+# ============================================
+# PET ENDPOINTS
+# ============================================
+
+# Add a new pet to the store
+POST {{PetStoreFull_Api_HostAddress}}/pet
+Content-Type: application/json
+
+{
+  "id": 100,
+  "name": "Fluffy",
+  "category": { "id": 1, "name": "Dogs" },
+  "photoUrls": ["https://example.com/photo1.jpg"],
+  "tags": [{ "id": 1, "name": "friendly" }],
+  "status": "available"
+}
+
+###
+
+# Update an existing pet
+PUT {{PetStoreFull_Api_HostAddress}}/pet
+Content-Type: application/json
+
+{
+  "id": 100,
+  "name": "Fluffy Updated",
+  "category": { "id": 1, "name": "Dogs" },
+  "photoUrls": ["https://example.com/photo1.jpg"],
+  "tags": [{ "id": 1, "name": "friendly" }],
+  "status": "sold"
+}
+
+###
+
+# Find pets by status
+GET {{PetStoreFull_Api_HostAddress}}/pet/findByStatus?status=available
+Accept: application/json
+
+###
+
+# Find pets by tags
+GET {{PetStoreFull_Api_HostAddress}}/pet/findByTags?tags=friendly,playful
+Accept: application/json
+
+###
+
+# Get pet by ID
+GET {{PetStoreFull_Api_HostAddress}}/pet/1
+Accept: application/json
+
+###
+
+# Update pet with form data
+POST {{PetStoreFull_Api_HostAddress}}/pet/1?name=UpdatedName&status=sold
+Accept: application/json
+
+###
+
+# Delete a pet
+DELETE {{PetStoreFull_Api_HostAddress}}/pet/1
+api_key: special-key
+
+###
+
+# Upload pet image
+POST {{PetStoreFull_Api_HostAddress}}/pet/1/uploadImage?additionalMetadata=My%20pet%20photo
+Content-Type: application/octet-stream
+
+< ./sample-image.jpg
+
+###
+
+# ============================================
+# STORE ENDPOINTS
+# ============================================
+
+# Get store inventory
+GET {{PetStoreFull_Api_HostAddress}}/store/inventory
+Accept: application/json
+
+###
+
+# Place an order
+POST {{PetStoreFull_Api_HostAddress}}/store/order
+Content-Type: application/json
+
+{
+  "id": 1,
+  "petId": 100,
+  "quantity": 1,
+  "shipDate": "2025-01-15T10:00:00Z",
+  "status": "placed",
+  "complete": false
+}
+
+###
+
+# Get order by ID
+GET {{PetStoreFull_Api_HostAddress}}/store/order/1
+Accept: application/json
+
+###
+
+# Delete order
+DELETE {{PetStoreFull_Api_HostAddress}}/store/order/1
+Accept: application/json
+
+###
+
+# ============================================
+# USER ENDPOINTS
+# ============================================
+
+# Create user
+POST {{PetStoreFull_Api_HostAddress}}/user
+Content-Type: application/json
+
+{
+  "id": 1,
+  "username": "johndoe",
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john@example.com",
+  "password": "secret123",
+  "phone": "555-1234",
+  "userStatus": 1
+}
+
+###
+
+# Create users with list
+POST {{PetStoreFull_Api_HostAddress}}/user/createWithList
+Content-Type: application/json
+
+[
+  {
+    "id": 2,
+    "username": "janedoe",
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "email": "jane@example.com",
+    "password": "secret456",
+    "phone": "555-5678",
+    "userStatus": 1
+  },
+  {
+    "id": 3,
+    "username": "bobsmith",
+    "firstName": "Bob",
+    "lastName": "Smith",
+    "email": "bob@example.com",
+    "password": "secret789",
+    "phone": "555-9012",
+    "userStatus": 1
+  }
+]
+
+###
+
+# Login user
+GET {{PetStoreFull_Api_HostAddress}}/user/login?username=johndoe&password=secret123
+Accept: application/json
+
+###
+
+# Logout user
+GET {{PetStoreFull_Api_HostAddress}}/user/logout
+Accept: application/json
+
+###
+
+# Get user by username
+GET {{PetStoreFull_Api_HostAddress}}/user/johndoe
+Accept: application/json
+
+###
+
+# Update user
+PUT {{PetStoreFull_Api_HostAddress}}/user/johndoe
+Content-Type: application/json
+
+{
+  "id": 1,
+  "username": "johndoe",
+  "firstName": "John",
+  "lastName": "Doe Updated",
+  "email": "john.updated@example.com",
+  "password": "newsecret123",
+  "phone": "555-4321",
+  "userStatus": 1
+}
+
+###
+
+# Delete user
+DELETE {{PetStoreFull_Api_HostAddress}}/user/johndoe
+Accept: application/json
+
+###

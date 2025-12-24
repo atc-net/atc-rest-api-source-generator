@@ -1,0 +1,4 @@
+{
+  "generate": true,
+  "generationMode": "EndpointPerOperation"
+}

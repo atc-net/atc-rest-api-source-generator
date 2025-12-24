@@ -1,0 +1,37 @@
+{
+  "generate": true,
+  "validateSpecificationStrategy": "Standard",
+  "includeDeprecated": false,
+  "generationMode": "EndpointPerOperation",
+  "namespace": "MontaPartner.ApiClient",
+  "clientSuffix": "Client",
+  "httpClientName": "Monta-ApiClient",
+  "generateOAuthTokenManagement": true,
+  "generatePartialModels": true,
+  "customErrorResponseModel": {
+    "name": "ErrorResponse",
+    "description": "Represents an error response from the Monta API.",
+    "schema": {
+      "status": {
+        "dataType": "string?",
+        "description": "Gets or sets the status of the error."
+      },
+      "message": {
+        "dataType": "string?",
+        "description": "Gets or sets the error message."
+      },
+      "readableMessage": {
+        "dataType": "string?",
+        "description": "Gets or sets the readable message."
+      },
+      "errorCode": {
+        "dataType": "string?",
+        "description": "Gets or sets the error code."
+      },
+      "context": {
+        "dataType": "object?",
+        "description": "Gets or sets the context information."
+      }
+    }
+  }
+}

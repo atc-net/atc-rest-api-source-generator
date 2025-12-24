@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>atc-rest-api-gen</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Atc" Version="3.0.16" />
+    <PackageReference Include="Atc.Console.Spectre" Version="3.0.16" />
+    <PackageReference Include="Microsoft.OpenApi" Version="3.0.3" />
+    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Atc.Rest.Api.Generator\Atc.Rest.Api.Generator.csproj" />
+  </ItemGroup>
+
+</Project>

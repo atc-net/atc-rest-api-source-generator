@@ -1,0 +1,29 @@
+<MudNavMenu>
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
+    <MudNavGroup Title="Accounts" Icon="@Icons.Material.Filled.AccountCircle" Expanded="true">
+        <MudNavLink Href="/accounts" Icon="@Icons.Material.Filled.List">List Accounts</MudNavLink>
+        <MudNavLink Href="/accounts/paginated" Icon="@Icons.Material.Filled.TableChart">Paginated</MudNavLink>
+        <MudNavLink Href="/accounts/async-enumerable" Icon="@Icons.Material.Filled.Stream">Async Enumerable</MudNavLink>
+    </MudNavGroup>
+    <MudNavGroup Title="Tasks" Icon="@Icons.Material.Filled.Task" Expanded="true">
+        <MudNavLink Href="/tasks" Icon="@Icons.Material.Filled.List">List Tasks</MudNavLink>
+    </MudNavGroup>
+    <MudNavGroup Title="Users" Icon="@Icons.Material.Filled.People" Expanded="true">
+        <MudNavLink Href="/users" Icon="@Icons.Material.Filled.List">List Users</MudNavLink>
+        <MudNavLink Href="/users/create" Icon="@Icons.Material.Filled.PersonAdd">Create User</MudNavLink>
+    </MudNavGroup>
+    <MudNavGroup Title="Files" Icon="@Icons.Material.Filled.Folder" Expanded="true">
+        <MudNavLink Href="/files" Icon="@Icons.Material.Filled.Download">Download Files</MudNavLink>
+        <MudNavLink Href="/files/upload" Icon="@Icons.Material.Filled.Upload">Upload Files</MudNavLink>
+    </MudNavGroup>
+    <MudNavGroup Title="Notifications" Icon="@Icons.Material.Filled.Notifications" Expanded="true">
+        <MudNavLink Href="/notifications" Icon="@Icons.Material.Filled.NotificationsActive">Live Feed</MudNavLink>
+        <MudNavLink Href="/notifications/subscriptions" Icon="@Icons.Material.Filled.Subscriptions">Subscriptions</MudNavLink>
+    </MudNavGroup>
+    <MudNavGroup Title="Webhooks" Icon="@Icons.Material.Filled.Webhook" Expanded="true">
+        <MudNavLink Href="/webhooks/demo" Icon="@Icons.Material.Filled.PlayArrow">Demo</MudNavLink>
+    </MudNavGroup>
+    <MudNavGroup Title="Testing" Icon="@Icons.Material.Filled.BugReport" Expanded="true">
+        <MudNavLink Href="/testing/exceptions" Icon="@Icons.Material.Filled.Error">Exception Handling</MudNavLink>
+    </MudNavGroup>
+</MudNavMenu>

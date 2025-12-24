@@ -1,0 +1,57 @@
+@page "/accounts/async-enumerable"
+
+<PageTitle>Async Enumerable Accounts</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Async Enumerable Accounts</MudText>
+
+<MudAlert Severity="Severity.Info" Class="mb-4">
+    This demonstrates streaming accounts using IAsyncEnumerable. Items are loaded progressively as they arrive from the server.
+</MudAlert>
+
+<MudCard Elevation="2" Class="mb-4">
+    <MudCardContent>
+        <MudGrid>
+            <MudItem xs="12">
+                @if (isLoading)
+                {
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-2" />
+                    <MudText>Streaming accounts... (@accounts.Count loaded)</MudText>
+                }
+            </MudItem>
+        </MudGrid>
+    </MudCardContent>
+    <MudCardActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsyncEnumerableAsync" Disabled="isLoading">
+            @if (isLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Start Streaming
+        </MudButton>
+        @if (isLoading)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="CancelStreaming">
+                Cancel
+            </MudButton>
+        }
+        <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="ClearAccounts" Disabled="isLoading">
+            Clear
+        </MudButton>
+    </MudCardActions>
+</MudCard>
+
+<MudTable Items="accounts" Hover="true" Striped="true" Loading="isLoading" LoadingProgressColor="Color.Primary" FixedHeader="true" Height="400px">
+    <HeaderContent>
+        <MudTh>ID</MudTh>
+        <MudTh>Name</MudTh>
+        <MudTh>Tag</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="ID">@context.Id</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Tag">@context.Tag</MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No accounts loaded. Click "Start Streaming" to begin.</MudText>
+    </NoRecordsContent>
+</MudTable>

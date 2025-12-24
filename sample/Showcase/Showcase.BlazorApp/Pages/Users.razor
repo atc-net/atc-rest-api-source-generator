@@ -1,0 +1,128 @@
+@page "/users"
+
+<PageTitle>Users</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Users</MudText>
+
+<MudGrid>
+    <MudItem xs="12">
+        <MudCard Elevation="2" Class="mb-4">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Search & Filter</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudTextField @bind-Value="searchQuery" Label="Search (name, email)" Variant="Variant.Outlined"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Immediate="true" OnKeyUp="OnSearchKeyUp" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect @bind-Value="selectedCountry" Label="Country" Variant="Variant.Outlined" Clearable="true" T="string">
+                            <MudSelectItem T="string" Value="@((string?)null)">All Countries</MudSelectItem>
+                            @foreach (var country in countries)
+                            {
+                                <MudSelectItem T="string" Value="@country">@country</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect @bind-Value="selectedRole" Label="Role" Variant="Variant.Outlined" Clearable="true" T="string">
+                            <MudSelectItem T="string" Value="@((string?)null)">All Roles</MudSelectItem>
+                            @foreach (var role in roles)
+                            {
+                                <MudSelectItem T="string" Value="@role">@role</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudSelect @bind-Value="selectedActiveStatus" Label="Status" Variant="Variant.Outlined" Clearable="true" T="bool?">
+                            <MudSelectItem T="bool?" Value="@((bool?)null)">All</MudSelectItem>
+                            <MudSelectItem T="bool?" Value="@((bool?)true)">Active</MudSelectItem>
+                            <MudSelectItem T="bool?" Value="@((bool?)false)">Inactive</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadUsersAsync" Disabled="isLoading">
+                    @if (isLoading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Search
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="ClearFilters" Disabled="isLoading" Class="ml-2">
+                    Clear
+                </MudButton>
+                <MudSpacer />
+                <MudButton Variant="Variant.Filled" Color="Color.Success" Href="/users/create">
+                    <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-1" />
+                    New User
+                </MudButton>
+            </MudCardActions>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+<MudTable Items="users" Hover="true" Striped="true" Loading="isLoading" LoadingProgressColor="Color.Primary"
+          Dense="true" RowClass="cursor-pointer" OnRowClick="OnRowClick" T="User">
+    <HeaderContent>
+        <MudTh>Avatar</MudTh>
+        <MudTh>Name</MudTh>
+        <MudTh>Email</MudTh>
+        <MudTh>Country</MudTh>
+        <MudTh>Role</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Avatar">
+            <MudAvatar Size="Size.Small">
+                @if (context.AvatarUrl is not null)
+                {
+                    <MudImage Src="@context.AvatarUrl.ToString()" Alt="@context.FirstName" />
+                }
+                else
+                {
+                    @context.FirstName?.FirstOrDefault()@context.LastName?.FirstOrDefault()
+                }
+            </MudAvatar>
+        </MudTd>
+        <MudTd DataLabel="Name">@context.FirstName @context.LastName</MudTd>
+        <MudTd DataLabel="Email">@context.Email</MudTd>
+        <MudTd DataLabel="Country">@context.Address?.Country</MudTd>
+        <MudTd DataLabel="Role">
+            <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(context.Role)">@context.Role</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Status">
+            <MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">
+                @(context.IsActive ? "Active" : "Inactive")
+            </MudChip>
+        </MudTd>
+        <MudTd>
+            <MudTooltip Text="View Details">
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" Size="Size.Small"
+                               Href="@($"/users/{context.Id}")" />
+            </MudTooltip>
+            <MudTooltip Text="Edit">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                               Href="@($"/users/{context.Id}/edit")" />
+            </MudTooltip>
+            <MudTooltip Text="Delete">
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                               OnClick="@(() => DeleteUserAsync(context.Id.ToString()))" ClickPropagation="false" />
+            </MudTooltip>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No users found. Click "Search" to load users or adjust filters.</MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new[] { 10, 25, 50, 100 }" />
+    </PagerContent>
+</MudTable>
+
+<MudText Typo="Typo.caption" Class="mt-2">Total: @users.Length users</MudText>

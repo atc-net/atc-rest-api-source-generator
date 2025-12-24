@@ -1,0 +1,72 @@
+@page "/accounts/paginated"
+
+<PageTitle>Paginated Accounts</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Paginated Accounts</MudText>
+
+<MudCard Elevation="2" Class="mb-4">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">Pagination Options</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudGrid>
+            <MudItem xs="12" md="3">
+                <MudNumericField @bind-Value="pageSize" Label="Page Size" Variant="Variant.Outlined" Min="1" Max="100" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudNumericField @bind-Value="pageIndex" Label="Page Index" Variant="Variant.Outlined" Min="0" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudTextField @bind-Value="queryString" Label="Query String" Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudTextField @bind-Value="continuation" Label="Continuation Token" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+    </MudCardContent>
+    <MudCardActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadPaginatedAsync" Disabled="isLoading">
+            @if (isLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Load Page
+        </MudButton>
+        @if (!string.IsNullOrEmpty(result?.Continuation))
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="LoadNextPageAsync" Disabled="isLoading">
+                Next Page
+            </MudButton>
+        }
+    </MudCardActions>
+</MudCard>
+
+@if (result != null)
+{
+    <MudAlert Severity="Severity.Info" Class="mb-4">
+        Page @(result.PageIndex + 1) | Page Size: @result.PageSize |
+        Count: @result.Count | Total: @result.TotalCount
+        @if (!string.IsNullOrEmpty(result.Continuation))
+        {
+            <span> | Has more pages</span>
+        }
+    </MudAlert>
+}
+
+<MudTable Items="accounts" Hover="true" Striped="true" Loading="isLoading" LoadingProgressColor="Color.Primary">
+    <HeaderContent>
+        <MudTh>ID</MudTh>
+        <MudTh>Name</MudTh>
+        <MudTh>Tag</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="ID">@context.Id</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Tag">@context.Tag</MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No accounts found. Click "Load Page" to fetch data.</MudText>
+    </NoRecordsContent>
+</MudTable>

@@ -1,0 +1,6 @@
+{
+    "generate": true,
+    "validateSpecificationStrategy": "Standard",
+    "includeDeprecated": false,
+    "clientSuffix": "Client"
+}

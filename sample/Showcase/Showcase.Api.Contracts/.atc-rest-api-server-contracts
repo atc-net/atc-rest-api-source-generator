@@ -1,0 +1,8 @@
+{
+    "validateSpecificationStrategy": "Strict",
+    "includeDeprecated": false,
+    "useMinimalApiPackage": "enabled",
+    "useValidationFilter": "enabled",
+    "useGlobalErrorHandler": "enabled",
+    "generateWebhooks": true
+}

@@ -1,0 +1,352 @@
+openapi: 3.0.3
+info:
+  title: SecurityStandard Sample API
+  description: API demonstrating standard OpenAPI security schemes (components/securitySchemes + security arrays)
+  version: 1.0.0
+
+# Document-level security - applies to ALL endpoints by default
+security:
+  - bearer_auth: []
+
+components:
+  securitySchemes:
+    bearer_auth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Bearer authentication
+    api_key:
+      type: apiKey
+      name: X-API-Key
+      in: header
+      description: API Key authentication via header
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.com/authorize
+          tokenUrl: https://auth.example.com/token
+          scopes:
+            "orders:read": Read access to orders
+            "orders:write": Write access to orders
+            "admin": Full admin access
+
+  schemas:
+    HealthStatus:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: Health status
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of health check
+
+    Order:
+      type: object
+      required:
+        - id
+        - customerId
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique order identifier
+        customerId:
+          type: string
+          description: Customer ID
+        status:
+          type: string
+          enum:
+            - pending
+            - confirmed
+            - shipped
+            - delivered
+            - cancelled
+          description: Order status
+        totalAmount:
+          type: number
+          format: decimal
+          description: Total order amount
+        createdAt:
+          type: string
+          format: date-time
+          description: Order creation timestamp
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - customerId
+      properties:
+        customerId:
+          type: string
+          description: Customer ID
+        items:
+          type: array
+          items:
+            type: string
+          description: List of item IDs
+
+    User:
+      type: object
+      required:
+        - id
+        - username
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: User ID
+        username:
+          type: string
+          description: Username
+        email:
+          type: string
+          format: email
+          description: Email address
+        role:
+          type: string
+          enum:
+            - user
+            - admin
+          description: User role
+
+    AdminSettings:
+      type: object
+      properties:
+        maintenanceMode:
+          type: boolean
+          description: Maintenance mode flag
+        maxUsersPerTenant:
+          type: integer
+          description: Maximum users per tenant
+        features:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: Feature flags
+
+paths:
+  # Public endpoint - explicitly no auth (security: [])
+  /public/health:
+    get:
+      operationId: getHealth
+      summary: Health check (public)
+      description: Public health check endpoint - no authentication required
+      tags:
+        - public
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  # Orders - OAuth2 with scopes
+  /orders:
+    get:
+      operationId: listOrders
+      summary: List all orders
+      description: List orders - requires orders:read scope
+      tags:
+        - orders
+      security:
+        - oauth2:
+            - orders:read
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+
+    post:
+      operationId: createOrder
+      summary: Create a new order
+      description: Create order - requires orders:write scope
+      tags:
+        - orders
+      security:
+        - oauth2:
+            - orders:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /orders/{orderId}:
+    get:
+      operationId: getOrderById
+      summary: Get order by ID
+      description: Get order - accepts API key OR OAuth2 with orders:read scope
+      tags:
+        - orders
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - api_key: []
+        - oauth2:
+            - orders:read
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: Not Found
+
+    delete:
+      operationId: deleteOrder
+      summary: Delete an order
+      description: Delete order - requires BOTH orders:write AND admin scopes
+      tags:
+        - orders
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - oauth2:
+            - orders:write
+            - admin
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Not Found
+
+  # Users - JWT Bearer (inherits from document-level security)
+  /users:
+    get:
+      operationId: listUsers
+      summary: List all users
+      description: List users - uses document-level JWT bearer auth
+      tags:
+        - users
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+  /users/{userId}:
+    get:
+      operationId: getUserById
+      summary: Get user by ID
+      description: Get user - uses document-level JWT bearer auth
+      tags:
+        - users
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Not Found
+
+  # Admin - API Key only
+  /admin/settings:
+    get:
+      operationId: getAdminSettings
+      summary: Get admin settings
+      description: Get admin settings - requires API key authentication
+      tags:
+        - admin
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSettings'
+
+    put:
+      operationId: updateAdminSettings
+      summary: Update admin settings
+      description: Update admin settings - requires API key authentication
+      tags:
+        - admin
+      security:
+        - api_key: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminSettings'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSettings'
+
+  # Data - Multiple authentication options (OR logic)
+  /data:
+    get:
+      operationId: getData
+      summary: Get data
+      description: Get data - accepts ANY of API key, JWT bearer, or OAuth2
+      tags:
+        - data
+      security:
+        - api_key: []
+        - bearer_auth: []
+        - oauth2:
+            - orders:read
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: string

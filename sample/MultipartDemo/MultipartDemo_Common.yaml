@@ -1,0 +1,92 @@
+openapi: 3.0.3
+info:
+  title: MultipartDemo API - Common
+  version: 1.0.0
+  description: Shared schemas and parameters
+
+components:
+  schemas:
+    PaginatedResult:
+      type: object
+      required:
+        - pageSize
+        - pageIndex
+        - totalCount
+        - totalPages
+        - hasPreviousPage
+        - hasNextPage
+      properties:
+        pageSize:
+          type: integer
+          format: int32
+        pageIndex:
+          type: integer
+          format: int32
+        totalCount:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        hasPreviousPage:
+          type: boolean
+        hasNextPage:
+          type: boolean
+        continuationToken:
+          type: string
+        results:
+          type: array
+          items: {}
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+
+  parameters:
+    pageSize:
+      name: pageSize
+      in: query
+      description: Number of items per page
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 10
+
+    pageIndex:
+      name: pageIndex
+      in: query
+      description: Page number (0-based)
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 0
+        default: 0
+
+    queryString:
+      name: queryString
+      in: query
+      description: Search query string
+      required: false
+      schema:
+        type: string
+        maxLength: 200
+
+    continuation:
+      name: continuation
+      in: query
+      description: Continuation token for pagination
+      required: false
+      schema:
+        type: string

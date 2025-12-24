@@ -1,0 +1,312 @@
+openapi: 3.0.3
+info:
+  title: MultipartDemo API - Users
+  version: 1.0.0
+  description: User management endpoints
+
+paths:
+  /users:
+    x-ratelimit-policy: users
+    x-ratelimit-permit-limit: 50
+    x-ratelimit-window-seconds: 60
+    x-ratelimit-algorithm: fixed
+    x-retry-policy: users
+    x-retry-max-attempts: 3
+    x-retry-delay-seconds: 1
+    x-cache-type: hybrid
+    x-cache-policy: users
+    x-cache-expiration-seconds: 300
+    x-cache-mode: hybrid
+    x-cache-vary-by-query:
+      - search
+      - country
+      - role
+      - isActive
+      - pageSize
+      - pageIndex
+    x-cache-tags:
+      - users
+    get:
+      summary: List all users
+      operationId: listUsers
+      tags:
+        - users
+      parameters:
+        - name: search
+          in: query
+          description: Search users by name or email
+          required: false
+          schema:
+            type: string
+        - name: country
+          in: query
+          description: Filter by country code
+          required: false
+          schema:
+            type: string
+        - name: role
+          in: query
+          description: Filter by user role
+          required: false
+          schema:
+            $ref: '#/components/schemas/UserRole'
+        - name: isActive
+          in: query
+          description: Filter by active status
+          required: false
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/pageSize'
+        - $ref: '#/components/parameters/pageIndex'
+      responses:
+        '200':
+          description: Array of users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Users"
+    post:
+      summary: Create a new user
+      operationId: createUser
+      tags:
+        - users
+      x-retry-enabled: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        '400':
+          description: Invalid input
+        '409':
+          description: User already exists
+
+  /users/{userId}:
+    x-ratelimit-policy: users
+    x-retry-policy: users
+    x-cache-type: hybrid
+    x-cache-policy: user-detail
+    x-cache-expiration-seconds: 600
+    x-cache-sliding-expiration-seconds: 120
+    x-cache-mode: hybrid
+    x-cache-tags:
+      - users
+      - user-detail
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        description: The unique identifier of the user
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get user by ID
+      operationId: getUserById
+      tags:
+        - users
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        '404':
+          description: User not found
+    put:
+      summary: Update user by ID
+      operationId: updateUserById
+      tags:
+        - users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        '400':
+          description: Invalid input
+        '404':
+          description: User not found
+    delete:
+      summary: Delete user by ID
+      operationId: deleteUserById
+      tags:
+        - users
+      responses:
+        '204':
+          description: User deleted successfully
+        '404':
+          description: User not found
+
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - firstName
+        - lastName
+        - email
+        - role
+      properties:
+        id:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        phone:
+          type: string
+          maxLength: 20
+        role:
+          $ref: '#/components/schemas/UserRole'
+        isActive:
+          type: boolean
+          default: true
+        profileImageUrl:
+          type: string
+          format: uri
+        address:
+          $ref: '#/components/schemas/Address'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateUserRequest:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+        - role
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        phone:
+          type: string
+          maxLength: 20
+        role:
+          $ref: '#/components/schemas/UserRole'
+        profileImageBase64:
+          type: string
+          description: Base64 encoded profile image
+        address:
+          $ref: '#/components/schemas/AddressRequest'
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        phone:
+          type: string
+          maxLength: 20
+        role:
+          $ref: '#/components/schemas/UserRole'
+        isActive:
+          type: boolean
+        profileImageBase64:
+          type: string
+          description: Base64 encoded profile image
+        address:
+          $ref: '#/components/schemas/AddressRequest'
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+          maxLength: 200
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 100
+        postalCode:
+          type: string
+          maxLength: 20
+        country:
+          type: string
+          maxLength: 100
+
+    AddressRequest:
+      type: object
+      properties:
+        street:
+          type: string
+          maxLength: 200
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 100
+        postalCode:
+          type: string
+          maxLength: 20
+        country:
+          type: string
+          maxLength: 100
+
+    UserRole:
+      type: string
+      enum:
+        - Admin
+        - Manager
+        - Employee
+        - Guest
+
+    Users:
+      type: array
+      items:
+        $ref: "#/components/schemas/User"

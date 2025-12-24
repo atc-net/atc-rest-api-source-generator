@@ -1,0 +1,129 @@
+@page "/files/upload"
+
+<PageTitle>Files - Upload</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Files - Upload</MudText>
+
+<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+    <MudTabPanel Text="Single File">
+        <MudText Typo="Typo.h6" Class="mb-4">Upload Single File</MudText>
+        <MudFileUpload T="IBrowserFile" FilesChanged="OnSingleFileSelected">
+            <ActivatorContent>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">
+                    Select File
+                </MudButton>
+            </ActivatorContent>
+        </MudFileUpload>
+        @if (singleFile != null)
+        {
+            <MudAlert Severity="Severity.Info" Class="mt-4">
+                Selected: @singleFile.Name (@singleFile.Size bytes, @singleFile.ContentType)
+            </MudAlert>
+            <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-2" OnClick="UploadSingleFileAsync" Disabled="isLoading">
+                @if (isLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Upload
+            </MudButton>
+        }
+    </MudTabPanel>
+
+    <MudTabPanel Text="Multiple Files">
+        <MudText Typo="Typo.h6" Class="mb-4">Upload Multiple Files</MudText>
+        <MudFileUpload T="IReadOnlyList<IBrowserFile>" FilesChanged="OnMultipleFilesSelected">
+            <ActivatorContent>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">
+                    Select Files
+                </MudButton>
+            </ActivatorContent>
+        </MudFileUpload>
+        @if (multipleFiles != null && multipleFiles.Count > 0)
+        {
+            <MudList T="string" Dense="true" Class="mt-4">
+                @foreach (var file in multipleFiles)
+                {
+                    <MudListItem Icon="@Icons.Material.Filled.InsertDriveFile">
+                        @file.Name (@file.Size bytes)
+                    </MudListItem>
+                }
+            </MudList>
+            <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-2" OnClick="UploadMultipleFilesAsync" Disabled="isLoading">
+                @if (isLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Upload All (@multipleFiles.Count files)
+            </MudButton>
+        }
+    </MudTabPanel>
+
+    <MudTabPanel Text="File with Metadata">
+        <MudText Typo="Typo.h6" Class="mb-4">Upload File with Metadata</MudText>
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="itemName" Label="Item Name" Variant="Variant.Outlined" Required="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="itemsText" Label="Items (comma-separated)" Variant="Variant.Outlined" HelperText="e.g., tag1, tag2, tag3" />
+            </MudItem>
+        </MudGrid>
+        <MudFileUpload T="IBrowserFile" FilesChanged="OnMetadataFileSelected" Class="mt-4">
+            <ActivatorContent>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">
+                    Select File
+                </MudButton>
+            </ActivatorContent>
+        </MudFileUpload>
+        @if (metadataFile != null)
+        {
+            <MudAlert Severity="Severity.Info" Class="mt-4">
+                Selected: @metadataFile.Name (@metadataFile.Size bytes)
+            </MudAlert>
+            <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-2" OnClick="UploadFileWithMetadataAsync" Disabled="isLoading">
+                @if (isLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Upload with Metadata
+            </MudButton>
+        }
+    </MudTabPanel>
+
+    <MudTabPanel Text="Multiple Files with Metadata">
+        <MudText Typo="Typo.h6" Class="mb-4">Upload Multiple Files with Metadata</MudText>
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="batchItemName" Label="Item Name" Variant="Variant.Outlined" Required="true" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value="batchItemsText" Label="Items (comma-separated)" Variant="Variant.Outlined" HelperText="e.g., tag1, tag2, tag3" />
+            </MudItem>
+        </MudGrid>
+        <MudFileUpload T="IReadOnlyList<IBrowserFile>" FilesChanged="OnBatchFilesSelected" Class="mt-4">
+            <ActivatorContent>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">
+                    Select Files
+                </MudButton>
+            </ActivatorContent>
+        </MudFileUpload>
+        @if (batchFiles != null && batchFiles.Count > 0)
+        {
+            <MudList T="string" Dense="true" Class="mt-4">
+                @foreach (var file in batchFiles)
+                {
+                    <MudListItem Icon="@Icons.Material.Filled.InsertDriveFile">
+                        @file.Name (@file.Size bytes)
+                    </MudListItem>
+                }
+            </MudList>
+            <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-2" OnClick="UploadBatchWithMetadataAsync" Disabled="isLoading">
+                @if (isLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Upload All with Metadata (@batchFiles.Count files)
+            </MudButton>
+        }
+    </MudTabPanel>
+</MudTabs>

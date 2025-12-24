@@ -1,0 +1,192 @@
+@Showcase_Api_HostAddress = http://localhost:5046
+
+# Demo JWT token (validation is disabled in Program.cs for demo purposes)
+# This is a valid JWT structure but with fake claims - works because validation is disabled
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vLXVzZXIiLCJuYW1lIjoiRGVtbyBVc2VyIiwiaWF0IjoxNzE2MjM5MDIyfQ.demo-signature
+
+# Get Scalar UI
+GET {{Showcase_Api_HostAddress}}/
+Accept: text/html
+
+###
+
+# ============================================
+# ACCOUNT ENDPOINTS
+# ============================================
+
+# List all accounts
+GET {{Showcase_Api_HostAddress}}/accounts
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+# List accounts with limit
+GET {{Showcase_Api_HostAddress}}/accounts?limit=5
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+# Get account by ID
+GET {{Showcase_Api_HostAddress}}/accounts/1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+# Get account by ID (non-existent - returns 404)
+GET {{Showcase_Api_HostAddress}}/accounts/999
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+# List paginated accounts (default pageSize=10, pageIndex=0)
+GET {{Showcase_Api_HostAddress}}/accounts/paginated
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+# List paginated accounts with custom page size and index
+GET {{Showcase_Api_HostAddress}}/accounts/paginated?pageSize=5&pageIndex=0
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+# List paginated accounts with query string filter
+GET {{Showcase_Api_HostAddress}}/accounts/paginated?pageSize=10&pageIndex=0&queryString=test
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+# List paginated accounts with continuation token
+GET {{Showcase_Api_HostAddress}}/accounts/paginated?pageSize=5&pageIndex=1
+Accept: application/json
+Authorization: Bearer {{token}}
+x-continuation: page:1
+
+###
+
+# List async-enumerable accounts (streaming)
+GET {{Showcase_Api_HostAddress}}/accounts/async-enumerable
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+# NOTE: To test actual streaming behavior, use curl from command line:
+# curl --no-buffer -N -H "Authorization: Bearer $token" http://localhost:5046/accounts/async-enumerable
+# You'll see JSON items appearing progressively (~1.2 seconds for 120 accounts)
+
+###
+
+# ============================================
+# TASK ENDPOINTS
+# ============================================
+
+# List all tasks
+GET {{Showcase_Api_HostAddress}}/tasks
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+# Get task by ID
+GET {{Showcase_Api_HostAddress}}/tasks/1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+# Create a new task
+POST {{Showcase_Api_HostAddress}}/tasks
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "title": "New Task from HTTP file",
+    "description": "Testing task creation"
+}
+
+###
+
+# Update a task
+PUT {{Showcase_Api_HostAddress}}/tasks/1
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "title": "Updated Task",
+    "description": "Updated description"
+}
+
+###
+
+# Delete a task
+DELETE {{Showcase_Api_HostAddress}}/tasks/1
+Authorization: Bearer {{token}}
+
+###
+
+# ============================================
+# USER ENDPOINTS
+# ============================================
+
+# List all users
+GET {{Showcase_Api_HostAddress}}/users
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+# Get user by ID
+GET {{Showcase_Api_HostAddress}}/users/1
+Accept: application/json
+Authorization: Bearer {{token}}
+
+###
+
+# Create a new user
+POST {{Showcase_Api_HostAddress}}/users
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john.doe@example.com",
+    "role": "Employee"
+}
+
+###
+
+# ============================================
+# FILE ENDPOINTS
+# ============================================
+
+# Get file by ID (public endpoint - no auth required)
+GET {{Showcase_Api_HostAddress}}/files/1
+Accept: application/octet-stream
+
+###
+
+# Upload single file
+POST {{Showcase_Api_HostAddress}}/files/upload
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+Authorization: Bearer {{token}}
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="test.txt"
+Content-Type: text/plain
+
+Hello, this is a test file content!
+------WebKitFormBoundary--
+
+###

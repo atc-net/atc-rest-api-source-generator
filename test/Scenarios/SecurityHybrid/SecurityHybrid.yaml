@@ -1,0 +1,393 @@
+openapi: 3.0.3
+info:
+  title: SecurityHybrid Sample API
+  description: |
+    API demonstrating hybrid security combining:
+    - ATC extensions (x-authentication-required, x-authorize-roles, x-authentication-schemes)
+    - Standard OpenAPI security (components/securitySchemes + security arrays)
+  version: 1.0.0
+
+# Document-level: Standard OpenAPI security
+security:
+  - bearer_auth: []
+
+# Document-level: ATC extensions for role-based authorization
+x-authorize-roles:
+  - admin
+  - manager
+  - user
+x-authentication-schemes:
+  - Bearer
+  - ApiKey
+
+components:
+  securitySchemes:
+    bearer_auth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Bearer authentication
+    api_key:
+      type: apiKey
+      name: X-API-Key
+      in: header
+      description: API Key authentication via header
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.com/authorize
+          tokenUrl: https://auth.example.com/token
+          scopes:
+            "orders:read": Read access to orders
+            "orders:write": Write access to orders
+            "admin": Full admin access
+
+  schemas:
+    HealthStatus:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: Health status
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of health check
+
+    Product:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        price:
+          type: number
+          format: decimal
+        inStock:
+          type: boolean
+
+    Order:
+      type: object
+      required:
+        - id
+        - customerId
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+        status:
+          type: string
+          enum:
+            - pending
+            - confirmed
+            - shipped
+            - delivered
+            - cancelled
+        totalAmount:
+          type: number
+          format: decimal
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - customerId
+      properties:
+        customerId:
+          type: string
+        items:
+          type: array
+          items:
+            type: string
+
+    AdminSettings:
+      type: object
+      properties:
+        maintenanceMode:
+          type: boolean
+        maxUsersPerTenant:
+          type: integer
+        features:
+          type: object
+          additionalProperties:
+            type: boolean
+
+paths:
+  # PUBLIC: Explicitly no auth (security: [] overrides document-level)
+  /public/health:
+    get:
+      operationId: getHealth
+      summary: Health check (public)
+      description: Public endpoint - security array empty overrides document-level
+      tags:
+        - public
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  # PRODUCTS: Path-level ATC extensions
+  /products:
+    x-authentication-required: true
+    get:
+      operationId: listProducts
+      summary: List products
+      description: Uses path-level x-authentication-required (inherits document-level bearer)
+      tags:
+        - products
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+
+  /products/{productId}:
+    x-authentication-required: true
+    x-authorize-roles:
+      - manager
+      - admin
+    parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getProductById
+      summary: Get product by ID
+      description: Path-level auth + roles (manager OR admin)
+      tags:
+        - products
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Not Found
+
+  # ORDERS: Standard OpenAPI OAuth2 scopes
+  /orders:
+    get:
+      operationId: listOrders
+      summary: List all orders
+      description: Uses standard OAuth2 with orders:read scope
+      tags:
+        - orders
+      security:
+        - oauth2:
+            - orders:read
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+
+    post:
+      operationId: createOrder
+      summary: Create a new order
+      description: Uses standard OAuth2 with orders:write scope
+      tags:
+        - orders
+      security:
+        - oauth2:
+            - orders:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /orders/{orderId}:
+    parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getOrderById
+      summary: Get order by ID
+      description: Multiple auth options (OR logic) - API key OR OAuth2
+      tags:
+        - orders
+      security:
+        - api_key: []
+        - oauth2:
+            - orders:read
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: Not Found
+
+    delete:
+      operationId: deleteOrder
+      summary: Delete an order
+      description: Requires BOTH orders:write AND admin scopes (AND logic)
+      tags:
+        - orders
+      security:
+        - oauth2:
+            - orders:write
+            - admin
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Not Found
+
+  # ADMIN: Combined ATC extensions + standard security
+  /admin/settings:
+    x-authentication-required: true
+    x-authorize-roles:
+      - admin
+    x-authentication-schemes:
+      - Bearer
+    get:
+      operationId: getAdminSettings
+      summary: Get admin settings
+      description: |
+        Combined security:
+        - ATC x-authentication-required: true
+        - ATC x-authorize-roles: [admin]
+        - ATC x-authentication-schemes: [Bearer]
+        - Standard security overrides to require API key
+      tags:
+        - admin
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSettings'
+
+    put:
+      operationId: updateAdminSettings
+      summary: Update admin settings
+      description: Inherits path-level ATC extensions (admin role + Bearer scheme)
+      tags:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminSettings'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSettings'
+
+  # REPORTS: Mixed - ATC extensions with OAuth2 scope override
+  /reports:
+    x-authentication-required: true
+    x-authorize-roles:
+      - admin
+      - manager
+    get:
+      operationId: listReports
+      summary: List reports
+      description: |
+        Path-level ATC roles (admin OR manager)
+        Operation-level OAuth2 scope adds orders:read requirement
+      tags:
+        - reports
+      security:
+        - oauth2:
+            - orders:read
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+
+  # TRACKING: AllowAnonymous override
+  /orders/{orderId}/tracking:
+    x-authentication-required: true
+    parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getOrderTracking
+      summary: Get order tracking
+      description: |
+        Path-level auth required, but operation overrides with:
+        - x-authentication-required: false (ATC AllowAnonymous)
+        This should generate .AllowAnonymous() even though path requires auth
+      tags:
+        - orders
+      x-authentication-required: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orderId:
+                    type: string
+                  status:
+                    type: string
+                  location:
+                    type: string
+        '404':
+          description: Not Found

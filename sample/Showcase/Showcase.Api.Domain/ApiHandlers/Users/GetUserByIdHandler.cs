@@ -1,0 +1,53 @@
+namespace Showcase.Api.Domain.ApiHandlers.Users;
+
+/// <summary>
+/// Handler business logic for the GetUserById operation.
+/// </summary>
+public sealed class GetUserByIdHandler : IGetUserByIdHandler
+{
+    private readonly UserInMemoryRepository repository;
+
+    public GetUserByIdHandler(UserInMemoryRepository repository)
+        => this.repository = repository;
+
+    public async Task<GetUserByIdResult> ExecuteAsync(
+        GetUserByIdParameters parameters,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(parameters);
+
+        var user = await repository.GetById(parameters.UserId);
+        if (user is null)
+        {
+            return GetUserByIdResult.NotFound();
+        }
+
+        return GetUserByIdResult.Ok(MapToApiModel(user));
+    }
+
+    private static User MapToApiModel(UserEntity user)
+        => new(
+            Id: user.Id,
+            FirstName: user.FirstName,
+            LastName: user.LastName,
+            Email: user.Email,
+            Phone: user.Phone,
+            Website: string.IsNullOrEmpty(user.Website) ? null : new Uri(user.Website),
+            DateOfBirth: new DateTimeOffset(user.DateOfBirth.ToDateTime(TimeOnly.MinValue)),
+            Age: user.Age,
+            Bio: user.Bio,
+            AvatarUrl: string.IsNullOrEmpty(user.AvatarUrl) ? null : new Uri(user.AvatarUrl),
+            Role: Enum.TryParse<UserRole>(user.Role.ToString(), out var apiRole) ? apiRole : UserRole.Guest,
+            Address: new Address(
+                Street: user.Address.Street,
+                City: user.Address.City,
+                State: user.Address.State,
+                PostalCode: user.Address.PostalCode,
+                Country: user.Address.Country,
+                CountryCode: user.Address.CountryCode,
+                Latitude: user.Address.Latitude,
+                Longitude: user.Address.Longitude),
+            CreatedAt: new DateTimeOffset(user.CreatedAt),
+            UpdatedAt: new DateTimeOffset(user.UpdatedAt),
+            IsActive: user.IsActive);
+}

@@ -1,0 +1,193 @@
+openapi: 3.0.4
+info:
+  title: MultipartDemo API
+  description: "A demonstration of multi-part OpenAPI specification files.\nThis base file references domain-specific parts for Accounts, Tasks, Users, Files, and Notifications.\n"
+  license:
+    name: MIT
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000
+    description: Local development server
+paths: { }
+components:
+  schemas:
+    SystemNotification:
+      required:
+        - id
+        - type
+        - severity
+        - timestamp
+        - message
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        severity:
+          $ref: '#/components/schemas/NotificationSeverity'
+        timestamp:
+          type: string
+          format: date-time
+        message:
+          type: string
+        data:
+          type: string
+          description: Optional JSON data as string
+        metrics:
+          $ref: '#/components/schemas/SystemMetrics'
+    SystemMetrics:
+      required:
+        - cpuUsage
+        - memoryUsage
+        - activeConnections
+        - requestsPerSecond
+        - averageResponseTime
+        - uptime
+      type: object
+      properties:
+        cpuUsage:
+          maximum: 100
+          minimum: 0
+          type: number
+          format: double
+        memoryUsage:
+          maximum: 100
+          minimum: 0
+          type: number
+          format: double
+        activeConnections:
+          minimum: 0
+          type: integer
+          format: int32
+        requestsPerSecond:
+          minimum: 0
+          type: number
+          format: double
+        averageResponseTime:
+          minimum: 0
+          type: number
+          format: double
+        uptime:
+          type: string
+    UserActivityEvent:
+      required:
+        - id
+        - userId
+        - action
+        - timestamp
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        action:
+          $ref: '#/components/schemas/UserAction'
+        timestamp:
+          type: string
+          format: date-time
+        ipAddress:
+          type: string
+        userAgent:
+          type: string
+        details:
+          type: string
+          description: Optional details as JSON string
+    UserAction:
+      enum:
+        - Login
+        - Logout
+        - ProfileUpdate
+        - PasswordChange
+        - AccountCreated
+        - AccountDeleted
+      type: string
+    DataChangeEvent:
+      required:
+        - id
+        - entityType
+        - entityId
+        - operation
+        - timestamp
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        entityType:
+          type: string
+        entityId:
+          type: string
+        operation:
+          $ref: '#/components/schemas/DataOperation'
+        timestamp:
+          type: string
+          format: date-time
+        performedBy:
+          type: string
+          format: uuid
+        previousValue:
+          type: string
+          description: Previous value as JSON string
+        newValue:
+          type: string
+          description: New value as JSON string
+    DataOperation:
+      enum:
+        - Created
+        - Updated
+        - Deleted
+      type: string
+    NotificationType:
+      enum:
+        - System
+        - User
+        - Data
+        - Alert
+        - Metric
+      type: string
+    NotificationSeverity:
+      enum:
+        - Info
+        - Warning
+        - Error
+        - Critical
+      type: string
+  securitySchemes:
+    bearer_auth:
+      type: http
+      description: JWT Bearer token authentication
+      scheme: bearer
+      bearerFormat: JWT
+    api_key:
+      type: apiKey
+      description: API Key authentication
+      name: X-API-Key
+      in: header
+security:
+  - bearer_auth: [ ]
+x-multi-part:
+  enabled: true
+  discovery: explicit
+  parts:
+    - MultipartDemo_Accounts.yaml
+    - MultipartDemo_Tasks.yaml
+    - MultipartDemo_Users.yaml
+    - MultipartDemo_Files.yaml
+    - MultipartDemo_Notifications.yaml
+    - MultipartDemo_Common.yaml
+x-ratelimit-policy: global
+x-ratelimit-permit-limit: 1000
+x-ratelimit-window-seconds: 60
+x-ratelimit-algorithm: sliding
+x-retry-policy: standard
+x-retry-max-attempts: 3
+x-retry-delay-seconds: 1
+x-retry-backoff: exponential
+x-retry-use-jitter: true
+x-retry-timeout-seconds: 30
+x-retry-handle-429: true

@@ -1,0 +1,5 @@
+{
+    "generate": true,
+    "generateHandlersOutput": "ApiHandlers",
+    "subFolderStrategy": "FirstPathSegment"
+}

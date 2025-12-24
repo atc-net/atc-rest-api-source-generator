@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NoWarn>$(NoWarn);MA0048;SA1649;MA0016;SA1516;CA2227;SA1413</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Atc.Rest.Api.Generator.Tests" />
+    <InternalsVisibleTo Include="Atc.Rest.Api.SourceGenerator" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.OpenApi" Version="3.0.3" />
+    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.0.3" />
+    <PackageReference Include="SharpYaml" Version="2.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Atc.CodeGeneration.CSharp\Atc.CodeGeneration.CSharp.csproj" />
+    <ProjectReference Include="..\Atc.OpenApi\Atc.OpenApi.csproj" />
+  </ItemGroup>
+
+  <!-- Generate version info at build time -->
+  <Target Name="GenerateVersionInfo" BeforeTargets="BeforeCompile;CoreCompile">
+    <PropertyGroup>
+      <_GeneratedVersionFile>$(IntermediateOutputPath)GeneratorInfo.Version.g.cs</_GeneratedVersionFile>
+    </PropertyGroup>
+    <ItemGroup>
+      <_VersionLine Include="namespace Atc.Rest.Api.Generator%3B" />
+      <_VersionLine Include="%20" />
+      <_VersionLine Include="public static partial class GeneratorInfo" />
+      <_VersionLine Include="{" />
+      <_VersionLine Include="    public const string Version = %22$(Version)%22%3B" />
+      <_VersionLine Include="}" />
+    </ItemGroup>
+    <MakeDir Directories="$(IntermediateOutputPath)" Condition="!Exists('$(IntermediateOutputPath)')" />
+    <WriteLinesToFile File="$(_GeneratedVersionFile)" Lines="@(_VersionLine)" Overwrite="true" />
+    <ItemGroup>
+      <Compile Include="$(_GeneratedVersionFile)" Exclude="@(Compile)" />
+    </ItemGroup>
+  </Target>
+
+</Project>

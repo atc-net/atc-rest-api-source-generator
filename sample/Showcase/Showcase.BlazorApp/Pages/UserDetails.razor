@@ -1,0 +1,208 @@
+@page "/users/{UserId}"
+
+<PageTitle>User Details</PageTitle>
+
+@if (isLoading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (user is null)
+{
+    <MudAlert Severity="Severity.Error">User not found</MudAlert>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12">
+            <MudBreadcrumbs Items="breadcrumbs" />
+        </MudItem>
+
+        <MudItem xs="12" md="4">
+            <MudCard Elevation="2">
+                <MudCardContent Class="d-flex flex-column align-center pa-6">
+                    <MudBadge Color="@(user.IsActive ? Color.Success : Color.Default)" Overlap="true" Bordered="true">
+                        <MudAvatar Size="Size.Large" Style="width: 150px; height: 150px;">
+                            @if (user.AvatarUrl is not null)
+                            {
+                                <MudImage Src="@user.AvatarUrl.ToString()" Alt="@user.FirstName" />
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.h3">@user.FirstName?.FirstOrDefault()@user.LastName?.FirstOrDefault()</MudText>
+                            }
+                        </MudAvatar>
+                    </MudBadge>
+
+                    <MudText Typo="Typo.h5" Class="mt-4">@user.FirstName @user.LastName</MudText>
+                    <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(user.Role)" Class="mt-1">@user.Role</MudChip>
+
+                    <MudDivider Class="my-4" Style="width: 100%;" />
+
+                    <MudText Typo="Typo.h6" Class="mb-2">Upload Profile Picture</MudText>
+                    <InputFile OnChange="OnProfileImageSelected" accept="image/jpeg,image/png" />
+                    @if (isUploading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mt-2" />
+                    }
+
+                    <MudDivider Class="my-4" Style="width: 100%;" />
+
+                    <div class="d-flex gap-2">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="@($"/users/{UserId}/edit")"
+                                   StartIcon="@Icons.Material.Filled.Edit">
+                            Edit
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="DeleteUserAsync"
+                                   StartIcon="@Icons.Material.Filled.Delete">
+                            Delete
+                        </MudButton>
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" md="8">
+            <MudCard Elevation="2" Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Contact Information</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12" sm="6">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Email</MudText>
+                            <MudText Typo="Typo.body1">
+                                <MudLink Href="@($"mailto:{user.Email}")">@user.Email</MudLink>
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Phone</MudText>
+                            <MudText Typo="Typo.body1">
+                                @if (!string.IsNullOrEmpty(user.Phone))
+                                {
+                                    <MudLink Href="@($"tel:{user.Phone}")">@user.Phone</MudLink>
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Website</MudText>
+                            <MudText Typo="Typo.body1">
+                                @if (user.Website is not null)
+                                {
+                                    <MudLink Href="@user.Website.ToString()" Target="_blank">@user.Website.ToString()</MudLink>
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Date of Birth</MudText>
+                            <MudText Typo="Typo.body1">@user.DateOfBirth (Age: @user.Age)</MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+
+            @if (!string.IsNullOrEmpty(user.Bio))
+            {
+                <MudCard Elevation="2" Class="mb-4">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Biography</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body1">@user.Bio</MudText>
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            <MudCard Elevation="2" Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Address</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    @if (user.Address is not null)
+                    {
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Street</MudText>
+                                <MudText Typo="Typo.body1">@user.Address.Street</MudText>
+
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-3">City</MudText>
+                                <MudText Typo="Typo.body1">@user.Address.City@(string.IsNullOrEmpty(user.Address.State) ? "" : $", {user.Address.State}")</MudText>
+
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-3">Postal Code</MudText>
+                                <MudText Typo="Typo.body1">@user.Address.PostalCode</MudText>
+
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-3">Country</MudText>
+                                <MudText Typo="Typo.body1">@user.Address.Country (@user.Address.CountryCode)</MudText>
+
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-3">Coordinates</MudText>
+                                <MudText Typo="Typo.body1">@user.Address.Latitude?.ToString("F4"), @user.Address.Longitude?.ToString("F4")</MudText>
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                @if (user.Address.Latitude.HasValue && user.Address.Longitude.HasValue)
+                                {
+                                    <div style="width: 100%; height: 250px; border: 1px solid #ccc; border-radius: 4px; overflow: hidden;">
+                                        <iframe
+                                            width="100%"
+                                            height="100%"
+                                            style="border:0"
+                                            loading="lazy"
+                                            allowfullscreen
+                                            referrerpolicy="no-referrer-when-downgrade"
+                                            src="@GetMapUrl(user.Address.Latitude.Value, user.Address.Longitude.Value)">
+                                        </iframe>
+                                    </div>
+                                    <MudText Typo="Typo.caption" Class="mt-1">
+                                        <MudLink Href="@GetGoogleMapsLink(user.Address.Latitude.Value, user.Address.Longitude.Value)" Target="_blank">
+                                            Open in Google Maps
+                                        </MudLink>
+                                    </MudText>
+                                }
+                            </MudItem>
+                        </MudGrid>
+                    }
+                    else
+                    {
+                        <MudText>No address information available</MudText>
+                    }
+                </MudCardContent>
+            </MudCard>
+
+            <MudCard Elevation="2">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Account Details</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem xs="12" sm="4">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">User ID</MudText>
+                            <MudText Typo="Typo.body2" Class="text-truncate">@user.Id</MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="4">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Created</MudText>
+                            <MudText Typo="Typo.body1">@FormatDateTime(user.CreatedAt)</MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="4">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Last Updated</MudText>
+                            <MudText Typo="Typo.body1">@FormatDateTime(user.UpdatedAt)</MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}

@@ -1,0 +1,203 @@
+openapi: 3.0.3
+info:
+  title: MultipartDemo API - Notifications
+  version: 1.0.0
+  description: Notification subscription and streaming endpoints
+
+paths:
+  /notifications/subscriptions:
+    get:
+      summary: List all notification subscriptions
+      operationId: listSubscriptions
+      tags:
+        - notifications
+      description: |
+        Returns all active notification subscriptions for the current user.
+      responses:
+        '200':
+          description: Array of subscriptions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscriptions"
+    post:
+      summary: Create a notification subscription
+      operationId: createSubscription
+      tags:
+        - notifications
+      description: |
+        Creates a new subscription to receive notifications via callback URL or SignalR.
+        For web clients, use the SignalR hub at /hubs/notifications instead of HTTP callbacks.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSubscriptionRequest"
+      responses:
+        '201':
+          description: Subscription created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        '400':
+          description: Invalid subscription request
+
+  /notifications/subscriptions/{subscriptionId}:
+    parameters:
+      - name: subscriptionId
+        in: path
+        required: true
+        description: The subscription ID
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get subscription by ID
+      operationId: getSubscriptionById
+      tags:
+        - notifications
+      responses:
+        '200':
+          description: Subscription details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        '404':
+          description: Subscription not found
+    delete:
+      summary: Cancel a subscription
+      operationId: deleteSubscription
+      tags:
+        - notifications
+      responses:
+        '204':
+          description: Subscription cancelled successfully
+        '404':
+          description: Subscription not found
+
+  /notifications/stream:
+    get:
+      summary: Stream notifications
+      operationId: listNotifications
+      tags:
+        - notifications
+      x-return-async-enumerable: true
+      description: |
+        Streams notifications in real-time using Server-Sent Events.
+        Alternative to SignalR for simple polling clients.
+      parameters:
+        - name: topics
+          in: query
+          description: Comma-separated list of topics to subscribe to
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Stream of notification events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationEvents"
+
+components:
+  schemas:
+    Subscription:
+      type: object
+      required:
+        - id
+        - name
+        - topics
+        - isActive
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        topics:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        callbackUrl:
+          type: string
+          format: uri
+        connectionId:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        lastNotificationAt:
+          type: string
+          format: date-time
+
+    Subscriptions:
+      type: array
+      items:
+        $ref: "#/components/schemas/Subscription"
+
+    CreateSubscriptionRequest:
+      type: object
+      required:
+        - name
+        - topics
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        topics:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        callbackUrl:
+          type: string
+          format: uri
+        expiresInMinutes:
+          type: integer
+          minimum: 1
+          maximum: 10080
+          default: 60
+
+    NotificationEvent:
+      type: object
+      required:
+        - id
+        - type
+        - severity
+        - timestamp
+        - message
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: 'MultipartDemo.yaml#/components/schemas/NotificationType'
+        severity:
+          $ref: 'MultipartDemo.yaml#/components/schemas/NotificationSeverity'
+        timestamp:
+          type: string
+          format: date-time
+        message:
+          type: string
+        payload:
+          type: string
+          description: Event payload as JSON string
+
+    NotificationEvents:
+      type: array
+      items:
+        $ref: "#/components/schemas/NotificationEvent"

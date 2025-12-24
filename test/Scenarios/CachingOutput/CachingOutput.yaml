@@ -1,0 +1,216 @@
+openapi: 3.0.3
+info:
+  title: CachingOutput Sample API
+  description: API demonstrating Output Caching extensions (x-cache-type output)
+  version: 1.0.0
+
+paths:
+  # 1. Path-level output cache with vary-by-query
+  /products:
+    x-cache-type: output
+    x-cache-policy: products
+    x-cache-expiration-seconds: 60
+    x-cache-vary-by-query:
+      - page
+      - limit
+      - category
+    x-cache-tags:
+      - products
+    get:
+      operationId: listProducts
+      summary: List products with output caching
+      tags:
+        - products
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+    post:
+      operationId: createProduct
+      summary: Create product (no caching)
+      tags:
+        - products
+      x-cache-enabled: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+
+  # 2. Path-level with vary-by-route
+  /products/{productId}:
+    x-cache-type: output
+    x-cache-policy: product-detail
+    x-cache-expiration-seconds: 300
+    x-cache-vary-by-route:
+      - productId
+    x-cache-tags:
+      - products
+      - product-detail
+    parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getProductById
+      summary: Get product by ID with output caching
+      tags:
+        - products
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Not Found
+    delete:
+      operationId: deleteProduct
+      summary: Delete product (no caching)
+      tags:
+        - products
+      x-cache-enabled: false
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Not Found
+
+  # 3. Operation-level output cache with vary-by-header
+  /categories:
+    get:
+      operationId: listCategories
+      summary: List categories with vary-by-header
+      tags:
+        - categories
+      x-cache-type: output
+      x-cache-policy: categories
+      x-cache-expiration-seconds: 3600
+      x-cache-vary-by-header:
+        - Accept-Language
+      x-cache-tags:
+        - categories
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+
+  # 4. No caching - should not generate any cache config
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health check (no caching)
+      tags:
+        - public
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+components:
+  schemas:
+    Product:
+      type: object
+      required:
+        - id
+        - name
+        - price
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+          format: double
+        categoryId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateProductRequest:
+      type: object
+      required:
+        - name
+        - price
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+          format: double
+        categoryId:
+          type: string
+          format: uuid
+
+    Category:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+
+    HealthStatus:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+        timestamp:
+          type: string
+          format: date-time

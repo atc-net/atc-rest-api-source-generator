@@ -1,0 +1,178 @@
+@page "/webhooks/demo"
+
+<MudText Typo="Typo.h4" Class="mb-4">Webhook Demo</MudText>
+
+<MudText Typo="Typo.body1" Class="mb-4">
+    This page demonstrates the webhook flow: when you click a button, the Blazor app POSTs
+    to the webhook endpoint, which broadcasts the notification via SignalR to all connected clients.
+</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">1. Connection Status</MudText>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                <MudChip T="string" Color="@GetConnectionColor()" Size="Size.Small">
+                    @HubService.ConnectionState
+                </MudChip>
+
+                @if (!HubService.IsConnected)
+                {
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               OnClick="ConnectAsync"
+                               Disabled="isConnecting"
+                               Size="Size.Small">
+                        @if (isConnecting)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        Connect
+                    </MudButton>
+                }
+                else if (!isSubscribed)
+                {
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Success"
+                               OnClick="SubscribeAsync"
+                               Size="Size.Small">
+                        Subscribe
+                    </MudButton>
+                }
+                else
+                {
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.Check">
+                        Listening
+                    </MudChip>
+                }
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="8">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">2. Trigger Webhooks</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+                Click a button to simulate an external service calling your webhook endpoints.
+            </MudText>
+            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           OnClick="TriggerSystemNotification"
+                           Disabled="!isSubscribed || isSending"
+                           StartIcon="@Icons.Material.Filled.Computer">
+                    System Alert
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           OnClick="TriggerUserActivity"
+                           Disabled="!isSubscribed || isSending"
+                           StartIcon="@Icons.Material.Filled.Person">
+                    User Activity
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Tertiary"
+                           OnClick="TriggerDataChange"
+                           Disabled="!isSubscribed || isSending"
+                           StartIcon="@Icons.Material.Filled.Storage">
+                    Data Change
+                </MudButton>
+
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Warning"
+                           OnClick="ClearNotifications"
+                           StartIcon="@Icons.Material.Filled.Clear">
+                    Clear
+                </MudButton>
+            </MudStack>
+
+            @if (!string.IsNullOrEmpty(lastError))
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3">@lastError</MudAlert>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudText Typo="Typo.h6" Class="mt-4 mb-2">
+    3. Received Notifications (@notifications.Count)
+</MudText>
+
+@if (notifications.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">
+        @if (!HubService.IsConnected)
+        {
+            <span>Connect to the notification hub first.</span>
+        }
+        else if (!isSubscribed)
+        {
+            <span>Subscribe to start receiving notifications.</span>
+        }
+        else
+        {
+            <span>Click a webhook button above to trigger a notification.</span>
+        }
+    </MudAlert>
+}
+else
+{
+    <MudStack Spacing="2">
+        @foreach (var notification in notifications.AsEnumerable().Reverse())
+        {
+            <MudCard Outlined="true" Elevation="1">
+                <MudCardContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@GetNotificationIcon(notification.Type)"
+                                 Color="@GetSeverityColor(notification.Severity)" />
+                        <MudChip T="string" Size="Size.Small" Color="@GetTypeChipColor(notification.Type)">
+                            @notification.Type
+                        </MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="@GetSeverityChipColor(notification.Severity)">
+                            @notification.Severity
+                        </MudChip>
+                        <MudSpacer />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @notification.Timestamp.ToLocalTime().ToString("HH:mm:ss.fff")
+                        </MudText>
+                    </MudStack>
+                    <MudText Typo="Typo.body1" Class="mt-2">
+                        @notification.Message
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        }
+    </MudStack>
+}
+
+<MudDivider Class="my-4" />
+
+<MudExpansionPanels>
+    <MudExpansionPanel Text="How it works">
+        <MudText Typo="Typo.body2">
+            <ol>
+                <li><strong>Connect</strong> - The Blazor app connects to the SignalR hub at <code>/hubs/notifications</code></li>
+                <li><strong>Subscribe</strong> - Subscribes to System, User, and Data notification topics</li>
+                <li><strong>Trigger Webhook</strong> - Clicking a button sends an HTTP POST to the webhook endpoint (e.g., <code>/webhooks/system-notification</code>)</li>
+                <li><strong>Server Handler</strong> - The webhook handler receives the payload and broadcasts it via SignalR</li>
+                <li><strong>Real-time Update</strong> - All connected SignalR clients receive the notification instantly</li>
+            </ol>
+        </MudText>
+        <MudText Typo="Typo.body2" Class="mt-2">
+            <strong>Webhook Endpoints:</strong>
+        </MudText>
+        <MudList T="string" Dense="true">
+            <MudListItem Icon="@Icons.Material.Filled.Computer">
+                <code>POST /webhooks/system-notification</code>
+            </MudListItem>
+            <MudListItem Icon="@Icons.Material.Filled.Person">
+                <code>POST /webhooks/user-activity</code>
+            </MudListItem>
+            <MudListItem Icon="@Icons.Material.Filled.Storage">
+                <code>POST /webhooks/data-change</code>
+            </MudListItem>
+        </MudList>
+    </MudExpansionPanel>
+</MudExpansionPanels>

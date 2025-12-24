@@ -1,0 +1,1150 @@
+openapi: "3.1.0"
+info:
+  version: 1.0.0
+  title: Models And Properties API
+  description: |
+    Comprehensive test API demonstrating all OpenAPI data types, formats,
+    validation constraints, default values, nullable properties, enums,
+    nested objects, and schema composition patterns.
+  license:
+    name: MIT
+servers:
+  - url: http://models-api.example.com/v1
+paths:
+  /models:
+    get:
+      summary: List all models
+      operationId: listModels
+      tags:
+        - models
+      responses:
+        '200':
+          description: Array of comprehensive models
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ComprehensiveModel"
+    post:
+      summary: Create a new model
+      operationId: createModel
+      tags:
+        - models
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComprehensiveModel"
+      responses:
+        '201':
+          description: Model created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComprehensiveModel"
+        '400':
+          description: Validation error
+  /models/{modelId}:
+    parameters:
+      - name: modelId
+        in: path
+        required: true
+        description: The model identifier
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get a specific model
+      operationId: getModelById
+      tags:
+        - models
+      responses:
+        '200':
+          description: Model details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComprehensiveModel"
+        '404':
+          description: Model not found
+  /addresses:
+    get:
+      summary: List addresses
+      operationId: listAddresses
+      tags:
+        - addresses
+      responses:
+        '200':
+          description: Array of addresses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Address"
+    post:
+      summary: Create address
+      operationId: createAddress
+      tags:
+        - addresses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Address"
+      responses:
+        '201':
+          description: Address created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Address"
+  /countries:
+    get:
+      summary: List countries
+      operationId: listCountries
+      tags:
+        - countries
+      responses:
+        '200':
+          description: Array of countries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Country"
+  /persons:
+    get:
+      summary: List persons
+      operationId: listPersons
+      tags:
+        - persons
+      parameters:
+        - name: gender
+          in: query
+          description: Filter by gender
+          required: false
+          schema:
+            $ref: "#/components/schemas/GenderType"
+      responses:
+        '200':
+          description: Array of persons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Person"
+  /primitives:
+    get:
+      summary: Get primitive types model
+      operationId: getPrimitiveTypes
+      tags:
+        - primitives
+      responses:
+        '200':
+          description: Primitive types demonstration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrimitiveTypes"
+  /string-formats:
+    get:
+      summary: Get string format types
+      operationId: getStringFormats
+      tags:
+        - stringFormats
+      responses:
+        '200':
+          description: String format types demonstration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StringFormats"
+  /validations:
+    get:
+      summary: Get validation constraints model
+      operationId: getValidations
+      tags:
+        - validations
+      responses:
+        '200':
+          description: Validation constraints demonstration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationConstraints"
+  /defaults:
+    get:
+      summary: Get default values model
+      operationId: getDefaults
+      tags:
+        - defaults
+      responses:
+        '200':
+          description: Default values demonstration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DefaultValues"
+  /nullables:
+    get:
+      summary: Get nullable types model
+      operationId: getNullables
+      tags:
+        - nullables
+      responses:
+        '200':
+          description: Nullable types demonstration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NullableTypes"
+  /arrays:
+    get:
+      summary: Get array types model
+      operationId: getArrayTypes
+      tags:
+        - arrays
+      responses:
+        '200':
+          description: Array types demonstration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArrayTypes"
+  /dictionaries:
+    get:
+      summary: Get dictionary types model
+      operationId: getDictionaryTypes
+      tags:
+        - dictionaries
+      responses:
+        '200':
+          description: Dictionary/map types demonstration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DictionaryTypes"
+  /enums:
+    get:
+      summary: Get enum types model
+      operationId: getEnumTypes
+      tags:
+        - enums
+      responses:
+        '200':
+          description: Enum types demonstration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnumTypes"
+components:
+  schemas:
+    # ========================================
+    # COMPREHENSIVE MODEL - All features combined
+    # ========================================
+    ComprehensiveModel:
+      title: ComprehensiveModel
+      description: A comprehensive model demonstrating all OpenAPI features
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - createdAt
+      properties:
+        # === Identifier Types ===
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier (UUID)
+
+        # === Basic String Types ===
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Display name with length constraints
+        description:
+          type: string
+          maxLength: 500
+          description: Optional description
+          nullable: true
+
+        # === String Format Types ===
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: Email address with format validation
+        website:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: Website URL
+          nullable: true
+
+        # === Date/Time Types ===
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          nullable: true
+        birthDate:
+          type: string
+          format: date
+          description: Date of birth (date only)
+          nullable: true
+        preferredTime:
+          type: string
+          format: time
+          description: Preferred contact time (HH:mm:ss)
+          nullable: true
+
+        # === Numeric Types ===
+        age:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 150
+          description: Age in years
+          nullable: true
+        score:
+          type: number
+          format: double
+          minimum: 0.0
+          maximum: 100.0
+          description: Score as floating point
+          nullable: true
+        rating:
+          type: number
+          format: float
+          minimum: 1.0
+          maximum: 5.0
+          description: Rating (1-5 stars)
+          nullable: true
+        viewCount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: View count as long integer
+          nullable: true
+
+        # === Boolean Type ===
+        isActive:
+          type: boolean
+          default: true
+          description: Whether the model is active
+        isVerified:
+          type: boolean
+          description: Whether the model is verified
+          nullable: true
+
+        # === Pattern Validation ===
+        phoneNumber:
+          type: string
+          pattern: '^\+?[1-9]\d{6,14}$'
+          description: Phone number in E.164 format
+          nullable: true
+
+        # === Nested Object Reference ===
+        address:
+          $ref: "#/components/schemas/Address"
+
+        # === Enum Reference ===
+        gender:
+          $ref: "#/components/schemas/GenderType"
+        status:
+          $ref: "#/components/schemas/StatusType"
+
+        # === Array Types ===
+        tags:
+          type: array
+          items:
+            type: string
+          minItems: 0
+          maxItems: 10
+          description: List of tags
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleType"
+          description: List of assigned roles
+
+        # === Dictionary/Map Type ===
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+          description: Key-value metadata
+
+    # ========================================
+    # PRIMITIVE TYPES - All basic types
+    # ========================================
+    PrimitiveTypes:
+      title: PrimitiveTypes
+      description: Demonstrates all primitive OpenAPI types
+      type: object
+      required:
+        - stringValue
+        - integerValue
+        - numberValue
+        - booleanValue
+      properties:
+        # String (default)
+        stringValue:
+          type: string
+          description: Basic string type
+
+        # Integer types
+        integerValue:
+          type: integer
+          description: Default integer (int32)
+        integerInt32:
+          type: integer
+          format: int32
+          description: Explicit int32
+        integerInt64:
+          type: integer
+          format: int64
+          description: Long integer (int64)
+
+        # Number types
+        numberValue:
+          type: number
+          description: Default number (double)
+        numberFloat:
+          type: number
+          format: float
+          description: Float number
+        numberDouble:
+          type: number
+          format: double
+          description: Double number
+
+        # Boolean
+        booleanValue:
+          type: boolean
+          description: Boolean value
+
+    # ========================================
+    # STRING FORMATS - All string format types
+    # ========================================
+    StringFormats:
+      title: StringFormats
+      description: Demonstrates all string format types
+      type: object
+      required:
+        - plainString
+        - uuidValue
+        - dateTimeValue
+      properties:
+        # Plain string
+        plainString:
+          type: string
+          description: Plain string without format
+
+        # UUID
+        uuidValue:
+          type: string
+          format: uuid
+          description: UUID format (maps to Guid)
+
+        # Date/Time formats
+        dateTimeValue:
+          type: string
+          format: date-time
+          description: ISO 8601 date-time (maps to DateTimeOffset)
+        dateValue:
+          type: string
+          format: date
+          description: ISO 8601 date (maps to DateTimeOffset)
+          nullable: true
+        timeValue:
+          type: string
+          format: time
+          description: ISO 8601 time (stays as string)
+          nullable: true
+
+        # URI/URL
+        uriValue:
+          type: string
+          format: uri
+          description: URI format (maps to Uri)
+          nullable: true
+
+        # Email
+        emailValue:
+          type: string
+          format: email
+          description: Email format (string + EmailAddress attribute)
+          nullable: true
+
+        # Base64 encoded
+        byteValue:
+          type: string
+          format: byte
+          description: Base64 encoded string
+          nullable: true
+
+        # Password (UI hint)
+        passwordValue:
+          type: string
+          format: password
+          description: Password (UI masking hint)
+          nullable: true
+
+        # Network formats
+        hostnameValue:
+          type: string
+          format: hostname
+          description: Hostname format
+          nullable: true
+        ipv4Value:
+          type: string
+          format: ipv4
+          description: IPv4 address format
+          nullable: true
+        ipv6Value:
+          type: string
+          format: ipv6
+          description: IPv6 address format
+          nullable: true
+
+    # ========================================
+    # VALIDATION CONSTRAINTS - All validation types
+    # ========================================
+    ValidationConstraints:
+      title: ValidationConstraints
+      description: Demonstrates all validation constraint types
+      type: object
+      required:
+        - requiredString
+        - requiredInteger
+      properties:
+        # Required validation
+        requiredString:
+          type: string
+          description: Required string property
+        requiredInteger:
+          type: integer
+          description: Required integer property
+
+        # String length validation
+        minLengthString:
+          type: string
+          minLength: 5
+          description: String with minimum length 5
+        maxLengthString:
+          type: string
+          maxLength: 100
+          description: String with maximum length 100
+        lengthRangeString:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: String with length range 2-50
+
+        # Pattern validation
+        patternString:
+          type: string
+          pattern: '^[A-Z]{2,3}$'
+          description: String matching pattern (2-3 uppercase letters)
+        phonePattern:
+          type: string
+          pattern: '^\+?[1-9]\d{6,14}$'
+          description: Phone number pattern (E.164)
+        alphanumericPattern:
+          type: string
+          pattern: '^[a-zA-Z0-9_-]+$'
+          description: Alphanumeric with underscore and hyphen
+
+        # Integer range validation
+        minInteger:
+          type: integer
+          minimum: 0
+          description: Integer with minimum 0
+        maxInteger:
+          type: integer
+          maximum: 100
+          description: Integer with maximum 100
+        rangeInteger:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: Integer with range 1-1000
+
+        # Number range validation
+        minNumber:
+          type: number
+          minimum: 0.0
+          description: Number with minimum 0.0
+        maxNumber:
+          type: number
+          maximum: 99.99
+          description: Number with maximum 99.99
+        rangeNumber:
+          type: number
+          minimum: -180.0
+          maximum: 180.0
+          description: Number with range -180 to 180 (longitude)
+
+        # Decimal precision (common in financial applications)
+        priceValue:
+          type: number
+          minimum: 0.01
+          maximum: 999999.99
+          description: Price value with typical constraints
+
+        # Large integer (long)
+        largeLong:
+          type: integer
+          format: int64
+          minimum: 1000000000
+          maximum: 9999999999999
+          description: Large long integer with range
+
+    # ========================================
+    # DEFAULT VALUES - All types with defaults
+    # ========================================
+    DefaultValues:
+      title: DefaultValues
+      description: Demonstrates default values for all types
+      type: object
+      properties:
+        # String defaults
+        stringDefault:
+          type: string
+          default: "default-value"
+          description: String with default value
+        emailDefault:
+          type: string
+          format: email
+          default: "default@example.com"
+          description: Email with default value
+
+        # Integer defaults
+        integerDefault:
+          type: integer
+          default: 42
+          description: Integer with default value
+        int64Default:
+          type: integer
+          format: int64
+          default: 1000000
+          description: Long with default value
+
+        # Number defaults
+        numberDefault:
+          type: number
+          default: 3.14159
+          description: Number with default value
+        floatDefault:
+          type: number
+          format: float
+          default: 1.5
+          description: Float with default value
+
+        # Boolean defaults
+        booleanTrueDefault:
+          type: boolean
+          default: true
+          description: Boolean defaulting to true
+        booleanFalseDefault:
+          type: boolean
+          default: false
+          description: Boolean defaulting to false
+
+        # Combined with validation
+        integerWithRangeAndDefault:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+          description: Integer with range and default
+        stringWithLengthAndDefault:
+          type: string
+          minLength: 1
+          maxLength: 50
+          default: "Hello"
+          description: String with length constraints and default
+
+    # ========================================
+    # NULLABLE TYPES - All types as nullable
+    # ========================================
+    NullableTypes:
+      title: NullableTypes
+      description: Demonstrates nullable versions of all types
+      type: object
+      required:
+        - requiredString
+      properties:
+        requiredString:
+          type: string
+          description: Required non-nullable string
+
+        # Nullable primitives
+        nullableString:
+          type: string
+          nullable: true
+          description: Nullable string
+        nullableInteger:
+          type: integer
+          nullable: true
+          description: Nullable integer
+        nullableLong:
+          type: integer
+          format: int64
+          nullable: true
+          description: Nullable long
+        nullableNumber:
+          type: number
+          nullable: true
+          description: Nullable number
+        nullableFloat:
+          type: number
+          format: float
+          nullable: true
+          description: Nullable float
+        nullableBoolean:
+          type: boolean
+          nullable: true
+          description: Nullable boolean
+
+        # Nullable format types
+        nullableUuid:
+          type: string
+          format: uuid
+          nullable: true
+          description: Nullable UUID
+        nullableDateTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: Nullable date-time
+        nullableDate:
+          type: string
+          format: date
+          nullable: true
+          description: Nullable date
+        nullableUri:
+          type: string
+          format: uri
+          nullable: true
+          description: Nullable URI
+        nullableEmail:
+          type: string
+          format: email
+          nullable: true
+          description: Nullable email
+
+        # Nullable with validation
+        nullableIntegerWithRange:
+          type: integer
+          minimum: 0
+          maximum: 100
+          nullable: true
+          description: Nullable integer with range
+        nullableStringWithLength:
+          type: string
+          minLength: 1
+          maxLength: 255
+          nullable: true
+          description: Nullable string with length
+
+        # Nullable with default
+        nullableWithDefault:
+          type: string
+          nullable: true
+          default: "default-nullable"
+          description: Nullable string with default
+
+        # Nullable array
+        nullableArray:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: Nullable array of strings
+
+        # Nullable object reference
+        nullableAddress:
+          allOf:
+            - $ref: "#/components/schemas/Address"
+          nullable: true
+          description: Nullable address reference
+
+    # ========================================
+    # ARRAY TYPES - All array variations
+    # ========================================
+    ArrayTypes:
+      title: ArrayTypes
+      description: Demonstrates all array type variations
+      type: object
+      properties:
+        # Simple arrays
+        stringArray:
+          type: array
+          items:
+            type: string
+          description: Array of strings
+        integerArray:
+          type: array
+          items:
+            type: integer
+          description: Array of integers
+        numberArray:
+          type: array
+          items:
+            type: number
+          description: Array of numbers
+        booleanArray:
+          type: array
+          items:
+            type: boolean
+          description: Array of booleans
+
+        # Formatted arrays
+        uuidArray:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Array of UUIDs
+        dateTimeArray:
+          type: array
+          items:
+            type: string
+            format: date-time
+          description: Array of date-times
+
+        # Arrays with constraints
+        limitedArray:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 10
+          description: Array with min/max items
+        uniqueArray:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+          description: Array with unique items
+
+        # Array of objects
+        addressArray:
+          type: array
+          items:
+            $ref: "#/components/schemas/Address"
+          description: Array of Address objects
+
+        # Array of enums
+        statusArray:
+          type: array
+          items:
+            $ref: "#/components/schemas/StatusType"
+          description: Array of status enum values
+
+        # Nested array (array of arrays)
+        nestedStringArray:
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+          description: Two-dimensional array of strings
+
+    # ========================================
+    # DICTIONARY/MAP TYPES - AdditionalProperties
+    # ========================================
+    DictionaryTypes:
+      title: DictionaryTypes
+      description: Demonstrates dictionary/map types using additionalProperties
+      type: object
+      properties:
+        # String values
+        stringDictionary:
+          type: object
+          additionalProperties:
+            type: string
+          description: Dictionary<string, string>
+
+        # Integer values
+        integerDictionary:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Dictionary<string, int>
+
+        # Number values
+        numberDictionary:
+          type: object
+          additionalProperties:
+            type: number
+          description: Dictionary<string, double>
+
+        # Boolean values
+        booleanDictionary:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: Dictionary<string, bool>
+
+        # Object reference values
+        addressDictionary:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/Address"
+          description: Dictionary<string, Address>
+
+        # Array values
+        stringArrayDictionary:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          description: Dictionary<string, string[]>
+
+    # ========================================
+    # ENUM TYPES - Various enum patterns
+    # ========================================
+    EnumTypes:
+      title: EnumTypes
+      description: Demonstrates enum type usage
+      type: object
+      properties:
+        # PascalCase enum
+        genderType:
+          $ref: "#/components/schemas/GenderType"
+
+        # PascalCase with more values
+        statusType:
+          $ref: "#/components/schemas/StatusType"
+
+        # kebab-case enum (needs EnumMember)
+        colorType:
+          $ref: "#/components/schemas/ColorType"
+
+        # snake_case enum (needs EnumMember)
+        priorityType:
+          $ref: "#/components/schemas/PriorityType"
+
+        # Inline enum (not as $ref)
+        inlineEnum:
+          type: string
+          enum:
+            - Option1
+            - Option2
+            - Option3
+          description: Inline enum definition
+
+        # Role enum
+        roleType:
+          $ref: "#/components/schemas/RoleType"
+
+    # ========================================
+    # ADDRESS - Nested object with validation
+    # ========================================
+    Address:
+      title: Address
+      description: Postal address with validation constraints
+      type: object
+      required:
+        - streetName
+        - postalCode
+        - cityName
+        - country
+      properties:
+        streetName:
+          type: string
+          maxLength: 255
+          description: Street name
+        streetNumber:
+          type: string
+          maxLength: 20
+          description: Street/house number
+          nullable: true
+        postalCode:
+          type: string
+          minLength: 2
+          maxLength: 20
+          description: Postal/ZIP code
+        cityName:
+          type: string
+          maxLength: 100
+          description: City name
+        state:
+          type: string
+          maxLength: 100
+          description: State or region
+          nullable: true
+        country:
+          $ref: "#/components/schemas/Country"
+
+    # ========================================
+    # COUNTRY - Object with pattern validation
+    # ========================================
+    Country:
+      title: Country
+      description: Country with ISO code validation
+      type: object
+      required:
+        - name
+        - alpha2Code
+        - alpha3Code
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          description: Country name
+        alpha2Code:
+          type: string
+          minLength: 2
+          maxLength: 2
+          pattern: '^[A-Z]{2}$'
+          description: ISO 3166-1 alpha-2 code (e.g., US, GB)
+        alpha3Code:
+          type: string
+          minLength: 3
+          maxLength: 3
+          pattern: '^[A-Z]{3}$'
+          description: ISO 3166-1 alpha-3 code (e.g., USA, GBR)
+        numericCode:
+          type: integer
+          minimum: 0
+          maximum: 999
+          description: ISO 3166-1 numeric code
+          nullable: true
+        phonePrefix:
+          type: string
+          pattern: '^\+[1-9][0-9]{0,3}$'
+          description: International phone prefix (e.g., +1, +44)
+          nullable: true
+
+    # ========================================
+    # PERSON - Complex nested model
+    # ========================================
+    Person:
+      title: Person
+      description: Person entity with all property types
+      type: object
+      required:
+        - id
+        - firstName
+        - lastName
+        - email
+      properties:
+        id:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          pattern: '^\+?[1-9]\d{6,14}$'
+          nullable: true
+        website:
+          type: string
+          format: uri
+          nullable: true
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+        gender:
+          $ref: "#/components/schemas/GenderType"
+        address:
+          $ref: "#/components/schemas/Address"
+        isActive:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    # ========================================
+    # ENUMS
+    # ========================================
+    GenderType:
+      title: GenderType
+      description: Gender type enumeration
+      type: string
+      enum:
+        - None
+        - NonBinary
+        - Male
+        - Female
+
+    StatusType:
+      title: StatusType
+      description: Status enumeration
+      type: string
+      enum:
+        - Draft
+        - Pending
+        - Active
+        - Inactive
+        - Archived
+        - Deleted
+
+    RoleType:
+      title: RoleType
+      description: User role enumeration
+      type: string
+      enum:
+        - Admin
+        - Manager
+        - Editor
+        - Viewer
+        - Guest
+
+    # kebab-case enum - requires EnumMember attributes
+    ColorType:
+      title: ColorType
+      description: Color enumeration with kebab-case values
+      type: string
+      enum:
+        - primary-blue
+        - secondary-green
+        - accent-red
+        - neutral-gray
+        - warning-yellow
+
+    # snake_case enum - requires EnumMember attributes
+    PriorityType:
+      title: PriorityType
+      description: Priority enumeration with snake_case values
+      type: string
+      enum:
+        - very_low
+        - low
+        - medium
+        - high
+        - very_high
+        - critical

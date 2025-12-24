@@ -1,0 +1,430 @@
+// ReSharper disable ConvertIfStatementToConditionalTernaryExpression
+// ReSharper disable InvertIf
+// ReSharper disable StringLiteralTypo
+
+namespace Atc.CodeGeneration.CSharp.Content.Generators.Internal;
+
+[SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "OK.")]
+public class GenerateContentWriter
+{
+    private readonly ICodeDocumentationTagsGenerator codeDocumentationTagsGenerator;
+
+    public GenerateContentWriter(
+        ICodeDocumentationTagsGenerator codeDocumentationTagsGenerator)
+    {
+        this.codeDocumentationTagsGenerator = codeDocumentationTagsGenerator;
+    }
+
+    public string GenerateTopOfType(
+        string? headerContent,
+        string @namespace,
+        CodeDocumentationTags? documentationTags,
+        IList<AttributeParameters>? attributes)
+    {
+        var sb = new StringBuilder();
+
+        if (!string.IsNullOrEmpty(headerContent))
+        {
+            sb.Append(headerContent);
+        }
+
+        sb.AppendLine($"namespace {@namespace};");
+        sb.AppendLine();
+        if (documentationTags is not null)
+        {
+            sb.Append(codeDocumentationTagsGenerator.GenerateTags(0, documentationTags));
+        }
+
+        if (attributes is not null)
+        {
+            foreach (var attribute in attributes)
+            {
+                sb.AppendAttribute(usePropertyPrefix: false, attribute);
+                sb.AppendLine();
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    public string GenerateConstructor(
+        ConstructorParameters parameters)
+    {
+        if (parameters is null)
+        {
+            throw new ArgumentNullException(nameof(parameters));
+        }
+
+        var sb = new StringBuilder();
+
+        sb.AppendDeclarationModifier(4, parameters.DeclarationModifier);
+
+        if (string.IsNullOrEmpty(parameters.GenericTypeName))
+        {
+            sb.Append($"{parameters.TypeName}(");
+        }
+        else
+        {
+            sb.Append($"{parameters.GenericTypeName}<{parameters.TypeName}>(");
+        }
+
+        if (parameters.Parameters is not null)
+        {
+            if (parameters.Parameters.Count(x => x.PassToInheritedClass) == 1)
+            {
+                var firstParameterParameters = parameters.Parameters[0];
+                if (firstParameterParameters.CreateAaOneLiner)
+                {
+                    sb.Append($"{firstParameterParameters.TypeName} {firstParameterParameters.Name})");
+                }
+                else
+                {
+                    sb.AppendLine($"{firstParameterParameters.TypeName} {firstParameterParameters.Name})");
+                }
+            }
+            else
+            {
+                sb.AppendLine();
+                for (var i = 0; i < parameters.Parameters.Count; i++)
+                {
+                    var item = parameters.Parameters[i];
+                    var useCommaForEndChar = i != parameters.Parameters.Count - 1;
+                    sb.AppendInputParameter(
+                        8,
+                        usePropertyPrefix: false,
+                        attributes: null,
+                        item.GenericTypeName,
+                        item.TypeName,
+                        item.IsNullableType,
+                        item.Name,
+                        item.DefaultValue,
+                        useCommaForEndChar);
+                }
+
+                sb.AppendLine();
+                sb.AppendLine(4, "{");
+                foreach (var item in parameters.Parameters)
+                {
+                    sb.AppendLine(8, $"this.{item.Name} = {item.Name};");
+                }
+
+                sb.Append(4, "}");
+            }
+        }
+
+        if (!string.IsNullOrEmpty(parameters.InheritedClassTypeName))
+        {
+            if (parameters.Parameters is not null &&
+                parameters.Parameters.Count(x => x.PassToInheritedClass) == 1)
+            {
+                var firstParameterParameters = parameters.Parameters[0];
+                if (firstParameterParameters.CreateAaOneLiner)
+                {
+                    sb.Append($" : {parameters.InheritedClassTypeName}({firstParameterParameters.Name}) {{ }}");
+                }
+                else
+                {
+                    sb.AppendLine(8, $": {parameters.InheritedClassTypeName}({firstParameterParameters.Name})");
+                    sb.AppendLine(4, "{");
+                    sb.Append("    }");
+                }
+            }
+            else
+            {
+                // TODO Handle this.
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    public string GeneratePrivateReadonlyMembersToConstructor(
+        IList<ConstructorParameters> parameters)
+    {
+        if (parameters is null)
+        {
+            throw new ArgumentNullException(nameof(parameters));
+        }
+
+        var sb = new StringBuilder();
+
+        foreach (var parametersConstructor in parameters)
+        {
+            if (parametersConstructor.Parameters is not null)
+            {
+                foreach (var parametersConstructorParameter in parametersConstructor.Parameters)
+                {
+                    if (parametersConstructorParameter.CreateAsPrivateReadonlyMember)
+                    {
+                        sb.AppendLine(4, $"private readonly {parametersConstructorParameter.TypeName} {parametersConstructorParameter.Name};");
+                    }
+                }
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    public string GenerateProperty(
+        PropertyParameters parameters)
+    {
+        if (parameters is null)
+        {
+            throw new ArgumentNullException(nameof(parameters));
+        }
+
+        var sb = new StringBuilder();
+
+        if (parameters.DocumentationTags is not null)
+        {
+            sb.Append(codeDocumentationTagsGenerator.GenerateTags(4, parameters.DocumentationTags));
+        }
+
+        if (parameters.Attributes is not null)
+        {
+            sb.AppendAttributesAsLines(4, usePropertyPrefix: false, parameters.Attributes);
+        }
+
+        if (parameters.JsonName is not null)
+        {
+            sb.AppendLine(4, $"[JsonPropertyName(\"{parameters.JsonName}\")]");
+        }
+
+        sb.Append("    ");
+        if (parameters.DeclarationModifier != DeclarationModifiers.None)
+        {
+            sb.AppendDeclarationModifier(parameters.DeclarationModifier);
+        }
+
+        if (parameters.UseRequired)
+        {
+            sb.Append("required ");
+        }
+
+        sb.AppendTypeAndName(parameters.GenericTypeName, parameters.TypeName, parameters.IsNullableType, parameters.Name);
+
+        if (parameters.UseAutoProperty)
+        {
+            sb.Append(" { ");
+            if (parameters.UseGet)
+            {
+                sb.Append("get; ");
+            }
+
+            if (parameters.UseSet)
+            {
+                sb.Append("set; ");
+            }
+
+            sb.Append('}');
+
+            if (parameters.UseExpressionBody &&
+               !string.IsNullOrEmpty(parameters.Content))
+            {
+                sb.AppendContentAsExpressionBody(1, parameters.Content);
+            }
+            else if (!string.IsNullOrEmpty(parameters.DefaultValue))
+            {
+                if (!parameters.IsGenericListType &&
+                    parameters.TypeName.Equals("string", StringComparison.Ordinal) &&
+                    !parameters.DefaultValue.Equals("null", StringComparison.Ordinal) &&
+                    !parameters.DefaultValue.Equals("string.Empty", StringComparison.Ordinal))
+                {
+                    sb.Append($" = \"{parameters.DefaultValue}\";");
+                }
+                else
+                {
+                    sb.Append($" = {parameters.DefaultValue};");
+                }
+            }
+        }
+        else if (!string.IsNullOrEmpty(parameters.Content))
+        {
+            sb.AppendLine();
+            if (parameters.UseExpressionBody)
+            {
+                sb.AppendContentAsExpressionBody(8, parameters.Content);
+            }
+            else
+            {
+                sb.AppendContent(8, parameters.Content);
+            }
+        }
+        else
+        {
+            throw new ArgumentException("Content is missing or use UseAutoProperty", nameof(parameters));
+        }
+
+        return sb.ToString();
+    }
+
+    public string GenerateMethod(MethodParameters parameters)
+    {
+        if (parameters is null)
+        {
+            throw new ArgumentNullException(nameof(parameters));
+        }
+
+        var sb = new StringBuilder();
+
+        if (parameters.DocumentationTags is not null)
+        {
+            sb.Append(codeDocumentationTagsGenerator.GenerateTags(4, parameters.DocumentationTags));
+        }
+
+        if (parameters.Attributes is not null)
+        {
+            sb.AppendAttributesAsLines(4, usePropertyPrefix: false, parameters.Attributes);
+        }
+
+        sb.Append("    ");
+        if (parameters.DeclarationModifier != DeclarationModifiers.None)
+        {
+            sb.AppendDeclarationModifier(parameters.DeclarationModifier);
+        }
+
+        if (string.IsNullOrEmpty(parameters.ReturnTypeName))
+        {
+            sb.Append(parameters.Name);
+        }
+        else
+        {
+            sb.AppendTypeAndName(parameters.ReturnGenericTypeName, parameters.ReturnTypeName, isNullableType: false, parameters.Name);
+        }
+
+        if (parameters.Parameters is not null &&
+            parameters.Parameters.Any())
+        {
+            var indentSpaces = 0;
+            if (!parameters.AlwaysBreakDownParameters &&
+                parameters.Parameters.Count == 1)
+            {
+                sb.Append('(');
+            }
+            else
+            {
+                sb.AppendLine("(");
+                indentSpaces = 8;
+            }
+
+            for (var i = 0; i < parameters.Parameters.Count; i++)
+            {
+                var item = parameters.Parameters[i];
+                var useCommaForEndChar = i != parameters.Parameters.Count - 1;
+                sb.AppendInputParameter(
+                    indentSpaces,
+                    usePropertyPrefix: false,
+                    item.Attributes,
+                    item.GenericTypeName,
+                    item.TypeName,
+                    item.IsNullableType,
+                    item.Name,
+                    item.DefaultValue,
+                    useCommaForEndChar);
+            }
+
+            if (parameters.DeclarationModifier == DeclarationModifiers.None)
+            {
+                sb.Append(';');
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(parameters.Content))
+                {
+                    sb.AppendLine();
+                    sb.AppendLine(4, "{");
+                    sb.Append(4, "}");
+                }
+                else
+                {
+                    if (parameters.UseExpressionBody)
+                    {
+                        sb.AppendLine();
+                        sb.AppendContentAsExpressionBody(8, parameters.Content);
+                    }
+                    else
+                    {
+                        sb.AppendLine();
+                        sb.AppendLine(4, "{");
+                        sb.AppendContent(8, parameters.Content);
+                        sb.AppendLine();
+                        sb.Append(4, "}");
+                    }
+                }
+            }
+        }
+        else
+        {
+            if (string.IsNullOrEmpty(parameters.Content))
+            {
+                sb.AppendLine("();");
+            }
+            else
+            {
+                if (parameters.UseExpressionBody)
+                {
+                    sb.AppendLine("()");
+                    sb.AppendContentAsExpressionBody(8, parameters.Content);
+                }
+                else
+                {
+                    sb.AppendLine("()");
+                    sb.AppendLine(4, "{");
+                    sb.AppendContent(8, parameters.Content);
+                    sb.AppendLine();
+                    sb.Append(4, "}");
+                }
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    public string GenerateMethodToString(
+        IList<PropertyParameters> parameters)
+    {
+        if (parameters is null)
+        {
+            throw new ArgumentNullException(nameof(parameters));
+        }
+
+        var sb = new StringBuilder();
+
+        sb.AppendLine(4, "/// <inheritdoc />");
+        sb.AppendLine(4, "public override string ToString()");
+        sb.Append(8, "=> $\"");
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            var parametersProperty = parameters[i];
+            if (parametersProperty.IsGenericListType)
+            {
+                // Arrays use Length, collections use Count
+                var isArray = parametersProperty.TypeName.Contains("[]");
+                var countProperty = isArray ? "Length" : "Count";
+                sb.Append($"{{nameof({parametersProperty.Name})}}.{countProperty}: ");
+                sb.Append($"{{{parametersProperty.Name}?.{countProperty} ?? 0}}");
+            }
+            else
+            {
+                sb.Append($"{{nameof({parametersProperty.Name})}}: ");
+                if (parametersProperty.IsReferenceType)
+                {
+                    sb.Append($"({{{parametersProperty.Name}}})");
+                }
+                else
+                {
+                    sb.Append($"{{{parametersProperty.Name}}}");
+                }
+            }
+
+            if (i != parameters.Count - 1)
+            {
+                sb.Append(", ");
+            }
+        }
+
+        sb.Append("\";");
+
+        return sb.ToString();
+    }
+}

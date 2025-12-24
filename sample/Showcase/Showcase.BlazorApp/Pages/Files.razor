@@ -1,0 +1,98 @@
+@page "/files"
+
+<PageTitle>Files - Download</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Files - Download</MudText>
+
+<MudAlert Severity="Severity.Info" Class="mb-4">
+    The API has pre-loaded sample files. Click Preview to view images or Download to save files.
+</MudAlert>
+
+<MudText Typo="Typo.h5" Class="mb-4">Available Files</MudText>
+
+<MudGrid>
+    @foreach (var file in sampleFiles)
+    {
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard Elevation="2" Class="@(selectedFileId == file.Id ? "mud-border-primary" : "")" Style="@(selectedFileId == file.Id ? "border: 2px solid var(--mud-palette-primary);" : "")">
+                <MudCardContent>
+                    <div class="d-flex justify-center my-4">
+                        <MudIcon Icon="@file.Icon" Size="Size.Large" Color="Color.Primary" Style="font-size: 4rem;" />
+                    </div>
+                    <MudText Typo="Typo.h6">@file.Name</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">ID: @file.Id</MudText>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="() => QuickDownloadAsync(file.Id)" Disabled="isLoading">
+                        Download
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="() => QuickPreviewAsync(file.Id)" Disabled="isLoading">
+                        @if (isLoading && selectedFileId == file.Id)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        Preview
+                    </MudButton>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+    }
+</MudGrid>
+
+@if (previewContent != null)
+{
+    <MudDivider Class="my-4" />
+
+    <MudCard Elevation="3" Class="mb-4">
+        <MudCardHeader Class="mud-theme-primary" Style="color: white;">
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5">File Preview: @previewFileName</MudText>
+                <MudText Typo="Typo.body2">Content-Type: @previewContentType | Size: @FormatFileSize(previewContent.Length)</MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Inherit" OnClick="ClearPreview" />
+            </CardHeaderActions>
+        </MudCardHeader>
+        <MudCardContent Class="pa-4">
+            @if (previewContentType?.StartsWith("image/") == true)
+            {
+                <div class="d-flex justify-center">
+                    <img src="@previewDataUrl" alt="@previewFileName" style="max-width: 100%; max-height: 500px; border-radius: 4px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);" />
+                </div>
+            }
+            else if (previewContentType?.StartsWith("text/") == true || previewContentType?.StartsWith("application/json") == true || previewContentType?.StartsWith("application/xml") == true)
+            {
+                <MudPaper Elevation="0" Class="pa-4 rounded" Style="background-color: #1e1e1e; max-height: 400px; overflow: auto;">
+                    <pre style="color: #d4d4d4; margin: 0; white-space: pre-wrap; font-family: 'Cascadia Code', 'Consolas', monospace;">@previewText</pre>
+                </MudPaper>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info">
+                    Binary file - cannot preview. Use Download to save the file.
+                </MudAlert>
+            }
+        </MudCardContent>
+        <MudCardActions Class="pa-4">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download" OnClick="DownloadPreviewedFileAsync">
+                Download This File
+            </MudButton>
+        </MudCardActions>
+    </MudCard>
+}
+
+<MudDivider Class="my-4" />
+
+<MudExpansionPanels>
+    <MudExpansionPanel Text="Download File by Custom ID">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="pa-2">
+            <MudTextField @bind-Value="fileId" Label="File ID" Variant="Variant.Outlined" Style="max-width: 200px;" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="DownloadFileAsync" Disabled="isLoading">
+                Download
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="PreviewFileAsync" Disabled="isLoading">
+                Preview
+            </MudButton>
+        </MudStack>
+    </MudExpansionPanel>
+</MudExpansionPanels>

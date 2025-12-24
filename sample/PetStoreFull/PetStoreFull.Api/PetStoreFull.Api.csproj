@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)\Generated</CompilerGeneratedFilesOutputPath>
+    <!-- Disable file name/namespace rules for minimal API Program.cs -->
+    <NoWarn>$(NoWarn);SA1649;MA0048</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.11.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PetStoreFull.Api.Contracts\PetStoreFull.Api.Contracts.csproj" />
+    <ProjectReference Include="..\PetStoreFull.Api.Domain\PetStoreFull.Api.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

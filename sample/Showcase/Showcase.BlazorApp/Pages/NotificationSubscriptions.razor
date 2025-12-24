@@ -1,0 +1,176 @@
+@page "/notifications/subscriptions"
+@using Showcase.BlazorApp.Services
+@using Showcase.Generated.Notifications.Models
+@inject GatewayService Gateway
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h4" Class="mb-4">Notification Subscriptions</MudText>
+
+<MudPaper Class="pa-4 mb-4">
+    <MudText Typo="Typo.h6" Class="mb-3">Create New Subscription</MudText>
+    <MudStack Row="true" Spacing="3" AlignItems="AlignItems.End">
+        <MudTextField @bind-Value="newSubscriptionName" Label="Name" Variant="Variant.Outlined" />
+        <MudSelect T="NotificationType" @bind-SelectedValues="selectedTopics" Label="Topics" MultiSelection="true" Variant="Variant.Outlined">
+            @foreach (var topic in Enum.GetValues<NotificationType>())
+            {
+                <MudSelectItem T="NotificationType" Value="topic">@topic</MudSelectItem>
+            }
+        </MudSelect>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateSubscriptionAsync" Disabled="!selectedTopics.Any() || isLoading">
+            Create
+        </MudButton>
+    </MudStack>
+</MudPaper>
+
+@if (isLoading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (subscriptions.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">
+        No subscriptions found. Create one above to receive notifications.
+    </MudAlert>
+}
+else
+{
+    <MudTable Items="subscriptions" Dense="true" Hover="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Topics</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Created</MudTh>
+            <MudTh>Last Notification</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Name">@(context.Name ?? "Unnamed")</MudTd>
+            <MudTd DataLabel="Topics">
+                @foreach (var topic in context.Topics)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="GetTopicColor(topic)">@topic</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Status">
+                <MudChip T="string" Size="Size.Small" Color="context.IsActive ? Color.Success : Color.Error">
+                    @(context.IsActive ? "Active" : "Inactive")
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Created">@context.CreatedAt.ToLocalTime().ToString("g")</MudTd>
+            <MudTd DataLabel="Last Notification">
+                @(context.LastNotificationAt?.ToLocalTime().ToString("g") ?? "-")
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                               OnClick="() => DeleteSubscriptionAsync(context.Id)" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+<MudButton Variant="Variant.Outlined" Class="mt-4" OnClick="LoadSubscriptionsAsync" Disabled="isLoading">
+    Refresh
+</MudButton>
+
+@code {
+    private List<Subscription> subscriptions = [];
+    private string? newSubscriptionName;
+    private IEnumerable<NotificationType> selectedTopics = [NotificationType.System, NotificationType.Alert];
+    private bool isLoading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSubscriptionsAsync();
+    }
+
+    private async Task LoadSubscriptionsAsync()
+    {
+        isLoading = true;
+        try
+        {
+            var result = await Gateway.ListSubscriptionsAsync();
+            subscriptions = result?.ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading subscriptions: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task CreateSubscriptionAsync()
+    {
+        if (!selectedTopics.Any())
+        {
+            Snackbar.Add("Please select at least one topic", Severity.Warning);
+            return;
+        }
+
+        isLoading = true;
+        try
+        {
+            var request = new CreateSubscriptionRequest(
+                Topics: selectedTopics.ToArray(),
+                Name: newSubscriptionName,
+                CallbackUrl: null,
+                ExpiresInMinutes: null);
+
+            var subscription = await Gateway.CreateSubscriptionAsync(request);
+
+            if (subscription != null)
+            {
+                subscriptions.Add(subscription);
+                newSubscriptionName = null;
+                Snackbar.Add("Subscription created successfully", Severity.Success);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error creating subscription: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task DeleteSubscriptionAsync(Guid id)
+    {
+        isLoading = true;
+        try
+        {
+            var success = await Gateway.DeleteSubscriptionAsync(id);
+
+            if (success)
+            {
+                subscriptions.RemoveAll(s => s.Id == id);
+                Snackbar.Add("Subscription deleted", Severity.Info);
+            }
+            else
+            {
+                Snackbar.Add("Failed to delete subscription", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting subscription: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private static Color GetTopicColor(NotificationType topic) => topic switch
+    {
+        NotificationType.System => Color.Primary,
+        NotificationType.User => Color.Secondary,
+        NotificationType.Data => Color.Tertiary,
+        NotificationType.Alert => Color.Warning,
+        NotificationType.Metric => Color.Info,
+        _ => Color.Default
+    };
+}

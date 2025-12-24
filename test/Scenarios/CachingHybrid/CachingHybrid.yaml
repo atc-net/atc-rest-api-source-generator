@@ -1,0 +1,280 @@
+openapi: 3.0.3
+info:
+  title: CachingHybrid Sample API
+  description: API demonstrating HybridCache extensions (x-cache-type hybrid)
+  version: 1.0.0
+
+paths:
+  # 1. Path-level HybridCache with default mode
+  /users:
+    x-cache-type: hybrid
+    x-cache-policy: users
+    x-cache-expiration-seconds: 600
+    x-cache-vary-by-query:
+      - search
+      - role
+      - limit
+    x-cache-tags:
+      - users
+    get:
+      operationId: listUsers
+      summary: List users with HybridCache
+      tags:
+        - users
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: role
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      operationId: createUser
+      summary: Create user (no caching)
+      tags:
+        - users
+      x-cache-enabled: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  # 2. Path-level with sliding expiration and key prefix
+  /users/{userId}:
+    x-cache-type: hybrid
+    x-cache-policy: user-detail
+    x-cache-expiration-seconds: 300
+    x-cache-sliding-expiration-seconds: 60
+    x-cache-key-prefix: user
+    x-cache-tags:
+      - users
+      - user-detail
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getUserById
+      summary: Get user by ID with HybridCache and sliding expiration
+      tags:
+        - users
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Not Found
+    put:
+      operationId: updateUser
+      summary: Update user (no caching)
+      tags:
+        - users
+      x-cache-enabled: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Not Found
+    delete:
+      operationId: deleteUser
+      summary: Delete user (no caching)
+      tags:
+        - users
+      x-cache-enabled: false
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Not Found
+
+  # 3. Operation-level with in-memory mode only
+  /settings:
+    get:
+      operationId: getSettings
+      summary: Get settings with in-memory cache only
+      tags:
+        - settings
+      x-cache-type: hybrid
+      x-cache-policy: settings
+      x-cache-mode: in-memory
+      x-cache-expiration-seconds: 120
+      x-cache-tags:
+        - settings
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+
+  # 4. Operation-level with distributed mode
+  /sessions:
+    get:
+      operationId: listSessions
+      summary: List sessions with distributed cache
+      tags:
+        - sessions
+      x-cache-type: hybrid
+      x-cache-policy: sessions
+      x-cache-mode: distributed
+      x-cache-expiration-seconds: 900
+      x-cache-vary-by-header:
+        - Authorization
+      x-cache-tags:
+        - sessions
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Session'
+
+  # 5. No caching - should not generate any cache config
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health check (no caching)
+      tags:
+        - public
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateUserRequest:
+      type: object
+      required:
+        - email
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+
+    Settings:
+      type: object
+      properties:
+        theme:
+          type: string
+        language:
+          type: string
+        timezone:
+          type: string
+
+    Session:
+      type: object
+      required:
+        - id
+        - userId
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        ipAddress:
+          type: string
+
+    HealthStatus:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+        timestamp:
+          type: string
+          format: date-time

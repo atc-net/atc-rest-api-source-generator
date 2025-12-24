@@ -1,0 +1,299 @@
+openapi: 3.0.3
+info:
+  title: RateLimit Sample API
+  description: API demonstrating rate limiting extensions (x-ratelimit-*)
+  version: 1.0.0
+
+# Root level - global rate limit policy
+x-ratelimit-policy: global
+x-ratelimit-permit-limit: 1000
+x-ratelimit-window-seconds: 60
+x-ratelimit-algorithm: fixed
+
+paths:
+  # 1. Public endpoint - inherits global rate limit
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health check (global rate limit)
+      tags:
+        - public
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  # 2. Path-level rate limit policy override
+  /orders:
+    x-ratelimit-policy: orders-standard
+    x-ratelimit-permit-limit: 100
+    x-ratelimit-window-seconds: 60
+    get:
+      operationId: listOrders
+      summary: List orders (orders-standard policy)
+      tags:
+        - orders
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+    post:
+      operationId: createOrder
+      summary: Create order (orders-standard policy)
+      tags:
+        - orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  # 3. Operation-level rate limit override
+  /orders/{orderId}:
+    x-ratelimit-policy: orders-standard
+    parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getOrderById
+      summary: Get order (inherits orders-standard)
+      tags:
+        - orders
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: Not Found
+    delete:
+      operationId: deleteOrder
+      summary: Delete order (strict policy override)
+      tags:
+        - orders
+      x-ratelimit-policy: orders-strict
+      x-ratelimit-permit-limit: 10
+      x-ratelimit-window-seconds: 60
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Not Found
+
+  # 4. Sliding window algorithm
+  /reports:
+    x-ratelimit-policy: reports-sliding
+    x-ratelimit-permit-limit: 50
+    x-ratelimit-window-seconds: 120
+    x-ratelimit-algorithm: sliding
+    get:
+      operationId: listReports
+      summary: List reports (sliding window)
+      tags:
+        - reports
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Report'
+
+  # 5. Token bucket algorithm
+  /notifications:
+    x-ratelimit-policy: notifications-burst
+    x-ratelimit-permit-limit: 200
+    x-ratelimit-window-seconds: 60
+    x-ratelimit-queue-limit: 20
+    x-ratelimit-algorithm: token-bucket
+    post:
+      operationId: sendNotification
+      summary: Send notification (token bucket with queue)
+      tags:
+        - notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Notification'
+      responses:
+        '202':
+          description: Accepted
+
+  # 6. Concurrency limiter
+  /exports:
+    x-ratelimit-policy: exports-concurrent
+    x-ratelimit-permit-limit: 5
+    x-ratelimit-algorithm: concurrency
+    post:
+      operationId: createExport
+      summary: Create export (concurrency limited)
+      tags:
+        - exports
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportJob'
+
+  # 7. Disable rate limiting for specific operation
+  /webhooks:
+    x-ratelimit-policy: global
+    post:
+      operationId: receiveWebhook
+      summary: Receive webhook (rate limiting disabled)
+      tags:
+        - webhooks
+      x-ratelimit-enabled: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '200':
+          description: OK
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    Order:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        customerName:
+          type: string
+        totalAmount:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - customerName
+      properties:
+        customerName:
+          type: string
+        items:
+          type: array
+          items:
+            type: string
+
+    Report:
+      type: object
+      required:
+        - id
+        - title
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+
+    Notification:
+      type: object
+      required:
+        - recipient
+        - message
+      properties:
+        recipient:
+          type: string
+        message:
+          type: string
+
+    ExportRequest:
+      type: object
+      required:
+        - format
+      properties:
+        format:
+          type: string
+        filters:
+          type: object
+          additionalProperties:
+            type: string
+
+    ExportJob:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    WebhookPayload:
+      type: object
+      properties:
+        event:
+          type: string
+        data:
+          $ref: '#/components/schemas/WebhookData'
+
+    WebhookData:
+      type: object
+      additionalProperties: true

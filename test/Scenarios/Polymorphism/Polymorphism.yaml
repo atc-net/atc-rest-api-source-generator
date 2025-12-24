@@ -1,0 +1,281 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Polymorphism Test API
+  description: API demonstrating oneOf/anyOf polymorphism support
+  license:
+    name: MIT
+servers:
+  - url: http://api.example.com/v1
+paths:
+  /payments:
+    get:
+      operationId: listPayments
+      summary: List all payments
+      tags:
+        - payments
+      responses:
+        '200':
+          description: List of payments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaymentMethod'
+    post:
+      operationId: createPayment
+      summary: Create a payment
+      tags:
+        - payments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentMethod'
+      responses:
+        '201':
+          description: Payment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethod'
+        '400':
+          description: Invalid payment data
+  /payments/{paymentId}:
+    parameters:
+      - name: paymentId
+        in: path
+        required: true
+        description: The payment ID
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getPaymentById
+      summary: Get a specific payment
+      tags:
+        - payments
+      responses:
+        '200':
+          description: Payment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethod'
+        '404':
+          description: Payment not found
+  /notifications:
+    post:
+      operationId: sendNotification
+      summary: Send a notification
+      tags:
+        - notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Notification'
+      responses:
+        '202':
+          description: Notification queued
+        '400':
+          description: Invalid notification
+    get:
+      operationId: listNotifications
+      summary: List all notifications
+      tags:
+        - notifications
+      responses:
+        '200':
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+components:
+  schemas:
+    # oneOf WITH explicit discriminator and mapping
+    PaymentMethod:
+      oneOf:
+        - $ref: '#/components/schemas/CreditCard'
+        - $ref: '#/components/schemas/BankTransfer'
+        - $ref: '#/components/schemas/PayPal'
+      discriminator:
+        propertyName: type
+        mapping:
+          credit_card: '#/components/schemas/CreditCard'
+          bank_transfer: '#/components/schemas/BankTransfer'
+          paypal: '#/components/schemas/PayPal'
+
+    CreditCard:
+      type: object
+      required:
+        - type
+        - cardNumber
+        - expiryDate
+      properties:
+        type:
+          type: string
+          description: Discriminator value
+        cardNumber:
+          type: string
+          minLength: 13
+          maxLength: 19
+          description: Credit card number
+        expiryDate:
+          type: string
+          pattern: '^\d{2}/\d{2}$'
+          description: Expiry date in MM/YY format
+        cvv:
+          type: string
+          minLength: 3
+          maxLength: 4
+          description: Card verification value
+          nullable: true
+        cardholderName:
+          type: string
+          maxLength: 100
+          description: Name on the card
+          nullable: true
+
+    BankTransfer:
+      type: object
+      required:
+        - type
+        - accountNumber
+        - routingNumber
+      properties:
+        type:
+          type: string
+          description: Discriminator value
+        accountNumber:
+          type: string
+          minLength: 5
+          maxLength: 17
+          description: Bank account number
+        routingNumber:
+          type: string
+          minLength: 9
+          maxLength: 9
+          pattern: '^\d{9}$'
+          description: Bank routing number
+        bankName:
+          type: string
+          maxLength: 100
+          description: Name of the bank
+          nullable: true
+        accountHolderName:
+          type: string
+          maxLength: 100
+          description: Name of the account holder
+          nullable: true
+
+    PayPal:
+      type: object
+      required:
+        - type
+        - email
+      properties:
+        type:
+          type: string
+          description: Discriminator value
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: PayPal email address
+        payerId:
+          type: string
+          description: PayPal payer ID
+          nullable: true
+
+    # anyOf WITHOUT explicit discriminator (auto-detect from "kind" property)
+    Notification:
+      anyOf:
+        - $ref: '#/components/schemas/EmailNotification'
+        - $ref: '#/components/schemas/SmsNotification'
+        - $ref: '#/components/schemas/PushNotification'
+
+    EmailNotification:
+      type: object
+      required:
+        - kind
+        - to
+        - subject
+        - body
+      properties:
+        kind:
+          type: string
+          description: Notification type identifier
+        to:
+          type: string
+          format: email
+          description: Recipient email address
+        subject:
+          type: string
+          maxLength: 200
+          description: Email subject line
+        body:
+          type: string
+          maxLength: 10000
+          description: Email body content
+        isHtml:
+          type: boolean
+          default: false
+          description: Whether body is HTML formatted
+
+    SmsNotification:
+      type: object
+      required:
+        - kind
+        - phoneNumber
+        - message
+      properties:
+        kind:
+          type: string
+          description: Notification type identifier
+        phoneNumber:
+          type: string
+          pattern: '^\+?[1-9]\d{6,14}$'
+          description: Phone number in E.164 format
+        message:
+          type: string
+          maxLength: 160
+          description: SMS message content
+
+    PushNotification:
+      type: object
+      required:
+        - kind
+        - deviceToken
+        - title
+      properties:
+        kind:
+          type: string
+          description: Notification type identifier
+        deviceToken:
+          type: string
+          description: Device push token
+        title:
+          type: string
+          maxLength: 100
+          description: Push notification title
+        body:
+          type: string
+          maxLength: 500
+          description: Push notification body
+          nullable: true
+        badge:
+          type: integer
+          minimum: 0
+          description: Badge count for app icon
+          nullable: true
+        sound:
+          type: string
+          description: Sound file name
+          nullable: true

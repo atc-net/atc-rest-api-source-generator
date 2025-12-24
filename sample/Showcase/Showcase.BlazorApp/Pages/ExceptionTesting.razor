@@ -1,0 +1,111 @@
+@page "/testing/exceptions"
+
+<PageTitle>Exception Testing</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Exception Testing</MudText>
+
+<MudText Typo="Typo.body1" Class="mb-4">
+    Test different exceptions and their HTTP status code mappings from GlobalErrorHandlingMiddleware.
+</MudText>
+
+<MudGrid>
+    @foreach (var test in ExceptionTests)
+    {
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard Elevation="2" Class="mb-2">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.subtitle1">Code @test.Code</MudText>
+                        <MudText Typo="Typo.caption">@test.ExceptionType</MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudChip T="string" Color="@GetExpectedStatusColor(test.ExpectedStatus)" Size="Size.Small">
+                            @test.ExpectedStatus
+                        </MudChip>
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText Typo="Typo.body2" Class="mb-2">@test.Description</MudText>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Size="Size.Small"
+                               OnClick="() => RunTestAsync(test.Code)"
+                               Disabled="isLoading">
+                        @if (isLoading && currentTestCode == test.Code)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        Test
+                    </MudButton>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+    }
+</MudGrid>
+
+<MudDivider Class="my-4" />
+
+<MudText Typo="Typo.h5" Class="mb-4">Test Results</MudText>
+
+<MudTable Items="testResults" Hover="true" Striped="true" Dense="true">
+    <HeaderContent>
+        <MudTh>Time</MudTh>
+        <MudTh>Code</MudTh>
+        <MudTh>Exception Type</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Expected</MudTh>
+        <MudTh>Match</MudTh>
+        <MudTh>Message</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Time">@context.Timestamp.ToString("HH:mm:ss")</MudTd>
+        <MudTd DataLabel="Code">@context.Code</MudTd>
+        <MudTd DataLabel="Exception">@context.ExceptionType</MudTd>
+        <MudTd DataLabel="Status">
+            <MudChip T="string" Color="@GetStatusColor(context.ActualStatus)" Size="Size.Small">
+                @context.ActualStatus
+            </MudChip>
+        </MudTd>
+        <MudTd DataLabel="Expected">@context.ExpectedStatus</MudTd>
+        <MudTd DataLabel="Match">
+            @if (context.StatusMatched)
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Check" Color="Color.Success" />
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Close" Color="Color.Error" />
+            }
+        </MudTd>
+        <MudTd DataLabel="Message">
+            <MudText Typo="Typo.caption" Style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;">
+                @context.Message
+            </MudText>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No tests run yet. Click a "Test" button above to test exception handling.</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+<MudButton Variant="Variant.Outlined"
+           Color="Color.Secondary"
+           Class="mt-4"
+           OnClick="RunAllTestsAsync"
+           Disabled="isLoading">
+    @if (isLoading && currentTestCode == -1)
+    {
+        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+    }
+    Run All Tests
+</MudButton>
+
+<MudButton Variant="Variant.Text"
+           Color="Color.Default"
+           Class="mt-4 ml-2"
+           OnClick="ClearResults"
+           Disabled="isLoading">
+    Clear Results
+</MudButton>

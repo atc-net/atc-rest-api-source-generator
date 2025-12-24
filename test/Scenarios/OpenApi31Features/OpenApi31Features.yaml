@@ -1,0 +1,217 @@
+openapi: "3.1.0"
+info:
+  version: 1.0.0
+  title: OpenAPI 3.1 Features Test
+  description: Tests OpenAPI 3.1 specific features including prefixItems and contentEncoding
+
+paths:
+  /coordinates:
+    get:
+      operationId: getCoordinates
+      summary: Get coordinates
+      tags:
+        - locations
+      responses:
+        "200":
+          description: A geographic coordinate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Coordinate"
+
+  /coordinates/list:
+    get:
+      operationId: listCoordinates
+      summary: List all coordinates
+      tags:
+        - locations
+      responses:
+        "200":
+          description: List of coordinates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Coordinate"
+
+  /documents:
+    post:
+      operationId: createDocument
+      summary: Create a document with base64 content
+      tags:
+        - documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentRequest"
+      responses:
+        "201":
+          description: Document created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /colors:
+    get:
+      operationId: getColors
+      summary: Get RGB colors
+      tags:
+        - colors
+      responses:
+        "200":
+          description: An RGB color
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RgbColor"
+
+components:
+  schemas:
+    # prefixItems example - coordinate tuple
+    Coordinate:
+      type: array
+      title: Coordinate
+      description: A geographic coordinate with latitude and longitude
+      prefixItems:
+        - type: number
+          description: Latitude
+        - type: number
+          description: Longitude
+
+    # prefixItems example - RGB color as tuple
+    RgbColor:
+      type: array
+      title: RgbColor
+      description: An RGB color value
+      prefixItems:
+        - type: integer
+          description: Red component (0-255)
+          minimum: 0
+          maximum: 255
+        - type: integer
+          description: Green component (0-255)
+          minimum: 0
+          maximum: 255
+        - type: integer
+          description: Blue component (0-255)
+          minimum: 0
+          maximum: 255
+
+    # contentEncoding example
+    DocumentRequest:
+      type: object
+      title: DocumentRequest
+      required:
+        - name
+        - content
+      properties:
+        name:
+          type: string
+          description: Document name
+        content:
+          type: string
+          contentEncoding: base64
+          contentMediaType: application/pdf
+          description: Base64 encoded document content
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+
+    DocumentResponse:
+      type: object
+      title: DocumentResponse
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    # format: byte example (should also be byte[])
+    BinaryData:
+      type: object
+      title: BinaryData
+      properties:
+        data:
+          type: string
+          format: byte
+          description: Base64-encoded binary data
+
+    Error:
+      type: object
+      title: Error
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+
+    # Webhook payload schema
+    Pet:
+      type: object
+      title: Pet
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        tag:
+          type: string
+
+# OpenAPI 3.1 Webhooks
+webhooks:
+  newPet:
+    post:
+      operationId: onNewPet
+      summary: A new pet was added
+      description: Notification sent when a new pet is added to the system
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Pet"
+      responses:
+        "200":
+          description: Webhook acknowledged
+        "400":
+          description: Bad request
+
+  petUpdated:
+    post:
+      operationId: onPetUpdated
+      summary: A pet was updated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Pet"
+      responses:
+        "200":
+          description: Webhook acknowledged

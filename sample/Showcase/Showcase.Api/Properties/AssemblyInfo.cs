@@ -1,0 +1,1 @@
+[assembly: InternalsVisibleTo("Showcase.Api.Domain")]

@@ -1,0 +1,204 @@
+openapi: 3.0.3
+info:
+  title: MultipartDemo API - Accounts
+  version: 1.0.0
+  description: Account management endpoints
+
+paths:
+  /accounts:
+    x-ratelimit-policy: accounts
+    x-ratelimit-permit-limit: 100
+    x-ratelimit-window-seconds: 60
+    x-retry-policy: accounts-fast
+    x-retry-max-attempts: 2
+    x-retry-delay-seconds: 0.5
+    x-retry-timeout-seconds: 10
+    x-cache-type: output
+    x-cache-policy: accounts
+    x-cache-expiration-seconds: 60
+    x-cache-vary-by-query:
+      - limit
+    x-cache-tags:
+      - accounts
+    get:
+      summary: List all accounts
+      operationId: listAccounts
+      tags:
+        - accounts
+      parameters:
+        - name: limit
+          in: query
+          description: How many items to return at one time (max 100)
+          required: false
+          schema:
+            type: integer
+            maximum: 100
+            format: int32
+      responses:
+        '200':
+          description: Array of accounts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Accounts"
+    post:
+      summary: Create account
+      operationId: createAccount
+      tags:
+        - accounts
+      x-retry-enabled: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Account"
+      responses:
+        '201':
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        '409':
+          description: Account conflict
+
+  /accounts/{accountId}:
+    x-ratelimit-policy: accounts
+    x-retry-policy: accounts-fast
+    get:
+      summary: Get a specific account
+      operationId: getAccountById
+      tags:
+        - accounts
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          description: The id of the account to retrieve
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Expected response to a valid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        '404':
+          description: Account not found
+    delete:
+      summary: Delete a specific account
+      operationId: deleteAccountById
+      tags:
+        - accounts
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          description: The id of the account to delete
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Account deleted successfully
+        '404':
+          description: Account not found
+    put:
+      summary: Update a specific account
+      operationId: updateAccountById
+      tags:
+        - accounts
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          description: The id of the account to update
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Account"
+      responses:
+        '200':
+          description: Expected response to a valid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        '404':
+          description: Account not found
+
+  /accounts/paginated:
+    get:
+      summary: List all accounts paginated
+      operationId: listPaginatedAccounts
+      tags:
+        - accounts
+      parameters:
+        - $ref: '#/components/parameters/pageSize'
+        - $ref: '#/components/parameters/pageIndex'
+        - $ref: '#/components/parameters/queryString'
+        - $ref: '#/components/parameters/continuation'
+      responses:
+        '200':
+          description: Array of paginated accounts
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResult'
+                  - type: object
+                    properties:
+                      results:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Accounts'
+
+  /accounts/async-enumerable:
+    get:
+      summary: List all accounts async-enumerable
+      operationId: listAsyncEnumerableAccounts
+      tags:
+        - accounts
+      x-return-async-enumerable: true
+      responses:
+        '200':
+          description: Array of streaming accounts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Accounts"
+
+components:
+  schemas:
+    Account:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Accounts:
+      type: array
+      items:
+        $ref: "#/components/schemas/Account"

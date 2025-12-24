@@ -1,0 +1,8 @@
+{
+    "validateSpecificationStrategy": "Standard",
+    "includeDeprecated": false,
+    "generateHandlersOutput": "ApiHandlers",
+    "subFolderStrategy": "first-path-segment",
+    "handlerSuffix": "Handler",
+    "stubImplementation": "throw-not-implemented"
+}

@@ -1,0 +1,242 @@
+@page "/notifications"
+@using Showcase.BlazorApp.Services
+@using Showcase.Generated.Notifications.Models
+@inject NotificationHubService HubService
+@implements IAsyncDisposable
+
+<MudText Typo="Typo.h4" Class="mb-4">Live Notification Feed</MudText>
+
+<MudPaper Class="pa-4 mb-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+        <MudChip T="string" Color="@GetConnectionColor()" Size="Size.Small">
+            @HubService.ConnectionState
+        </MudChip>
+
+        @if (!HubService.IsConnected)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ConnectAsync" Disabled="isConnecting">
+                @if (isConnecting)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Connect
+            </MudButton>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="DisconnectAsync">
+                Disconnect
+            </MudButton>
+
+            @if (!isSubscribed)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SubscribeAsync">
+                    Subscribe
+                </MudButton>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="UnsubscribeAsync">
+                    Unsubscribe
+                </MudButton>
+            }
+
+            <MudButton Variant="Variant.Outlined" OnClick="ClearNotifications">
+                Clear
+            </MudButton>
+        }
+    </MudStack>
+</MudPaper>
+
+<MudText Typo="Typo.subtitle1" Class="mb-2">
+    Notifications (@notifications.Count)
+</MudText>
+
+@if (notifications.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">
+        @if (!HubService.IsConnected)
+        {
+            <span>Connect to the notification hub to receive real-time notifications.</span>
+        }
+        else if (!isSubscribed)
+        {
+            <span>Subscribe to start receiving notifications.</span>
+        }
+        else
+        {
+            <span>Waiting for notifications... The server sends system metrics every 10 seconds.</span>
+        }
+    </MudAlert>
+}
+else
+{
+    <MudStack Spacing="2">
+        @foreach (var notification in notifications.TakeLast(50).Reverse())
+        {
+            <MudCard Outlined="true">
+                <MudCardContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@GetNotificationIcon(notification.Type)" Color="@GetSeverityColor(notification.Severity)" />
+                        <MudChip T="string" Size="Size.Small" Color="@GetTypeChipColor(notification.Type)">
+                            @notification.Type
+                        </MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="@GetSeverityChipColor(notification.Severity)">
+                            @notification.Severity
+                        </MudChip>
+                        <MudSpacer />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @notification.Timestamp.ToLocalTime().ToString("HH:mm:ss")
+                        </MudText>
+                    </MudStack>
+                    <MudText Typo="Typo.body1" Class="mt-2">
+                        @notification.Message
+                    </MudText>
+
+                    @if (notification.Metrics != null)
+                    {
+                        <MudDivider Class="my-2" />
+                        <MudStack Row="true" Spacing="4">
+                            <MudStack>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">CPU</MudText>
+                                <MudText Typo="Typo.body2">@notification.Metrics.CpuUsage.ToString("F1")%</MudText>
+                            </MudStack>
+                            <MudStack>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Memory</MudText>
+                                <MudText Typo="Typo.body2">@notification.Metrics.MemoryUsage.ToString("F1")%</MudText>
+                            </MudStack>
+                            <MudStack>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Connections</MudText>
+                                <MudText Typo="Typo.body2">@notification.Metrics.ActiveConnections</MudText>
+                            </MudStack>
+                            <MudStack>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Req/s</MudText>
+                                <MudText Typo="Typo.body2">@notification.Metrics.RequestsPerSecond.ToString("F1")</MudText>
+                            </MudStack>
+                            <MudStack>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Uptime</MudText>
+                                <MudText Typo="Typo.body2">@notification.Metrics.Uptime</MudText>
+                            </MudStack>
+                        </MudStack>
+                    }
+                </MudCardContent>
+            </MudCard>
+        }
+    </MudStack>
+}
+
+@code {
+    private readonly List<SystemNotification> notifications = [];
+    private bool isConnecting;
+    private bool isSubscribed;
+
+    protected override void OnInitialized()
+    {
+        HubService.OnSystemNotification += HandleSystemNotification;
+        HubService.OnConnectionStateChanged += HandleConnectionStateChanged;
+    }
+
+    private async Task ConnectAsync()
+    {
+        isConnecting = true;
+        try
+        {
+            await HubService.ConnectAsync();
+        }
+        finally
+        {
+            isConnecting = false;
+        }
+    }
+
+    private async Task DisconnectAsync()
+    {
+        isSubscribed = false;
+        await HubService.DisconnectAsync();
+    }
+
+    private async Task SubscribeAsync()
+    {
+        var subscriptionId = await HubService.SubscribeAsync(["System", "User", "Data", "Alert", "Metric"]);
+        isSubscribed = subscriptionId != null;
+    }
+
+    private async Task UnsubscribeAsync()
+    {
+        await HubService.UnsubscribeAsync();
+        isSubscribed = false;
+    }
+
+    private void ClearNotifications()
+    {
+        notifications.Clear();
+    }
+
+    private void HandleSystemNotification(SystemNotification notification)
+    {
+        notifications.Add(notification);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleConnectionStateChanged(string state)
+    {
+        if (state == "Disconnected")
+        {
+            isSubscribed = false;
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private Color GetConnectionColor() => HubService.ConnectionState switch
+    {
+        "Connected" => Color.Success,
+        "Connecting" or "Reconnecting" => Color.Warning,
+        _ => Color.Error
+    };
+
+    private static string GetNotificationIcon(NotificationType type) => type switch
+    {
+        NotificationType.System => Icons.Material.Filled.Computer,
+        NotificationType.User => Icons.Material.Filled.Person,
+        NotificationType.Data => Icons.Material.Filled.Storage,
+        NotificationType.Alert => Icons.Material.Filled.Warning,
+        NotificationType.Metric => Icons.Material.Filled.Analytics,
+        _ => Icons.Material.Filled.Notifications
+    };
+
+    private static Color GetSeverityColor(NotificationSeverity severity) => severity switch
+    {
+        NotificationSeverity.Info => Color.Info,
+        NotificationSeverity.Warning => Color.Warning,
+        NotificationSeverity.Error => Color.Error,
+        NotificationSeverity.Critical => Color.Error,
+        _ => Color.Default
+    };
+
+    private static Color GetTypeChipColor(NotificationType type) => type switch
+    {
+        NotificationType.System => Color.Primary,
+        NotificationType.User => Color.Secondary,
+        NotificationType.Data => Color.Tertiary,
+        NotificationType.Alert => Color.Warning,
+        NotificationType.Metric => Color.Info,
+        _ => Color.Default
+    };
+
+    private static Color GetSeverityChipColor(NotificationSeverity severity) => severity switch
+    {
+        NotificationSeverity.Info => Color.Info,
+        NotificationSeverity.Warning => Color.Warning,
+        NotificationSeverity.Error => Color.Error,
+        NotificationSeverity.Critical => Color.Dark,
+        _ => Color.Default
+    };
+
+    public async ValueTask DisposeAsync()
+    {
+        HubService.OnSystemNotification -= HandleSystemNotification;
+        HubService.OnConnectionStateChanged -= HandleConnectionStateChanged;
+        await HubService.DisposeAsync();
+    }
+}

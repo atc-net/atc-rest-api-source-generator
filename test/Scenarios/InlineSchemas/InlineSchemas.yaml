@@ -1,0 +1,138 @@
+openapi: '3.0.3'
+info:
+  version: 1.0.0
+  title: Inline Schema Demo
+  description: Demonstrates inline object schemas in responses
+
+servers:
+  - url: https://api.example.com/v1
+
+paths:
+  /reports:
+    get:
+      operationId: listReports
+      summary: List all reports
+      description: Returns an array of inline report objects
+      tags:
+        - Reports
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      description: Unique identifier
+                    name:
+                      type: string
+                      description: Report name
+                    createdAt:
+                      type: string
+                      format: date-time
+                      description: Creation timestamp
+                  required:
+                    - id
+                    - name
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /reports/{reportId}:
+    get:
+      operationId: getReport
+      summary: Get a report by ID
+      description: Returns a single inline report object
+      tags:
+        - Reports
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: Unique identifier
+                  name:
+                    type: string
+                    description: Report name
+                  content:
+                    type: string
+                    description: Report content
+                  status:
+                    type: string
+                    enum: [draft, published, archived]
+                    description: Report status
+                  metadata:
+                    type: object
+                    properties:
+                      author:
+                        type: string
+                      version:
+                        type: integer
+                required:
+                  - id
+                  - name
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /analytics/summary:
+    get:
+      operationId: getAnalyticsSummary
+      summary: Get analytics summary
+      description: Returns analytics with inline nested objects
+      tags:
+        - Analytics
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalViews:
+                    type: integer
+                  totalReports:
+                    type: integer
+                  period:
+                    type: string
+                required:
+                  - totalViews
+                  - totalReports
+
+components:
+  schemas:
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string

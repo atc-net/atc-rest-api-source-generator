@@ -1,0 +1,37 @@
+@PetStoreSimple_Api_HostAddress = http://localhost:5046
+
+# Get Scalar UI
+GET {{PetStoreSimple_Api_HostAddress}}/
+Accept: text/html
+
+###
+
+# List all pets
+GET {{PetStoreSimple_Api_HostAddress}}/pets
+Accept: application/json
+
+###
+
+# List pets with limit
+GET {{PetStoreSimple_Api_HostAddress}}/pets?limit=10
+Accept: application/json
+
+###
+
+# Get pet by ID
+GET {{PetStoreSimple_Api_HostAddress}}/pets/1
+Accept: application/json
+
+###
+
+# Create a new pet
+POST {{PetStoreSimple_Api_HostAddress}}/pets
+Content-Type: application/json
+
+{
+  "id": 100,
+  "name": "Fluffy",
+  "tag": "cat"
+}
+
+###

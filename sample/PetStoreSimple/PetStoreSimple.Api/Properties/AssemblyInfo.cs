@@ -1,0 +1,1 @@
+[assembly: InternalsVisibleTo("PetStoreSimple.Api.Domain")]

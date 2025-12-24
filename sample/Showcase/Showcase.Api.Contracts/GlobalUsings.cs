@@ -1,0 +1,1 @@
+global using Showcase.Generated.Notifications.Models;

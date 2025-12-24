@@ -1,0 +1,73 @@
+openapi: 3.0.3
+info:
+  title: Cookie Parameters Test API
+  version: 1.0.0
+  description: Test API for cookie parameter generation
+
+paths:
+  /session:
+    get:
+      operationId: getSession
+      summary: Get current session
+      parameters:
+        - name: sessionId
+          in: cookie
+          required: true
+          description: Session identifier cookie
+          schema:
+            type: string
+        - name: preferences
+          in: cookie
+          required: false
+          description: Optional user preferences cookie
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '401':
+          description: Invalid or expired session
+
+  /tracking/{eventId}:
+    post:
+      operationId: trackEvent
+      summary: Track an event with user context
+      parameters:
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: userId
+          in: cookie
+          required: false
+          description: User ID from tracking cookie
+          schema:
+            type: string
+        - name: consent
+          in: cookie
+          required: true
+          description: Cookie consent status
+          schema:
+            type: boolean
+      responses:
+        '204':
+          description: Event tracked
+
+components:
+  schemas:
+    Session:
+      title: Session
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time

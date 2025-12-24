@@ -1,0 +1,65 @@
+<Solution>
+  <Folder Name="/Docs/">
+    <File Path="README.md" />
+    <File Path="CLAUDE.md" />
+  </Folder>
+  <Folder Name="/sample/Showcase/">
+    <File Path="sample/Showcase/Showcase.yaml" />
+    <Project Path="sample/Showcase/Showcase.Api.Contracts/Showcase.Api.Contracts.csproj" />
+    <Project Path="sample/Showcase/Showcase.Api.Domain/Showcase.Api.Domain.csproj" />
+    <Project Path="sample/Showcase/Showcase.Api/Showcase.Api.csproj" />
+    <Project Path="sample/Showcase/Showcase.Aspire/Showcase.Aspire.csproj" />
+    <Project Path="sample/Showcase/Showcase.BlazorApp/Showcase.BlazorApp.csproj" />
+    <Project Path="sample/Showcase/Showcase.ClientApp/Showcase.ClientApp.csproj" />
+  </Folder>
+  <Folder Name="/sample/MultipartDemo/">
+    <File Path="sample/MultipartDemo/MultipartDemo.yaml" />
+    <File Path="sample/MultipartDemo/MultipartDemo_Accounts.yaml" />
+    <File Path="sample/MultipartDemo/MultipartDemo_Common.yaml" />
+    <File Path="sample/MultipartDemo/MultipartDemo_Files.yaml" />
+    <File Path="sample/MultipartDemo/MultipartDemo_Notifications.yaml" />
+    <File Path="sample/MultipartDemo/MultipartDemo_Tasks.yaml" />
+    <File Path="sample/MultipartDemo/MultipartDemo_Users.yaml" />
+    <Project Path="sample/MultipartDemo/MultipartDemo.Api.Contracts/MultipartDemo.Api.Contracts.csproj" />
+    <Project Path="sample/MultipartDemo/MultipartDemo.Api.Domain/MultipartDemo.Api.Domain.csproj" />
+    <Project Path="sample/MultipartDemo/MultipartDemo.Api/MultipartDemo.Api.csproj" />
+    <Project Path="sample/MultipartDemo/MultipartDemo.ClientApp/MultipartDemo.ClientApp.csproj" />
+  </Folder>
+  <Folder Name="/sample/PetStoreFull/">
+    <File Path="sample/PetStoreFull/PetStoreFull.yaml" />
+    <Project Path="sample/PetStoreFull/PetStoreFull.Api.Contracts/PetStoreFull.Api.Contracts.csproj" />
+    <Project Path="sample/PetStoreFull/PetStoreFull.Api.Domain/PetStoreFull.Api.Domain.csproj" />
+    <Project Path="sample/PetStoreFull/PetStoreFull.Api/PetStoreFull.Api.csproj" />
+    <Project Path="sample/PetStoreFull/PetStoreFull.Aspire/PetStoreFull.Aspire.csproj" />
+    <Project Path="sample/PetStoreFull/PetStoreFull.ClientApp/PetStoreFull.ClientApp.csproj" />
+  </Folder>
+  <Folder Name="/sample/PetStoreSimple/">
+    <File Path="sample/PetStoreSimple/PetStoreSimple.yaml" />
+    <Project Path="sample/PetStoreSimple/PetStoreSimple.Api.Contracts/PetStoreSimple.Api.Contracts.csproj" />
+    <Project Path="sample/PetStoreSimple/PetStoreSimple.Api.Domain/PetStoreSimple.Api.Domain.csproj" />
+    <Project Path="sample/PetStoreSimple/PetStoreSimple.Api/PetStoreSimple.Api.csproj" />
+    <Project Path="sample/PetStoreSimple/PetStoreSimple.Aspire/PetStoreSimple.Aspire.csproj" />
+    <Project Path="sample/PetStoreSimple/PetStoreSimple.ClientApp/PetStoreSimple.ClientApp.csproj" />
+  </Folder>
+  <Folder Name="/sample/" />
+  <Folder Name="/sample/MontaClient/">
+    <File Path="sample/MontaClient/Monta.yaml" />
+    <File Path="sample/MontaClient/.atc-rest-api-client-contracts" />
+    <Project Path="sample/MontaClient/MontaClient.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Atc.Rest.Api.CliGenerator/Atc.Rest.Api.CliGenerator.csproj" />
+    <Project Path="src/Atc.Rest.Api.SourceGenerator/Atc.Rest.Api.SourceGenerator.csproj" Id="65b7bf64-9143-4e50-8303-2d3cd8b9a601" />
+  </Folder>
+  <Folder Name="/src/libs/">
+    <Project Path="src/Atc.CodeGeneration.CSharp/Atc.CodeGeneration.CSharp.csproj" />
+    <Project Path="src/Atc.OpenApi/Atc.OpenApi.csproj" />
+    <Project Path="src/Atc.Rest.Api.Generator/Atc.Rest.Api.Generator.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Atc.Rest.Api.SourceGenerator.Tests/Atc.Rest.Api.SourceGenerator.Tests.csproj" />
+    <Project Path="test/Atc.Rest.Api.CliGenerator.Tests/Atc.Rest.Api.CliGenerator.Tests.csproj" />
+    <Project Path="test/Atc.Rest.Api.Generator.IntegrationTests/Atc.Rest.Api.Generator.IntegrationTests.csproj" />
+    <Project Path="test/Atc.Rest.Api.Generator.Tests/Atc.Rest.Api.Generator.Tests.csproj" />
+  </Folder>
+</Solution>

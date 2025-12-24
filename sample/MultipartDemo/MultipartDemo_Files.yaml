@@ -1,0 +1,119 @@
+openapi: 3.0.3
+info:
+  title: MultipartDemo API - Files
+  version: 1.0.0
+  description: File management endpoints
+
+paths:
+  /files/{id}:
+    x-ratelimit-policy: files
+    x-ratelimit-permit-limit: 30
+    x-ratelimit-window-seconds: 60
+    x-retry-policy: files
+    x-retry-max-attempts: 3
+    x-retry-delay-seconds: 2
+    x-retry-timeout-seconds: 120
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: The id of the file to retrieve
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get file by ID (binary download)
+      operationId: getFileById
+      tags:
+        - files
+      responses:
+        '200':
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File not found
+
+  /files/form-data/singleObject:
+    x-ratelimit-policy: file-uploads
+    x-ratelimit-permit-limit: 10
+    x-ratelimit-window-seconds: 60
+    x-ratelimit-algorithm: token-bucket
+    x-retry-enabled: false
+    post:
+      summary: Upload a single file with metadata
+      operationId: uploadSingleFileFormData
+      tags:
+        - files
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/FileAsFormDataRequest"
+      responses:
+        '201':
+          description: File uploaded successfully
+          headers:
+            Location:
+              description: URL of the created resource
+              schema:
+                type: string
+                format: uri
+        '400':
+          description: Invalid file
+
+  /files/form-data/multipleObjects:
+    x-ratelimit-policy: file-uploads
+    x-retry-enabled: false
+    post:
+      summary: Upload multiple files with metadata
+      operationId: uploadMultipleFilesFormData
+      tags:
+        - files
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/FilesAsFormDataRequest"
+      responses:
+        '201':
+          description: Files uploaded successfully
+        '400':
+          description: Invalid files
+
+components:
+  schemas:
+    FileAsFormDataRequest:
+      type: object
+      required:
+        - file
+        - description
+      properties:
+        file:
+          type: string
+          format: binary
+        fileName:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 500
+
+    FilesAsFormDataRequest:
+      type: object
+      required:
+        - files
+      properties:
+        files:
+          type: array
+          items:
+            type: string
+            format: binary
+        category:
+          type: string
+          maxLength: 100

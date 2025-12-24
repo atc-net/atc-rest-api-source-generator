@@ -1,0 +1,318 @@
+openapi: 3.0.3
+info:
+  title: SecurityAtcExt Sample API
+  description: API demonstrating ATC-specific security extension combinations (x-authorize-roles, x-authentication-schemes, x-authentication-required)
+  version: 1.0.0
+
+# Root level - define global roles and auth schemes
+x-authorize-roles:
+  - admin
+  - manager
+  - user
+x-authentication-schemes:
+  - Bearer
+  - ApiKey
+
+paths:
+  # 1. Public endpoint - no auth required
+  /public/health:
+    get:
+      operationId: getHealth
+      summary: Health check (public)
+      tags:
+        - public
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  # 2. Path-level auth required, all ops inherit
+  /orders:
+    x-authentication-required: true
+    get:
+      operationId: listOrders
+      summary: List orders (requires auth)
+      tags:
+        - orders
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+    post:
+      operationId: createOrder
+      summary: Create order (requires auth)
+      tags:
+        - orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  # 3. Path-level roles, operation override
+  /orders/{orderId}:
+    x-authentication-required: true
+    x-authorize-roles:
+      - manager
+    parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getOrderById
+      summary: Get order (manager role inherited)
+      tags:
+        - orders
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: Not Found
+    delete:
+      operationId: deleteOrder
+      summary: Delete order (override to admin only)
+      tags:
+        - orders
+      x-authorize-roles:
+        - admin
+      responses:
+        '204':
+          description: No Content
+        '404':
+          description: Not Found
+
+  # 4. Operation-level AllowAnonymous override
+  /orders/{orderId}/tracking:
+    x-authentication-required: true
+    parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getOrderTracking
+      summary: Get tracking (public override)
+      tags:
+        - orders
+      x-authentication-required: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackingInfo'
+        '404':
+          description: Not Found
+
+  # 5. Specific auth scheme required
+  /admin/settings:
+    x-authentication-required: true
+    x-authorize-roles:
+      - admin
+    x-authentication-schemes:
+      - Bearer
+    get:
+      operationId: getAdminSettings
+      summary: Get admin settings (Bearer + admin role)
+      tags:
+        - admin
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSettings'
+    put:
+      operationId: updateAdminSettings
+      summary: Update admin settings
+      tags:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminSettings'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSettings'
+
+  # 6. Multiple roles
+  /reports:
+    x-authentication-required: true
+    x-authorize-roles:
+      - admin
+      - manager
+    get:
+      operationId: listReports
+      summary: List reports (admin OR manager)
+      tags:
+        - reports
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Report'
+
+  # 7. Multiple auth schemes
+  /api-keys:
+    x-authentication-required: true
+    x-authentication-schemes:
+      - Bearer
+      - ApiKey
+    get:
+      operationId: listApiKeys
+      summary: List API keys (Bearer OR ApiKey scheme)
+      tags:
+        - api-keys
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiKey'
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    Order:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        customerName:
+          type: string
+        totalAmount:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - customerName
+      properties:
+        customerName:
+          type: string
+        items:
+          type: array
+          items:
+            type: string
+
+    TrackingInfo:
+      type: object
+      required:
+        - orderId
+        - status
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        location:
+          type: string
+        lastUpdated:
+          type: string
+          format: date-time
+
+    AdminSettings:
+      type: object
+      properties:
+        maintenanceMode:
+          type: boolean
+        maxOrdersPerDay:
+          type: integer
+        allowedOrigins:
+          type: array
+          items:
+            type: string
+
+    Report:
+      type: object
+      required:
+        - id
+        - title
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+
+    ApiKey:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
