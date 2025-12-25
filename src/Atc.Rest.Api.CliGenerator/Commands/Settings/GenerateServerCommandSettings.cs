@@ -19,7 +19,7 @@ public sealed class GenerateServerCommandSettings : BaseGenerateCommandSettings
 
     [CommandOption("--domain-output <PATH>")]
     [Description("Output path for domain handler scaffolds (TwoProjects/TreeProjects mode only).")]
-    public string? DomainOutputPath { get; init; }
+    public string? DomainOutputPath { get; set; }
 
     [CommandOption("--handler-suffix <SUFFIX>")]
     [Description("Suffix for handler class names (default: 'Handler').")]
@@ -86,6 +86,12 @@ public sealed class GenerateServerCommandSettings : BaseGenerateCommandSettings
         if (!baseResult.Successful)
         {
             return baseResult;
+        }
+
+        // Resolve DomainOutputPath if provided
+        if (!string.IsNullOrWhiteSpace(DomainOutputPath))
+        {
+            DomainOutputPath = PathHelper.ResolveRelativePath(DomainOutputPath);
         }
 
         // Validate sub-folder strategy if provided

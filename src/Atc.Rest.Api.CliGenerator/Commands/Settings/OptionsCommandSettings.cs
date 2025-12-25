@@ -7,7 +7,7 @@ public sealed class OptionsCommandSettings : CommandSettings
 {
     [CommandOption("-o|--output <PATH>")]
     [Description("Path to the directory or file for the options file.")]
-    public string OutputPath { get; init; } = string.Empty;
+    public string OutputPath { get; set; } = string.Empty;
 
     [CommandOption("-f|--force")]
     [Description("Overwrite existing file if it exists.")]
@@ -20,6 +20,8 @@ public sealed class OptionsCommandSettings : CommandSettings
         {
             return ValidationResult.Error("Output path is required. Use -o or --output.");
         }
+
+        OutputPath = PathHelper.ResolveRelativePath(OutputPath);
 
         return ValidationResult.Success();
     }

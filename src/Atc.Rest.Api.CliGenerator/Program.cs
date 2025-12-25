@@ -5,39 +5,6 @@ public static class Program
 {
     public static Task<int> Main(string[] args)
     {
-        ////args = ["-h"];
-
-        ////args =
-        ////[
-        ////    "options", "create",
-        ////    "-o", @"c:\temp\atc-rest-api-cli-tests",
-        ////    "--force"
-        ////];
-
-        ////args =
-        ////[
-        ////    "validate", "schema",
-        ////    "-s", @"D:\Code\atc-net-sandbox\atc-rest-api-source-generator\test\Scenarios\Demo\Demo.yaml"
-        ////];
-
-        ////args =
-        ////[
-        ////    "generate", "client",
-        ////    "-s", @"D:\Code\atc-net-sandbox\atc-rest-api-source-generator\test\Scenarios\Demo\Demo.yaml",
-        ////    "-o", @"c:\temp\atc-rest-api-cli-tests\Client",
-        ////    "-n", "DemoApiClient",
-        ////];
-
-        ////args =
-        ////[
-        ////    "generate", "server",
-        ////    "-s", @"D:\Code\atc-net-sandbox\atc-rest-api-source-generator\test\Scenarios\Demo\Demo.yaml",
-        ////    "-o", @"c:\temp\atc-rest-api-cli-tests\API",
-        ////    "-n", "MyDemo",
-        ////    "--project-structure", "TreeProjects",
-        ////    //"--report"
-        ////];
-
         ArgumentNullException.ThrowIfNull(args);
 
         args = SetHelpArgumentIfNeeded(args);

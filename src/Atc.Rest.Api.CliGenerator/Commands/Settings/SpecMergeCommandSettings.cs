@@ -8,11 +8,11 @@ public sealed class SpecMergeCommandSettings : CommandSettings
 {
     [CommandOption("-s|--specification <PATH>")]
     [Description("Path to the base OpenAPI specification file (auto-discovers part files by naming convention).")]
-    public string SpecificationPath { get; init; } = string.Empty;
+    public string SpecificationPath { get; set; } = string.Empty;
 
     [CommandOption("-o|--output <PATH>")]
     [Description("Output file path for the merged specification.")]
-    public string? OutputPath { get; init; }
+    public string? OutputPath { get; set; }
 
     [CommandOption("--files <LIST>")]
     [Description("Explicit comma-separated list of files to merge (overrides auto-discovery).")]
@@ -46,6 +46,11 @@ public sealed class SpecMergeCommandSettings : CommandSettings
             return ValidationResult.Error("Either specification path (-s) or explicit files (--files) must be provided.");
         }
 
+        if (!string.IsNullOrWhiteSpace(SpecificationPath))
+        {
+            SpecificationPath = PathHelper.ResolveRelativePath(SpecificationPath);
+        }
+
         // If specification path is provided, verify it exists
         if (!string.IsNullOrWhiteSpace(SpecificationPath) && !File.Exists(SpecificationPath))
         {
@@ -69,6 +74,11 @@ public sealed class SpecMergeCommandSettings : CommandSettings
         if (!Preview && string.IsNullOrWhiteSpace(OutputPath))
         {
             return ValidationResult.Error("Output path (-o) is required unless using --preview mode.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(OutputPath))
+        {
+            OutputPath = PathHelper.ResolveRelativePath(OutputPath);
         }
 
         return ValidationResult.Success();
