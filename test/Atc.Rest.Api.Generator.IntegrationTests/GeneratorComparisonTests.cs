@@ -20,6 +20,7 @@ namespace Atc.Rest.Api.Generator.IntegrationTests;
 /// └── PetStoreSimple/
 ///     └── ...
 /// </remarks>
+[Trait("Category", "Integration")]
 public class GeneratorComparisonTests
 {
     /// <summary>

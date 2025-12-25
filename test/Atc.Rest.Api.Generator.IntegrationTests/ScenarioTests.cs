@@ -17,6 +17,7 @@ namespace Atc.Rest.Api.Generator.IntegrationTests;
 /// - Config folders: {ScenarioName}/Server/, {ScenarioName}/Client-Typed/, etc.
 /// - Output baselines: {ScenarioName}/{MasterFolder}/{Category}/*.verified.cs
 /// </remarks>
+[Trait("Category", "Integration")]
 public class ScenarioTests
 {
     /// <summary>
