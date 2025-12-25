@@ -59,14 +59,12 @@ jobs:
         run: |
           dotnet pack src/Atc.Rest.Api.SourceGenerator/Atc.Rest.Api.SourceGenerator.csproj \
             -c Release \
-            --no-restore \
             -o ${GITHUB_WORKSPACE}/packages \
             -p:RepositoryBranch=$BRANCH_NAME \
             -p:ContinuousIntegrationBuild=true \
             -p:Version=${NBGV_NuGetPackageVersion}
           dotnet pack src/Atc.Rest.Api.CliGenerator/Atc.Rest.Api.CliGenerator.csproj \
             -c Release \
-            --no-restore \
             -o ${GITHUB_WORKSPACE}/packages \
             -p:RepositoryBranch=$BRANCH_NAME \
             -p:ContinuousIntegrationBuild=true \

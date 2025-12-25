@@ -48,7 +48,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: ⚙️Setup .NET
+      - name: ⚙️ Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
@@ -95,7 +95,7 @@ jobs:
         run: dotnet build Atc.Rest.Api.SourceGenerator.slnx -c Release --no-restore
 
       - name: 🛠️ Build PetStoreSimple sample
-        run: dotnet build sample/PetStoreSimple/PetStoreSimple.Api/PetStoreSimple.Api.csproj -c Release --no-restore
+        run: dotnet build sample/PetStoreSimple/PetStoreSimple.Api/PetStoreSimple.Api.csproj -c Release
 
       - name: 🛠️ Build MultiParts sample
-        run: dotnet build sample/MultiParts/MultiParts.Api/MultiParts.Api.csproj -c Release --no-restore
+        run: dotnet build sample/MultipartDemo/MultipartDemo.Api/MultipartDemo.Api.csproj -c Release
