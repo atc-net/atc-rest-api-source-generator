@@ -6,6 +6,7 @@ global using System.Linq;
 global using System.Runtime.CompilerServices;
 global using System.Text;
 global using System.Text.Json;
+global using System.Text.RegularExpressions;
 
 global using Atc.OpenApi.Helpers;
 global using Atc.Rest.Api.Generator.Configurations;
