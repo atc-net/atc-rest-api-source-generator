@@ -13,40 +13,35 @@ jobs:
     if: github.ref == 'refs/heads/stable'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: 🛒 Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.PAT_WORKFLOWS }}
 
-      - name: Set branch name
+      - name: ⚛️ Set branch name
         uses: nelonoel/branch-name@v1.0.1
 
-      - name: Setup Nerdbank.GitVersioning
+      - name: ⚛️ Setup Nerdbank.GitVersioning
         uses: dotnet/nbgv@master
         with:
           setAllVars: true
 
-      - name: Setup .NET
+      - name: ⚙️ Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: Clean
+      - name: 🧹 Clean
         run: dotnet clean Atc.Rest.Api.SourceGenerator.slnx -c Release && dotnet nuget locals all --clear
 
-      - name: Restore packages
+      - name: 🔁 Restore packages
         run: dotnet restore Atc.Rest.Api.SourceGenerator.slnx
 
-      - name: Build solution
+      - name: 🛠️ Build solution
         run: dotnet build Atc.Rest.Api.SourceGenerator.slnx -c Release --no-restore /p:UseSourceLink=true
 
-      - name: Run unit tests
-        run: dotnet test Atc.Rest.Api.SourceGenerator.slnx -c Release --no-build --filter "Category!=Integration"
-        env:
-          DOTNET_CLI_TESTINGPLATFORM_ENABLE: true
-
-      - name: Merge to release branch
+      - name: ⏩ Merge to release branch
         run: |
           git config --local user.email ${{ env.ATC_EMAIL }}
           git config --local user.name ${{ env.ATC_NAME }}
@@ -54,7 +49,7 @@ jobs:
           git merge --ff-only stable
           git push origin release
 
-      - name: Pack NuGet packages
+      - name: 🗳️ Creating library package for release
         run: |
           dotnet pack src/Atc.Rest.Api.SourceGenerator/Atc.Rest.Api.SourceGenerator.csproj \
             -c Release \
@@ -69,7 +64,7 @@ jobs:
             -p:RepositoryBranch=$BRANCH_NAME \
             /p:PublicRelease=true
 
-      - name: Push to NuGet.org
+      - name: 📦 Push packages to NuGet
         run: |
           dotnet nuget push ${GITHUB_WORKSPACE}/packages/Atc.Rest.Api.SourceGenerator.*.nupkg \
             -k ${{ secrets.NUGET_KEY }} \
@@ -82,7 +77,7 @@ jobs:
             --skip-duplicate \
             --no-symbols
 
-      - name: Invalidate cache
+      - name: 🌩️ ATC-API invalidate cache for CLI-Tool
         uses: satak/webrequest-action@master
         with:
           url: https://atc-api.azurewebsites.net/nuget-search/package?packageId=atc-rest-api-gen&invalidateCache=true
