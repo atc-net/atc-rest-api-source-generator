@@ -1,0 +1,84 @@
+name: "Post-Integration"
+
+on:
+  push:
+    branches:
+      - main
+      - '!stable'
+      - '!release'
+
+env:
+  ATC_EMAIL: 'atcnet.org@gmail.com'
+  ATC_NAME: 'Atc-Net'
+  NUGET_REPO_URL: 'https://nuget.pkg.github.com/atc-net/index.json'
+
+jobs:
+  merge-to-stable:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_WORKFLOWS }}
+
+      - name: Set branch name
+        uses: nelonoel/branch-name@v1.0.1
+
+      - name: Setup Nerdbank.GitVersioning
+        uses: dotnet/nbgv@master
+        with:
+          setAllVars: true
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Clean
+        run: dotnet clean Atc.Rest.Api.SourceGenerator.slnx -c Release && dotnet nuget locals all --clear
+
+      - name: Restore packages
+        run: dotnet restore Atc.Rest.Api.SourceGenerator.slnx
+
+      - name: Build solution
+        run: dotnet build Atc.Rest.Api.SourceGenerator.slnx -c Release --no-restore /p:UseSourceLink=true
+
+      - name: Run unit tests
+        run: dotnet test Atc.Rest.Api.SourceGenerator.slnx -c Release --no-build --filter "Category!=Integration"
+
+      - name: Merge to stable branch
+        run: |
+          git config --local user.email ${{ env.ATC_EMAIL }}
+          git config --local user.name ${{ env.ATC_NAME }}
+          git checkout stable
+          git merge --ff-only main
+          git push origin stable
+
+      - name: Pack NuGet packages
+        run: |
+          dotnet pack src/Atc.Rest.Api.SourceGenerator/Atc.Rest.Api.SourceGenerator.csproj \
+            -c Release \
+            --no-restore \
+            -o ${GITHUB_WORKSPACE}/packages \
+            -p:RepositoryBranch=$BRANCH_NAME \
+            -p:ContinuousIntegrationBuild=true \
+            -p:Version=${NBGV_NuGetPackageVersion}
+          dotnet pack src/Atc.Rest.Api.CliGenerator/Atc.Rest.Api.CliGenerator.csproj \
+            -c Release \
+            --no-restore \
+            -o ${GITHUB_WORKSPACE}/packages \
+            -p:RepositoryBranch=$BRANCH_NAME \
+            -p:ContinuousIntegrationBuild=true \
+            -p:Version=${NBGV_NuGetPackageVersion}
+
+      - name: Push to GitHub Package Registry
+        run: |
+          dotnet nuget push ${GITHUB_WORKSPACE}/packages/Atc.Rest.Api.SourceGenerator.${NBGV_NuGetPackageVersion}.nupkg \
+            -k ${{ secrets.GITHUB_TOKEN }} \
+            -s ${{ env.NUGET_REPO_URL }} \
+            --skip-duplicate
+          dotnet nuget push ${GITHUB_WORKSPACE}/packages/atc-rest-api-gen.${NBGV_NuGetPackageVersion}.nupkg \
+            -k ${{ secrets.GITHUB_TOKEN }} \
+            -s ${{ env.NUGET_REPO_URL }} \
+            --skip-duplicate

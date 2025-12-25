@@ -1,0 +1,101 @@
+name: "Pre-Integration"
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+jobs:
+  dotnet-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Ensure nuget.org source on Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          if (-not (dotnet nuget list source | Select-String -Pattern "nuget.org")) {
+            dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org
+          }
+        shell: pwsh
+
+      - name: Restore packages
+        run: dotnet restore Atc.Rest.Api.SourceGenerator.slnx
+
+      - name: Build solution
+        run: dotnet build Atc.Rest.Api.SourceGenerator.slnx -c Release --no-restore
+
+  dotnet-test:
+    runs-on: ubuntu-latest
+    needs: dotnet-build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore packages
+        run: dotnet restore Atc.Rest.Api.SourceGenerator.slnx
+
+      - name: Build solution
+        run: dotnet build Atc.Rest.Api.SourceGenerator.slnx -c Release --no-restore /p:UseSourceLink=true
+
+      - name: Run unit tests
+        run: dotnet test Atc.Rest.Api.SourceGenerator.slnx -c Release --no-build --filter "Category!=Integration"
+
+  smoke-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    needs: dotnet-test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Ensure nuget.org source on Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          if (-not (dotnet nuget list source | Select-String -Pattern "nuget.org")) {
+            dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org
+          }
+        shell: pwsh
+
+      - name: Restore packages
+        run: dotnet restore Atc.Rest.Api.SourceGenerator.slnx
+
+      - name: Build solution
+        run: dotnet build Atc.Rest.Api.SourceGenerator.slnx -c Release --no-restore
+
+      - name: Build PetStoreSimple sample
+        run: dotnet build sample/PetStoreSimple/PetStoreSimple.Api/PetStoreSimple.Api.csproj -c Release --no-restore
+
+      - name: Build MultiParts sample
+        run: dotnet build sample/MultiParts/MultiParts.Api/MultiParts.Api.csproj -c Release --no-restore
