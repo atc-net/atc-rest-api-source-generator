@@ -45,7 +45,7 @@ jobs:
         run: dotnet build Atc.Rest.Api.SourceGenerator.slnx -c Release --no-restore /p:UseSourceLink=true
 
       - name: Run unit tests
-        run: dotnet test Atc.Rest.Api.SourceGenerator.slnx -c Release --no-build --filter "Category!=Integration"
+        run: dotnet test Atc.Rest.Api.SourceGenerator.slnx -c Release --no-build --filter "Category!=Integration" --tl
 
       - name: Merge to stable branch
         run: |
