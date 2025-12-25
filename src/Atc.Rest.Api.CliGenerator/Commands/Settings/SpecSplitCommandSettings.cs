@@ -8,11 +8,11 @@ public sealed class SpecSplitCommandSettings : CommandSettings
 {
     [CommandOption("-s|--specification <PATH>")]
     [Description("Path to the OpenAPI specification file to split.")]
-    public string SpecificationPath { get; init; } = string.Empty;
+    public string SpecificationPath { get; set; } = string.Empty;
 
     [CommandOption("-o|--output <PATH>")]
     [Description("Output directory for the split files.")]
-    public string? OutputPath { get; init; }
+    public string? OutputPath { get; set; }
 
     [CommandOption("--strategy <STRATEGY>")]
     [Description("Split strategy: ByTag (default), ByPathSegment, or ByDomain.")]
@@ -47,6 +47,8 @@ public sealed class SpecSplitCommandSettings : CommandSettings
             return ValidationResult.Error("Specification path (-s) is required.");
         }
 
+        SpecificationPath = PathHelper.ResolveRelativePath(SpecificationPath);
+
         // Verify file exists
         if (!File.Exists(SpecificationPath))
         {
@@ -64,6 +66,11 @@ public sealed class SpecSplitCommandSettings : CommandSettings
         if (!Preview && string.IsNullOrWhiteSpace(OutputPath))
         {
             return ValidationResult.Error("Output path (-o) is required unless using --preview mode.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(OutputPath))
+        {
+            OutputPath = PathHelper.ResolveRelativePath(OutputPath);
         }
 
         // Validate min operations

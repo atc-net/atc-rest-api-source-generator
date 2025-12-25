@@ -4,6 +4,7 @@ global using System.Diagnostics.CodeAnalysis;
 global using System.Globalization;
 global using System.Text;
 global using System.Text.Json;
+global using System.Text.RegularExpressions;
 
 global using Atc.Console.Spectre;
 global using Atc.Console.Spectre.Factories;
@@ -15,6 +16,7 @@ global using Atc.Rest.Api.CliGenerator.Commands;
 global using Atc.Rest.Api.CliGenerator.Commands.Settings;
 global using Atc.Rest.Api.CliGenerator.Enums;
 global using Atc.Rest.Api.CliGenerator.Extensions;
+global using Atc.Rest.Api.CliGenerator.Helpers;
 global using Atc.Rest.Api.CliGenerator.Options;
 global using Atc.Rest.Api.CliGenerator.Services;
 global using Atc.Rest.Api.Generator.Configurations;

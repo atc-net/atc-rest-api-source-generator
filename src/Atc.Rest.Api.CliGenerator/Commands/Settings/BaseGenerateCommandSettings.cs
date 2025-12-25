@@ -7,11 +7,11 @@ public class BaseGenerateCommandSettings : CommandSettings
 {
     [CommandOption("-s|--specification <PATH>")]
     [Description("Path to the OpenAPI specification file (YAML or JSON).")]
-    public string SpecificationPath { get; init; } = string.Empty;
+    public string SpecificationPath { get; set; } = string.Empty;
 
     [CommandOption("-o|--output <PATH>")]
     [Description("Path to the output directory for the generated project.")]
-    public string OutputPath { get; init; } = string.Empty;
+    public string OutputPath { get; set; } = string.Empty;
 
     [CommandOption("-n|--name <NAME>")]
     [Description("Name of the project (e.g., 'Demo.Api.Contracts').")]
@@ -19,7 +19,7 @@ public class BaseGenerateCommandSettings : CommandSettings
 
     [CommandOption("--options <PATH>")]
     [Description("Path to ApiGeneratorOptions.json file (optional, auto-discovered if not specified).")]
-    public string? OptionsPath { get; init; }
+    public string? OptionsPath { get; set; }
 
     [CommandOption("--no-strict")]
     [Description("Disable strict validation mode (skip additional naming convention checks).")]
@@ -48,6 +48,8 @@ public class BaseGenerateCommandSettings : CommandSettings
             return ValidationResult.Error("Specification path is required. Use -s or --specification.");
         }
 
+        SpecificationPath = PathHelper.ResolveRelativePath(SpecificationPath);
+
         if (!File.Exists(SpecificationPath))
         {
             return ValidationResult.Error($"Specification file not found: {SpecificationPath}");
@@ -64,6 +66,8 @@ public class BaseGenerateCommandSettings : CommandSettings
             return ValidationResult.Error("Output path is required. Use -o or --output.");
         }
 
+        OutputPath = PathHelper.ResolveRelativePath(OutputPath);
+
         if (string.IsNullOrWhiteSpace(ProjectName))
         {
             return ValidationResult.Error("Project name is required. Use -n or --name.");
@@ -76,9 +80,15 @@ public class BaseGenerateCommandSettings : CommandSettings
         }
 
         // Validate options file if explicitly provided
-        if (!string.IsNullOrWhiteSpace(OptionsPath) && !File.Exists(OptionsPath) && !Directory.Exists(OptionsPath))
+        if (!string.IsNullOrWhiteSpace(OptionsPath))
         {
-            return ValidationResult.Error($"Options file or directory not found: {OptionsPath}");
+            OptionsPath = PathHelper.ResolveRelativePath(OptionsPath);
+
+            if (!File.Exists(OptionsPath) &&
+                !Directory.Exists(OptionsPath))
+            {
+                return ValidationResult.Error($"Options file or directory not found: {OptionsPath}");
+            }
         }
 
         return ValidationResult.Success();

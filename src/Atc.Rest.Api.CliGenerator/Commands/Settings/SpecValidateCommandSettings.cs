@@ -7,7 +7,7 @@ public sealed class SpecValidateCommandSettings : CommandSettings
 {
     [CommandOption("-s|--specification <PATH>")]
     [Description("Path to the OpenAPI specification file (YAML or JSON).")]
-    public string SpecificationPath { get; init; } = string.Empty;
+    public string SpecificationPath { get; set; } = string.Empty;
 
     [CommandOption("--no-strict")]
     [Description("Disable strict validation mode (skip additional naming convention checks).")]
@@ -34,6 +34,11 @@ public sealed class SpecValidateCommandSettings : CommandSettings
         if (string.IsNullOrWhiteSpace(SpecificationPath) && string.IsNullOrWhiteSpace(ExplicitFiles))
         {
             return ValidationResult.Error("Specification path is required. Use -s or --specification, or --files for explicit list.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(SpecificationPath))
+        {
+            SpecificationPath = PathHelper.ResolveRelativePath(SpecificationPath);
         }
 
         if (!string.IsNullOrWhiteSpace(SpecificationPath) && !File.Exists(SpecificationPath))
