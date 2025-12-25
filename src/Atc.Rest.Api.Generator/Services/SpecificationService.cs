@@ -98,7 +98,8 @@ public static class SpecificationService
 
         // Look for files matching the pattern {BaseName}_{PartName}.yaml
         var pattern = $"{baseName}_*{extension}";
-        var matchingFiles = Directory.GetFiles(directory, pattern)
+        var matchingFiles = Directory
+            .GetFiles(directory, pattern)
             .Where(f => !f.Equals(baseFilePath, StringComparison.OrdinalIgnoreCase))
             .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -318,7 +319,13 @@ public static class SpecificationService
         }
 
         // Generate base file (info, servers, security, x-multipart config)
-        var baseContent = GenerateBaseFileContent(document, baseName, partFiles.Select(p => p.PartName!).ToList());
+        var baseContent = GenerateBaseFileContent(
+            document,
+            baseName,
+            partFiles
+                .Select(p => p.PartName!)
+                .ToList());
+
         var baseFile = new SplitFileContent(
             fileName: $"{baseName}.yaml",
             content: baseContent,
@@ -784,7 +791,11 @@ public static class SpecificationService
 
         var existingTags = target.Tags != null
             ? new HashSet<string>(
-                target.Tags.Select(t => t.Name).Where(n => n != null).Cast<string>(),
+                target
+                    .Tags
+                    .Select(t => t.Name)
+                    .Where(n => n != null)
+                    .Cast<string>(),
                 StringComparer.OrdinalIgnoreCase)
             : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -849,7 +860,9 @@ public static class SpecificationService
             }
         }
 
-        return unresolvedRefs.Distinct(StringComparer.Ordinal).ToList();
+        return unresolvedRefs
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
     }
 
     private static void CheckSchemaReference(
@@ -1062,7 +1075,9 @@ public static class SpecificationService
         var sb = new StringBuilder();
 
         // Get unique paths for this group
-        var paths = operations.Select(o => o.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var paths = operations
+            .Select(o => o.Path).Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         // Get schemas used by this group (excluding shared schemas)
         var usedSchemas = new HashSet<string>(StringComparer.Ordinal);
@@ -1231,7 +1246,10 @@ public static class SpecificationService
 
         foreach (var operation in item.Operations)
         {
-            var method = operation.Key.ToString().ToLowerInvariant();
+            var method = operation
+                .Key
+                .ToString()
+                .ToLowerInvariant();
             sb.AppendLine($"{indent}{method}:");
             SerializeOperation(sb, operation.Value, indent + "  ");
         }
@@ -1267,7 +1285,7 @@ public static class SpecificationService
             foreach (var param in operation.Parameters)
             {
                 sb.AppendLine($"{indent}  - name: {param.Name}");
-                sb.AppendLine($"{indent}    in: {param.In.ToString().ToLowerInvariant()}");
+                sb.AppendLine($"{indent}    in: {param.In?.ToStringLowerCase()}");
                 if (param.Required)
                 {
                     sb.AppendLine($"{indent}    required: true");
@@ -1394,7 +1412,11 @@ public static class SpecificationService
             return;
         }
 
-        sb.AppendLine($"{indent}type: {actualScheme.Type.ToString().ToLowerInvariant()}");
+        var lowerType = actualScheme
+            .Type
+            .ToString()
+            .ToLowerInvariant();
+        sb.AppendLine($"{indent}type: {lowerType}");
 
         if (!string.IsNullOrEmpty(actualScheme.Scheme))
         {
@@ -1510,7 +1532,10 @@ public static class SpecificationService
             .Where(kvp => kvp.Value.Count > 1)
             .Select(kvp => new SharedSchemaAnalysis(
                 name: kvp.Key,
-                usedByDomains: kvp.Value.OrderBy(d => d, StringComparer.OrdinalIgnoreCase).ToList()))
+                usedByDomains: kvp
+                    .Value
+                    .OrderBy(d => d, StringComparer.OrdinalIgnoreCase)
+                    .ToList()))
             .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }

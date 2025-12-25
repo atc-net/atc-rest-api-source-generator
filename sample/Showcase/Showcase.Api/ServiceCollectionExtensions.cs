@@ -25,7 +25,8 @@ public static class ServiceCollectionExtensions
     {
         // The scheme names must match the OpenAPI securitySchemes names
         // The spec defines both "bearer_auth" and "oauth2" schemes
-        services.AddAuthentication("bearer_auth")
+        services
+            .AddAuthentication("bearer_auth")
             .AddJwtBearer("bearer_auth", ConfigureDemoJwtBearer)
             .AddJwtBearer("oauth2", ConfigureDemoJwtBearer);
 

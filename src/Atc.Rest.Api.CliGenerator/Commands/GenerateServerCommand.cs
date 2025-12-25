@@ -121,7 +121,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         OpenApiDocument? parsedDocument = null;
         IReadOnlyList<DiagnosticMessage> validationDiagnostics = [];
 
-        var statusResult = AnsiConsole.Status()
+        var statusResult = AnsiConsole
+            .Status()
             .Spinner(Spinner.Known.Dots)
             .SpinnerStyle(Style.Parse("blue"))
             .Start("Initializing...", ctx =>
@@ -572,7 +573,9 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 openApiDiagnostic?.Errors ?? [],
                 specPath);
 
-            var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+            var errors = diagnostics
+                .Where(d => d.Severity == DiagnosticSeverity.Error)
+                .ToList();
 
             if (errors.Count > 0)
             {
@@ -585,7 +588,10 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 return (false, parsedDoc, diagnostics);
             }
 
-            var warnings = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Warning).ToList();
+            var warnings = diagnostics
+                .Where(d => d.Severity == DiagnosticSeverity.Warning)
+                .ToList();
+
             if (warnings.Count > 0)
             {
                 AnsiConsole.MarkupLine($"[yellow]![/] Validation passed with {warnings.Count} warning(s):");
@@ -1199,7 +1205,9 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
 
         sb.AppendLine("// Add API services (rate limiting, security, etc. from OpenAPI spec)");
-        sb.Append("builder.Services.Add").Append(baseName).AppendLine("Api();");
+        sb.Append("builder.Services.Add");
+        sb.Append(baseName);
+        sb.AppendLine("Api();");
         sb.AppendLine();
         sb.AppendLine("// Register handler implementations and validators from Domain project");
         sb.AppendLine("builder.Services.AddApiHandlersFromDomain();");
@@ -1230,12 +1238,16 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             // Add root redirect to UI
             var redirectPath = hostUi == HostUiType.Swagger ? "/swagger" : "/scalar/v1";
             sb.AppendLine("// Redirect root to API documentation");
-            sb.Append("app.MapGet(\"/\", () => Results.Redirect(\"").Append(redirectPath).AppendLine("\")).ExcludeFromDescription();");
+            sb.Append("app.MapGet(\"/\", () => Results.Redirect(\"");
+            sb.Append(redirectPath);
+            sb.AppendLine("\")).ExcludeFromDescription();");
             sb.AppendLine();
         }
 
         sb.AppendLine("// Configure middleware and map all endpoints");
-        sb.Append("app.Map").Append(baseName).AppendLine("Api();");
+        sb.Append("app.Map");
+        sb.Append(baseName);
+        sb.AppendLine("Api();");
         sb.AppendLine();
         sb.Append("app.Run();");
 

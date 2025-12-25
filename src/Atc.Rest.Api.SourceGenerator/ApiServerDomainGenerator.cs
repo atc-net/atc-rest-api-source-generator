@@ -131,8 +131,9 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         var projectName = Path.GetFileNameWithoutExtension(yamlPath);
 
         // Determine the root namespace from project name
-        var rootNamespace = projectName.Replace(".Api.Domain", string.Empty)
-                                      .Replace(".Domain", string.Empty);
+        var rootNamespace = projectName
+            .Replace(".Api.Domain", string.Empty)
+            .Replace(".Domain", string.Empty);
 
         // Scan assembly for existing handler implementations
         var implementedHandlers = FindImplementedHandlers(compilation);
@@ -316,7 +317,10 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         };
 
         // Add path segment usings (sorted)
-        var sortedSegments = pathSegments.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
+        var sortedSegments = pathSegments
+            .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         foreach (var segment in sortedSegments)
         {
             requiredUsings.Add($"global using {rootNamespace}.Generated.{segment}.Handlers;");
@@ -341,7 +345,9 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         }
 
         // Find missing usings
-        var missingUsings = requiredUsings.Except(existingUsings, StringComparer.Ordinal).ToList();
+        var missingUsings = requiredUsings
+            .Except(existingUsings, StringComparer.Ordinal)
+            .ToList();
 
         // Check if file ends with newline
         var endsWithNewline = existingContent.Length > 0 &&

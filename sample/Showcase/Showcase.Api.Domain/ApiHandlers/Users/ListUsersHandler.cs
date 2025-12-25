@@ -35,7 +35,9 @@ public sealed class ListUsersHandler : IListUsersHandler
             limit: parameters.Limit);
 
         // Map domain users to API models
-        var result = users.Select(MapToApiModel).ToArray();
+        var result = users
+            .Select(MapToApiModel)
+            .ToArray();
 
         return ListUsersResult.Ok(result);
     }

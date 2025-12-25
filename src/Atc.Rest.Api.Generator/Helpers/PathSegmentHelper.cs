@@ -153,7 +153,9 @@ public static class PathSegmentHelper
             segments.Add(segment);
         }
 
-        return segments.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
+        return segments
+            .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     /// <summary>
@@ -190,7 +192,11 @@ public static class PathSegmentHelper
 
             foreach (var operation in pathItem.Operations)
             {
-                var httpMethod = operation.Key.ToString().ToUpperInvariant();
+                var httpMethod = operation
+                    .Key
+                    .ToString()
+                    .ToUpperInvariant();
+
                 operations.Add((pathKey, httpMethod, operation.Value));
             }
         }
@@ -513,7 +519,9 @@ public static class PathSegmentHelper
             }
         }
 
-        return usings.OrderBy(u => u, StringComparer.Ordinal).ToList();
+        return usings
+            .OrderBy(u => u, StringComparer.Ordinal)
+            .ToList();
     }
 
     /// <summary>

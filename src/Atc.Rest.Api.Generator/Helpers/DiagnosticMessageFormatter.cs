@@ -121,7 +121,11 @@ public static class DiagnosticMessageFormatter
         }
 
         // Severity
-        sb.Append(message.Severity.ToString().ToLowerInvariant());
+        var lowerInvariant = message
+            .Severity
+            .ToString()
+            .ToLowerInvariant();
+        sb.Append(lowerInvariant);
         sb.Append(' ');
         sb.Append(message.RuleId);
         sb.Append(": ");
@@ -153,7 +157,7 @@ public static class DiagnosticMessageFormatter
         {
             DiagnosticSeverity.Error => ("red", "x"),
             DiagnosticSeverity.Warning => ("yellow", "!"),
-            _ => ("blue", "i")
+            _ => ("blue", "i"),
         };
 
         sb.Append('[');
@@ -230,7 +234,7 @@ public static class DiagnosticMessageFormatter
         {
             DiagnosticSeverity.Error => "error",
             DiagnosticSeverity.Warning => "warning",
-            _ => "info"
+            _ => "info",
         };
 
     private static string? GetDefaultDocumentationUrl(string ruleId)
@@ -238,12 +242,17 @@ public static class DiagnosticMessageFormatter
         // Only generate URL for known ATC_API rules
         if (ruleId.StartsWith("ATC_API_", StringComparison.Ordinal))
         {
-            return $"{DocumentationBaseUrl}#{ruleId.ToLowerInvariant().Replace("_", "-")}";
+            var lowerRuleId = ruleId
+                .ToLowerInvariant()
+                .Replace("_", "-");
+            return $"{DocumentationBaseUrl}#{lowerRuleId}";
         }
 
         return null;
     }
 
     private static string EscapeSpectreMarkup(string text)
-        => text.Replace("[", "[[").Replace("]", "]]");
+        => text
+            .Replace("[", "[[")
+            .Replace("]", "]]");
 }

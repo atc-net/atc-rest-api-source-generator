@@ -285,7 +285,9 @@ public static class ResilienceDependencyInjectionExtractor
         builder.AppendLine(8, "switch (policyName)");
         builder.AppendLine(8, "{");
 
-        var sortedPolicies = policies.OrderBy(p => p.Key, StringComparer.Ordinal).ToList();
+        var sortedPolicies = policies
+            .OrderBy(p => p.Key, StringComparer.Ordinal)
+            .ToList();
 
         foreach (var policyKvp in sortedPolicies)
         {

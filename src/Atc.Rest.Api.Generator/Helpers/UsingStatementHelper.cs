@@ -265,7 +265,9 @@ public static class UsingStatementHelper
         StringBuilder sb,
         IEnumerable<string> usings)
     {
-        foreach (var ns in usings.OrderBy(GetSortOrder).ThenBy(u => u, StringComparer.Ordinal))
+        foreach (var ns in usings
+                     .OrderBy(GetSortOrder)
+                     .ThenBy(u => u, StringComparer.Ordinal))
         {
             sb.AppendLine($"using {ns};");
         }

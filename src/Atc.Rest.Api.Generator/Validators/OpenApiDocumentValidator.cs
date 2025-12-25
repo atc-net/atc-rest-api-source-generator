@@ -1419,7 +1419,11 @@ public static class OpenApiDocumentValidator
 
             foreach (var operationEntry in pathItem.Operations)
             {
-                var httpMethod = operationEntry.Key.ToString().ToLowerInvariant();
+                var httpMethod = operationEntry
+                    .Key
+                    .ToString()
+                    .ToLowerInvariant();
+
                 var operation = operationEntry.Value;
 
                 ValidateOperation(
@@ -2373,7 +2377,11 @@ public static class OpenApiDocumentValidator
 
             foreach (var operationEntry in pathItem.Operations)
             {
-                var operationType = operationEntry.Key.ToString().ToLowerInvariant();
+                var operationType = operationEntry
+                    .Key
+                    .ToString()
+                    .ToLowerInvariant();
+
                 var operation = operationEntry.Value;
 
                 // Check response schemas

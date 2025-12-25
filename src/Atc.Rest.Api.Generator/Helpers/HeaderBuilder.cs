@@ -38,7 +38,9 @@ public static class HeaderBuilder
         sb.AppendLine(NullableEnable);
         sb.AppendLine();
 
-        foreach (var ns in usings.OrderBy(GetSortOrder).ThenBy(u => u, StringComparer.Ordinal))
+        foreach (var ns in usings
+                     .OrderBy(GetSortOrder)
+                     .ThenBy(u => u, StringComparer.Ordinal))
         {
             sb.AppendLine($"using {ns};");
         }

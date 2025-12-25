@@ -46,7 +46,10 @@ public static class StringExtensions
                 result.Append(char.ToUpperInvariant(word[0]));
                 if (word.Length > 1)
                 {
-                    result.Append(word.Substring(1).ToLowerInvariant());
+                    var lowerInvariant = word
+                        .Substring(1)
+                        .ToLowerInvariant();
+                    result.Append(lowerInvariant);
                 }
             }
 

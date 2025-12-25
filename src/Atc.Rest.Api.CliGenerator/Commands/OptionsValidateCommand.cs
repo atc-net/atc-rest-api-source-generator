@@ -27,7 +27,8 @@ public sealed class OptionsValidateCommand : Command<OptionsCommandSettings>
         AnsiConsole.MarkupLine($"[blue]Validating:[/] {filePath}");
         AnsiConsole.WriteLine();
 
-        return AnsiConsole.Status()
+        return AnsiConsole
+            .Status()
             .Spinner(Spinner.Known.Dots)
             .SpinnerStyle(Style.Parse("blue"))
             .Start("Validating options file...", ctx =>

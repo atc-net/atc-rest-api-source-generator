@@ -25,7 +25,8 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
         AnsiConsole.MarkupLine($"[blue]Multi-part mode:[/] {(settings.UseMultiPart ? "Yes" : "No")}");
         AnsiConsole.WriteLine();
 
-        return AnsiConsole.Status()
+        return AnsiConsole
+            .Status()
             .Spinner(Spinner.Known.Dots)
             .SpinnerStyle(Style.Parse("blue"))
             .Start("Validating OpenAPI specification...", ctx =>
@@ -170,7 +171,11 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
             MultiPartConfiguration.Default);
 
         // Report merge diagnostics
-        var mergeErrors = mergeResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+        var mergeErrors = mergeResult
+            .Diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToList();
+
         if (mergeErrors.Count > 0)
         {
             AnsiConsole.MarkupLine($"[red]Merge errors ({mergeErrors.Count}):[/]");
@@ -212,7 +217,9 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
         // If explicit files are provided, use them
         if (!string.IsNullOrWhiteSpace(settings.ExplicitFiles))
         {
-            var explicitFiles = settings.ExplicitFiles.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            var explicitFiles = settings
+                .ExplicitFiles
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(f => f.Trim())
                 .Where(f => !string.IsNullOrWhiteSpace(f))
                 .ToList();
@@ -246,7 +253,8 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
 
             // Find part files matching pattern: {BaseName}_{PartName}.yaml
             var partPattern = $"{baseName}_*{extension}";
-            var partFiles = Directory.GetFiles(specDir, partPattern)
+            var partFiles = Directory
+                .GetFiles(specDir, partPattern)
                 .Where(f => !f.Equals(specPath, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -267,8 +275,13 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
     private static int DisplayValidationResults(
         IReadOnlyList<DiagnosticMessage> diagnostics)
     {
-        var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-        var warnings = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Warning).ToList();
+        var errors = diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToList();
+
+        var warnings = diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Warning)
+            .ToList();
 
         switch (errors.Count)
         {

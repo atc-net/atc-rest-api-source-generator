@@ -29,21 +29,24 @@ public static class CommandAppExtensions
         {
             node.SetDescription("Commands for working with OpenAPI specification files.");
 
-            node.AddCommand<SpecValidateCommand>("validate")
+            node
+                .AddCommand<SpecValidateCommand>("validate")
                 .WithDescription("Validate an OpenAPI specification file (strict mode by default).")
                 .WithExample("spec", "validate", "-s", "api.yaml")
                 .WithExample("spec", "validate", "-s", "api.yaml", "--no-strict")
                 .WithExample("spec", "validate", "-s", "api.yaml", "--multi-part")
                 .WithExample("spec", "validate", "--files", "api.yaml,api_Users.yaml,api_Orders.yaml");
 
-            node.AddCommand<SpecMergeCommand>("merge")
+            node
+                .AddCommand<SpecMergeCommand>("merge")
                 .WithDescription("Merge multiple OpenAPI specification files into one.")
                 .WithExample("spec", "merge", "-s", "api.yaml", "-o", "merged.yaml")
                 .WithExample("spec", "merge", "-s", "api.yaml", "-o", "merged.yaml", "--validate")
                 .WithExample("spec", "merge", "--files", "api.yaml,api_Users.yaml,api_Orders.yaml", "-o", "merged.yaml")
                 .WithExample("spec", "merge", "-s", "api.yaml", "--preview");
 
-            node.AddCommand<SpecSplitCommand>("split")
+            node
+                .AddCommand<SpecSplitCommand>("split")
                 .WithDescription("Split an OpenAPI specification file into multiple part files.")
                 .WithExample("spec", "split", "-s", "api.yaml", "-o", "./parts")
                 .WithExample("spec", "split", "-s", "api.yaml", "-o", "./parts", "--strategy", "ByPathSegment")
@@ -56,12 +59,14 @@ public static class CommandAppExtensions
         {
             node.SetDescription("Commands for generating code from OpenAPI specifications.");
 
-            node.AddCommand<GenerateClientCommand>("client")
+            node
+                .AddCommand<GenerateClientCommand>("client")
                 .WithDescription("Generate a client project from an OpenAPI specification (strict validation by default).")
                 .WithExample("generate", "client", "-s", "api.yaml", "-o", "output/MyApp.Client", "-n", "MyApp.Client")
                 .WithExample("generate", "client", "-s", "api.yaml", "-o", "output/MyApp.Client", "-n", "MyApp.Client", "--no-strict");
 
-            node.AddCommand<GenerateServerCommand>("server")
+            node
+                .AddCommand<GenerateServerCommand>("server")
                 .WithDescription("Generate server contracts and domain handler scaffolds from an OpenAPI specification.")
                 .WithExample("generate", "server", "-s", "api.yaml", "-o", "output/MyApp.Api.Contracts", "-n", "MyApp.Api.Contracts")
                 .WithExample("generate", "server", "-s", "api.yaml", "-o", "output/MyApp.Api.Contracts", "-n", "MyApp.Api.Contracts", "--no-domain")
@@ -73,12 +78,14 @@ public static class CommandAppExtensions
         {
             node.SetDescription("Commands for managing ApiGeneratorOptions.json configuration files.");
 
-            node.AddCommand<OptionsCreateCommand>("create")
+            node
+                .AddCommand<OptionsCreateCommand>("create")
                 .WithDescription("Create a default ApiGeneratorOptions.json file.")
                 .WithExample("options", "create", "-o", "./")
                 .WithExample("options", "create", "-o", "./config/ApiGeneratorOptions.json", "--force");
 
-            node.AddCommand<OptionsValidateCommand>("validate")
+            node
+                .AddCommand<OptionsValidateCommand>("validate")
                 .WithDescription("Validate an ApiGeneratorOptions.json file.")
                 .WithExample("options", "validate", "-o", "./")
                 .WithExample("options", "validate", "-o", "./config/ApiGeneratorOptions.json");

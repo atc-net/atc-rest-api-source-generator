@@ -47,7 +47,10 @@ public class ApiServerGenerator : IIncrementalGenerator
                 .Any(a => a.Name.Equals("Atc.Rest.MinimalApi", StringComparison.OrdinalIgnoreCase)));
 
         // Combine ALL YAML files (as collection) with marker files and compilation info
-        var combined = yamlFiles.Combine(markerFiles).Combine(hasAspNetCoreProvider).Combine(hasMinimalApiProvider);
+        var combined = yamlFiles
+            .Combine(markerFiles)
+            .Combine(hasAspNetCoreProvider)
+            .Combine(hasMinimalApiProvider);
 
         // Register source output - processes all YAML files together for multi-part support
         context.RegisterSourceOutput(combined, RegisterSourceOutputAction);
@@ -792,9 +795,13 @@ public class ApiServerGenerator : IIncrementalGenerator
             }
         }
 
+        var normalizeForSourceOutput = allGeneratedCode
+            .ToString()
+            .NormalizeForSourceOutput();
+
         context.AddSource(
             $"{projectName}.{pathSegment}.Handlers.g.cs",
-            SourceText.From(allGeneratedCode.ToString().NormalizeForSourceOutput(), Encoding.UTF8));
+            SourceText.From(normalizeForSourceOutput, Encoding.UTF8));
     }
 
     private static void GenerateEndpointRegistrations(
@@ -960,9 +967,13 @@ public class ApiServerGenerator : IIncrementalGenerator
             }
         }
 
+        var normalizeForSourceOutput = allGeneratedCode
+            .ToString()
+            .NormalizeForSourceOutput();
+
         context.AddSource(
             $"{projectName}.{pathSegment}.Endpoints.g.cs",
-            SourceText.From(allGeneratedCode.ToString().NormalizeForSourceOutput(), Encoding.UTF8));
+            SourceText.From(normalizeForSourceOutput, Encoding.UTF8));
     }
 
     private static void GenerateCombinedEndpointMapping(
@@ -1017,9 +1028,13 @@ public class ApiServerGenerator : IIncrementalGenerator
         builder.AppendLine(4, "}");
         builder.AppendLine("}");
 
+        var normalizeForSourceOutput = builder
+            .ToString()
+            .NormalizeForSourceOutput();
+
         context.AddSource(
             $"{projectName}.EndpointMapping.g.cs",
-            SourceText.From(builder.ToString().NormalizeForSourceOutput(), Encoding.UTF8));
+            SourceText.From(normalizeForSourceOutput, Encoding.UTF8));
     }
 
     private static void GenerateDependencyInjection(
@@ -1175,9 +1190,13 @@ public class ApiServerGenerator : IIncrementalGenerator
             }
         }
 
+        var normalizeForSourceOutput = allGeneratedCode
+            .ToString()
+            .NormalizeForSourceOutput();
+
         context.AddSource(
             $"{projectName}.{pathSegment}.Results.g.cs",
-            SourceText.From(allGeneratedCode.ToString().NormalizeForSourceOutput(), Encoding.UTF8));
+            SourceText.From(normalizeForSourceOutput, Encoding.UTF8));
     }
 
     private static void GenerateSecurityPolicies(

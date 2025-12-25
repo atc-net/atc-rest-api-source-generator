@@ -201,7 +201,7 @@ public static class EndpointDefinitionExtractor
             SubFolderStrategyType.None => GroupAllOperations(openApiDoc, includeDeprecated),
             SubFolderStrategyType.FirstPathSegment => GroupOperationsByFirstPathSegment(openApiDoc, includeDeprecated),
             SubFolderStrategyType.OpenApiTag => GroupOperationsByOpenApiTag(openApiDoc, includeDeprecated),
-            _ => GroupOperationsByFirstPathSegment(openApiDoc, includeDeprecated)
+            _ => GroupOperationsByFirstPathSegment(openApiDoc, includeDeprecated),
         };
 
         // Filter by path segment if specified
@@ -243,7 +243,10 @@ public static class EndpointDefinitionExtractor
                     continue;
                 }
 
-                var httpMethod = operation.Key.ToString().ToUpperInvariant();
+                var httpMethod = operation
+                    .Key
+                    .ToString()
+                    .ToUpperInvariant();
                 operationList.Add((pathKey, httpMethod, operation.Value!, pathParameters));
             }
         }
@@ -294,7 +297,11 @@ public static class EndpointDefinitionExtractor
                     continue;
                 }
 
-                var httpMethod = operation.Key.ToString().ToUpperInvariant();
+                var httpMethod = operation
+                    .Key
+                    .ToString()
+                    .ToUpperInvariant();
+
                 operationList.Add((pathKey, httpMethod, operation.Value!, pathParameters));
             }
         }
@@ -331,7 +338,10 @@ public static class EndpointDefinitionExtractor
                     continue;
                 }
 
-                var httpMethod = operation.Key.ToString().ToUpperInvariant();
+                var httpMethod = operation
+                    .Key
+                    .ToString()
+                    .ToUpperInvariant();
 
                 // Get group name from OpenAPI tag, or fall back to first path segment
                 // PathSegmentHelper.GetFirstPathSegment returns PascalCase, pluralized name
@@ -563,7 +573,10 @@ using Microsoft.AspNetCore.Builder;
         }
 
         // Get all paths and find common prefix
-        var paths = operations.Select(o => o.Path).ToList();
+        var paths = operations
+            .Select(o => o.Path)
+            .ToList();
+
         var commonPrefix = GetCommonPathPrefix(paths);
 
         // If no common prefix found, use the segment name
@@ -586,13 +599,20 @@ using Microsoft.AspNetCore.Builder;
         {
             // For single path, get the base path without parameters
             var path = paths[0];
-            var segments = path.Split('/').Where(s => !string.IsNullOrEmpty(s) && !s.StartsWith("{", StringComparison.Ordinal)).ToList();
+            var segments = path
+                .Split('/')
+                .Where(s => !string.IsNullOrEmpty(s) && !s.StartsWith("{", StringComparison.Ordinal))
+                .ToList();
+
             return "/" + string.Join("/", segments);
         }
 
         // Find common prefix among all paths
         var firstPath = paths[0];
-        var firstSegments = firstPath.Split('/').Where(s => !string.IsNullOrEmpty(s)).ToArray();
+        var firstSegments = firstPath
+            .Split('/')
+            .Where(s => !string.IsNullOrEmpty(s))
+            .ToArray();
 
         var commonSegments = new List<string>();
         for (var i = 0; i < firstSegments.Length; i++)
@@ -609,7 +629,11 @@ using Microsoft.AspNetCore.Builder;
             var allMatch = true;
             foreach (var path in paths.Skip(1))
             {
-                var pathSegments = path.Split('/').Where(s => !string.IsNullOrEmpty(s)).ToArray();
+                var pathSegments = path
+                    .Split('/')
+                    .Where(s => !string.IsNullOrEmpty(s))
+                    .ToArray();
+
                 if (i >= pathSegments.Length || !pathSegments[i].Equals(segment, StringComparison.Ordinal))
                 {
                     allMatch = false;
@@ -723,7 +747,9 @@ using Microsoft.AspNetCore.Builder;
             GenerateEndpointRegistration(builder, openApiDoc, path, httpMethod, operation, pathItem, projectName, segment, apiRouteBase, systemTypeResolver, groupSecurity, groupRateLimit, groupOutputCache, registry, useValidationFilter);
         }
 
-        return builder.ToString().TrimEnd();
+        return builder
+            .ToString()
+            .TrimEnd();
     }
 
     private static UnifiedSecurityConfig? GetGroupLevelSecurity(
@@ -855,7 +881,9 @@ using Microsoft.AspNetCore.Builder;
         }
 
         // Filter to only GET operations (output caching only applies to read operations)
-        var getOperations = operations.Where(o => o.Method.Equals("GET", StringComparison.OrdinalIgnoreCase)).ToList();
+        var getOperations = operations
+            .Where(o => o.Method.Equals("GET", StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
         if (getOperations.Count == 0)
         {
@@ -937,11 +965,19 @@ using Microsoft.AspNetCore.Builder;
         TypeConflictRegistry? registry = null,
         bool useValidationFilter = false)
     {
-        var operationId = operation.OperationId ?? $"{httpMethod}{path.Replace("/", "_").Replace("{", string.Empty).Replace("}", string.Empty)}";
+        var normalizedPath = path
+            .Replace("/", "_")
+            .Replace("{", string.Empty)
+            .Replace("}", string.Empty);
+
+        var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
         var methodName = operationId.ToPascalCaseForDotNet();
 
         // Convert HTTP method to Pascal case
-        var httpMethodPascal = char.ToUpperInvariant(httpMethod[0]) + httpMethod.Substring(1).ToLowerInvariant();
+        var httpMethodPascal = char.ToUpperInvariant(
+            httpMethod[0]) + httpMethod
+            .Substring(1)
+            .ToLowerInvariant();
 
         // Calculate relative path from ApiRouteBase
         var relativePath = GetRelativePath(path, apiRouteBase);
@@ -1210,7 +1246,9 @@ using Microsoft.AspNetCore.Builder;
         // Remove the apiRouteBase prefix from the path
         if (fullPath.StartsWith(apiRouteBase, StringComparison.OrdinalIgnoreCase))
         {
-            var remaining = fullPath.Substring(apiRouteBase.Length).TrimStart('/');
+            var remaining = fullPath
+                .Substring(apiRouteBase.Length)
+                .TrimStart('/');
             return string.IsNullOrEmpty(remaining) ? "/" : remaining;
         }
 
@@ -1372,7 +1410,12 @@ using Microsoft.AspNetCore.Builder;
         IList<IOpenApiParameter>? pathParameters,
         SystemTypeConflictResolver systemTypeResolver)
     {
-        var operationId = operation.OperationId ?? $"{httpMethod}{path.Replace("/", "_").Replace("{", string.Empty).Replace("}", string.Empty)}";
+        var normalizedPath = path
+            .Replace("/", "_")
+            .Replace("{", string.Empty)
+            .Replace("}", string.Empty);
+
+        var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
         var methodName = operationId.ToPascalCaseForDotNet();
         var resultClassName = $"{methodName}Result";
 

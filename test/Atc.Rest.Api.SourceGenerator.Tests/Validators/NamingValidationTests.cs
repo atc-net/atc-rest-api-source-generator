@@ -183,8 +183,9 @@ public class NamingValidationTests
             TestFilePath);
 
         // Assert
-        var nam005 = diagnostics.Where(d =>
-            d.RuleId == Generator.RuleIdentifiers.EnumValueCasing).ToList();
+        var nam005 = diagnostics
+            .Where(d => d.RuleId == Generator.RuleIdentifiers.EnumValueCasing)
+            .ToList();
         Assert.Equal(2, nam005.Count);
     }
 

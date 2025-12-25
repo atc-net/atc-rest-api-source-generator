@@ -106,7 +106,7 @@ public static class CodeGenerationService
             SubFolderStrategyType.None => null,
             SubFolderStrategyType.FirstPathSegment => GetGroupNameFromPath(path),
             SubFolderStrategyType.OpenApiTag => GetOpenApiTagForOperation(operation) ?? GetGroupNameFromPath(path),
-            _ => null
+            _ => null,
         };
 
     /// <summary>
@@ -661,7 +661,9 @@ public static class CodeGenerationService
             }
         }
 
-        return string.Join("\n", contentLines).TrimEnd();
+        return string
+            .Join("\n", contentLines)
+            .TrimEnd();
     }
 
     /// <summary>

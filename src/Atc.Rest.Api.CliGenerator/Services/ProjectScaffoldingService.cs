@@ -613,7 +613,9 @@ public sealed class ProjectScaffoldingService
         }
 
         sb.AppendLine("// Add API services (rate limiting, security, etc. from OpenAPI spec)");
-        sb.Append("builder.Services.Add").Append(baseName).AppendLine("Api();");
+        sb.Append("builder.Services.Add");
+        sb.Append(baseName);
+        sb.AppendLine("Api();");
         sb.AppendLine();
         sb.AppendLine("// Register handler implementations and validators from Domain project");
         sb.AppendLine("builder.Services.AddApiHandlersFromDomain();");
@@ -644,12 +646,16 @@ public sealed class ProjectScaffoldingService
             // Add root redirect to UI
             var redirectPath = hostUi == HostUiType.Swagger ? "/swagger" : "/scalar/v1";
             sb.AppendLine("// Redirect root to API documentation");
-            sb.Append("app.MapGet(\"/\", () => Results.Redirect(\"").Append(redirectPath).AppendLine("\")).ExcludeFromDescription();");
+            sb.Append("app.MapGet(\"/\", () => Results.Redirect(\"");
+            sb.Append(redirectPath);
+            sb.AppendLine("\")).ExcludeFromDescription();");
             sb.AppendLine();
         }
 
         sb.AppendLine("// Configure middleware and map all endpoints");
-        sb.Append("app.Map").Append(baseName).AppendLine("Api();");
+        sb.Append("app.Map");
+        sb.Append(baseName);
+        sb.AppendLine("Api();");
         sb.AppendLine();
         sb.Append("app.Run();");
 

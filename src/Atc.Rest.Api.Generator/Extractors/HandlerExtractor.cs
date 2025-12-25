@@ -81,7 +81,11 @@ public static class HandlerExtractor
                         continue;
                     }
 
-                    var httpMethod = operation.Key.ToString().ToUpperInvariant();
+                    var httpMethod = operation
+                        .Key
+                        .ToString()
+                        .ToUpperInvariant();
+
                     var interfaceParams = ExtractHandlerInterface(
                         pathKey,
                         httpMethod,
@@ -128,7 +132,12 @@ public static class HandlerExtractor
             return null;
         }
 
-        var operationId = operation.OperationId ?? $"{httpMethod}{path.Replace("/", "_").Replace("{", string.Empty).Replace("}", string.Empty)}";
+        var normalizedPath = path
+            .Replace("/", "_")
+            .Replace("{", string.Empty)
+            .Replace("}", string.Empty);
+
+        var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
         var handlerName = $"I{operationId.ToPascalCaseForDotNet()}Handler";
         var resultClassName = $"{operationId.ToPascalCaseForDotNet()}Result";
         var summary = operation.Summary ?? $"Handler for operation: {operationId}";

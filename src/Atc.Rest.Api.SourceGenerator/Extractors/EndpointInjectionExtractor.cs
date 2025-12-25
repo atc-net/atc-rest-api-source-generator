@@ -58,8 +58,11 @@ internal static class EndpointInjectionExtractor
                 }
 
                 // Get operation ID (or generate one from path/method)
-                var operationId = operationValue.OperationId ??
-                    $"{httpMethod}{pathKey.Replace("/", "_").Replace("{", string.Empty).Replace("}", string.Empty)}";
+                var normalizedPath = pathKey
+                    .Replace("/", "_")
+                    .Replace("{", string.Empty)
+                    .Replace("}", string.Empty);
+                var operationId = operationValue.OperationId ?? $"{httpMethod}{normalizedPath}";
 
                 // Convert operationId to PascalCase for interface name
                 var operationName = operationId.ToPascalCaseForDotNet();

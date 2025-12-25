@@ -154,11 +154,13 @@ public class RuleCoverageTests
         // Only scan this test assembly
         var assembly = typeof(RuleCoverageTests).Assembly;
 
-        var testClasses = assembly.GetTypes()
+        var testClasses = assembly
+            .GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract)
-            .Where(t => t.GetMethods().Any(m =>
-                m.GetCustomAttributes(typeof(FactAttribute), inherit: false).Length != 0 ||
-                m.GetCustomAttributes(typeof(TheoryAttribute), inherit: false).Length != 0));
+            .Where(t => t
+                .GetMethods()
+                .Any(m => m.GetCustomAttributes(typeof(FactAttribute), inherit: false).Length != 0 ||
+                          m.GetCustomAttributes(typeof(TheoryAttribute), inherit: false).Length != 0));
 
         foreach (var testClass in testClasses)
         {
@@ -168,7 +170,8 @@ public class RuleCoverageTests
                 continue;
             }
 
-            var testMethods = testClass.GetMethods()
+            var testMethods = testClass
+                .GetMethods()
                 .Where(m => m.GetCustomAttributes(typeof(FactAttribute), inherit: false).Length != 0 ||
                             m.GetCustomAttributes(typeof(TheoryAttribute), inherit: false).Length != 0);
 

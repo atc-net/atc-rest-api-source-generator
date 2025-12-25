@@ -53,7 +53,8 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         IReadOnlyList<DiagnosticMessage> validationDiagnostics = [];
         var specFileName = Path.GetFileName(specPath);
 
-        var statusResult = AnsiConsole.Status()
+        var statusResult = AnsiConsole
+            .Status()
             .Spinner(Spinner.Known.Dots)
             .SpinnerStyle(Style.Parse("blue"))
             .Start("Initializing...", ctx =>
@@ -253,7 +254,9 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 openApiDiagnostic?.Errors ?? [],
                 specPath);
 
-            var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+            var errors = diagnostics
+                .Where(d => d.Severity == DiagnosticSeverity.Error)
+                .ToList();
 
             if (errors.Count > 0)
             {
@@ -266,7 +269,10 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 return (false, parsedDoc, diagnostics);
             }
 
-            var warnings = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Warning).ToList();
+            var warnings = diagnostics
+                .Where(d => d.Severity == DiagnosticSeverity.Warning)
+                .ToList();
+
             if (warnings.Count > 0)
             {
                 AnsiConsole.MarkupLine($"[yellow]![/] Validation passed with {warnings.Count} warning(s):");

@@ -581,6 +581,9 @@ dotnet_diagnostic.S6964.severity = none             # Value type property used a
 [*.{cs,csx,cake}]
 
 dotnet_diagnostic.CA1002.severity = none            # Change 'List<T>' to Collection<T>' or read-only collection
+dotnet_diagnostic.CA2227.severity = none            # Change 'XXX' to be read-only by removing the property setter
+
+dotnet_diagnostic.MA0016.severity = none            # Prefer using collection abstraction instead of implementation
 
 dotnet_diagnostic.SA1611.severity = none            # The documentation for parameter '{0}' should have a <param> tag.
 dotnet_diagnostic.SA1615.severity = none            # Element return value should be documented
@@ -590,7 +593,6 @@ dotnet_diagnostic.S2325.severity = none             # Make 'IsArrayType' a stati
 dotnet_diagnostic.S3267.severity = none             # Loop should be simplified by calling Select
 
 ## TEMPORARY DISABLED RULES - REMOVE WHEN FIXED IN CODEBASE
-dotnet_diagnostic.ATC203.severity = none            # Method chains with 2 or more calls should be broken down to separate lines
 dotnet_diagnostic.CA1062.severity = none            # In externally visible method
 dotnet_diagnostic.MA0051.severity = none            # Method is too long
 dotnet_diagnostic.RS2008.severity = none            # Enable analyzer release tracking for the analyzer project containing rule
