@@ -5,6 +5,7 @@
     <LangVersion>12.0</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);MA0048;SA1649;MA0016;SA1516;CA2227;SA1413</NoWarn>
   </PropertyGroup>
 
