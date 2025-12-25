@@ -254,7 +254,9 @@ public static class RateLimitDependencyInjectionExtractor
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;");
 
-        var sortedPolicies = policies.OrderBy(p => p.Key, StringComparer.Ordinal).ToList();
+        var sortedPolicies = policies
+            .OrderBy(p => p.Key, StringComparer.Ordinal)
+            .ToList();
 
         foreach (var policyKvp in sortedPolicies)
         {

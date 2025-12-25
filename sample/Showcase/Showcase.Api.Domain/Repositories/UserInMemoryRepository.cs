@@ -142,7 +142,11 @@ public sealed class UserInMemoryRepository
             var email = GenerateUniqueEmail(random, usedEmails, firstName, lastName);
             var city = cities[random.Next(cities.Length)];
             var role = (UserRoleType)random.Next(4);
-            var dob = DateOnly.FromDateTime(DateTime.Today.AddYears(-random.Next(20, 65)).AddDays(-random.Next(365)));
+            var dob = DateOnly.FromDateTime(
+                DateTime
+                    .Today
+                    .AddYears(-random.Next(20, 65))
+                    .AddDays(-random.Next(365)));
 
             var user = new UserEntity(
                 Id: Guid.NewGuid(),
@@ -185,7 +189,11 @@ public sealed class UserInMemoryRepository
             var email = GenerateUniqueEmail(random, usedEmails, firstName, lastName);
             var city = UsaCities[random.Next(UsaCities.Length)];
             var role = (UserRoleType)random.Next(4);
-            var dob = DateOnly.FromDateTime(DateTime.Today.AddYears(-random.Next(20, 65)).AddDays(-random.Next(365)));
+            var dob = DateOnly.FromDateTime(
+                DateTime
+                    .Today
+                    .AddYears(-random.Next(20, 65))
+                    .AddDays(-random.Next(365)));
 
             var user = new UserEntity(
                 Id: Guid.NewGuid(),
@@ -228,7 +236,11 @@ public sealed class UserInMemoryRepository
 
         do
         {
-            var suffix = attempt > 0 ? random.Next(100, 999).ToString(CultureInfo.InvariantCulture) : string.Empty;
+            var suffix = attempt > 0
+                ? random
+                    .Next(100, 999)
+                    .ToString(CultureInfo.InvariantCulture)
+                : string.Empty;
             email = $"{firstName.ToLowerInvariant()}.{lastName.ToLowerInvariant()}{suffix}@{domains[random.Next(domains.Length)]}";
             attempt++;
         }

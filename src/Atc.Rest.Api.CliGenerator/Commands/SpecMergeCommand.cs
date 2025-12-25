@@ -17,7 +17,8 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
 
         WriteHeader();
 
-        return AnsiConsole.Status()
+        return AnsiConsole
+            .Status()
             .Spinner(Spinner.Known.Dots)
             .SpinnerStyle(Style.Parse("blue"))
             .Start("Merging OpenAPI specifications...", ctx =>
@@ -92,8 +93,13 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
         var mergeResult = SpecificationService.MergeSpecifications(baseSpec, partSpecs, mergeConfig);
 
         // Report diagnostics
-        var errors = mergeResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-        var warnings = mergeResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Warning).ToList();
+        var errors = mergeResult.Diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToList();
+
+        var warnings = mergeResult.Diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Warning)
+            .ToList();
 
         if (errors.Count > 0)
         {
@@ -135,7 +141,10 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
                 settings.OutputPath ?? "merged.yaml",
                 ValidateSpecificationStrategy.Standard);
 
-            var validationErrors = validationDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+            var validationErrors = validationDiagnostics
+                .Where(d => d.Severity == DiagnosticSeverity.Error)
+                .ToList();
+
             if (validationErrors.Count > 0)
             {
                 AnsiConsole.MarkupLine($"[red]Validation errors ({validationErrors.Count}):[/]");
@@ -158,7 +167,11 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
             var previewContent = SpecificationService.SerializeToYaml(mergeResult.Document);
 
             // Show first 50 lines of preview
-            var previewLines = previewContent.Split('\n').Take(50).ToList();
+            var previewLines = previewContent
+                .Split('\n')
+                .Take(50)
+                .ToList();
+
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine("[blue]Preview (first 50 lines):[/]");
             AnsiConsole.WriteLine();
@@ -206,7 +219,9 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
         // If explicit files are provided, use them
         if (!string.IsNullOrWhiteSpace(settings.ExplicitFiles))
         {
-            var explicitFiles = settings.ExplicitFiles.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            var explicitFiles = settings
+                .ExplicitFiles
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(f => f.Trim())
                 .Where(f => !string.IsNullOrWhiteSpace(f))
                 .ToList();
@@ -240,7 +255,8 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
 
             // Find part files matching pattern: {BaseName}_{PartName}.yaml
             var partPattern = $"{baseName}_*{extension}";
-            var partFiles = Directory.GetFiles(specDir, partPattern)
+            var partFiles = Directory
+                .GetFiles(specDir, partPattern)
                 .Where(f => !f.Equals(specPath, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
                 .ToList();

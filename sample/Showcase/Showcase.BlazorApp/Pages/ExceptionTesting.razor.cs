@@ -112,8 +112,12 @@ public partial class ExceptionTesting
                 await Task.Delay(100).ConfigureAwait(false);
             }
 
-            var passed = testResults.Take(ExceptionTests.Length).Count(r => r.StatusMatched);
+            var passed = testResults
+                .Take(ExceptionTests.Length)
+                .Count(r => r.StatusMatched);
+
             var total = ExceptionTests.Length;
+
             Snackbar.Add(
                 $"Tests complete: {passed}/{total} passed",
                 passed == total

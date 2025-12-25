@@ -128,10 +128,18 @@ public static class VersioningDependencyInjectionExtractor
         // AssumeDefaultVersionWhenUnspecified only applies to QueryString and Header
         if (config.VersioningStrategy != VersioningStrategyType.UrlSegment)
         {
-            builder.AppendLine(4, $"options.AssumeDefaultVersionWhenUnspecified = {config.AssumeDefaultVersionWhenUnspecified.ToString().ToLowerInvariant()};");
+            var lowerAssumeDefaultVersionWhenUnspecified = config
+                .AssumeDefaultVersionWhenUnspecified
+                .ToString()
+                .ToLowerInvariant();
+            builder.AppendLine(4, $"options.AssumeDefaultVersionWhenUnspecified = {lowerAssumeDefaultVersionWhenUnspecified};");
         }
 
-        builder.AppendLine(4, $"options.ReportApiVersions = {config.ReportApiVersions.ToString().ToLowerInvariant()};");
+        var lowerReportApiVersions = config
+            .ReportApiVersions
+            .ToString()
+            .ToLowerInvariant();
+        builder.AppendLine(4, $"options.ReportApiVersions = {lowerReportApiVersions};");
 
         // Configure ApiVersionReader based on strategy
         switch (config.VersioningStrategy)

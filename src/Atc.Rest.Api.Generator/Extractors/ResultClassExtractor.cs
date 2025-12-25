@@ -122,7 +122,10 @@ public static class ResultClassExtractor
                     continue;
                 }
 
-                var httpMethod = operation.Key.ToString().ToUpperInvariant();
+                var httpMethod = operation
+                    .Key
+                    .ToString()
+                    .ToUpperInvariant();
                 var pathItem = path.Value as OpenApiPathItem;
                 var currentPathSegment = PathSegmentHelper.GetFirstPathSegment(pathKey);
                 var classParams = ExtractResultClass(openApiDoc, operationId!, operationValue!, pathItem!, httpMethod, namespaceValue, modelsNamespace, registry, systemTypeResolver, currentPathSegment, inlineSchemas);

@@ -49,7 +49,9 @@ public class ApiClientGenerator : IIncrementalGenerator
             });
 
         // Combine ALL YAML files (as collection) with marker files and compilation info
-        var combined = yamlFiles.Combine(markerFiles).Combine(packageReferencesProvider);
+        var combined = yamlFiles
+            .Combine(markerFiles)
+            .Combine(packageReferencesProvider);
 
         // Register source output - processes all YAML files together for multi-part support
         context.RegisterSourceOutput(combined, RegisterSourceOutputAction);
@@ -1039,9 +1041,13 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(4, "string? Instance,");
         sb.AppendLine(4, "Dictionary<string, string[]>? Errors);");
 
+        var normalizeForSourceOutput = sb
+            .ToString()
+            .NormalizeForSourceOutput();
+
         context.AddSource(
             $"{projectName}.ProblemDetails.g.cs",
-            SourceText.From(sb.ToString().NormalizeForSourceOutput(), Encoding.UTF8));
+            SourceText.From(normalizeForSourceOutput, Encoding.UTF8));
     }
 
     /// <summary>

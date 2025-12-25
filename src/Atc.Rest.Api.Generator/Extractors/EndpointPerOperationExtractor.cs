@@ -219,7 +219,12 @@ public static class EndpointPerOperationExtractor
         bool hasSharedModels,
         Dictionary<string, InlineSchemaInfo>? inlineSchemas = null)
     {
-        var operationId = operation.OperationId ?? $"{httpMethod}{path.Replace("/", "_").Replace("{", string.Empty).Replace("}", string.Empty)}";
+        var normalizedPath = path
+            .Replace("/", "_")
+            .Replace("{", string.Empty)
+            .Replace("}", string.Empty);
+
+        var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
         var operationName = operationId.ToPascalCaseForDotNet();
         var description = operation.Summary ?? operation.Description ?? $"{operationName} operation";
 
@@ -874,7 +879,10 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine();
 
         // Build and send request - Convert HTTP method to PascalCase for System.Net.Http.HttpMethod (e.g., GET → Get, POST → Post)
-        var httpMethodPascal = char.ToUpperInvariant(httpMethod[0]) + httpMethod.Substring(1).ToLowerInvariant();
+        var httpMethodPascal = char.ToUpperInvariant(
+            httpMethod[0]) + httpMethod
+            .Substring(1)
+            .ToLowerInvariant();
         sb.AppendLine($"using var requestMessage = requestBuilder.Build(HttpMethod.{httpMethodPascal});");
         sb.AppendLine("using var response = await client.SendAsync(requestMessage, cancellationToken);");
         sb.AppendLine();

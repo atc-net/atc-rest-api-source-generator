@@ -332,7 +332,10 @@ public static class HybridCacheDependencyInjectionExtractor
         builder.AppendLine(8, "=> policyName switch");
         builder.AppendLine(8, "{");
 
-        var sortedPolicies = policies.OrderBy(p => p.Key, StringComparer.Ordinal).ToList();
+        var sortedPolicies = policies
+            .OrderBy(p => p.Key, StringComparer.Ordinal)
+            .ToList();
+
         foreach (var policyKvp in sortedPolicies)
         {
             var policyName = policyKvp.Key;

@@ -160,5 +160,11 @@ public static class DiagnosticBuilder
     }
 
     private static string GetDocUrl(string ruleId)
-        => $"{DocsBaseUrl}#{ruleId.ToLowerInvariant().Replace("_", "-")}";
+    {
+        var lowerRuleId = ruleId
+            .ToLowerInvariant()
+            .Replace("_", "-");
+
+        return $"{DocsBaseUrl}#{lowerRuleId}";
+    }
 }

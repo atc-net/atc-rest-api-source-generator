@@ -601,40 +601,52 @@ public class SecurityValidationTests
     private static string CreateYamlWithOperationAuthConflict(
         bool authenticationRequired,
         string[] operationRoles)
-        => $"""
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            x-authorize-roles: {FormatArrayExtension(operationRoles)}
-            paths:
-              /pets:
-                get:
-                  operationId: listPets
-                  x-authentication-required: {authenticationRequired.ToString().ToLowerInvariant()}
-                  x-authorize-roles: {FormatArrayExtension(operationRoles)}
-                  responses:
-                    '200':
-                      description: Success
-            """;
+    {
+        var lowerAuthenticationRequired = authenticationRequired
+            .ToString()
+            .ToLowerInvariant();
+
+        return $"""
+                openapi: 3.0.0
+                info:
+                  title: Test API
+                  version: 1.0.0
+                x-authorize-roles: {FormatArrayExtension(operationRoles)}
+                paths:
+                  /pets:
+                    get:
+                      operationId: listPets
+                      x-authentication-required: {lowerAuthenticationRequired}
+                      x-authorize-roles: {FormatArrayExtension(operationRoles)}
+                      responses:
+                        '200':
+                          description: Success
+                """;
+    }
 
     private static string CreateYamlWithPathAuthConflict(
         bool authenticationRequired,
         string[] pathRoles)
-        => $"""
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            x-authorize-roles: {FormatArrayExtension(pathRoles)}
-            paths:
-              /pets:
-                x-authentication-required: {authenticationRequired.ToString().ToLowerInvariant()}
+    {
+        var lowerAuthenticationRequired = authenticationRequired
+            .ToString()
+            .ToLowerInvariant();
+
+        return $"""
+                openapi: 3.0.0
+                info:
+                  title: Test API
+                  version: 1.0.0
                 x-authorize-roles: {FormatArrayExtension(pathRoles)}
-                get:
-                  operationId: listPets
-                  responses:
-                    '200':
-                      description: Success
-            """;
+                paths:
+                  /pets:
+                    x-authentication-required: {lowerAuthenticationRequired}
+                    x-authorize-roles: {FormatArrayExtension(pathRoles)}
+                    get:
+                      operationId: listPets
+                      responses:
+                        '200':
+                          description: Success
+                """;
+    }
 }

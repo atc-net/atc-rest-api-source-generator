@@ -66,8 +66,18 @@ public static class ServerDependencyInjectionExtractor
                     continue;
                 }
 
-                var httpMethod = operation.Key.ToString().ToUpperInvariant();
-                var operationId = operationValue.OperationId ?? $"{httpMethod}{path.Key.Replace("/", "_").Replace("{", string.Empty).Replace("}", string.Empty)}";
+                var httpMethod = operation
+                    .Key
+                    .ToString()
+                    .ToUpperInvariant();
+
+                var normalizedPath = path
+                    .Key
+                    .Replace("/", "_")
+                    .Replace("{", string.Empty)
+                    .Replace("}", string.Empty);
+
+                var operationId = operationValue.OperationId ?? $"{httpMethod}{normalizedPath}";
                 var handlerName = $"I{operationId.ToPascalCaseForDotNet()}Handler";
                 handlerInterfaces.Add(handlerName);
             }

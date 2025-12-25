@@ -146,7 +146,11 @@ public static class HttpClientExtractor
                         continue;
                     }
 
-                    var httpMethod = operation.Key.ToString().ToUpperInvariant();
+                    var httpMethod = operation
+                        .Key
+                        .ToString()
+                        .ToUpperInvariant();
+
                     var currentPathSegment = PathSegmentHelper.GetFirstPathSegment(pathKey);
                     var methodParams = ExtractMethod(pathKey, httpMethod, operation.Value, pathLevelParameters, openApiDoc, registry, systemTypeResolver, currentPathSegment, inlineSchemas);
 
@@ -267,8 +271,11 @@ public static class HttpClientExtractor
 
         // Check if this is an async enumerable streaming operation
         var isAsyncEnumerable = operation.IsAsyncEnumerableOperation();
-
-        var operationId = operation.OperationId ?? $"{httpMethod}{path.Replace("/", "_").Replace("{", string.Empty).Replace("}", string.Empty)}";
+        var normalizedPath = path
+            .Replace("/", "_")
+            .Replace("{", string.Empty)
+            .Replace("}", string.Empty);
+        var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
         var methodName = operationId.ToPascalCaseForDotNet() + "Async";
         var parametersClassName = $"{operationId.ToPascalCaseForDotNet()}Parameters";
 

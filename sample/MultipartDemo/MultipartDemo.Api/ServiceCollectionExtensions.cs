@@ -23,7 +23,8 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services)
     {
         // The scheme names must match the OpenAPI securitySchemes names
-        services.AddAuthentication("bearer_auth")
+        services
+            .AddAuthentication("bearer_auth")
             .AddJwtBearer("bearer_auth", ConfigureDemoJwtBearer);
 
         services.AddAuthorization();

@@ -136,8 +136,13 @@ public class GeneratorComparisonTests
         sb.Append(CultureInfo.InvariantCulture, $"Folder structure mismatch for {masterFolder}/{scenario}/{generator}");
         sb.AppendLine();
 
-        var missingFolders = expectedFolders.Except(actualFolders, StringComparer.OrdinalIgnoreCase).ToList();
-        var extraFolders = actualFolders.Except(expectedFolders, StringComparer.OrdinalIgnoreCase).ToList();
+        var missingFolders = expectedFolders
+            .Except(actualFolders, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var extraFolders = actualFolders
+            .Except(expectedFolders, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         if (missingFolders.Count > 0)
         {

@@ -27,8 +27,13 @@ public static class StatisticsCollector
             .GroupBy(t => t.Category, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
 
-        var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-        var warnings = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Warning).ToList();
+        var errors = diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToList();
+
+        var warnings = diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Warning)
+            .ToList();
 
         return new GenerationStatistics
         {
@@ -53,8 +58,12 @@ public static class StatisticsCollector
             WebhookHandlersCount = GetDictionaryValue(grouped, "WebhookHandlers"),
             ErrorCount = errors.Count,
             WarningCount = warnings.Count,
-            ErrorRuleIds = errors.Select(e => e.RuleId).Distinct(StringComparer.Ordinal).ToList(),
-            WarningRuleIds = warnings.Select(w => w.RuleId).Distinct(StringComparer.Ordinal).ToList(),
+            ErrorRuleIds = errors
+                .Select(e => e.RuleId).Distinct(StringComparer.Ordinal)
+                .ToList(),
+            WarningRuleIds = warnings
+                .Select(w => w.RuleId).Distinct(StringComparer.Ordinal)
+                .ToList(),
         };
     }
 
@@ -72,8 +81,13 @@ public static class StatisticsCollector
         string generatorType,
         IReadOnlyList<DiagnosticMessage> diagnostics)
     {
-        var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-        var warnings = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Warning).ToList();
+        var errors = diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToList();
+
+        var warnings = diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Warning)
+            .ToList();
 
         var operationsCount = CountOperations(document);
         var schemasCount = document.Components?.Schemas?.Count ?? 0;
@@ -103,8 +117,12 @@ public static class StatisticsCollector
             WebhookHandlersCount = CountWebhookOperations(document), // One handler per webhook operation
             ErrorCount = errors.Count,
             WarningCount = warnings.Count,
-            ErrorRuleIds = errors.Select(e => e.RuleId).Distinct(StringComparer.Ordinal).ToList(),
-            WarningRuleIds = warnings.Select(w => w.RuleId).Distinct(StringComparer.Ordinal).ToList(),
+            ErrorRuleIds = errors
+                .Select(e => e.RuleId).Distinct(StringComparer.Ordinal)
+                .ToList(),
+            WarningRuleIds = warnings
+                .Select(w => w.RuleId).Distinct(StringComparer.Ordinal)
+                .ToList(),
         };
     }
 

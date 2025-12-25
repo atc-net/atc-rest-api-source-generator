@@ -115,7 +115,10 @@ public static class SecurityDependencyInjectionExtractor
                     }
 
                     // Sort scopes for consistent policy names
-                    var sortedScopes = scopes.OrderBy(s => s, StringComparer.Ordinal).ToList();
+                    var sortedScopes = scopes
+                        .OrderBy(s => s, StringComparer.Ordinal)
+                        .ToList();
+
                     var policyName = SecurityPoliciesExtractor.GeneratePolicyName(schemeName, sortedScopes);
 
                     if (!policies.ContainsKey(policyName))
@@ -206,7 +209,10 @@ public static class SecurityDependencyInjectionExtractor
         builder.AppendLine(8, "services.AddAuthorization(options =>");
         builder.AppendLine(8, "{");
 
-        var sortedPolicies = policies.OrderBy(p => p.Key, StringComparer.Ordinal).ToList();
+        var sortedPolicies = policies
+            .OrderBy(p => p.Key, StringComparer.Ordinal)
+            .ToList();
+
         var isFirst = true;
 
         foreach (var policyKvp in sortedPolicies)

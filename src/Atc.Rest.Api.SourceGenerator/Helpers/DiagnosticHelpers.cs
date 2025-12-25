@@ -1740,7 +1740,9 @@ internal static class DiagnosticHelpers
     /// <returns>A list of Roslyn Diagnostics.</returns>
     public static List<Diagnostic> ToRoslynDiagnostics(
         IEnumerable<GeneratorDiagnosticMessage> messages)
-        => messages.Select(ToRoslynDiagnostic).ToList();
+        => messages
+            .Select(ToRoslynDiagnostic)
+            .ToList();
 
     /// <summary>
     /// Checks if any DiagnosticMessage in the collection has Error severity.

@@ -190,5 +190,7 @@ public partial class UserDetails
         => $"https://www.google.com/maps/search/?api=1&query={lat.ToString(CultureInfo.InvariantCulture)},{lng.ToString(CultureInfo.InvariantCulture)}";
 
     private static string FormatDateTime(DateTimeOffset dateTime)
-        => dateTime.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+        => dateTime
+            .ToLocalTime()
+            .ToString("g", CultureInfo.CurrentCulture);
 }

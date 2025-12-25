@@ -674,16 +674,18 @@ public static class OpenApiSchemaExtensions
             string csharpType;
             if (!string.IsNullOrEmpty(refStr))
             {
-                var refName = refStr.Split('/').Last();
+                var refName = refStr
+                    .Split('/')
+                    .Last();
                 csharpType = ResolveTypeName(refName, registry);
             }
             else
             {
-                csharpType = MapJsonTypeToCSharp(typeStr, format);
+                csharpType = IOpenApiSchema.MapJsonTypeToCSharp(typeStr, format);
             }
 
             // Generate name from description or use positional
-            var name = GenerateTupleElementName(description, index);
+            var name = IOpenApiSchema.GenerateTupleElementName(description, index);
 
             return new TupleItemInfo
             {

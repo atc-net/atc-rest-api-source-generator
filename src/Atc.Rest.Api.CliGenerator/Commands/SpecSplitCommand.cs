@@ -17,7 +17,8 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
 
         WriteHeader();
 
-        return AnsiConsole.Status()
+        return AnsiConsole
+            .Status()
             .Spinner(Spinner.Known.Dots)
             .SpinnerStyle(Style.Parse("blue"))
             .Start("Splitting OpenAPI specification...", ctx =>
@@ -64,8 +65,13 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
             settings.ExtractCommon);
 
         // Report diagnostics
-        var errors = splitResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-        var warnings = splitResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Warning).ToList();
+        var errors = splitResult.Diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToList();
+
+        var warnings = splitResult.Diagnostics
+            .Where(d => d.Severity == DiagnosticSeverity.Warning)
+            .ToList();
 
         if (errors.Count > 0)
         {
@@ -166,7 +172,11 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
             AnsiConsole.WriteLine();
 
             // Show first 20 lines of each file
-            var previewLines = file.Content.Split('\n').Take(20).ToList();
+            var previewLines = file.Content
+                .Split('\n')
+                .Take(20)
+                .ToList();
+
             foreach (var line in previewLines)
             {
                 AnsiConsole.WriteLine(line);

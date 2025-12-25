@@ -294,7 +294,10 @@ public static class HybridCachePoliciesExtractor
         builder.AppendLine("public static class CachePolicies");
         builder.AppendLine("{");
 
-        var sortedPolicies = policies.OrderBy(p => p.Key, StringComparer.Ordinal).ToList();
+        var sortedPolicies = policies
+            .OrderBy(p => p.Key, StringComparer.Ordinal)
+            .ToList();
+
         var isFirst = true;
 
         foreach (var policyKvp in sortedPolicies)

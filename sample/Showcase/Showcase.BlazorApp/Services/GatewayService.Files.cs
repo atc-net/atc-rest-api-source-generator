@@ -56,7 +56,9 @@ public sealed partial class GatewayService
         IEnumerable<(Stream Stream, string FileName, string ContentType)> files,
         CancellationToken cancellationToken = default)
     {
-        var fileStreams = files.Select(f => f.Stream).ToArray();
+        var fileStreams = files
+            .Select(f => f.Stream)
+            .ToArray();
         var parameters = new UploadMultiFilesAsFormDataParameters(File: fileStreams);
 
         var result = await uploadMultiFilesAsFormDataEndpoint
@@ -104,7 +106,9 @@ public sealed partial class GatewayService
         string[] items,
         CancellationToken cancellationToken = default)
     {
-        var fileStreams = files.Select(f => f.Stream).ToArray();
+        var fileStreams = files
+            .Select(f => f.Stream)
+            .ToArray();
         var request = new FilesAsFormDataRequest(fileStreams);
         var parameters = new UploadSingleObjectWithFilesAsFormDataParameters(Request: request);
 

@@ -286,7 +286,10 @@ using {projectName}.Generated.Parameters;
             {
                 foreach (var operation in pathItem.Operations)
                 {
-                    var httpMethod = operation.Key.ToString().ToUpperInvariant();
+                    var httpMethod = operation
+                        .Key
+                        .ToString()
+                        .ToUpperInvariant();
                     GenerateEndpointMapping(builder, openApiDoc, pathItem, pathKey, httpMethod, operation.Value, isFirst);
                     isFirst = false;
                 }
@@ -313,11 +316,18 @@ using {projectName}.Generated.Parameters;
             return;
         }
 
-        var operationId = operation.OperationId ?? $"{httpMethod}{path.Replace("/", "_").Replace("{", string.Empty).Replace("}", string.Empty)}";
+        var normalizedPath = path
+            .Replace("/", "_")
+            .Replace("{", string.Empty)
+            .Replace("}", string.Empty);
+        var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
         var handlerName = $"I{operationId.ToPascalCaseForDotNet()}Handler";
 
         // Convert HTTP method to Pascal case (e.g., GET -> Get, POST -> Post)
-        var methodName = char.ToUpperInvariant(httpMethod[0]) + httpMethod.Substring(1).ToLowerInvariant();
+        var methodName = char.ToUpperInvariant(
+            httpMethod[0]) + httpMethod
+            .Substring(1)
+            .ToLowerInvariant();
 
         // Add blank line before each endpoint except the first one
         if (!isFirst)

@@ -23,7 +23,9 @@ public static class OperationFeaturesHelper
         var hasParameters = operation.HasParameters() || operation.HasRequestBody();
 
         // Check for path parameters specifically
-        var hasPathParameters = operation.GetPathParameters().Any();
+        var hasPathParameters = operation
+            .GetPathParameters()
+            .Any();
 
         // Check for security requirements
         var securityConfig = operation.ExtractUnifiedSecurityConfiguration(pathItem, document);
