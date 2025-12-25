@@ -97,5 +97,5 @@ jobs:
       - name: 🛠️ Build PetStoreSimple sample
         run: dotnet build sample/PetStoreSimple/PetStoreSimple.Api/PetStoreSimple.Api.csproj -c Release
 
-      - name: 🛠️ Build MultiParts sample
+      - name: 🛠️ Build MultipartDemo sample
         run: dotnet build sample/MultipartDemo/MultipartDemo.Api/MultipartDemo.Api.csproj -c Release

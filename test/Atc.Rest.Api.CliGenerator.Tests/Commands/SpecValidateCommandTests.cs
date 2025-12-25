@@ -11,7 +11,7 @@ public sealed class SpecValidateCommandTests
     /// <summary>
     /// Provides all available scenario YAML files for parameterized tests.
     /// Only includes base scenario files where folder name matches file name.
-    /// Excludes part files (e.g., MultiParts_Users.yaml) and merged files.
+    /// Excludes part files (e.g., MultipartDemo_Users.yaml) and merged files.
     /// </summary>
     public static IEnumerable<object[]> AllScenarios
         => Directory
