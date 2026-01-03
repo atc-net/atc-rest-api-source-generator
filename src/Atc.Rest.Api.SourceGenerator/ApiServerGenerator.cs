@@ -501,7 +501,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                 useMinimalApiPackage,
                 useValidationFilter,
                 config.VersioningStrategy,
-                config.DefaultApiVersion);
+                config.DefaultApiVersion,
+                config.UseServersBasePath);
         }
 
         // Generate combined endpoint mapping extension (calls all path segment endpoint methods)
@@ -816,10 +817,11 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool useMinimalApiPackage,
         bool useValidationFilter,
         VersioningStrategyType versioningStrategy,
-        string defaultApiVersion)
+        string defaultApiVersion,
+        bool useServersBasePath)
     {
         // Use EndpointDefinitionExtractor to extract interface and class parameters filtered by path segment
-        var (interfaceParams, classParameters) = EndpointDefinitionExtractor.Extract(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, subFolderStrategy, includeDeprecated, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion);
+        var (interfaceParams, classParameters) = EndpointDefinitionExtractor.Extract(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, subFolderStrategy, includeDeprecated, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion, useServersBasePath);
 
         if (interfaceParams == null && (classParameters == null || classParameters.Count == 0))
         {

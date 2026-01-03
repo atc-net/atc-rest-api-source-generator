@@ -86,6 +86,7 @@ public static class EndpointPerOperationExtractor
     /// <param name="customHttpClientName">Optional custom HTTP client name.</param>
     /// <param name="hasSegmentModels">Whether the segment has segment-specific models.</param>
     /// <param name="hasSharedModels">Whether there are shared models in the project.</param>
+    /// <param name="useServersBasePath">Whether to prepend the base path from OpenAPI servers[0].url to URLs. Default: true.</param>
     public static List<OperationFiles> Extract(
         OpenApiDocument openApiDoc,
         string projectName,
@@ -95,7 +96,8 @@ public static class EndpointPerOperationExtractor
         string? customErrorTypeName = null,
         string? customHttpClientName = null,
         bool hasSegmentModels = true,
-        bool hasSharedModels = false)
+        bool hasSharedModels = false,
+        bool useServersBasePath = true)
     {
         var (files, _) = ExtractWithInlineSchemas(
             openApiDoc,
@@ -106,7 +108,8 @@ public static class EndpointPerOperationExtractor
             customErrorTypeName,
             customHttpClientName,
             hasSegmentModels,
-            hasSharedModels);
+            hasSharedModels,
+            useServersBasePath);
         return files;
     }
 
@@ -114,6 +117,16 @@ public static class EndpointPerOperationExtractor
     /// Extracts all endpoint files for operations in the OpenAPI document filtered by path segment,
     /// including any inline schemas discovered during extraction.
     /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="projectName">The project name.</param>
+    /// <param name="pathSegment">The path segment to filter by.</param>
+    /// <param name="registry">Optional conflict registry.</param>
+    /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
+    /// <param name="customErrorTypeName">Optional custom error type name (replaces ProblemDetails).</param>
+    /// <param name="customHttpClientName">Optional custom HTTP client name.</param>
+    /// <param name="hasSegmentModels">Whether the segment has segment-specific models.</param>
+    /// <param name="hasSharedModels">Whether there are shared models in the project.</param>
+    /// <param name="useServersBasePath">Whether to prepend the base path from OpenAPI servers[0].url to URLs. Default: true.</param>
     /// <returns>A tuple containing the operation files and a dictionary of inline schemas.</returns>
     public static (List<OperationFiles> Files, Dictionary<string, InlineSchemaInfo> InlineSchemas) ExtractWithInlineSchemas(
         OpenApiDocument openApiDoc,
@@ -124,7 +137,8 @@ public static class EndpointPerOperationExtractor
         string? customErrorTypeName = null,
         string? customHttpClientName = null,
         bool hasSegmentModels = true,
-        bool hasSharedModels = false)
+        bool hasSharedModels = false,
+        bool useServersBasePath = true)
     {
         var result = new List<OperationFiles>();
         var inlineSchemas = new Dictionary<string, InlineSchemaInfo>(StringComparer.Ordinal);
@@ -191,7 +205,8 @@ public static class EndpointPerOperationExtractor
                     customErrorTypeName,
                     hasSegmentModels,
                     hasSharedModels,
-                    inlineSchemas);
+                    inlineSchemas,
+                    useServersBasePath);
 
                 if (files != null)
                 {
@@ -217,7 +232,8 @@ public static class EndpointPerOperationExtractor
         string? customErrorTypeName,
         bool hasSegmentModels,
         bool hasSharedModels,
-        Dictionary<string, InlineSchemaInfo>? inlineSchemas = null)
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas = null,
+        bool useServersBasePath = true)
     {
         var normalizedPath = path
             .Replace("/", "_")
@@ -325,7 +341,8 @@ public static class EndpointPerOperationExtractor
             responses,
             isBinaryEndpoint,
             hasSegmentModels,
-            hasSharedModels);
+            hasSharedModels,
+            useServersBasePath);
 
         // For binary endpoints, skip generating result interface/class (use BinaryEndpointResponse directly)
         string? resultInterfaceFileName = null;
@@ -586,7 +603,8 @@ public static class EndpointPerOperationExtractor
         List<ResponseInfo> responses,
         bool isBinaryEndpoint,
         bool hasSegmentModels,
-        bool hasSharedModels)
+        bool hasSharedModels,
+        bool useServersBasePath = true)
     {
         var namespaceValue = $"{projectName}.Generated.{pathSegment}.Endpoints";
 
@@ -716,9 +734,11 @@ public static class EndpointPerOperationExtractor
             httpMethod,
             operation,
             pathLevelParameters,
+            openApiDoc,
             operationName,
             responses,
-            isBinaryEndpoint);
+            isBinaryEndpoint,
+            useServersBasePath);
 
         // Determine return type: BinaryEndpointResponse for binary endpoints, custom result class otherwise
         var returnTypeName = isBinaryEndpoint
@@ -772,16 +792,22 @@ public static class EndpointPerOperationExtractor
         string httpMethod,
         OpenApiOperation operation,
         IList<IOpenApiParameter>? pathLevelParameters,
+        OpenApiDocument openApiDoc,
         string operationName,
         List<ResponseInfo> responses,
-        bool isBinaryEndpoint)
+        bool isBinaryEndpoint,
+        bool useServersBasePath = true)
     {
         var sb = new StringBuilder();
         sb.AppendLine("var client = factory.CreateClient(httpClientName);");
         sb.AppendLine();
 
-        // Build URL template with path parameters
-        sb.AppendLine($"var requestBuilder = httpMessageFactory.FromTemplate(\"{path}\");");
+        // Get server base path if enabled (e.g., "/api/v1" from servers[0].url)
+        var serverBasePath = useServersBasePath ? ServerUrlHelper.GetServersBasePath(openApiDoc) : null;
+
+        // Build URL template with path parameters (optionally prepend server base path)
+        var templatePath = serverBasePath != null ? $"{serverBasePath}{path}" : path;
+        sb.AppendLine($"var requestBuilder = httpMessageFactory.FromTemplate(\"{templatePath}\");");
 
         // Add path parameters
         var allParams = new List<(OpenApiParameter Param, string? ReferenceId)>();

@@ -957,6 +957,8 @@ public static class CodeGenerationService
         SystemTypeConflictResolver systemTypeResolver)
     {
         // Extract endpoint definitions for this segment
+        // Note: useServersBasePath: false for backward compatibility with CLI/test harness
+        // Source generators pass the config value from marker files
         var (interfaceParams, classParameters) = EndpointDefinitionExtractor.Extract(
             openApiDoc,
             projectName,
@@ -964,7 +966,12 @@ public static class CodeGenerationService
             registry: null,
             systemTypeResolver,
             SubFolderStrategyType.FirstPathSegment,
-            includeDeprecated: false);
+            includeDeprecated: false,
+            useMinimalApiPackage: false,
+            useValidationFilter: false,
+            versioningStrategy: VersioningStrategyType.None,
+            defaultApiVersion: null,
+            useServersBasePath: false);
 
         if (interfaceParams == null && (classParameters == null || classParameters.Count == 0))
         {
@@ -1134,13 +1141,15 @@ public static class CodeGenerationService
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
 
         // Use ExtractWithInlineSchemas to also capture inline object schemas in responses
+        // Note: useServersBasePath: false for backward compatibility with CLI/test harness
         var (classParams, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(
             openApiDoc,
             projectName,
             pathSegment: null,
             registry: null,
             systemTypeResolver,
-            includeDeprecated: false);
+            includeDeprecated: false,
+            useServersBasePath: false);
 
         // Add inline model types first (they may be referenced by the client class)
         if (inlineSchemas.Count > 0)
@@ -1215,6 +1224,7 @@ public static class CodeGenerationService
 
         foreach (var pathSegment in pathSegments)
         {
+            // Note: useServersBasePath: false for backward compatibility with CLI/test harness
             var (operationFiles, inlineSchemas) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
                 openApiDoc,
                 projectName,
@@ -1222,7 +1232,8 @@ public static class CodeGenerationService
                 registry: null,
                 includeDeprecated: false,
                 customErrorTypeName: customErrorTypeName,
-                customHttpClientName: customHttpClientName);
+                customHttpClientName: customHttpClientName,
+                useServersBasePath: false);
 
             // Add inline model types first
             if (inlineSchemas.Count > 0)

@@ -1,3 +1,4 @@
 {
-  "generationMode": "TypedClient"
+  "generationMode": "TypedClient",
+  "useServersBasePath": false
 }

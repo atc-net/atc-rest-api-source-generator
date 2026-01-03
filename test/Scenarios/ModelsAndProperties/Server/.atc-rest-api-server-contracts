@@ -3,5 +3,6 @@
   "validateSpecificationStrategy": "Standard",
   "includeDeprecated": false,
   "subFolderStrategy": "FirstPathSegment",
-  "namespace": null
+  "namespace": null,
+  "useServersBasePath": false
 }
