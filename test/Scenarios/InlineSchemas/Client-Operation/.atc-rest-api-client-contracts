@@ -1,4 +1,5 @@
 {
   "generate": true,
-  "generationMode": "EndpointPerOperation"
+  "generationMode": "EndpointPerOperation",
+  "useServersBasePath": false
 }

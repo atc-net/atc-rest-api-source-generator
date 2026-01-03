@@ -1,6 +1,6 @@
 {
     "generate": true,
-    "validateSpecificationStrategy": "Standard",
+    "validateSpecificationStrategy": "Strict",
     "includeDeprecated": false,
     "generateHandlersOutput": "ApiHandlers",
     "subFolderStrategy": "first-path-segment",

@@ -329,7 +329,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 var hasSegmentModels = segmentSchemas.Count > 0;
                 var hasSharedModels = sharedSchemas.Count > 0;
-                var hasEndpoints = GenerateEndpointPerOperation(context, openApiDoc, projectName, pathSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels);
+                var hasEndpoints = GenerateEndpointPerOperation(context, openApiDoc, projectName, pathSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath);
                 if (hasEndpoints)
                 {
                     generatedPathSegments.Add(pathSegment);
@@ -339,7 +339,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 var hasSegmentModelsTyped = segmentSchemas.Count > 0;
                 var hasSharedModelsTyped = sharedSchemas.Count > 0;
-                GenerateTypedClient(context, openApiDoc, projectName, pathSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped);
+                GenerateTypedClient(context, openApiDoc, projectName, pathSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath);
             }
         }
 
@@ -719,7 +719,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         SystemTypeConflictResolver systemTypeResolver,
         bool includeDeprecated,
         bool hasSegmentModels,
-        bool hasSharedModels)
+        bool hasSharedModels,
+        bool useServersBasePath)
     {
         // Generate client parameters using shared OperationParameterExtractor (without binding attributes)
         // Each parameter record is generated as a separate file to avoid multiple file-scoped namespace declarations
@@ -753,7 +754,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         // Use HttpClientExtractor to extract HTTP client class parameters filtered by path segment
         // This also extracts inline schemas for type generation
-        var (classParameters, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated);
+        var (classParameters, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, useServersBasePath);
 
         if (classParameters == null)
         {
@@ -794,7 +795,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         TypeConflictRegistry registry,
         bool includeDeprecated,
         bool hasSegmentModels,
-        bool hasSharedModels)
+        bool hasSharedModels,
+        bool useServersBasePath)
     {
         // Generate client parameters using shared OperationParameterExtractor (without binding attributes)
         // Parameters are shared between TypedClient and EndpointPerOperation modes
@@ -836,7 +838,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             customErrorTypeName: null,
             customHttpClientName: null,
             hasSegmentModels: hasSegmentModels,
-            hasSharedModels: hasSharedModels);
+            hasSharedModels: hasSharedModels,
+            useServersBasePath: useServersBasePath);
 
         // Generate inline model types if any were discovered
         if (inlineSchemas.Count > 0)

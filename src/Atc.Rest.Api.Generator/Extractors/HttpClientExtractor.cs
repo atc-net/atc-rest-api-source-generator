@@ -14,14 +14,16 @@ public static class HttpClientExtractor
     /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
     /// <param name="systemTypeResolver">Resolver for system type conflicts.</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
+    /// <param name="useServersBasePath">Whether to prepend the base path from OpenAPI servers[0].url to URLs. Default: true.</param>
     /// <returns>ClassParameters for the HTTP client class, or null if no paths exist.</returns>
     public static ClassParameters? Extract(
         OpenApiDocument openApiDoc,
         string projectName,
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
-        bool includeDeprecated = false)
-        => Extract(openApiDoc, projectName, pathSegment: null, registry: registry, systemTypeResolver: systemTypeResolver, includeDeprecated: includeDeprecated);
+        bool includeDeprecated = false,
+        bool useServersBasePath = true)
+        => Extract(openApiDoc, projectName, pathSegment: null, registry: registry, systemTypeResolver: systemTypeResolver, includeDeprecated: includeDeprecated, useServersBasePath: useServersBasePath);
 
     /// <summary>
     /// Extracts HTTP client class from OpenAPI document paths and operations filtered by path segment.
@@ -32,6 +34,7 @@ public static class HttpClientExtractor
     /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
     /// <param name="systemTypeResolver">Resolver for system type conflicts.</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
+    /// <param name="useServersBasePath">Whether to prepend the base path from OpenAPI servers[0].url to URLs. Default: true.</param>
     /// <returns>ClassParameters for the HTTP client class, or null if no paths exist.</returns>
     public static ClassParameters? Extract(
         OpenApiDocument openApiDoc,
@@ -39,8 +42,9 @@ public static class HttpClientExtractor
         string? pathSegment,
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
-        bool includeDeprecated = false)
-        => ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas: null);
+        bool includeDeprecated = false,
+        bool useServersBasePath = true)
+        => ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas: null, useServersBasePath: useServersBasePath);
 
     /// <summary>
     /// Extracts HTTP client class from OpenAPI document along with any inline schemas discovered.
@@ -51,6 +55,7 @@ public static class HttpClientExtractor
     /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
     /// <param name="systemTypeResolver">Resolver for system type conflicts.</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
+    /// <param name="useServersBasePath">Whether to prepend the base path from OpenAPI servers[0].url to URLs. Default: true.</param>
     /// <returns>A tuple containing the ClassParameters and a dictionary of discovered inline schemas.</returns>
     public static (ClassParameters? ClientClass, Dictionary<string, HttpClientInlineSchemaInfo> InlineSchemas) ExtractWithInlineSchemas(
         OpenApiDocument openApiDoc,
@@ -58,10 +63,11 @@ public static class HttpClientExtractor
         string? pathSegment,
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
-        bool includeDeprecated = false)
+        bool includeDeprecated = false,
+        bool useServersBasePath = true)
     {
         var inlineSchemas = new Dictionary<string, HttpClientInlineSchemaInfo>(StringComparer.Ordinal);
-        var clientClass = ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas);
+        var clientClass = ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas, useServersBasePath);
         return (clientClass, inlineSchemas);
     }
 
@@ -72,7 +78,8 @@ public static class HttpClientExtractor
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
         bool includeDeprecated,
-        Dictionary<string, HttpClientInlineSchemaInfo>? inlineSchemas)
+        Dictionary<string, HttpClientInlineSchemaInfo>? inlineSchemas,
+        bool useServersBasePath = true)
     {
         if (openApiDoc == null)
         {
@@ -152,7 +159,7 @@ public static class HttpClientExtractor
                         .ToUpperInvariant();
 
                     var currentPathSegment = PathSegmentHelper.GetFirstPathSegment(pathKey);
-                    var methodParams = ExtractMethod(pathKey, httpMethod, operation.Value, pathLevelParameters, openApiDoc, registry, systemTypeResolver, currentPathSegment, inlineSchemas);
+                    var methodParams = ExtractMethod(pathKey, httpMethod, operation.Value, pathLevelParameters, openApiDoc, registry, systemTypeResolver, currentPathSegment, inlineSchemas, useServersBasePath);
 
                     if (methodParams != null)
                     {
@@ -262,7 +269,8 @@ public static class HttpClientExtractor
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
         string pathSegment,
-        Dictionary<string, HttpClientInlineSchemaInfo>? inlineSchemas)
+        Dictionary<string, HttpClientInlineSchemaInfo>? inlineSchemas,
+        bool useServersBasePath = true)
     {
         if (operation == null)
         {
@@ -355,7 +363,7 @@ public static class HttpClientExtractor
 
         // Generate method body content
         var hasReturnType = returnType != nameof(Task);
-        var methodContent = GenerateMethodBody(path, httpMethod, operation, pathLevelParameters, openApiDoc, returnType, hasParameters, isAsyncEnumerable, streamingItemType, hasReturnType, hasLocationHeader);
+        var methodContent = GenerateMethodBody(path, httpMethod, operation, pathLevelParameters, openApiDoc, returnType, hasParameters, isAsyncEnumerable, streamingItemType, hasReturnType, hasLocationHeader, useServersBasePath);
 
         // For async enumerable methods, return IAsyncEnumerable<T> directly
         if (isAsyncEnumerable && streamingItemType != null)
@@ -412,12 +420,16 @@ public static class HttpClientExtractor
         bool isAsyncEnumerable,
         string? streamingItemType,
         bool hasReturnType,
-        bool hasLocationHeader)
+        bool hasLocationHeader,
+        bool useServersBasePath = true)
     {
         var builder = new StringBuilder();
 
-        // Build the URL - replace path parameters with parameters.PropertyName
-        var urlBuilder = path;
+        // Get server base path if enabled (e.g., "/api/v1" from servers[0].url)
+        var serverBasePath = useServersBasePath ? ServerUrlHelper.GetServersBasePath(openApiDoc) : null;
+
+        // Build the URL - optionally prepend server base path, then replace path parameters
+        var urlBuilder = serverBasePath != null ? $"{serverBasePath}{path}" : path;
 
         // Process path-level parameters first
         if (pathLevelParameters != null)

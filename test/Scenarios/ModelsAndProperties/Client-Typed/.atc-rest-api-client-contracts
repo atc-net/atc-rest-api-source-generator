@@ -4,5 +4,6 @@
   "includeDeprecated": false,
   "generationMode": "TypedClient",
   "namespace": null,
-  "clientSuffix": "Client"
+  "clientSuffix": "Client",
+  "useServersBasePath": false
 }

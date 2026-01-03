@@ -1,5 +1,5 @@
 {
-    "validateSpecificationStrategy": "Standard",
+    "validateSpecificationStrategy": "Strict",
     "includeDeprecated": false,
     "clientSuffix": "Client"
 }

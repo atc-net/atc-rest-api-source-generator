@@ -54,37 +54,6 @@ public class ServerConfig : BaseConfig
     public MinimalApiPackageMode UseAtcExceptionMapping { get; set; } = MinimalApiPackageMode.Auto;
 
     /// <summary>
-    /// API versioning strategy. Default: None.
-    /// None = no versioning, QueryString = ?api-version=1.0, UrlSegment = /v1/path, Header = X-Api-Version header.
-    /// When enabled, generates versioned endpoint groups and AddApiVersioning() DI registration.
-    /// </summary>
-    [JsonConverter(typeof(VersioningStrategyTypeConverter))]
-    public VersioningStrategyType VersioningStrategy { get; set; } = VersioningStrategyType.None;
-
-    /// <summary>
-    /// Default API version to use when versioning is enabled. Default: "1.0".
-    /// Format: "major.minor" (e.g., "1.0", "2.0").
-    /// Used for AssumeDefaultVersionWhenUnspecified option.
-    /// </summary>
-    public string DefaultApiVersion { get; set; } = "1.0";
-
-    /// <summary>
-    /// Query string parameter name for version (when VersioningStrategy is QueryString). Default: "api-version".
-    /// </summary>
-    public string VersionQueryParameterName { get; set; } = "api-version";
-
-    /// <summary>
-    /// HTTP header name for version (when VersioningStrategy is Header). Default: "X-Api-Version".
-    /// </summary>
-    public string VersionHeaderName { get; set; } = "X-Api-Version";
-
-    /// <summary>
-    /// Route segment template for versioning (when VersioningStrategy is UrlSegment). Default: "v{version:apiVersion}".
-    /// Used in route templates like "/api/v{version:apiVersion}/pets".
-    /// </summary>
-    public string VersionRouteSegmentTemplate { get; set; } = "v{version:apiVersion}";
-
-    /// <summary>
     /// Whether to report supported API versions in response headers. Default: true.
     /// When true, adds api-supported-versions and api-deprecated-versions headers to responses.
     /// </summary>

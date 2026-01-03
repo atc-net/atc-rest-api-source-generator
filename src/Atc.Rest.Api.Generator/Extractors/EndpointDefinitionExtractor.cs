@@ -114,7 +114,7 @@ public static class EndpointDefinitionExtractor
         bool includeDeprecated = false,
         bool useMinimalApiPackage = false,
         bool useValidationFilter = false)
-        => Extract(openApiDoc, projectName, pathSegment: null, registry: registry, systemTypeResolver: systemTypeResolver, subFolderStrategy: subFolderStrategy, includeDeprecated: includeDeprecated, useMinimalApiPackage: useMinimalApiPackage, useValidationFilter: useValidationFilter, versioningStrategy: VersioningStrategyType.None, defaultApiVersion: null);
+        => Extract(openApiDoc, projectName, pathSegment: null, registry: registry, systemTypeResolver: systemTypeResolver, subFolderStrategy: subFolderStrategy, includeDeprecated: includeDeprecated, useMinimalApiPackage: useMinimalApiPackage, useValidationFilter: useValidationFilter, versioningStrategy: VersioningStrategyType.None, defaultApiVersion: null, useServersBasePath: true);
 
     /// <summary>
     /// Extracts endpoint definition interface and classes from OpenAPI document filtered by path segment.
@@ -131,6 +131,7 @@ public static class EndpointDefinitionExtractor
     /// <param name="useValidationFilter">Whether to add ValidationFilter&lt;T&gt; to endpoints with parameters.</param>
     /// <param name="versioningStrategy">The API versioning strategy. Default: None.</param>
     /// <param name="defaultApiVersion">The default API version (e.g., "1.0"). Used when versioning is enabled.</param>
+    /// <param name="useServersBasePath">Whether to prepend the base path from OpenAPI servers[0].url to routes. Default: true.</param>
     /// <returns>
     /// A tuple containing:
     /// - InterfaceParameters for IEndpointDefinition (null if useMinimalApiPackage is true)
@@ -147,7 +148,8 @@ public static class EndpointDefinitionExtractor
         bool useMinimalApiPackage = false,
         bool useValidationFilter = false,
         VersioningStrategyType versioningStrategy = VersioningStrategyType.None,
-        string? defaultApiVersion = null)
+        string? defaultApiVersion = null,
+        bool useServersBasePath = true)
     {
         if (openApiDoc == null)
         {
@@ -180,7 +182,7 @@ public static class EndpointDefinitionExtractor
         {
             var groupName = kvp.Key;
             var operations = kvp.Value;
-            var classParams = GenerateEndpointDefinitionClass(openApiDoc, projectName, pathSegment, groupName, operations, registry, systemTypeResolver, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion);
+            var classParams = GenerateEndpointDefinitionClass(openApiDoc, projectName, pathSegment, groupName, operations, registry, systemTypeResolver, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion, useServersBasePath);
             if (classParams != null)
             {
                 classes.Add(classParams);
@@ -432,12 +434,15 @@ using Microsoft.AspNetCore.Builder;
         bool useMinimalApiPackage = false,
         bool useValidationFilter = false,
         VersioningStrategyType versioningStrategy = VersioningStrategyType.None,
-        string? defaultApiVersion = null)
+        string? defaultApiVersion = null,
+        bool useServersBasePath = true)
     {
         var className = $"{segment}EndpointDefinition";
 
-        // Find the common base path for this segment
-        var apiRouteBase = DetermineApiRouteBase(operations, segment);
+        // Find the common base path for this segment (optionally prepended with server base path)
+        // ApiRouteBase: Full path for MapGroup (e.g., "/api/v1/accounts")
+        // OriginalPrefix: Original path for relative route calculation (e.g., "/accounts")
+        var (apiRouteBase, originalPrefix) = DetermineApiRouteBase(openApiDoc, operations, segment, useServersBasePath);
 
         // Check if any operation in this group uses output caching
         // Use document-level check since using statements are needed if ANY output caching is used
@@ -447,7 +452,7 @@ using Microsoft.AspNetCore.Builder;
         var methods = new List<MethodParameters>();
 
         // Add DefineEndpoints method
-        var defineEndpointsContent = GenerateDefineEndpointsContent(openApiDoc, operations, projectName, segment, apiRouteBase, systemTypeResolver, registry, useValidationFilter, versioningStrategy, defaultApiVersion);
+        var defineEndpointsContent = GenerateDefineEndpointsContent(openApiDoc, operations, projectName, segment, apiRouteBase, originalPrefix, systemTypeResolver, registry, useValidationFilter, versioningStrategy, defaultApiVersion);
         var defineEndpointsMethod = new MethodParameters(
             DocumentationTags: null,
             Attributes: null,
@@ -562,14 +567,33 @@ using Microsoft.AspNetCore.Builder;
         return sb.ToString();
     }
 
-    private static string DetermineApiRouteBase(
+    /// <summary>
+    /// Determines the API route base for the MapGroup and the original prefix for relative path calculations.
+    /// </summary>
+    /// <returns>
+    /// A tuple containing:
+    /// - ApiRouteBase: The full route base including server base path (e.g., "/api/v1/accounts") for MapGroup
+    /// - OriginalPrefix: The original prefix without server base path (e.g., "/accounts") for relative path calculations
+    /// </returns>
+    private static (string ApiRouteBase, string OriginalPrefix) DetermineApiRouteBase(
+        OpenApiDocument openApiDoc,
         List<(string Path, string Method, OpenApiOperation Operation, IList<IOpenApiParameter>? PathParameters)> operations,
-        string segment)
+        string segment,
+        bool useServersBasePath)
     {
+        // Get server base path if enabled (e.g., "/api/v1" from servers[0].url)
+        string? serverBasePath = null;
+        if (useServersBasePath)
+        {
+            serverBasePath = ServerUrlHelper.GetServersBasePath(openApiDoc);
+        }
+
         // Find the common prefix path for all operations in this segment
         if (operations.Count == 0)
         {
-            return $"/{segment.ToLowerInvariant()}";
+            var segmentPath = $"/{segment.ToLowerInvariant()}";
+            var fullPath = serverBasePath != null ? $"{serverBasePath}{segmentPath}" : segmentPath;
+            return (fullPath, segmentPath);
         }
 
         // Get all paths and find common prefix
@@ -582,10 +606,13 @@ using Microsoft.AspNetCore.Builder;
         // If no common prefix found, use the segment name
         if (string.IsNullOrEmpty(commonPrefix) || commonPrefix == "/")
         {
-            return $"/{segment.ToLowerInvariant()}";
+            var segmentPath = $"/{segment.ToLowerInvariant()}";
+            var fullPath = serverBasePath != null ? $"{serverBasePath}{segmentPath}" : segmentPath;
+            return (fullPath, segmentPath);
         }
 
-        return commonPrefix;
+        var routeBase = serverBasePath != null ? $"{serverBasePath}{commonPrefix}" : commonPrefix;
+        return (routeBase, commonPrefix);
     }
 
     private static string GetCommonPathPrefix(List<string> paths)
@@ -660,6 +687,7 @@ using Microsoft.AspNetCore.Builder;
         string projectName,
         string segment,
         string apiRouteBase,
+        string originalPrefix,
         SystemTypeConflictResolver systemTypeResolver,
         TypeConflictRegistry? registry = null,
         bool useValidationFilter = false,
@@ -744,7 +772,7 @@ using Microsoft.AspNetCore.Builder;
                 pathItem = item;
             }
 
-            GenerateEndpointRegistration(builder, openApiDoc, path, httpMethod, operation, pathItem, projectName, segment, apiRouteBase, systemTypeResolver, groupSecurity, groupRateLimit, groupOutputCache, registry, useValidationFilter);
+            GenerateEndpointRegistration(builder, openApiDoc, path, httpMethod, operation, pathItem, projectName, segment, originalPrefix, systemTypeResolver, groupSecurity, groupRateLimit, groupOutputCache, registry, useValidationFilter);
         }
 
         return builder
@@ -957,7 +985,7 @@ using Microsoft.AspNetCore.Builder;
         OpenApiPathItem? pathItem,
         string projectName,
         string segment,
-        string apiRouteBase,
+        string originalPrefix,
         SystemTypeConflictResolver systemTypeResolver,
         UnifiedSecurityConfig? groupSecurity,
         RateLimitConfiguration? groupRateLimit,
@@ -979,8 +1007,8 @@ using Microsoft.AspNetCore.Builder;
             .Substring(1)
             .ToLowerInvariant();
 
-        // Calculate relative path from ApiRouteBase
-        var relativePath = GetRelativePath(path, apiRouteBase);
+        // Calculate relative path from original prefix (without server base path)
+        var relativePath = GetRelativePath(path, originalPrefix);
 
         builder.Append(segment.ToLowerInvariant());
         builder.AppendLine();
