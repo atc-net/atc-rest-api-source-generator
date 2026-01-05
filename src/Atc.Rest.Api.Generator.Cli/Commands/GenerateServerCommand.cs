@@ -150,10 +150,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                     return 1;
                 }
 
-                if (!scaffoldingService.CreateDirectoryBuildProps(outputPath, scaffoldingConfig.TargetFramework))
-                {
-                    return 1;
-                }
+                // Note: Directory.Build.props is created by atc-coding-rules-updater.ps1 script
 
                 // Step 3: Generate contracts project (or combined host+contracts for TwoProjects)
                 ctx.Status("Setting up contracts project...");
@@ -275,7 +272,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                     return 1;
                 }
 
-                // Step 8: Add coding rules files (unless --no-coding-rules)
+                // Step 8: Add coding rules files and run updater (unless --no-coding-rules)
                 if (!scaffoldingConfig.NoCodingRules)
                 {
                     ctx.Status("Adding coding rules files...");
@@ -283,6 +280,9 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                     {
                         return 1;
                     }
+
+                    ctx.Status("Running coding rules updater...");
+                    scaffoldingService.RunCodingRulesUpdater(outputPath);
                 }
 
                 return 0;
@@ -1381,11 +1381,15 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             sb.AppendLine();
 
             // Add root redirect to UI
-            var redirectPath = hostUi == HostUiType.Swagger ? "/swagger" : "/scalar/v1";
+            var redirectPath = hostUi == HostUiType.Swagger
+                ? "/swagger"
+                : "/scalar/v1";
             sb.AppendLine("// Redirect root to API documentation");
-            sb.Append("app.MapGet(\"/\", () => Results.Redirect(\"");
+            sb.AppendLine("app");
+            sb.Append(4, ".MapGet(\"/\", () => Results.Redirect(\"");
             sb.Append(redirectPath);
-            sb.AppendLine("\")).ExcludeFromDescription();");
+            sb.AppendLine("\"))");
+            sb.AppendLine(4, ".ExcludeFromDescription();");
             sb.AppendLine();
         }
 
