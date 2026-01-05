@@ -282,7 +282,10 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                     }
 
                     ctx.Status("Running coding rules updater...");
-                    scaffoldingService.RunCodingRulesUpdater(outputPath);
+                    scaffoldingService.RunCodingRulesUpdater(
+                        outputPath,
+                        organizationName: baseName,
+                        repositoryName: baseName);
                 }
 
                 return 0;

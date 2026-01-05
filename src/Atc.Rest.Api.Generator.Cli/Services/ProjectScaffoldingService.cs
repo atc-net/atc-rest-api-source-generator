@@ -150,14 +150,18 @@ public sealed class ProjectScaffoldingService
             sb.AppendLine(srcProjectEntries);
             sb.AppendLine(2, "</Folder>");
 
-            if (testProjects is not null && testProjects.Any())
+            if (testProjects is not null)
             {
-                var testProjectEntries = string.Join(
-                    Environment.NewLine,
-                    testProjects.Select(p => $"    <Project Path=\"{p}\" />"));
-                sb.AppendLine(2, "<Folder Name=\"/test/\">");
-                sb.AppendLine(testProjectEntries);
-                sb.AppendLine(2, "</Folder>");
+                var arrTestProjects = testProjects.ToArray();
+                if (arrTestProjects.Any())
+                {
+                    var testProjectEntries = string.Join(
+                        Environment.NewLine,
+                        arrTestProjects.Select(p => $"    <Project Path=\"{p}\" />"));
+                    sb.AppendLine(2, "<Folder Name=\"/test/\">");
+                    sb.AppendLine(testProjectEntries);
+                    sb.AppendLine(2, "</Folder>");
+                }
             }
 
             sb.Append("</Solution>");
@@ -275,17 +279,22 @@ public sealed class ProjectScaffoldingService
     }
 
     /// <summary>
-    /// Runs the atc-coding-rules-updater.ps1 script to download coding rules and Directory.Build.props.
+    /// Runs the atc-coding-rules-updater tool to download coding rules and Directory.Build.props.
     /// </summary>
     /// <param name="repoPath">Root path for the repository.</param>
+    /// <param name="organizationName">Organization name for initial setup (only used if Directory.Build.props doesn't exist).</param>
+    /// <param name="repositoryName">Repository name for initial setup (only used if Directory.Build.props doesn't exist).</param>
     /// <returns>True if successful, false otherwise.</returns>
-    public bool RunCodingRulesUpdater(string repoPath)
+    public bool RunCodingRulesUpdater(
+        string repoPath,
+        string? organizationName = null,
+        string? repositoryName = null)
     {
-        var ps1Path = Path.Combine(repoPath, "atc-coding-rules-updater.ps1");
+        var optionsPath = Path.Combine(repoPath, "atc-coding-rules-updater.json");
 
-        if (!File.Exists(ps1Path))
+        if (!File.Exists(optionsPath))
         {
-            AnsiConsole.MarkupLine("[yellow]![/] atc-coding-rules-updater.ps1 not found, skipping");
+            AnsiConsole.MarkupLine("[yellow]![/] atc-coding-rules-updater.json not found, skipping");
             return true;
         }
 
@@ -293,10 +302,22 @@ public sealed class ProjectScaffoldingService
         {
             AnsiConsole.MarkupLine("[dim]Running atc-coding-rules-updater...[/]");
 
+            // Build arguments for the tool
+            var arguments = $"run -p \"{repoPath}\" --optionsPath \"{optionsPath}\" --verbose";
+
+            // Add organizationName and repositoryName only if Directory.Build.props doesn't exist
+            var propsPath = Path.Combine(repoPath, "Directory.Build.props");
+            if (!File.Exists(propsPath) &&
+                !string.IsNullOrWhiteSpace(organizationName) &&
+                !string.IsNullOrWhiteSpace(repositoryName))
+            {
+                arguments += $" --organizationName \"{organizationName}\" --repositoryName \"{repositoryName}\"";
+            }
+
             var startInfo = new ProcessStartInfo
             {
-                FileName = "pwsh",
-                Arguments = $"-ExecutionPolicy Bypass -File \"{ps1Path}\"",
+                FileName = "atc-coding-rules-updater",
+                Arguments = arguments,
                 WorkingDirectory = repoPath,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -304,20 +325,9 @@ public sealed class ProjectScaffoldingService
                 CreateNoWindow = true,
             };
 
-            // Fall back to powershell.exe if pwsh is not available
-            using var process = new Process { StartInfo = startInfo };
-
-            try
-            {
-                process.Start();
-            }
-            catch (Win32Exception)
-            {
-                // pwsh not found, try powershell.exe
-                startInfo.FileName = "powershell";
-                process.StartInfo = startInfo;
-                process.Start();
-            }
+            using var process = new Process();
+            process.StartInfo = startInfo;
+            process.Start();
 
             var output = process.StandardOutput.ReadToEnd();
             var error = process.StandardError.ReadToEnd();
@@ -681,9 +691,12 @@ public sealed class ProjectScaffoldingService
             // Add root redirect to UI
             var redirectPath = hostUi == HostUiType.Swagger ? "/swagger" : "/scalar/v1";
             sb.AppendLine("// Redirect root to API documentation");
-            sb.Append("app.MapGet(\"/\", () => Results.Redirect(\"");
+            sb.AppendLine("app");
+            sb.Append(4, ".MapGet(\"/\", () => Results.Redirect(\"");
             sb.Append(redirectPath);
-            sb.AppendLine("\")).ExcludeFromDescription();");
+            sb.AppendLine("\"))");
+            sb.AppendLine(4, ".ExcludeFromDescription();");
+
             sb.AppendLine();
         }
 
