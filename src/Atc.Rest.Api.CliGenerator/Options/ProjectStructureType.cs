@@ -18,5 +18,5 @@ public enum ProjectStructureType
     /// <summary>
     /// Host + Contracts + Domain-Handlers in 3 separate projects.
     /// </summary>
-    TreeProjects = 2,
+    ThreeProjects = 2,
 }

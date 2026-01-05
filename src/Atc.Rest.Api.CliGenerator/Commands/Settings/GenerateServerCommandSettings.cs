@@ -18,7 +18,7 @@ public sealed class GenerateServerCommandSettings : BaseGenerateCommandSettings
     public string? DefaultApiVersion { get; init; }
 
     [CommandOption("--domain-output <PATH>")]
-    [Description("Output path for domain handler scaffolds (TwoProjects/TreeProjects mode only).")]
+    [Description("Output path for domain handler scaffolds (TwoProjects/ThreeProjects mode only).")]
     public string? DomainOutputPath { get; set; }
 
     [CommandOption("--handler-suffix <SUFFIX>")]
@@ -30,7 +30,7 @@ public sealed class GenerateServerCommandSettings : BaseGenerateCommandSettings
     public string? StubImplementation { get; init; }
 
     [CommandOption("--project-structure <TYPE>")]
-    [Description("Project structure: SingleProject (1 project), TwoProjects (Host+Contracts, Domain), or TreeProjects (3 projects, default).")]
+    [Description("Project structure: SingleProject (1 project), TwoProjects (Host+Contracts, Domain), or ThreeProjects (3 projects, default).")]
     public string? ProjectStructure { get; init; }
 
     [CommandOption("--no-coding-rules")]
@@ -39,7 +39,7 @@ public sealed class GenerateServerCommandSettings : BaseGenerateCommandSettings
     public bool NoCodingRules { get; init; }
 
     [CommandOption("--host-project <NAME>")]
-    [Description("Override the host project name (TreeProjects mode only).")]
+    [Description("Override the host project name (ThreeProjects mode only).")]
     public string? HostProjectName { get; init; }
 
     [CommandOption("--contracts-project <NAME>")]
@@ -47,7 +47,7 @@ public sealed class GenerateServerCommandSettings : BaseGenerateCommandSettings
     public string? ContractsProjectName { get; init; }
 
     [CommandOption("--domain-project <NAME>")]
-    [Description("Override the domain project name (TwoProjects/TreeProjects mode only).")]
+    [Description("Override the domain project name (TwoProjects/ThreeProjects mode only).")]
     public string? DomainProjectName { get; init; }
 
     [CommandOption("--host-namespace <NAMESPACE>")]
@@ -129,7 +129,7 @@ public sealed class GenerateServerCommandSettings : BaseGenerateCommandSettings
         if (!string.IsNullOrWhiteSpace(ProjectStructure) &&
             !Enum.TryParse<ProjectStructureType>(ProjectStructure, ignoreCase: true, out _))
         {
-            return ValidationResult.Error($"Invalid project structure: '{ProjectStructure}'. Valid values: SingleProject, TwoProjects, TreeProjects.");
+            return ValidationResult.Error($"Invalid project structure: '{ProjectStructure}'. Valid values: SingleProject, TwoProjects, ThreeProjects.");
         }
 
         // Validate project name overrides don't contain spaces

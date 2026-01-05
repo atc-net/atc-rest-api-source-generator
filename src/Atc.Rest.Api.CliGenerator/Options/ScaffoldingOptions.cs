@@ -7,9 +7,9 @@ public sealed class ScaffoldingOptions
 {
     /// <summary>
     /// Project structure type for code generation.
-    /// Default: TreeProjects (3 separate projects).
+    /// Default: ThreeProjects (3 separate projects).
     /// </summary>
-    public ProjectStructureType ProjectStructure { get; set; } = ProjectStructureType.TreeProjects;
+    public ProjectStructureType ProjectStructure { get; set; } = ProjectStructureType.ThreeProjects;
 
     /// <summary>
     /// Skip adding ATC coding rules updater files.
@@ -30,7 +30,7 @@ public sealed class ScaffoldingOptions
     public string TargetFramework { get; set; } = "net10.0";
 
     /// <summary>
-    /// Override host project name (TreeProjects mode only).
+    /// Override host project name (ThreeProjects mode only).
     /// Default: null (auto-derived from base name).
     /// </summary>
     public string? HostProjectName { get; set; }
@@ -42,7 +42,7 @@ public sealed class ScaffoldingOptions
     public string? ContractsProjectName { get; set; }
 
     /// <summary>
-    /// Override domain project name (TwoProjects/TreeProjects mode only).
+    /// Override domain project name (TwoProjects/ThreeProjects mode only).
     /// Default: null (auto-derived from base name).
     /// </summary>
     public string? DomainProjectName { get; set; }
