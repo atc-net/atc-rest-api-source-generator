@@ -48,7 +48,7 @@
     <Project Path="sample/MontaClient/MontaClient.csproj" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/Atc.Rest.Api.CliGenerator/Atc.Rest.Api.CliGenerator.csproj" />
+    <Project Path="src/Atc.Rest.Api.Generator.Cli/Atc.Rest.Api.Generator.Cli.csproj" />
     <Project Path="src/Atc.Rest.Api.SourceGenerator/Atc.Rest.Api.SourceGenerator.csproj" Id="65b7bf64-9143-4e50-8303-2d3cd8b9a601" />
   </Folder>
   <Folder Name="/src/libs/">
@@ -58,7 +58,7 @@
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Atc.Rest.Api.SourceGenerator.Tests/Atc.Rest.Api.SourceGenerator.Tests.csproj" />
-    <Project Path="test/Atc.Rest.Api.CliGenerator.Tests/Atc.Rest.Api.CliGenerator.Tests.csproj" />
+    <Project Path="test/Atc.Rest.Api.Generator.Cli.Tests/Atc.Rest.Api.Generator.Cli.Tests.csproj" />
     <Project Path="test/Atc.Rest.Api.Generator.IntegrationTests/Atc.Rest.Api.Generator.IntegrationTests.csproj" />
     <Project Path="test/Atc.Rest.Api.Generator.Tests/Atc.Rest.Api.Generator.Tests.csproj" />
   </Folder>

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Atc.Console.Spectre" Version="3.0.16" />
+    <PackageReference Include="Atc.DotNet" Version="3.0.16" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Atc.Rest.Api.Generator.Cli\Atc.Rest.Api.Generator.Cli.csproj" />
+  </ItemGroup>
+
+  <!-- Include scenario YAML files as content (from subdirectories) -->
+  <ItemGroup>
+    <Content Include="..\Scenarios\**\*.yaml" CopyToOutputDirectory="PreserveNewest" LinkBase="Scenarios" Visible="false">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

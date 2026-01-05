@@ -57,7 +57,7 @@ jobs:
             -o ${GITHUB_WORKSPACE}/packages \
             -p:RepositoryBranch=$BRANCH_NAME \
             /p:PublicRelease=true
-          dotnet pack src/Atc.Rest.Api.CliGenerator/Atc.Rest.Api.CliGenerator.csproj \
+          dotnet pack src/Atc.Rest.Api.Generator.Cli/Atc.Rest.Api.Generator.Cli.csproj \
             -c Release \
             --no-restore \
             -o ${GITHUB_WORKSPACE}/packages \

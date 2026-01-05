@@ -133,7 +133,7 @@ The project uses a **three-layer architecture**:
 |----------------|--------------------------------|-----------------------------------------------------------------------------|
 | **Shared**     | `Atc.Rest.Api.Generator`       | All 12 extractors, services, configuration, validation (Roslyn-independent) |
 | **Generators** | `Atc.Rest.Api.SourceGenerator` | Roslyn source generators (thin wrappers calling shared services)            |
-| **CLI**        | `Atc.Rest.Api.CliGenerator`    | Command-line tool for validation and generation                             |
+| **CLI**        | `Atc.Rest.Api.Generator.Cli`    | Command-line tool for validation and generation                             |
 
 **Benefits**: Testability, reusability across CLI and source generators, clear separation of concerns.
 
