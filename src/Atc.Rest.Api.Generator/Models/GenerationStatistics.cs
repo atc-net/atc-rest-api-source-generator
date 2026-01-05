@@ -121,7 +121,7 @@ public record GenerationStatistics
     public IReadOnlyList<string> WarningRuleIds { get; init; } = Array.Empty<string>();
 
     /// <summary>
-    /// The project structure type (e.g., "SingleProject", "TwoProjects", "TreeProjects").
+    /// The project structure type (e.g., "SingleProject", "TwoProjects", "ThreeProjects").
     /// </summary>
     public string ProjectStructure { get; init; } = string.Empty;
 

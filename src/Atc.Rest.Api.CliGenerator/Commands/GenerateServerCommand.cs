@@ -38,8 +38,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
         // Determine project structure modes
         var isTwoProjects = scaffoldingConfig.ProjectStructure == ProjectStructureType.TwoProjects;
-        var isTreeProjects = scaffoldingConfig.ProjectStructure == ProjectStructureType.TreeProjects;
-        var hasSeparateDomain = isTwoProjects || isTreeProjects;
+        var isThreeProjects = scaffoldingConfig.ProjectStructure == ProjectStructureType.ThreeProjects;
+        var hasSeparateDomain = isTwoProjects || isThreeProjects;
 
         // Always use repo structure
         var srcPath = Path.Combine(outputPath, "src");
@@ -47,14 +47,14 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         // Determine project names based on structure mode:
         // - SingleProject: {Name}.Api (all-in-one)
         // - TwoProjects: {Name}.Api (host+contracts), {Name}.Domain
-        // - TreeProjects: {Name}.Api (host), {Name}.Api.Contracts, {Name}.Domain
+        // - ThreeProjects: {Name}.Api (host), {Name}.Api.Contracts, {Name}.Domain
         var baseName = ExtractSolutionName(projectName);
 
         string contractsProjectName;
         string hostProjectName;
         string domainProjectName;
 
-        if (isTreeProjects)
+        if (isThreeProjects)
         {
             // 3 projects: Host, Contracts, Domain
             contractsProjectName = scaffoldingConfig.ContractsProjectName ?? $"{baseName}.Api.Contracts";
@@ -85,7 +85,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         AnsiConsole.MarkupLine($"[blue]Project structure:[/] {scaffoldingConfig.ProjectStructure}");
         AnsiConsole.MarkupLine($"[blue]Repository root:[/] {outputPath}");
 
-        if (isTreeProjects)
+        if (isThreeProjects)
         {
             AnsiConsole.MarkupLine($"[blue]Host project:[/] {hostProjectName}");
             AnsiConsole.MarkupLine($"[blue]Contracts project:[/] {contractsProjectName}");
@@ -177,7 +177,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                     projectsCreated.Add(contractsProjectName);
                 }
 
-                // Step 4: Generate domain project (TwoProjects and TreeProjects modes)
+                // Step 4: Generate domain project (TwoProjects and ThreeProjects modes)
                 if (hasSeparateDomain)
                 {
                     ctx.Status("Setting up domain project...");
@@ -189,8 +189,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                     projectsCreated.Add(domainProjectName);
                 }
 
-                // Step 5: Generate host project (TreeProjects mode only - TwoProjects has combined host+contracts)
-                if (isTreeProjects)
+                // Step 5: Generate host project (ThreeProjects mode only - TwoProjects has combined host+contracts)
+                if (isThreeProjects)
                 {
                     ctx.Status("Setting up API host project...");
                     if (!scaffoldingService.GenerateHostProject(
@@ -214,7 +214,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 {
                     ctx.Status("Setting up Aspire AppHost project...");
                     aspireProjectName = $"{baseName}.Aspire";
-                    var apiProjectName = isTreeProjects || isTwoProjects ? hostProjectName : contractsProjectName;
+                    var apiProjectName = isThreeProjects || isTwoProjects ? hostProjectName : contractsProjectName;
                     if (!scaffoldingService.GenerateAspireProject(
                         srcPath,
                         aspireProjectName,
@@ -239,7 +239,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 ctx.Status("Creating solution file...");
                 var srcProjects = new List<string>();
 
-                if (isTreeProjects)
+                if (isThreeProjects)
                 {
                     // Order: Host, Contracts, Domain
                     srcProjects.Add($"src/{hostProjectName}/{hostProjectName}.csproj");
@@ -326,7 +326,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
 
         AnsiConsole.MarkupLine(
-            isTreeProjects || isTwoProjects
+            isThreeProjects || isTwoProjects
                 ? "[dim]Run 'dotnet build' in the solution to generate all code.[/]"
                 : $"[dim]Run 'dotnet build' in {contractsOutputPath} to generate the server code.[/]");
 
@@ -1013,8 +1013,6 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
               <PropertyGroup>
                 <TargetFramework>net10.0</TargetFramework>
-                <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-                <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)\Generated</CompilerGeneratedFilesOutputPath>
               </PropertyGroup>
 
               <ItemGroup>
@@ -1042,8 +1040,6 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
               <PropertyGroup>
                 <TargetFramework>net10.0</TargetFramework>
-                <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-                <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)\Generated</CompilerGeneratedFilesOutputPath>
               </PropertyGroup>
 
               <ItemGroup>
@@ -1117,8 +1113,6 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         sb.AppendLine();
         sb.AppendLine(2, "<PropertyGroup>");
         sb.AppendLine(4, $"<TargetFramework>{targetFramework}</TargetFramework>");
-        sb.AppendLine(4, "<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>");
-        sb.AppendLine(4, "<CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)\\Generated</CompilerGeneratedFilesOutputPath>");
         sb.AppendLine(2, "</PropertyGroup>");
         sb.AppendLine();
         sb.AppendLine(2, "<ItemGroup>");
