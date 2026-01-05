@@ -75,7 +75,6 @@ public sealed class GenerateClientCommandTests : IDisposable
         var csprojContent = await File.ReadAllTextAsync(csprojPath, TestContext.Current.CancellationToken);
         Assert.Contains("<OutputType>Exe</OutputType>", csprojContent, StringComparison.Ordinal);
         Assert.Contains("<TargetFramework>net10.0</TargetFramework>", csprojContent, StringComparison.Ordinal);
-        Assert.Contains("<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>", csprojContent, StringComparison.Ordinal);
         Assert.Contains("<AdditionalFiles Include=\"Demo.yaml\"", csprojContent, StringComparison.Ordinal);
         Assert.Contains(".atc-rest-api-client-contracts", csprojContent, StringComparison.Ordinal);
     }

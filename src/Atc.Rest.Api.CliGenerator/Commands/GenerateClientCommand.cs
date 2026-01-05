@@ -445,8 +445,6 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
               <PropertyGroup>
                 <OutputType>Exe</OutputType>
                 <TargetFramework>net10.0</TargetFramework>
-                <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-                <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)\Generated</CompilerGeneratedFilesOutputPath>
               </PropertyGroup>
 
               <ItemGroup>
