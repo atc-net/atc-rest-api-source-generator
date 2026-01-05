@@ -1,4 +1,4 @@
-openapi: 3.0.3
+openapi: 3.1.1
 info:
   title: CachingOutput Sample API
   description: API demonstrating Output Caching extensions (x-cache-type output)

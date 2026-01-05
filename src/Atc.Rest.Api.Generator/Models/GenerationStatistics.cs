@@ -16,7 +16,7 @@ public record GenerationStatistics
     public string SpecificationVersion { get; init; } = string.Empty;
 
     /// <summary>
-    /// The OpenAPI specification version (e.g., "3.0.3").
+    /// The OpenAPI specification version (e.g., "3.1.1").
     /// </summary>
     public string OpenApiVersion { get; init; } = string.Empty;
 

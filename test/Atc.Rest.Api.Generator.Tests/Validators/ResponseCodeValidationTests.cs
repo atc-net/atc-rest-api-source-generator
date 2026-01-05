@@ -10,7 +10,7 @@ public class ResponseCodeValidationTests
     {
         // Arrange: Operation with 401 response but no security requirements
         const string yaml = """
-                            openapi: "3.0.3"
+                            openapi: "3.1.1"
                             info:
                               title: Test API
                               version: "1.0.0"
@@ -40,7 +40,7 @@ public class ResponseCodeValidationTests
     {
         // Arrange: Operation with 401 response but no security requirements
         const string yaml = """
-                            openapi: "3.0.3"
+                            openapi: "3.1.1"
                             info:
                               title: Test API
                               version: "1.0.0"
@@ -71,7 +71,7 @@ public class ResponseCodeValidationTests
     {
         // Arrange: Operation with 403 response but no roles/policies/scopes
         const string yaml = """
-                            openapi: "3.0.3"
+                            openapi: "3.1.1"
                             info:
                               title: Test API
                               version: "1.0.0"
@@ -102,7 +102,7 @@ public class ResponseCodeValidationTests
     {
         // Arrange: POST operation with 404 response
         const string yaml = """
-                            openapi: "3.0.3"
+                            openapi: "3.1.1"
                             info:
                               title: Test API
                               version: "1.0.0"
@@ -132,7 +132,7 @@ public class ResponseCodeValidationTests
     {
         // Arrange: GET operation with 404 response (this is expected)
         const string yaml = """
-                            openapi: "3.0.3"
+                            openapi: "3.1.1"
                             info:
                               title: Test API
                               version: "1.0.0"
@@ -169,7 +169,7 @@ public class ResponseCodeValidationTests
     {
         // Arrange: GET operation with 409 response
         const string yaml = """
-                            openapi: "3.0.3"
+                            openapi: "3.1.1"
                             info:
                               title: Test API
                               version: "1.0.0"
@@ -199,7 +199,7 @@ public class ResponseCodeValidationTests
     {
         // Arrange: DELETE operation with 409 response
         const string yaml = """
-                            openapi: "3.0.3"
+                            openapi: "3.1.1"
                             info:
                               title: Test API
                               version: "1.0.0"
@@ -235,7 +235,7 @@ public class ResponseCodeValidationTests
     {
         // Arrange: POST operation with 409 response (this is expected)
         const string yaml = """
-                            openapi: "3.0.3"
+                            openapi: "3.1.1"
                             info:
                               title: Test API
                               version: "1.0.0"
@@ -265,7 +265,7 @@ public class ResponseCodeValidationTests
     {
         // Arrange: PUT operation with 409 response (this is expected)
         const string yaml = """
-                            openapi: "3.0.3"
+                            openapi: "3.1.1"
                             info:
                               title: Test API
                               version: "1.0.0"
@@ -302,7 +302,7 @@ public class ResponseCodeValidationTests
     {
         // Arrange: Operation with 429 response but no rate limiting configured
         const string yaml = """
-                            openapi: "3.0.3"
+                            openapi: "3.1.1"
                             info:
                               title: Test API
                               version: "1.0.0"
@@ -333,7 +333,7 @@ public class ResponseCodeValidationTests
     {
         // Arrange: Operation with 400 response but no parameters
         const string yaml = """
-                            openapi: "3.0.3"
+                            openapi: "3.1.1"
                             info:
                               title: Test API
                               version: "1.0.0"
@@ -363,7 +363,7 @@ public class ResponseCodeValidationTests
     {
         // Arrange: Operation with 400 response and parameters (this is expected)
         const string yaml = """
-                            openapi: "3.0.3"
+                            openapi: "3.1.1"
                             info:
                               title: Test API
                               version: "1.0.0"
