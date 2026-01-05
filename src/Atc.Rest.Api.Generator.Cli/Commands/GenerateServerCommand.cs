@@ -1157,12 +1157,14 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         HostUiModeType hostUiMode)
     {
         var programPath = Path.Combine(outputPath, "Program.cs");
+        var globalUsingsPath = Path.Combine(outputPath, "GlobalUsings.cs");
 
         try
         {
+            var baseName = ExtractSolutionName(projectName);
+
             if (!File.Exists(programPath))
             {
-                var baseName = ExtractSolutionName(projectName);
                 var programContent = GenerateProgramContent(baseName, hostUi, hostUiMode);
                 File.WriteAllText(programPath, programContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created Program.cs");
@@ -1170,6 +1172,17 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             else
             {
                 AnsiConsole.MarkupLine("[dim]✓[/] Program.cs already exists");
+            }
+
+            if (!File.Exists(globalUsingsPath))
+            {
+                var globalUsingsContent = GenerateHostGlobalUsingsContent(baseName, hostUi);
+                File.WriteAllText(globalUsingsPath, globalUsingsContent);
+                AnsiConsole.MarkupLine("[green]✓[/] Created GlobalUsings.cs");
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[dim]✓[/] GlobalUsings.cs already exists");
             }
 
             return true;
@@ -1198,14 +1211,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             sb.AppendLine();
         }
 
-        sb.AppendLine("// Add API services (rate limiting, security, etc. from OpenAPI spec)");
-        sb.Append("builder.Services.Add");
-        sb.Append(baseName);
-        sb.AppendLine("Api();");
-        sb.AppendLine();
-        sb.AppendLine("// Register handler implementations and validators from Domain project");
+        sb.AppendLine("// Register handler implementations from Domain project");
         sb.AppendLine("builder.Services.AddApiHandlersFromDomain();");
-        sb.AppendLine("builder.Services.AddApiValidatorsFromDomain();");
         sb.AppendLine();
         sb.AppendLine("var app = builder.Build();");
         sb.AppendLine();
@@ -1239,9 +1246,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
 
         sb.AppendLine("// Configure middleware and map all endpoints");
-        sb.Append("app.Map");
-        sb.Append(baseName);
-        sb.AppendLine("Api();");
+        sb.AppendLine("app.MapEndpoints();");
         sb.AppendLine();
         sb.Append("app.Run();");
 
@@ -1265,6 +1270,31 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 sb.AppendLine(indent, "});");
                 break;
         }
+    }
+
+    private static string GenerateHostGlobalUsingsContent(
+        string baseName,
+        HostUiType hostUi)
+    {
+        var sb = new StringBuilder();
+
+        // Root namespace for extension methods (from Domain project DI registration)
+        sb.Append("global using ");
+        sb.Append(baseName);
+        sb.AppendLine(";");
+
+        // Generated endpoints namespace
+        sb.Append("global using ");
+        sb.Append(baseName);
+        sb.AppendLine(".Generated.Endpoints;");
+
+        // UI-specific namespaces
+        if (hostUi == HostUiType.Scalar)
+        {
+            sb.AppendLine("global using Scalar.AspNetCore;");
+        }
+
+        return sb.ToString();
     }
 
     private static bool UpdateProjectFileIfNeeded(

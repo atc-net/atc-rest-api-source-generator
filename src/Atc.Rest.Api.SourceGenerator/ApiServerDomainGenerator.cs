@@ -205,7 +205,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         }
 
         // Generate DI registration extension method for handlers
-        GenerateDependencyRegistration(context, compilation, rootNamespace, allHandlers, config);
+        GenerateDependencyRegistration(context, compilation, rootNamespace, allHandlers, config, pathSegments);
 
         // Generate DI registration extension method for validators
         GenerateValidatorDependencyRegistration(context, compilation, rootNamespace);
@@ -219,7 +219,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         Compilation compilation,
         string rootNamespace,
         List<(string OperationId, string HandlerName, string HandlerNamespace)> allHandlers,
-        ServerDomainConfig config)
+        ServerDomainConfig config,
+        List<string> pathSegments)
     {
         if (!allHandlers.Any())
         {
@@ -228,12 +229,18 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         var assemblyName = compilation.AssemblyName ?? "Generated";
 
+        // Build handler interface namespaces from path segments
+        var handlerInterfaceNamespaces = pathSegments
+            .Select(segment => $"{rootNamespace}.Generated.{segment}.Handlers")
+            .ToList();
+
         // Use DependencyRegistrationExtractor to extract class parameters
         var classParameters = DependencyRegistrationExtractor.Extract(
             rootNamespace,
             assemblyName,
             allHandlers,
-            config.HandlerSuffix);
+            config.HandlerSuffix,
+            handlerInterfaceNamespaces);
 
         if (classParameters == null)
         {
