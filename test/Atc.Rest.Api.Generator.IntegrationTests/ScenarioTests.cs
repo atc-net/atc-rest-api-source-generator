@@ -106,7 +106,7 @@ public class ScenarioTests
         };
 #pragma warning restore AsyncFixer02
 
-        var baseDir = GetSourceSnapshotDirectory(scenarioName, masterFolder, generator);
+        var baseDir = GetSourceSnapshotDirectory(scenarioName, masterFolder);
 
         foreach (var type in types)
         {
@@ -117,7 +117,7 @@ public class ScenarioTests
     /// <summary>
     /// Verifies a generated type against its verified snapshot file using Verify.
     /// </summary>
-    private async Task VerifyGeneratedTypeAsync(
+    private Task VerifyGeneratedTypeAsync(
         GeneratedType type,
         string baseDir)
     {
@@ -138,7 +138,7 @@ public class ScenarioTests
         settings.UseDirectory(directory);
         settings.UseFileName(safeTypeName);
 
-        await Verifier.Verify(actualContent, "cs", settings);
+        return Verify(actualContent, "cs", settings);
     }
 
     /// <summary>
@@ -148,7 +148,6 @@ public class ScenarioTests
     private static string GetSourceSnapshotDirectory(
         string scenarioName,
         string masterFolder,
-        string generator,
         [CallerFilePath] string sourceFilePath = "")
     {
         // From test/Atc.Rest.Api.Generator.IntegrationTests/ScenarioTests.cs

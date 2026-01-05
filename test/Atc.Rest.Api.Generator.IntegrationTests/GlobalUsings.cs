@@ -17,6 +17,4 @@ global using Atc.Rest.Api.Generator.Validators;
 
 global using Microsoft.OpenApi;
 
-global using VerifyXunit;
-
 global using Xunit;

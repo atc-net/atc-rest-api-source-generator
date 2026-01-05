@@ -41,8 +41,8 @@
     <PackageReference Include="Atc" Version="3.0.16" GeneratePathProperty="true" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.OpenApi" Version="3.0.3" GeneratePathProperty="true" />
-    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.0.3" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.OpenApi" Version="3.1.1" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.1.1" GeneratePathProperty="true" />
     <PackageReference Include="SharpYaml" Version="2.1.4" GeneratePathProperty="true" />
   </ItemGroup>
 

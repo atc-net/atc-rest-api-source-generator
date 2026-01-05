@@ -91,7 +91,7 @@ public class PathSegmentHelperTests
     public void GetOperationsForSegment_ReturnsOperationsForMatchingSegment()
     {
         var yaml = @"
-openapi: 3.0.3
+openapi: 3.1.1
 info:
   title: Test API
   version: 1.0.0
@@ -127,7 +127,7 @@ paths:
     public void GetOperationsForSegment_NoMatchingSegment_ReturnsEmptyList()
     {
         var yaml = @"
-openapi: 3.0.3
+openapi: 3.1.1
 info:
   title: Test API
   version: 1.0.0
@@ -151,7 +151,7 @@ paths:
     public void GetSchemasUsedBySegment_ReturnsReferencedSchemas()
     {
         var yaml = @"
-openapi: 3.0.3
+openapi: 3.1.1
 info:
   title: Test API
   version: 1.0.0
@@ -189,7 +189,7 @@ components:
     public void GetSchemasUsedBySegment_IncludesNestedSchemas()
     {
         var yaml = @"
-openapi: 3.0.3
+openapi: 3.1.1
 info:
   title: Test API
   version: 1.0.0

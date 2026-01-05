@@ -8,7 +8,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Test API
                               version: 1.0.0
@@ -46,7 +46,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Test API
                               version: 1.0.0
@@ -77,7 +77,7 @@ public class SpecificationServiceTests
     {
         const string baseYaml = """
 
-                                openapi: 3.0.3
+                                openapi: 3.1.1
                                 info:
                                   title: Test API
                                   version: 1.0.0
@@ -106,7 +106,7 @@ public class SpecificationServiceTests
     {
         const string baseYaml = """
 
-                                openapi: 3.0.3
+                                openapi: 3.1.1
                                 info:
                                   title: Test API
                                   version: 1.0.0
@@ -123,7 +123,7 @@ public class SpecificationServiceTests
         // Part files need valid openapi/info sections to parse
         const string partYaml = """
 
-                                openapi: 3.0.3
+                                openapi: 3.1.1
                                 info:
                                   title: Part File
                                   version: 1.0.0
@@ -159,7 +159,7 @@ public class SpecificationServiceTests
     {
         const string baseYaml = """
 
-                                openapi: 3.0.3
+                                openapi: 3.1.1
                                 info:
                                   title: Test API
                                   version: 1.0.0
@@ -176,7 +176,7 @@ public class SpecificationServiceTests
 
         const string partYaml = """
 
-                                openapi: 3.0.3
+                                openapi: 3.1.1
                                 info:
                                   title: Part File
                                   version: 1.0.0
@@ -209,7 +209,7 @@ public class SpecificationServiceTests
     {
         const string baseYaml = """
 
-                                openapi: 3.0.3
+                                openapi: 3.1.1
                                 info:
                                   title: Test API
                                   version: 1.0.0
@@ -225,7 +225,7 @@ public class SpecificationServiceTests
 
         const string partYaml = """
 
-                                openapi: 3.0.3
+                                openapi: 3.1.1
                                 info:
                                   title: Part File
                                   version: 1.0.0
@@ -257,7 +257,7 @@ public class SpecificationServiceTests
     {
         const string baseYaml = """
 
-                                openapi: 3.0.3
+                                openapi: 3.1.1
                                 info:
                                   title: Test API
                                   version: 1.0.0
@@ -271,7 +271,7 @@ public class SpecificationServiceTests
 
         const string partYaml = """
 
-                                openapi: 3.0.3
+                                openapi: 3.1.1
                                 info:
                                   title: Part File
                                   version: 1.0.0
@@ -301,7 +301,7 @@ public class SpecificationServiceTests
     {
         const string baseYaml = """
 
-                                openapi: 3.0.3
+                                openapi: 3.1.1
                                 info:
                                   title: Showcase API
                                   version: 1.0.0
@@ -311,7 +311,7 @@ public class SpecificationServiceTests
 
         const string accountsYaml = """
 
-                                    openapi: 3.0.3
+                                    openapi: 3.1.1
                                     info:
                                       title: Accounts Part
                                       version: 1.0.0
@@ -331,7 +331,7 @@ public class SpecificationServiceTests
 
         const string usersYaml = """
 
-                                 openapi: 3.0.3
+                                 openapi: 3.1.1
                                  info:
                                    title: Users Part
                                    version: 1.0.0
@@ -370,7 +370,7 @@ public class SpecificationServiceTests
     {
         const string baseYaml = """
 
-                                openapi: 3.0.3
+                                openapi: 3.1.1
                                 info:
                                   title: Test API
                                   version: 1.0.0
@@ -382,7 +382,7 @@ public class SpecificationServiceTests
 
         const string partYaml = """
 
-                                openapi: 3.0.3
+                                openapi: 3.1.1
                                 info:
                                   title: Part File
                                   version: 1.0.0
@@ -409,7 +409,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Test API
                               version: 1.0.0
@@ -447,7 +447,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Test API
                               version: 1.0.0
@@ -487,7 +487,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Test API
                               version: 1.0.0
@@ -517,7 +517,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Test API
                               version: 1.0.0
@@ -546,7 +546,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Test API
                               version: 1.0.0
@@ -585,7 +585,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Test API
                               version: 1.0.0
@@ -631,7 +631,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Test API
                               version: 1.0.0
@@ -672,7 +672,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Test API
                               version: 1.0.0
@@ -699,7 +699,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Test API
                               version: 1.0.0
@@ -724,7 +724,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Part File
                               version: 1.0.0
@@ -751,7 +751,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Part File
                               version: 1.0.0
@@ -776,7 +776,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Part File
                               version: 1.0.0
@@ -806,7 +806,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Test API
                               version: 1.0.0
@@ -825,7 +825,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Test API
                               version: 1.0.0
@@ -844,7 +844,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Test API
                               version: 1.0.0
@@ -868,7 +868,7 @@ public class SpecificationServiceTests
     {
         const string yaml = """
 
-                            openapi: 3.0.3
+                            openapi: 3.1.1
                             info:
                               title: Test API
                               version: 1.0.0
@@ -886,7 +886,7 @@ public class SpecificationServiceTests
     {
         const string baseYaml = """
 
-                                openapi: 3.0.3
+                                openapi: 3.1.1
                                 info:
                                   title: Test API
                                   version: 1.0.0
@@ -896,7 +896,7 @@ public class SpecificationServiceTests
 
         const string partYaml = """
 
-                                openapi: 3.0.3
+                                openapi: 3.1.1
                                 info:
                                   title: Part File
                                   version: 1.0.0

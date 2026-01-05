@@ -1,4 +1,4 @@
-openapi: 3.0.3
+openapi: 3.1.1
 info:
   title: RateLimit Sample API
   description: API demonstrating rate limiting extensions (x-ratelimit-*)
