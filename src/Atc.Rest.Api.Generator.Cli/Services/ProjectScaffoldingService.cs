@@ -275,6 +275,77 @@ public sealed class ProjectScaffoldingService
     }
 
     /// <summary>
+    /// Runs the atc-coding-rules-updater.ps1 script to download coding rules and Directory.Build.props.
+    /// </summary>
+    /// <param name="repoPath">Root path for the repository.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    public bool RunCodingRulesUpdater(string repoPath)
+    {
+        var ps1Path = Path.Combine(repoPath, "atc-coding-rules-updater.ps1");
+
+        if (!File.Exists(ps1Path))
+        {
+            AnsiConsole.MarkupLine("[yellow]![/] atc-coding-rules-updater.ps1 not found, skipping");
+            return true;
+        }
+
+        try
+        {
+            AnsiConsole.MarkupLine("[dim]Running atc-coding-rules-updater...[/]");
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "pwsh",
+                Arguments = $"-ExecutionPolicy Bypass -File \"{ps1Path}\"",
+                WorkingDirectory = repoPath,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            // Fall back to powershell.exe if pwsh is not available
+            using var process = new Process { StartInfo = startInfo };
+
+            try
+            {
+                process.Start();
+            }
+            catch (Win32Exception)
+            {
+                // pwsh not found, try powershell.exe
+                startInfo.FileName = "powershell";
+                process.StartInfo = startInfo;
+                process.Start();
+            }
+
+            var output = process.StandardOutput.ReadToEnd();
+            var error = process.StandardError.ReadToEnd();
+            process.WaitForExit();
+
+            if (process.ExitCode != 0)
+            {
+                AnsiConsole.MarkupLine($"[yellow]![/] atc-coding-rules-updater exited with code {process.ExitCode}");
+                if (!string.IsNullOrWhiteSpace(error))
+                {
+                    AnsiConsole.MarkupLine($"[dim]{Markup.Escape(error.Trim())}[/]");
+                }
+
+                return true; // Don't fail the whole process, just warn
+            }
+
+            AnsiConsole.MarkupLine("[green]✓[/] Coding rules updated successfully");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[yellow]![/] Could not run atc-coding-rules-updater: {ex.Message}");
+            AnsiConsole.MarkupLine("[dim]Run './atc-coding-rules-updater.ps1' manually to download coding rules.[/]");
+            return true; // Don't fail the whole process, just warn
+        }
+    }
+
+    /// <summary>
     /// Creates a .gitignore file for .NET projects.
     /// </summary>
     /// <param name="repoPath">Root path for the repository.</param>
@@ -298,38 +369,6 @@ public sealed class ProjectScaffoldingService
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"[red]✗[/] Error creating .gitignore: {ex.Message}");
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Creates a Directory.Build.props file with common build properties.
-    /// </summary>
-    /// <param name="repoPath">Root path for the repository.</param>
-    /// <param name="targetFramework">Target framework.</param>
-    /// <returns>True if successful, false otherwise.</returns>
-    public bool CreateDirectoryBuildProps(
-        string repoPath,
-        string targetFramework = "net10.0")
-    {
-        var propsPath = Path.Combine(repoPath, "Directory.Build.props");
-
-        if (File.Exists(propsPath))
-        {
-            AnsiConsole.MarkupLine("[dim]✓[/] Directory.Build.props already exists");
-            return true;
-        }
-
-        try
-        {
-            var content = GenerateDirectoryBuildPropsContent(targetFramework);
-            File.WriteAllText(propsPath, content);
-            AnsiConsole.MarkupLine("[green]✓[/] Created Directory.Build.props");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating Directory.Build.props: {ex.Message}");
             return false;
         }
     }
@@ -552,20 +591,6 @@ public sealed class ProjectScaffoldingService
                     Assert.Equal(expected, actual);
                 }
             }
-            """;
-
-    private static string GenerateDirectoryBuildPropsContent(
-        string targetFramework)
-        => $"""
-            <Project>
-              <PropertyGroup>
-                <TargetFramework>{targetFramework}</TargetFramework>
-                <Nullable>enable</Nullable>
-                <ImplicitUsings>enable</ImplicitUsings>
-                <LangVersion>latest</LangVersion>
-                <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-              </PropertyGroup>
-            </Project>
             """;
 
     private static string GenerateHostProjectContent(

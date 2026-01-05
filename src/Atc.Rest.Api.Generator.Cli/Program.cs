@@ -5,6 +5,14 @@ public static class Program
 {
     public static Task<int> Main(string[] args)
     {
+        args =
+        [
+            "generate", "server",
+            "-s", @"C:\Temp\PerTest\PerPets.yaml",
+            "-o", @"C:\Temp\PerTest",
+            "-n", "PerPets"
+        ];
+
         ArgumentNullException.ThrowIfNull(args);
 
         args = SetHelpArgumentIfNeeded(args);
