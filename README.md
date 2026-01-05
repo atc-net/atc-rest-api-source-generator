@@ -41,13 +41,13 @@ Add your `*.yaml` file and marker file to `.csproj`:
 ```xml
 <ItemGroup>
   <AdditionalFiles Include="MyApi.yaml" />
-  <AdditionalFiles Include=".atc-rest-api-server-contracts" />
+  <AdditionalFiles Include=".atc-rest-api-server" />
 </ItemGroup>
 ```
 
 ### 3. Create Marker File
 
-Create `.atc-rest-api-server-contracts`:
+Create `.atc-rest-api-server`:
 
 ```json
 {
@@ -248,6 +248,6 @@ endpoints.MapGet("/pets", async (
 
 | File                             | Purpose                                   |
 |----------------------------------|-------------------------------------------|
-| `.atc-rest-api-server-contracts` | Server code (models, endpoints, handlers) |
+| `.atc-rest-api-server` | Server code (models, endpoints, handlers) |
 | `.atc-rest-api-server-handlers`  | Handler implementation scaffolds          |
-| `.atc-rest-api-client-contracts` | HTTP client generation                    |
+| `.atc-rest-api-client` | HTTP client generation                    |

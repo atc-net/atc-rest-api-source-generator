@@ -1,5 +1,7 @@
 // ReSharper disable InvertIf
 // ReSharper disable UseWithExpressionToCopyRecord
+// ReSharper disable UnusedVariable
+// ReSharper disable ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
 namespace Atc.Rest.Api.SourceGenerator;
 
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "OK.")]
@@ -8,9 +10,10 @@ public class ApiClientGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Find marker files for client contracts configuration - THIS IS THE TRIGGER
+        // Find marker files - marker file presence IS the trigger for this generator
         var markerFiles = context.AdditionalTextsProvider
-            .Where(static file => file.Path.EndsWith(".atc-rest-api-client-contracts", StringComparison.OrdinalIgnoreCase))
+            .Where(static file => Path.GetFileName(file.Path).Equals(".atc-rest-api-client", StringComparison.OrdinalIgnoreCase) ||
+                                  Path.GetFileName(file.Path).Equals(".atc-rest-api-client.json", StringComparison.OrdinalIgnoreCase))
             .Select(static (file, cancellationToken) =>
             {
                 var content = file.GetText(cancellationToken)?.ToString() ?? "{}";
@@ -30,11 +33,11 @@ public class ApiClientGenerator : IIncrementalGenerator
             })
             .Collect();
 
-        // Register a pipeline to collect ALL OpenAPI YAML files (for multi-part support)
+        // Register a pipeline to collect ALL OpenAPI YAML files (for multi-parts support)
         var yamlFiles = context.AdditionalTextsProvider
             .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
                                  file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
-            .Select(static (file, cancellationToken) => (Path: file.Path, Content: file.GetText(cancellationToken)?.ToString() ?? string.Empty))
+            .Select(static (file, cancellationToken) => (file.Path, Content: file.GetText(cancellationToken)?.ToString() ?? string.Empty))
             .Where(static file => !string.IsNullOrEmpty(file.Content))
             .Collect();
 
@@ -53,7 +56,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             .Combine(markerFiles)
             .Combine(packageReferencesProvider);
 
-        // Register source output - processes all YAML files together for multi-part support
+        // Register source output - processes all YAML files together for multi-parts support
         context.RegisterSourceOutput(combined, RegisterSourceOutputAction);
     }
 
@@ -101,7 +104,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         try
         {
-            // Check if multi-part specification
+            // Check if multi-parts specification
             var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);
             var partFiles = yamlFiles
                 .Where(f => IsPartFile(f.Path, baseName))
@@ -170,7 +173,7 @@ public class ApiClientGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Generates API client code from a multi-part specification.
+    /// Generates API client code from a multi-parts specification.
     /// </summary>
     private static void GenerateApiClientMultiPart(
         SourceProductionContext context,
@@ -263,7 +266,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
     /// <summary>
     /// Generates API client code from a pre-parsed OpenAPI document.
-    /// Used by both single-file and multi-part generation flows.
+    /// Used by both single-file and multi-parts generation flows.
     /// </summary>
     private static void GenerateApiClientFromDocument(
         SourceProductionContext context,
@@ -296,7 +299,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         if (sharedSchemas.Count > 0)
         {
             // Create conflict registry for shared types (no segment)
-            var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName, null);
+            var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName);
 
             GenerateModelsForSchemas(context, openApiDoc, projectName, sharedSchemas, null, sharedRegistry, config.IncludeDeprecated, config.GeneratePartialModels);
             GenerateEnumsForSchemas(context, openApiDoc, projectName, sharedSchemas, null);
@@ -776,7 +779,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Generate inline model files for any inline schemas discovered
         if (inlineSchemas.Count > 0)
         {
-            var inlineTypes = CodeGenerationService.GenerateInlineModels(inlineSchemas, projectName, CodeGenerationService.GeneratorType.Client);
+            var inlineTypes = CodeGenerationService.GenerateInlineModels(inlineSchemas, projectName);
             foreach (var inlineType in inlineTypes)
             {
                 var inlineContent = CodeGenerationService.FormatAsFile(inlineType);
@@ -871,7 +874,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                 SourceText.From(opFiles.EndpointClassContent.NormalizeForSourceOutput(), Encoding.UTF8));
 
             // Result Interface (null for binary endpoints that use BinaryEndpointResponse)
-            if (opFiles.ResultInterfaceFileName != null && opFiles.ResultInterfaceContent != null)
+            if (opFiles is { ResultInterfaceFileName: not null, ResultInterfaceContent: not null })
             {
                 context.AddSource(
                     opFiles.ResultInterfaceFileName,
@@ -879,7 +882,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             }
 
             // Result Class (null for binary endpoints that use BinaryEndpointResponse)
-            if (opFiles.ResultClassFileName != null && opFiles.ResultClassContent != null)
+            if (opFiles is { ResultClassFileName: not null, ResultClassContent: not null })
             {
                 context.AddSource(
                     opFiles.ResultClassFileName,

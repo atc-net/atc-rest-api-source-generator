@@ -1,3 +1,5 @@
+// ReSharper disable UnusedVariable
+// ReSharper disable ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
 namespace Atc.Rest.Api.SourceGenerator;
 
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "OK.")]
@@ -6,9 +8,10 @@ public class ApiServerGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Find marker files for server contracts configuration - THIS IS THE TRIGGER
+        // Find marker files - marker file presence IS the trigger for this generator
         var markerFiles = context.AdditionalTextsProvider
-            .Where(static file => file.Path.EndsWith(".atc-rest-api-server-contracts", StringComparison.OrdinalIgnoreCase))
+            .Where(static file => Path.GetFileName(file.Path).Equals(".atc-rest-api-server", StringComparison.OrdinalIgnoreCase) ||
+                                  Path.GetFileName(file.Path).Equals(".atc-rest-api-server.json", StringComparison.OrdinalIgnoreCase))
             .Select(static (file, cancellationToken) =>
             {
                 var content = file.GetText(cancellationToken)?.ToString() ?? "{}";
@@ -28,7 +31,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             })
             .Collect();
 
-        // Register a pipeline to collect ALL OpenAPI YAML files (for multi-part support)
+        // Register a pipeline to collect ALL OpenAPI YAML files (for multi-parts support)
         var yamlFiles = context.AdditionalTextsProvider
             .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
                                  file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
@@ -52,7 +55,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             .Combine(hasAspNetCoreProvider)
             .Combine(hasMinimalApiProvider);
 
-        // Register source output - processes all YAML files together for multi-part support
+        // Register source output - processes all YAML files together for multi-parts support
         context.RegisterSourceOutput(combined, RegisterSourceOutputAction);
     }
 
@@ -161,7 +164,7 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         try
         {
-            // Check if multi-part specification
+            // Check if multi-parts specification
             var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);
             var partFiles = yamlFiles
                 .Where(f => IsPartFile(f.Path, baseName))
@@ -257,7 +260,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Generates API server code from a multi-part specification.
+    /// Generates API server code from a multi-parts specification.
     /// Merges all part files with the base file before generation.
     /// </summary>
     private static void GenerateApiServerMultiPart(
@@ -365,7 +368,7 @@ public class ApiServerGenerator : IIncrementalGenerator
 
     /// <summary>
     /// Generates API server code from a pre-parsed OpenAPI document.
-    /// Used by both single-file and multi-part generation flows.
+    /// Used by both single-file and multi-parts generation flows.
     /// </summary>
     private static void GenerateApiServerFromDocument(
         SourceProductionContext context,
@@ -394,7 +397,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate shared models/enums first (under common namespace without segment suffix)
         if (sharedSchemas.Count > 0)
         {
-            var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName, null);
+            var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName);
             GenerateModelsForSchemas(
                 context,
                 openApiDoc,
@@ -484,7 +487,6 @@ public class ApiServerGenerator : IIncrementalGenerator
                 openApiDoc,
                 projectName,
                 pathSegment,
-                registry,
                 systemTypeResolver,
                 config.IncludeDeprecated);
 
@@ -636,13 +638,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         foreach (var record in recordsParameters.Parameters)
         {
             // Create a single-record container with the same header and namespace
-            var singleRecordParams = new RecordsParameters(
-                HeaderContent: recordsParameters.HeaderContent,
-                Namespace: recordsParameters.Namespace,
-                DocumentationTags: recordsParameters.DocumentationTags,
-                Attributes: recordsParameters.Attributes,
-                DeclarationModifier: recordsParameters.DeclarationModifier,
-                Parameters: [record]);
+            var singleRecordParams = recordsParameters with { Parameters = [record] };
 
             var contentGenerator = new GenerateContentForRecords(
                 codeDocGenerator,
@@ -741,7 +737,6 @@ public class ApiServerGenerator : IIncrementalGenerator
         OpenApiDocument openApiDoc,
         string projectName,
         string pathSegment,
-        TypeConflictRegistry registry,
         SystemTypeConflictResolver systemTypeResolver,
         bool includeDeprecated)
     {
@@ -1140,7 +1135,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate inline model files for any inline schemas discovered
         if (inlineSchemas.Count > 0)
         {
-            var inlineTypes = CodeGenerationService.GenerateInlineModels(inlineSchemas, projectName, CodeGenerationService.GeneratorType.Server);
+            var inlineTypes = CodeGenerationService.GenerateInlineModels(inlineSchemas, projectName);
             foreach (var inlineType in inlineTypes)
             {
                 var inlineContent = CodeGenerationService.FormatAsFile(inlineType);

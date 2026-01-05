@@ -80,9 +80,9 @@ Supporting Libraries:
 ### Marker Files (Triggers)
 
 Source generation is triggered by marker files in the project:
-- `.atc-rest-api-server-contracts` - Generates server code (models, endpoints, handlers)
+- `.atc-rest-api-server` - Generates server code (models, endpoints, handlers)
 - `.atc-rest-api-server-handlers` - Generates handler implementation scaffolds
-- `.atc-rest-api-client-contracts` - Generates HTTP client code
+- `.atc-rest-api-client` - Generates HTTP client code
 
 ### Generation Flow
 

@@ -174,7 +174,7 @@ public class ScenarioTests
             scenariosPath,
             scenarioName,
             "Server",
-            ".atc-rest-api-server-contracts");
+            ".atc-rest-api-server");
 
         if (!File.Exists(markerPath))
         {

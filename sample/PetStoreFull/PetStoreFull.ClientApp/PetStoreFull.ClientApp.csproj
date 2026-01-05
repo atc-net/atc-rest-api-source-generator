@@ -11,7 +11,7 @@
 
   <ItemGroup>
     <AdditionalFiles Include="..\PetStoreFull.yaml" />
-    <AdditionalFiles Include=".atc-rest-api-client-contracts" />
+    <AdditionalFiles Include=".atc-rest-api-client" />
   </ItemGroup>
 
 </Project>

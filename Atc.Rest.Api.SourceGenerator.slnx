@@ -44,7 +44,7 @@
   <Folder Name="/sample/" />
   <Folder Name="/sample/MontaClient/">
     <File Path="sample/MontaClient/Monta.yaml" />
-    <File Path="sample/MontaClient/.atc-rest-api-client-contracts" />
+    <File Path="sample/MontaClient/.atc-rest-api-client" />
     <Project Path="sample/MontaClient/MontaClient.csproj" />
   </Folder>
   <Folder Name="/src/">

@@ -21,7 +21,7 @@
 
   <ItemGroup>
     <AdditionalFiles Include="..\Showcase.yaml" />
-    <AdditionalFiles Include=".atc-rest-api-server-contracts" />
+    <AdditionalFiles Include=".atc-rest-api-server" />
   </ItemGroup>
 
 </Project>

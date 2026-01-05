@@ -11,7 +11,7 @@ namespace Atc.Rest.Api.Generator.IntegrationTests.Services;
 /// ├── Demo/
 /// │   ├── Demo.yaml                    (YAML inside scenario folder)
 /// │   ├── Server/                      (master folder with marker file)
-/// │   │   ├── .atc-rest-api-server-contracts
+/// │   │   ├── .atc-rest-api-server
 /// │   │   └── Models/*.verified.cs     (verified files in category subfolders)
 /// │   ├── Client-Typed/
 /// │   ├── Client-Operation/
@@ -26,9 +26,9 @@ public static class ScenarioDiscovery
     /// </summary>
     private static readonly Dictionary<string, (string GeneratorType, string OutputFolder)> MarkerFileMappingInternal = new(StringComparer.Ordinal)
     {
-        [".atc-rest-api-server-contracts"] = ("Server", "Server"),
+        [".atc-rest-api-server"] = ("Server", "Server"),
         [".atc-rest-api-server-handlers"] = ("ServerDomain", "ServerDomain"),
-        [".atc-rest-api-client-contracts"] = ("Client", "Client"),
+        [".atc-rest-api-client"] = ("Client", "Client"),
     };
 
     /// <summary>

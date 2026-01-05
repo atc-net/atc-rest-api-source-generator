@@ -16,7 +16,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         // Find marker files - marker file presence IS the trigger for this generator
         var markerFiles = context.AdditionalTextsProvider
-            .Where(static file => file.Path.EndsWith(".atc-rest-api-server-handlers", StringComparison.OrdinalIgnoreCase))
+            .Where(static file => Path.GetFileName(file.Path).Equals(".atc-rest-api-server-handlers", StringComparison.OrdinalIgnoreCase) ||
+                                  Path.GetFileName(file.Path).Equals(".atc-rest-api-server-handlers.json", StringComparison.OrdinalIgnoreCase))
             .Select(static (file, cancellationToken) =>
             {
                 var directory = Path.GetDirectoryName(file.Path) ?? string.Empty;
@@ -50,7 +51,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             .Combine(markerFiles);
 
         // Register source output for handler scaffolds
-        context.RegisterSourceOutput(combined, (context, combinedData) =>
+        context.RegisterSourceOutput(combined, (productionContext, combinedData) =>
         {
             var ((yamlFile, compilation), markers) = combinedData;
 
@@ -76,17 +77,17 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
             if (!hasAspNetCore)
             {
-                DiagnosticHelpers.ReportDomainRequiresAspNetCore(context);
+                DiagnosticHelpers.ReportDomainRequiresAspNetCore(productionContext);
                 return;
             }
 
             try
             {
-                GenerateHandlerScaffolds(context, yamlFile.Path, yamlFile.Content, compilation, config, markerDirectory);
+                GenerateHandlerScaffolds(productionContext, yamlFile.Path, yamlFile.Content, compilation, config, markerDirectory);
             }
             catch (Exception ex)
             {
-                DiagnosticHelpers.ReportHandlerScaffoldGenerationError(context, yamlFile.Path, ex);
+                DiagnosticHelpers.ReportHandlerScaffoldGenerationError(productionContext, yamlFile.Path, ex);
             }
         });
     }
@@ -144,9 +145,6 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // Create system type conflict resolver for conditional Task qualification
         var modelNames = openApiDoc.Components?.Schemas?.Keys ?? Array.Empty<string>();
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
-
-        // Determine output directory (GenerateHandlersOutput is relative to marker file)
-        var outputDirectory = Path.Combine(markerDirectory, config.GenerateHandlersOutput);
 
         // Get all path segments for GlobalUsings generation
         var pathSegments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
@@ -656,7 +654,6 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         string operationId)
     {
         var operationIdPascal = operationId.ToPascalCaseForDotNet();
-        var returnType = $"Task<{operationIdPascal}Result>";
 
         // Check if operation has parameters (operation-level)
         var hasOperationParams = operation.Parameters is { Count: > 0 };
@@ -756,7 +753,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                 regexTimeout);
 
             // Write the updated content back to the file
-            File.WriteAllText(filePath, updatedContent, System.Text.Encoding.UTF8);
+            File.WriteAllText(filePath, updatedContent, Encoding.UTF8);
         }
         catch (IOException)
         {

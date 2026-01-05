@@ -6,7 +6,7 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
 public sealed class GenerateServerCommand : Command<GenerateServerCommandSettings>
 {
-    private const string ContractsMarkerFileName = ".atc-rest-api-server-contracts";
+    private const string ContractsMarkerFileName = ".atc-rest-api-server";
     private const string DomainMarkerFileName = ".atc-rest-api-server-handlers";
 
     private readonly ProjectScaffoldingService scaffoldingService = new();

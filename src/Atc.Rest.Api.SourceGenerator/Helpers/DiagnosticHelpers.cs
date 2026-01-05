@@ -90,7 +90,7 @@ internal static class DiagnosticHelpers
     public static readonly DiagnosticDescriptor ServerRequiresAspNetCore = new(
         RuleIdentifiers.ServerRequiresAspNetCore,
         "ASP.NET Core References Required",
-        "The .atc-rest-api-server-contracts marker file requires ASP.NET Core references. Add a reference to Microsoft.AspNetCore.App or remove the marker file.",
+        "The .atc-rest-api-server marker file requires ASP.NET Core references. Add a reference to Microsoft.AspNetCore.App or remove the marker file.",
         RuleIdentifiers.Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);

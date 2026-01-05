@@ -20,7 +20,7 @@
 
   <ItemGroup>
     <AdditionalFiles Include="..\MultipartDemo.yaml" />
-    <AdditionalFiles Include=".atc-rest-api-server-contracts" />
+    <AdditionalFiles Include=".atc-rest-api-server" />
   </ItemGroup>
 
 </Project>

@@ -6,7 +6,7 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
 public sealed class GenerateClientCommand : Command<GenerateClientCommandSettings>
 {
-    private const string MarkerFileName = ".atc-rest-api-client-contracts";
+    private const string MarkerFileName = ".atc-rest-api-client";
 
     public override int Execute(
         CommandContext context,
@@ -453,7 +453,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
               <ItemGroup>
                 <AdditionalFiles Include="{specFileName}" />
-                <AdditionalFiles Include=".atc-rest-api-client-contracts" />
+                <AdditionalFiles Include=".atc-rest-api-client" />
               </ItemGroup>
 
             </Project>
