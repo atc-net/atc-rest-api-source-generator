@@ -160,7 +160,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 if (isTwoProjects)
                 {
                     // TwoProjects: Combined host + contracts project
-                    if (!GenerateCombinedHostContractsProject(ctx, specPath, contractsOutputPath, contractsProjectName, domainProjectName, serverConfig, scaffoldingConfig.TargetFramework, scaffoldingConfig.HostUi, scaffoldingConfig.HostUiMode))
+                    if (!GenerateCombinedHostContractsProject(ctx, specPath, contractsOutputPath, contractsProjectName, domainProjectName, outputPath, serverConfig, scaffoldingConfig.TargetFramework, scaffoldingConfig.HostUi, scaffoldingConfig.HostUiMode))
                     {
                         return 1;
                     }
@@ -169,7 +169,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 }
                 else
                 {
-                    if (!GenerateContractsProject(ctx, specPath, contractsOutputPath, contractsProjectName, serverConfig))
+                    if (!GenerateContractsProject(ctx, specPath, contractsOutputPath, contractsProjectName, outputPath, serverConfig))
                     {
                         return 1;
                     }
@@ -181,7 +181,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 if (hasSeparateDomain)
                 {
                     ctx.Status("Setting up domain project...");
-                    if (!GenerateDomainProject(ctx, specPath, domainOutputPath, domainProjectName, contractsProjectName, domainConfig))
+                    if (!GenerateDomainProject(ctx, specPath, domainOutputPath, domainProjectName, contractsProjectName, outputPath, domainConfig))
                     {
                         return 1;
                     }
@@ -619,6 +619,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         string specPath,
         string outputPath,
         string projectName,
+        string repositoryRoot,
         ServerConfig config)
     {
         // Validate output directory
@@ -643,13 +644,29 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             return false;
         }
 
-        // Copy specification file
-        ctx.Status("Copying specification file...");
-        var specFileName = Path.GetFileName(specPath);
-        if (!CopySpecificationFile(specPath, outputPath, specFileName))
+        // Determine spec file strategy - no duplication!
+        ctx.Status("Configuring specification files...");
+        var specFiles = GetSpecificationFiles(specPath);
+        var (isInsideRepo, specBasePath) = DetermineSpecFileStrategy(specPath, repositoryRoot);
+
+        if (!isInsideRepo)
         {
-            return false;
+            // Copy all specs to ScriptsAndSpecifications folder
+            if (!EnsureSpecsInRepository(specFiles, repositoryRoot))
+            {
+                return false;
+            }
         }
+        else
+        {
+            var specFileName = Path.GetFileName(specPath);
+            AnsiConsole.MarkupLine($"[dim]✓[/] Using existing specification: {specFileName}");
+        }
+
+        // Build list of relative spec paths for the project file
+        var relativeSpecPaths = specFiles
+            .Select(f => GetRelativeSpecPath(specBasePath, outputPath, Path.GetFileName(f)))
+            .ToList();
 
         // Create or update marker file with server config
         ctx.Status("Creating contracts marker file...");
@@ -658,9 +675,9 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             return false;
         }
 
-        // Create or update project file
+        // Create or update project file with relative paths
         ctx.Status("Creating contracts project file...");
-        if (!CreateOrUpdateContractsProjectFile(outputPath, projectName, specFileName))
+        if (!CreateOrUpdateContractsProjectFile(outputPath, projectName, relativeSpecPaths))
         {
             return false;
         }
@@ -674,6 +691,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         string outputPath,
         string projectName,
         string contractsProjectName,
+        string repositoryRoot,
         ServerDomainConfig config)
     {
         // Validate output directory
@@ -698,13 +716,29 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             return false;
         }
 
-        // Copy specification file
-        ctx.Status("Copying specification file...");
-        var specFileName = Path.GetFileName(specPath);
-        if (!CopySpecificationFile(specPath, outputPath, specFileName))
+        // Determine spec file strategy - no duplication!
+        ctx.Status("Configuring specification files...");
+        var specFiles = GetSpecificationFiles(specPath);
+        var (isInsideRepo, specBasePath) = DetermineSpecFileStrategy(specPath, repositoryRoot);
+
+        if (!isInsideRepo)
         {
-            return false;
+            // Copy all specs to ScriptsAndSpecifications folder (if not already done by contracts)
+            if (!EnsureSpecsInRepository(specFiles, repositoryRoot))
+            {
+                return false;
+            }
         }
+        else
+        {
+            var specFileName = Path.GetFileName(specPath);
+            AnsiConsole.MarkupLine($"[dim]✓[/] Using existing specification: {specFileName}");
+        }
+
+        // Build list of relative spec paths for the project file
+        var relativeSpecPaths = specFiles
+            .Select(f => GetRelativeSpecPath(specBasePath, outputPath, Path.GetFileName(f)))
+            .ToList();
 
         // Create or update marker file with domain config
         ctx.Status("Creating domain marker file...");
@@ -713,9 +747,9 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             return false;
         }
 
-        // Create or update project file
+        // Create or update project file with relative paths
         ctx.Status("Creating domain project file...");
-        if (!CreateOrUpdateDomainProjectFile(outputPath, projectName, contractsProjectName, specFileName))
+        if (!CreateOrUpdateDomainProjectFile(outputPath, projectName, contractsProjectName, relativeSpecPaths))
         {
             return false;
         }
@@ -729,6 +763,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         string outputPath,
         string projectName,
         string domainProjectName,
+        string repositoryRoot,
         ServerConfig config,
         string targetFramework,
         HostUiType hostUi,
@@ -756,13 +791,29 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             return false;
         }
 
-        // Copy specification file
-        ctx.Status("Copying specification file...");
-        var specFileName = Path.GetFileName(specPath);
-        if (!CopySpecificationFile(specPath, outputPath, specFileName))
+        // Determine spec file strategy - no duplication!
+        ctx.Status("Configuring specification files...");
+        var specFiles = GetSpecificationFiles(specPath);
+        var (isInsideRepo, specBasePath) = DetermineSpecFileStrategy(specPath, repositoryRoot);
+
+        if (!isInsideRepo)
         {
-            return false;
+            // Copy all specs to ScriptsAndSpecifications folder
+            if (!EnsureSpecsInRepository(specFiles, repositoryRoot))
+            {
+                return false;
+            }
         }
+        else
+        {
+            var specFileName = Path.GetFileName(specPath);
+            AnsiConsole.MarkupLine($"[dim]✓[/] Using existing specification: {specFileName}");
+        }
+
+        // Build list of relative spec paths for the project file
+        var relativeSpecPaths = specFiles
+            .Select(f => GetRelativeSpecPath(specBasePath, outputPath, Path.GetFileName(f)))
+            .ToList();
 
         // Create or update marker file with server config
         ctx.Status("Creating contracts marker file...");
@@ -773,7 +824,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
         // Create or update combined host+contracts project file
         ctx.Status("Creating project file...");
-        if (!CreateOrUpdateCombinedHostContractsProjectFile(outputPath, projectName, domainProjectName, specFileName, targetFramework, hostUi))
+        if (!CreateOrUpdateCombinedHostContractsProjectFile(outputPath, projectName, domainProjectName, relativeSpecPaths, targetFramework, hostUi))
         {
             return false;
         }
@@ -815,42 +866,114 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         return true;
     }
 
-    private static bool CopySpecificationFile(
-        string sourcePath,
-        string outputPath,
-        string fileName)
+    /// <summary>
+    /// Gets all specification files including multi-part files.
+    /// Multi-part files follow the pattern: Base.yaml, Base_Part1.yaml, Base_Part2.yaml.
+    /// </summary>
+    private static List<string> GetSpecificationFiles(string primarySpecPath)
     {
-        var destinationPath = Path.Combine(outputPath, fileName);
+        var specDir = Path.GetDirectoryName(primarySpecPath);
+        if (string.IsNullOrEmpty(specDir))
+        {
+            return [primarySpecPath];
+        }
+
+        var baseName = Path.GetFileNameWithoutExtension(primarySpecPath);
+        var extension = Path.GetExtension(primarySpecPath);
+
+        var allSpecFiles = new List<string> { primarySpecPath };
+
+        // Find multi-part files (e.g., MyApi_Users.yaml, MyApi_Products.yaml)
+        var partPattern = $"{baseName}_*{extension}";
+        var partFiles = Directory.GetFiles(specDir, partPattern)
+            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase);
+
+        allSpecFiles.AddRange(partFiles);
+        return allSpecFiles;
+    }
+
+    /// <summary>
+    /// Determines if spec is inside repository and returns the effective spec path for projects.
+    /// </summary>
+    private static (bool IsInsideRepo, string SpecBasePath) DetermineSpecFileStrategy(
+        string specPath,
+        string repositoryRoot)
+    {
+        var normalizedSpec = Path.GetFullPath(specPath);
+        var normalizedRoot = Path.GetFullPath(repositoryRoot).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+        // Check if spec file is inside the repository root
+        if (normalizedSpec.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            // Spec is inside repo - use the directory where the spec lives
+            return (true, Path.GetDirectoryName(normalizedSpec)!);
+        }
+
+        // Spec is outside repo - will use ScriptsAndSpecifications folder
+        var specsFolder = Path.Combine(repositoryRoot, "ScriptsAndSpecifications");
+        return (false, specsFolder);
+    }
+
+    /// <summary>
+    /// Ensures all spec files are copied to the ScriptsAndSpecifications folder.
+    /// </summary>
+    private static bool EnsureSpecsInRepository(
+        List<string> specFiles,
+        string repositoryRoot)
+    {
+        var specsFolder = Path.Combine(repositoryRoot, "ScriptsAndSpecifications");
 
         try
         {
-            if (File.Exists(destinationPath))
+            // Create folder if needed
+            if (!Directory.Exists(specsFolder))
             {
-                var sourceLastWrite = File.GetLastWriteTimeUtc(sourcePath);
-                var destLastWrite = File.GetLastWriteTimeUtc(destinationPath);
-
-                if (sourceLastWrite <= destLastWrite)
-                {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Specification file up to date: {fileName}");
-                    return true;
-                }
-
-                File.Copy(sourcePath, destinationPath, overwrite: true);
-                AnsiConsole.MarkupLine($"[green]✓[/] Updated specification file: {fileName}");
+                Directory.CreateDirectory(specsFolder);
+                AnsiConsole.MarkupLine("[green]✓[/] Created directory: ScriptsAndSpecifications/");
             }
-            else
+
+            foreach (var sourcePath in specFiles)
             {
-                File.Copy(sourcePath, destinationPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Copied specification file: {fileName}");
+                var fileName = Path.GetFileName(sourcePath);
+                var destPath = Path.Combine(specsFolder, fileName);
+
+                if (!File.Exists(destPath) ||
+                    File.GetLastWriteTimeUtc(sourcePath) > File.GetLastWriteTimeUtc(destPath))
+                {
+                    File.Copy(sourcePath, destPath, overwrite: true);
+                    AnsiConsole.MarkupLine($"[green]✓[/] Copied specification file to ScriptsAndSpecifications/{fileName}");
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine($"[dim]✓[/] Specification file up to date: ScriptsAndSpecifications/{fileName}");
+                }
             }
 
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error copying specification file: {ex.Message}");
+            AnsiConsole.MarkupLine($"[red]✗[/] Error copying specification files: {ex.Message}");
             return false;
         }
+    }
+
+    /// <summary>
+    /// Gets the relative path from a project directory to the spec files base directory.
+    /// </summary>
+    private static string GetRelativeSpecPath(
+        string specBasePath,
+        string projectDirectory,
+        string specFileName)
+    {
+        var specFullPath = Path.Combine(specBasePath, specFileName);
+        var specUri = new Uri(specFullPath);
+        var projectUri = new Uri(projectDirectory.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar);
+        var relativeUri = projectUri.MakeRelativeUri(specUri);
+        var relativePath = Uri.UnescapeDataString(relativeUri.ToString());
+
+        // Convert URI format to file system path
+        return relativePath.Replace('/', Path.DirectorySeparatorChar);
     }
 
     private static bool CreateOrUpdateContractsMarkerFile(
@@ -934,7 +1057,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
     private static bool CreateOrUpdateContractsProjectFile(
         string outputPath,
         string projectName,
-        string specFileName)
+        List<string> specFilePaths)
     {
         var csprojPath = Path.Combine(outputPath, $"{projectName}.csproj");
 
@@ -942,13 +1065,13 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             if (!File.Exists(csprojPath))
             {
-                var csprojContent = GenerateContractsProjectFileContent(specFileName);
+                var csprojContent = GenerateContractsProjectFileContent(specFilePaths);
                 File.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
             {
-                var updated = UpdateProjectFileIfNeeded(csprojPath, specFileName, ContractsMarkerFileName);
+                var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, ContractsMarkerFileName);
                 if (updated)
                 {
                     AnsiConsole.MarkupLine($"[green]✓[/] Updated project file: {projectName}.csproj");
@@ -972,7 +1095,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         string outputPath,
         string projectName,
         string contractsProjectName,
-        string specFileName)
+        List<string> specFilePaths)
     {
         var csprojPath = Path.Combine(outputPath, $"{projectName}.csproj");
 
@@ -980,13 +1103,13 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             if (!File.Exists(csprojPath))
             {
-                var csprojContent = GenerateDomainProjectFileContent(specFileName, contractsProjectName);
+                var csprojContent = GenerateDomainProjectFileContent(specFilePaths, contractsProjectName);
                 File.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
             {
-                var updated = UpdateProjectFileIfNeeded(csprojPath, specFileName, DomainMarkerFileName);
+                var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, DomainMarkerFileName);
                 if (updated)
                 {
                     AnsiConsole.MarkupLine($"[green]✓[/] Updated project file: {projectName}.csproj");
@@ -1007,66 +1130,82 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
     }
 
     private static string GenerateContractsProjectFileContent(
-        string specFileName)
-        => $"""
-            <Project Sdk="Microsoft.NET.Sdk">
+        List<string> specFilePaths)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk\">");
+        sb.AppendLine();
+        sb.AppendLine(2, "<PropertyGroup>");
+        sb.AppendLine(4, "<TargetFramework>net10.0</TargetFramework>");
+        sb.AppendLine(2, "</PropertyGroup>");
+        sb.AppendLine();
+        sb.AppendLine(2, "<ItemGroup>");
+        sb.AppendLine(4, "<FrameworkReference Include=\"Microsoft.AspNetCore.App\" />");
+        sb.AppendLine(2, "</ItemGroup>");
+        sb.AppendLine();
+        sb.AppendLine(2, "<ItemGroup>");
+        sb.AppendLine(4, "<PackageReference Include=\"Atc.Rest.Api.SourceGenerator\" Version=\"*\" OutputItemType=\"Analyzer\" ReferenceOutputAssembly=\"false\" />");
+        sb.AppendLine(4, "<PackageReference Include=\"Microsoft.Extensions.Caching.Hybrid\" Version=\"10.1.0\" />");
+        sb.AppendLine(2, "</ItemGroup>");
+        sb.AppendLine();
+        sb.AppendLine(2, "<ItemGroup>");
 
-              <PropertyGroup>
-                <TargetFramework>net10.0</TargetFramework>
-              </PropertyGroup>
+        foreach (var specPath in specFilePaths)
+        {
+            sb.AppendLine(4, $"<AdditionalFiles Include=\"{specPath}\" />");
+        }
 
-              <ItemGroup>
-                <FrameworkReference Include="Microsoft.AspNetCore.App" />
-              </ItemGroup>
+        sb.AppendLine(4, $"<AdditionalFiles Include=\"{ContractsMarkerFileName}\" />");
+        sb.AppendLine(2, "</ItemGroup>");
+        sb.AppendLine();
+        sb.Append("</Project>");
 
-              <ItemGroup>
-                <PackageReference Include="Atc.Rest.Api.SourceGenerator" Version="*" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-                <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.1.0" />
-              </ItemGroup>
-
-              <ItemGroup>
-                <AdditionalFiles Include="{specFileName}" />
-                <AdditionalFiles Include="{ContractsMarkerFileName}" />
-              </ItemGroup>
-
-            </Project>
-            """;
+        return sb.ToString();
+    }
 
     private static string GenerateDomainProjectFileContent(
-        string specFileName,
+        List<string> specFilePaths,
         string contractsProjectName)
-        => $"""
-            <Project Sdk="Microsoft.NET.Sdk">
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk\">");
+        sb.AppendLine();
+        sb.AppendLine(2, "<PropertyGroup>");
+        sb.AppendLine(4, "<TargetFramework>net10.0</TargetFramework>");
+        sb.AppendLine(2, "</PropertyGroup>");
+        sb.AppendLine();
+        sb.AppendLine(2, "<ItemGroup>");
+        sb.AppendLine(4, "<FrameworkReference Include=\"Microsoft.AspNetCore.App\" />");
+        sb.AppendLine(2, "</ItemGroup>");
+        sb.AppendLine();
+        sb.AppendLine(2, "<ItemGroup>");
+        sb.AppendLine(4, $"<ProjectReference Include=\"..\\{contractsProjectName}\\{contractsProjectName}.csproj\" />");
+        sb.AppendLine(2, "</ItemGroup>");
+        sb.AppendLine();
+        sb.AppendLine(2, "<ItemGroup>");
+        sb.AppendLine(4, "<PackageReference Include=\"Atc.Rest.Api.SourceGenerator\" Version=\"*\" OutputItemType=\"Analyzer\" ReferenceOutputAssembly=\"false\" />");
+        sb.AppendLine(2, "</ItemGroup>");
+        sb.AppendLine();
+        sb.AppendLine(2, "<ItemGroup>");
 
-              <PropertyGroup>
-                <TargetFramework>net10.0</TargetFramework>
-              </PropertyGroup>
+        foreach (var specPath in specFilePaths)
+        {
+            sb.AppendLine(4, $"<AdditionalFiles Include=\"{specPath}\" />");
+        }
 
-              <ItemGroup>
-                <FrameworkReference Include="Microsoft.AspNetCore.App" />
-              </ItemGroup>
+        sb.AppendLine(4, $"<AdditionalFiles Include=\"{DomainMarkerFileName}\" />");
+        sb.AppendLine(2, "</ItemGroup>");
+        sb.AppendLine();
+        sb.Append("</Project>");
 
-              <ItemGroup>
-                <ProjectReference Include="..\{contractsProjectName}\{contractsProjectName}.csproj" />
-              </ItemGroup>
-
-              <ItemGroup>
-                <PackageReference Include="Atc.Rest.Api.SourceGenerator" Version="*" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-              </ItemGroup>
-
-              <ItemGroup>
-                <AdditionalFiles Include="{specFileName}" />
-                <AdditionalFiles Include="{DomainMarkerFileName}" />
-              </ItemGroup>
-
-            </Project>
-            """;
+        return sb.ToString();
+    }
 
     private static bool CreateOrUpdateCombinedHostContractsProjectFile(
         string outputPath,
         string projectName,
         string domainProjectName,
-        string specFileName,
+        List<string> specFilePaths,
         string targetFramework,
         HostUiType hostUi)
     {
@@ -1076,13 +1215,13 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             if (!File.Exists(csprojPath))
             {
-                var csprojContent = GenerateCombinedHostContractsProjectFileContent(specFileName, domainProjectName, targetFramework, hostUi);
+                var csprojContent = GenerateCombinedHostContractsProjectFileContent(specFilePaths, domainProjectName, targetFramework, hostUi);
                 File.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
             {
-                var updated = UpdateProjectFileIfNeeded(csprojPath, specFileName, ContractsMarkerFileName);
+                var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, ContractsMarkerFileName);
                 if (updated)
                 {
                     AnsiConsole.MarkupLine($"[green]✓[/] Updated project file: {projectName}.csproj");
@@ -1103,7 +1242,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
     }
 
     private static string GenerateCombinedHostContractsProjectFileContent(
-        string specFileName,
+        List<string> specFilePaths,
         string domainProjectName,
         string targetFramework,
         HostUiType hostUi)
@@ -1141,7 +1280,12 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         sb.AppendLine(2, "</ItemGroup>");
         sb.AppendLine();
         sb.AppendLine(2, "<ItemGroup>");
-        sb.AppendLine(4, $"<AdditionalFiles Include=\"{specFileName}\" />");
+
+        foreach (var specPath in specFilePaths)
+        {
+            sb.AppendLine(4, $"<AdditionalFiles Include=\"{specPath}\" />");
+        }
+
         sb.AppendLine(4, $"<AdditionalFiles Include=\"{ContractsMarkerFileName}\" />");
         sb.AppendLine(2, "</ItemGroup>");
         sb.AppendLine();
@@ -1299,29 +1443,34 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
     private static bool UpdateProjectFileIfNeeded(
         string csprojPath,
-        string specFileName,
+        List<string> specFilePaths,
         string markerFileName)
     {
         var content = File.ReadAllText(csprojPath);
         var originalContent = content;
 
-        var hasYamlInclude = content.Contains($"Include=\"{specFileName}\"", StringComparison.OrdinalIgnoreCase);
+        // Check which spec files are missing
+        var missingSpecFiles = specFilePaths
+            .Where(specPath => !content.Contains($"Include=\"{specPath}\"", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
         var hasMarkerInclude = content.Contains(markerFileName, StringComparison.OrdinalIgnoreCase);
 
-        if (hasYamlInclude && hasMarkerInclude)
+        if (missingSpecFiles.Count == 0 && hasMarkerInclude)
         {
             return false;
         }
 
         if (content.Contains("<AdditionalFiles", StringComparison.OrdinalIgnoreCase))
         {
-            if (!hasYamlInclude)
+            // Add missing spec files
+            foreach (var specPath in missingSpecFiles)
             {
                 var insertPosition = content.LastIndexOf("</ItemGroup>", StringComparison.OrdinalIgnoreCase);
                 var additionalFilesPosition = content.LastIndexOf("<AdditionalFiles", insertPosition, StringComparison.OrdinalIgnoreCase);
                 if (insertPosition >= 0 && additionalFilesPosition >= 0)
                 {
-                    var yamlEntry = $"    <AdditionalFiles Include=\"{specFileName}\" />\n";
+                    var yamlEntry = $"    <AdditionalFiles Include=\"{specPath}\" />\n";
                     content = content.Insert(insertPosition, yamlEntry);
                 }
             }
@@ -1342,15 +1491,24 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             var insertPosition = content.LastIndexOf("</Project>", StringComparison.OrdinalIgnoreCase);
             if (insertPosition >= 0)
             {
-                var newItemGroup = $"""
+                var sb = new StringBuilder();
+                sb.AppendLine();
+                sb.AppendLine("  <ItemGroup>");
 
-                  <ItemGroup>
-                    <AdditionalFiles Include="{specFileName}" />
-                    <AdditionalFiles Include="{markerFileName}" />
-                  </ItemGroup>
+                foreach (var specPath in specFilePaths)
+                {
+                    sb.Append("    <AdditionalFiles Include=\"");
+                    sb.Append(specPath);
+                    sb.AppendLine("\" />");
+                }
 
-                """;
-                content = content.Insert(insertPosition, newItemGroup);
+                sb.Append("    <AdditionalFiles Include=\"");
+                sb.Append(markerFileName);
+                sb.AppendLine("\" />");
+                sb.AppendLine("  </ItemGroup>");
+                sb.AppendLine();
+
+                content = content.Insert(insertPosition, sb.ToString());
             }
         }
 
