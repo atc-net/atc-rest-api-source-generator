@@ -18,7 +18,7 @@ dotnet build Atc.Rest.Api.SourceGenerator.slnx
 dotnet build Atc.Rest.Api.SourceGenerator.slnx -c Release
 
 # Build the CLI tool only
-dotnet build src/Atc.Rest.Api.CliGenerator/Atc.Rest.Api.CliGenerator.csproj
+dotnet build src/Atc.Rest.Api.Generator.Cli/Atc.Rest.Api.Generator.Cli.csproj
 ```
 
 ## Running Tests
@@ -42,7 +42,7 @@ dotnet test --filter "FullyQualifiedName~CasingHelperTests.IsCamelCase_ReturnsEx
 Test projects:
 - `Atc.Rest.Api.Generator.Tests` - Unit tests for the shared generator library
 - `Atc.Rest.Api.SourceGenerator.Tests` - Unit tests for Roslyn source generators
-- `Atc.Rest.Api.CliGenerator.Tests` - Tests for CLI commands
+- `Atc.Rest.Api.Generator.Cli.Tests` - Tests for CLI commands
 - `Atc.Rest.Api.Generator.IntegrationTests` - End-to-end scenario tests
 
 ## Architecture
@@ -64,7 +64,7 @@ The project uses a **three-layer architecture**:
 └───────────────────────────┬─────────────────────────────────────┘
                             │
 ┌───────────────────────────▼─────────────────────────────────────┐
-│ Atc.Rest.Api.CliGenerator (net10.0)                             │
+│ Atc.Rest.Api.Generator.Cli (net10.0)                             │
 │ CLI tool (atc-rest-api-gen) for project scaffolding/validation  │
 └─────────────────────────────────────────────────────────────────┘
 

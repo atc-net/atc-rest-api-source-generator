@@ -63,7 +63,7 @@ jobs:
             -p:RepositoryBranch=$BRANCH_NAME \
             -p:ContinuousIntegrationBuild=true \
             -p:Version=${NBGV_NuGetPackageVersion}
-          dotnet pack src/Atc.Rest.Api.CliGenerator/Atc.Rest.Api.CliGenerator.csproj \
+          dotnet pack src/Atc.Rest.Api.Generator.Cli/Atc.Rest.Api.Generator.Cli.csproj \
             -c Release \
             -o ${GITHUB_WORKSPACE}/packages \
             -p:RepositoryBranch=$BRANCH_NAME \
