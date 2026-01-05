@@ -2,8 +2,6 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)\Generated</CompilerGeneratedFilesOutputPath>
     <!-- Disable file name/namespace rules for minimal API Program.cs -->
     <NoWarn>$(NoWarn);SA1649;MA0048</NoWarn>
   </PropertyGroup>
