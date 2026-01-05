@@ -12,7 +12,7 @@ namespace Atc.Rest.Api.Generator.IntegrationTests;
 /// ├── Demo/
 /// │   ├── Demo.yaml                    (YAML inside scenario folder)
 /// │   ├── Server/                      (master folder with marker file)
-/// │   │   ├── .atc-rest-api-server-contracts
+/// │   │   ├── .atc-rest-api-server
 /// │   │   └── Models/*.verified.cs     (verified files in category subfolders)
 /// │   ├── Client-Typed/
 /// │   ├── Client-Operation/

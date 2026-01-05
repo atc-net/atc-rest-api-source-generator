@@ -57,7 +57,7 @@ public sealed class GenerateClientCommandTests : IDisposable
         Assert.Contains("Copied specification file", cleanOutput, StringComparison.Ordinal);
 
         // Verify marker file was created
-        var markerFilePath = Path.Combine(outputPath, ".atc-rest-api-client-contracts");
+        var markerFilePath = Path.Combine(outputPath, ".atc-rest-api-client");
         Assert.True(File.Exists(markerFilePath), $"Marker file should exist at {markerFilePath}");
 
         // Verify marker file content (now uses ClientConfig with camelCase enum values)
@@ -76,7 +76,7 @@ public sealed class GenerateClientCommandTests : IDisposable
         Assert.Contains("<OutputType>Exe</OutputType>", csprojContent, StringComparison.Ordinal);
         Assert.Contains("<TargetFramework>net10.0</TargetFramework>", csprojContent, StringComparison.Ordinal);
         Assert.Contains("<AdditionalFiles Include=\"Demo.yaml\"", csprojContent, StringComparison.Ordinal);
-        Assert.Contains(".atc-rest-api-client-contracts", csprojContent, StringComparison.Ordinal);
+        Assert.Contains(".atc-rest-api-client", csprojContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -95,7 +95,7 @@ public sealed class GenerateClientCommandTests : IDisposable
             cancellationToken: TestContext.Current.CancellationToken);
 
         // Get file timestamps
-        var markerFilePath = Path.Combine(outputPath, ".atc-rest-api-client-contracts");
+        var markerFilePath = Path.Combine(outputPath, ".atc-rest-api-client");
         var csprojPath = Path.Combine(outputPath, $"{projectName}.csproj");
         var copiedYamlPath = Path.Combine(outputPath, "Demo.yaml");
         var markerWriteTime = File.GetLastWriteTimeUtc(markerFilePath);

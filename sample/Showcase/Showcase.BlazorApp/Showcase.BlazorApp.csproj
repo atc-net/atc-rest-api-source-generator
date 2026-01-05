@@ -20,7 +20,7 @@
 
   <ItemGroup>
     <AdditionalFiles Include="..\Showcase.yaml" />
-    <AdditionalFiles Include=".atc-rest-api-client-contracts" />
+    <AdditionalFiles Include=".atc-rest-api-client" />
   </ItemGroup>
 
 </Project>

@@ -10,7 +10,7 @@
   <ItemGroup>
     <!-- OpenAPI Specification -->
     <AdditionalFiles Include="Monta.yaml" />
-    <AdditionalFiles Include=".atc-rest-api-client-contracts" />
+    <AdditionalFiles Include=".atc-rest-api-client" />
   </ItemGroup>
 
   <ItemGroup>

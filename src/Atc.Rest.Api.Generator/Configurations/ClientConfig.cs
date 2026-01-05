@@ -2,7 +2,7 @@ namespace Atc.Rest.Api.Generator.Configurations;
 
 /// <summary>
 /// Configuration for client-side code generation (HTTP client, models).
-/// This model is deserialized from the .atc-rest-api-client-contracts marker file.
+/// This model is deserialized from the .atc-rest-api-client marker file.
 /// </summary>
 public class ClientConfig : BaseConfig
 {
