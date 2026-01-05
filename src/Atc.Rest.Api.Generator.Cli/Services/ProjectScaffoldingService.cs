@@ -396,6 +396,20 @@ public sealed class ProjectScaffoldingService
                 AnsiConsole.MarkupLine("[dim]✓[/] Program.cs already exists");
             }
 
+            // Create GlobalUsings.cs file
+            var globalUsingsPath = Path.Combine(hostProjectPath, "GlobalUsings.cs");
+            if (!File.Exists(globalUsingsPath))
+            {
+                var baseName = ExtractSolutionName(hostProjectName);
+                var globalUsingsContent = GenerateHostGlobalUsingsContent(baseName, hostUi);
+                File.WriteAllText(globalUsingsPath, globalUsingsContent);
+                AnsiConsole.MarkupLine("[green]✓[/] Created GlobalUsings.cs");
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[dim]✓[/] GlobalUsings.cs already exists");
+            }
+
             return true;
         }
         catch (Exception ex)
@@ -519,6 +533,8 @@ public sealed class ProjectScaffoldingService
 
     private static string GenerateTestFileContent(string testProjectNamespace)
         => $$"""
+            using Xunit;
+
             namespace {{testProjectNamespace}};
 
             public class UnitTest1
@@ -612,14 +628,8 @@ public sealed class ProjectScaffoldingService
             sb.AppendLine();
         }
 
-        sb.AppendLine("// Add API services (rate limiting, security, etc. from OpenAPI spec)");
-        sb.Append("builder.Services.Add");
-        sb.Append(baseName);
-        sb.AppendLine("Api();");
-        sb.AppendLine();
-        sb.AppendLine("// Register handler implementations and validators from Domain project");
+        sb.AppendLine("// Register handler implementations from Domain project");
         sb.AppendLine("builder.Services.AddApiHandlersFromDomain();");
-        sb.AppendLine("builder.Services.AddApiValidatorsFromDomain();");
         sb.AppendLine();
         sb.AppendLine("var app = builder.Build();");
         sb.AppendLine();
@@ -653,9 +663,7 @@ public sealed class ProjectScaffoldingService
         }
 
         sb.AppendLine("// Configure middleware and map all endpoints");
-        sb.Append("app.Map");
-        sb.Append(baseName);
-        sb.AppendLine("Api();");
+        sb.AppendLine("app.MapEndpoints();");
         sb.AppendLine();
         sb.Append("app.Run();");
 
@@ -679,6 +687,31 @@ public sealed class ProjectScaffoldingService
                 sb.AppendLine(indent, "});");
                 break;
         }
+    }
+
+    private static string GenerateHostGlobalUsingsContent(
+        string baseName,
+        HostUiType hostUi)
+    {
+        var sb = new StringBuilder();
+
+        // Root namespace for extension methods (from Domain project DI registration)
+        sb.Append("global using ");
+        sb.Append(baseName);
+        sb.AppendLine(";");
+
+        // Generated endpoints namespace
+        sb.Append("global using ");
+        sb.Append(baseName);
+        sb.AppendLine(".Generated.Endpoints;");
+
+        // UI-specific namespaces
+        if (hostUi == HostUiType.Scalar)
+        {
+            sb.AppendLine("global using Scalar.AspNetCore;");
+        }
+
+        return sb.ToString();
     }
 
     private static string GenerateAspireProjectContent(

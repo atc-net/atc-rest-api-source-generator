@@ -12,12 +12,14 @@ public static class DependencyRegistrationExtractor
     /// <param name="assemblyName">The assembly name for method naming.</param>
     /// <param name="handlers">List of handler information (OperationId, HandlerName, HandlerNamespace).</param>
     /// <param name="handlerSuffix">The handler suffix (e.g., "Handler").</param>
+    /// <param name="handlerInterfaceNamespaces">Optional list of handler interface namespaces for using statements.</param>
     /// <returns>ClassParameters for the dependency registration class.</returns>
     public static ClassParameters? Extract(
         string rootNamespace,
         string assemblyName,
         List<(string OperationId, string HandlerName, string HandlerNamespace)> handlers,
-        string handlerSuffix)
+        string handlerSuffix,
+        List<string>? handlerInterfaceNamespaces = null)
     {
         if (handlers == null || handlers.Count == 0)
         {
@@ -52,8 +54,20 @@ public static class DependencyRegistrationExtractor
             UseExpressionBody: false,
             Content: methodContent);
 
+        // Build header with handler interface namespaces
+        var headerUsings = new List<string>
+        {
+            "System.CodeDom.Compiler",
+            "Microsoft.Extensions.DependencyInjection",
+        };
+
+        if (handlerInterfaceNamespaces is { Count: > 0 })
+        {
+            headerUsings.AddRange(handlerInterfaceNamespaces);
+        }
+
         return new ClassParameters(
-            HeaderContent: HeaderBuilder.ForDependencyInjection(),
+            HeaderContent: HeaderBuilder.WithUsings(headerUsings.ToArray()),
             Namespace: rootNamespace,
             DocumentationTags: new CodeDocumentationTags("Extension methods for registering API handlers in the dependency injection container."),
             Attributes: new List<AttributeParameters>
