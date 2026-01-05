@@ -208,9 +208,7 @@ public sealed class ProjectScaffoldingService
 
             if (!File.Exists(csprojPath))
             {
-                var csprojContent = GenerateTestProjectContent(
-                    targetFramework,
-                    projectName);
+                var csprojContent = GenerateTestProjectContent(projectName);
                 File.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLine($"[green]✓[/] Created test project: {testProjectName}.csproj");
 
@@ -547,31 +545,15 @@ public sealed class ProjectScaffoldingService
     }
 
     private static string GenerateTestProjectContent(
-        string targetFramework,
         string contractsProjectName)
         => $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
-                <TargetFramework>{targetFramework}</TargetFramework>
-                <Nullable>enable</Nullable>
-                <ImplicitUsings>enable</ImplicitUsings>
+                <OutputType>Exe</OutputType>
                 <IsPackable>false</IsPackable>
                 <IsTestProject>true</IsTestProject>
               </PropertyGroup>
-
-              <ItemGroup>
-                <PackageReference Include="coverlet.collector" Version="6.*">
-                  <PrivateAssets>all</PrivateAssets>
-                  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-                </PackageReference>
-                <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.*" />
-                <PackageReference Include="xunit" Version="2.*" />
-                <PackageReference Include="xunit.runner.visualstudio" Version="3.*">
-                  <PrivateAssets>all</PrivateAssets>
-                  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-                </PackageReference>
-              </ItemGroup>
 
               <ItemGroup>
                 <ProjectReference Include="..\..\src\{contractsProjectName}\{contractsProjectName}.csproj" />
@@ -582,8 +564,6 @@ public sealed class ProjectScaffoldingService
 
     private static string GenerateTestFileContent(string testProjectNamespace)
         => $$"""
-            using Xunit;
-
             namespace {{testProjectNamespace}};
 
             public class UnitTest1
