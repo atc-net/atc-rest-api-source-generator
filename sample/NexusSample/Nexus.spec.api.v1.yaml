@@ -1,0 +1,446 @@
+openapi: 3.0.1
+info:
+  title: Contoso IoT Nexus API
+  description: Contoso IoT Nexus API
+  version: v1
+  contact:
+    name: Contoso
+  license:
+    name: MIT
+servers:
+  - url: /api/v1
+    description: Api version 1.0
+x-authorize-roles:
+  - nexus.read.all
+  - nexus.execute.all
+tags:
+  - name: Contoso IoT Nexus
+    description: ''
+paths:
+  /devices:
+    x-authorize-roles:
+      - nexus.read.all
+      - nexus.execute.all
+    get:
+      summary: Get devices
+      description: Get devices
+      operationId: getDevices
+      x-return-async-enumerable: true
+      parameters:
+        - $ref: '#/components/parameters/filter'
+        - $ref: '#/components/parameters/deviceType'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeviceIdentity'
+  '/devices/{deviceId}':
+    x-authorize-roles:
+      - nexus.read.all
+      - nexus.execute.all
+    get:
+      summary: Get device details
+      description: Get device details
+      operationId: getDeviceDetails
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceDetails'
+        '404':
+          description: Not Found
+  /devices/types:
+    x-authorize-roles:
+      - nexus.read.all
+      - nexus.execute.all
+    get:
+      summary: Get device types
+      description: Get device types
+      operationId: getDeviceTypes
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KeyValue'
+  /device-management/devices:
+    x-authorize-roles:
+      - nexus.read.all
+      - nexus.execute.all
+    get:
+      summary: Get devices from DeviceManagement
+      description: Get DeviceManagement devices
+      operationId: getDeviceManagementDevices
+      x-return-async-enumerable: true
+      parameters:
+        - $ref: '#/components/parameters/pagingPageSize'
+        - $ref: '#/components/parameters/pagingPageIndex'
+        - $ref: '#/components/parameters/continuationToken'
+        - $ref: '#/components/parameters/filter'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationResult'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DeviceManagementDevice'
+  '/edge-provider/devices/{providerDeviceId}/opc-ua/command/scan':
+    x-authorize-roles:
+      - nexus.execute.all
+    post:
+      summary: Initiates a OPC UA scan of all unique OPC UA configurations on the iotedge device
+      description: Initiates a OPC UA scan of all unique OPC UA configurations on the iotedge device
+      operationId: scanOpcUaConfigurationsByProviderDeviceId
+      parameters:
+        - name: providerDeviceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '412':
+          description: Precondition Failed
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpcUaScanRequest'
+  /insights/devices:
+    x-authorize-roles:
+      - nexus.read.all
+      - nexus.execute.all
+    get:
+      summary: Get devices from Insights
+      description: Get Insights devices
+      operationId: getInsightsDevices
+      x-return-async-enumerable: true
+      parameters:
+        - $ref: '#/components/parameters/pagingPageSize'
+        - $ref: '#/components/parameters/pagingPageIndex'
+        - $ref: '#/components/parameters/continuationToken'
+        - $ref: '#/components/parameters/filter'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationResult'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InsightDevice'
+components:
+  schemas:
+    Device:
+      title: Device
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        parentDeviceId:
+          type: string
+          format: uuid
+          nullable: true
+        deviceType:
+          $ref: '#/components/schemas/DeviceType'
+        brandName:
+          type: string
+          nullable: true
+        modelName:
+          type: string
+          nullable: true
+        serialNumber:
+          type: string
+          nullable: true
+        providerData:
+          $ref: '#/components/schemas/ProviderData'
+        properties:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceProperty'
+    DeviceDetails:
+      title: DeviceDetails
+      description: Device with hierarchy information
+      type: object
+      properties:
+        device:
+          $ref: '#/components/schemas/Device'
+        deviceHierarchy:
+          $ref: '#/components/schemas/DeviceHierarchy'
+    DeviceHierarchy:
+      title: DeviceHierarchy
+      description: Device hierarchy optimized for breadcrumb navigation.
+      type: object
+      properties:
+        self:
+          $ref: '#/components/schemas/DeviceIdentity'
+        ancestors:
+          description: Full ancestor chain with explicit hierarchy levels. Empty array if device is root.
+          type: array
+          items:
+            $ref: '#/components/schemas/AncestorIdentity'
+        children:
+          description: Direct child devices as flat list.
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceIdentity'
+    AncestorIdentity:
+      title: AncestorIdentity
+      description: Device identity with hierarchy level for breadcrumb navigation.
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        deviceType:
+          $ref: '#/components/schemas/DeviceType'
+        displayName:
+          type: string
+        level:
+          description: Hierarchy depth (0 = root, 1 = child of root, etc.)
+          type: integer
+    DeviceIdentity:
+      title: DeviceIdentity
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        deviceType:
+          $ref: '#/components/schemas/DeviceType'
+        displayName:
+          type: string
+    DeviceManagementDevice:
+      title: DeviceManagement Device
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        parentDeviceId:
+          type: string
+          format: uuid
+          nullable: true
+        deviceType:
+          $ref: '#/components/schemas/DeviceType'
+        brandName:
+          type: string
+          nullable: true
+        modelName:
+          type: string
+          nullable: true
+        serialNumber:
+          type: string
+          nullable: true
+        providerData:
+          $ref: '#/components/schemas/ProviderData'
+        properties:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceProperty'
+    DeviceProperty:
+      type: object
+      title: DeviceProperty
+      description: Contains various properties related to the device
+      properties:
+        key:
+          type: string
+        valueType:
+          type: string
+        value:
+          type: string
+        unitOfMeasurement:
+          type: string
+          nullable: true
+    DeviceState:
+      type: string
+      enum:
+        - Unknown
+        - Neutral
+        - Attention
+        - Error
+    DeviceType:
+      type: string
+      enum:
+        - Unknown
+        - ElectricVehicleChargingStation
+        - ElectricVehicleSupplyEquipment
+        - IotEdgeGateway
+        - TelemetryDataSource
+        - IotDevice
+    IdValue:
+      title: IdValue
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    InsightDevice:
+      title: InsightDevice
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        brandName:
+          type: string
+          nullable: true
+        modelName:
+          type: string
+          nullable: true
+        serialNumber:
+          type: string
+          nullable: true
+        deviceType:
+          $ref: '#/components/schemas/KeyValue'
+        deviceState:
+          $ref: '#/components/schemas/DeviceState'
+        customer:
+          nullable: true
+          oneOf:
+            - $ref: '#/components/schemas/IdValue'
+        site:
+          nullable: true
+          oneOf:
+            - $ref: '#/components/schemas/IdValue'
+        suggestedCustomer:
+          nullable: true
+          oneOf:
+            - $ref: '#/components/schemas/KeyValue'
+        suggestedSite:
+          nullable: true
+          oneOf:
+            - $ref: '#/components/schemas/KeyValue'
+    KeyValue:
+      title: KeyValue
+      type: object
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+    OpcUaScanRequest:
+      title: OpcUaScanRequest
+      type: object
+      properties:
+        forceFullScan:
+          type: boolean
+          nullable: true
+    PaginationResult:
+      type: object
+      title: PaginationResult
+      description: An item result subset of a data query.
+      properties:
+        pageSize:
+          type: integer
+        continuationToken:
+          type: string
+          nullable: true
+          description: Token to indicate next result set.
+        items:
+          type: array
+          items: {}
+    ProviderData:
+      type: object
+      title: ProviderData
+      description: Holds specific data to identity the device at the given provider
+      properties:
+        type:
+          $ref: '#/components/schemas/ProviderType'
+        name:
+          type: string
+        subIdentifier:
+          type: string
+        deviceType:
+          $ref: '#/components/schemas/DeviceType'
+        deviceIdentifier:
+          type: string
+    ProviderType:
+      type: string
+      enum:
+        - Unknown
+        - Edge
+        - Direct
+        - ChargePointManagementSystem
+  parameters:
+    continuationToken:
+      name: x-continuation
+      in: header
+      required: false
+      schema:
+        type: string
+        nullable: true
+    deviceType:
+        name: deviceType
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/DeviceType'
+    filter:
+      name: filter
+      in: query
+      required: false
+      schema:
+        type: string
+    pagingPageIndex:
+      name: pageIndex
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      description: The number of items to skip before starting to collect the result set.
+    pagingPageSize:
+      name: pageSize
+      in: query
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+      description: The numbers of items to return.

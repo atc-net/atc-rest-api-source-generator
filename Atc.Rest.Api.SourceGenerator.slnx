@@ -41,6 +41,12 @@
     <Project Path="sample/PetStoreSimple/PetStoreSimple.Aspire/PetStoreSimple.Aspire.csproj" />
     <Project Path="sample/PetStoreSimple/PetStoreSimple.ClientApp/PetStoreSimple.ClientApp.csproj" />
   </Folder>
+  <Folder Name="/sample/NexusSample/">
+    <File Path="sample/NexusSample/Nexus.spec.api.v1.yaml" />
+    <Project Path="sample/NexusSample/NexusSample.Api.Contracts/NexusSample.Api.Contracts.csproj" />
+    <Project Path="sample/NexusSample/NexusSample.Api.Domain/NexusSample.Api.Domain.csproj" />
+    <Project Path="sample/NexusSample/NexusSample.Api/NexusSample.Api.csproj" />
+  </Folder>
   <Folder Name="/sample/" />
   <Folder Name="/sample/MontaClient/">
     <File Path="sample/MontaClient/Monta.yaml" />
