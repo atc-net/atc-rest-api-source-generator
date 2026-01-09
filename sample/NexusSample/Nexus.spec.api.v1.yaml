@@ -14,7 +14,7 @@ x-authorize-roles:
   - nexus.read.all
   - nexus.execute.all
 tags:
-  - name: Contoso IoT Nexus
+  - name: contoso-iot-nexus
     description: ''
 paths:
   /devices:
