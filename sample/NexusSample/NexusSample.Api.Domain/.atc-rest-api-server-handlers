@@ -1,0 +1,9 @@
+{
+    "namespace": "Contoso.IoT.Nexus.Api.Contracts",
+    "validateSpecificationStrategy": "Strict",
+    "includeDeprecated": false,
+    "generateHandlersOutput": "ApiHandlers",
+    "subFolderStrategy": "first-path-segment",
+    "handlerSuffix": "Handler",
+    "stubImplementation": "throw-not-implemented"
+}

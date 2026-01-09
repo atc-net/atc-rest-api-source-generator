@@ -420,3 +420,4 @@ FodyWeavers.xsd
 # Verify Tests failed verifications
 *.received.cs
 .claude/settings.local.json
+nul
