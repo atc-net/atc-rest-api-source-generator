@@ -344,7 +344,7 @@ public static class SchemaExtractor
     }
 
     /// <summary>
-    /// Checks if a schema represents a pagination base (has results: array with empty/untyped items).
+    /// Checks if a schema represents a pagination base (has results/items: array with empty/untyped items).
     /// </summary>
     private static bool IsPaginationBaseSchema(OpenApiSchema schema)
     {
@@ -353,8 +353,19 @@ public static class SchemaExtractor
             return false;
         }
 
-        // Look for "results" property that is an array with empty/untyped items
-        if (!schema.Properties.TryGetValue("results", out var resultsProp))
+        // Look for "results" or "items" property that is an array with empty/untyped items
+        // These are common property names for pagination result arrays
+        IOpenApiSchema? resultsProp = null;
+        if (schema.Properties.TryGetValue("results", out var resultsValue))
+        {
+            resultsProp = resultsValue;
+        }
+        else if (schema.Properties.TryGetValue("items", out var itemsValue))
+        {
+            resultsProp = itemsValue;
+        }
+
+        if (resultsProp == null)
         {
             return false;
         }
@@ -414,8 +425,9 @@ public static class SchemaExtractor
             string? genericTypeName = null;
             var isGenericListType = false;
 
-            // Special handling for "results" property - make it generic T[]
-            if (prop.Key.Equals("results", StringComparison.OrdinalIgnoreCase))
+            // Special handling for "results" or "items" property - make it generic T[]
+            if (prop.Key.Equals("results", StringComparison.OrdinalIgnoreCase) ||
+                prop.Key.Equals("items", StringComparison.OrdinalIgnoreCase))
             {
                 csharpType = "T[]";
                 genericTypeName = null;

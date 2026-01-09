@@ -479,7 +479,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                 pathSegment,
                 registry,
                 systemTypeResolver,
-                config.IncludeDeprecated);
+                config.IncludeDeprecated,
+                includeSharedModelsUsing: sharedSchemas.Count > 0);
 
             // Generate handler interfaces
             GenerateHandlerInterfaces(
@@ -504,7 +505,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                 useValidationFilter,
                 config.VersioningStrategy,
                 config.DefaultApiVersion,
-                config.UseServersBasePath);
+                config.UseServersBasePath,
+                includeSharedModelsUsing: sharedSchemas.Count > 0);
         }
 
         // Generate combined endpoint mapping extension (calls all path segment endpoint methods)
@@ -813,7 +815,8 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool useValidationFilter,
         VersioningStrategyType versioningStrategy,
         string defaultApiVersion,
-        bool useServersBasePath)
+        bool useServersBasePath,
+        bool includeSharedModelsUsing = false)
     {
         // Use EndpointDefinitionExtractor to extract interface and class parameters filtered by path segment
         var (interfaceParams, classParameters) = EndpointDefinitionExtractor.Extract(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, subFolderStrategy, includeDeprecated, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion, useServersBasePath);
@@ -862,6 +865,13 @@ public class ApiServerGenerator : IIncrementalGenerator
         allGeneratedCode.AppendLine("using Microsoft.AspNetCore.Builder;");
         allGeneratedCode.AppendLine("using Microsoft.AspNetCore.Http;");
         allGeneratedCode.AppendLine("using Microsoft.AspNetCore.Mvc;");
+
+        // Only include shared models using if there are shared schemas
+        if (includeSharedModelsUsing)
+        {
+            allGeneratedCode.AppendLine($"using {projectName}.Generated.Models;");
+        }
+
         allGeneratedCode.AppendLine($"using {projectName}.Generated.{pathSegment}.Handlers;");
         allGeneratedCode.AppendLine($"using {projectName}.Generated.{pathSegment}.Models;");
         allGeneratedCode.AppendLine($"using {projectName}.Generated.{pathSegment}.Parameters;");
@@ -1121,7 +1131,8 @@ public class ApiServerGenerator : IIncrementalGenerator
         string pathSegment,
         TypeConflictRegistry registry,
         SystemTypeConflictResolver systemTypeResolver,
-        bool includeDeprecated)
+        bool includeDeprecated,
+        bool includeSharedModelsUsing = false)
     {
         // Use ResultClassExtractor to extract class parameters filtered by path segment
         // This also extracts inline schemas for type generation
@@ -1156,6 +1167,13 @@ public class ApiServerGenerator : IIncrementalGenerator
         allGeneratedCode.AppendLine("using System.Collections.Generic;");
         allGeneratedCode.AppendLine("using Microsoft.AspNetCore.Http;");
         allGeneratedCode.AppendLine("using Microsoft.AspNetCore.Mvc;");
+
+        // Only include shared models using if there are shared schemas
+        if (includeSharedModelsUsing)
+        {
+            allGeneratedCode.AppendLine($"using {projectName}.Generated.Models;");
+        }
+
         allGeneratedCode.AppendLine($"using {projectName}.Generated.{pathSegment}.Models;");
         allGeneratedCode.AppendLine();
         allGeneratedCode.AppendLine($"namespace {projectName}.Generated.{pathSegment}.Results;");
