@@ -169,6 +169,67 @@ public class NamingValidationTests
     }
 
     [Fact]
+    public void Validate_HeaderParameterHyphenatedName_NoNAM004()
+    {
+        // Arrange - Header parameters use HTTP header naming conventions (hyphenated), not camelCase
+        var document = ParseYaml(CreateOperationWithHeaderParameterYaml(parameterName: "x-continuation"));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert - Header parameters should be excluded from NAM004
+        var nam004 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.ParameterNameMustBeCamelCase);
+        Assert.Null(nam004);
+    }
+
+    [Fact]
+    public void Validate_HeaderParameterPascalCase_NoNAM004()
+    {
+        // Arrange - Even PascalCase header names should not trigger NAM004
+        var document = ParseYaml(CreateOperationWithHeaderParameterYaml(parameterName: "X-Request-Id"));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert - Header parameters should be excluded from NAM004
+        var nam004 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.ParameterNameMustBeCamelCase);
+        Assert.Null(nam004);
+    }
+
+    [Fact]
+    public void Validate_QueryParameterNotCamelCase_ReportsNAM004()
+    {
+        // Arrange - Query parameters (unlike headers) should still require camelCase
+        var document = ParseYaml(CreateOperationWithQueryParameterYaml(parameterName: "PageSize"));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert - Query parameters should still trigger NAM004
+        var nam004 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.ParameterNameMustBeCamelCase);
+        Assert.NotNull(nam004);
+        Assert.Contains("PageSize", nam004.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Validate_EnumValueNotValidCasing_ReportsNAM005()
     {
         // Arrange
@@ -380,6 +441,52 @@ public class NamingValidationTests
                        required: true
                        schema:
                          type: string
+                   responses:
+                     '200':
+                       description: Success
+
+             """;
+
+    private static string CreateOperationWithHeaderParameterYaml(
+        string parameterName)
+        => $$"""
+
+             openapi: 3.0.0
+             info:
+               title: Test API
+               version: 1.0.0
+             paths:
+               /pets:
+                 get:
+                   operationId: getPets
+                   parameters:
+                     - name: {{parameterName}}
+                       in: header
+                       schema:
+                         type: string
+                   responses:
+                     '200':
+                       description: Success
+
+             """;
+
+    private static string CreateOperationWithQueryParameterYaml(
+        string parameterName)
+        => $$"""
+
+             openapi: 3.0.0
+             info:
+               title: Test API
+               version: 1.0.0
+             paths:
+               /pets:
+                 get:
+                   operationId: getPets
+                   parameters:
+                     - name: {{parameterName}}
+                       in: query
+                       schema:
+                         type: integer
                    responses:
                      '200':
                        description: Success

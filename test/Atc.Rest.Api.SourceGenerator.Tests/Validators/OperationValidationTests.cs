@@ -453,6 +453,55 @@ public class OperationValidationTests
         Assert.Null(opr008);
     }
 
+    [Theory]
+    [InlineData("getDeviceDetails")]   // Details about ONE device
+    [InlineData("getUserSettings")]    // Settings for ONE user
+    [InlineData("getStatistics")]      // Statistics for ONE entity
+    [InlineData("getContents")]        // Contents of ONE container
+    [InlineData("getMetrics")]         // Metrics for ONE service
+    [InlineData("getNews")]            // News is uncountable
+    [InlineData("getProgress")]        // Progress of ONE operation
+    public void Validate_SingleItemSuffixReturnsSingleObject_NoOPR008(
+        string operationId)
+    {
+        // Arrange - operationIds ending with single-item suffixes should not be flagged
+        // even though they end in 's'
+        var document = ParseYaml(CreateOperationWithObjectResponseYaml(operationId));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert - These should NOT trigger OPR008 because they represent single-item responses
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.Null(opr008);
+    }
+
+    [Fact]
+    public void Validate_GetStatusReturnsSingleObject_NoOPR008()
+    {
+        // Arrange - "Status" ends in 'us' which is already excluded, but verify it works
+        var document = ParseYaml(CreateOperationWithObjectResponseYaml("getStatus"));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.Null(opr008);
+    }
+
     // ========== OPR009: Singular operationId but response is array ==========
 
     [Fact]
@@ -1011,6 +1060,27 @@ public class OperationValidationTests
             TestFilePath);
 
         // Assert
+        var opr023 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.NotFoundOnPostOperation);
+        Assert.Null(opr023);
+    }
+
+    [Fact]
+    public void Validate_404OnPostWithPathParameter_NoOPR023()
+    {
+        // Arrange - POST with path parameter (e.g., /devices/{deviceId}/scan)
+        // The referenced resource might not exist, so 404 is valid
+        var document = ParseYaml(CreatePostOperationWithPathParameterAnd404Yaml());
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert - Should NOT trigger OPR023 because POST has path parameters
         var opr023 = diagnostics.FirstOrDefault(d =>
             d.RuleId == Generator.RuleIdentifiers.NotFoundOnPostOperation);
         Assert.Null(opr023);
@@ -1647,6 +1717,45 @@ public class OperationValidationTests
                  properties:
                    name:
                      type: string
+
+           """;
+
+    private static string CreatePostOperationWithPathParameterAnd404Yaml()
+        => """
+
+           openapi: 3.0.0
+           info:
+             title: Test API
+             version: 1.0.0
+           paths:
+             /devices/{deviceId}/scan:
+               post:
+                 operationId: scanDeviceById
+                 parameters:
+                   - name: deviceId
+                     in: path
+                     required: true
+                     schema:
+                       type: string
+                       format: uuid
+                 requestBody:
+                   content:
+                     application/json:
+                       schema:
+                         $ref: '#/components/schemas/ScanRequest'
+                 responses:
+                   '200':
+                     description: Success
+                   '404':
+                     description: Device not found
+           components:
+             schemas:
+               ScanRequest:
+                 type: object
+                 title: ScanRequest
+                 properties:
+                   force:
+                     type: boolean
 
            """;
 
