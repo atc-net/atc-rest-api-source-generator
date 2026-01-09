@@ -1,5 +1,5 @@
+// ReSharper disable InvertIf
 // ReSharper disable PossibleUnintendedLinearSearchInSet
-
 namespace Atc.Rest.Api.Generator.Extractors;
 
 /// <summary>
@@ -7,6 +7,13 @@ namespace Atc.Rest.Api.Generator.Extractors;
 /// </summary>
 public static class SchemaExtractor
 {
+    /// <summary>
+    /// Common property names for pagination result arrays.
+    /// These are used to detect generic pagination base schemas.
+    /// </summary>
+    private static readonly string[] PaginationArrayPropertyNames
+        = ["results", "items", "data", "values", "content"];
+
     /// <summary>
     /// Extracts model records from OpenAPI document components.
     /// </summary>
@@ -257,9 +264,6 @@ public static class SchemaExtractor
             return null;
         }
 
-        // Get variant schema names to track inheritance
-        var variantSchemaNames = PolymorphicTypeExtractor.GetPolymorphicVariantSchemaNames(polymorphicConfigs);
-
         var recordParametersList = new List<RecordParameters>();
 
         foreach (var schema in openApiDoc.Components.Schemas)
@@ -300,7 +304,7 @@ public static class SchemaExtractor
                 }
 
                 // Skip enum schemas - handled by EnumExtractor
-                if (actualSchema.Type == JsonSchemaType.String && actualSchema.Enum is { Count: > 0 })
+                if (actualSchema is { Type: JsonSchemaType.String, Enum.Count: > 0 })
                 {
                     continue;
                 }
@@ -344,7 +348,7 @@ public static class SchemaExtractor
     }
 
     /// <summary>
-    /// Checks if a schema represents a pagination base (has results/items: array with empty/untyped items).
+    /// Checks if a schema represents a pagination base (has results/items/data/values/content: array with empty/untyped items).
     /// </summary>
     private static bool IsPaginationBaseSchema(OpenApiSchema schema)
     {
@@ -353,21 +357,15 @@ public static class SchemaExtractor
             return false;
         }
 
-        // Look for "results" or "items" property that is an array with empty/untyped items
-        // These are common property names for pagination result arrays
+        // Look for common pagination array property names
         IOpenApiSchema? resultsProp = null;
-        if (schema.Properties.TryGetValue("results", out var resultsValue))
+        foreach (var propName in PaginationArrayPropertyNames)
         {
-            resultsProp = resultsValue;
-        }
-        else if (schema.Properties.TryGetValue("items", out var itemsValue))
-        {
-            resultsProp = itemsValue;
-        }
-
-        if (resultsProp == null)
-        {
-            return false;
+            if (schema.Properties.TryGetValue(propName, out var propValue))
+            {
+                resultsProp = propValue;
+                break;
+            }
         }
 
         if (resultsProp is not OpenApiSchema resultsSchema)
@@ -381,19 +379,16 @@ public static class SchemaExtractor
             return false;
         }
 
-        // Check if items are empty/untyped (items: {} or no items)
-        if (resultsSchema.Items == null)
+        return resultsSchema.Items switch
         {
-            return true;
-        }
+            // Check if items are empty/untyped (items: {} or no items)
+            null => true,
 
-        // Check if items schema has no type defined (empty schema)
-        if (resultsSchema.Items is OpenApiSchema itemSchema)
-        {
-            return itemSchema.Type == null || itemSchema.Type == JsonSchemaType.Null;
-        }
-
-        return false;
+            // Check if items schema has no type defined (empty schema)
+            OpenApiSchema itemSchema => itemSchema.Type == null ||
+                                        itemSchema.Type == JsonSchemaType.Null,
+            _ => false,
+        };
     }
 
     /// <summary>
@@ -425,9 +420,9 @@ public static class SchemaExtractor
             string? genericTypeName = null;
             var isGenericListType = false;
 
-            // Special handling for "results" or "items" property - make it generic T[]
-            if (prop.Key.Equals("results", StringComparison.OrdinalIgnoreCase) ||
-                prop.Key.Equals("items", StringComparison.OrdinalIgnoreCase))
+            // Special handling for pagination array properties - make it generic T[]
+            if (PaginationArrayPropertyNames.Any(name =>
+                prop.Key.Equals(name, StringComparison.OrdinalIgnoreCase)))
             {
                 csharpType = "T[]";
                 genericTypeName = null;
@@ -615,13 +610,13 @@ public static class SchemaExtractor
 
         // Check if any record uses IFormFile or IFormFileCollection
         var usesFormFile = records.Any(r =>
-            r.Parameters.Any(p =>
-                p.TypeName.IndexOf("IFormFile", StringComparison.Ordinal) >= 0));
+            r.Parameters?.Any(p =>
+                p.TypeName.IndexOf("IFormFile", StringComparison.Ordinal) >= 0) ?? false);
 
         // Check if any record uses Dictionary types
         var usesDictionary = records.Any(r =>
-            r.Parameters.Any(p =>
-                p.TypeName.StartsWith("Dictionary<", StringComparison.Ordinal)));
+            r.Parameters?.Any(p =>
+                p.TypeName.StartsWith("Dictionary<", StringComparison.Ordinal)) ?? false);
 
         if (usesFormFile)
         {
