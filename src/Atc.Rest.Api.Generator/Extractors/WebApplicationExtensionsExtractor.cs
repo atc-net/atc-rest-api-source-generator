@@ -156,7 +156,7 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine(4, "/// - Global error handling middleware");
         builder.AppendLine(4, "/// - All API endpoints");
         builder.AppendLine(4, "/// </remarks>");
-        builder.AppendLine(4, $"public static WebApplication Map{projectName}Api(");
+        builder.AppendLine(4, $"public static WebApplication Map{projectName.ToPascalCaseForDotNet()}Api(");
         builder.AppendLine(8, "this WebApplication app,");
         builder.AppendLine(8, "Action<ApiMiddlewareOptions>? configure = null)");
         builder.AppendLine(4, "{");

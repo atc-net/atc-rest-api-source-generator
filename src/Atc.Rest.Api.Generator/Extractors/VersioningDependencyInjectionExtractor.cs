@@ -56,7 +56,7 @@ public static class VersioningDependencyInjectionExtractor
             DeclarationModifier: DeclarationModifiers.PublicStatic,
             ReturnGenericTypeName: null,
             ReturnTypeName: "IServiceCollection",
-            Name: $"Add{projectName}ApiVersioning",
+            Name: $"Add{projectName.ToPascalCaseForDotNet()}ApiVersioning",
             Parameters: methodParams,
             AlwaysBreakDownParameters: false,
             UseExpressionBody: false,

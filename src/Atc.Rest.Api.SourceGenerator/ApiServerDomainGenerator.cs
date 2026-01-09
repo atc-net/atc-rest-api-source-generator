@@ -128,8 +128,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             return;
         }
 
-        // Extract project name from YAML file path
-        var projectName = Path.GetFileNameWithoutExtension(yamlPath);
+        // Extract project name from config namespace or YAML file path
+        var projectName = config.Namespace ?? Path.GetFileNameWithoutExtension(yamlPath);
 
         // Determine the root namespace from project name
         var rootNamespace = projectName

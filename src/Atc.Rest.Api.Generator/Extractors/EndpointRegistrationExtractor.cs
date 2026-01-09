@@ -231,7 +231,7 @@ public static class EndpointRegistrationExtractor
             DeclarationModifier: DeclarationModifiers.PublicStatic,
             ReturnGenericTypeName: null,
             ReturnTypeName: "IEndpointRouteBuilder",
-            Name: $"Map{projectName}Endpoints",
+            Name: $"Map{projectName.ToPascalCaseForDotNet()}Endpoints",
             Parameters: methodParams,
             AlwaysBreakDownParameters: false,
             UseExpressionBody: false,

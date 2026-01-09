@@ -201,6 +201,12 @@ public class CasingHelperTests
     [InlineData("ListPets", "list-pets")] // PascalCase to kebab-case
     [InlineData("list_pets", "list-pets")] // snake_case to kebab-case
     [InlineData("LIST_PETS", "l-i-s-t-p-e-t-s")] // Note: Each uppercase gets hyphen
+    [InlineData("Contoso IoT Nexus", "contoso-iot-nexus")] // IoT acronym preserved
+    [InlineData("IoT Device", "iot-device")] // IoT at start
+    [InlineData("MyAPI", "my-api")] // API acronym preserved
+    [InlineData("OAuth Token", "oauth-token")] // OAuth acronym preserved
+    [InlineData("OpenID Connect", "openid-connect")] // OpenID acronym preserved
+    [InlineData("GraphQL Server", "graphql-server")] // GraphQL acronym preserved
     [InlineData("", "")]
     [InlineData(null, null)]
     public void SuggestKebabCase_ReturnsExpectedResult(

@@ -424,6 +424,19 @@ public static class CasingHelper
     }
 
     /// <summary>
+    /// Known acronyms that should be kept together when converting to kebab-case.
+    /// These are replaced with their lowercase equivalents before processing.
+    /// </summary>
+    private static readonly string[] KnownAcronyms =
+    [
+        "IoT",
+        "API",
+        "OAuth",
+        "OpenID",
+        "GraphQL",
+    ];
+
+    /// <summary>
     /// Gets a suggestion for converting a value to kebab-case.
     /// </summary>
     /// <param name="value">The value to convert.</param>
@@ -435,11 +448,36 @@ public static class CasingHelper
             return value;
         }
 
+        // Pre-process: replace known acronyms with a hyphen prefix (if needed) + lowercase
+        // This prevents "IoT" from becoming "io-t" (should be "iot")
+        // and ensures "MyAPI" becomes "my-api" (not "myapi")
+        var processed = value;
+        foreach (var acronym in KnownAcronyms)
+        {
+            var index = processed.IndexOf(acronym, StringComparison.OrdinalIgnoreCase);
+            while (index >= 0)
+            {
+                // Check if we need to insert a hyphen before the acronym
+                // (when preceded by a lowercase letter)
+                var needsHyphen = index > 0 && char.IsLower(processed[index - 1]);
+                var replacement = (needsHyphen ? "-" : string.Empty) + acronym.ToLowerInvariant();
+
+                processed = processed.Substring(0, index) +
+                            replacement +
+                            processed.Substring(index + acronym.Length);
+
+                var nextSearchStart = index + replacement.Length;
+                index = nextSearchStart < processed.Length
+                    ? processed.IndexOf(acronym, nextSearchStart, StringComparison.OrdinalIgnoreCase)
+                    : -1;
+            }
+        }
+
         var result = new StringBuilder();
 
-        for (var i = 0; i < value.Length; i++)
+        for (var i = 0; i < processed.Length; i++)
         {
-            var c = value[i];
+            var c = processed[i];
 
             // Replace underscores and spaces with hyphens
             if (c is '_' or ' ')
