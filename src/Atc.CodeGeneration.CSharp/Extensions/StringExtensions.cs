@@ -256,8 +256,10 @@ public static class StringExtensions
 
                     // Word boundary if:
                     // 1. Previous char was lowercase (e.g., "myPet" - 'P' starts new word)
-                    // 2. Previous char was uppercase AND next char is lowercase (acronym ending, e.g., "XMLParser")
+                    // 2. Previous char was a digit (e.g., "Api31Features" - 'F' starts new word)
+                    // 3. Previous char was uppercase AND next char is lowercase (acronym ending, e.g., "XMLParser")
                     var isWordBoundary = char.IsLower(prevChar) ||
+                                         char.IsDigit(prevChar) ||
                                          (char.IsUpper(prevChar) &&
                                           i + 1 < input.Length &&
                                           char.IsLower(input[i + 1]));

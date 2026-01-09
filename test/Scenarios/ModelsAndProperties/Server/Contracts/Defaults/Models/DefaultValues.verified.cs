@@ -5,7 +5,7 @@ public record DefaultValues(
     string StringDefault = "default-value",
     [property: EmailAddress] string EmailDefault = "default@example.com",
     int IntegerDefault = 42,
-    long Int64default = 1000000,
+    long Int64Default = 1000000,
     double NumberDefault = 3.14159,
     float FloatDefault = 1.5,
     bool BooleanTrueDefault = true,
