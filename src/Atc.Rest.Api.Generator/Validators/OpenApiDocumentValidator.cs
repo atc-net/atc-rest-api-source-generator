@@ -169,10 +169,17 @@ public static class OpenApiDocumentValidator
             }
 
             // ATCAPI_NAM004: Parameter name must use camelCase
+            // Note: Header parameters are excluded because HTTP headers traditionally use hyphenated names (e.g., X-Continuation, Content-Type)
             if (operation.Parameters != null)
             {
                 foreach (var parameter in operation.Parameters)
                 {
+                    // Skip header parameters - they follow HTTP header naming conventions (hyphenated), not camelCase
+                    if (parameter.In == ParameterLocation.Header)
+                    {
+                        continue;
+                    }
+
                     var paramName = parameter.Name;
                     if (!string.IsNullOrWhiteSpace(paramName) && !CasingHelper.IsCamelCase(paramName))
                     {
@@ -1501,7 +1508,7 @@ public static class OpenApiDocumentValidator
         ValidateForbiddenResponse(diagnostics, sourceFilePath, document, pathItem, operation, operationId);
 
         // ATCAPI_OPR023: NotFound on POST operation
-        ValidateNotFoundResponse(diagnostics, sourceFilePath, httpMethod, operation, operationId);
+        ValidateNotFoundResponse(diagnostics, sourceFilePath, httpMethod, pathKey, operation, operationId);
 
         // ATCAPI_OPR024: Conflict on non-mutating operation
         ValidateConflictResponse(diagnostics, sourceFilePath, httpMethod, operation, operationId);
@@ -1800,12 +1807,13 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
-    /// Validates 404 NotFound response is not on POST operation.
+    /// Validates 404 NotFound response is not on POST operation (unless it has path parameters).
     /// </summary>
     private static void ValidateNotFoundResponse(
         List<DiagnosticMessage> diagnostics,
         string sourceFilePath,
         string httpMethod,
+        string pathKey,
         OpenApiOperation operation,
         string operationId)
     {
@@ -1818,6 +1826,15 @@ public static class OpenApiDocumentValidator
         // ATCAPI_OPR023: Has 404 NotFound on POST operation
         if (string.Equals(httpMethod, "post", StringComparison.OrdinalIgnoreCase))
         {
+            // Skip warning if POST has path parameters - the referenced resource might not exist
+            // Example: POST /devices/{deviceId}/scan - the device might not exist, so 404 is valid
+            var hasPathParameters = pathKey.Contains('{') ||
+                                    (operation.Parameters?.Any(p => p.In == ParameterLocation.Path) ?? false);
+            if (hasPathParameters)
+            {
+                return;
+            }
+
             diagnostics.Add(new DiagnosticMessage(
                 RuleIdentifiers.NotFoundOnPostOperation,
                 $"Operation '{operationId}' defines 404 NotFound response on POST operation - POST creates resources, so 'not found' is unusual.",
@@ -2072,6 +2089,28 @@ public static class OpenApiDocumentValidator
         if (string.IsNullOrEmpty(name))
         {
             return false;
+        }
+
+        // Suffixes that end in 's' but represent single-item responses
+        // These are inherently plural words that describe a single entity's properties
+        var singleItemSuffixes = new[]
+        {
+            "Details",    // getDeviceDetails - details about ONE device
+            "Status",     // getStatus - status of ONE item (also covered by 'us' check)
+            "Settings",   // getSettings - settings for ONE user/account
+            "Statistics", // getStatistics - statistics for ONE entity
+            "Contents",   // getContents - contents of ONE container
+            "Metrics",    // getMetrics - metrics for ONE service
+            "News",       // getNews - news is uncountable
+            "Progress",   // getProgress - progress of ONE operation (doesn't end in 's' but for completeness)
+        };
+
+        foreach (var suffix in singleItemSuffixes)
+        {
+            if (name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
         }
 
         // Check if name ends with 's' but not 'ss' (like 'address')
