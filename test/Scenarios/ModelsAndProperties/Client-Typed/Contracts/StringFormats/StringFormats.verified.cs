@@ -12,5 +12,5 @@ public record StringFormats(
     byte[]? ByteValue,
     string? PasswordValue,
     string? HostnameValue,
-    string? Ipv4value,
-    string? Ipv6value);
+    string? Ipv4Value,
+    string? Ipv6Value);
