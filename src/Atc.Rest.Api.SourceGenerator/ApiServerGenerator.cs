@@ -142,18 +142,6 @@ public class ApiServerGenerator : IIncrementalGenerator
             _ => hasMinimalApi,
         };
 
-        // Resolve effective useAtcExceptionMapping mode:
-        // TEMPORARY: Waiting for feature in Atc.Rest.MinimalApi (GitHub issue #22)
-        // - Enabled: always generate
-        // - Disabled: never generate
-        // - Auto: generate when useGlobalErrorHandler is enabled
-        var useAtcExceptionMapping = config.UseAtcExceptionMapping switch
-        {
-            MinimalApiPackageMode.Enabled => true,
-            MinimalApiPackageMode.Disabled => false,
-            _ => useGlobalErrorHandler, // Auto: follows GlobalErrorHandler
-        };
-
         // Identify the base file (non-part file or the first file that is not a part file)
         // Part files follow the naming convention: {BaseName}_{PartName}.yaml
         var baseFile = IdentifyBaseFile(yamlFiles);
@@ -180,8 +168,7 @@ public class ApiServerGenerator : IIncrementalGenerator
                     config,
                     useMinimalApiPackage,
                     useValidationFilter,
-                    useGlobalErrorHandler,
-                    useAtcExceptionMapping);
+                    useGlobalErrorHandler);
             }
             else
             {
@@ -193,8 +180,7 @@ public class ApiServerGenerator : IIncrementalGenerator
                     config,
                     useMinimalApiPackage,
                     useValidationFilter,
-                    useGlobalErrorHandler,
-                    useAtcExceptionMapping);
+                    useGlobalErrorHandler);
             }
         }
         catch (Exception ex)
@@ -270,8 +256,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         ServerConfig config,
         bool useMinimalApiPackage,
         bool useValidationFilter,
-        bool useGlobalErrorHandler,
-        bool useAtcExceptionMapping)
+        bool useGlobalErrorHandler)
     {
         // Convert to SpecificationFile objects
         var baseName = Path.GetFileNameWithoutExtension(baseFile.Path);
@@ -308,8 +293,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             projectName,
             useMinimalApiPackage,
             useValidationFilter,
-            useGlobalErrorHandler,
-            useAtcExceptionMapping);
+            useGlobalErrorHandler);
     }
 
     private static void GenerateApiServer(
@@ -319,8 +303,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         ServerConfig config,
         bool useMinimalApiPackage,
         bool useValidationFilter,
-        bool useGlobalErrorHandler,
-        bool useAtcExceptionMapping)
+        bool useGlobalErrorHandler)
     {
         // Parse the OpenAPI YAML content
         var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
@@ -362,8 +345,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             projectName,
             useMinimalApiPackage,
             useValidationFilter,
-            useGlobalErrorHandler,
-            useAtcExceptionMapping);
+            useGlobalErrorHandler);
     }
 
     /// <summary>
@@ -378,8 +360,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         string projectName,
         bool useMinimalApiPackage,
         bool useValidationFilter,
-        bool useGlobalErrorHandler,
-        bool useAtcExceptionMapping)
+        bool useGlobalErrorHandler)
     {
         // Get unique path segments for grouping generated files
         var pathSegments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
@@ -572,14 +553,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate WebApplication extensions (GlobalErrorHandler middleware setup)
         if (useGlobalErrorHandler)
         {
-            GenerateWebApplicationExtensions(context, projectName, useGlobalErrorHandler, useAtcExceptionMapping);
-        }
-
-        // Generate AtcExceptionMapping middleware (TEMPORARY: waiting for Atc.Rest.MinimalApi feature)
-        // See: https://github.com/atc-net/atc-rest-minimalapi/issues/22
-        if (useAtcExceptionMapping)
-        {
-            GenerateAtcExceptionMapping(context, projectName);
+            GenerateWebApplicationExtensions(context, projectName, useGlobalErrorHandler);
         }
 
         // Generate simplified API surface (only if global error handler is enabled, which implies MinimalApi package)
@@ -1075,11 +1049,10 @@ public class ApiServerGenerator : IIncrementalGenerator
     private static void GenerateWebApplicationExtensions(
         SourceProductionContext context,
         string projectName,
-        bool useGlobalErrorHandler,
-        bool useAtcExceptionMapping)
+        bool useGlobalErrorHandler)
     {
         // Use WebApplicationExtensionsExtractor to generate middleware setup helpers
-        var classParameters = WebApplicationExtensionsExtractor.Extract(projectName, useGlobalErrorHandler, useAtcExceptionMapping);
+        var classParameters = WebApplicationExtensionsExtractor.Extract(projectName, useGlobalErrorHandler);
 
         if (classParameters == null)
         {
@@ -1416,35 +1389,6 @@ public class ApiServerGenerator : IIncrementalGenerator
         context.AddSource(
             $"{projectName}.Versioning.DependencyInjection.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
-    }
-
-    /// <summary>
-    /// Generates AtcExceptionMapping middleware files.
-    /// TEMPORARY: Waiting for feature in Atc.Rest.MinimalApi (GitHub issue #22).
-    /// See: https://github.com/atc-net/atc-rest-minimalapi/issues/22
-    /// Remove this method when Atc.Rest.MinimalApi adds MapException&lt;T&gt;() support.
-    /// </summary>
-    private static void GenerateAtcExceptionMapping(
-        SourceProductionContext context,
-        string projectName)
-    {
-        // Generate AtcExceptionMappingOptions class
-        var optionsContent = AtcExceptionMappingExtractor.ExtractOptions(projectName);
-        context.AddSource(
-            $"{projectName}.AtcExceptionMappingOptions.g.cs",
-            SourceText.From(optionsContent.NormalizeForSourceOutput(), Encoding.UTF8));
-
-        // Generate AtcExceptionMappingMiddleware class
-        var middlewareContent = AtcExceptionMappingExtractor.ExtractMiddleware(projectName);
-        context.AddSource(
-            $"{projectName}.AtcExceptionMappingMiddleware.g.cs",
-            SourceText.From(middlewareContent.NormalizeForSourceOutput(), Encoding.UTF8));
-
-        // Generate AtcExceptionMappingExtensions class
-        var extensionsContent = AtcExceptionMappingExtractor.ExtractExtensions(projectName);
-        context.AddSource(
-            $"{projectName}.AtcExceptionMappingExtensions.g.cs",
-            SourceText.From(extensionsContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
 
     /// <summary>
