@@ -43,17 +43,6 @@ public class ServerConfig : BaseConfig
     public MinimalApiPackageMode UseGlobalErrorHandler { get; set; } = MinimalApiPackageMode.Auto;
 
     /// <summary>
-    /// Controls whether to generate AtcExceptionMapping middleware for custom exception-to-status-code mapping.
-    /// TEMPORARY: Waiting for feature in Atc.Rest.MinimalApi (GitHub issue #22).
-    /// "auto" (default) = generate when UseGlobalErrorHandler is enabled.
-    /// true/"enabled" = force generation.
-    /// false/"disabled" = never generate.
-    /// See: https://github.com/atc-net/atc-rest-minimalapi/issues/22
-    /// </summary>
-    [JsonConverter(typeof(MinimalApiPackageModeConverter))]
-    public MinimalApiPackageMode UseAtcExceptionMapping { get; set; } = MinimalApiPackageMode.Auto;
-
-    /// <summary>
     /// Whether to report supported API versions in response headers. Default: true.
     /// When true, adds api-supported-versions and api-deprecated-versions headers to responses.
     /// </summary>

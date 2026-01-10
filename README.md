@@ -45,9 +45,17 @@ Add your `*.yaml` file and marker file to `.csproj`:
 </ItemGroup>
 ```
 
-### 3. Create Marker File
+### 3. Create Marker Files
 
-Create `.atc-rest-api-server`:
+For a typical three-layer architecture, use different marker files per project:
+
+| Project      | Marker File                     | Purpose                                          |
+|--------------|---------------------------------|--------------------------------------------------|
+| **Contracts** | `.atc-rest-api-server`          | Models, handler interfaces, endpoints, DI        |
+| **Domain**    | `.atc-rest-api-server-handlers` | Handler implementation scaffolds                 |
+| **Client**    | `.atc-rest-api-client`          | Type-safe HTTP client                            |
+
+**Contracts project** - `.atc-rest-api-server`:
 
 ```json
 {
@@ -55,6 +63,17 @@ Create `.atc-rest-api-server`:
   "validateSpecificationStrategy": "Standard"
 }
 ```
+
+**Domain project** - `.atc-rest-api-server-handlers`:
+
+```json
+{
+  "generate": true,
+  "generateHandlersOutput": "Handlers"
+}
+```
+
+> 💡 See [Marker Files Reference](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Marker-Files) for all configuration options.
 
 ### 4. Build and Use
 
@@ -138,6 +157,8 @@ The project uses a **three-layer architecture**:
 **Benefits**: Testability, reusability across CLI and source generators, clear separation of concerns.
 
 ## 🖥️ CLI Tool
+
+> **[Installation Guide](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-CLI#-installation)**
 
 The `atc-rest-api-gen` CLI provides a guided experience for project setup and validation:
 

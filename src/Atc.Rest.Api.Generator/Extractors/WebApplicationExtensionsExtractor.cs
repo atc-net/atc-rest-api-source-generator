@@ -11,12 +11,10 @@ public static class WebApplicationExtensionsExtractor
     /// </summary>
     /// <param name="projectName">The name of the project (used for namespace and method naming).</param>
     /// <param name="useGlobalErrorHandler">Whether to include GlobalErrorHandler middleware setup.</param>
-    /// <param name="useAtcExceptionMapping">Whether to include AtcExceptionMapping middleware setup (TEMPORARY).</param>
     /// <returns>ClassParameters for the WebApplication extensions class, or null if no middleware is needed.</returns>
     public static ClassParameters? Extract(
         string projectName,
-        bool useGlobalErrorHandler,
-        bool useAtcExceptionMapping = false)
+        bool useGlobalErrorHandler)
     {
         if (!useGlobalErrorHandler)
         {
@@ -26,10 +24,10 @@ public static class WebApplicationExtensionsExtractor
         var methods = new List<MethodParameters>();
 
         // Generate Use{ProjectName}Api method
-        var useApiMethod = GenerateUseApiMethod(projectName, useGlobalErrorHandler, useAtcExceptionMapping);
+        var useApiMethod = GenerateUseApiMethod(projectName, useGlobalErrorHandler);
         methods.Add(useApiMethod);
 
-        var headerContent = GenerateHeaderContent(projectName, useAtcExceptionMapping, includeEndpointUsings: false);
+        var headerContent = GenerateHeaderContent(projectName, includeEndpointUsings: false);
 
         return new ClassParameters(
             HeaderContent: headerContent,
@@ -71,9 +69,8 @@ public static class WebApplicationExtensionsExtractor
         // Auto-detect features from OpenAPI spec
         var hasRateLimiting = openApiDoc.HasRateLimiting();
         var hasSecurity = openApiDoc.HasSecuritySchemes() || openApiDoc.HasJwtBearerSecurity();
-        var useAtcExceptionMapping = config.UseAtcExceptionMapping != MinimalApiPackageMode.Disabled;
 
-        return GenerateUnifiedFileContent(projectName, hasRateLimiting, hasSecurity, useAtcExceptionMapping);
+        return GenerateUnifiedFileContent(projectName, hasRateLimiting, hasSecurity);
     }
 
     /// <summary>
@@ -82,8 +79,7 @@ public static class WebApplicationExtensionsExtractor
     private static string GenerateUnifiedFileContent(
         string projectName,
         bool hasRateLimiting,
-        bool hasSecurity,
-        bool useAtcExceptionMapping)
+        bool hasSecurity)
     {
         // Generate content first to analyze for required usings
         var contentBuilder = new StringBuilder();
@@ -101,11 +97,6 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine($"using {projectName}.Generated;");
         builder.AppendLine($"using {projectName}.Generated.Endpoints;");
 
-        if (useAtcExceptionMapping)
-        {
-            builder.AppendLine($"using {projectName}.Generated.Middleware;");
-        }
-
         builder.AppendLine();
         builder.AppendLine($"namespace {projectName}.Generated.Extensions;");
         builder.AppendLine();
@@ -117,7 +108,7 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine("{");
 
         // Generate Map{ProjectName}Api method
-        GenerateMapApiMethod(builder, projectName, hasRateLimiting, hasSecurity, useAtcExceptionMapping);
+        GenerateMapApiMethod(builder, projectName, hasRateLimiting, hasSecurity);
 
         builder.AppendLine("}");
 
@@ -131,8 +122,7 @@ public static class WebApplicationExtensionsExtractor
         StringBuilder builder,
         string projectName,
         bool hasRateLimiting,
-        bool hasSecurity,
-        bool useAtcExceptionMapping)
+        bool hasSecurity)
     {
         builder.AppendLine(4, "/// <summary>");
         builder.AppendLine(4, $"/// Configures {projectName} API middleware and maps all endpoints.");
@@ -193,15 +183,6 @@ public static class WebApplicationExtensionsExtractor
             builder.AppendLine(8, "}");
         }
 
-        // AtcExceptionMapping (TEMPORARY)
-        if (useAtcExceptionMapping)
-        {
-            builder.AppendLine();
-            builder.AppendLine(8, "// ATC exception mapping middleware (TEMPORARY)");
-            builder.AppendLine(8, "// See: https://github.com/atc-net/atc-rest-minimalapi/issues/22");
-            builder.AppendLine(8, "app.UseAtcExceptionMapping();");
-        }
-
         // Global error handler (always)
         builder.AppendLine();
         builder.AppendLine(8, "// Global error handling middleware (converts exceptions to ProblemDetails)");
@@ -218,7 +199,6 @@ public static class WebApplicationExtensionsExtractor
 
     private static string GenerateHeaderContent(
         string projectName,
-        bool useAtcExceptionMapping,
         bool includeEndpointUsings = false)
     {
         // Generate content first to analyze for required usings
@@ -237,19 +217,12 @@ public static class WebApplicationExtensionsExtractor
             builder.AppendLine($"using {projectName}.Generated.Endpoints;");
         }
 
-        // Add AtcExceptionMapping namespace (TEMPORARY: waiting for Atc.Rest.MinimalApi feature)
-        if (useAtcExceptionMapping)
-        {
-            builder.AppendLine($"using {projectName}.Generated.Middleware;");
-        }
-
         return builder.ToString();
     }
 
     private static MethodParameters GenerateUseApiMethod(
         string projectName,
-        bool useGlobalErrorHandler,
-        bool useAtcExceptionMapping)
+        bool useGlobalErrorHandler)
     {
         var methodParams = new List<ParameterBaseParameters>
         {
@@ -273,7 +246,7 @@ public static class WebApplicationExtensionsExtractor
                 DefaultValue: "null"),
         };
 
-        var content = GenerateUseApiMethodContent(useGlobalErrorHandler, useAtcExceptionMapping);
+        var content = GenerateUseApiMethodContent(useGlobalErrorHandler);
 
         var parameterDocs = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -302,21 +275,9 @@ public static class WebApplicationExtensionsExtractor
     }
 
     private static string GenerateUseApiMethodContent(
-        bool useGlobalErrorHandler,
-        bool useAtcExceptionMapping)
+        bool useGlobalErrorHandler)
     {
         var builder = new StringBuilder();
-
-        // AtcExceptionMapping must be registered BEFORE GlobalErrorHandler
-        // so that custom exception mappings take precedence
-        // TEMPORARY: Waiting for feature in Atc.Rest.MinimalApi (GitHub issue #22)
-        if (useAtcExceptionMapping)
-        {
-            builder.AppendLine("// Configure ATC exception mapping middleware (TEMPORARY)");
-            builder.AppendLine("// See: https://github.com/atc-net/atc-rest-minimalapi/issues/22");
-            builder.AppendLine("app.UseAtcExceptionMapping();");
-            builder.AppendLine();
-        }
 
         if (useGlobalErrorHandler)
         {

@@ -140,3 +140,4 @@ The `sample/` directory contains working examples:
 - `PetStoreFull` - Full-featured example with Aspire
 - `Showcase` - Complete demo with Blazor UI
 - `MultipartDemo` - Multi-file specification example
+- `NexusSample` - IoT/Edge device management API example
