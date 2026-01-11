@@ -106,7 +106,7 @@ public static class ServerDependencyInjectionExtractor
             DeclarationModifier: DeclarationModifiers.PublicStatic,
             ReturnGenericTypeName: null,
             ReturnTypeName: "IServiceCollection",
-            Name: $"Add{projectName.ToPascalCaseForDotNet()}Handlers",
+            Name: $"Add{CasingHelper.GetLastNameSegment(projectName)}Handlers",
             Parameters: methodParams,
             AlwaysBreakDownParameters: false,
             UseExpressionBody: false,

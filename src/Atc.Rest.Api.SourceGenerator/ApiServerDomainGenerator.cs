@@ -128,10 +128,13 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             return;
         }
 
-        // Extract project name from config namespace or YAML file path
-        var projectName = config.Namespace ?? Path.GetFileNameWithoutExtension(yamlPath);
+        // Try to read server namespace from .atc-rest-api-server marker file (if in same directory)
+        var serverNamespace = TryGetServerNamespace(markerDirectory);
 
-        // Determine the root namespace from project name
+        // Determine root namespace: server config > domain config > YAML filename
+        var projectName = serverNamespace ?? config.Namespace ?? Path.GetFileNameWithoutExtension(yamlPath);
+
+        // Determine the root namespace from project name (strip Domain suffixes)
         var rootNamespace = projectName
             .Replace(".Api.Domain", string.Empty)
             .Replace(".Domain", string.Empty);
@@ -149,10 +152,13 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // Get all path segments for GlobalUsings generation
         var pathSegments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
 
+        // Discover handler interface namespaces from compilation (may be in referenced assembly)
+        var interfaceNamespaces = FindHandlerInterfaceNamespaces(compilation);
+
         // Ensure GlobalUsings.cs is updated at project root (markerDirectory) before generating handlers
         if (!string.IsNullOrEmpty(markerDirectory))
         {
-            EnsureGlobalUsingsUpdated(markerDirectory, rootNamespace, pathSegments);
+            EnsureGlobalUsingsUpdated(markerDirectory, interfaceNamespaces, rootNamespace, pathSegments);
         }
 
         // Collect all handler info for DI registration
@@ -205,7 +211,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         }
 
         // Generate DI registration extension method for handlers
-        GenerateDependencyRegistration(context, compilation, rootNamespace, allHandlers, config, pathSegments);
+        GenerateDependencyRegistration(context, compilation, rootNamespace, allHandlers, config, interfaceNamespaces, pathSegments);
 
         // Generate DI registration extension method for validators
         GenerateValidatorDependencyRegistration(context, compilation, rootNamespace);
@@ -220,6 +226,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         string rootNamespace,
         List<(string OperationId, string HandlerName, string HandlerNamespace)> allHandlers,
         ServerDomainConfig config,
+        HashSet<string> discoveredInterfaceNamespaces,
         List<string> pathSegments)
     {
         if (!allHandlers.Any())
@@ -229,10 +236,20 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         var assemblyName = compilation.AssemblyName ?? "Generated";
 
-        // Build handler interface namespaces from path segments
-        var handlerInterfaceNamespaces = pathSegments
-            .Select(segment => $"{rootNamespace}.Generated.{segment}.Handlers")
-            .ToList();
+        // Use discovered interface namespaces if available, otherwise fall back to path-segment based
+        List<string> handlerInterfaceNamespaces;
+        if (discoveredInterfaceNamespaces.Count > 0)
+        {
+            handlerInterfaceNamespaces = discoveredInterfaceNamespaces
+                .OrderBy(ns => ns, StringComparer.Ordinal)
+                .ToList();
+        }
+        else
+        {
+            handlerInterfaceNamespaces = pathSegments
+                .Select(segment => $"{rootNamespace}.Generated.{segment}.Handlers")
+                .ToList();
+        }
 
         // Use DependencyRegistrationExtractor to extract class parameters
         var classParameters = DependencyRegistrationExtractor.Extract(
@@ -308,6 +325,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     /// </summary>
     private static void EnsureGlobalUsingsUpdated(
         string projectRootDirectory,
+        HashSet<string> discoveredInterfaceNamespaces,
         string rootNamespace,
         List<string> pathSegments)
     {
@@ -321,16 +339,36 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             "global using System.Threading.Tasks;",
         };
 
-        // Add path segment usings (sorted)
-        var sortedSegments = pathSegments
-            .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        foreach (var segment in sortedSegments)
+        // Use discovered interface namespaces if available
+        if (discoveredInterfaceNamespaces.Count > 0)
         {
-            requiredUsings.Add($"global using {rootNamespace}.Generated.{segment}.Handlers;");
-            requiredUsings.Add($"global using {rootNamespace}.Generated.{segment}.Parameters;");
-            requiredUsings.Add($"global using {rootNamespace}.Generated.{segment}.Results;");
+            // Add discovered namespaces and their related Parameters/Results namespaces
+            foreach (var ns in discoveredInterfaceNamespaces.OrderBy(s => s, StringComparer.Ordinal))
+            {
+                requiredUsings.Add($"global using {ns};");
+
+                // Derive Parameters and Results namespaces from Handlers namespace
+                if (ns.EndsWith(".Handlers", StringComparison.Ordinal))
+                {
+                    var baseNs = ns.Substring(0, ns.Length - ".Handlers".Length);
+                    requiredUsings.Add($"global using {baseNs}.Parameters;");
+                    requiredUsings.Add($"global using {baseNs}.Results;");
+                }
+            }
+        }
+        else
+        {
+            // Fall back to path segment usings (sorted)
+            var sortedSegments = pathSegments
+                .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var segment in sortedSegments)
+            {
+                requiredUsings.Add($"global using {rootNamespace}.Generated.{segment}.Handlers;");
+                requiredUsings.Add($"global using {rootNamespace}.Generated.{segment}.Parameters;");
+                requiredUsings.Add($"global using {rootNamespace}.Generated.{segment}.Results;");
+            }
         }
 
         // Read existing content
@@ -419,6 +457,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     /// <summary>
     /// Scans the compilation to find all handler implementations.
     /// Returns a dictionary mapping handler class names to their actual namespaces (e.g., "CreatePetsHandler" -> "PetStoreSimple.Api.Domain.ApiHandlers").
+    /// Detection is done both by interface implementation AND by class naming convention to handle
+    /// cases where the interface isn't yet resolved during source generation.
     /// </summary>
     private static Dictionary<string, string> FindImplementedHandlers(
         Compilation compilation)
@@ -432,7 +472,15 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         foreach (var typeSymbol in allTypes.OfType<INamedTypeSymbol>())
         {
-            // Check if this type implements any handler interfaces
+            // Skip interfaces, abstract classes, and generated code
+            if (typeSymbol.TypeKind == TypeKind.Interface ||
+                typeSymbol.IsAbstract ||
+                typeSymbol.DeclaringSyntaxReferences.Length == 0)
+            {
+                continue;
+            }
+
+            // Method 1: Check if this type implements any handler interfaces
             foreach (var interfaceSymbol in typeSymbol.AllInterfaces)
             {
                 var interfaceName = interfaceSymbol.Name;
@@ -448,6 +496,29 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                     var actualNamespace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
 
                     implementedHandlers[handlerName] = actualNamespace;
+                }
+            }
+
+            // Method 2: Check by class name convention (e.g., SetShutdownHandler)
+            // This catches handlers even when the interface isn't resolved yet during source generation
+            var className = typeSymbol.Name;
+            if (className.EndsWith("Handler", StringComparison.Ordinal) &&
+                !implementedHandlers.ContainsKey(className))
+            {
+                // Verify it's a user-defined class (has source location in the current project)
+                var syntaxRef = typeSymbol.DeclaringSyntaxReferences.FirstOrDefault();
+                if (syntaxRef != null)
+                {
+                    var filePath = syntaxRef.SyntaxTree.FilePath;
+
+                    // Skip generated files (obj/Generated folder or .g.cs extension)
+                    if (!filePath.Contains("obj" + Path.DirectorySeparatorChar + "Generated") &&
+                        !filePath.Contains("obj" + Path.AltDirectorySeparatorChar + "Generated") &&
+                        !filePath.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var actualNamespace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
+                        implementedHandlers[className] = actualNamespace;
+                    }
                 }
             }
         }
@@ -495,7 +566,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Determines the handler namespace based on configuration and OpenAPI operation.
+    /// Determines the handler namespace based on assembly name and configuration.
+    /// Uses assembly name as the base namespace, with optional override via config.Namespace.
     /// </summary>
     private static string GetHandlerNamespace(
         Compilation compilation,
@@ -503,12 +575,18 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         OpenApiOperation operation,
         ServerDomainConfig config)
     {
-        var baseNamespace = config.Namespace ?? compilation.AssemblyName ?? "Generated";
+        // Use assembly name as base namespace by default, config.Namespace only as explicit override
+        var baseNamespace = compilation.AssemblyName ?? "Generated";
 
-        // If no sub-folders, use ApiHandlers directly
+        // Build handler folder name from config (default: "ApiHandlers")
+        var handlerFolder = config.GenerateHandlersOutput
+            .Replace("/", ".")
+            .Replace("\\", ".");
+
+        // If no sub-folders, use handler folder directly
         if (config.SubFolderStrategy == SubFolderStrategyType.None)
         {
-            return $"{baseNamespace}.ApiHandlers";
+            return $"{baseNamespace}.{handlerFolder}";
         }
 
         // Extract sub-folder name based on strategy
@@ -521,10 +599,75 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         if (string.IsNullOrEmpty(subFolder))
         {
-            return $"{baseNamespace}.ApiHandlers";
+            return $"{baseNamespace}.{handlerFolder}";
         }
 
-        return $"{baseNamespace}.ApiHandlers.{subFolder.ToPascalCaseForDotNet()}";
+        return $"{baseNamespace}.{handlerFolder}.{subFolder.ToPascalCaseForDotNet()}";
+    }
+
+    /// <summary>
+    /// Tries to read the server namespace from the .atc-rest-api-server marker file.
+    /// Returns null if the file doesn't exist or doesn't have a namespace configured.
+    /// </summary>
+    private static string? TryGetServerNamespace(string markerDirectory)
+    {
+        if (string.IsNullOrEmpty(markerDirectory))
+        {
+            return null;
+        }
+
+        // Check for .atc-rest-api-server or .atc-rest-api-server.json
+        var serverMarkerPath = Path.Combine(markerDirectory, ".atc-rest-api-server");
+        var serverMarkerJsonPath = Path.Combine(markerDirectory, ".atc-rest-api-server.json");
+
+        var markerPath = File.Exists(serverMarkerPath) ? serverMarkerPath :
+                         File.Exists(serverMarkerJsonPath) ? serverMarkerJsonPath : null;
+
+        if (markerPath == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var content = File.ReadAllText(markerPath);
+            var serverConfig = JsonSerializer.Deserialize<ServerConfig>(content, JsonHelper.ConfigOptions);
+            return serverConfig?.Namespace;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Scans the compilation to find all handler interface namespaces.
+    /// Returns a set of unique namespaces where IXxxHandler interfaces are defined.
+    /// </summary>
+    private static HashSet<string> FindHandlerInterfaceNamespaces(
+        Compilation compilation)
+    {
+        var namespaces = new HashSet<string>(StringComparer.Ordinal);
+
+        // Get all named type symbols in the compilation (including referenced assemblies)
+        var allTypes = compilation.GetSymbolsWithName(
+            name => name.StartsWith("I", StringComparison.Ordinal) && name.EndsWith("Handler", StringComparison.Ordinal),
+            SymbolFilter.Type);
+
+        foreach (var typeSymbol in allTypes.OfType<INamedTypeSymbol>())
+        {
+            // Check if it's an interface
+            if (typeSymbol.TypeKind == TypeKind.Interface)
+            {
+                var ns = typeSymbol.ContainingNamespace?.ToDisplayString();
+                if (ns is not null && ns.Length > 0)
+                {
+                    namespaces.Add(ns);
+                }
+            }
+        }
+
+        return namespaces;
     }
 
     /// <summary>

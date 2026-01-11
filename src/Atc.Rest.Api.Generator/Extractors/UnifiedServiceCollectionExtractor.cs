@@ -170,7 +170,7 @@ public static class UnifiedServiceCollectionExtractor
         }
 
         builder.AppendLine(4, "/// </remarks>");
-        builder.AppendLine(4, $"public static IServiceCollection Add{projectName.ToPascalCaseForDotNet()}Api(");
+        builder.AppendLine(4, $"public static IServiceCollection Add{CasingHelper.GetLastNameSegment(projectName)}Api(");
         builder.AppendLine(8, "this IServiceCollection services,");
         builder.AppendLine(8, "Action<ApiServiceOptions>? configure = null)");
         builder.AppendLine(4, "{");
@@ -198,7 +198,7 @@ public static class UnifiedServiceCollectionExtractor
             builder.AppendLine(8, "// Register API versioning");
             builder.AppendLine(8, "if (options.UseVersioning)");
             builder.AppendLine(8, "{");
-            builder.AppendLine(12, $"services.Add{projectName.ToPascalCaseForDotNet()}ApiVersioning();");
+            builder.AppendLine(12, $"services.Add{CasingHelper.GetLastNameSegment(projectName)}ApiVersioning();");
             builder.AppendLine(8, "}");
         }
 

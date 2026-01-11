@@ -17,5 +17,5 @@ public record NullableTypes(
     [property: Range(0, 100)] int? NullableIntegerWithRange,
     [property: MinLength(1), MaxLength(255)] string? NullableStringWithLength,
     string[]? NullableArray,
-    object? NullableAddress,
+    Address? NullableAddress,
     string? NullableWithDefault = "default-nullable");
