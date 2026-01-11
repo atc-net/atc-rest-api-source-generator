@@ -55,7 +55,7 @@ public static class OpenIdConnectDependencyInjectionExtractor
         builder.AppendLine("{");
 
         // Generate Add{ProjectName}OpenIdConnectAuthentication method
-        var methodName = $"Add{projectName.ToPascalCaseForDotNet()}OpenIdConnectAuthentication";
+        var methodName = $"Add{CasingHelper.GetLastNameSegment(projectName)}OpenIdConnectAuthentication";
         var configSection = "Authentication:OpenIdConnect";
 
         builder.AppendLine(4, "/// <summary>");

@@ -526,4 +526,29 @@ public static class CasingHelper
 
         return value.ToPascalCaseForDotNet();
     }
+
+    /// <summary>
+    /// Gets the last segment of a dot-separated name (e.g., namespace or assembly name).
+    /// Useful for generating method names from namespace-style project names.
+    /// </summary>
+    /// <param name="name">The dot-separated name (e.g., "Company.Product.Feature").</param>
+    /// <returns>The last segment (e.g., "Feature"), or "Assembly" if the name is null or empty.</returns>
+    /// <remarks>
+    /// Examples:
+    /// - "MyCompany.PowerController.HostAgent" → "HostAgent"
+    /// - "MyProject" → "MyProject"
+    /// - "" → "Assembly"
+    /// </remarks>
+    public static string GetLastNameSegment(string? name)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return "Assembly";
+        }
+
+        var parts = name!.Split('.');
+        return parts.Length > 0
+            ? parts[parts.Length - 1]
+            : "Assembly";
+    }
 }

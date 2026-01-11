@@ -100,7 +100,7 @@ public static class DependencyRegistrationExtractor
             var implementationName = handler.HandlerName;
             var fullNamespace = handler.HandlerNamespace;
 
-            builder.AppendLine($"services.AddScoped<{interfaceName}, {fullNamespace}.{implementationName}>();");
+            builder.AppendLine($"services.AddScoped<{interfaceName}, global::{fullNamespace}.{implementationName}>();");
         }
 
         builder.AppendLine();

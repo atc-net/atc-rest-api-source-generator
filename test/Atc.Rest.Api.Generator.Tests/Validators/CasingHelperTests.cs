@@ -232,4 +232,21 @@ public class CasingHelperTests
         var result = CasingHelper.ToPascalCase(value!);
         Assert.Equal(expected, result);
     }
+
+    // ========== GetLastNameSegment Tests ==========
+    [Theory]
+    [InlineData("MyCompany.PowerController.HostAgent", "HostAgent")]
+    [InlineData("Linksoft.PowerController.HostAgent", "HostAgent")]
+    [InlineData("MyProject", "MyProject")]
+    [InlineData("Company.Product", "Product")]
+    [InlineData("A.B.C.D.E", "E")]
+    [InlineData("", "Assembly")]
+    [InlineData(null, "Assembly")]
+    public void GetLastNameSegment_ReturnsExpectedResult(
+        string? value,
+        string expected)
+    {
+        var result = CasingHelper.GetLastNameSegment(value);
+        Assert.Equal(expected, result);
+    }
 }

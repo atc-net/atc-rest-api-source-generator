@@ -69,7 +69,7 @@ public static class WebhookDependencyInjectionExtractor
             DeclarationModifier: DeclarationModifiers.PublicStatic,
             ReturnGenericTypeName: null,
             ReturnTypeName: "IServiceCollection",
-            Name: $"Add{projectName.ToPascalCaseForDotNet()}WebhookHandlers",
+            Name: $"Add{CasingHelper.GetLastNameSegment(projectName)}WebhookHandlers",
             Parameters: methodParams,
             AlwaysBreakDownParameters: false,
             UseExpressionBody: false,

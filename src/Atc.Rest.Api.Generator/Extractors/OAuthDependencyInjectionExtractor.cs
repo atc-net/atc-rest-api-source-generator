@@ -61,7 +61,7 @@ public static class OAuthDependencyInjectionExtractor
         builder.AppendLine("{");
 
         // Generate Add{ProjectName}OAuthAuthentication method
-        var methodName = $"Add{projectName.ToPascalCaseForDotNet()}OAuthAuthentication";
+        var methodName = $"Add{CasingHelper.GetLastNameSegment(projectName)}OAuthAuthentication";
         var configSection = $"OAuth:{projectName}";
 
         builder.AppendLine(4, "/// <summary>");
