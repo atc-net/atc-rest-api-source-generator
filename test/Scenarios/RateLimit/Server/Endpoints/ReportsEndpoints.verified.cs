@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using RateLimit.Generated.Reports.Handlers;
 using RateLimit.Generated.Reports.Models;
-using RateLimit.Generated.Reports.Parameters;
 using RateLimit.Generated.Reports.Results;
 
 namespace RateLimit.Generated.Reports.Endpoints;

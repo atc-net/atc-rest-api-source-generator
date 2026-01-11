@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Retry.Generated.Healths.Handlers;
 using Retry.Generated.Healths.Models;
-using Retry.Generated.Healths.Parameters;
 using Retry.Generated.Healths.Results;
 
 namespace Retry.Generated.Healths.Endpoints;

@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ModelsAndProperties.Generated.Arrays.Handlers;
 using ModelsAndProperties.Generated.Arrays.Models;
-using ModelsAndProperties.Generated.Arrays.Parameters;
 using ModelsAndProperties.Generated.Arrays.Results;
 
 namespace ModelsAndProperties.Generated.Arrays.Endpoints;

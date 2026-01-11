@@ -8,8 +8,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ModelsAndProperties.Generated.Countries.Handlers;
-using ModelsAndProperties.Generated.Countries.Models;
-using ModelsAndProperties.Generated.Countries.Parameters;
 using ModelsAndProperties.Generated.Countries.Results;
 
 namespace ModelsAndProperties.Generated.Countries.Endpoints;

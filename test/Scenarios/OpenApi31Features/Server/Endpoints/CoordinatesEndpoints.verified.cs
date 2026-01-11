@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using OpenApi31Features.Generated.Coordinates.Handlers;
 using OpenApi31Features.Generated.Coordinates.Models;
-using OpenApi31Features.Generated.Coordinates.Parameters;
 using OpenApi31Features.Generated.Coordinates.Results;
 
 namespace OpenApi31Features.Generated.Coordinates.Endpoints;

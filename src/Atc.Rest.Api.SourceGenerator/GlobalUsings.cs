@@ -13,6 +13,7 @@ global using Atc.OpenApi.Helpers;
 global using Atc.OpenApi.Models;
 global using Atc.Rest.Api.Generator;
 global using Atc.Rest.Api.Generator.Configurations;
+global using Atc.Rest.Api.Generator.Extensions;
 global using Atc.Rest.Api.Generator.Extractors;
 global using Atc.Rest.Api.Generator.Helpers;
 global using Atc.Rest.Api.Generator.Services;

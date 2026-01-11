@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SecurityOpenIdConnect.Generated.Mes.Handlers;
 using SecurityOpenIdConnect.Generated.Mes.Models;
-using SecurityOpenIdConnect.Generated.Mes.Parameters;
 using SecurityOpenIdConnect.Generated.Mes.Results;
 
 namespace SecurityOpenIdConnect.Generated.Mes.Endpoints;

@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using RateLimit.Generated.Healths.Handlers;
 using RateLimit.Generated.Healths.Models;
-using RateLimit.Generated.Healths.Parameters;
 using RateLimit.Generated.Healths.Results;
 
 namespace RateLimit.Generated.Healths.Endpoints;

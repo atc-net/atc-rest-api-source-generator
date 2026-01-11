@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SecurityAtcExt.Generated.Reports.Handlers;
 using SecurityAtcExt.Generated.Reports.Models;
-using SecurityAtcExt.Generated.Reports.Parameters;
 using SecurityAtcExt.Generated.Reports.Results;
 
 namespace SecurityAtcExt.Generated.Reports.Endpoints;
