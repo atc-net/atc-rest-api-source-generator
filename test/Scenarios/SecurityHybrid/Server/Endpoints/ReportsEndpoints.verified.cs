@@ -8,8 +8,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SecurityHybrid.Generated.Reports.Handlers;
-using SecurityHybrid.Generated.Reports.Models;
-using SecurityHybrid.Generated.Reports.Parameters;
 using SecurityHybrid.Generated.Reports.Results;
 
 namespace SecurityHybrid.Generated.Reports.Endpoints;

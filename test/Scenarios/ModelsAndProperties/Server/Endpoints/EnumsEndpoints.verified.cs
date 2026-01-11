@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ModelsAndProperties.Generated.Enums.Handlers;
 using ModelsAndProperties.Generated.Enums.Models;
-using ModelsAndProperties.Generated.Enums.Parameters;
 using ModelsAndProperties.Generated.Enums.Results;
 
 namespace ModelsAndProperties.Generated.Enums.Endpoints;

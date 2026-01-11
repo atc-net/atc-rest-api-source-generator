@@ -158,7 +158,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // Ensure GlobalUsings.cs is updated at project root (markerDirectory) before generating handlers
         if (!string.IsNullOrEmpty(markerDirectory))
         {
-            EnsureGlobalUsingsUpdated(markerDirectory, interfaceNamespaces, rootNamespace, pathSegments);
+            EnsureGlobalUsingsUpdated(markerDirectory, interfaceNamespaces, rootNamespace, pathSegments, openApiDoc);
         }
 
         // Collect all handler info for DI registration
@@ -327,7 +327,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         string projectRootDirectory,
         HashSet<string> discoveredInterfaceNamespaces,
         string rootNamespace,
-        List<string> pathSegments)
+        List<string> pathSegments,
+        OpenApiDocument openApiDoc)
     {
         var globalUsingsPath = Path.Combine(projectRootDirectory, "GlobalUsings.cs");
 
@@ -351,23 +352,41 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                 if (ns.EndsWith(".Handlers", StringComparison.Ordinal))
                 {
                     var baseNs = ns.Substring(0, ns.Length - ".Handlers".Length);
-                    requiredUsings.Add($"global using {baseNs}.Parameters;");
-                    requiredUsings.Add($"global using {baseNs}.Results;");
+
+                    // Extract segment name from namespace to check if it has parameters/results
+                    var segments = baseNs.Split('.');
+                    var segmentName = segments.Length > 0 ? segments[segments.Length - 1] : string.Empty;
+                    var namespaces = PathSegmentHelper.GetPathSegmentNamespaces(openApiDoc, segmentName);
+
+                    if (namespaces.HasParameters)
+                    {
+                        requiredUsings.Add($"global using {baseNs}.Parameters;");
+                    }
+
+                    if (namespaces.HasResults)
+                    {
+                        requiredUsings.Add($"global using {baseNs}.Results;");
+                    }
                 }
             }
         }
         else
         {
-            // Fall back to path segment usings (sorted)
+            // Fall back to path segment usings (sorted), conditionally based on OpenAPI spec
             var sortedSegments = pathSegments
                 .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             foreach (var segment in sortedSegments)
             {
-                requiredUsings.Add($"global using {rootNamespace}.Generated.{segment}.Handlers;");
-                requiredUsings.Add($"global using {rootNamespace}.Generated.{segment}.Parameters;");
-                requiredUsings.Add($"global using {rootNamespace}.Generated.{segment}.Results;");
+                var namespaces = PathSegmentHelper.GetPathSegmentNamespaces(openApiDoc, segment);
+
+                // Add conditional segment usings (exclude Models for domain handlers)
+                foreach (var usingDirective in PathSegmentHelper.GetSegmentUsings(
+                    rootNamespace, segment, namespaces, includeModels: false, isGlobalUsing: true))
+                {
+                    requiredUsings.Add(usingDirective);
+                }
             }
         }
 

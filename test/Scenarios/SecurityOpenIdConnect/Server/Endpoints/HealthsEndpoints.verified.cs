@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SecurityOpenIdConnect.Generated.Healths.Handlers;
 using SecurityOpenIdConnect.Generated.Healths.Models;
-using SecurityOpenIdConnect.Generated.Healths.Parameters;
 using SecurityOpenIdConnect.Generated.Healths.Results;
 
 namespace SecurityOpenIdConnect.Generated.Healths.Endpoints;

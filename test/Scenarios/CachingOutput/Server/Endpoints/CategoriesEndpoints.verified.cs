@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using CachingOutput.Generated.Categories.Handlers;
 using CachingOutput.Generated.Categories.Models;
-using CachingOutput.Generated.Categories.Parameters;
 using CachingOutput.Generated.Categories.Results;
 
 namespace CachingOutput.Generated.Categories.Endpoints;

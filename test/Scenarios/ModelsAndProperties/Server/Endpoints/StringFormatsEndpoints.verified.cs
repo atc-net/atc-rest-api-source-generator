@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ModelsAndProperties.Generated.StringFormats.Handlers;
 using ModelsAndProperties.Generated.StringFormats.Models;
-using ModelsAndProperties.Generated.StringFormats.Parameters;
 using ModelsAndProperties.Generated.StringFormats.Results;
 
 namespace ModelsAndProperties.Generated.StringFormats.Endpoints;

@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using CachingHybrid.Generated.Settings.Handlers;
 using CachingHybrid.Generated.Settings.Models;
-using CachingHybrid.Generated.Settings.Parameters;
 using CachingHybrid.Generated.Settings.Results;
 
 namespace CachingHybrid.Generated.Settings.Endpoints;

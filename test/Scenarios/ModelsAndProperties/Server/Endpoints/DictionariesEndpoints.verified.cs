@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ModelsAndProperties.Generated.Dictionaries.Handlers;
 using ModelsAndProperties.Generated.Dictionaries.Models;
-using ModelsAndProperties.Generated.Dictionaries.Parameters;
 using ModelsAndProperties.Generated.Dictionaries.Results;
 
 namespace ModelsAndProperties.Generated.Dictionaries.Endpoints;

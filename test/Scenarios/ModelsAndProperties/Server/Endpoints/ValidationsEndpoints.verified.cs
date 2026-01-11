@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ModelsAndProperties.Generated.Validations.Handlers;
 using ModelsAndProperties.Generated.Validations.Models;
-using ModelsAndProperties.Generated.Validations.Parameters;
 using ModelsAndProperties.Generated.Validations.Results;
 
 namespace ModelsAndProperties.Generated.Validations.Endpoints;

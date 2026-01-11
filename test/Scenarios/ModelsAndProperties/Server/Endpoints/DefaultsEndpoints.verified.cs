@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ModelsAndProperties.Generated.Defaults.Handlers;
 using ModelsAndProperties.Generated.Defaults.Models;
-using ModelsAndProperties.Generated.Defaults.Parameters;
 using ModelsAndProperties.Generated.Defaults.Results;
 
 namespace ModelsAndProperties.Generated.Defaults.Endpoints;

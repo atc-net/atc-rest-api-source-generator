@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SecurityAtcExt.Generated.ApiKeys.Handlers;
 using SecurityAtcExt.Generated.ApiKeys.Models;
-using SecurityAtcExt.Generated.ApiKeys.Parameters;
 using SecurityAtcExt.Generated.ApiKeys.Results;
 
 namespace SecurityAtcExt.Generated.ApiKeys.Endpoints;

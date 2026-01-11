@@ -8,8 +8,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SecurityStandard.Generated.Datas.Handlers;
-using SecurityStandard.Generated.Datas.Models;
-using SecurityStandard.Generated.Datas.Parameters;
 using SecurityStandard.Generated.Datas.Results;
 
 namespace SecurityStandard.Generated.Datas.Endpoints;

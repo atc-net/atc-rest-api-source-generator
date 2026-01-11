@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SecurityHybrid.Generated.Publics.Handlers;
 using SecurityHybrid.Generated.Publics.Models;
-using SecurityHybrid.Generated.Publics.Parameters;
 using SecurityHybrid.Generated.Publics.Results;
 
 namespace SecurityHybrid.Generated.Publics.Endpoints;

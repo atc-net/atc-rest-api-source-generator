@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ModelsAndProperties.Generated.Nullables.Handlers;
 using ModelsAndProperties.Generated.Nullables.Models;
-using ModelsAndProperties.Generated.Nullables.Parameters;
 using ModelsAndProperties.Generated.Nullables.Results;
 
 namespace ModelsAndProperties.Generated.Nullables.Endpoints;

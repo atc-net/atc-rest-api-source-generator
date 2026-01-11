@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using OpenApi31Features.Generated.Colors.Handlers;
 using OpenApi31Features.Generated.Colors.Models;
-using OpenApi31Features.Generated.Colors.Parameters;
 using OpenApi31Features.Generated.Colors.Results;
 
 namespace OpenApi31Features.Generated.Colors.Endpoints;

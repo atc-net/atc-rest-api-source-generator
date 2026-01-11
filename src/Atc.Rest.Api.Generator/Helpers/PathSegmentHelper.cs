@@ -598,4 +598,172 @@ public static class PathSegmentHelper
             }
         }
     }
+
+    /// <summary>
+    /// Checks if a path segment has any operations (and thus will generate Handlers and Results).
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="pathSegment">The path segment to check.</param>
+    /// <returns>True if the segment has at least one operation.</returns>
+    public static bool PathSegmentHasOperations(
+        OpenApiDocument openApiDoc,
+        string pathSegment)
+    {
+        if (openApiDoc.Paths == null)
+        {
+            return false;
+        }
+
+        foreach (var path in openApiDoc.Paths)
+        {
+            if (path.Key.ShouldSkipForPathSegment(pathSegment))
+            {
+                continue;
+            }
+
+            if (path.Value is OpenApiPathItem { Operations.Count: > 0 })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if a path segment has any operations with parameters or request body.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="pathSegment">The path segment to check.</param>
+    /// <returns>True if any operation has parameters or request body.</returns>
+    public static bool PathSegmentHasParameters(
+        OpenApiDocument openApiDoc,
+        string pathSegment)
+    {
+        if (openApiDoc.Paths == null)
+        {
+            return false;
+        }
+
+        foreach (var path in openApiDoc.Paths)
+        {
+            if (path.Key.ShouldSkipForPathSegment(pathSegment))
+            {
+                continue;
+            }
+
+            if (path.Value is not OpenApiPathItem pathItem)
+            {
+                continue;
+            }
+
+            // Check path-level parameters
+            if (pathItem.Parameters is { Count: > 0 })
+            {
+                return true;
+            }
+
+            // Check each operation
+            if (pathItem.Operations != null)
+            {
+                foreach (var operation in pathItem.Operations)
+                {
+                    if (operation.Value == null)
+                    {
+                        continue;
+                    }
+
+                    // Check operation-level parameters
+                    if (operation.Value.Parameters is { Count: > 0 })
+                    {
+                        return true;
+                    }
+
+                    // Check request body
+                    if (operation.Value.RequestBody?.Content is { Count: > 0 })
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if a path segment has segment-specific models (not shared models).
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="pathSegment">The path segment to check.</param>
+    /// <returns>True if the segment has any segment-specific schemas.</returns>
+    public static bool PathSegmentHasModels(
+        OpenApiDocument openApiDoc,
+        string pathSegment)
+    {
+        var segmentSchemas = GetSegmentSpecificSchemas(openApiDoc, pathSegment);
+        return segmentSchemas.Count > 0;
+    }
+
+    /// <summary>
+    /// Gets comprehensive namespace availability information for a path segment.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="pathSegment">The path segment to check.</param>
+    /// <returns>A record containing flags for each namespace type availability.</returns>
+    public static PathSegmentNamespaces GetPathSegmentNamespaces(
+        OpenApiDocument openApiDoc,
+        string pathSegment)
+    {
+        var hasOperations = PathSegmentHasOperations(openApiDoc, pathSegment);
+
+        return new PathSegmentNamespaces(
+            HasHandlers: hasOperations,
+            HasResults: hasOperations,
+            HasParameters: PathSegmentHasParameters(openApiDoc, pathSegment),
+            HasModels: PathSegmentHasModels(openApiDoc, pathSegment));
+    }
+
+    /// <summary>
+    /// Gets conditional using directives for path segment namespaces.
+    /// Only includes namespace usings for types that actually exist based on the PathSegmentNamespaces flags.
+    /// </summary>
+    /// <param name="projectName">The project/root namespace name.</param>
+    /// <param name="pathSegment">The path segment (e.g., "Pets"). Null or empty for root namespace.</param>
+    /// <param name="namespaces">The namespace availability flags.</param>
+    /// <param name="includeHandlers">Whether to include Handlers namespace (default: true).</param>
+    /// <param name="includeModels">Whether to include Models namespace (default: true).</param>
+    /// <param name="isGlobalUsing">Whether to use "global using" syntax (default: false).</param>
+    /// <returns>An enumerable of using directive strings.</returns>
+    public static IEnumerable<string> GetSegmentUsings(
+        string projectName,
+        string? pathSegment,
+        PathSegmentNamespaces namespaces,
+        bool includeHandlers = true,
+        bool includeModels = true,
+        bool isGlobalUsing = false)
+    {
+        var prefix = isGlobalUsing ? "global using " : "using ";
+        var segmentPart = string.IsNullOrEmpty(pathSegment) ? string.Empty : $".{pathSegment}";
+
+        if (includeHandlers && namespaces.HasHandlers)
+        {
+            yield return $"{prefix}{projectName}.Generated{segmentPart}.Handlers;";
+        }
+
+        if (includeModels && namespaces.HasModels)
+        {
+            yield return $"{prefix}{projectName}.Generated{segmentPart}.Models;";
+        }
+
+        if (namespaces.HasParameters)
+        {
+            yield return $"{prefix}{projectName}.Generated{segmentPart}.Parameters;";
+        }
+
+        if (namespaces.HasResults)
+        {
+            yield return $"{prefix}{projectName}.Generated{segmentPart}.Results;";
+        }
+    }
 }

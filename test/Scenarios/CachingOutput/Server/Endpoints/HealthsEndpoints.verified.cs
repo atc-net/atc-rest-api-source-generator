@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using CachingOutput.Generated.Healths.Handlers;
 using CachingOutput.Generated.Healths.Models;
-using CachingOutput.Generated.Healths.Parameters;
 using CachingOutput.Generated.Healths.Results;
 
 namespace CachingOutput.Generated.Healths.Endpoints;

@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SecurityStandard.Generated.Publics.Handlers;
 using SecurityStandard.Generated.Publics.Models;
-using SecurityStandard.Generated.Publics.Parameters;
 using SecurityStandard.Generated.Publics.Results;
 
 namespace SecurityStandard.Generated.Publics.Endpoints;

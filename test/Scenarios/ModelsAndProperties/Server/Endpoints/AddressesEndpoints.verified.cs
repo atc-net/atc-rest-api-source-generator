@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ModelsAndProperties.Generated.Addresses.Handlers;
-using ModelsAndProperties.Generated.Addresses.Models;
 using ModelsAndProperties.Generated.Addresses.Parameters;
 using ModelsAndProperties.Generated.Addresses.Results;
 
