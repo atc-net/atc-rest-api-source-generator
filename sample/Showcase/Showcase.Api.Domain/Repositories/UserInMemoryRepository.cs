@@ -275,7 +275,7 @@ public sealed class UserInMemoryRepository
         return age;
     }
 
-    public Task<UserEntity[]> GetAll(
+    public Task<List<UserEntity>> GetAll(
         string? search = null,
         string? country = null,
         UserRoleType? role = null,
@@ -315,7 +315,7 @@ public sealed class UserInMemoryRepository
             query = query.Take(limit.Value);
         }
 
-        return Task.FromResult(query.ToArray());
+        return Task.FromResult(query.ToList());
     }
 
     public Task<UserEntity?> GetById(Guid id)

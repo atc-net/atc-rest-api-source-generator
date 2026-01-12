@@ -42,7 +42,7 @@ public sealed class CategoriesEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListCategories)
             .WithName("ListCategories")
             .WithSummary("List categories with vary-by-header")
-            .Produces<Category[]>()
+            .Produces<List<Category>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 

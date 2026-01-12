@@ -18,14 +18,14 @@ public class ListModelsResult : IResult
     /// <summary>
     /// 200 OK - Array of comprehensive models.
     /// </summary>
-    public static ListModelsResult Ok(ComprehensiveModel[] response)
+    public static ListModelsResult Ok(List<ComprehensiveModel> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator ListModelsResult(List<ComprehensiveModel> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator ListModelsResult(ComprehensiveModel[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

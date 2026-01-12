@@ -18,14 +18,14 @@ public class ListOwnersResult : IResult
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
-    public static ListOwnersResult Ok(Owner[] response)
+    public static ListOwnersResult Ok(List<Owner> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator ListOwnersResult(List<Owner> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator ListOwnersResult(Owner[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

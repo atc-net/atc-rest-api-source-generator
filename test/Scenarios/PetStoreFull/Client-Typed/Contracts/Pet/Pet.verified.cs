@@ -5,6 +5,6 @@ public record Pet(
     long Id,
     [property: Required] string Name,
     Category Category,
-    [property: Required] string[] PhotoUrls,
-    Tag[] Tags,
+    [property: Required] List<string> PhotoUrls,
+    List<Tag> Tags,
     string Status);

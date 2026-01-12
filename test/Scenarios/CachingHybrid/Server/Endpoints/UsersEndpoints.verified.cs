@@ -42,7 +42,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListUsers)
             .WithName("ListUsers")
             .WithSummary("List users with HybridCache")
-            .Produces<User[]>()
+            .Produces<List<User>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 

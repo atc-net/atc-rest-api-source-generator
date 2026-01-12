@@ -42,7 +42,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListProducts)
             .WithName("ListProducts")
             .WithSummary("List products with output caching")
-            .Produces<Product[]>()
+            .Produces<List<Product>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .CacheOutput(OutputCachePolicies.Products);

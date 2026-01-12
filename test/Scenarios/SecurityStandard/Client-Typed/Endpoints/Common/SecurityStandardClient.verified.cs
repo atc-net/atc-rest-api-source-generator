@@ -18,10 +18,10 @@ public class SecurityStandardClient
         return (await httpClient.GetFromJsonAsync<HealthStatus>(url, cancellationToken))!;
     }
 
-    public async Task<Order[]> ListOrdersAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Order>> ListOrdersAsync(CancellationToken cancellationToken = default)
     {
         var url = "/orders";
-        return (await httpClient.GetFromJsonAsync<Order[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Order>>(url, cancellationToken))!;
     }
 
     public async Task<Order> CreateOrderAsync(
@@ -51,10 +51,10 @@ public class SecurityStandardClient
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task<User[]> ListUsersAsync(CancellationToken cancellationToken = default)
+    public async Task<List<User>> ListUsersAsync(CancellationToken cancellationToken = default)
     {
         var url = "/users";
-        return (await httpClient.GetFromJsonAsync<User[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<User>>(url, cancellationToken))!;
     }
 
     public async Task<User> GetUserByIdAsync(

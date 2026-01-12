@@ -41,7 +41,7 @@ public sealed class AddressesEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListAddresses)
             .WithName("ListAddresses")
             .WithSummary("List addresses")
-            .Produces<Address[]>()
+            .Produces<List<Address>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         addresses

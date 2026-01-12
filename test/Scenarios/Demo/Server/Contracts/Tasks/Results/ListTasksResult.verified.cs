@@ -18,14 +18,14 @@ public class ListTasksResult : IResult
     /// <summary>
     /// 200 OK - Array of tasks.
     /// </summary>
-    public static ListTasksResult Ok(Demo.Generated.Models.Task[] response)
+    public static ListTasksResult Ok(List<Demo.Generated.Models.Task> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator ListTasksResult(List<Demo.Generated.Models.Task> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator ListTasksResult(Demo.Generated.Models.Task[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

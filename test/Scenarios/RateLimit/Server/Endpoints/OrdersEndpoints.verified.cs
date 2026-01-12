@@ -42,7 +42,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListOrders)
             .WithName("ListOrders")
             .WithSummary("List orders (orders-standard policy)")
-            .Produces<Order[]>()
+            .Produces<List<Order>>()
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .RequireRateLimiting("orders-standard");

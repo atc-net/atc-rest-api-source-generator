@@ -18,14 +18,14 @@ public class ListPetsResult : IResult
     /// <summary>
     /// 200 OK - A paged array of pets.
     /// </summary>
-    public static ListPetsResult Ok(Pet[] response)
+    public static ListPetsResult Ok(List<Pet> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator ListPetsResult(List<Pet> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator ListPetsResult(Pet[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     /// <summary>
     /// Default error response - unexpected error.

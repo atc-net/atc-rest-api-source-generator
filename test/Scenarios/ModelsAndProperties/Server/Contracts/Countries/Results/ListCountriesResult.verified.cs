@@ -18,14 +18,14 @@ public class ListCountriesResult : IResult
     /// <summary>
     /// 200 OK - Array of countries.
     /// </summary>
-    public static ListCountriesResult Ok(Country[] response)
+    public static ListCountriesResult Ok(List<Country> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator ListCountriesResult(List<Country> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator ListCountriesResult(Country[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

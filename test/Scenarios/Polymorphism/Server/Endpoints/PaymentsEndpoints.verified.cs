@@ -42,7 +42,7 @@ public sealed class PaymentsEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListPayments)
             .WithName("ListPayments")
             .WithSummary("List all payments")
-            .Produces<PaymentMethod[]>()
+            .Produces<List<PaymentMethod>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         payments

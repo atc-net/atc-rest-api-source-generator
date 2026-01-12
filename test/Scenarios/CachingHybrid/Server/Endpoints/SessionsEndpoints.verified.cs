@@ -41,7 +41,7 @@ public sealed class SessionsEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListSessions)
             .WithName("ListSessions")
             .WithSummary("List sessions with distributed cache")
-            .Produces<Session[]>()
+            .Produces<List<Session>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 

@@ -8,4 +8,4 @@ public record PaginatedResult<T>(
     string? Continuation,
     int Count,
     int TotalCount,
-    T[] Results);
+    List<T> Results);

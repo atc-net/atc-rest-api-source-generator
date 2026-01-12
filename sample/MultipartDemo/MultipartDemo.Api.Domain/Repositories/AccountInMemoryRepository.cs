@@ -148,9 +148,7 @@ public sealed class AccountInMemoryRepository
                 (a.Tag?.Contains(queryString, StringComparison.OrdinalIgnoreCase) ?? false));
         }
 
-#pragma warning disable AsyncFixer02
         var filteredList = query.ToList();
-#pragma warning restore AsyncFixer02
         var totalCount = filteredList.Count;
 
         var items = filteredList

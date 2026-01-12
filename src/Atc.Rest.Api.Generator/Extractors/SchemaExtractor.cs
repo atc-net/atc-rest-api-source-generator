@@ -420,11 +420,11 @@ public static class SchemaExtractor
             string? genericTypeName = null;
             var isGenericListType = false;
 
-            // Special handling for pagination array properties - make it generic T[]
+            // Special handling for pagination array properties - make it generic List<T>
             if (PaginationArrayPropertyNames.Any(name =>
                 prop.Key.Equals(name, StringComparison.OrdinalIgnoreCase)))
             {
-                csharpType = "T[]";
+                csharpType = "List<T>";
                 genericTypeName = null;
                 isGenericListType = false;
             }

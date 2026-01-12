@@ -42,7 +42,7 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListTasks)
             .WithName("ListTasks")
             .WithSummary("List all tasks")
-            .Produces<Demo.Generated.Tasks.Models.Task[]>()
+            .Produces<List<Demo.Generated.Tasks.Models.Task>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 

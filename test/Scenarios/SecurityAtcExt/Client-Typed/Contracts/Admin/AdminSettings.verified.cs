@@ -4,4 +4,4 @@ namespace SecurityAtcExt.Generated.Models;
 public record AdminSettings(
     bool MaintenanceMode,
     int MaxOrdersPerDay,
-    string[] AllowedOrigins);
+    List<string> AllowedOrigins);

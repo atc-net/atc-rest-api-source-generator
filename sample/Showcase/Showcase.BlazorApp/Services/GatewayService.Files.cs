@@ -82,7 +82,7 @@ public sealed partial class GatewayService
         string[] items,
         CancellationToken cancellationToken = default)
     {
-        var request = new FileAsFormDataRequest(itemName, fileStream, items);
+        var request = new FileAsFormDataRequest(itemName, fileStream, [..items]);
         var parameters = new UploadSingleObjectWithFileAsFormDataParameters(Request: request);
 
         var result = await uploadSingleObjectWithFileAsFormDataEndpoint
@@ -106,10 +106,7 @@ public sealed partial class GatewayService
         string[] items,
         CancellationToken cancellationToken = default)
     {
-        var fileStreams = files
-            .Select(f => f.Stream)
-            .ToArray();
-        var request = new FilesAsFormDataRequest(fileStreams);
+        var request = new FilesAsFormDataRequest([..files.Select(f => f.Stream)]);
         var parameters = new UploadSingleObjectWithFilesAsFormDataParameters(Request: request);
 
         var result = await uploadSingleObjectWithFilesAsFormDataEndpoint

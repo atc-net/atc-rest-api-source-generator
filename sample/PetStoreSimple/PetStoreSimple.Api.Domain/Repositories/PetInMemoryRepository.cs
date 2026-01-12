@@ -13,7 +13,7 @@ public class PetInMemoryRepository
         pets.Add(new Pet(nextId++, "Max", "dog"));
     }
 
-    public Pet[] GetAll(int? limit = null)
+    public List<Pet> GetAll(int? limit = null)
     {
         var query = pets.AsEnumerable();
 
@@ -22,7 +22,7 @@ public class PetInMemoryRepository
             query = query.Take(limit.Value);
         }
 
-        return query.ToArray();
+        return query.ToList();
     }
 
     public Pet? GetById(string id)

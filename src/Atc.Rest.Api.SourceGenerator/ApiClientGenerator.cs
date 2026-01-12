@@ -669,14 +669,14 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 var typeName = param.TypeName;
 
-                // Convert IFormFile to Stream, IFormFileCollection/IFormFile[] to Stream[]
+                // Convert IFormFile to Stream, IFormFileCollection/List<IFormFile>/IFormFile[] to List<Stream>
                 if (typeName == "IFormFile")
                 {
                     typeName = "Stream";
                 }
-                else if (typeName == "IFormFileCollection" || typeName == "IFormFile[]")
+                else if (typeName == "IFormFileCollection" || typeName == "List<IFormFile>" || typeName == "IFormFile[]")
                 {
-                    typeName = "Stream[]";
+                    typeName = "List<Stream>";
                 }
 
                 convertedParams.Add(new ParameterBaseParameters(

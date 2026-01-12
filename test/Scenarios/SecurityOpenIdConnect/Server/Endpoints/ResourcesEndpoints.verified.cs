@@ -43,7 +43,7 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListResources)
             .WithName("ListResources")
             .WithSummary("List user resources")
-            .Produces<Resource[]>()
+            .Produces<List<Resource>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)

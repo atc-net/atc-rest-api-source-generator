@@ -116,15 +116,15 @@ try
 
     if (accounts != null)
     {
-        Console.WriteLine($"   Found {accounts.Length} accounts:");
+        Console.WriteLine($"   Found {accounts.Count} accounts:");
         foreach (var account in accounts.Take(5))
         {
             Console.WriteLine($"   - {account.Name} (ID: {account.Id}, Tag: {account.Tag})");
         }
 
-        if (accounts.Length > 5)
+        if (accounts.Count > 5)
         {
-            Console.WriteLine($"   ... and {accounts.Length - 5} more");
+            Console.WriteLine($"   ... and {accounts.Count - 5} more");
         }
     }
 

@@ -12,7 +12,7 @@ public class VersioningQueryStringClient
         this.httpClient = httpClient;
     }
 
-    public async Task<Pet[]> ListPetsAsync(
+    public async Task<List<Pet>> ListPetsAsync(
         ListPetsParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -29,7 +29,7 @@ public class VersioningQueryStringClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<Pet[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Pet>>(url, cancellationToken))!;
     }
 
     public async Task<Pet> CreatePetAsync(
@@ -69,10 +69,10 @@ public class VersioningQueryStringClient
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task<Owner[]> ListOwnersAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Owner>> ListOwnersAsync(CancellationToken cancellationToken = default)
     {
         var url = "/owners";
-        return (await httpClient.GetFromJsonAsync<Owner[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Owner>>(url, cancellationToken))!;
     }
 
     public async Task<Owner> CreateOwnerAsync(

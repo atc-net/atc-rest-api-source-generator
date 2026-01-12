@@ -18,14 +18,14 @@ public class ListCoordinatesResult : IResult
     /// <summary>
     /// 200 OK - List of coordinates.
     /// </summary>
-    public static ListCoordinatesResult Ok(Coordinate[] response)
+    public static ListCoordinatesResult Ok(List<Coordinate> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator ListCoordinatesResult(List<Coordinate> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator ListCoordinatesResult(Coordinate[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

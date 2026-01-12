@@ -10,8 +10,8 @@ public sealed class SubscriptionInMemoryRepository
     /// <summary>
     /// Gets all subscriptions.
     /// </summary>
-    public Subscription[] GetAll()
-        => subscriptions.Values.ToArray();
+    public List<Subscription> GetAll()
+        => subscriptions.Values.ToList();
 
     /// <summary>
     /// Gets a subscription by ID.

@@ -962,7 +962,7 @@ public static class OpenApiSchemaExtensions
             if (schema1.Type?.HasFlag(JsonSchemaType.Array) == true)
             {
                 var itemType = schema1.GetArrayItemType(registry);
-                return isRequired ? $"{itemType}[]" : $"{itemType}[]?";
+                return isRequired ? $"List<{itemType}>" : $"List<{itemType}>?";
             }
 
             // Handle primitive types using HasFlag for combined flags (e.g., String | Null)
@@ -1045,7 +1045,7 @@ public static class OpenApiSchemaExtensions
             if (schema1.Type?.HasFlag(JsonSchemaType.Array) == true)
             {
                 var itemType = schema1.GetArrayItemType(registry);
-                return isNullable ? $"{itemType}[]?" : $"{itemType}[]";
+                return isNullable ? $"List<{itemType}>?" : $"List<{itemType}>";
             }
 
             // Handle primitive types using HasFlag for combined flags (e.g., String | Null)

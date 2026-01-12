@@ -42,7 +42,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListOrders)
             .WithName("ListOrders")
             .WithSummary("List orders (requires auth)")
-            .Produces<Order[]>()
+            .Produces<List<Order>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .RequireAuthorization();

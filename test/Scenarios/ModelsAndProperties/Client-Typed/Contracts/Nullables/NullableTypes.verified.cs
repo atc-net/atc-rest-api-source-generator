@@ -16,6 +16,6 @@ public record NullableTypes(
     [property: EmailAddress] string? NullableEmail,
     [property: Range(0, 100)] int? NullableIntegerWithRange,
     [property: MinLength(1), MaxLength(255)] string? NullableStringWithLength,
-    string[]? NullableArray,
+    List<string>? NullableArray,
     Address? NullableAddress,
     string? NullableWithDefault = "default-nullable");

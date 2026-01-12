@@ -1177,7 +1177,7 @@ public static class EndpointPerOperationExtractor
     {
         if (schema.Items == null)
         {
-            return "object[]";
+            return "IEnumerable<object>";
         }
 
         // For array items, use "ResponseItem" context to distinguish from direct response objects

@@ -96,7 +96,6 @@ public class ScenarioTests
 
         var markerPath = ScenarioDiscovery.GetMarkerPath(scenarioName, masterFolder, markerFile);
 
-#pragma warning disable AsyncFixer02 // Methods return IEnumerable, not IAsyncEnumerable
         var types = generator.ToUpperInvariant() switch
         {
             "SERVER" => GeneratorTestHelper.GetServerTypesWithPaths(yamlPath, scenarioName).ToList(),
@@ -104,7 +103,6 @@ public class ScenarioTests
             "SERVERDOMAIN" => GeneratorTestHelper.GetServerDomainTypesWithPaths(yamlPath, scenarioName).ToList(),
             _ => throw new ArgumentException($"Unknown generator type: {generator}", nameof(generator)),
         };
-#pragma warning restore AsyncFixer02
 
         var baseDir = GetSourceSnapshotDirectory(scenarioName, masterFolder);
 

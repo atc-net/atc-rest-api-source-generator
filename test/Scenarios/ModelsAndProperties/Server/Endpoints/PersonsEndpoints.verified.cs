@@ -42,7 +42,7 @@ public sealed class PersonsEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListPersons)
             .WithName("ListPersons")
             .WithSummary("List persons")
-            .Produces<Person[]>()
+            .Produces<List<Person>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
     }

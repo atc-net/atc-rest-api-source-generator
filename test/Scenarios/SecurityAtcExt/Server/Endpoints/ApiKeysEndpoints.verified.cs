@@ -42,7 +42,7 @@ public sealed class ApiKeysEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListApiKeys)
             .WithName("ListApiKeys")
             .WithSummary("List API keys (Bearer OR ApiKey scheme)")
-            .Produces<ApiKey[]>()
+            .Produces<List<ApiKey>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .RequireAuthorization(policy => policy

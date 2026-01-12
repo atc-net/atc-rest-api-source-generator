@@ -32,7 +32,7 @@ public class PetStoreFullClient
         return (await response.Content.ReadFromJsonAsync<Pet>(cancellationToken: cancellationToken))!;
     }
 
-    public async Task<Pet[]> FindPetsByStatusAsync(
+    public async Task<List<Pet>> FindPetsByStatusAsync(
         FindPetsByStatusParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -45,10 +45,10 @@ public class PetStoreFullClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<Pet[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Pet>>(url, cancellationToken))!;
     }
 
-    public async Task<Pet[]> FindPetsByTagsAsync(
+    public async Task<List<Pet>> FindPetsByTagsAsync(
         FindPetsByTagsParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -61,7 +61,7 @@ public class PetStoreFullClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<Pet[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Pet>>(url, cancellationToken))!;
     }
 
     public async Task<Pet> GetPetByIdAsync(

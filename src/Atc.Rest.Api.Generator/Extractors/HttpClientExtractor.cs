@@ -308,10 +308,10 @@ public static class HttpClientExtractor
             {
                 returnType = contentType;
 
-                // For async enumerable, extract the array item type
-                if (isAsyncEnumerable && contentType.EndsWith("[]", StringComparison.Ordinal))
+                // For async enumerable, extract the List<T> item type
+                if (isAsyncEnumerable && contentType.StartsWith("List<", StringComparison.Ordinal) && contentType.EndsWith(">", StringComparison.Ordinal))
                 {
-                    streamingItemType = contentType.Substring(0, contentType.Length - 2);
+                    streamingItemType = contentType.Substring(5, contentType.Length - 6); // Extract T from List<T>
                 }
             }
         }
@@ -1029,12 +1029,12 @@ public static class HttpClientExtractor
     {
         if (schema.Items == null)
         {
-            return "object[]";
+            return "List<object>";
         }
 
         // For arrays of inline objects, use "ResponseItem" context
         var itemType = GetSchemaTypeName(schema.Items, openApiDoc, registry, operationId, pathSegment, "ResponseItem", inlineSchemas);
-        return $"{itemType}[]";
+        return $"List<{itemType}>";
     }
 
     /// <summary>

@@ -42,7 +42,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListAccounts)
             .WithName("ListAccounts")
             .WithSummary("List all accounts")
-            .Produces<Account[]>()
+            .Produces<List<Account>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
@@ -95,7 +95,7 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .MapGet("async-enumerable", ListAsyncEnumerableAccounts)
             .WithName("ListAsyncEnumerableAccounts")
             .WithSummary("List all accounts async-enumerable")
-            .Produces<Account[]>()
+            .Produces<List<Account>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 

@@ -38,7 +38,7 @@ public sealed class AccountInMemoryRepository
         }
     }
 
-    public async Task<Account[]> GetAll(int? limit = null)
+    public async Task<List<Account>> GetAll(int? limit = null)
     {
         await Task
             .Delay(1)
@@ -51,7 +51,7 @@ public sealed class AccountInMemoryRepository
             query = query.Take(limit.Value);
         }
 
-        return query.ToArray();
+        return query.ToList();
     }
 
     public async Task<Account?> GetById(string id)
@@ -147,7 +147,7 @@ public sealed class AccountInMemoryRepository
         return deletedAccount;
     }
 
-    public async Task<(Account[] Items, int TotalCount)> GetPaginated(
+    public async Task<(List<Account> Items, int TotalCount)> GetPaginated(
         int pageSize,
         int pageIndex,
         string? queryString = null)
@@ -166,16 +166,14 @@ public sealed class AccountInMemoryRepository
                 (a.Tag?.Contains(queryString, StringComparison.OrdinalIgnoreCase) ?? false));
         }
 
-#pragma warning disable AsyncFixer02 // ToListAsync - not applicable for in-memory collections
         var filteredList = query.ToList();
-#pragma warning restore AsyncFixer02
         var totalCount = filteredList.Count;
 
         // Apply pagination
         var items = filteredList
             .Skip(pageIndex * pageSize)
             .Take(pageSize)
-            .ToArray();
+            .ToList();
 
         return (items, totalCount);
     }

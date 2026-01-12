@@ -43,7 +43,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListOrders)
             .WithName("ListOrders")
             .WithSummary("List all orders")
-            .Produces<Order[]>()
+            .Produces<List<Order>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)

@@ -18,14 +18,14 @@ public class ListPaymentsResult : IResult
     /// <summary>
     /// 200 OK - List of payments.
     /// </summary>
-    public static ListPaymentsResult Ok(PaymentMethod[] response)
+    public static ListPaymentsResult Ok(List<PaymentMethod> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator ListPaymentsResult(List<PaymentMethod> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator ListPaymentsResult(PaymentMethod[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

@@ -4,4 +4,4 @@ namespace Demo.Generated.Models;
 public record FileAsFormDataRequest(
     [property: Required] string ItemName,
     IFormFile? File,
-    [property: Required] string[] Items);
+    [property: Required] List<string> Items);
