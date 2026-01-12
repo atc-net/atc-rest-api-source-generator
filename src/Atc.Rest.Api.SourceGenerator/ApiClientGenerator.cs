@@ -12,8 +12,8 @@ public class ApiClientGenerator : IIncrementalGenerator
     {
         // Find marker files - marker file presence IS the trigger for this generator
         var markerFiles = context.AdditionalTextsProvider
-            .Where(static file => Path.GetFileName(file.Path).Equals(".atc-rest-api-client", StringComparison.OrdinalIgnoreCase) ||
-                                  Path.GetFileName(file.Path).Equals(".atc-rest-api-client.json", StringComparison.OrdinalIgnoreCase))
+            .Where(static file => Path.GetFileName(file.Path).Equals(Constants.MarkerFile.Client, StringComparison.OrdinalIgnoreCase) ||
+                                  Path.GetFileName(file.Path).Equals(Constants.MarkerFile.ClientJson, StringComparison.OrdinalIgnoreCase))
             .Select(static (file, cancellationToken) =>
             {
                 var content = file.GetText(cancellationToken)?.ToString() ?? "{}";
