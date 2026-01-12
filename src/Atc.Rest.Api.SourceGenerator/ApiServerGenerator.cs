@@ -10,8 +10,8 @@ public class ApiServerGenerator : IIncrementalGenerator
     {
         // Find marker files - marker file presence IS the trigger for this generator
         var markerFiles = context.AdditionalTextsProvider
-            .Where(static file => Path.GetFileName(file.Path).Equals(".atc-rest-api-server", StringComparison.OrdinalIgnoreCase) ||
-                                  Path.GetFileName(file.Path).Equals(".atc-rest-api-server.json", StringComparison.OrdinalIgnoreCase))
+            .Where(static file => Path.GetFileName(file.Path).Equals(Constants.MarkerFile.Server, StringComparison.OrdinalIgnoreCase) ||
+                                  Path.GetFileName(file.Path).Equals(Constants.MarkerFile.ServerJson, StringComparison.OrdinalIgnoreCase))
             .Select(static (file, cancellationToken) =>
             {
                 var content = file.GetText(cancellationToken)?.ToString() ?? "{}";

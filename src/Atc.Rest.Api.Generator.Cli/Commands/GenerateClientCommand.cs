@@ -6,8 +6,6 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
 public sealed class GenerateClientCommand : Command<GenerateClientCommandSettings>
 {
-    private const string MarkerFileName = ".atc-rest-api-client";
-
     public override int Execute(
         CommandContext context,
         GenerateClientCommandSettings settings,
@@ -366,7 +364,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         string outputPath,
         ClientConfig config)
     {
-        var markerFilePath = Path.Combine(outputPath, MarkerFileName);
+        var markerFilePath = Path.Combine(outputPath, Constants.MarkerFile.Client);
 
         try
         {
@@ -379,17 +377,17 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 var existingContent = File.ReadAllText(markerFilePath);
                 if (existingContent.Trim() == json.Trim())
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Marker file up to date: {MarkerFileName}");
+                    AnsiConsole.MarkupLine($"[dim]✓[/] Marker file up to date: {Constants.MarkerFile.Client}");
                     return true;
                 }
 
                 File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Updated marker file: {MarkerFileName}");
+                AnsiConsole.MarkupLine($"[green]✓[/] Updated marker file: {Constants.MarkerFile.Client}");
             }
             else
             {
                 File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created marker file: {MarkerFileName}");
+                AnsiConsole.MarkupLine($"[green]✓[/] Created marker file: {Constants.MarkerFile.Client}");
             }
 
             return true;
@@ -468,7 +466,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
         // Check if AdditionalFiles entries exist
         var hasYamlInclude = content.Contains($"Include=\"{specFileName}\"", StringComparison.OrdinalIgnoreCase);
-        var hasMarkerInclude = content.Contains(MarkerFileName, StringComparison.OrdinalIgnoreCase);
+        var hasMarkerInclude = content.Contains(Constants.MarkerFile.Client, StringComparison.OrdinalIgnoreCase);
 
         if (hasYamlInclude && hasMarkerInclude)
         {
@@ -496,7 +494,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 var additionalFilesPosition = content.LastIndexOf("<AdditionalFiles", insertPosition, StringComparison.OrdinalIgnoreCase);
                 if (insertPosition >= 0 && additionalFilesPosition >= 0)
                 {
-                    var markerEntry = $"    <AdditionalFiles Include=\"{MarkerFileName}\" />\n";
+                    var markerEntry = $"    <AdditionalFiles Include=\"{Constants.MarkerFile.Client}\" />\n";
                     content = content.Insert(insertPosition, markerEntry);
                 }
             }
@@ -511,7 +509,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
                   <ItemGroup>
                     <AdditionalFiles Include="{specFileName}" />
-                    <AdditionalFiles Include="{MarkerFileName}" />
+                    <AdditionalFiles Include="{Constants.MarkerFile.Client}" />
                   </ItemGroup>
 
                 """;

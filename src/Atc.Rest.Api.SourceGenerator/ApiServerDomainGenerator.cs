@@ -16,8 +16,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         // Find marker files - marker file presence IS the trigger for this generator
         var markerFiles = context.AdditionalTextsProvider
-            .Where(static file => Path.GetFileName(file.Path).Equals(".atc-rest-api-server-handlers", StringComparison.OrdinalIgnoreCase) ||
-                                  Path.GetFileName(file.Path).Equals(".atc-rest-api-server-handlers.json", StringComparison.OrdinalIgnoreCase))
+            .Where(static file => Path.GetFileName(file.Path).Equals(Constants.MarkerFile.ServerHandlers, StringComparison.OrdinalIgnoreCase) ||
+                                  Path.GetFileName(file.Path).Equals(Constants.MarkerFile.ServerHandlersJson, StringComparison.OrdinalIgnoreCase))
             .Select(static (file, cancellationToken) =>
             {
                 var directory = Path.GetDirectoryName(file.Path) ?? string.Empty;
@@ -638,8 +638,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         }
 
         // First, check same directory (existing behavior)
-        var serverMarkerPath = Path.Combine(markerDirectory, ".atc-rest-api-server");
-        var serverMarkerJsonPath = Path.Combine(markerDirectory, ".atc-rest-api-server.json");
+        var serverMarkerPath = Path.Combine(markerDirectory, Constants.MarkerFile.Server);
+        var serverMarkerJsonPath = Path.Combine(markerDirectory, Constants.MarkerFile.ServerJson);
 
         var markerPath = File.Exists(serverMarkerPath) ? serverMarkerPath :
                          File.Exists(serverMarkerJsonPath) ? serverMarkerJsonPath : null;
@@ -657,8 +657,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                         continue;
                     }
 
-                    var siblingMarkerPath = Path.Combine(siblingDir, ".atc-rest-api-server");
-                    var siblingMarkerJsonPath = Path.Combine(siblingDir, ".atc-rest-api-server.json");
+                    var siblingMarkerPath = Path.Combine(siblingDir, Constants.MarkerFile.Server);
+                    var siblingMarkerJsonPath = Path.Combine(siblingDir, Constants.MarkerFile.ServerJson);
 
                     if (File.Exists(siblingMarkerPath))
                     {

@@ -6,9 +6,6 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
 public sealed class GenerateServerCommand : Command<GenerateServerCommandSettings>
 {
-    private const string ContractsMarkerFileName = ".atc-rest-api-server";
-    private const string DomainMarkerFileName = ".atc-rest-api-server-handlers";
-
     private readonly ProjectScaffoldingService scaffoldingService = new();
 
     public override int Execute(
@@ -983,7 +980,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         string outputPath,
         ServerConfig config)
     {
-        var markerFilePath = Path.Combine(outputPath, ContractsMarkerFileName);
+        var markerFilePath = Path.Combine(outputPath, Constants.MarkerFile.Server);
 
         try
         {
@@ -996,17 +993,17 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 var existingContent = File.ReadAllText(markerFilePath);
                 if (existingContent.Trim() == json.Trim())
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Marker file up to date: {ContractsMarkerFileName}");
+                    AnsiConsole.MarkupLine($"[dim]✓[/] Marker file up to date: {Constants.MarkerFile.Server}");
                     return true;
                 }
 
                 File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Updated marker file: {ContractsMarkerFileName}");
+                AnsiConsole.MarkupLine($"[green]✓[/] Updated marker file: {Constants.MarkerFile.Server}");
             }
             else
             {
                 File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created marker file: {ContractsMarkerFileName}");
+                AnsiConsole.MarkupLine($"[green]✓[/] Created marker file: {Constants.MarkerFile.Server}");
             }
 
             return true;
@@ -1022,7 +1019,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         string outputPath,
         ServerDomainConfig config)
     {
-        var markerFilePath = Path.Combine(outputPath, DomainMarkerFileName);
+        var markerFilePath = Path.Combine(outputPath, Constants.MarkerFile.ServerHandlers);
 
         try
         {
@@ -1035,17 +1032,17 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 var existingContent = File.ReadAllText(markerFilePath);
                 if (existingContent.Trim() == json.Trim())
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Marker file up to date: {DomainMarkerFileName}");
+                    AnsiConsole.MarkupLine($"[dim]✓[/] Marker file up to date: {Constants.MarkerFile.ServerHandlers}");
                     return true;
                 }
 
                 File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Updated marker file: {DomainMarkerFileName}");
+                AnsiConsole.MarkupLine($"[green]✓[/] Updated marker file: {Constants.MarkerFile.ServerHandlers}");
             }
             else
             {
                 File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created marker file: {DomainMarkerFileName}");
+                AnsiConsole.MarkupLine($"[green]✓[/] Created marker file: {Constants.MarkerFile.ServerHandlers}");
             }
 
             return true;
@@ -1074,7 +1071,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             }
             else
             {
-                var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, ContractsMarkerFileName);
+                var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, Constants.MarkerFile.Server);
                 if (updated)
                 {
                     AnsiConsole.MarkupLine($"[green]✓[/] Updated project file: {projectName}.csproj");
@@ -1112,7 +1109,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             }
             else
             {
-                var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, DomainMarkerFileName);
+                var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, Constants.MarkerFile.ServerHandlers);
                 if (updated)
                 {
                     AnsiConsole.MarkupLine($"[green]✓[/] Updated project file: {projectName}.csproj");
@@ -1158,7 +1155,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             sb.AppendLine(4, $"<AdditionalFiles Include=\"{specPath}\" />");
         }
 
-        sb.AppendLine(4, $"<AdditionalFiles Include=\"{ContractsMarkerFileName}\" />");
+        sb.AppendLine(4, $"<AdditionalFiles Include=\"{Constants.MarkerFile.Server}\" />");
         sb.AppendLine(2, "</ItemGroup>");
         sb.AppendLine();
         sb.Append("</Project>");
@@ -1196,7 +1193,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             sb.AppendLine(4, $"<AdditionalFiles Include=\"{specPath}\" />");
         }
 
-        sb.AppendLine(4, $"<AdditionalFiles Include=\"{DomainMarkerFileName}\" />");
+        sb.AppendLine(4, $"<AdditionalFiles Include=\"{Constants.MarkerFile.ServerHandlers}\" />");
         sb.AppendLine(2, "</ItemGroup>");
         sb.AppendLine();
         sb.Append("</Project>");
@@ -1224,7 +1221,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             }
             else
             {
-                var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, ContractsMarkerFileName);
+                var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, Constants.MarkerFile.Server);
                 if (updated)
                 {
                     AnsiConsole.MarkupLine($"[green]✓[/] Updated project file: {projectName}.csproj");
@@ -1289,7 +1286,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             sb.AppendLine(4, $"<AdditionalFiles Include=\"{specPath}\" />");
         }
 
-        sb.AppendLine(4, $"<AdditionalFiles Include=\"{ContractsMarkerFileName}\" />");
+        sb.AppendLine(4, $"<AdditionalFiles Include=\"{Constants.MarkerFile.Server}\" />");
         sb.AppendLine(2, "</ItemGroup>");
         sb.AppendLine();
         sb.Append("</Project>");
