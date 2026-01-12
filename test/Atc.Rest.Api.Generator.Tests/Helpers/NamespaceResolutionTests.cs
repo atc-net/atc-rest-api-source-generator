@@ -456,4 +456,3 @@ public sealed class NamespaceResolutionTests : IDisposable
         }
     }
 }
-
