@@ -20,7 +20,7 @@ public interface IListAsyncEnumerableAccountsEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
-    IEnumerable<Account> OkContent { get; }
+    IAsyncEnumerable<Account> OkContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 }

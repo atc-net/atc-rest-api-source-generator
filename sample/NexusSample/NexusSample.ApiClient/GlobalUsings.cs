@@ -1,1 +1,0 @@
-global using NexusSample.ApiClient.Generated.Models;

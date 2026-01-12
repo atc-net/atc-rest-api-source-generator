@@ -47,7 +47,7 @@ public class ListAsyncEnumerableAccountsEndpoint : IListAsyncEnumerableAccountsE
         using var response = await client.SendAsync(requestMessage, cancellationToken);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
-        responseBuilder.AddSuccessResponse<IEnumerable<Account>>(HttpStatusCode.OK);
+        responseBuilder.AddSuccessResponse<IAsyncEnumerable<Account>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         return await responseBuilder.BuildResponseAsync(x => new ListAsyncEnumerableAccountsEndpointResult(x), cancellationToken);
     }

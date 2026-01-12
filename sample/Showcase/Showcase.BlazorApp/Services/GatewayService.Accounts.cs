@@ -112,14 +112,12 @@ public sealed partial class GatewayService
             .ExecuteAsync(parameters, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
-        if (result is not { IsOk: true, OkContent: JsonElement jsonElement })
+        if (!result.IsOk)
         {
             return null;
         }
 
-        return JsonSerializer.Deserialize<PaginatedResult<Account>>(
-            jsonElement.GetRawText(),
-            jsonOptions);
+        return result.OkContent;
     }
 
     /// <summary>
@@ -139,7 +137,7 @@ public sealed partial class GatewayService
             yield break;
         }
 
-        foreach (var item in result.OkContent)
+        await foreach (var item in result.OkContent.ConfigureAwait(false))
         {
             yield return item;
         }
