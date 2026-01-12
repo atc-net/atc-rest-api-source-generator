@@ -1032,6 +1032,16 @@ public static class OpenApiSchemaExtensions
                 }
             }
 
+            // Handle oneOf with single reference (commonly used for nullable $ref)
+            // Pattern: oneOf: [ $ref: "#/..." ] with nullable: true
+            // When there's only one item, it's equivalent to a direct reference
+            if (schema1.OneOf is { Count: 1 } && schema1.OneOf[0] is OpenApiSchemaReference oneOfRef)
+            {
+                var refName = oneOfRef.Reference.Id ?? oneOfRef.Id ?? "object";
+                var typeName = ResolveTypeName(refName, registry);
+                return isNullable ? $"{typeName}?" : typeName;
+            }
+
             // Handle base64-encoded content (format: byte or contentEncoding: base64)
             // Must check before generic type mapping since both result in string type
             if (schema.ShouldMapToByteArray())
