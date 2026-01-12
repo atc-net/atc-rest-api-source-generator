@@ -1,4 +1,4 @@
-namespace Contoso.IoT.Nexus.Api.Contracts.ApiHandlers.EdgeProviders;
+namespace NexusSample.Api.Domain.ApiHandlers.EdgeProviders;
 
 /// <summary>
 /// Handler business logic for the ScanOpcUaConfigurationsByProviderDeviceId operation.

@@ -1,5 +1,5 @@
 {
-    "namespace": "Contoso.IoT.Nexus.Api.Contracts",
+    "namespace": "NexusSample.Api.Domain",
     "validateSpecificationStrategy": "Strict",
     "includeDeprecated": false,
     "generateHandlersOutput": "ApiHandlers",

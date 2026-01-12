@@ -1,4 +1,4 @@
-namespace Contoso.IoT.Nexus.Api.Contracts.ApiHandlers.DeviceManagements;
+namespace NexusSample.Api.Domain.ApiHandlers.DeviceManagements;
 
 /// <summary>
 /// Handler business logic for the GetDeviceManagementDevices operation.
