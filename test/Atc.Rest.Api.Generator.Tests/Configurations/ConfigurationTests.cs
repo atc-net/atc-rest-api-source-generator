@@ -116,6 +116,7 @@ public class ConfigurationTests
         Assert.Equal(ValidateSpecificationStrategy.Strict, config.ValidateSpecificationStrategy);
         Assert.False(config.IncludeDeprecated);
         Assert.Null(config.Namespace);
+        Assert.Null(config.ContractsNamespace);
         Assert.Equal("ApiHandlers", config.GenerateHandlersOutput);
         Assert.Equal(SubFolderStrategyType.None, config.SubFolderStrategy);
         Assert.Equal("Handler", config.HandlerSuffix);
@@ -143,6 +144,27 @@ public class ConfigurationTests
         Assert.Equal(SubFolderStrategyType.FirstPathSegment, config.SubFolderStrategy);
         Assert.Equal("RequestHandler", config.HandlerSuffix);
         Assert.Equal("error-501", config.StubImplementation);
+    }
+
+    [Fact]
+    public void ServerDomainConfig_CanDeserializeWithContractsNamespace()
+    {
+        var json = """
+            {
+                "namespace": "MyApp.Api.Domain",
+                "contractsNamespace": "Contoso.IoT.Api.Contracts",
+                "generateHandlersOutput": "ApiHandlers",
+                "subFolderStrategy": "first-path-segment"
+            }
+            """;
+
+        var config = JsonSerializer.Deserialize<ServerDomainConfig>(json, JsonHelper.ConfigOptions);
+
+        Assert.NotNull(config);
+        Assert.Equal("MyApp.Api.Domain", config!.Namespace);
+        Assert.Equal("Contoso.IoT.Api.Contracts", config.ContractsNamespace);
+        Assert.Equal("ApiHandlers", config.GenerateHandlersOutput);
+        Assert.Equal(SubFolderStrategyType.FirstPathSegment, config.SubFolderStrategy);
     }
 
     // ========== ValidateSpecificationStrategy Enum Tests ==========
