@@ -332,6 +332,33 @@ public class NamingValidationTests
     }
 
     [Fact]
+    public void Validate_TagNameWithConsecutiveUppercase_SuggestsCorrectKebabCase()
+    {
+        // Arrange - "QW IoT Nexus" should suggest "qw-iot-nexus", NOT "q-w-iot-nexus"
+        var document = ParseYaml(CreateOperationWithTagYaml(tagName: "QW IoT Nexus"));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var nam006 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.TagNameMustBeKebabCase);
+        Assert.NotNull(nam006);
+        Assert.Contains("QW IoT Nexus", nam006.Message, StringComparison.Ordinal);
+
+        // Verify the suggestion is correct (consecutive uppercase "KL" should become "kl", not "k-l")
+        Assert.NotNull(nam006.Suggestions);
+        Assert.Single(nam006.Suggestions);
+        Assert.Contains("qw-iot-nexus", nam006.Suggestions[0], StringComparison.Ordinal);
+        Assert.DoesNotContain("q-w-iot-nexus", nam006.Suggestions[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Validate_NoneStrategy_SkipsAllValidation()
     {
         // Arrange - Invalid casing
