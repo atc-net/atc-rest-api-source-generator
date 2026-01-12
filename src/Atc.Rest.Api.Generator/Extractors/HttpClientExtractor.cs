@@ -346,8 +346,10 @@ public static class HttpClientExtractor
                 DefaultValue: null));
         }
 
-        // Add [EnumeratorCancellation] attribute for async enumerable methods
-        var cancellationTokenAttrs = isAsyncEnumerable
+        // Add [EnumeratorCancellation] attribute only for methods that actually return IAsyncEnumerable<T>
+        // (requires both the x-return-async-enumerable extension AND a streaming item type from an array response)
+        var willReturnAsyncEnumerable = isAsyncEnumerable && streamingItemType != null;
+        var cancellationTokenAttrs = willReturnAsyncEnumerable
             ? new List<AttributeParameters> { new("EnumeratorCancellation", null) }
             : null;
 
@@ -919,7 +921,7 @@ public static class HttpClientExtractor
         OpenApiDocument openApiDoc,
         TypeConflictRegistry? registry = null)
     {
-        // Look for PaginatedResult pattern: allOf with $ref to PaginatedResult and results array
+        // Look for pagination pattern: allOf with $ref to PaginationResult/PaginatedResult and items/results array
         string? baseType = null;
         string? itemType = null;
 
@@ -935,10 +937,11 @@ public static class HttpClientExtractor
             }
             else if (schemaItem is OpenApiSchema { Properties: not null } objSchema)
             {
-                // Look for "results" property which contains the array item type
+                // Look for "items" or "results" property which contains the array item type
                 foreach (var prop in objSchema.Properties)
                 {
-                    if (prop.Key.Equals("results", StringComparison.OrdinalIgnoreCase))
+                    if (prop.Key.Equals("items", StringComparison.OrdinalIgnoreCase) ||
+                        prop.Key.Equals("results", StringComparison.OrdinalIgnoreCase))
                     {
                         var propSchema = prop.Value;
                         if (propSchema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema)
@@ -964,15 +967,24 @@ public static class HttpClientExtractor
             }
         }
 
-        // If we found PaginatedResult<T> pattern, return it
-        if (baseType != null && baseType.StartsWith("PaginatedResult", StringComparison.Ordinal) && itemType != null)
+        // If we found PaginationResult<T> or PaginatedResult<T> pattern, return it
+        if (baseType != null && IsPaginationBaseType(baseType) && itemType != null)
         {
-            return $"PaginatedResult<{itemType}>";
+            return $"{baseType}<{itemType}>";
         }
 
         // Return the base type if found
         return baseType ?? "object";
     }
+
+    /// <summary>
+    /// Determines if a type name is a pagination base type.
+    /// Supports common naming conventions: PaginationResult, PaginatedResult, PagedResult.
+    /// </summary>
+    internal static bool IsPaginationBaseType(string typeName)
+        => typeName.StartsWith("PaginationResult", StringComparison.Ordinal) ||
+           typeName.StartsWith("PaginatedResult", StringComparison.Ordinal) ||
+           typeName.StartsWith("PagedResult", StringComparison.Ordinal);
 
     private static string GetArrayItemType(
         OpenApiSchema arraySchema,
