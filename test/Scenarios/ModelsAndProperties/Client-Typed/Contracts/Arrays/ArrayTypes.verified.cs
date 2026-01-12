@@ -2,14 +2,14 @@
 namespace ModelsAndProperties.Generated.Models;
 
 public record ArrayTypes(
-    string[] StringArray,
-    int[] IntegerArray,
-    double[] NumberArray,
-    bool[] BooleanArray,
-    Guid[] UuidArray,
-    DateTimeOffset[] DateTimeArray,
-    [property: MinLength(1), MaxLength(10)] string[] LimitedArray,
-    string[] UniqueArray,
-    Address[] AddressArray,
-    StatusType[] StatusArray,
-    string[][] NestedStringArray);
+    List<string> StringArray,
+    List<int> IntegerArray,
+    List<double> NumberArray,
+    List<bool> BooleanArray,
+    List<Guid> UuidArray,
+    List<DateTimeOffset> DateTimeArray,
+    [property: MinLength(1), MaxLength(10)] List<string> LimitedArray,
+    List<string> UniqueArray,
+    List<Address> AddressArray,
+    List<StatusType> StatusArray,
+    List<List<string>> NestedStringArray);

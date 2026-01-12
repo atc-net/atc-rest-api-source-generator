@@ -20,7 +20,7 @@ public record ComprehensiveModel(
     Address Address,
     GenderType Gender,
     StatusType Status,
-    [property: MaxLength(10)] string[] Tags,
-    RoleType[] Roles,
+    [property: MaxLength(10)] List<string> Tags,
+    List<RoleType> Roles,
     Dictionary<string, string>? Metadata,
     bool IsActive = true);

@@ -2,4 +2,4 @@
 namespace PetStoreFull.Generated.Parameters;
 
 public record FindPetsByTagsParameters(
-    [property: FromQuery(Name = "tags"), Required] string[] Tags);
+    [property: FromQuery(Name = "tags"), Required] List<string> Tags);

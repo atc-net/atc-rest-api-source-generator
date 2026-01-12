@@ -37,7 +37,7 @@ public sealed class ListPaginatedAccountsHandler : IListPaginatedAccountsHandler
             PageIndex: pageIndex,
             QueryString: parameters.QueryString,
             Continuation: continuationToken,
-            Count: items.Length,
+            Count: items.Count,
             TotalCount: totalCount,
             Results: items);
 

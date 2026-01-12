@@ -18,14 +18,14 @@ public class FindPetsByStatusResult : IResult
     /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
-    public static FindPetsByStatusResult Ok(Pet[] response)
+    public static FindPetsByStatusResult Ok(List<Pet> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator FindPetsByStatusResult(List<Pet> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator FindPetsByStatusResult(Pet[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     /// <summary>
     /// 400 Bad Request - Invalid status value.

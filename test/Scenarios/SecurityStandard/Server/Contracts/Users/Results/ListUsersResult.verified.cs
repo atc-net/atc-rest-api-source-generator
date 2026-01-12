@@ -18,14 +18,14 @@ public class ListUsersResult : IResult
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
-    public static ListUsersResult Ok(User[] response)
+    public static ListUsersResult Ok(List<User> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator ListUsersResult(List<User> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator ListUsersResult(User[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

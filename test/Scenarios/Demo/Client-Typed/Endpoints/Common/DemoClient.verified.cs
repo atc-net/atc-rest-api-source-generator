@@ -12,7 +12,7 @@ public class DemoClient
         this.httpClient = httpClient;
     }
 
-    public async System.Threading.Tasks.Task<Account[]> ListAccountsAsync(
+    public async System.Threading.Tasks.Task<List<Account>> ListAccountsAsync(
         ListAccountsParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -29,7 +29,7 @@ public class DemoClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<Account[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Account>>(url, cancellationToken))!;
     }
 
     public async System.Threading.Tasks.Task<Account> CreateAccountAsync(
@@ -123,7 +123,7 @@ public class DemoClient
         }
     }
 
-    public async System.Threading.Tasks.Task<Task[]> ListTasksAsync(
+    public async System.Threading.Tasks.Task<List<Task>> ListTasksAsync(
         ListTasksParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -140,7 +140,7 @@ public class DemoClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<Task[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Task>>(url, cancellationToken))!;
     }
 
     public async System.Threading.Tasks.Task CreateTaskAsync(
@@ -179,7 +179,7 @@ public class DemoClient
         response.EnsureSuccessStatusCode();
     }
 
-    public async System.Threading.Tasks.Task<User[]> ListUsersAsync(
+    public async System.Threading.Tasks.Task<List<User>> ListUsersAsync(
         ListUsersParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -216,7 +216,7 @@ public class DemoClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<User[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<User>>(url, cancellationToken))!;
     }
 
     public async System.Threading.Tasks.Task<User> CreateUserAsync(

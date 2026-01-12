@@ -2,15 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
   </PropertyGroup>
-
-  <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\NexusSample.Api.Contracts\NexusSample.Api.Contracts.csproj" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Atc.Rest.Api.SourceGenerator\Atc.Rest.Api.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
@@ -18,7 +11,7 @@
 
   <ItemGroup>
     <AdditionalFiles Include="..\Nexus.spec.api.v1.yaml" />
-    <AdditionalFiles Include=".atc-rest-api-server-handlers" />
+    <AdditionalFiles Include=".atc-rest-api-client" />
   </ItemGroup>
 
 </Project>

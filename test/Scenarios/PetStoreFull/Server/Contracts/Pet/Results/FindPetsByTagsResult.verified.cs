@@ -18,14 +18,14 @@ public class FindPetsByTagsResult : IResult
     /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
-    public static FindPetsByTagsResult Ok(Pet[] response)
+    public static FindPetsByTagsResult Ok(List<Pet> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator FindPetsByTagsResult(List<Pet> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator FindPetsByTagsResult(Pet[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     /// <summary>
     /// 400 Bad Request - Invalid tag value.

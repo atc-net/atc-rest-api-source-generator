@@ -58,3 +58,5 @@ dotnet_diagnostic.SA1133.severity = none            # https://github.com/atc-net
 dotnet_diagnostic.SA1025.severity = none           # Code should not contain multiple whitespace characters in a row
 
 dotnet_diagnostic.S3220.severity = none            # Review this call, which partially matches an overload without 'params'
+
+dotnet_diagnostic.AsyncFixer02.severity = none     # Blocking calls inside async methods

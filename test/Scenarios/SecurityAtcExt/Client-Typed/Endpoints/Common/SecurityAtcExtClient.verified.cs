@@ -18,10 +18,10 @@ public class SecurityAtcExtClient
         return (await httpClient.GetFromJsonAsync<HealthStatus>(url, cancellationToken))!;
     }
 
-    public async Task<Order[]> ListOrdersAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Order>> ListOrdersAsync(CancellationToken cancellationToken = default)
     {
         var url = "/orders";
-        return (await httpClient.GetFromJsonAsync<Order[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Order>>(url, cancellationToken))!;
     }
 
     public async Task<Order> CreateOrderAsync(
@@ -75,15 +75,15 @@ public class SecurityAtcExtClient
         return (await response.Content.ReadFromJsonAsync<AdminSettings>(cancellationToken: cancellationToken))!;
     }
 
-    public async Task<Report[]> ListReportsAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Report>> ListReportsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/reports";
-        return (await httpClient.GetFromJsonAsync<Report[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Report>>(url, cancellationToken))!;
     }
 
-    public async Task<ApiKey[]> ListApiKeysAsync(CancellationToken cancellationToken = default)
+    public async Task<List<ApiKey>> ListApiKeysAsync(CancellationToken cancellationToken = default)
     {
         var url = "/api-keys";
-        return (await httpClient.GetFromJsonAsync<ApiKey[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<ApiKey>>(url, cancellationToken))!;
     }
 }

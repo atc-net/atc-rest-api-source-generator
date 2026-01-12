@@ -42,7 +42,7 @@ public sealed class OwnersEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListOwners)
             .WithName("ListOwners")
             .WithSummary("List all owners")
-            .Produces<Owner[]>()
+            .Produces<List<Owner>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         owners

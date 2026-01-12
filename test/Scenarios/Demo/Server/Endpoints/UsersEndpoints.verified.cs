@@ -42,7 +42,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListUsers)
             .WithName("ListUsers")
             .WithSummary("List all users")
-            .Produces<User[]>()
+            .Produces<List<User>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 

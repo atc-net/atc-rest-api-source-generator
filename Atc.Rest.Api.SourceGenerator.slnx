@@ -46,6 +46,7 @@
     <Project Path="sample/NexusSample/NexusSample.Api.Contracts/NexusSample.Api.Contracts.csproj" />
     <Project Path="sample/NexusSample/NexusSample.Api.Domain/NexusSample.Api.Domain.csproj" />
     <Project Path="sample/NexusSample/NexusSample.Api/NexusSample.Api.csproj" />
+    <Project Path="sample/NexusSample/NexusSample.ApiClient/NexusSample.ApiClient.csproj" />
   </Folder>
   <Folder Name="/sample/" />
   <Folder Name="/sample/MontaClient/">

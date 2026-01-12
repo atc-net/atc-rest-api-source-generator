@@ -42,7 +42,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListOrders)
             .WithName("ListOrders")
             .WithSummary("List orders (fast retry policy)")
-            .Produces<Order[]>()
+            .Produces<List<Order>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         orders

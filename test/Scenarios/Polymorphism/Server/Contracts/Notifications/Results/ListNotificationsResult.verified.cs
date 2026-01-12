@@ -18,14 +18,14 @@ public class ListNotificationsResult : IResult
     /// <summary>
     /// 200 OK - List of notifications.
     /// </summary>
-    public static ListNotificationsResult Ok(Notification[] response)
+    public static ListNotificationsResult Ok(List<Notification> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator ListNotificationsResult(List<Notification> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator ListNotificationsResult(Notification[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

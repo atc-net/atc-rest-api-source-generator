@@ -40,7 +40,7 @@ public sealed class CountriesEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListCountries)
             .WithName("ListCountries")
             .WithSummary("List countries")
-            .Produces<Country[]>()
+            .Produces<List<Country>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 

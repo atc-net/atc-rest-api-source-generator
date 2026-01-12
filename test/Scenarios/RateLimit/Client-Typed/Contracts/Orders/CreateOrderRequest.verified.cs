@@ -3,4 +3,4 @@ namespace RateLimit.Generated.Models;
 
 public record CreateOrderRequest(
     [property: Required] string CustomerName,
-    string[] Items);
+    List<string> Items);

@@ -51,7 +51,7 @@ public sealed class NotificationsEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListNotifications)
             .WithName("ListNotifications")
             .WithSummary("List all notifications")
-            .Produces<Notification[]>()
+            .Produces<List<Notification>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 

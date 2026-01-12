@@ -113,7 +113,7 @@ else
         try
         {
             var request = new CreateSubscriptionRequest(
-                Topics: selectedTopics.ToArray(),
+                Topics: selectedTopics.ToList(),
                 Name: newSubscriptionName,
                 CallbackUrl: null,
                 ExpiresInMinutes: null);

@@ -18,14 +18,14 @@ public class ListOrdersResult : IResult
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
-    public static ListOrdersResult Ok(Order[] response)
+    public static ListOrdersResult Ok(List<Order> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator ListOrdersResult(List<Order> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator ListOrdersResult(Order[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

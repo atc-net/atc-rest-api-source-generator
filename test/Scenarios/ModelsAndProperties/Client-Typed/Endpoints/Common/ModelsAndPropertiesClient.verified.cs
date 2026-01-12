@@ -12,10 +12,10 @@ public class ModelsAndPropertiesClient
         this.httpClient = httpClient;
     }
 
-    public async Task<ComprehensiveModel[]> ListModelsAsync(CancellationToken cancellationToken = default)
+    public async Task<List<ComprehensiveModel>> ListModelsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/models";
-        return (await httpClient.GetFromJsonAsync<ComprehensiveModel[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<ComprehensiveModel>>(url, cancellationToken))!;
     }
 
     public async Task<ComprehensiveModel> CreateModelAsync(
@@ -36,10 +36,10 @@ public class ModelsAndPropertiesClient
         return (await httpClient.GetFromJsonAsync<ComprehensiveModel>(url, cancellationToken))!;
     }
 
-    public async Task<Address[]> ListAddressesAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Address>> ListAddressesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/addresses";
-        return (await httpClient.GetFromJsonAsync<Address[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Address>>(url, cancellationToken))!;
     }
 
     public async Task<Address> CreateAddressAsync(
@@ -52,13 +52,13 @@ public class ModelsAndPropertiesClient
         return (await response.Content.ReadFromJsonAsync<Address>(cancellationToken: cancellationToken))!;
     }
 
-    public async Task<Country[]> ListCountriesAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Country>> ListCountriesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/countries";
-        return (await httpClient.GetFromJsonAsync<Country[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Country>>(url, cancellationToken))!;
     }
 
-    public async Task<Person[]> ListPersonsAsync(
+    public async Task<List<Person>> ListPersonsAsync(
         ListPersonsParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -75,7 +75,7 @@ public class ModelsAndPropertiesClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<Person[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Person>>(url, cancellationToken))!;
     }
 
     public async Task<PrimitiveTypes> GetPrimitiveTypesAsync(CancellationToken cancellationToken = default)

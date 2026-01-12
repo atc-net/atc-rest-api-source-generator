@@ -48,7 +48,7 @@ public sealed class CoordinatesEndpointDefinition : IEndpointDefinition
             .MapGet("list", ListCoordinates)
             .WithName("ListCoordinates")
             .WithSummary("List all coordinates")
-            .Produces<Coordinate[]>()
+            .Produces<List<Coordinate>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 

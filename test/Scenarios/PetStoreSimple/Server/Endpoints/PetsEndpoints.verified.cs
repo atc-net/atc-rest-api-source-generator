@@ -42,7 +42,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListPets)
             .WithName("ListPets")
             .WithSummary("List all pets")
-            .Produces<Pet[]>()
+            .Produces<List<Pet>>()
             .ProducesValidationProblem()
             .ProducesValidationProblem();
 

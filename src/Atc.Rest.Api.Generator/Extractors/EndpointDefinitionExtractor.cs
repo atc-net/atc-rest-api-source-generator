@@ -1551,7 +1551,7 @@ using Microsoft.AspNetCore.Builder;
         if (schemaType == "array" && schema.Items != null)
         {
             var itemType = GetSchemaItemType(schema.Items, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry);
-            return $"{itemType}[]";
+            return $"List<{itemType}>";
         }
 
         // Handle schema reference ($ref)

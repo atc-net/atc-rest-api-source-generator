@@ -18,14 +18,14 @@ public class ListSessionsResult : IResult
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
-    public static ListSessionsResult Ok(Session[] response)
+    public static ListSessionsResult Ok(List<Session> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator ListSessionsResult(List<Session> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator ListSessionsResult(Session[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

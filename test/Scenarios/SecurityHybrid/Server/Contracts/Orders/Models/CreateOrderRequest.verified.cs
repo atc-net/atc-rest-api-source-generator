@@ -3,4 +3,4 @@ namespace SecurityHybrid.Generated.Models;
 
 public record CreateOrderRequest(
     [property: Required] string CustomerId,
-    string[] Items);
+    List<string> Items);

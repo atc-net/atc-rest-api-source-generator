@@ -117,15 +117,15 @@ try
 
     if (accounts != null)
     {
-        Console.WriteLine($"   Found {accounts.Length} accounts:");
+        Console.WriteLine($"   Found {accounts.Count} accounts:");
         foreach (var account in accounts.Take(5))
         {
             Console.WriteLine($"   - {account.Name} (ID: {account.Id}, Tag: {account.Tag})");
         }
 
-        if (accounts.Length > 5)
+        if (accounts.Count > 5)
         {
-            Console.WriteLine($"   ... and {accounts.Length - 5} more");
+            Console.WriteLine($"   ... and {accounts.Count - 5} more");
         }
     }
 
@@ -187,7 +187,7 @@ try
         Console.WriteLine($"   Page Index: {paginatedResult.PageIndex}");
         Console.WriteLine($"   Count: {paginatedResult.Count}");
         Console.WriteLine($"   Total Count: {paginatedResult.TotalCount}");
-        Console.WriteLine($"   Results: {paginatedResult.Results?.Length ?? 0} accounts");
+        Console.WriteLine($"   Results: {paginatedResult.Results?.Count ?? 0} accounts");
     }
 
     Console.WriteLine();
@@ -349,7 +349,7 @@ try
         .ConfigureAwait(false);
 
     Console.WriteLine("   Uploaded batch of attachments successfully:");
-    Console.WriteLine($"   - Total files: {filesFormDataRequest.Files.Length}");
+    Console.WriteLine($"   - Total files: {filesFormDataRequest.Files.Count}");
     Console.WriteLine($"   - Attachment 1: {attachment1Content.Length} bytes");
     Console.WriteLine($"   - Attachment 2: {attachment2Content.Length} bytes");
 

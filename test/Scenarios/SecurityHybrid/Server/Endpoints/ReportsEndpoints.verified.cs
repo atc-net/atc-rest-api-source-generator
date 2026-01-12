@@ -41,7 +41,7 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListReports)
             .WithName("ListReports")
             .WithSummary("List reports")
-            .Produces<ListReportsResponseItem[]>()
+            .Produces<List<ListReportsResponseItem>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)

@@ -43,7 +43,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListProducts)
             .WithName("ListProducts")
             .WithSummary("List products")
-            .Produces<Product[]>()
+            .Produces<List<Product>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 

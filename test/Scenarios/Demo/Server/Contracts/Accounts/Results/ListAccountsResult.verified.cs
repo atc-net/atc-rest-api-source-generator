@@ -18,14 +18,14 @@ public class ListAccountsResult : IResult
     /// <summary>
     /// 200 OK - Array of accounts.
     /// </summary>
-    public static ListAccountsResult Ok(Account[] response)
+    public static ListAccountsResult Ok(List<Account> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator ListAccountsResult(List<Account> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator ListAccountsResult(Account[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

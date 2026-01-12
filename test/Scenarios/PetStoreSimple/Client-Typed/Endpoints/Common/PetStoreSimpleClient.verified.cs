@@ -12,7 +12,7 @@ public class PetStoreSimpleClient
         this.httpClient = httpClient;
     }
 
-    public async Task<Pet[]> ListPetsAsync(
+    public async Task<List<Pet>> ListPetsAsync(
         ListPetsParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -29,7 +29,7 @@ public class PetStoreSimpleClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<Pet[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Pet>>(url, cancellationToken))!;
     }
 
     public async Task CreatePetsAsync(CancellationToken cancellationToken = default)

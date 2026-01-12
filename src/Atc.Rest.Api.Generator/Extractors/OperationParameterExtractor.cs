@@ -589,23 +589,23 @@ public static class OperationParameterExtractor
     {
         if (schema.Items == null)
         {
-            return "object[]";
+            return "List<object>";
         }
 
         if (schema.Items is OpenApiSchemaReference itemRef)
         {
             var itemType = itemRef.Reference.Id ?? "object";
             itemType = OpenApiSchemaExtensions.ResolveTypeName(itemType, registry);
-            return $"{itemType}[]";
+            return $"List<{itemType}>";
         }
 
         if (schema.Items is OpenApiSchema itemSchema)
         {
             var itemType = MapOpenApiTypeToCSharp(itemSchema, true, registry);
-            return $"{itemType}[]";
+            return $"List<{itemType}>";
         }
 
-        return "object[]";
+        return "List<object>";
     }
 
     /// <summary>

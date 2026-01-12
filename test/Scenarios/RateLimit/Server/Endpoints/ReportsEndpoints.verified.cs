@@ -42,7 +42,7 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListReports)
             .WithName("ListReports")
             .WithSummary("List reports (sliding window)")
-            .Produces<Report[]>()
+            .Produces<List<Report>>()
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
     }

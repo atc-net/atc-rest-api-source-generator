@@ -18,14 +18,14 @@ public class ListApiKeysResult : IResult
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
-    public static ListApiKeysResult Ok(ApiKey[] response)
+    public static ListApiKeysResult Ok(List<ApiKey> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator ListApiKeysResult(List<ApiKey> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator ListApiKeysResult(ApiKey[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

@@ -43,7 +43,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListUsers)
             .WithName("ListUsers")
             .WithSummary("List all users")
-            .Produces<User[]>()
+            .Produces<List<User>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .RequireAuthorization(policy => policy

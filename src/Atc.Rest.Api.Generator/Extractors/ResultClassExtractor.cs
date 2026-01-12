@@ -424,11 +424,11 @@ public static class ResultClassExtractor
 
         if (!string.IsNullOrEmpty(contentType))
         {
-            // For async enumerable operations, convert array type to IAsyncEnumerable<T>
+            // For async enumerable operations, convert List<T> type to IAsyncEnumerable<T>
             var parameterType = contentType!;
-            if (isAsyncEnumerable && contentType!.EndsWith("[]", StringComparison.Ordinal))
+            if (isAsyncEnumerable && contentType!.StartsWith("List<", StringComparison.Ordinal) && contentType.EndsWith(">", StringComparison.Ordinal))
             {
-                var elementType = contentType.Substring(0, contentType.Length - 2);
+                var elementType = contentType.Substring(5, contentType.Length - 6); // Extract T from List<T>
                 parameterType = $"IAsyncEnumerable<{elementType}>";
             }
 
@@ -457,15 +457,15 @@ public static class ResultClassExtractor
                 Content: "new(Microsoft.AspNetCore.Http.Results.Ok(response))");
             methods.Add(okMethod);
 
-            // Add implicit conversion if content type is array or single object (but not 'object' base type)
+            // Add implicit conversion if content type is List<T> or single object (but not 'object' base type)
             // Skip implicit operators for IAsyncEnumerable - they don't make sense for streaming
             if (contentType != "object" && !isAsyncEnumerable)
             {
-                if (contentType!.EndsWith("[]", StringComparison.Ordinal))
+                if (contentType!.StartsWith("List<", StringComparison.Ordinal) && contentType.EndsWith(">", StringComparison.Ordinal))
                 {
-                    var elementType = contentType.Substring(0, contentType.Length - 2);
+                    var elementType = contentType.Substring(5, contentType.Length - 6); // Extract T from List<T>
 
-                    // List to array implicit operator
+                    // List implicit operator (direct)
                     var listOperator = new MethodParameters(
                         DocumentationTags: null,
                         Attributes: null,
@@ -487,10 +487,10 @@ public static class ResultClassExtractor
                         },
                         AlwaysBreakDownParameters: false,
                         UseExpressionBody: true,
-                        Content: "Ok(response.ToArray())");
+                        Content: "Ok(response)");
                     methods.Add(listOperator);
 
-                    // Array implicit operator
+                    // Array to List implicit operator (for backwards compatibility)
                     var arrayOperator = new MethodParameters(
                         DocumentationTags: null,
                         Attributes: null,
@@ -504,7 +504,7 @@ public static class ResultClassExtractor
                                 Attributes: null,
                                 GenericTypeName: null,
                                 IsGenericListType: false,
-                                TypeName: contentType,
+                                TypeName: $"{elementType}[]",
                                 IsNullableType: false,
                                 IsReferenceType: true,
                                 Name: "response",
@@ -512,7 +512,7 @@ public static class ResultClassExtractor
                         },
                         AlwaysBreakDownParameters: false,
                         UseExpressionBody: true,
-                        Content: "Ok(response)");
+                        Content: "Ok(response.ToList())");
                     methods.Add(arrayOperator);
                 }
                 else
@@ -1123,7 +1123,7 @@ public static class ResultClassExtractor
     {
         if (schema.Items == null)
         {
-            return "object[]";
+            return "List<object>";
         }
 
         // Delegate to GetSchemaTypeName for proper handling of schema references, resolved schemas, and inline objects
@@ -1137,6 +1137,6 @@ public static class ResultClassExtractor
             "ResponseItem",
             inlineSchemas);
 
-        return $"{itemType}[]";
+        return $"List<{itemType}>";
     }
 }

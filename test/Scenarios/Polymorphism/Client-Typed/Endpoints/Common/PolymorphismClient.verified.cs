@@ -12,10 +12,10 @@ public class PolymorphismClient
         this.httpClient = httpClient;
     }
 
-    public async Task<PaymentMethod[]> ListPaymentsAsync(CancellationToken cancellationToken = default)
+    public async Task<List<PaymentMethod>> ListPaymentsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/payments";
-        return (await httpClient.GetFromJsonAsync<PaymentMethod[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<PaymentMethod>>(url, cancellationToken))!;
     }
 
     public async Task<PaymentMethod> CreatePaymentAsync(
@@ -45,9 +45,9 @@ public class PolymorphismClient
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task<Notification[]> ListNotificationsAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Notification>> ListNotificationsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/notifications";
-        return (await httpClient.GetFromJsonAsync<Notification[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Notification>>(url, cancellationToken))!;
     }
 }

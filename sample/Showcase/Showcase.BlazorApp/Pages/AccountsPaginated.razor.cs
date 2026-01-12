@@ -8,7 +8,7 @@ public partial class AccountsPaginated
     [Inject]
     private ISnackbar Snackbar { get; set; } = null!;
 
-    private Account[] accounts = [];
+    private List<Account> accounts = [];
     private PaginatedResult<Account>? result;
     private bool isLoading;
     private int? pageSize = 10;
@@ -23,7 +23,7 @@ public partial class AccountsPaginated
         {
             result = await Gateway.ListPaginatedAccountsAsync(pageSize, pageIndex, queryString, continuation);
             accounts = result?.Results ?? [];
-            Snackbar.Add($"Loaded {accounts.Length} accounts (Total: {result?.TotalCount})", Severity.Success);
+            Snackbar.Add($"Loaded {accounts.Count} accounts (Total: {result?.TotalCount})", Severity.Success);
         }
         catch (Exception ex)
         {

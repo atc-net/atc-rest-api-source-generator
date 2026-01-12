@@ -18,14 +18,14 @@ public class ListResourcesResult : IResult
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
-    public static ListResourcesResult Ok(Resource[] response)
+    public static ListResourcesResult Ok(List<Resource> response)
         => new(Microsoft.AspNetCore.Http.Results.Ok(response));
 
     public static implicit operator ListResourcesResult(List<Resource> response)
-        => Ok(response.ToArray());
+        => Ok(response);
 
     public static implicit operator ListResourcesResult(Resource[] response)
-        => Ok(response);
+        => Ok(response.ToList());
 
     /// <summary>
     /// 401 Unauthorized - Unauthorized.

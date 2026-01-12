@@ -42,7 +42,7 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListReports)
             .WithName("ListReports")
             .WithSummary("List reports (admin OR manager)")
-            .Produces<Report[]>()
+            .Produces<List<Report>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)

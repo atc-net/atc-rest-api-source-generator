@@ -18,7 +18,7 @@ public sealed class UploadSingleObjectWithFilesAsFormDataHandler : IUploadSingle
         UploadSingleObjectWithFilesAsFormDataParameters parameters,
         CancellationToken cancellationToken = default)
     {
-        if (parameters.Request?.Files is null || parameters.Request.Files.Length == 0)
+        if (parameters.Request?.Files is null || parameters.Request.Files.Count == 0)
         {
             return UploadSingleObjectWithFilesAsFormDataResult.Ok();
         }

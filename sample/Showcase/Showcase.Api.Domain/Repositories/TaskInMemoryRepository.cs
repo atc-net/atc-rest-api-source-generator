@@ -39,7 +39,7 @@ public sealed class TaskInMemoryRepository
         }
     }
 
-    public async Task<Showcase.Generated.Tasks.Models.Task[]> GetAll(
+    public async Task<List<Showcase.Generated.Tasks.Models.Task>> GetAll(
         int? limit = null)
     {
         await Task
@@ -53,7 +53,7 @@ public sealed class TaskInMemoryRepository
             query = query.Take(limit.Value);
         }
 
-        return query.ToArray();
+        return query.ToList();
     }
 
     public async Task<Showcase.Generated.Tasks.Models.Task?> GetById(string id)

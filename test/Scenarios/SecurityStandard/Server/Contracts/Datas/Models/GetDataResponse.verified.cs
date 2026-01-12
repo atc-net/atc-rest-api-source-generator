@@ -2,4 +2,4 @@
 namespace SecurityStandard.Generated.Datas.Models;
 
 public record GetDataResponse(
-    string[] Items);
+    List<string> Items);

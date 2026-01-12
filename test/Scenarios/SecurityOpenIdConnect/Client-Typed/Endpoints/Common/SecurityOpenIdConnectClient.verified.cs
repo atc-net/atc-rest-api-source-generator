@@ -30,10 +30,10 @@ public class SecurityOpenIdConnectClient
         return (await httpClient.GetFromJsonAsync<UserProfile>(url, cancellationToken))!;
     }
 
-    public async Task<Resource[]> ListResourcesAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Resource>> ListResourcesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/resources";
-        return (await httpClient.GetFromJsonAsync<Resource[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Resource>>(url, cancellationToken))!;
     }
 
     public async Task<Resource> CreateResourceAsync(

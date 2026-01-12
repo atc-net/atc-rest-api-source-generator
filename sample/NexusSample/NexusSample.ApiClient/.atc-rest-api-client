@@ -1,0 +1,4 @@
+{
+  "validateSpecificationStrategy": "Strict",
+  "namespace": "NexusSample.ApiClient"
+}

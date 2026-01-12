@@ -18,10 +18,10 @@ public class RateLimitClient
         return (await httpClient.GetFromJsonAsync<HealthStatus>(url, cancellationToken))!;
     }
 
-    public async Task<Order[]> ListOrdersAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Order>> ListOrdersAsync(CancellationToken cancellationToken = default)
     {
         var url = "/orders";
-        return (await httpClient.GetFromJsonAsync<Order[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Order>>(url, cancellationToken))!;
     }
 
     public async Task<Order> CreateOrderAsync(
@@ -51,10 +51,10 @@ public class RateLimitClient
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task<Report[]> ListReportsAsync(CancellationToken cancellationToken = default)
+    public async Task<List<Report>> ListReportsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/reports";
-        return (await httpClient.GetFromJsonAsync<Report[]>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Report>>(url, cancellationToken))!;
     }
 
     public async Task SendNotificationAsync(

@@ -22,7 +22,7 @@ public sealed class SubscriptionInMemoryRepository
         var subscription = new Subscription(
             Id: Guid.NewGuid(),
             Name: name,
-            Topics: topics,
+            Topics: topics.ToList(),
             CallbackUrl: callbackUrl,
             ConnectionId: null,
             CreatedAt: DateTimeOffset.UtcNow,

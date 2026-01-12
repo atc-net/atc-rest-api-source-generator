@@ -42,7 +42,7 @@ public sealed class ModelsEndpointDefinition : IEndpointDefinition
             .MapGet("/", ListModels)
             .WithName("ListModels")
             .WithSummary("List all models")
-            .Produces<ComprehensiveModel[]>()
+            .Produces<List<ComprehensiveModel>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         models

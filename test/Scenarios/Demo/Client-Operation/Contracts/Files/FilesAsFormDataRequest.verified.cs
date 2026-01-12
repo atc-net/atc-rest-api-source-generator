@@ -2,4 +2,4 @@
 namespace Demo.Generated.Models;
 
 public record FilesAsFormDataRequest(
-    [property: Required] IFormFile[] Files);
+    [property: Required] List<IFormFile> Files);
