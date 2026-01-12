@@ -2,4 +2,4 @@
 namespace ModelsAndProperties.Generated.Parameters;
 
 public record ListPersonsParameters(
-    [property: FromQuery(Name = "gender")] object? Gender);
+    [property: FromQuery(Name = "gender")] GenderType? Gender);

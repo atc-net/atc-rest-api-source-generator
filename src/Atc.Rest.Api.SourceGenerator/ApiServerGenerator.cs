@@ -450,7 +450,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                 projectName,
                 pathSegment,
                 registry,
-                config.IncludeDeprecated);
+                config.IncludeDeprecated,
+                includeSharedModelsUsing: sharedSchemas.Count > 0);
 
             // Generate result classes
             GenerateResultClasses(
@@ -1083,10 +1084,11 @@ public class ApiServerGenerator : IIncrementalGenerator
         string projectName,
         string pathSegment,
         TypeConflictRegistry registry,
-        bool includeDeprecated)
+        bool includeDeprecated,
+        bool includeSharedModelsUsing = false)
     {
         // Use OperationParameterExtractor to extract operation parameters into RecordsParameters filtered by path segment
-        var recordsParams = OperationParameterExtractor.Extract(openApiDoc, projectName, pathSegment, registry, includeDeprecated);
+        var recordsParams = OperationParameterExtractor.Extract(openApiDoc, projectName, pathSegment, registry, includeDeprecated, includeSharedModelsUsing);
 
         if (recordsParams == null || recordsParams.Parameters.Count == 0)
         {
