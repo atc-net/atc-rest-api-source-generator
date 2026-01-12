@@ -1,4 +1,4 @@
-namespace Contoso.IoT.Nexus.Api.Contracts.ApiHandlers.Insights;
+namespace NexusSample.Api.Domain.ApiHandlers.Insights;
 
 /// <summary>
 /// Handler business logic for the GetInsightsDevices operation.
