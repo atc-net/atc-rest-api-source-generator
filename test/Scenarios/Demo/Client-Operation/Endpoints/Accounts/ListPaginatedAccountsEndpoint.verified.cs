@@ -65,7 +65,7 @@ public class ListPaginatedAccountsEndpoint : IListPaginatedAccountsEndpoint
         using var response = await client.SendAsync(requestMessage, cancellationToken);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
-        responseBuilder.AddSuccessResponse<object>(HttpStatusCode.OK);
+        responseBuilder.AddSuccessResponse<PaginatedResult<Account>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         return await responseBuilder.BuildResponseAsync(x => new ListPaginatedAccountsEndpointResult(x), cancellationToken);

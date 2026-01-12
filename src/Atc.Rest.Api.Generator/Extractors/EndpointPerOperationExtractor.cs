@@ -247,6 +247,9 @@ public static class EndpointPerOperationExtractor
         // Check if this is a binary endpoint (returns application/octet-stream)
         var isBinaryEndpoint = IsBinaryEndpoint(operation);
 
+        // Check if this operation returns an async enumerable (streaming response)
+        var isAsyncEnumerable = operation.IsAsyncEnumerableOperation();
+
         // Extract response information from OpenAPI spec
         var responses = ExtractResponses(
             operation,
@@ -255,7 +258,8 @@ public static class EndpointPerOperationExtractor
             customErrorTypeName,
             operationId,
             pathSegment,
-            inlineSchemas);
+            inlineSchemas,
+            isAsyncEnumerable);
 
         // Auto-apply responses based on detected features (same as server-side .Produces() metadata)
         // This ensures client is prepared to handle all responses the server may return
@@ -405,7 +409,8 @@ public static class EndpointPerOperationExtractor
         string? customErrorTypeName,
         string? operationId,
         string? pathSegment,
-        Dictionary<string, InlineSchemaInfo>? inlineSchemas)
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas,
+        bool isAsyncEnumerable)
     {
         var responses = new List<ResponseInfo>();
 
@@ -436,6 +441,7 @@ public static class EndpointPerOperationExtractor
                 response.Value.Content.TryGetValue("application/json", out var mediaType))
             {
                 // Use "Response" context for direct response objects
+                // Only apply async enumerable wrapper to success responses
                 contentType = GetSchemaTypeName(
                     mediaType.Schema,
                     openApiDoc,
@@ -443,7 +449,8 @@ public static class EndpointPerOperationExtractor
                     operationId,
                     pathSegment,
                     isSuccess ? "Response" : null, // Only generate inline types for success responses
-                    inlineSchemas);
+                    inlineSchemas,
+                    isAsyncEnumerable && isSuccess);
             }
 
             // Use custom error type if provided, otherwise use ValidationProblemDetails for 400 Bad Request, ProblemDetails for other errors
@@ -1106,7 +1113,8 @@ public static class EndpointPerOperationExtractor
         string? operationId,
         string? pathSegment,
         string? context,
-        Dictionary<string, InlineSchemaInfo>? inlineSchemas)
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas,
+        bool isAsyncEnumerable)
     {
         if (schema == null)
         {
@@ -1126,7 +1134,7 @@ public static class EndpointPerOperationExtractor
                 openApiDoc.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
                 resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema)
             {
-                return GetArraySchemaType(arraySchema, openApiDoc, registry, operationId, pathSegment, inlineSchemas);
+                return GetArraySchemaType(arraySchema, openApiDoc, registry, operationId, pathSegment, inlineSchemas, isAsyncEnumerable);
             }
 
             return OpenApiSchemaExtensions.ResolveTypeName(refId!, registry);
@@ -1137,7 +1145,19 @@ public static class EndpointPerOperationExtractor
             // Handle array type specially (GetPrimitiveCSharpTypeName returns null for arrays)
             if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true)
             {
-                return GetArraySchemaType(actualSchema, openApiDoc, registry, operationId, pathSegment, inlineSchemas);
+                return GetArraySchemaType(actualSchema, openApiDoc, registry, operationId, pathSegment, inlineSchemas, isAsyncEnumerable);
+            }
+
+            // Handle allOf composition - look for PaginatedResult pattern
+            if (actualSchema.AllOf is { Count: > 0 })
+            {
+                var allOfType = GetAllOfSchemaTypeName(actualSchema.AllOf, openApiDoc, registry);
+                if (isAsyncEnumerable && allOfType != "object")
+                {
+                    return $"IAsyncEnumerable<{allOfType}>";
+                }
+
+                return allOfType;
             }
 
             // Handle inline object schemas with properties
@@ -1173,11 +1193,12 @@ public static class EndpointPerOperationExtractor
         TypeConflictRegistry? registry,
         string? operationId,
         string? pathSegment,
-        Dictionary<string, InlineSchemaInfo>? inlineSchemas)
+        Dictionary<string, InlineSchemaInfo>? inlineSchemas,
+        bool isAsyncEnumerable)
     {
         if (schema.Items == null)
         {
-            return "IEnumerable<object>";
+            return isAsyncEnumerable ? "IAsyncEnumerable<object>" : "IEnumerable<object>";
         }
 
         // For array items, use "ResponseItem" context to distinguish from direct response objects
@@ -1188,9 +1209,113 @@ public static class EndpointPerOperationExtractor
             operationId,
             pathSegment,
             "ResponseItem",
-            inlineSchemas);
+            inlineSchemas,
+            isAsyncEnumerable: false); // Item types don't get wrapped in IAsyncEnumerable
 
-        return $"IEnumerable<{itemType}>";
+        return isAsyncEnumerable
+            ? $"IAsyncEnumerable<{itemType}>"
+            : $"IEnumerable<{itemType}>";
+    }
+
+    /// <summary>
+    /// Handles allOf composition schemas, specifically for PaginatedResult patterns.
+    /// </summary>
+    private static string GetAllOfSchemaTypeName(
+        IList<IOpenApiSchema> allOfSchemas,
+        OpenApiDocument openApiDoc,
+        TypeConflictRegistry? registry)
+    {
+        // Look for pagination pattern: allOf with $ref to PaginationResult/PaginatedResult and items/results array
+        string? baseType = null;
+        string? itemType = null;
+
+        foreach (var schemaItem in allOfSchemas)
+        {
+            if (schemaItem is OpenApiSchemaReference refSchema)
+            {
+                var refId = refSchema.Reference.Id;
+                if (!string.IsNullOrEmpty(refId))
+                {
+                    baseType = OpenApiSchemaExtensions.ResolveTypeName(refId!, registry);
+                }
+            }
+            else if (schemaItem is OpenApiSchema { Properties: not null } objSchema)
+            {
+                // Look for "items" or "results" property which contains the array item type
+                foreach (var prop in objSchema.Properties)
+                {
+                    if (prop.Key.Equals("items", StringComparison.OrdinalIgnoreCase) ||
+                        prop.Key.Equals("results", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var propSchema = prop.Value;
+                        if (propSchema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema)
+                        {
+                            // Get the item type from the array
+                            itemType = GetArrayItemTypeName(arraySchema, openApiDoc, registry);
+                        }
+                        else if (propSchema is OpenApiSchemaReference propRef)
+                        {
+                            // Resolve the reference
+                            var propRefId = propRef.Reference.Id;
+                            if (!string.IsNullOrEmpty(propRefId) &&
+                                openApiDoc.Components?.Schemas?.TryGetValue(propRefId!, out var resolvedSchema) == true &&
+                                resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array } resolvedArray)
+                            {
+                                itemType = GetArrayItemTypeName(resolvedArray, openApiDoc, registry);
+                            }
+                        }
+
+                        break;
+                    }
+                }
+            }
+        }
+
+        // If we found PaginationResult<T> or PaginatedResult<T> pattern, return it
+        if (baseType != null && HttpClientExtractor.IsPaginationBaseType(baseType) && itemType != null)
+        {
+            return $"{baseType}<{itemType}>";
+        }
+
+        // Return the base type if found
+        return baseType ?? "object";
+    }
+
+    /// <summary>
+    /// Gets the item type name from an array schema.
+    /// </summary>
+    private static string GetArrayItemTypeName(
+        OpenApiSchema arraySchema,
+        OpenApiDocument openApiDoc,
+        TypeConflictRegistry? registry)
+    {
+        if (arraySchema.Items == null)
+        {
+            return "object";
+        }
+
+        if (arraySchema.Items is OpenApiSchemaReference itemRef)
+        {
+            var itemRefId = itemRef.Reference.Id;
+            if (!string.IsNullOrEmpty(itemRefId))
+            {
+                // Check if this is an array type alias
+                if (openApiDoc.Components?.Schemas?.TryGetValue(itemRefId!, out var itemSchema) == true &&
+                    itemSchema is OpenApiSchema { Type: JsonSchemaType.Array } innerArray)
+                {
+                    return GetArrayItemTypeName(innerArray, openApiDoc, registry);
+                }
+
+                return OpenApiSchemaExtensions.ResolveTypeName(itemRefId!, registry);
+            }
+        }
+
+        if (arraySchema.Items is OpenApiSchema itemSchema2)
+        {
+            return itemSchema2.Type.ToPrimitiveCSharpTypeName(itemSchema2.Format) ?? "object";
+        }
+
+        return "object";
     }
 
     /// <summary>

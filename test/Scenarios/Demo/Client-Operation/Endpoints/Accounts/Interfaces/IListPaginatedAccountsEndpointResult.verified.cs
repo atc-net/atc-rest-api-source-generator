@@ -22,7 +22,7 @@ public interface IListPaginatedAccountsEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
-    object OkContent { get; }
+    PaginatedResult<Account> OkContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
 

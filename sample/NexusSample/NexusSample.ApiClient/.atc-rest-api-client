@@ -1,4 +1,5 @@
 {
-  "validateSpecificationStrategy": "Strict",
-  "namespace": "NexusSample.ApiClient"
+    "validateSpecificationStrategy": "Strict",
+    "namespace": "NexusSample.ApiClient",
+    "generationMode": "EndpointPerOperation"
 }

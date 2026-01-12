@@ -30,10 +30,10 @@ public class ListAsyncEnumerableAccountsEndpointResult : EndpointResponse, IList
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
 
-    public IEnumerable<Account> OkContent
-        => IsOk && ContentObject is IEnumerable<Account> result
+    public IAsyncEnumerable<Account> OkContent
+        => IsOk && ContentObject is IAsyncEnumerable<Account> result
             ? result
-            : throw InvalidContentAccessException<IEnumerable<Account>>(HttpStatusCode.OK, "OkContent");
+            : throw InvalidContentAccessException<IAsyncEnumerable<Account>>(HttpStatusCode.OK, "OkContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result

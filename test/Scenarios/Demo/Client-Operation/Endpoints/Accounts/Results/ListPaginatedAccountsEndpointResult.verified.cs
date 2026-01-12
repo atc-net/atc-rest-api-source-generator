@@ -33,10 +33,10 @@ public class ListPaginatedAccountsEndpointResult : EndpointResponse, IListPagina
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
 
-    public object OkContent
-        => IsOk && ContentObject is object result
+    public PaginatedResult<Account> OkContent
+        => IsOk && ContentObject is PaginatedResult<Account> result
             ? result
-            : throw InvalidContentAccessException<object>(HttpStatusCode.OK, "OkContent");
+            : throw InvalidContentAccessException<PaginatedResult<Account>>(HttpStatusCode.OK, "OkContent");
 
     public ValidationProblemDetails BadRequestContent
         => IsBadRequest && ContentObject is ValidationProblemDetails result
