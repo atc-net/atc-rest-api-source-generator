@@ -128,16 +128,17 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             return;
         }
 
-        // Try to read server namespace from .atc-rest-api-server marker file (if in same directory)
+        // Determine contracts namespace for GlobalUsings:
+        // Priority: explicit config > server marker (same dir or sibling) > derive from domain namespace
         var serverNamespace = TryGetServerNamespace(markerDirectory);
+        var contractsNamespace = config.ContractsNamespace ?? serverNamespace;
 
-        // Determine root namespace: server config > domain config > YAML filename
-        var projectName = serverNamespace ?? config.Namespace ?? Path.GetFileNameWithoutExtension(yamlPath);
-
-        // Determine the root namespace from project name (strip Domain suffixes)
-        var rootNamespace = projectName
-            .Replace(".Api.Domain", string.Empty)
-            .Replace(".Domain", string.Empty);
+        // Determine the root namespace for GlobalUsings (contracts namespace)
+        var rootNamespace = contractsNamespace is not null
+            ? contractsNamespace
+            : (config.Namespace ?? Path.GetFileNameWithoutExtension(yamlPath))
+                .Replace(".Api.Domain", string.Empty)
+                .Replace(".Domain", string.Empty);
 
         // Scan assembly for existing handler implementations
         var implementedHandlers = FindImplementedHandlers(compilation);
@@ -626,7 +627,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
     /// <summary>
     /// Tries to read the server namespace from the .atc-rest-api-server marker file.
-    /// Returns null if the file doesn't exist or doesn't have a namespace configured.
+    /// Searches in the same directory first, then in sibling directories.
+    /// Returns null if no marker file is found or doesn't have a namespace configured.
     /// </summary>
     private static string? TryGetServerNamespace(string markerDirectory)
     {
@@ -635,12 +637,43 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             return null;
         }
 
-        // Check for .atc-rest-api-server or .atc-rest-api-server.json
+        // First, check same directory (existing behavior)
         var serverMarkerPath = Path.Combine(markerDirectory, ".atc-rest-api-server");
         var serverMarkerJsonPath = Path.Combine(markerDirectory, ".atc-rest-api-server.json");
 
         var markerPath = File.Exists(serverMarkerPath) ? serverMarkerPath :
                          File.Exists(serverMarkerJsonPath) ? serverMarkerJsonPath : null;
+
+        // If not in same directory, search sibling directories
+        if (markerPath == null)
+        {
+            var parentDirectory = Path.GetDirectoryName(markerDirectory);
+            if (!string.IsNullOrEmpty(parentDirectory) && Directory.Exists(parentDirectory))
+            {
+                foreach (var siblingDir in Directory.GetDirectories(parentDirectory))
+                {
+                    if (siblingDir == markerDirectory)
+                    {
+                        continue;
+                    }
+
+                    var siblingMarkerPath = Path.Combine(siblingDir, ".atc-rest-api-server");
+                    var siblingMarkerJsonPath = Path.Combine(siblingDir, ".atc-rest-api-server.json");
+
+                    if (File.Exists(siblingMarkerPath))
+                    {
+                        markerPath = siblingMarkerPath;
+                        break;
+                    }
+
+                    if (File.Exists(siblingMarkerJsonPath))
+                    {
+                        markerPath = siblingMarkerJsonPath;
+                        break;
+                    }
+                }
+            }
+        }
 
         if (markerPath == null)
         {

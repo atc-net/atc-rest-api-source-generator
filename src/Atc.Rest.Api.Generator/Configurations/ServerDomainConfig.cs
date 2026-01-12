@@ -7,6 +7,14 @@ namespace Atc.Rest.Api.Generator.Configurations;
 public class ServerDomainConfig : BaseConfig
 {
     /// <summary>
+    /// Explicit namespace of the contracts project that contains generated handlers, parameters, and results.
+    /// When specified, GlobalUsings will import from this namespace instead of auto-discovering.
+    /// Example: "Contoso.IoT.Nexus.Api.Contracts" generates "global using Contoso.IoT.Nexus.Api.Contracts.Generated.*.Handlers".
+    /// Default: null (auto-detect from sibling project's .atc-rest-api-server marker).
+    /// </summary>
+    public string? ContractsNamespace { get; set; }
+
+    /// <summary>
     /// Output folder for generated handler files, relative to the marker file location.
     /// Example: "ApiHandlers" will output handlers to {MarkerFileDir}/ApiHandlers/.
     /// Default: "ApiHandlers".
