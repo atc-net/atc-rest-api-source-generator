@@ -267,7 +267,7 @@ public static class WebApplicationExtensionsExtractor
             DeclarationModifier: DeclarationModifiers.PublicStatic,
             ReturnGenericTypeName: null,
             ReturnTypeName: "WebApplication",
-            Name: $"Use{projectName}Api",
+            Name: $"Use{CasingHelper.GetLastNameSegment(projectName)}Api",
             Parameters: methodParams,
             AlwaysBreakDownParameters: true,
             UseExpressionBody: false,
