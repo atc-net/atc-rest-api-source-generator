@@ -200,7 +200,9 @@ public class CasingHelperTests
     [InlineData("listPets", "list-pets")] // camelCase to kebab-case
     [InlineData("ListPets", "list-pets")] // PascalCase to kebab-case
     [InlineData("list_pets", "list-pets")] // snake_case to kebab-case
-    [InlineData("LIST_PETS", "l-i-s-t-p-e-t-s")] // Note: Each uppercase gets hyphen
+    [InlineData("LIST_PETS", "list-pets")] // Consecutive uppercase treated as single word
+    [InlineData("XMLParser", "xml-parser")] // Acronym followed by word
+    [InlineData("QW IoT Nexus", "qw-iot-nexus")] // Consecutive uppercase with space and acronym
     [InlineData("Contoso IoT Nexus", "contoso-iot-nexus")] // IoT acronym preserved
     [InlineData("IoT Device", "iot-device")] // IoT at start
     [InlineData("MyAPI", "my-api")] // API acronym preserved

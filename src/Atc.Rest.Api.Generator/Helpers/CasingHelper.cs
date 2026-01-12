@@ -490,10 +490,21 @@ public static class CasingHelper
                 continue;
             }
 
-            // Insert hyphen before uppercase letters (but not at start)
+            // Insert hyphen before uppercase letters (but not at start, not after hyphen)
+            // Handle consecutive uppercase: only insert hyphen when transitioning from lowercase to uppercase,
+            // or when at the end of an acronym (uppercase followed by lowercase)
             if (char.IsUpper(c) && result.Length > 0 && result[result.Length - 1] != '-')
             {
-                result.Append('-');
+                var prevCharWasUpper = i > 0 && char.IsUpper(processed[i - 1]);
+                var nextCharIsLower = i + 1 < processed.Length && char.IsLower(processed[i + 1]);
+
+                // Add hyphen if:
+                // - previous char was lowercase (transition from word to new word), OR
+                // - previous char was uppercase AND next char is lowercase (end of acronym, start of word like "XMLParser" -> "xml-parser")
+                if (!prevCharWasUpper || nextCharIsLower)
+                {
+                    result.Append('-');
+                }
             }
 
             result.Append(char.ToLowerInvariant(c));
