@@ -1,3 +1,4 @@
+// ReSharper disable StringLiteralTypo
 namespace Atc.Rest.Api.Generator.Tests.Extractors;
 
 public class EndpointPerOperationExtractorTests
@@ -419,6 +420,72 @@ public class EndpointPerOperationExtractorTests
         // 400 BadRequest should be ValidationProblemDetails, NOT wrapped
         Assert.Contains("ValidationProblemDetails BadRequestContent", operationFile.ResultClassContent, StringComparison.Ordinal);
         Assert.DoesNotContain("IAsyncEnumerable<ValidationProblemDetails>", operationFile.ResultClassContent, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("NexusSample.ApiClient", null, "NexusSample-ApiClient")]
+    [InlineData("NexusSample.APICLIENT", null, "NexusSample-ApiClient")]
+    [InlineData("MyApiClient", null, "My-ApiClient")]
+    [InlineData("PetStore.Client", null, "PetStore-Client-ApiClient")]
+    [InlineData("MyApi", null, "MyApi-ApiClient")]
+    [InlineData("Contoso.IoT.Nexus.ApiClient", null, "Contoso-IoT-Nexus-ApiClient")]
+    public void GetEffectiveHttpClientName_NullConfig_ReturnsExpectedName(
+        string projectName,
+        string? configuredName,
+        string expected)
+    {
+        // Act
+        var result = EndpointPerOperationExtractor.GetEffectiveHttpClientName(projectName, configuredName);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData("NexusSample.ApiClient", "Custom", "NexusSample-Custom")]
+    [InlineData("MyApiClient", "MyService", "My-MyService")]
+    [InlineData("PetStore", "PetService", "PetStore-PetService")]
+    public void GetEffectiveHttpClientName_SimpleName_CombinesWithBase(
+        string projectName,
+        string configuredName,
+        string expected)
+    {
+        // Act
+        var result = EndpointPerOperationExtractor.GetEffectiveHttpClientName(projectName, configuredName);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData("NexusSample.ApiClient", "My.Custom.Client", "My.Custom.Client")]
+    [InlineData("NexusSample.ApiClient", "My-Custom-Client", "My-Custom-Client")]
+    [InlineData("PetStore", "Custom.Service-Name", "Custom.Service-Name")]
+    public void GetEffectiveHttpClientName_FullName_UsesAsIs(
+        string projectName,
+        string configuredName,
+        string expected)
+    {
+        // Act
+        var result = EndpointPerOperationExtractor.GetEffectiveHttpClientName(projectName, configuredName);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData("NexusSample.ApiClient", "", "NexusSample-ApiClient")]
+    [InlineData("NexusSample.ApiClient", "   ", "NexusSample-ApiClient")]
+    public void GetEffectiveHttpClientName_EmptyOrWhitespaceConfig_TreatedAsNull(
+        string projectName,
+        string configuredName,
+        string expected)
+    {
+        // Act
+        var result = EndpointPerOperationExtractor.GetEffectiveHttpClientName(projectName, configuredName);
+
+        // Assert
+        Assert.Equal(expected, result);
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)
