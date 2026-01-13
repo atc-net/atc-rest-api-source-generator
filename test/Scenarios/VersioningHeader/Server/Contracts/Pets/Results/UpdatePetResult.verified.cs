@@ -5,7 +5,7 @@ namespace VersioningHeader.Generated.Results;
 /// Update a pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UpdatePetResult : IResult
+public sealed class UpdatePetResult : IResult
 {
     private readonly IResult innerResult;
 

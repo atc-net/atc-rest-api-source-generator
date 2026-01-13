@@ -5,7 +5,7 @@ namespace Demo.Generated.Results;
 /// Create and return location in body.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateTestItemWithLocationInBodyResult : IResult
+public sealed class CreateTestItemWithLocationInBodyResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -5,7 +5,7 @@ namespace PetStoreFull.Generated.Results;
 /// Delete user resource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeleteUserResult : IResult
+public sealed class DeleteUserResult : IResult
 {
     private readonly IResult innerResult;
 

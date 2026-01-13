@@ -5,7 +5,7 @@ namespace ModelsAndProperties.Generated.Results;
 /// Get primitive types model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetPrimitiveTypesResult : IResult
+public sealed class GetPrimitiveTypesResult : IResult
 {
     private readonly IResult innerResult;
 

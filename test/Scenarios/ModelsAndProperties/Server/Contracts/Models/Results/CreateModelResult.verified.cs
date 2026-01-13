@@ -5,7 +5,7 @@ namespace ModelsAndProperties.Generated.Results;
 /// Create a new model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateModelResult : IResult
+public sealed class CreateModelResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -5,7 +5,7 @@ namespace ModelsAndProperties.Generated.Results;
 /// Get default values model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetDefaultsResult : IResult
+public sealed class GetDefaultsResult : IResult
 {
     private readonly IResult innerResult;
 

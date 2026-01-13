@@ -17,7 +17,7 @@ namespace VersioningQueryString.Generated.Pets.Endpoints.Results;
 /// Operation: GetPetById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetPetByIdEndpointResult : EndpointResponse, IGetPetByIdEndpointResult
+public sealed class GetPetByIdEndpointResult : EndpointResponse, IGetPetByIdEndpointResult
 {
     public GetPetByIdEndpointResult(EndpointResponse response)
         : base(response)

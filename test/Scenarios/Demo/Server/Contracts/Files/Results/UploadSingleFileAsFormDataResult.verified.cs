@@ -5,7 +5,7 @@ namespace Demo.Generated.Results;
 /// Upload a file as OctetStream.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UploadSingleFileAsFormDataResult : IResult
+public sealed class UploadSingleFileAsFormDataResult : IResult
 {
     private readonly IResult innerResult;
 

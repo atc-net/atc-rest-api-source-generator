@@ -17,7 +17,7 @@ namespace Demo.Generated.Accounts.Endpoints.Results;
 /// Operation: CreateAccount.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateAccountEndpointResult : EndpointResponse, ICreateAccountEndpointResult
+public sealed class CreateAccountEndpointResult : EndpointResponse, ICreateAccountEndpointResult
 {
     public CreateAccountEndpointResult(EndpointResponse response)
         : base(response)

@@ -22,7 +22,7 @@ namespace SecurityOpenIdConnect.Generated.Mes.Endpoints;
 /// Operation: GetCurrentUserProfile.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetCurrentUserProfileEndpoint : IGetCurrentUserProfileEndpoint
+public sealed class GetCurrentUserProfileEndpoint : IGetCurrentUserProfileEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

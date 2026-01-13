@@ -5,7 +5,7 @@ namespace ModelsAndProperties.Generated.Results;
 /// List addresses.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListAddressesResult : IResult
+public sealed class ListAddressesResult : IResult
 {
     private readonly IResult innerResult;
 

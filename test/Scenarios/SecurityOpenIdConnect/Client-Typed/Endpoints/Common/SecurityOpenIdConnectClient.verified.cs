@@ -2,7 +2,7 @@
 namespace SecurityOpenIdConnect.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class SecurityOpenIdConnectClient
+public sealed class SecurityOpenIdConnectClient
 {
     private readonly HttpClient httpClient;
 

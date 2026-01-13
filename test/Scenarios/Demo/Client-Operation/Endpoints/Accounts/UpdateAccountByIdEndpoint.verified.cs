@@ -23,7 +23,7 @@ namespace Demo.Generated.Accounts.Endpoints;
 /// Operation: UpdateAccountById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UpdateAccountByIdEndpoint : IUpdateAccountByIdEndpoint
+public sealed class UpdateAccountByIdEndpoint : IUpdateAccountByIdEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

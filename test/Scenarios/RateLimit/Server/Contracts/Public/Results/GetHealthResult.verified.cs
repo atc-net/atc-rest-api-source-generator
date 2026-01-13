@@ -5,7 +5,7 @@ namespace RateLimit.Generated.Results;
 /// Health check (global rate limit).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetHealthResult : IResult
+public sealed class GetHealthResult : IResult
 {
     private readonly IResult innerResult;
 

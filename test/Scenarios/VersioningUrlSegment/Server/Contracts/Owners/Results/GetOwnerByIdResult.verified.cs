@@ -5,7 +5,7 @@ namespace VersioningUrlSegment.Generated.Results;
 /// Get an owner by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetOwnerByIdResult : IResult
+public sealed class GetOwnerByIdResult : IResult
 {
     private readonly IResult innerResult;
 

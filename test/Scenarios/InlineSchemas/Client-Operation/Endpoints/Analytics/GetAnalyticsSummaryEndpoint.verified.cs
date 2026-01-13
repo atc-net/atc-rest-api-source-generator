@@ -22,7 +22,7 @@ namespace InlineSchemas.Generated.Analytics.Endpoints;
 /// Operation: GetAnalyticsSummary.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetAnalyticsSummaryEndpoint : IGetAnalyticsSummaryEndpoint
+public sealed class GetAnalyticsSummaryEndpoint : IGetAnalyticsSummaryEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

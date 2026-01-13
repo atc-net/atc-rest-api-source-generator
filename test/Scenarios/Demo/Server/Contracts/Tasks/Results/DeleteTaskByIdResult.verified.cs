@@ -5,7 +5,7 @@ namespace Demo.Generated.Results;
 /// Delete a specific task.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeleteTaskByIdResult : IResult
+public sealed class DeleteTaskByIdResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -23,7 +23,7 @@ namespace Demo.Generated.Accounts.Endpoints;
 /// Operation: DeleteAccountById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeleteAccountByIdEndpoint : IDeleteAccountByIdEndpoint
+public sealed class DeleteAccountByIdEndpoint : IDeleteAccountByIdEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

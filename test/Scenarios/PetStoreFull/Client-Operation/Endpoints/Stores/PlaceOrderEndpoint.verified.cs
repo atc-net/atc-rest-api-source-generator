@@ -23,7 +23,7 @@ namespace PetStoreFull.Generated.Stores.Endpoints;
 /// Operation: PlaceOrder.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class PlaceOrderEndpoint : IPlaceOrderEndpoint
+public sealed class PlaceOrderEndpoint : IPlaceOrderEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

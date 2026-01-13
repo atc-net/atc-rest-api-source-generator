@@ -17,7 +17,7 @@ namespace SecurityOpenIdConnect.Generated.Mes.Endpoints.Results;
 /// Operation: GetCurrentUserProfile.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetCurrentUserProfileEndpointResult : EndpointResponse, IGetCurrentUserProfileEndpointResult
+public sealed class GetCurrentUserProfileEndpointResult : EndpointResponse, IGetCurrentUserProfileEndpointResult
 {
     public GetCurrentUserProfileEndpointResult(EndpointResponse response)
         : base(response)

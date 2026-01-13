@@ -17,7 +17,7 @@ namespace SecurityAtcExt.Generated.Reports.Endpoints.Results;
 /// Operation: ListReports.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListReportsEndpointResult : EndpointResponse, IListReportsEndpointResult
+public sealed class ListReportsEndpointResult : EndpointResponse, IListReportsEndpointResult
 {
     public ListReportsEndpointResult(EndpointResponse response)
         : base(response)

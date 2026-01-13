@@ -2,7 +2,7 @@
 namespace VersioningQueryString.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class VersioningQueryStringClient
+public sealed class VersioningQueryStringClient
 {
     private readonly HttpClient httpClient;
 

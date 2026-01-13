@@ -5,7 +5,7 @@ namespace PetStoreFull.Generated.Results;
 /// Finds Pets by tags.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class FindPetsByTagsResult : IResult
+public sealed class FindPetsByTagsResult : IResult
 {
     private readonly IResult innerResult;
 

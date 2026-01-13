@@ -5,7 +5,7 @@ namespace PetStoreFull.Generated.Results;
 /// Add a new pet to the store.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class AddPetResult : IResult
+public sealed class AddPetResult : IResult
 {
     private readonly IResult innerResult;
 

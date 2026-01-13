@@ -5,7 +5,7 @@ namespace RateLimit.Generated.Results;
 /// Send notification (token bucket with queue).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class SendNotificationResult : IResult
+public sealed class SendNotificationResult : IResult
 {
     private readonly IResult innerResult;
 

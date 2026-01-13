@@ -468,7 +468,7 @@ public static class SchemaExtractor
         // Return record with generic type parameter <T>
         var declarationModifier = generatePartialModels
             ? DeclarationModifiers.PublicPartialRecord
-            : DeclarationModifiers.PublicRecord;
+            : DeclarationModifiers.PublicSealedRecord;
 
         return new RecordParameters(
             DocumentationTags: null,
@@ -575,7 +575,7 @@ public static class SchemaExtractor
 
         var declarationModifier = generatePartialModels
             ? DeclarationModifiers.PublicPartialRecord
-            : DeclarationModifiers.PublicRecord;
+            : DeclarationModifiers.PublicSealedRecord;
 
         return new RecordParameters(
             DocumentationTags: null,

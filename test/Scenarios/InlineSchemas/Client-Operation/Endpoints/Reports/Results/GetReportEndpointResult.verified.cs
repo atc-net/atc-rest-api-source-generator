@@ -17,7 +17,7 @@ namespace InlineSchemas.Generated.Reports.Endpoints.Results;
 /// Operation: GetReport.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetReportEndpointResult : EndpointResponse, IGetReportEndpointResult
+public sealed class GetReportEndpointResult : EndpointResponse, IGetReportEndpointResult
 {
     public GetReportEndpointResult(EndpointResponse response)
         : base(response)

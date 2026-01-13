@@ -5,7 +5,7 @@ namespace OpenApi31Features.Generated.Results;
 /// Get coordinates.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetCoordinatesResult : IResult
+public sealed class GetCoordinatesResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -23,7 +23,7 @@ namespace PetStoreFull.Generated.Pets.Endpoints;
 /// Operation: UpdatePetWithForm.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UpdatePetWithFormEndpoint : IUpdatePetWithFormEndpoint
+public sealed class UpdatePetWithFormEndpoint : IUpdatePetWithFormEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

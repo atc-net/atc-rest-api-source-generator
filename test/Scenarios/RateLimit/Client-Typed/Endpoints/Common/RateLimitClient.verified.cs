@@ -2,7 +2,7 @@
 namespace RateLimit.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class RateLimitClient
+public sealed class RateLimitClient
 {
     private readonly HttpClient httpClient;
 

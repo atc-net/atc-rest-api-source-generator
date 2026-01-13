@@ -22,7 +22,7 @@ namespace RateLimit.Generated.Orders.Endpoints;
 /// Operation: ListOrders.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListOrdersEndpoint : IListOrdersEndpoint
+public sealed class ListOrdersEndpoint : IListOrdersEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

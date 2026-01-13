@@ -5,7 +5,7 @@ namespace Demo.Generated.Results;
 /// List all accounts.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListAccountsResult : IResult
+public sealed class ListAccountsResult : IResult
 {
     private readonly IResult innerResult;
 

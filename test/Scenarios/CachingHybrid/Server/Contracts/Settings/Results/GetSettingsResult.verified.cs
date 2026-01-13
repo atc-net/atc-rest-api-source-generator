@@ -5,7 +5,7 @@ namespace CachingHybrid.Generated.Results;
 /// Get settings with in-memory cache only.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetSettingsResult : IResult
+public sealed class GetSettingsResult : IResult
 {
     private readonly IResult innerResult;
 

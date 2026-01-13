@@ -5,7 +5,7 @@ namespace VersioningHeader.Generated.Results;
 /// Create a new owner.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateOwnerResult : IResult
+public sealed class CreateOwnerResult : IResult
 {
     private readonly IResult innerResult;
 

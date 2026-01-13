@@ -17,7 +17,7 @@ namespace SecurityOpenIdConnect.Generated.Resources.Endpoints.Results;
 /// Operation: ListResources.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListResourcesEndpointResult : EndpointResponse, IListResourcesEndpointResult
+public sealed class ListResourcesEndpointResult : EndpointResponse, IListResourcesEndpointResult
 {
     public ListResourcesEndpointResult(EndpointResponse response)
         : base(response)

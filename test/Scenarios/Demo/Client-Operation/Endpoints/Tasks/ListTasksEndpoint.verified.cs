@@ -23,7 +23,7 @@ namespace Demo.Generated.Tasks.Endpoints;
 /// Operation: ListTasks.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListTasksEndpoint : IListTasksEndpoint
+public sealed class ListTasksEndpoint : IListTasksEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

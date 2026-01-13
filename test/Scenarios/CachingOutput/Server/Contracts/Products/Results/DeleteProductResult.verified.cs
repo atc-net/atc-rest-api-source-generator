@@ -5,7 +5,7 @@ namespace CachingOutput.Generated.Results;
 /// Delete product (no caching).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeleteProductResult : IResult
+public sealed class DeleteProductResult : IResult
 {
     private readonly IResult innerResult;
 

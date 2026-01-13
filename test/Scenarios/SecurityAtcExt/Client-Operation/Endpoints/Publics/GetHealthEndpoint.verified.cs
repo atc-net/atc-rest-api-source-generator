@@ -22,7 +22,7 @@ namespace SecurityAtcExt.Generated.Publics.Endpoints;
 /// Operation: GetHealth.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetHealthEndpoint : IGetHealthEndpoint
+public sealed class GetHealthEndpoint : IGetHealthEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

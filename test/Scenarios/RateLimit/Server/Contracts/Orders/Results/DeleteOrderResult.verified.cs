@@ -5,7 +5,7 @@ namespace RateLimit.Generated.Results;
 /// Delete order (strict policy override).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeleteOrderResult : IResult
+public sealed class DeleteOrderResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -5,7 +5,7 @@ namespace PetStoreFull.Generated.Results;
 /// Updates a pet in the store with form data.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UpdatePetWithFormResult : IResult
+public sealed class UpdatePetWithFormResult : IResult
 {
     private readonly IResult innerResult;
 

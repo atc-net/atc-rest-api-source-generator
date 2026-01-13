@@ -22,7 +22,7 @@ namespace InlineSchemas.Generated.Reports.Endpoints;
 /// Operation: ListReports.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListReportsEndpoint : IListReportsEndpoint
+public sealed class ListReportsEndpoint : IListReportsEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

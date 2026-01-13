@@ -5,7 +5,7 @@ namespace Polymorphism.Generated.Results;
 /// List all payments.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListPaymentsResult : IResult
+public sealed class ListPaymentsResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -5,7 +5,7 @@ namespace Demo.Generated.Results;
 /// Upload multi files as form data.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UploadMultiFilesAsFormDataResult : IResult
+public sealed class UploadMultiFilesAsFormDataResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -23,7 +23,7 @@ namespace SecurityStandard.Generated.Users.Endpoints;
 /// Operation: GetUserById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetUserByIdEndpoint : IGetUserByIdEndpoint
+public sealed class GetUserByIdEndpoint : IGetUserByIdEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

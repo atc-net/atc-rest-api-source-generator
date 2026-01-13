@@ -5,7 +5,7 @@ namespace PetStoreFull.Generated.Results;
 /// Logs user into the system.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class LoginUserResult : IResult
+public sealed class LoginUserResult : IResult
 {
     private readonly IResult innerResult;
 

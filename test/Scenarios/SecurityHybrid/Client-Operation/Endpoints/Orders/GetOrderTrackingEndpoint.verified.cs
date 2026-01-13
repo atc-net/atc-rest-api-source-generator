@@ -23,7 +23,7 @@ namespace SecurityHybrid.Generated.Orders.Endpoints;
 /// Operation: GetOrderTracking.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetOrderTrackingEndpoint : IGetOrderTrackingEndpoint
+public sealed class GetOrderTrackingEndpoint : IGetOrderTrackingEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

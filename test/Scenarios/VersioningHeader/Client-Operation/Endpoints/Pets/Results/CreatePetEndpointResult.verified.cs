@@ -17,7 +17,7 @@ namespace VersioningHeader.Generated.Pets.Endpoints.Results;
 /// Operation: CreatePet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreatePetEndpointResult : EndpointResponse, ICreatePetEndpointResult
+public sealed class CreatePetEndpointResult : EndpointResponse, ICreatePetEndpointResult
 {
     public CreatePetEndpointResult(EndpointResponse response)
         : base(response)

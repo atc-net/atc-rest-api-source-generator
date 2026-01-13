@@ -2,7 +2,7 @@
 namespace Demo.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DemoClient
+public sealed class DemoClient
 {
     private readonly HttpClient httpClient;
 

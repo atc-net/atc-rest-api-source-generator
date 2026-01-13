@@ -23,7 +23,7 @@ namespace VersioningUrlSegment.Generated.Pets.Endpoints;
 /// Operation: DeletePet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeletePetEndpoint : IDeletePetEndpoint
+public sealed class DeletePetEndpoint : IDeletePetEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

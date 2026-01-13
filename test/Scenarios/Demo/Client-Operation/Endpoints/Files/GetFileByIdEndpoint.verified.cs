@@ -22,7 +22,7 @@ namespace Demo.Generated.Files.Endpoints;
 /// Operation: GetFileById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetFileByIdEndpoint : IGetFileByIdEndpoint
+public sealed class GetFileByIdEndpoint : IGetFileByIdEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

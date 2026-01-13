@@ -17,7 +17,7 @@ namespace SecurityAtcExt.Generated.Admins.Endpoints.Results;
 /// Operation: UpdateAdminSettings.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UpdateAdminSettingsEndpointResult : EndpointResponse, IUpdateAdminSettingsEndpointResult
+public sealed class UpdateAdminSettingsEndpointResult : EndpointResponse, IUpdateAdminSettingsEndpointResult
 {
     public UpdateAdminSettingsEndpointResult(EndpointResponse response)
         : base(response)

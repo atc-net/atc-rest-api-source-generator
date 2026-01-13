@@ -5,7 +5,7 @@ namespace CachingOutput.Generated.Results;
 /// List categories with vary-by-header.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListCategoriesResult : IResult
+public sealed class ListCategoriesResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -17,7 +17,7 @@ namespace Demo.Generated.Tests.Endpoints.Results;
 /// Operation: CreateTestItemEmpty.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateTestItemEmptyEndpointResult : EndpointResponse, ICreateTestItemEmptyEndpointResult
+public sealed class CreateTestItemEmptyEndpointResult : EndpointResponse, ICreateTestItemEmptyEndpointResult
 {
     public CreateTestItemEmptyEndpointResult(EndpointResponse response)
         : base(response)

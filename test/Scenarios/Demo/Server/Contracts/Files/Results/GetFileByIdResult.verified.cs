@@ -5,7 +5,7 @@ namespace Demo.Generated.Results;
 /// Get File By Id.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetFileByIdResult : IResult
+public sealed class GetFileByIdResult : IResult
 {
     private readonly IResult innerResult;
 

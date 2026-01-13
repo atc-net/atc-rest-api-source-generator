@@ -5,7 +5,7 @@ namespace SecurityStandard.Generated.Results;
 /// List all users.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListUsersResult : IResult
+public sealed class ListUsersResult : IResult
 {
     private readonly IResult innerResult;
 

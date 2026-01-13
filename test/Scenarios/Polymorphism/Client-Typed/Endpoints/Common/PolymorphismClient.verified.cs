@@ -2,7 +2,7 @@
 namespace Polymorphism.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class PolymorphismClient
+public sealed class PolymorphismClient
 {
     private readonly HttpClient httpClient;
 

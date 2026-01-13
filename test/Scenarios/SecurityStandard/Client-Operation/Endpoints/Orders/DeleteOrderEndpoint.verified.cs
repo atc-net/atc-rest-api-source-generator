@@ -23,7 +23,7 @@ namespace SecurityStandard.Generated.Orders.Endpoints;
 /// Operation: DeleteOrder.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeleteOrderEndpoint : IDeleteOrderEndpoint
+public sealed class DeleteOrderEndpoint : IDeleteOrderEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

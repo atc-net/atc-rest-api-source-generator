@@ -5,7 +5,7 @@ namespace OpenApi31Features.Generated.Results;
 /// Get RGB colors.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetColorsResult : IResult
+public sealed class GetColorsResult : IResult
 {
     private readonly IResult innerResult;
 

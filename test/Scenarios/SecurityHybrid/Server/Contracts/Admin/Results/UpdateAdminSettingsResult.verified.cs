@@ -5,7 +5,7 @@ namespace SecurityHybrid.Generated.Results;
 /// Update admin settings.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UpdateAdminSettingsResult : IResult
+public sealed class UpdateAdminSettingsResult : IResult
 {
     private readonly IResult innerResult;
 

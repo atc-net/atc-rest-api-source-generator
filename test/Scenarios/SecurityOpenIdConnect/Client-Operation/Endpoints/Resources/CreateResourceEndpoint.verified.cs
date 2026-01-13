@@ -23,7 +23,7 @@ namespace SecurityOpenIdConnect.Generated.Resources.Endpoints;
 /// Operation: CreateResource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateResourceEndpoint : ICreateResourceEndpoint
+public sealed class CreateResourceEndpoint : ICreateResourceEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

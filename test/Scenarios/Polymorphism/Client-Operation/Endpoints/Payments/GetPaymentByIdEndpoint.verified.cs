@@ -23,7 +23,7 @@ namespace Polymorphism.Generated.Payments.Endpoints;
 /// Operation: GetPaymentById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetPaymentByIdEndpoint : IGetPaymentByIdEndpoint
+public sealed class GetPaymentByIdEndpoint : IGetPaymentByIdEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

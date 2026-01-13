@@ -17,7 +17,7 @@ namespace Polymorphism.Generated.Notifications.Endpoints.Results;
 /// Operation: ListNotifications.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListNotificationsEndpointResult : EndpointResponse, IListNotificationsEndpointResult
+public sealed class ListNotificationsEndpointResult : EndpointResponse, IListNotificationsEndpointResult
 {
     public ListNotificationsEndpointResult(EndpointResponse response)
         : base(response)

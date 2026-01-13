@@ -23,7 +23,7 @@ namespace PetStoreFull.Generated.Users.Endpoints;
 /// Operation: CreateUsersWithListInput.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateUsersWithListInputEndpoint : ICreateUsersWithListInputEndpoint
+public sealed class CreateUsersWithListInputEndpoint : ICreateUsersWithListInputEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

@@ -23,7 +23,7 @@ namespace SecurityOpenIdConnect.Generated.Resources.Endpoints;
 /// Operation: DeleteResource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeleteResourceEndpoint : IDeleteResourceEndpoint
+public sealed class DeleteResourceEndpoint : IDeleteResourceEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

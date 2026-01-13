@@ -5,7 +5,7 @@ namespace Demo.Generated.Results;
 /// Create and return location header.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateTestItemWithLocationHeaderResult : IResult
+public sealed class CreateTestItemWithLocationHeaderResult : IResult
 {
     private readonly IResult innerResult;
 

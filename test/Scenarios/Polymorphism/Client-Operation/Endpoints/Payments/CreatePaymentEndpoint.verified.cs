@@ -23,7 +23,7 @@ namespace Polymorphism.Generated.Payments.Endpoints;
 /// Operation: CreatePayment.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreatePaymentEndpoint : ICreatePaymentEndpoint
+public sealed class CreatePaymentEndpoint : ICreatePaymentEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

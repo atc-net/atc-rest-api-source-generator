@@ -5,7 +5,7 @@ namespace OpenApi31Features.Generated.Results;
 /// Create a document with base64 content.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateDocumentResult : IResult
+public sealed class CreateDocumentResult : IResult
 {
     private readonly IResult innerResult;
 

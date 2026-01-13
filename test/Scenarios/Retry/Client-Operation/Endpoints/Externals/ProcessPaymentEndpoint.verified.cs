@@ -23,7 +23,7 @@ namespace Retry.Generated.Externals.Endpoints;
 /// Operation: ProcessPayment.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ProcessPaymentEndpoint : IProcessPaymentEndpoint
+public sealed class ProcessPaymentEndpoint : IProcessPaymentEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

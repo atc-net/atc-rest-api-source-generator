@@ -78,7 +78,7 @@ public static class WebhookResultExtractor
         sb.AppendLine($"/// Result type for the {webhookName} webhook handler.");
         sb.AppendLine("/// </summary>");
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-        sb.AppendLine($"public class {className} : IResult");
+        sb.AppendLine($"public sealed class {className} : IResult");
         sb.AppendLine("{");
         sb.AppendLine(4, "private readonly IResult innerResult;");
         sb.AppendLine();

@@ -5,7 +5,7 @@ namespace CachingHybrid.Generated.Results;
 /// Get user by ID with HybridCache and sliding expiration.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetUserByIdResult : IResult
+public sealed class GetUserByIdResult : IResult
 {
     private readonly IResult innerResult;
 

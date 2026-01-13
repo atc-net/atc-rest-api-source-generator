@@ -2,7 +2,7 @@
 namespace VersioningUrlSegment.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class VersioningUrlSegmentClient
+public sealed class VersioningUrlSegmentClient
 {
     private readonly HttpClient httpClient;
 

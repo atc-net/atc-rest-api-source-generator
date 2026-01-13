@@ -91,7 +91,7 @@ public static class CustomErrorResponseExtractor
             {
                 new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
             },
-            DeclarationModifier: DeclarationModifiers.PublicClass,
+            DeclarationModifier: DeclarationModifiers.PublicSealedClass,
             ClassTypeName: config.Name,
             GenericTypeName: null,
             InheritedClassTypeName: null,

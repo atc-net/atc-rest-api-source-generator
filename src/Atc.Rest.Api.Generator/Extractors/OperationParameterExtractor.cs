@@ -545,7 +545,7 @@ public static class OperationParameterExtractor
 
         return new RecordParameters(
             DocumentationTags: recordDoc,
-            DeclarationModifier: DeclarationModifiers.PublicRecord,
+            DeclarationModifier: DeclarationModifiers.PublicSealedRecord,
             Name: recordName,
             Parameters: sortedParameters);
     }

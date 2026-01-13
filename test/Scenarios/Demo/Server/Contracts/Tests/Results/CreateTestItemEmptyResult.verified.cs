@@ -5,7 +5,7 @@ namespace Demo.Generated.Results;
 /// Create with empty response.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateTestItemEmptyResult : IResult
+public sealed class CreateTestItemEmptyResult : IResult
 {
     private readonly IResult innerResult;
 

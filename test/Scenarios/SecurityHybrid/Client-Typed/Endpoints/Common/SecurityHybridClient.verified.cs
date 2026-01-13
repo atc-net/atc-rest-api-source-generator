@@ -2,7 +2,7 @@
 namespace SecurityHybrid.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class SecurityHybridClient
+public sealed class SecurityHybridClient
 {
     private readonly HttpClient httpClient;
 

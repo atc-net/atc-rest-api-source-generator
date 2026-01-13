@@ -5,7 +5,7 @@ namespace VersioningHeader.Generated.Results;
 /// Get a pet by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetPetByIdResult : IResult
+public sealed class GetPetByIdResult : IResult
 {
     private readonly IResult innerResult;
 

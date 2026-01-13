@@ -5,7 +5,7 @@ namespace SecurityStandard.Generated.Results;
 /// Get user by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetUserByIdResult : IResult
+public sealed class GetUserByIdResult : IResult
 {
     private readonly IResult innerResult;
 

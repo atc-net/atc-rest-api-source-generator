@@ -13,7 +13,7 @@ public static class ClassParametersFactory
             Namespace: @namespace,
             DocumentationTags: null,
             Attributes: new List<AttributeParameters> { attribute },
-            usePartialClass ? DeclarationModifiers.PublicPartialClass : DeclarationModifiers.PublicClass,
+            usePartialClass ? DeclarationModifiers.PublicPartialClass : DeclarationModifiers.PublicSealedClass,
             ClassTypeName: classTypeName,
             GenericTypeName: null,
             InheritedClassTypeName: null,

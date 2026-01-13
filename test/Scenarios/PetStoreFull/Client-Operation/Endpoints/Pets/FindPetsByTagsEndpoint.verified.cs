@@ -23,7 +23,7 @@ namespace PetStoreFull.Generated.Pets.Endpoints;
 /// Operation: FindPetsByTags.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class FindPetsByTagsEndpoint : IFindPetsByTagsEndpoint
+public sealed class FindPetsByTagsEndpoint : IFindPetsByTagsEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

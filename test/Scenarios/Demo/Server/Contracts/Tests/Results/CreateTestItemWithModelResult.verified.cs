@@ -5,7 +5,7 @@ namespace Demo.Generated.Results;
 /// Create and return the created model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateTestItemWithModelResult : IResult
+public sealed class CreateTestItemWithModelResult : IResult
 {
     private readonly IResult innerResult;
 

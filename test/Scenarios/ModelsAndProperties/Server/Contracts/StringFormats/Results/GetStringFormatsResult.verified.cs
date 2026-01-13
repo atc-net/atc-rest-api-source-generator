@@ -5,7 +5,7 @@ namespace ModelsAndProperties.Generated.Results;
 /// Get string format types.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetStringFormatsResult : IResult
+public sealed class GetStringFormatsResult : IResult
 {
     private readonly IResult innerResult;
 

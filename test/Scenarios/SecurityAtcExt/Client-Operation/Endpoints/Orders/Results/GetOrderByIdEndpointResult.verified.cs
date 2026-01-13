@@ -17,7 +17,7 @@ namespace SecurityAtcExt.Generated.Orders.Endpoints.Results;
 /// Operation: GetOrderById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetOrderByIdEndpointResult : EndpointResponse, IGetOrderByIdEndpointResult
+public sealed class GetOrderByIdEndpointResult : EndpointResponse, IGetOrderByIdEndpointResult
 {
     public GetOrderByIdEndpointResult(EndpointResponse response)
         : base(response)

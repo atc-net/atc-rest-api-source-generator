@@ -23,7 +23,7 @@ namespace Demo.Generated.Tasks.Endpoints;
 /// Operation: DeleteTaskById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeleteTaskByIdEndpoint : IDeleteTaskByIdEndpoint
+public sealed class DeleteTaskByIdEndpoint : IDeleteTaskByIdEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

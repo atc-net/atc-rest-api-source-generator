@@ -17,7 +17,7 @@ namespace Demo.Generated.Accounts.Endpoints.Results;
 /// Operation: DeleteAccountById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeleteAccountByIdEndpointResult : EndpointResponse, IDeleteAccountByIdEndpointResult
+public sealed class DeleteAccountByIdEndpointResult : EndpointResponse, IDeleteAccountByIdEndpointResult
 {
     public DeleteAccountByIdEndpointResult(EndpointResponse response)
         : base(response)

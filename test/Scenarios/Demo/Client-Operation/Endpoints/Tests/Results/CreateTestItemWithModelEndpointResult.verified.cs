@@ -17,7 +17,7 @@ namespace Demo.Generated.Tests.Endpoints.Results;
 /// Operation: CreateTestItemWithModel.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateTestItemWithModelEndpointResult : EndpointResponse, ICreateTestItemWithModelEndpointResult
+public sealed class CreateTestItemWithModelEndpointResult : EndpointResponse, ICreateTestItemWithModelEndpointResult
 {
     public CreateTestItemWithModelEndpointResult(EndpointResponse response)
         : base(response)

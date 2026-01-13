@@ -5,7 +5,7 @@ namespace Polymorphism.Generated.Results;
 /// Create a payment.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreatePaymentResult : IResult
+public sealed class CreatePaymentResult : IResult
 {
     private readonly IResult innerResult;
 

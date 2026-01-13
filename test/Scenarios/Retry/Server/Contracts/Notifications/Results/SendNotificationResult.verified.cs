@@ -5,7 +5,7 @@ namespace Retry.Generated.Results;
 /// Send notification (constant backoff).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class SendNotificationResult : IResult
+public sealed class SendNotificationResult : IResult
 {
     private readonly IResult innerResult;
 

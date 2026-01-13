@@ -17,7 +17,7 @@ namespace SecurityStandard.Generated.Publics.Endpoints.Results;
 /// Operation: GetHealth.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetHealthEndpointResult : EndpointResponse, IGetHealthEndpointResult
+public sealed class GetHealthEndpointResult : EndpointResponse, IGetHealthEndpointResult
 {
     public GetHealthEndpointResult(EndpointResponse response)
         : base(response)

@@ -23,7 +23,7 @@ namespace VersioningUrlSegment.Generated.Owners.Endpoints;
 /// Operation: GetOwnerById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetOwnerByIdEndpoint : IGetOwnerByIdEndpoint
+public sealed class GetOwnerByIdEndpoint : IGetOwnerByIdEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

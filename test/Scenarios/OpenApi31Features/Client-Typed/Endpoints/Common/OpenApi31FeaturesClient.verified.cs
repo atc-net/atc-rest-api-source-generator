@@ -2,7 +2,7 @@
 namespace OpenApi31Features.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class OpenApi31FeaturesClient
+public sealed class OpenApi31FeaturesClient
 {
     private readonly HttpClient httpClient;
 

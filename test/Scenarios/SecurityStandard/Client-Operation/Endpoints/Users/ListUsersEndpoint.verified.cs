@@ -22,7 +22,7 @@ namespace SecurityStandard.Generated.Users.Endpoints;
 /// Operation: ListUsers.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListUsersEndpoint : IListUsersEndpoint
+public sealed class ListUsersEndpoint : IListUsersEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

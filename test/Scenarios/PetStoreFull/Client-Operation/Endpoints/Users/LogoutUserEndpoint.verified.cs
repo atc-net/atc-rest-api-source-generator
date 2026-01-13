@@ -22,7 +22,7 @@ namespace PetStoreFull.Generated.Users.Endpoints;
 /// Operation: LogoutUser.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class LogoutUserEndpoint : ILogoutUserEndpoint
+public sealed class LogoutUserEndpoint : ILogoutUserEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

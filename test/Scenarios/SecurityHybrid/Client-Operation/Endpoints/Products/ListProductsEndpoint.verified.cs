@@ -22,7 +22,7 @@ namespace SecurityHybrid.Generated.Products.Endpoints;
 /// Operation: ListProducts.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListProductsEndpoint : IListProductsEndpoint
+public sealed class ListProductsEndpoint : IListProductsEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

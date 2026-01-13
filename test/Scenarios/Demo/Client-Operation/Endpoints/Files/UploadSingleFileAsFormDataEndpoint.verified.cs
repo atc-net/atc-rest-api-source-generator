@@ -23,7 +23,7 @@ namespace Demo.Generated.Files.Endpoints;
 /// Operation: UploadSingleFileAsFormData.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UploadSingleFileAsFormDataEndpoint : IUploadSingleFileAsFormDataEndpoint
+public sealed class UploadSingleFileAsFormDataEndpoint : IUploadSingleFileAsFormDataEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

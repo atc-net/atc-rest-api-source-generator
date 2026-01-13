@@ -23,7 +23,7 @@ namespace Polymorphism.Generated.Notifications.Endpoints;
 /// Operation: SendNotification.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class SendNotificationEndpoint : ISendNotificationEndpoint
+public sealed class SendNotificationEndpoint : ISendNotificationEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

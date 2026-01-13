@@ -5,7 +5,7 @@ namespace SecurityStandard.Generated.Results;
 /// List all orders.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListOrdersResult : IResult
+public sealed class ListOrdersResult : IResult
 {
     private readonly IResult innerResult;
 

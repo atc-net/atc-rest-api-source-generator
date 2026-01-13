@@ -22,7 +22,7 @@ namespace PetStoreSimple.Generated.Pets.Endpoints;
 /// Operation: CreatePets.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreatePetsEndpoint : ICreatePetsEndpoint
+public sealed class CreatePetsEndpoint : ICreatePetsEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

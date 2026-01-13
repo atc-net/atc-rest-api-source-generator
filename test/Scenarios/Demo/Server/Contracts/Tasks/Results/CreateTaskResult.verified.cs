@@ -5,7 +5,7 @@ namespace Demo.Generated.Results;
 /// Create task.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateTaskResult : IResult
+public sealed class CreateTaskResult : IResult
 {
     private readonly IResult innerResult;
 

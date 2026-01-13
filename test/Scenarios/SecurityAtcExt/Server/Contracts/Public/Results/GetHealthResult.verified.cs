@@ -5,7 +5,7 @@ namespace SecurityAtcExt.Generated.Results;
 /// Health check (public).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetHealthResult : IResult
+public sealed class GetHealthResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -17,7 +17,7 @@ namespace VersioningQueryString.Generated.Owners.Endpoints.Results;
 /// Operation: CreateOwner.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateOwnerEndpointResult : EndpointResponse, ICreateOwnerEndpointResult
+public sealed class CreateOwnerEndpointResult : EndpointResponse, ICreateOwnerEndpointResult
 {
     public CreateOwnerEndpointResult(EndpointResponse response)
         : base(response)

@@ -5,7 +5,7 @@ namespace VersioningQueryString.Generated.Results;
 /// List all owners.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListOwnersResult : IResult
+public sealed class ListOwnersResult : IResult
 {
     private readonly IResult innerResult;
 

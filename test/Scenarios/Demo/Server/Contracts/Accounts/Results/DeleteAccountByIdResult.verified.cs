@@ -5,7 +5,7 @@ namespace Demo.Generated.Results;
 /// Delete a specific account.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeleteAccountByIdResult : IResult
+public sealed class DeleteAccountByIdResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -23,7 +23,7 @@ namespace VersioningHeader.Generated.Pets.Endpoints;
 /// Operation: CreatePet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreatePetEndpoint : ICreatePetEndpoint
+public sealed class CreatePetEndpoint : ICreatePetEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

@@ -17,7 +17,7 @@ namespace SecurityOpenIdConnect.Generated.Resources.Endpoints.Results;
 /// Operation: DeleteResource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeleteResourceEndpointResult : EndpointResponse, IDeleteResourceEndpointResult
+public sealed class DeleteResourceEndpointResult : EndpointResponse, IDeleteResourceEndpointResult
 {
     public DeleteResourceEndpointResult(EndpointResponse response)
         : base(response)

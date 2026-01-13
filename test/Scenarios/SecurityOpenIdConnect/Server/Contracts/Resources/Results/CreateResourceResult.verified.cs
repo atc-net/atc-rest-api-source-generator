@@ -5,7 +5,7 @@ namespace SecurityOpenIdConnect.Generated.Results;
 /// Create a new resource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateResourceResult : IResult
+public sealed class CreateResourceResult : IResult
 {
     private readonly IResult innerResult;
 

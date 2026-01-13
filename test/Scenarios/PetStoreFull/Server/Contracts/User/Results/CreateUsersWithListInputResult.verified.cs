@@ -5,7 +5,7 @@ namespace PetStoreFull.Generated.Results;
 /// Creates list of users with given input array.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateUsersWithListInputResult : IResult
+public sealed class CreateUsersWithListInputResult : IResult
 {
     private readonly IResult innerResult;
 

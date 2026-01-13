@@ -5,7 +5,7 @@ namespace ModelsAndProperties.Generated.Results;
 /// Get validation constraints model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetValidationsResult : IResult
+public sealed class GetValidationsResult : IResult
 {
     private readonly IResult innerResult;
 

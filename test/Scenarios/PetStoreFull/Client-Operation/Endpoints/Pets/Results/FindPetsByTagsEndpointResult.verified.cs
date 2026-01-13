@@ -17,7 +17,7 @@ namespace PetStoreFull.Generated.Pets.Endpoints.Results;
 /// Operation: FindPetsByTags.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class FindPetsByTagsEndpointResult : EndpointResponse, IFindPetsByTagsEndpointResult
+public sealed class FindPetsByTagsEndpointResult : EndpointResponse, IFindPetsByTagsEndpointResult
 {
     public FindPetsByTagsEndpointResult(EndpointResponse response)
         : base(response)

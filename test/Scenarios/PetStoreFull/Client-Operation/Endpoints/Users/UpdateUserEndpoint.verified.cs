@@ -23,7 +23,7 @@ namespace PetStoreFull.Generated.Users.Endpoints;
 /// Operation: UpdateUser.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UpdateUserEndpoint : IUpdateUserEndpoint
+public sealed class UpdateUserEndpoint : IUpdateUserEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;
