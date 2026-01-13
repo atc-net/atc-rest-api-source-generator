@@ -429,7 +429,12 @@ public static class OperationParameterExtractor
             if (requestBodySchema != null)
             {
                 var (isFile, isCollection) = requestBodySchema.GetFileUploadInfo();
-                var isRequired = operation.RequestBody?.Required ?? false;
+
+                // Request bodies are always treated as required to match old generator behavior.
+                // The OpenAPI spec defaults requestBody.required to false, but we can't easily
+                // distinguish between "explicitly set to false" and "defaulted to false".
+                // If you need optional request bodies, use a nullable schema type in your spec.
+                var isRequired = true;
 
                 // Only treat as direct file upload if the schema itself is binary/file type
                 // Schema references (like FileAsFormDataRequest) should use Request pattern even with multipart/form-data

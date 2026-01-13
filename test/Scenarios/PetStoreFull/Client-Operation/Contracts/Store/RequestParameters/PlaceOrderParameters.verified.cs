@@ -2,4 +2,4 @@
 namespace PetStoreFull.Generated.Parameters;
 
 public record PlaceOrderParameters(
-    [property: FromBody] Order? Request);
+    [property: FromBody, Required] Order Request);

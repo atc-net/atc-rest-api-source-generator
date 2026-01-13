@@ -2,4 +2,4 @@
 namespace Demo.Generated.Parameters;
 
 public record UploadMultiFilesAsFormDataParameters(
-    IFormFileCollection? File);
+    [property: Required] IFormFileCollection File);
