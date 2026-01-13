@@ -36,8 +36,8 @@ public class GetUserByNameResult : IResult
     /// <summary>
     /// 404 Not Found - User not found.
     /// </summary>
-    public static GetUserByNameResult NotFound()
-        => new(TypedResults.NotFound());
+    public static GetUserByNameResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     /// <summary>
     /// Default error response - Unexpected error.

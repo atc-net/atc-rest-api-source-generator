@@ -27,8 +27,8 @@ public class GetModelByIdResult : IResult
     /// <summary>
     /// 404 Not Found - Model not found.
     /// </summary>
-    public static GetModelByIdResult NotFound()
-        => new(TypedResults.NotFound());
+    public static GetModelByIdResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

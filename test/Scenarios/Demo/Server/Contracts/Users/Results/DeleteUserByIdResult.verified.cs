@@ -24,8 +24,8 @@ public class DeleteUserByIdResult : IResult
     /// <summary>
     /// 404 Not Found - User not found.
     /// </summary>
-    public static DeleteUserByIdResult NotFound()
-        => new(TypedResults.NotFound());
+    public static DeleteUserByIdResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

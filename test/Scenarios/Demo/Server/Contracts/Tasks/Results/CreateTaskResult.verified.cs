@@ -27,11 +27,8 @@ public class CreateTaskResult : IResult
     /// <summary>
     /// 409 Conflict - Task conflict.
     /// </summary>
-    public static CreateTaskResult Conflict(ProblemDetails? error = null)
-        => new(
-                error is null
-                    ? TypedResults.Conflict()
-                    : TypedResults.Conflict(error));
+    public static CreateTaskResult Conflict(string? message = null)
+        => new(TypedResults.Conflict(message));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

@@ -36,8 +36,8 @@ public class GetOrderByIdResult : IResult
     /// <summary>
     /// 404 Not Found - Order not found.
     /// </summary>
-    public static GetOrderByIdResult NotFound()
-        => new(TypedResults.NotFound());
+    public static GetOrderByIdResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     /// <summary>
     /// Default error response - Unexpected error.

@@ -36,11 +36,8 @@ public class CreateUserResult : IResult
     /// <summary>
     /// 409 Conflict - User with this email already exists.
     /// </summary>
-    public static CreateUserResult Conflict(ProblemDetails? error = null)
-        => new(
-                error is null
-                    ? TypedResults.Conflict()
-                    : TypedResults.Conflict(error));
+    public static CreateUserResult Conflict(string? message = null)
+        => new(TypedResults.Conflict(message));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

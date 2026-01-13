@@ -27,8 +27,8 @@ public class GetPaymentByIdResult : IResult
     /// <summary>
     /// 404 Not Found - Payment not found.
     /// </summary>
-    public static GetPaymentByIdResult NotFound()
-        => new(TypedResults.NotFound());
+    public static GetPaymentByIdResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

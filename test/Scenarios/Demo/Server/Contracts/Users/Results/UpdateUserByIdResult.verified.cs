@@ -36,17 +36,14 @@ public class UpdateUserByIdResult : IResult
     /// <summary>
     /// 404 Not Found - User not found.
     /// </summary>
-    public static UpdateUserByIdResult NotFound()
-        => new(TypedResults.NotFound());
+    public static UpdateUserByIdResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     /// <summary>
     /// 409 Conflict - Email already in use.
     /// </summary>
-    public static UpdateUserByIdResult Conflict(ProblemDetails? error = null)
-        => new(
-                error is null
-                    ? TypedResults.Conflict()
-                    : TypedResults.Conflict(error));
+    public static UpdateUserByIdResult Conflict(string? message = null)
+        => new(TypedResults.Conflict(message));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

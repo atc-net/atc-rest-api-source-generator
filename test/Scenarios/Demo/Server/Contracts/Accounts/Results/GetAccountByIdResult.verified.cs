@@ -27,8 +27,8 @@ public class GetAccountByIdResult : IResult
     /// <summary>
     /// 404 Not Found - Account not found.
     /// </summary>
-    public static GetAccountByIdResult NotFound()
-        => new(TypedResults.NotFound());
+    public static GetAccountByIdResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

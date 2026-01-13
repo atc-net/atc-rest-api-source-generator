@@ -33,8 +33,8 @@ public class GetResourceByIdResult : IResult
     /// <summary>
     /// 404 Not Found - Not Found.
     /// </summary>
-    public static GetResourceByIdResult NotFound()
-        => new(TypedResults.NotFound());
+    public static GetResourceByIdResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

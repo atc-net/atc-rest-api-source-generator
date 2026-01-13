@@ -24,8 +24,8 @@ public class DeleteTaskByIdResult : IResult
     /// <summary>
     /// 404 Not Found - Task not found.
     /// </summary>
-    public static DeleteTaskByIdResult NotFound()
-        => new(TypedResults.NotFound());
+    public static DeleteTaskByIdResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

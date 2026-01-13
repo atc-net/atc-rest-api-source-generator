@@ -348,6 +348,10 @@ public static class ResultClassExtractor
         {
             methods.Add(GenerateConflictMethod(className, description, contentType));
         }
+        else if (statusCode == "412")
+        {
+            methods.Add(GeneratePreconditionFailedMethod(className, description));
+        }
         else if (statusCode == "429")
         {
             methods.Add(GenerateTooManyRequestsMethod(className, description));
@@ -441,6 +445,9 @@ public static class ResultClassExtractor
                 }
             }
 
+            // Use "message" for string types, "response" for complex types
+            var paramName = parameterType == "string" ? "message" : "response";
+
             // Factory method with parameter
             var okMethod = new MethodParameters(
                 DocumentationTags: doc,
@@ -458,12 +465,12 @@ public static class ResultClassExtractor
                         TypeName: parameterType,
                         IsNullableType: false,
                         IsReferenceType: true,
-                        Name: "response",
+                        Name: paramName,
                         DefaultValue: null),
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: "new(TypedResults.Ok(response))");
+                Content: $"new(TypedResults.Ok({paramName}))");
             methods.Add(okMethod);
 
             // Add implicit conversion if content type is List<T> or single object (but not 'object' base type)
@@ -526,7 +533,7 @@ public static class ResultClassExtractor
                 }
                 else
                 {
-                    // Single type implicit operator
+                    // Single type implicit operator - use same parameter name as Ok method
                     var implicitOperator = new MethodParameters(
                         DocumentationTags: null,
                         Attributes: null,
@@ -543,12 +550,12 @@ public static class ResultClassExtractor
                                 TypeName: contentType,
                                 IsNullableType: false,
                                 IsReferenceType: true,
-                                Name: "response",
+                                Name: paramName,
                                 DefaultValue: null),
                         },
                         AlwaysBreakDownParameters: false,
                         UseExpressionBody: true,
-                        Content: "Ok(response)");
+                        Content: $"Ok({paramName})");
                     methods.Add(implicitOperator);
                 }
             }
@@ -690,32 +697,6 @@ public static class ResultClassExtractor
     {
         var doc = new CodeDocumentationTags($"404 Not Found - {description}");
 
-        if (!string.IsNullOrEmpty(contentType))
-        {
-            return new MethodParameters(
-                DocumentationTags: doc,
-                Attributes: null,
-                DeclarationModifier: DeclarationModifiers.PublicStatic,
-                ReturnGenericTypeName: null,
-                ReturnTypeName: className,
-                Name: "NotFound",
-                Parameters: new List<ParameterBaseParameters>
-                {
-                    new(
-                        Attributes: null,
-                        GenericTypeName: null,
-                        IsGenericListType: false,
-                        TypeName: contentType!,
-                        IsNullableType: true,
-                        IsReferenceType: true,
-                        Name: "error",
-                        DefaultValue: "null"),
-                },
-                AlwaysBreakDownParameters: false,
-                UseExpressionBody: true,
-                Content: "new(error != null ? TypedResults.NotFound(error) : TypedResults.NotFound())");
-        }
-
         return new MethodParameters(
             DocumentationTags: doc,
             Attributes: null,
@@ -723,10 +704,21 @@ public static class ResultClassExtractor
             ReturnGenericTypeName: null,
             ReturnTypeName: className,
             Name: "NotFound",
-            Parameters: null,
+            Parameters: new List<ParameterBaseParameters>
+            {
+                new(
+                    Attributes: null,
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: "string",
+                    IsNullableType: true,
+                    IsReferenceType: true,
+                    Name: "message",
+                    DefaultValue: "null"),
+            },
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: "new(TypedResults.NotFound())");
+            Content: "new(TypedResults.NotFound(message))");
     }
 
     private static MethodParameters GenerateErrorMethod(
@@ -912,7 +904,6 @@ public static class ResultClassExtractor
         string? contentType)
     {
         var doc = new CodeDocumentationTags($"409 Conflict - {description}");
-        var errorTypeName = !string.IsNullOrEmpty(contentType) ? contentType : "ProblemDetails";
 
         return new MethodParameters(
             DocumentationTags: doc,
@@ -927,15 +918,34 @@ public static class ResultClassExtractor
                     Attributes: null,
                     GenericTypeName: null,
                     IsGenericListType: false,
-                    TypeName: errorTypeName!,
+                    TypeName: "string",
                     IsNullableType: true,
                     IsReferenceType: true,
-                    Name: "error",
+                    Name: "message",
                     DefaultValue: "null"),
             },
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: $"new(\n        error is null\n            ? TypedResults.Conflict()\n            : TypedResults.Conflict(error))");
+            Content: "new(TypedResults.Conflict(message))");
+    }
+
+    private static MethodParameters GeneratePreconditionFailedMethod(
+        string className,
+        string description)
+    {
+        var doc = new CodeDocumentationTags($"412 Precondition Failed - {description}");
+
+        return new MethodParameters(
+            DocumentationTags: doc,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.PublicStatic,
+            ReturnGenericTypeName: null,
+            ReturnTypeName: className,
+            Name: "PreconditionFailed",
+            Parameters: null,
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: true,
+            Content: "new(TypedResults.StatusCode(StatusCodes.Status412PreconditionFailed))");
     }
 
     private static MethodParameters GenerateTooManyRequestsMethod(
