@@ -381,6 +381,113 @@ public class OperationParameterExtractorTests
         Assert.Equal("List<DeviceType>", param.TypeName);
     }
 
+    [Fact]
+    public void Extract_WithRequestBodyWithoutExplicitRequired_DefaultsToRequired()
+    {
+        // Arrange - request body without explicit 'required' property
+        // Per our generator convention (deviating from OpenAPI spec), defaults to required
+        var yaml = """
+            openapi: 3.0.0
+            info:
+              title: Test API
+              version: 1.0.0
+            paths:
+              /items:
+                post:
+                  operationId: createItem
+                  requestBody:
+                    content:
+                      application/json:
+                        schema:
+                          $ref: '#/components/schemas/CreateItemRequest'
+                  responses:
+                    '201':
+                      description: Created
+            components:
+              schemas:
+                CreateItemRequest:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var recordsParams = OperationParameterExtractor.Extract(
+            document!,
+            "TestApi",
+            "Items",
+            registry: null,
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(recordsParams);
+        var param = recordsParams.Parameters[0].Parameters![0];
+        Assert.Equal("Request", param.Name);
+        Assert.Equal("CreateItemRequest", param.TypeName);
+        Assert.False(param.IsNullableType); // Should NOT be nullable (required by default)
+        Assert.NotNull(param.Attributes);
+        Assert.Contains(param.Attributes, a => a.Name == "Required"); // Should have Required attribute
+    }
+
+    [Fact]
+    public void Extract_WithRequestBodyExplicitlyNotRequired_StillTreatsAsRequired()
+    {
+        // Arrange - request body with explicit 'required: false'
+        // Note: We intentionally ignore the required field and always treat request bodies as required
+        // to match old generator behavior and because we can't distinguish between
+        // "explicitly false" and "defaulted to false" in the OpenAPI parser.
+        var yaml = """
+            openapi: 3.0.0
+            info:
+              title: Test API
+              version: 1.0.0
+            paths:
+              /items:
+                post:
+                  operationId: createItem
+                  requestBody:
+                    required: false
+                    content:
+                      application/json:
+                        schema:
+                          $ref: '#/components/schemas/CreateItemRequest'
+                  responses:
+                    '201':
+                      description: Created
+            components:
+              schemas:
+                CreateItemRequest:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var recordsParams = OperationParameterExtractor.Extract(
+            document!,
+            "TestApi",
+            "Items",
+            registry: null,
+            includeDeprecated: false);
+
+        // Assert - request bodies are always required, even if spec says required: false
+        Assert.NotNull(recordsParams);
+        var param = recordsParams.Parameters[0].Parameters![0];
+        Assert.Equal("Request", param.Name);
+        Assert.Equal("CreateItemRequest", param.TypeName);
+        Assert.False(param.IsNullableType); // Always non-nullable (required)
+        Assert.NotNull(param.Attributes);
+        Assert.Contains(param.Attributes, a => a.Name == "Required"); // Always has Required attribute
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

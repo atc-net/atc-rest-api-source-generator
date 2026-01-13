@@ -4,4 +4,4 @@ namespace PetStoreFull.Generated.Parameters;
 public record UploadFileParameters(
     [property: FromRoute(Name = "petId"), Required] long PetId,
     [property: FromQuery(Name = "additionalMetadata")] string? AdditionalMetadata,
-    [property: FromBody] Stream? File);
+    [property: FromBody, Required] Stream File);

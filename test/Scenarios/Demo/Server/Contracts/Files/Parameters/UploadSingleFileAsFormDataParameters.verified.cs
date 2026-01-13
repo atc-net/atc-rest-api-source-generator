@@ -2,4 +2,4 @@
 namespace Demo.Generated.Parameters;
 
 public record UploadSingleFileAsFormDataParameters(
-    [property: FromBody] Stream? File);
+    [property: FromBody, Required] Stream File);

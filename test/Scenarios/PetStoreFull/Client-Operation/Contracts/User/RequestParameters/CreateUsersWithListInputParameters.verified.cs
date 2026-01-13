@@ -2,4 +2,4 @@
 namespace PetStoreFull.Generated.Parameters;
 
 public record CreateUsersWithListInputParameters(
-    [property: FromBody] List<User>? Request);
+    [property: FromBody, Required] List<User> Request);

@@ -2,4 +2,4 @@
 namespace PetStoreFull.Generated.Parameters;
 
 public record CreateUserParameters(
-    [property: FromBody] User? Request);
+    [property: FromBody, Required] User Request);

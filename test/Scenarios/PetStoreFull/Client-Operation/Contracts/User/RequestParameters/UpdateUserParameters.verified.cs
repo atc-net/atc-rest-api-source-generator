@@ -3,4 +3,4 @@ namespace PetStoreFull.Generated.Parameters;
 
 public record UpdateUserParameters(
     [property: FromRoute(Name = "username"), Required] string Username,
-    [property: FromBody] User? Request);
+    [property: FromBody, Required] User Request);
