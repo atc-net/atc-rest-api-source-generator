@@ -332,7 +332,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 var hasSegmentModels = segmentSchemas.Count > 0;
                 var hasSharedModels = sharedSchemas.Count > 0;
-                var hasEndpoints = GenerateEndpointPerOperation(context, openApiDoc, projectName, pathSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath);
+                var hasEndpoints = GenerateEndpointPerOperation(context, openApiDoc, projectName, pathSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName);
                 if (hasEndpoints)
                 {
                     generatedPathSegments.Add(pathSegment);
@@ -799,7 +799,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool includeDeprecated,
         bool hasSegmentModels,
         bool hasSharedModels,
-        bool useServersBasePath)
+        bool useServersBasePath,
+        string? httpClientName)
     {
         // Generate client parameters using shared OperationParameterExtractor (without binding attributes)
         // Parameters are shared between TypedClient and EndpointPerOperation modes
@@ -839,7 +840,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             registry,
             includeDeprecated,
             customErrorTypeName: null,
-            customHttpClientName: null,
+            customHttpClientName: httpClientName,
             hasSegmentModels: hasSegmentModels,
             hasSharedModels: hasSharedModels,
             useServersBasePath: useServersBasePath);

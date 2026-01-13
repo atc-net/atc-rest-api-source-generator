@@ -148,7 +148,7 @@ public static class EndpointPerOperationExtractor
             return (result, inlineSchemas);
         }
 
-        var httpClientName = customHttpClientName ?? $"{projectName}-ApiClient";
+        var httpClientName = GetEffectiveHttpClientName(projectName, customHttpClientName);
 
         foreach (var path in openApiDoc.Paths)
         {
@@ -1104,6 +1104,52 @@ public static class EndpointPerOperationExtractor
         }
 
         return content + "}\n";
+    }
+
+    /// <summary>
+    /// Resolves the effective HTTP client name based on project name and optional configured name.
+    /// </summary>
+    /// <param name="projectName">The project/namespace name.</param>
+    /// <param name="configuredName">Optional configured HTTP client name.</param>
+    /// <returns>The resolved HTTP client name.</returns>
+    /// <remarks>
+    /// Resolution rules:
+    /// - If configuredName is null/empty: strips ".ApiClient" or "ApiClient" suffix from projectName, appends "-ApiClient"
+    /// - If configuredName contains '.' or '-': uses configuredName as-is (full name)
+    /// - Otherwise: strips suffix from projectName, appends "-{configuredName}" (simple name)
+    /// </remarks>
+    internal static string GetEffectiveHttpClientName(
+        string projectName,
+        string? configuredName)
+    {
+        // Get base name by stripping common ApiClient suffixes
+        var baseName = projectName;
+        if (baseName.EndsWith(".ApiClient", StringComparison.OrdinalIgnoreCase))
+        {
+            baseName = baseName.Substring(0, baseName.Length - ".ApiClient".Length);
+        }
+        else if (baseName.EndsWith("ApiClient", StringComparison.OrdinalIgnoreCase))
+        {
+            baseName = baseName.Substring(0, baseName.Length - "ApiClient".Length);
+        }
+
+        // Replace dots with dashes for cleaner HTTP client names
+        baseName = baseName.Replace('.', '-');
+
+        // If no configured name, use default pattern
+        if (string.IsNullOrWhiteSpace(configuredName))
+        {
+            return $"{baseName}-ApiClient";
+        }
+
+        // If full name (contains . or -), use as-is
+        if (configuredName.Contains('.') || configuredName.Contains('-'))
+        {
+            return configuredName!;
+        }
+
+        // Simple name - combine with base
+        return $"{baseName}-{configuredName}";
     }
 
     private static string GetSchemaTypeName(
