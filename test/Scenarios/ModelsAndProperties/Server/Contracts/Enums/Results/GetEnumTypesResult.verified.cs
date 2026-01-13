@@ -5,7 +5,7 @@ namespace ModelsAndProperties.Generated.Results;
 /// Get enum types model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetEnumTypesResult : IResult
+public sealed class GetEnumTypesResult : IResult
 {
     private readonly IResult innerResult;
 

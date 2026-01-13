@@ -5,7 +5,7 @@ namespace Retry.Generated.Results;
 /// Generate report (no retry, long timeout).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GenerateReportResult : IResult
+public sealed class GenerateReportResult : IResult
 {
     private readonly IResult innerResult;
 

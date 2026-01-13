@@ -23,7 +23,7 @@ namespace Retry.Generated.Orders.Endpoints;
 /// Operation: CreateOrder.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateOrderEndpoint : ICreateOrderEndpoint
+public sealed class CreateOrderEndpoint : ICreateOrderEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

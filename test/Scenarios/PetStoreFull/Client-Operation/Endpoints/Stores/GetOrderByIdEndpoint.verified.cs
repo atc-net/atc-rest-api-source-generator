@@ -23,7 +23,7 @@ namespace PetStoreFull.Generated.Stores.Endpoints;
 /// Operation: GetOrderById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetOrderByIdEndpoint : IGetOrderByIdEndpoint
+public sealed class GetOrderByIdEndpoint : IGetOrderByIdEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

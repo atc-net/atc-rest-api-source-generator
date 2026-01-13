@@ -5,7 +5,7 @@ namespace CachingHybrid.Generated.Results;
 /// Create user (no caching).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateUserResult : IResult
+public sealed class CreateUserResult : IResult
 {
     private readonly IResult innerResult;
 

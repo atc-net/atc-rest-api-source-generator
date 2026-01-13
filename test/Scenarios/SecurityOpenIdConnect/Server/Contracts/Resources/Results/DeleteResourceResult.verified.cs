@@ -5,7 +5,7 @@ namespace SecurityOpenIdConnect.Generated.Results;
 /// Delete a resource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeleteResourceResult : IResult
+public sealed class DeleteResourceResult : IResult
 {
     private readonly IResult innerResult;
 

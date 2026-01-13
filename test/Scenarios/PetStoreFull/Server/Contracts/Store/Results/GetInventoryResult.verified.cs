@@ -5,7 +5,7 @@ namespace PetStoreFull.Generated.Results;
 /// Returns pet inventories by status.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetInventoryResult : IResult
+public sealed class GetInventoryResult : IResult
 {
     private readonly IResult innerResult;
 

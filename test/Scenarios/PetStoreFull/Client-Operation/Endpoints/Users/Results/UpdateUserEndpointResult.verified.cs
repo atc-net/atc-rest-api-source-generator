@@ -17,7 +17,7 @@ namespace PetStoreFull.Generated.Users.Endpoints.Results;
 /// Operation: UpdateUser.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UpdateUserEndpointResult : EndpointResponse, IUpdateUserEndpointResult
+public sealed class UpdateUserEndpointResult : EndpointResponse, IUpdateUserEndpointResult
 {
     public UpdateUserEndpointResult(EndpointResponse response)
         : base(response)

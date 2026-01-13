@@ -17,7 +17,7 @@ namespace PetStoreFull.Generated.Stores.Endpoints.Results;
 /// Operation: PlaceOrder.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class PlaceOrderEndpointResult : EndpointResponse, IPlaceOrderEndpointResult
+public sealed class PlaceOrderEndpointResult : EndpointResponse, IPlaceOrderEndpointResult
 {
     public PlaceOrderEndpointResult(EndpointResponse response)
         : base(response)

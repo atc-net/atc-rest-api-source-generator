@@ -17,7 +17,7 @@ namespace Demo.Generated.Tasks.Endpoints.Results;
 /// Operation: CreateTask.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateTaskEndpointResult : EndpointResponse, ICreateTaskEndpointResult
+public sealed class CreateTaskEndpointResult : EndpointResponse, ICreateTaskEndpointResult
 {
     public CreateTaskEndpointResult(EndpointResponse response)
         : base(response)

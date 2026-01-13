@@ -5,7 +5,7 @@ namespace CachingOutput.Generated.Results;
 /// Create product (no caching).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateProductResult : IResult
+public sealed class CreateProductResult : IResult
 {
     private readonly IResult innerResult;
 

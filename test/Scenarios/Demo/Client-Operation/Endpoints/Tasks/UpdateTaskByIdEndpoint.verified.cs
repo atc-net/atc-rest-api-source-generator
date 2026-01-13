@@ -23,7 +23,7 @@ namespace Demo.Generated.Tasks.Endpoints;
 /// Operation: UpdateTaskById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UpdateTaskByIdEndpoint : IUpdateTaskByIdEndpoint
+public sealed class UpdateTaskByIdEndpoint : IUpdateTaskByIdEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

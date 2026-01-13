@@ -23,7 +23,7 @@ namespace Demo.Generated.Accounts.Endpoints;
 /// Operation: ListAccounts.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListAccountsEndpoint : IListAccountsEndpoint
+public sealed class ListAccountsEndpoint : IListAccountsEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

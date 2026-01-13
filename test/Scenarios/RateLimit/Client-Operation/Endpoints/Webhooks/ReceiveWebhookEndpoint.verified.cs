@@ -23,7 +23,7 @@ namespace RateLimit.Generated.Webhooks.Endpoints;
 /// Operation: ReceiveWebhook.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ReceiveWebhookEndpoint : IReceiveWebhookEndpoint
+public sealed class ReceiveWebhookEndpoint : IReceiveWebhookEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

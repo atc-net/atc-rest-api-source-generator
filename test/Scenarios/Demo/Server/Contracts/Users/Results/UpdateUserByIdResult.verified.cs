@@ -5,7 +5,7 @@ namespace Demo.Generated.Results;
 /// Update a specific user.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UpdateUserByIdResult : IResult
+public sealed class UpdateUserByIdResult : IResult
 {
     private readonly IResult innerResult;
 

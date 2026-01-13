@@ -5,7 +5,7 @@ namespace ModelsAndProperties.Generated.Results;
 /// Get dictionary types model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetDictionaryTypesResult : IResult
+public sealed class GetDictionaryTypesResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -223,7 +223,7 @@ public static class HttpClientExtractor
             {
                 new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
             },
-            DeclarationModifier: DeclarationModifiers.PublicClass,
+            DeclarationModifier: DeclarationModifiers.PublicSealedClass,
             ClassTypeName: className,
             GenericTypeName: null,
             InheritedClassTypeName: null,

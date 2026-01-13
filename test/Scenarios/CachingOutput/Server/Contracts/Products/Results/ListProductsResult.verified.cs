@@ -5,7 +5,7 @@ namespace CachingOutput.Generated.Results;
 /// List products with output caching.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListProductsResult : IResult
+public sealed class ListProductsResult : IResult
 {
     private readonly IResult innerResult;
 

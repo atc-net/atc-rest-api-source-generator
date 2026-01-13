@@ -283,7 +283,7 @@ public static class TupleExtractor
 
         return new RecordParameters(
             DocumentationTags: new CodeDocumentationTags(summary),
-            DeclarationModifier: DeclarationModifiers.PublicRecord,
+            DeclarationModifier: DeclarationModifiers.PublicSealedRecord,
             Name: OpenApiSchemaExtensions.SanitizeSchemaName(schemaName),
             Parameters: parameters);
     }

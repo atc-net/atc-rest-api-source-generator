@@ -22,7 +22,7 @@ namespace SecurityOpenIdConnect.Generated.Resources.Endpoints;
 /// Operation: ListResources.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListResourcesEndpoint : IListResourcesEndpoint
+public sealed class ListResourcesEndpoint : IListResourcesEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

@@ -17,7 +17,7 @@ namespace RateLimit.Generated.Webhooks.Endpoints.Results;
 /// Operation: ReceiveWebhook.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ReceiveWebhookEndpointResult : EndpointResponse, IReceiveWebhookEndpointResult
+public sealed class ReceiveWebhookEndpointResult : EndpointResponse, IReceiveWebhookEndpointResult
 {
     public ReceiveWebhookEndpointResult(EndpointResponse response)
         : base(response)

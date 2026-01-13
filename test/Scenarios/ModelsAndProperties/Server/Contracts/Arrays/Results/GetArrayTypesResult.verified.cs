@@ -5,7 +5,7 @@ namespace ModelsAndProperties.Generated.Results;
 /// Get array types model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetArrayTypesResult : IResult
+public sealed class GetArrayTypesResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -23,7 +23,7 @@ namespace Retry.Generated.Reports.Endpoints;
 /// Operation: GenerateReport.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GenerateReportEndpoint : IGenerateReportEndpoint
+public sealed class GenerateReportEndpoint : IGenerateReportEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

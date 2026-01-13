@@ -2,7 +2,7 @@
 namespace Retry.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class RetryClient
+public sealed class RetryClient
 {
     private readonly HttpClient httpClient;
 

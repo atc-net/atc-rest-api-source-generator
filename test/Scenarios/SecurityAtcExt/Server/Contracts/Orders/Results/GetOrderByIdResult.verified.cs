@@ -5,7 +5,7 @@ namespace SecurityAtcExt.Generated.Results;
 /// Get order (manager role inherited).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetOrderByIdResult : IResult
+public sealed class GetOrderByIdResult : IResult
 {
     private readonly IResult innerResult;
 

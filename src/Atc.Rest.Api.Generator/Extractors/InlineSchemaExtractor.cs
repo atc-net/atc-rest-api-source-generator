@@ -134,7 +134,7 @@ public static class InlineSchemaExtractor
 
         return new RecordParameters(
             DocumentationTags: null,
-            DeclarationModifier: DeclarationModifiers.PublicRecord,
+            DeclarationModifier: DeclarationModifiers.PublicSealedRecord,
             Name: typeName,
             Parameters: sortedParameters);
     }

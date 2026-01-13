@@ -17,7 +17,7 @@ namespace PetStoreSimple.Generated.Pets.Endpoints.Results;
 /// Operation: ShowPetById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ShowPetByIdEndpointResult : EndpointResponse, IShowPetByIdEndpointResult
+public sealed class ShowPetByIdEndpointResult : EndpointResponse, IShowPetByIdEndpointResult
 {
     public ShowPetByIdEndpointResult(EndpointResponse response)
         : base(response)

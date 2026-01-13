@@ -23,7 +23,7 @@ namespace VersioningQueryString.Generated.Pets.Endpoints;
 /// Operation: UpdatePet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UpdatePetEndpoint : IUpdatePetEndpoint
+public sealed class UpdatePetEndpoint : IUpdatePetEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

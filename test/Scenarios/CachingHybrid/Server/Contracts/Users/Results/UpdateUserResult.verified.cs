@@ -5,7 +5,7 @@ namespace CachingHybrid.Generated.Results;
 /// Update user (no caching).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UpdateUserResult : IResult
+public sealed class UpdateUserResult : IResult
 {
     private readonly IResult innerResult;
 

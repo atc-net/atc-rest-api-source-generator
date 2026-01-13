@@ -5,7 +5,7 @@ namespace Polymorphism.Generated.Results;
 /// List all notifications.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListNotificationsResult : IResult
+public sealed class ListNotificationsResult : IResult
 {
     private readonly IResult innerResult;
 

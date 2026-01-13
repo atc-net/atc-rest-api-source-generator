@@ -17,7 +17,7 @@ namespace Demo.Generated.Tests.Endpoints.Results;
 /// Operation: CreateTestItemWithLocationInBody.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateTestItemWithLocationInBodyEndpointResult : EndpointResponse, ICreateTestItemWithLocationInBodyEndpointResult
+public sealed class CreateTestItemWithLocationInBodyEndpointResult : EndpointResponse, ICreateTestItemWithLocationInBodyEndpointResult
 {
     public CreateTestItemWithLocationInBodyEndpointResult(EndpointResponse response)
         : base(response)

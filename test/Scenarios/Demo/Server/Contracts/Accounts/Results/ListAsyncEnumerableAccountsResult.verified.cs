@@ -5,7 +5,7 @@ namespace Demo.Generated.Results;
 /// List all accounts async-enumerable.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListAsyncEnumerableAccountsResult : IResult
+public sealed class ListAsyncEnumerableAccountsResult : IResult
 {
     private readonly IResult innerResult;
 

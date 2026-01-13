@@ -22,7 +22,7 @@ namespace Demo.Generated.Accounts.Endpoints;
 /// Operation: ListAsyncEnumerableAccounts.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListAsyncEnumerableAccountsEndpoint : IListAsyncEnumerableAccountsEndpoint
+public sealed class ListAsyncEnumerableAccountsEndpoint : IListAsyncEnumerableAccountsEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

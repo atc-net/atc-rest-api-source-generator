@@ -23,7 +23,7 @@ namespace SecurityHybrid.Generated.Admins.Endpoints;
 /// Operation: UpdateAdminSettings.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UpdateAdminSettingsEndpoint : IUpdateAdminSettingsEndpoint
+public sealed class UpdateAdminSettingsEndpoint : IUpdateAdminSettingsEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

@@ -5,7 +5,7 @@ namespace RateLimit.Generated.Results;
 /// Get order (inherits orders-standard).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetOrderByIdResult : IResult
+public sealed class GetOrderByIdResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -261,7 +261,7 @@ public static class ResultClassExtractor
             {
                 new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
             },
-            DeclarationModifier: DeclarationModifiers.PublicClass,
+            DeclarationModifier: DeclarationModifiers.PublicSealedClass,
             ClassTypeName: className,
             GenericTypeName: null,
             InheritedClassTypeName: null,

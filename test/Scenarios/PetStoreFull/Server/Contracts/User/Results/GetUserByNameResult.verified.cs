@@ -5,7 +5,7 @@ namespace PetStoreFull.Generated.Results;
 /// Get user by user name.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetUserByNameResult : IResult
+public sealed class GetUserByNameResult : IResult
 {
     private readonly IResult innerResult;
 

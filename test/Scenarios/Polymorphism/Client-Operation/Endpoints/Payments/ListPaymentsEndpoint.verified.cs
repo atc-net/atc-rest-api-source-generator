@@ -22,7 +22,7 @@ namespace Polymorphism.Generated.Payments.Endpoints;
 /// Operation: ListPayments.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListPaymentsEndpoint : IListPaymentsEndpoint
+public sealed class ListPaymentsEndpoint : IListPaymentsEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

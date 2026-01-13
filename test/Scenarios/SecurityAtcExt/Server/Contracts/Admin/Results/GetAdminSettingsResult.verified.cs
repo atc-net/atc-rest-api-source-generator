@@ -5,7 +5,7 @@ namespace SecurityAtcExt.Generated.Results;
 /// Get admin settings (Bearer + admin role).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetAdminSettingsResult : IResult
+public sealed class GetAdminSettingsResult : IResult
 {
     private readonly IResult innerResult;
 

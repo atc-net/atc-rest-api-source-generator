@@ -5,7 +5,7 @@ namespace SecurityHybrid.Generated.Results;
 /// Get order tracking.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetOrderTrackingResult : IResult
+public sealed class GetOrderTrackingResult : IResult
 {
     private readonly IResult innerResult;
 

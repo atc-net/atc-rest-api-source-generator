@@ -5,7 +5,7 @@ namespace SecurityStandard.Generated.Results;
 /// Get data.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetDataResult : IResult
+public sealed class GetDataResult : IResult
 {
     private readonly IResult innerResult;
 

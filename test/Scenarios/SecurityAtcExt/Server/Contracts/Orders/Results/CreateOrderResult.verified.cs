@@ -5,7 +5,7 @@ namespace SecurityAtcExt.Generated.Results;
 /// Create order (requires auth).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateOrderResult : IResult
+public sealed class CreateOrderResult : IResult
 {
     private readonly IResult innerResult;
 

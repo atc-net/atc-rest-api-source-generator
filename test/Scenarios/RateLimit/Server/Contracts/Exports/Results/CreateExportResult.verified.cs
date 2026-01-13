@@ -5,7 +5,7 @@ namespace RateLimit.Generated.Results;
 /// Create export (concurrency limited).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateExportResult : IResult
+public sealed class CreateExportResult : IResult
 {
     private readonly IResult innerResult;
 

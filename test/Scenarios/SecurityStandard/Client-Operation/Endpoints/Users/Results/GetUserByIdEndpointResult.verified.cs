@@ -17,7 +17,7 @@ namespace SecurityStandard.Generated.Users.Endpoints.Results;
 /// Operation: GetUserById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetUserByIdEndpointResult : EndpointResponse, IGetUserByIdEndpointResult
+public sealed class GetUserByIdEndpointResult : EndpointResponse, IGetUserByIdEndpointResult
 {
     public GetUserByIdEndpointResult(EndpointResponse response)
         : base(response)

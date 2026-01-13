@@ -5,7 +5,7 @@ namespace SecurityOpenIdConnect.Generated.Results;
 /// Get current user profile.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetCurrentUserResult : IResult
+public sealed class GetCurrentUserResult : IResult
 {
     private readonly IResult innerResult;
 

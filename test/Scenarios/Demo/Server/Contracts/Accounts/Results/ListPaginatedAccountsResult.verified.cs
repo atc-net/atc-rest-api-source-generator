@@ -5,7 +5,7 @@ namespace Demo.Generated.Results;
 /// List all accounts paginated.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListPaginatedAccountsResult : IResult
+public sealed class ListPaginatedAccountsResult : IResult
 {
     private readonly IResult innerResult;
 

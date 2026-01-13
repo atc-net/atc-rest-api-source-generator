@@ -23,7 +23,7 @@ namespace PetStoreFull.Generated.Users.Endpoints;
 /// Operation: DeleteUser.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeleteUserEndpoint : IDeleteUserEndpoint
+public sealed class DeleteUserEndpoint : IDeleteUserEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

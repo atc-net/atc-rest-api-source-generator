@@ -17,7 +17,7 @@ namespace VersioningUrlSegment.Generated.Pets.Endpoints.Results;
 /// Operation: DeletePet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeletePetEndpointResult : EndpointResponse, IDeletePetEndpointResult
+public sealed class DeletePetEndpointResult : EndpointResponse, IDeletePetEndpointResult
 {
     public DeletePetEndpointResult(EndpointResponse response)
         : base(response)

@@ -22,7 +22,7 @@ namespace SecurityStandard.Generated.Admins.Endpoints;
 /// Operation: GetAdminSettings.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetAdminSettingsEndpoint : IGetAdminSettingsEndpoint
+public sealed class GetAdminSettingsEndpoint : IGetAdminSettingsEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

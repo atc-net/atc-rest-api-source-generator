@@ -23,7 +23,7 @@ namespace PetStoreFull.Generated.Users.Endpoints;
 /// Operation: LoginUser.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class LoginUserEndpoint : ILoginUserEndpoint
+public sealed class LoginUserEndpoint : ILoginUserEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

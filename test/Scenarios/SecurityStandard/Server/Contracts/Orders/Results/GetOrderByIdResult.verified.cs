@@ -5,7 +5,7 @@ namespace SecurityStandard.Generated.Results;
 /// Get order by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetOrderByIdResult : IResult
+public sealed class GetOrderByIdResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -5,7 +5,7 @@ namespace PetStoreFull.Generated.Results;
 /// Logs out current logged in user session.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class LogoutUserResult : IResult
+public sealed class LogoutUserResult : IResult
 {
     private readonly IResult innerResult;
 

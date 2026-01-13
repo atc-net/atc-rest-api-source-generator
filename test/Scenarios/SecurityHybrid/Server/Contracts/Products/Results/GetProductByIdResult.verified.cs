@@ -5,7 +5,7 @@ namespace SecurityHybrid.Generated.Results;
 /// Get product by ID.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetProductByIdResult : IResult
+public sealed class GetProductByIdResult : IResult
 {
     private readonly IResult innerResult;
 

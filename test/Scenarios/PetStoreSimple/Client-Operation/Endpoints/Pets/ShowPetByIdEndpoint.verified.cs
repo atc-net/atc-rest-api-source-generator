@@ -23,7 +23,7 @@ namespace PetStoreSimple.Generated.Pets.Endpoints;
 /// Operation: ShowPetById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ShowPetByIdEndpoint : IShowPetByIdEndpoint
+public sealed class ShowPetByIdEndpoint : IShowPetByIdEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

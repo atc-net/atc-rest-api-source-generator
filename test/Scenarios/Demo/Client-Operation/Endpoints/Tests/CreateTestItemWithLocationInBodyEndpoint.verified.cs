@@ -23,7 +23,7 @@ namespace Demo.Generated.Tests.Endpoints;
 /// Operation: CreateTestItemWithLocationInBody.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateTestItemWithLocationInBodyEndpoint : ICreateTestItemWithLocationInBodyEndpoint
+public sealed class CreateTestItemWithLocationInBodyEndpoint : ICreateTestItemWithLocationInBodyEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

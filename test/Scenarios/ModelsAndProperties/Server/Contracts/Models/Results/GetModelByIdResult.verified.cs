@@ -5,7 +5,7 @@ namespace ModelsAndProperties.Generated.Results;
 /// Get a specific model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetModelByIdResult : IResult
+public sealed class GetModelByIdResult : IResult
 {
     private readonly IResult innerResult;
 

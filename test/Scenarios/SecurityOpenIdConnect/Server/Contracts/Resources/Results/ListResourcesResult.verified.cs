@@ -5,7 +5,7 @@ namespace SecurityOpenIdConnect.Generated.Results;
 /// List user resources.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListResourcesResult : IResult
+public sealed class ListResourcesResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -5,7 +5,7 @@ namespace CachingHybrid.Generated.Results;
 /// List sessions with distributed cache.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListSessionsResult : IResult
+public sealed class ListSessionsResult : IResult
 {
     private readonly IResult innerResult;
 

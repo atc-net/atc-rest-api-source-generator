@@ -17,7 +17,7 @@ namespace Retry.Generated.Externals.Endpoints.Results;
 /// Operation: ProcessPayment.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ProcessPaymentEndpointResult : EndpointResponse, IProcessPaymentEndpointResult
+public sealed class ProcessPaymentEndpointResult : EndpointResponse, IProcessPaymentEndpointResult
 {
     public ProcessPaymentEndpointResult(EndpointResponse response)
         : base(response)

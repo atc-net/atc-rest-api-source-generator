@@ -5,7 +5,7 @@ namespace VersioningQueryString.Generated.Results;
 /// Delete a pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeletePetResult : IResult
+public sealed class DeletePetResult : IResult
 {
     private readonly IResult innerResult;
 

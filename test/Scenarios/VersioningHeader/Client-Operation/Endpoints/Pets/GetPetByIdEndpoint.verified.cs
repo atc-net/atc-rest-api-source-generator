@@ -23,7 +23,7 @@ namespace VersioningHeader.Generated.Pets.Endpoints;
 /// Operation: GetPetById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetPetByIdEndpoint : IGetPetByIdEndpoint
+public sealed class GetPetByIdEndpoint : IGetPetByIdEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

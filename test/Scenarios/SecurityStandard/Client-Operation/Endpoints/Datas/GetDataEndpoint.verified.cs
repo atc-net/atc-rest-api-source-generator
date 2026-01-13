@@ -22,7 +22,7 @@ namespace SecurityStandard.Generated.Datas.Endpoints;
 /// Operation: GetData.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetDataEndpoint : IGetDataEndpoint
+public sealed class GetDataEndpoint : IGetDataEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

@@ -5,7 +5,7 @@ namespace PetStoreFull.Generated.Results;
 /// Finds Pets by status.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class FindPetsByStatusResult : IResult
+public sealed class FindPetsByStatusResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -5,7 +5,7 @@ namespace CachingOutput.Generated.Results;
 /// Health check (no caching).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetHealthResult : IResult
+public sealed class GetHealthResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -2,7 +2,7 @@
 namespace ModelsAndProperties.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ModelsAndPropertiesClient
+public sealed class ModelsAndPropertiesClient
 {
     private readonly HttpClient httpClient;
 

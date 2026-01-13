@@ -2,7 +2,7 @@
 namespace SecurityAtcExt.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class SecurityAtcExtClient
+public sealed class SecurityAtcExtClient
 {
     private readonly HttpClient httpClient;
 

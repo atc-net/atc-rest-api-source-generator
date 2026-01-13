@@ -777,7 +777,7 @@ public static class EndpointPerOperationExtractor
             {
                 new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
             },
-            DeclarationModifier: DeclarationModifiers.PublicClass,
+            DeclarationModifier: DeclarationModifiers.PublicSealedClass,
             ClassTypeName: $"{operationName}Endpoint",
             GenericTypeName: null,
             InheritedClassTypeName: null,
@@ -1066,7 +1066,7 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine($"/// Operation: {operationName}.");
         sb.AppendLine("/// </summary>");
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-        sb.AppendLine($"public class {operationName}EndpointResult : EndpointResponse, I{operationName}EndpointResult");
+        sb.AppendLine($"public sealed class {operationName}EndpointResult : EndpointResponse, I{operationName}EndpointResult");
         sb.AppendLine("{");
         sb.AppendLine(4, $"public {operationName}EndpointResult(EndpointResponse response)");
         sb.AppendLine(8, ": base(response)");

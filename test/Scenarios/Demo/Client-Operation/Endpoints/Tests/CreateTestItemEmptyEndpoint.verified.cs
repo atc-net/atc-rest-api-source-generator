@@ -23,7 +23,7 @@ namespace Demo.Generated.Tests.Endpoints;
 /// Operation: CreateTestItemEmpty.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateTestItemEmptyEndpoint : ICreateTestItemEmptyEndpoint
+public sealed class CreateTestItemEmptyEndpoint : ICreateTestItemEmptyEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

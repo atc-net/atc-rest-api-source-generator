@@ -23,7 +23,7 @@ namespace PetStoreFull.Generated.Pets.Endpoints;
 /// Operation: AddPet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class AddPetEndpoint : IAddPetEndpoint
+public sealed class AddPetEndpoint : IAddPetEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

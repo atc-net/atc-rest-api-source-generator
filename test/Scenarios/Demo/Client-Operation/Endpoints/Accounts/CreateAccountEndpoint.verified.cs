@@ -23,7 +23,7 @@ namespace Demo.Generated.Accounts.Endpoints;
 /// Operation: CreateAccount.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateAccountEndpoint : ICreateAccountEndpoint
+public sealed class CreateAccountEndpoint : ICreateAccountEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

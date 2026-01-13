@@ -22,7 +22,7 @@ namespace PetStoreFull.Generated.Stores.Endpoints;
 /// Operation: GetInventory.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetInventoryEndpoint : IGetInventoryEndpoint
+public sealed class GetInventoryEndpoint : IGetInventoryEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

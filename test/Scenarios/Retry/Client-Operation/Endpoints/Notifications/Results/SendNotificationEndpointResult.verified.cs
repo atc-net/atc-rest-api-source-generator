@@ -17,7 +17,7 @@ namespace Retry.Generated.Notifications.Endpoints.Results;
 /// Operation: SendNotification.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class SendNotificationEndpointResult : EndpointResponse, ISendNotificationEndpointResult
+public sealed class SendNotificationEndpointResult : EndpointResponse, ISendNotificationEndpointResult
 {
     public SendNotificationEndpointResult(EndpointResponse response)
         : base(response)

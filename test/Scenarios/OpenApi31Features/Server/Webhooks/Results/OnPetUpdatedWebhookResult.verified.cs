@@ -11,7 +11,7 @@ namespace OpenApi31Features.Generated.Webhooks.Results;
 /// Result type for the petUpdated webhook handler.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class OnPetUpdatedWebhookResult : IResult
+public sealed class OnPetUpdatedWebhookResult : IResult
 {
     private readonly IResult innerResult;
 

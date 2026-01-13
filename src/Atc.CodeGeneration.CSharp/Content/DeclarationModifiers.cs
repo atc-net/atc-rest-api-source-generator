@@ -46,6 +46,9 @@ public enum DeclarationModifiers
     [Description("public partial record")]
     PublicPartialRecord,
 
+    [Description("public sealed record")]
+    PublicSealedRecord,
+
     [Description("public partial record struct")]
     PublicPartialRecordStruct,
 

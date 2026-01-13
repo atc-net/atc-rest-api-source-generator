@@ -5,7 +5,7 @@ namespace VersioningHeader.Generated.Results;
 /// List all pets.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListPetsResult : IResult
+public sealed class ListPetsResult : IResult
 {
     private readonly IResult innerResult;
 

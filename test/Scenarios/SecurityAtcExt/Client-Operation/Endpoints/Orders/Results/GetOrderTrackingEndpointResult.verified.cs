@@ -17,7 +17,7 @@ namespace SecurityAtcExt.Generated.Orders.Endpoints.Results;
 /// Operation: GetOrderTracking.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetOrderTrackingEndpointResult : EndpointResponse, IGetOrderTrackingEndpointResult
+public sealed class GetOrderTrackingEndpointResult : EndpointResponse, IGetOrderTrackingEndpointResult
 {
     public GetOrderTrackingEndpointResult(EndpointResponse response)
         : base(response)

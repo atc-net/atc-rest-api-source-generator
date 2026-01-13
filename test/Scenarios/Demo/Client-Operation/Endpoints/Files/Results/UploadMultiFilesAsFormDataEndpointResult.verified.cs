@@ -17,7 +17,7 @@ namespace Demo.Generated.Files.Endpoints.Results;
 /// Operation: UploadMultiFilesAsFormData.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UploadMultiFilesAsFormDataEndpointResult : EndpointResponse, IUploadMultiFilesAsFormDataEndpointResult
+public sealed class UploadMultiFilesAsFormDataEndpointResult : EndpointResponse, IUploadMultiFilesAsFormDataEndpointResult
 {
     public UploadMultiFilesAsFormDataEndpointResult(EndpointResponse response)
         : base(response)

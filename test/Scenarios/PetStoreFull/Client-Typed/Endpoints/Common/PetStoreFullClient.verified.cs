@@ -2,7 +2,7 @@
 namespace PetStoreFull.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class PetStoreFullClient
+public sealed class PetStoreFullClient
 {
     private readonly HttpClient httpClient;
 

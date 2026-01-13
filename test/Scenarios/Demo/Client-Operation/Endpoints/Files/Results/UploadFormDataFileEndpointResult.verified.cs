@@ -17,7 +17,7 @@ namespace Demo.Generated.Files.Endpoints.Results;
 /// Operation: UploadFormDataFile.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class UploadFormDataFileEndpointResult : EndpointResponse, IUploadFormDataFileEndpointResult
+public sealed class UploadFormDataFileEndpointResult : EndpointResponse, IUploadFormDataFileEndpointResult
 {
     public UploadFormDataFileEndpointResult(EndpointResponse response)
         : base(response)

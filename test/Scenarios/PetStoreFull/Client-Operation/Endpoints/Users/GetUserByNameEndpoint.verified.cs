@@ -23,7 +23,7 @@ namespace PetStoreFull.Generated.Users.Endpoints;
 /// Operation: GetUserByName.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetUserByNameEndpoint : IGetUserByNameEndpoint
+public sealed class GetUserByNameEndpoint : IGetUserByNameEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

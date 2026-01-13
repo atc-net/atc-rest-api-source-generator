@@ -22,7 +22,7 @@ namespace VersioningUrlSegment.Generated.Owners.Endpoints;
 /// Operation: ListOwners.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListOwnersEndpoint : IListOwnersEndpoint
+public sealed class ListOwnersEndpoint : IListOwnersEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

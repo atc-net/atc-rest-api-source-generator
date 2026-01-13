@@ -5,7 +5,7 @@ namespace PetStoreSimple.Generated.Results;
 /// Info for a specific pet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ShowPetByIdResult : IResult
+public sealed class ShowPetByIdResult : IResult
 {
     private readonly IResult innerResult;
 

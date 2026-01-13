@@ -17,7 +17,7 @@ namespace SecurityHybrid.Generated.Products.Endpoints.Results;
 /// Operation: ListProducts.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListProductsEndpointResult : EndpointResponse, IListProductsEndpointResult
+public sealed class ListProductsEndpointResult : EndpointResponse, IListProductsEndpointResult
 {
     public ListProductsEndpointResult(EndpointResponse response)
         : base(response)

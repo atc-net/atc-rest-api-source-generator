@@ -5,7 +5,7 @@ namespace SecurityHybrid.Generated.Results;
 /// List reports.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListReportsResult : IResult
+public sealed class ListReportsResult : IResult
 {
     private readonly IResult innerResult;
 

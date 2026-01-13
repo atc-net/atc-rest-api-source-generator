@@ -5,7 +5,7 @@ namespace ModelsAndProperties.Generated.Results;
 /// Get nullable types model.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetNullablesResult : IResult
+public sealed class GetNullablesResult : IResult
 {
     private readonly IResult innerResult;
 

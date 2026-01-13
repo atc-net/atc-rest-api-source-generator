@@ -23,7 +23,7 @@ namespace Demo.Generated.Accounts.Endpoints;
 /// Operation: ListPaginatedAccounts.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class ListPaginatedAccountsEndpoint : IListPaginatedAccountsEndpoint
+public sealed class ListPaginatedAccountsEndpoint : IListPaginatedAccountsEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;

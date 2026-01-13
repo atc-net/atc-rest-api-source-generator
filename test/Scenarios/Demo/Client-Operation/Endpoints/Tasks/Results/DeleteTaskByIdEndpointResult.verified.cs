@@ -17,7 +17,7 @@ namespace Demo.Generated.Tasks.Endpoints.Results;
 /// Operation: DeleteTaskById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class DeleteTaskByIdEndpointResult : EndpointResponse, IDeleteTaskByIdEndpointResult
+public sealed class DeleteTaskByIdEndpointResult : EndpointResponse, IDeleteTaskByIdEndpointResult
 {
     public DeleteTaskByIdEndpointResult(EndpointResponse response)
         : base(response)

@@ -5,7 +5,7 @@ namespace SecurityHybrid.Generated.Results;
 /// Create a new order.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateOrderResult : IResult
+public sealed class CreateOrderResult : IResult
 {
     private readonly IResult innerResult;
 

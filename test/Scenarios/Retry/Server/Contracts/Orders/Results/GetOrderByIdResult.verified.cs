@@ -5,7 +5,7 @@ namespace Retry.Generated.Results;
 /// Get order (inherits orders-fast).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class GetOrderByIdResult : IResult
+public sealed class GetOrderByIdResult : IResult
 {
     private readonly IResult innerResult;
 

@@ -17,7 +17,7 @@ namespace RateLimit.Generated.Orders.Endpoints.Results;
 /// Operation: CreateOrder.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public class CreateOrderEndpointResult : EndpointResponse, ICreateOrderEndpointResult
+public sealed class CreateOrderEndpointResult : EndpointResponse, ICreateOrderEndpointResult
 {
     public CreateOrderEndpointResult(EndpointResponse response)
         : base(response)
