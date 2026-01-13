@@ -424,12 +424,21 @@ public static class ResultClassExtractor
 
         if (!string.IsNullOrEmpty(contentType))
         {
-            // For async enumerable operations, convert List<T> type to IAsyncEnumerable<T>
+            // For async enumerable operations, wrap the content type with IAsyncEnumerable<>
             var parameterType = contentType!;
-            if (isAsyncEnumerable && contentType!.StartsWith("List<", StringComparison.Ordinal) && contentType.EndsWith(">", StringComparison.Ordinal))
+            if (isAsyncEnumerable)
             {
-                var elementType = contentType.Substring(5, contentType.Length - 6); // Extract T from List<T>
-                parameterType = $"IAsyncEnumerable<{elementType}>";
+                if (contentType!.StartsWith("List<", StringComparison.Ordinal) && contentType.EndsWith(">", StringComparison.Ordinal))
+                {
+                    // For List<T>, extract T and wrap as IAsyncEnumerable<T>
+                    var elementType = contentType.Substring(5, contentType.Length - 6);
+                    parameterType = $"IAsyncEnumerable<{elementType}>";
+                }
+                else
+                {
+                    // For other types like PaginationResult<T>, wrap the entire type
+                    parameterType = $"IAsyncEnumerable<{contentType}>";
+                }
             }
 
             // Factory method with parameter

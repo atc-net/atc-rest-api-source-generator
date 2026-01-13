@@ -757,7 +757,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             var generatedInterface = contentGenerator.Generate();
 
             // Skip the header part and append just the interface
-            var lines = generatedInterface.SplitIntoLines();
+            var lines = generatedInterface.SplitIntoLinesPreserveEmpty();
             var namespaceFound = false;
             foreach (var line in lines)
             {
@@ -877,7 +877,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             var generatedInterface = interfaceGenerator.Generate();
 
             // Skip the header part and append just the interface
-            var lines = generatedInterface.SplitIntoLines();
+            var lines = generatedInterface.SplitIntoLinesPreserveEmpty();
             var namespaceFound = false;
             foreach (var line in lines)
             {
@@ -908,7 +908,7 @@ public class ApiServerGenerator : IIncrementalGenerator
                 var generatedClass = contentGenerator.Generate();
 
                 // Skip the header part and append just the class
-                var lines = generatedClass.SplitIntoLines();
+                var lines = generatedClass.SplitIntoLinesPreserveEmpty();
                 var namespaceFound = false;
                 foreach (var line in lines)
                 {
@@ -939,7 +939,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             var generatedExtension = extensionGenerator.Generate();
 
             // Skip the header part and append just the class
-            var lines = generatedExtension.SplitIntoLines();
+            var lines = generatedExtension.SplitIntoLinesPreserveEmpty();
             var namespaceFound = false;
             foreach (var line in lines)
             {
@@ -1170,7 +1170,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             var generatedClass = contentGenerator.Generate();
 
             // Skip the header part and append just the class
-            var lines = generatedClass.SplitIntoLines();
+            var lines = generatedClass.SplitIntoLinesPreserveEmpty();
             var namespaceFound = false;
             foreach (var line in lines)
             {
