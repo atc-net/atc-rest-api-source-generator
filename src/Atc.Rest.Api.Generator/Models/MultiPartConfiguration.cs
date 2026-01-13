@@ -22,7 +22,7 @@ public sealed record MultiPartConfiguration
     /// Explicit list of part files (when Discovery = "explicit").
     /// Paths are relative to the base file.
     /// </summary>
-    public IReadOnlyList<string> Parts { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> Parts { get; init; } = [];
 
     /// <summary>
     /// Merge strategy for paths.

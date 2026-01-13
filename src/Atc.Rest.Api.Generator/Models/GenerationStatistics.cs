@@ -113,12 +113,12 @@ public record GenerationStatistics
     /// <summary>
     /// List of error rule IDs encountered.
     /// </summary>
-    public IReadOnlyList<string> ErrorRuleIds { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> ErrorRuleIds { get; init; } = [];
 
     /// <summary>
     /// List of warning rule IDs encountered.
     /// </summary>
-    public IReadOnlyList<string> WarningRuleIds { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> WarningRuleIds { get; init; } = [];
 
     /// <summary>
     /// The project structure type (e.g., "SingleProject", "TwoProjects", "ThreeProjects").
@@ -128,12 +128,12 @@ public record GenerationStatistics
     /// <summary>
     /// List of project names created.
     /// </summary>
-    public IReadOnlyList<string> ProjectsCreated { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> ProjectsCreated { get; init; } = [];
 
     /// <summary>
     /// List of files created.
     /// </summary>
-    public IReadOnlyList<string> FilesCreated { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> FilesCreated { get; init; } = [];
 
     /// <summary>
     /// Total number of types generated across all categories.

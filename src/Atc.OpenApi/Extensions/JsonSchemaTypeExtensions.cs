@@ -368,5 +368,5 @@ public static class JsonSchemaTypeExtensions
     /// <param name="schemaType">The nullable JSON schema type.</param>
     /// <returns>A list of type names, or an empty list if null.</returns>
     public static IReadOnlyList<string> GetNonNullTypeNames(this JsonSchemaType? schemaType)
-        => schemaType?.GetNonNullTypeNames() ?? Array.Empty<string>();
+        => schemaType?.GetNonNullTypeNames() ?? [];
 }

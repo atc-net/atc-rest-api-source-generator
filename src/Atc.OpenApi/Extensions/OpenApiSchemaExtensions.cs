@@ -199,10 +199,10 @@ public static class OpenApiSchemaExtensions
         {
             if (schema is not OpenApiSchema openApiSchema)
             {
-                return Array.Empty<string>();
+                return [];
             }
 
-            return openApiSchema.Type?.GetNonNullTypeNames() ?? Array.Empty<string>();
+            return openApiSchema.Type?.GetNonNullTypeNames() ?? [];
         }
 
         /// <summary>
