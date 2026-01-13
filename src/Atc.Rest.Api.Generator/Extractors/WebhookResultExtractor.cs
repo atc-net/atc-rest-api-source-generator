@@ -108,7 +108,7 @@ public static class WebhookResultExtractor
                 sb.AppendLine(4, $"/// {statusCode} - {description}");
                 sb.AppendLine(4, "/// </summary>");
                 sb.AppendLine(4, $"public static {className} {methodName}()");
-                sb.AppendLine(8, $"=> new(Microsoft.AspNetCore.Http.Results.StatusCode({GetStatusCodeInt(statusCode)}));");
+                sb.AppendLine(8, $"=> new(TypedResults.StatusCode({GetStatusCodeInt(statusCode)}));");
             }
         }
         else
@@ -119,7 +119,7 @@ public static class WebhookResultExtractor
             sb.AppendLine(4, "/// 200 OK - Webhook acknowledged.");
             sb.AppendLine(4, "/// </summary>");
             sb.AppendLine(4, $"public static {className} Ok()");
-            sb.AppendLine(8, "=> new(Microsoft.AspNetCore.Http.Results.Ok());");
+            sb.AppendLine(8, "=> new(TypedResults.Ok());");
         }
 
         sb.AppendLine();

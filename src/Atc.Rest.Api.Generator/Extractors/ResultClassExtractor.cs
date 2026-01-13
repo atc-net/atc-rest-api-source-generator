@@ -417,7 +417,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: "new(Microsoft.AspNetCore.Http.Results.File(bytes, contentType, fileName))");
+                Content: "new(TypedResults.File(bytes, contentType, fileName))");
             methods.Add(fileMethod);
             return methods;
         }
@@ -463,7 +463,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: "new(Microsoft.AspNetCore.Http.Results.Ok(response))");
+                Content: "new(TypedResults.Ok(response))");
             methods.Add(okMethod);
 
             // Add implicit conversion if content type is List<T> or single object (but not 'object' base type)
@@ -566,7 +566,7 @@ public static class ResultClassExtractor
                 Parameters: null,
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: "new(Microsoft.AspNetCore.Http.Results.Ok())");
+                Content: "new(TypedResults.Ok())");
             methods.Add(okMethod);
         }
 
@@ -605,7 +605,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: $"new(Microsoft.AspNetCore.Http.Results.Created((string?)null, response))");
+                Content: $"new(TypedResults.Created((string?)null, response))");
             methods.Add(createdWithResponse);
 
             // Generate implicit operator for convenience
@@ -657,7 +657,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: "new(uri != null ? Microsoft.AspNetCore.Http.Results.Created(uri, null) : Microsoft.AspNetCore.Http.Results.StatusCode(201))");
+                Content: "new(uri != null ? TypedResults.Created(uri) : TypedResults.StatusCode(201))");
             methods.Add(createdNoContent);
         }
 
@@ -680,7 +680,7 @@ public static class ResultClassExtractor
             Parameters: null,
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: "new(Microsoft.AspNetCore.Http.Results.NoContent())");
+            Content: "new(TypedResults.NoContent())");
     }
 
     private static MethodParameters GenerateNotFoundMethod(
@@ -713,7 +713,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: "new(error != null ? Microsoft.AspNetCore.Http.Results.NotFound(error) : Microsoft.AspNetCore.Http.Results.NotFound())");
+                Content: "new(error != null ? TypedResults.NotFound(error) : TypedResults.NotFound())");
         }
 
         return new MethodParameters(
@@ -726,7 +726,7 @@ public static class ResultClassExtractor
             Parameters: null,
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: "new(Microsoft.AspNetCore.Http.Results.NotFound())");
+            Content: "new(TypedResults.NotFound())");
     }
 
     private static MethodParameters GenerateErrorMethod(
@@ -759,7 +759,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: "new(Microsoft.AspNetCore.Http.Results.Json(error, statusCode: 500))");
+                Content: "new(TypedResults.Json(error, statusCode: 500))");
         }
 
         return new MethodParameters(
@@ -783,7 +783,7 @@ public static class ResultClassExtractor
             },
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: "new(Microsoft.AspNetCore.Http.Results.Problem(message))");
+            Content: "new(TypedResults.Problem(message))");
     }
 
     /// <summary>
@@ -820,7 +820,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: "new(Microsoft.AspNetCore.Http.Results.Accepted((string?)null, response))");
+                Content: "new(TypedResults.Accepted((string?)null, response))");
         }
 
         return new MethodParameters(
@@ -833,7 +833,7 @@ public static class ResultClassExtractor
             Parameters: null,
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: "new(Microsoft.AspNetCore.Http.Results.Accepted())");
+            Content: "new(TypedResults.Accepted())");
     }
 
     private static MethodParameters GenerateBadRequestMethod(
@@ -865,7 +865,7 @@ public static class ResultClassExtractor
             },
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: $"new(\n        errors is null\n            ? Microsoft.AspNetCore.Http.Results.BadRequest()\n            : Microsoft.AspNetCore.Http.Results.BadRequest(errors))");
+            Content: $"new(\n        errors is null\n            ? TypedResults.BadRequest()\n            : TypedResults.BadRequest(errors))");
     }
 
     private static MethodParameters GenerateUnauthorizedMethod(
@@ -884,7 +884,7 @@ public static class ResultClassExtractor
             Parameters: null,
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: "new(Microsoft.AspNetCore.Http.Results.Unauthorized())");
+            Content: "new(TypedResults.Unauthorized())");
     }
 
     private static MethodParameters GenerateForbiddenMethod(
@@ -903,7 +903,7 @@ public static class ResultClassExtractor
             Parameters: null,
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: "new(Microsoft.AspNetCore.Http.Results.Forbid())");
+            Content: "new(TypedResults.Forbid())");
     }
 
     private static MethodParameters GenerateConflictMethod(
@@ -935,7 +935,7 @@ public static class ResultClassExtractor
             },
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: $"new(\n        error is null\n            ? Microsoft.AspNetCore.Http.Results.Conflict()\n            : Microsoft.AspNetCore.Http.Results.Conflict(error))");
+            Content: $"new(\n        error is null\n            ? TypedResults.Conflict()\n            : TypedResults.Conflict(error))");
     }
 
     private static MethodParameters GenerateTooManyRequestsMethod(
@@ -965,7 +965,7 @@ public static class ResultClassExtractor
             },
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: "new(Microsoft.AspNetCore.Http.Results.StatusCode(429))");
+            Content: "new(TypedResults.StatusCode(429))");
     }
 
     private static MethodParameters GenerateInternalServerErrorMethod(
@@ -997,7 +997,7 @@ public static class ResultClassExtractor
             },
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: $"new(\n        error is null\n            ? Microsoft.AspNetCore.Http.Results.StatusCode(500)\n            : Microsoft.AspNetCore.Http.Results.Json(error, statusCode: 500))");
+            Content: $"new(\n        error is null\n            ? TypedResults.StatusCode(500)\n            : TypedResults.Json(error, statusCode: 500))");
     }
 
     private static string GetSchemaTypeName(
