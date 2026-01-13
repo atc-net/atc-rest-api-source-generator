@@ -18,11 +18,11 @@ public class LoginUserResult : IResult
     /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
-    public static LoginUserResult Ok(string response)
-        => new(TypedResults.Ok(response));
+    public static LoginUserResult Ok(string message)
+        => new(TypedResults.Ok(message));
 
-    public static implicit operator LoginUserResult(string response)
-        => Ok(response);
+    public static implicit operator LoginUserResult(string message)
+        => Ok(message);
 
     /// <summary>
     /// 400 Bad Request - Invalid username/password supplied.

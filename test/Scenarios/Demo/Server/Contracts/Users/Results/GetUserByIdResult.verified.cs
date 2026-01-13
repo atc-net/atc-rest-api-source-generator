@@ -27,8 +27,8 @@ public class GetUserByIdResult : IResult
     /// <summary>
     /// 404 Not Found - User not found.
     /// </summary>
-    public static GetUserByIdResult NotFound()
-        => new(TypedResults.NotFound());
+    public static GetUserByIdResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

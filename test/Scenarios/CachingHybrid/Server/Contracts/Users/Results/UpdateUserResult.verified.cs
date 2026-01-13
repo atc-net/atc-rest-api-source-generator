@@ -27,8 +27,8 @@ public class UpdateUserResult : IResult
     /// <summary>
     /// 404 Not Found - Not Found.
     /// </summary>
-    public static UpdateUserResult NotFound()
-        => new(TypedResults.NotFound());
+    public static UpdateUserResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

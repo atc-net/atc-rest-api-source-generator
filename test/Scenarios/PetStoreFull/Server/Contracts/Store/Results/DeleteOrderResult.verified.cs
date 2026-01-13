@@ -33,8 +33,8 @@ public class DeleteOrderResult : IResult
     /// <summary>
     /// 404 Not Found - Order not found.
     /// </summary>
-    public static DeleteOrderResult NotFound()
-        => new(TypedResults.NotFound());
+    public static DeleteOrderResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     /// <summary>
     /// Default error response - Unexpected error.

@@ -36,8 +36,8 @@ public class UploadFileResult : IResult
     /// <summary>
     /// 404 Not Found - Pet not found.
     /// </summary>
-    public static UploadFileResult NotFound()
-        => new(TypedResults.NotFound());
+    public static UploadFileResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     /// <summary>
     /// Default error response - Unexpected error.

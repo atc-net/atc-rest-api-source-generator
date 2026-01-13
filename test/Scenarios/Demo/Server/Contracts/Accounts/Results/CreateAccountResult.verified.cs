@@ -27,11 +27,8 @@ public class CreateAccountResult : IResult
     /// <summary>
     /// 409 Conflict - Account conflict.
     /// </summary>
-    public static CreateAccountResult Conflict(ProblemDetails? error = null)
-        => new(
-                error is null
-                    ? TypedResults.Conflict()
-                    : TypedResults.Conflict(error));
+    public static CreateAccountResult Conflict(string? message = null)
+        => new(TypedResults.Conflict(message));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

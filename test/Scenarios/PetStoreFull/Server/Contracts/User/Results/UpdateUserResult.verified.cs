@@ -33,8 +33,8 @@ public class UpdateUserResult : IResult
     /// <summary>
     /// 404 Not Found - user not found.
     /// </summary>
-    public static UpdateUserResult NotFound()
-        => new(TypedResults.NotFound());
+    public static UpdateUserResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     /// <summary>
     /// Default error response - Unexpected error.

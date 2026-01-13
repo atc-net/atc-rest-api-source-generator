@@ -27,8 +27,8 @@ public class GetPetByIdResult : IResult
     /// <summary>
     /// 404 Not Found - Not Found.
     /// </summary>
-    public static GetPetByIdResult NotFound()
-        => new(TypedResults.NotFound());
+    public static GetPetByIdResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

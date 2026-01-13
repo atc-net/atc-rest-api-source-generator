@@ -27,8 +27,8 @@ public class GetFileByIdResult : IResult
     /// <summary>
     /// 404 Not Found - Not Found.
     /// </summary>
-    public static GetFileByIdResult NotFound()
-        => new(TypedResults.NotFound());
+    public static GetFileByIdResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

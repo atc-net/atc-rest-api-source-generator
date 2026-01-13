@@ -36,8 +36,8 @@ public class DeleteResourceResult : IResult
     /// <summary>
     /// 404 Not Found - Not Found.
     /// </summary>
-    public static DeleteResourceResult NotFound()
-        => new(TypedResults.NotFound());
+    public static DeleteResourceResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

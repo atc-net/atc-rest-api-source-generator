@@ -1,7 +1,9 @@
 global using System.Collections.Generic;
+global using System.Diagnostics.CodeAnalysis;
 global using System.Text;
 global using System.Text.Json;
 
+global using Atc.CodeGeneration.CSharp.Content;
 global using Atc.OpenApi.Extensions;
 global using Atc.OpenApi.Helpers;
 global using Atc.Rest.Api.Generator.Configurations;

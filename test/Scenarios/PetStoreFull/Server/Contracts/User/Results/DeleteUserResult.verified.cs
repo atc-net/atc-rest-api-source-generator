@@ -33,8 +33,8 @@ public class DeleteUserResult : IResult
     /// <summary>
     /// 404 Not Found - User not found.
     /// </summary>
-    public static DeleteUserResult NotFound()
-        => new(TypedResults.NotFound());
+    public static DeleteUserResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     /// <summary>
     /// Default error response - Unexpected error.

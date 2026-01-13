@@ -27,8 +27,8 @@ public class UpdateTaskByIdResult : IResult
     /// <summary>
     /// 404 Not Found - Task not found.
     /// </summary>
-    public static UpdateTaskByIdResult NotFound()
-        => new(TypedResults.NotFound());
+    public static UpdateTaskByIdResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

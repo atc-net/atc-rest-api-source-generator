@@ -36,8 +36,8 @@ public class GetPetByIdResult : IResult
     /// <summary>
     /// 404 Not Found - Pet not found.
     /// </summary>
-    public static GetPetByIdResult NotFound()
-        => new(TypedResults.NotFound());
+    public static GetPetByIdResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     /// <summary>
     /// Default error response - Unexpected error.

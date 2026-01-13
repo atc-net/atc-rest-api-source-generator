@@ -27,8 +27,8 @@ public class GetOrderByIdResult : IResult
     /// <summary>
     /// 404 Not Found - Not Found.
     /// </summary>
-    public static GetOrderByIdResult NotFound()
-        => new(TypedResults.NotFound());
+    public static GetOrderByIdResult NotFound(string? message = null)
+        => new(TypedResults.NotFound(message));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
