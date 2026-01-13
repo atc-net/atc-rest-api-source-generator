@@ -147,7 +147,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         var operations = openApiDoc.GetAllOperations();
 
         // Create system type conflict resolver for conditional Task qualification
-        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? Array.Empty<string>();
+        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
 
         // Get all path segments for GlobalUsings generation

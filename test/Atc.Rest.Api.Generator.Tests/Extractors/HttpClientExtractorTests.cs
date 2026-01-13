@@ -78,7 +78,7 @@ public class HttpClientExtractorTests
             document!,
             "TestApi",
             registry: null,
-            systemTypeResolver: new SystemTypeConflictResolver(Array.Empty<string>()),
+            systemTypeResolver: new SystemTypeConflictResolver([]),
             includeDeprecated: false);
 
         // Assert
@@ -147,7 +147,7 @@ public class HttpClientExtractorTests
             document!,
             "TestApi",
             registry: null,
-            systemTypeResolver: new SystemTypeConflictResolver(Array.Empty<string>()),
+            systemTypeResolver: new SystemTypeConflictResolver([]),
             includeDeprecated: false);
 
         // Assert
@@ -210,7 +210,7 @@ public class HttpClientExtractorTests
             document!,
             "TestApi",
             registry: null,
-            systemTypeResolver: new SystemTypeConflictResolver(Array.Empty<string>()),
+            systemTypeResolver: new SystemTypeConflictResolver([]),
             includeDeprecated: false);
 
         // Assert
@@ -273,7 +273,7 @@ public class HttpClientExtractorTests
             document!,
             "TestApi",
             registry: null,
-            systemTypeResolver: new SystemTypeConflictResolver(Array.Empty<string>()),
+            systemTypeResolver: new SystemTypeConflictResolver([]),
             includeDeprecated: false);
 
         // Assert
@@ -330,7 +330,7 @@ public class HttpClientExtractorTests
             document!,
             "TestApi",
             registry: null,
-            systemTypeResolver: new SystemTypeConflictResolver(Array.Empty<string>()),
+            systemTypeResolver: new SystemTypeConflictResolver([]),
             includeDeprecated: false);
 
         // Assert

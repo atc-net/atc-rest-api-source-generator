@@ -720,7 +720,7 @@ public static class CodeGenerationService
         GeneratorType generatorType = GeneratorType.Server)
     {
         var result = new List<GeneratedType>();
-        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? Array.Empty<string>();
+        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
 
         // Build conflict registry to handle types like "Task" that conflict with System.Threading.Tasks.Task
@@ -791,7 +791,7 @@ public static class CodeGenerationService
         GeneratorType generatorType = GeneratorType.Server)
     {
         var result = new List<GeneratedType>();
-        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? Array.Empty<string>();
+        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
         var interfaces = HandlerExtractor.Extract(openApiDoc, projectName, systemTypeResolver);
 
@@ -897,7 +897,7 @@ public static class CodeGenerationService
         }
 
         var codeDocGenerator = new CodeDocumentationTagsGenerator();
-        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? Array.Empty<string>();
+        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
 
         // Generate per-segment endpoint files
@@ -922,7 +922,7 @@ public static class CodeGenerationService
                 Category: "Endpoints",
                 Namespace: $"{projectName}.Generated.{pathSegment}.Endpoints",
                 Content: content,
-                RequiredUsings: Array.Empty<string>(), // Content already includes usings
+                RequiredUsings: [], // Content already includes usings
                 GroupName: pathSegment,
                 SubFolder: subFolder);
         }
@@ -939,7 +939,7 @@ public static class CodeGenerationService
                 Category: "EndpointMapping",
                 Namespace: $"{projectName}.Generated.Endpoints",
                 Content: mappingContent,
-                RequiredUsings: Array.Empty<string>(), // Content already includes usings
+                RequiredUsings: [], // Content already includes usings
                 GroupName: null,
                 SubFolder: mappingSubFolder);
         }
@@ -1141,7 +1141,7 @@ public static class CodeGenerationService
         GeneratorType generatorType = GeneratorType.Client)
     {
         var result = new List<GeneratedType>();
-        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? Array.Empty<string>();
+        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
 
         // Use ExtractWithInlineSchemas to also capture inline object schemas in responses
@@ -1254,7 +1254,7 @@ public static class CodeGenerationService
                     Category: "EndpointInterface",
                     Namespace: $"{projectName}.Generated.{pathSegment}.Endpoints.Interfaces",
                     Content: opFiles.EndpointInterfaceContent,
-                    RequiredUsings: Array.Empty<string>(),
+                    RequiredUsings: [],
                     GroupName: pathSegment,
                     SubFolder: $"Endpoints\\{pathSegment}\\Interfaces"));
 
@@ -1264,7 +1264,7 @@ public static class CodeGenerationService
                     Category: "EndpointClass",
                     Namespace: $"{projectName}.Generated.{pathSegment}.Endpoints",
                     Content: opFiles.EndpointClassContent,
-                    RequiredUsings: Array.Empty<string>(),
+                    RequiredUsings: [],
                     GroupName: pathSegment,
                     SubFolder: $"Endpoints\\{pathSegment}"));
 
@@ -1276,7 +1276,7 @@ public static class CodeGenerationService
                         Category: "ResultInterface",
                         Namespace: $"{projectName}.Generated.{pathSegment}.Endpoints.Interfaces",
                         Content: opFiles.ResultInterfaceContent,
-                        RequiredUsings: Array.Empty<string>(),
+                        RequiredUsings: [],
                         GroupName: pathSegment,
                         SubFolder: $"Endpoints\\{pathSegment}\\Interfaces"));
                 }
@@ -1289,7 +1289,7 @@ public static class CodeGenerationService
                         Category: "ResultClass",
                         Namespace: $"{projectName}.Generated.{pathSegment}.Endpoints.Results",
                         Content: opFiles.ResultClassContent,
-                        RequiredUsings: Array.Empty<string>(),
+                        RequiredUsings: [],
                         GroupName: pathSegment,
                         SubFolder: $"Endpoints\\{pathSegment}\\Results"));
                 }
@@ -1333,7 +1333,7 @@ public static class CodeGenerationService
             Category: "DependencyInjection",
             Namespace: $"{projectName}.Generated",
             Content: diContent,
-            RequiredUsings: Array.Empty<string>(),
+            RequiredUsings: [],
             GroupName: null,
             SubFolder: "DependencyInjection");
     }
@@ -1671,7 +1671,7 @@ public static class CodeGenerationService
             return result;
         }
 
-        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? Array.Empty<string>();
+        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
         var interfaces = WebhookHandlerExtractor.Extract(openApiDoc, projectName, systemTypeResolver, includeDeprecated);
 
@@ -1727,7 +1727,7 @@ public static class CodeGenerationService
             return result;
         }
 
-        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? Array.Empty<string>();
+        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
         var webhookParameters = WebhookParameterExtractor.Extract(openApiDoc, projectName, systemTypeResolver, includeDeprecated);
 
@@ -1746,7 +1746,7 @@ public static class CodeGenerationService
                 Category: "WebhookParameters",
                 Namespace: @namespace,
                 Content: content,
-                RequiredUsings: Array.Empty<string>(), // Content is self-contained
+                RequiredUsings: [], // Content is self-contained
                 GroupName: "Webhooks",
                 SubFolder: "Webhooks\\Parameters"));
         }
@@ -1790,7 +1790,7 @@ public static class CodeGenerationService
                 Category: "WebhookResults",
                 Namespace: @namespace,
                 Content: content,
-                RequiredUsings: Array.Empty<string>(), // Content is self-contained
+                RequiredUsings: [], // Content is self-contained
                 GroupName: "Webhooks",
                 SubFolder: "Webhooks\\Results"));
         }

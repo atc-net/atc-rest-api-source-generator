@@ -75,7 +75,7 @@ public sealed class SpecificationFile
     {
         if (Document?.Tags == null)
         {
-            return Array.Empty<string>();
+            return [];
         }
 
         return Document.Tags

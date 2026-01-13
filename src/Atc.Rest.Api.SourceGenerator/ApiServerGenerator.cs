@@ -369,7 +369,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         var conflicts = TypeConflictRegistry.ScanForConflicts(openApiDoc);
 
         // Create system type conflict resolver for conditional Task qualification
-        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? Array.Empty<string>();
+        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
 
         // Detect shared schemas (used by multiple path segments) for deduplication

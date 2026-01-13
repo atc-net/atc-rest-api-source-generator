@@ -283,7 +283,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         var conflicts = TypeConflictRegistry.ScanForConflicts(openApiDoc);
 
         // Create system type conflict resolver for conditional Task qualification
-        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? Array.Empty<string>();
+        var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
 
         // Generate shared ProblemDetails once for EndpointPerOperation mode
