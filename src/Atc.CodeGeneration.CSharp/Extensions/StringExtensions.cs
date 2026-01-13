@@ -149,6 +149,19 @@ public static class StringExtensions
                     .ToArray();
 
         /// <summary>
+        /// Splits the specified text into lines separated by \r\n, \n, or \r, preserving empty lines.
+        /// Use this when you need to maintain blank line spacing (e.g., between methods in generated code).
+        /// </summary>
+        /// <returns>
+        /// An array whose elements contain all substrings from this instance
+        /// that are delimited by newline characters, including empty lines.
+        /// </returns>
+        public string[] SplitIntoLinesPreserveEmpty()
+            => string.IsNullOrEmpty(value)
+                ? []
+                : value.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
+
+        /// <summary>
         /// Normalizes generated source code content by removing trailing whitespace.
         /// Use this method before writing to source files or adding to source generation context.
         /// </summary>
