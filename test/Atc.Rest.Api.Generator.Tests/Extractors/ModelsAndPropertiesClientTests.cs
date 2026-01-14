@@ -9,35 +9,35 @@ public class ModelsAndPropertiesClientTests
     public void Extract_ListModels_GeneratesAsyncMethodWithListReturn()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /models:
-                get:
-                  operationId: listModels
-                  responses:
-                    '200':
-                      description: Array of models
-                      content:
-                        application/json:
-                          schema:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/ComprehensiveModel'
-            components:
-              schemas:
-                ComprehensiveModel:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                    name:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /models:
+                                get:
+                                  operationId: listModels
+                                  responses:
+                                    '200':
+                                      description: Array of models
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              $ref: '#/components/schemas/ComprehensiveModel'
+                            components:
+                              schemas:
+                                ComprehensiveModel:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                      format: uuid
+                                    name:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -63,36 +63,36 @@ public class ModelsAndPropertiesClientTests
     public void Extract_ListAddresses_GeneratesAsyncMethodWithListReturn()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /addresses:
-                get:
-                  operationId: listAddresses
-                  responses:
-                    '200':
-                      description: Array of addresses
-                      content:
-                        application/json:
-                          schema:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/Address'
-            components:
-              schemas:
-                Address:
-                  type: object
-                  properties:
-                    streetName:
-                      type: string
-                    postalCode:
-                      type: string
-                    cityName:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /addresses:
+                                get:
+                                  operationId: listAddresses
+                                  responses:
+                                    '200':
+                                      description: Array of addresses
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              $ref: '#/components/schemas/Address'
+                            components:
+                              schemas:
+                                Address:
+                                  type: object
+                                  properties:
+                                    streetName:
+                                      type: string
+                                    postalCode:
+                                      type: string
+                                    cityName:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -118,36 +118,36 @@ public class ModelsAndPropertiesClientTests
     public void Extract_ListCountries_GeneratesAsyncMethodWithListReturn()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /countries:
-                get:
-                  operationId: listCountries
-                  responses:
-                    '200':
-                      description: Array of countries
-                      content:
-                        application/json:
-                          schema:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/Country'
-            components:
-              schemas:
-                Country:
-                  type: object
-                  properties:
-                    name:
-                      type: string
-                    alpha2Code:
-                      type: string
-                    alpha3Code:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /countries:
+                                get:
+                                  operationId: listCountries
+                                  responses:
+                                    '200':
+                                      description: Array of countries
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              $ref: '#/components/schemas/Country'
+                            components:
+                              schemas:
+                                Country:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                    alpha2Code:
+                                      type: string
+                                    alpha3Code:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -173,53 +173,53 @@ public class ModelsAndPropertiesClientTests
     public void Extract_ListPersons_GeneratesAsyncMethodWithQueryParameter()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /persons:
-                get:
-                  operationId: listPersons
-                  parameters:
-                    - name: gender
-                      in: query
-                      required: false
-                      schema:
-                        $ref: '#/components/schemas/GenderType'
-                  responses:
-                    '200':
-                      description: Array of persons
-                      content:
-                        application/json:
-                          schema:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/Person'
-            components:
-              schemas:
-                Person:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                    firstName:
-                      type: string
-                    lastName:
-                      type: string
-                    email:
-                      type: string
-                      format: email
-                GenderType:
-                  type: string
-                  enum:
-                    - None
-                    - NonBinary
-                    - Male
-                    - Female
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /persons:
+                                get:
+                                  operationId: listPersons
+                                  parameters:
+                                    - name: gender
+                                      in: query
+                                      required: false
+                                      schema:
+                                        $ref: '#/components/schemas/GenderType'
+                                  responses:
+                                    '200':
+                                      description: Array of persons
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              $ref: '#/components/schemas/Person'
+                            components:
+                              schemas:
+                                Person:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                      format: uuid
+                                    firstName:
+                                      type: string
+                                    lastName:
+                                      type: string
+                                    email:
+                                      type: string
+                                      format: email
+                                GenderType:
+                                  type: string
+                                  enum:
+                                    - None
+                                    - NonBinary
+                                    - Male
+                                    - Female
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -252,39 +252,39 @@ public class ModelsAndPropertiesClientTests
     public void Extract_CreateModel_GeneratesAsyncMethodWithModelReturn()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /models:
-                post:
-                  operationId: createModel
-                  requestBody:
-                    required: true
-                    content:
-                      application/json:
-                        schema:
-                          $ref: '#/components/schemas/ComprehensiveModel'
-                  responses:
-                    '201':
-                      description: Model created
-                      content:
-                        application/json:
-                          schema:
-                            $ref: '#/components/schemas/ComprehensiveModel'
-            components:
-              schemas:
-                ComprehensiveModel:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                    name:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /models:
+                                post:
+                                  operationId: createModel
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/ComprehensiveModel'
+                                  responses:
+                                    '201':
+                                      description: Model created
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/ComprehensiveModel'
+                            components:
+                              schemas:
+                                ComprehensiveModel:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                      format: uuid
+                                    name:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -315,40 +315,40 @@ public class ModelsAndPropertiesClientTests
     public void Extract_CreateAddress_GeneratesAsyncMethodWithAddressReturn()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /addresses:
-                post:
-                  operationId: createAddress
-                  requestBody:
-                    required: true
-                    content:
-                      application/json:
-                        schema:
-                          $ref: '#/components/schemas/Address'
-                  responses:
-                    '201':
-                      description: Address created
-                      content:
-                        application/json:
-                          schema:
-                            $ref: '#/components/schemas/Address'
-            components:
-              schemas:
-                Address:
-                  type: object
-                  properties:
-                    streetName:
-                      type: string
-                    postalCode:
-                      type: string
-                    cityName:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /addresses:
+                                post:
+                                  operationId: createAddress
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/Address'
+                                  responses:
+                                    '201':
+                                      description: Address created
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Address'
+                            components:
+                              schemas:
+                                Address:
+                                  type: object
+                                  properties:
+                                    streetName:
+                                      type: string
+                                    postalCode:
+                                      type: string
+                                    cityName:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -381,40 +381,40 @@ public class ModelsAndPropertiesClientTests
     public void Extract_GetModelById_GeneratesAsyncMethodWithGuidParameter()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /models/{modelId}:
-                get:
-                  operationId: getModelById
-                  parameters:
-                    - name: modelId
-                      in: path
-                      required: true
-                      schema:
-                        type: string
-                        format: uuid
-                  responses:
-                    '200':
-                      description: Model details
-                      content:
-                        application/json:
-                          schema:
-                            $ref: '#/components/schemas/ComprehensiveModel'
-            components:
-              schemas:
-                ComprehensiveModel:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                    name:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /models/{modelId}:
+                                get:
+                                  operationId: getModelById
+                                  parameters:
+                                    - name: modelId
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                        format: uuid
+                                  responses:
+                                    '200':
+                                      description: Model details
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/ComprehensiveModel'
+                            components:
+                              schemas:
+                                ComprehensiveModel:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                      format: uuid
+                                    name:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -447,36 +447,36 @@ public class ModelsAndPropertiesClientTests
     public void Extract_GetPrimitiveTypes_GeneratesAsyncMethod()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /primitives:
-                get:
-                  operationId: getPrimitiveTypes
-                  responses:
-                    '200':
-                      description: Primitive types
-                      content:
-                        application/json:
-                          schema:
-                            $ref: '#/components/schemas/PrimitiveTypes'
-            components:
-              schemas:
-                PrimitiveTypes:
-                  type: object
-                  properties:
-                    stringValue:
-                      type: string
-                    integerValue:
-                      type: integer
-                    numberValue:
-                      type: number
-                    booleanValue:
-                      type: boolean
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /primitives:
+                                get:
+                                  operationId: getPrimitiveTypes
+                                  responses:
+                                    '200':
+                                      description: Primitive types
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/PrimitiveTypes'
+                            components:
+                              schemas:
+                                PrimitiveTypes:
+                                  type: object
+                                  properties:
+                                    stringValue:
+                                      type: string
+                                    integerValue:
+                                      type: integer
+                                    numberValue:
+                                      type: number
+                                    booleanValue:
+                                      type: boolean
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -502,36 +502,36 @@ public class ModelsAndPropertiesClientTests
     public void Extract_GetStringFormats_GeneratesAsyncMethod()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /string-formats:
-                get:
-                  operationId: getStringFormats
-                  responses:
-                    '200':
-                      description: String format types
-                      content:
-                        application/json:
-                          schema:
-                            $ref: '#/components/schemas/StringFormats'
-            components:
-              schemas:
-                StringFormats:
-                  type: object
-                  properties:
-                    plainString:
-                      type: string
-                    uuidValue:
-                      type: string
-                      format: uuid
-                    dateTimeValue:
-                      type: string
-                      format: date-time
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /string-formats:
+                                get:
+                                  operationId: getStringFormats
+                                  responses:
+                                    '200':
+                                      description: String format types
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/StringFormats'
+                            components:
+                              schemas:
+                                StringFormats:
+                                  type: object
+                                  properties:
+                                    plainString:
+                                      type: string
+                                    uuidValue:
+                                      type: string
+                                      format: uuid
+                                    dateTimeValue:
+                                      type: string
+                                      format: date-time
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -557,32 +557,32 @@ public class ModelsAndPropertiesClientTests
     public void Extract_GetValidations_GeneratesAsyncMethod()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /validations:
-                get:
-                  operationId: getValidations
-                  responses:
-                    '200':
-                      description: Validation constraints
-                      content:
-                        application/json:
-                          schema:
-                            $ref: '#/components/schemas/ValidationConstraints'
-            components:
-              schemas:
-                ValidationConstraints:
-                  type: object
-                  properties:
-                    requiredString:
-                      type: string
-                    requiredInteger:
-                      type: integer
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /validations:
+                                get:
+                                  operationId: getValidations
+                                  responses:
+                                    '200':
+                                      description: Validation constraints
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/ValidationConstraints'
+                            components:
+                              schemas:
+                                ValidationConstraints:
+                                  type: object
+                                  properties:
+                                    requiredString:
+                                      type: string
+                                    requiredInteger:
+                                      type: integer
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -608,37 +608,37 @@ public class ModelsAndPropertiesClientTests
     public void Extract_GetDefaults_GeneratesAsyncMethod()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /defaults:
-                get:
-                  operationId: getDefaults
-                  responses:
-                    '200':
-                      description: Default values
-                      content:
-                        application/json:
-                          schema:
-                            $ref: '#/components/schemas/DefaultValues'
-            components:
-              schemas:
-                DefaultValues:
-                  type: object
-                  properties:
-                    stringDefault:
-                      type: string
-                      default: "default-value"
-                    integerDefault:
-                      type: integer
-                      default: 42
-                    booleanTrueDefault:
-                      type: boolean
-                      default: true
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /defaults:
+                                get:
+                                  operationId: getDefaults
+                                  responses:
+                                    '200':
+                                      description: Default values
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/DefaultValues'
+                            components:
+                              schemas:
+                                DefaultValues:
+                                  type: object
+                                  properties:
+                                    stringDefault:
+                                      type: string
+                                      default: "default-value"
+                                    integerDefault:
+                                      type: integer
+                                      default: 42
+                                    booleanTrueDefault:
+                                      type: boolean
+                                      default: true
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -664,36 +664,36 @@ public class ModelsAndPropertiesClientTests
     public void Extract_GetNullables_GeneratesAsyncMethod()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /nullables:
-                get:
-                  operationId: getNullables
-                  responses:
-                    '200':
-                      description: Nullable types
-                      content:
-                        application/json:
-                          schema:
-                            $ref: '#/components/schemas/NullableTypes'
-            components:
-              schemas:
-                NullableTypes:
-                  type: object
-                  properties:
-                    requiredString:
-                      type: string
-                    nullableString:
-                      type: string
-                      nullable: true
-                    nullableInteger:
-                      type: integer
-                      nullable: true
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /nullables:
+                                get:
+                                  operationId: getNullables
+                                  responses:
+                                    '200':
+                                      description: Nullable types
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/NullableTypes'
+                            components:
+                              schemas:
+                                NullableTypes:
+                                  type: object
+                                  properties:
+                                    requiredString:
+                                      type: string
+                                    nullableString:
+                                      type: string
+                                      nullable: true
+                                    nullableInteger:
+                                      type: integer
+                                      nullable: true
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -719,36 +719,36 @@ public class ModelsAndPropertiesClientTests
     public void Extract_GetArrayTypes_GeneratesAsyncMethod()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /arrays:
-                get:
-                  operationId: getArrayTypes
-                  responses:
-                    '200':
-                      description: Array types
-                      content:
-                        application/json:
-                          schema:
-                            $ref: '#/components/schemas/ArrayTypes'
-            components:
-              schemas:
-                ArrayTypes:
-                  type: object
-                  properties:
-                    stringArray:
-                      type: array
-                      items:
-                        type: string
-                    integerArray:
-                      type: array
-                      items:
-                        type: integer
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /arrays:
+                                get:
+                                  operationId: getArrayTypes
+                                  responses:
+                                    '200':
+                                      description: Array types
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/ArrayTypes'
+                            components:
+                              schemas:
+                                ArrayTypes:
+                                  type: object
+                                  properties:
+                                    stringArray:
+                                      type: array
+                                      items:
+                                        type: string
+                                    integerArray:
+                                      type: array
+                                      items:
+                                        type: integer
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -774,36 +774,36 @@ public class ModelsAndPropertiesClientTests
     public void Extract_GetDictionaryTypes_GeneratesAsyncMethod()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /dictionaries:
-                get:
-                  operationId: getDictionaryTypes
-                  responses:
-                    '200':
-                      description: Dictionary types
-                      content:
-                        application/json:
-                          schema:
-                            $ref: '#/components/schemas/DictionaryTypes'
-            components:
-              schemas:
-                DictionaryTypes:
-                  type: object
-                  properties:
-                    stringDictionary:
-                      type: object
-                      additionalProperties:
-                        type: string
-                    integerDictionary:
-                      type: object
-                      additionalProperties:
-                        type: integer
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /dictionaries:
+                                get:
+                                  operationId: getDictionaryTypes
+                                  responses:
+                                    '200':
+                                      description: Dictionary types
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/DictionaryTypes'
+                            components:
+                              schemas:
+                                DictionaryTypes:
+                                  type: object
+                                  properties:
+                                    stringDictionary:
+                                      type: object
+                                      additionalProperties:
+                                        type: string
+                                    integerDictionary:
+                                      type: object
+                                      additionalProperties:
+                                        type: integer
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -829,48 +829,48 @@ public class ModelsAndPropertiesClientTests
     public void Extract_GetEnumTypes_GeneratesAsyncMethod()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /enums:
-                get:
-                  operationId: getEnumTypes
-                  responses:
-                    '200':
-                      description: Enum types
-                      content:
-                        application/json:
-                          schema:
-                            $ref: '#/components/schemas/EnumTypes'
-            components:
-              schemas:
-                EnumTypes:
-                  type: object
-                  properties:
-                    genderType:
-                      $ref: '#/components/schemas/GenderType'
-                    statusType:
-                      $ref: '#/components/schemas/StatusType'
-                GenderType:
-                  type: string
-                  enum:
-                    - None
-                    - NonBinary
-                    - Male
-                    - Female
-                StatusType:
-                  type: string
-                  enum:
-                    - Draft
-                    - Pending
-                    - Active
-                    - Inactive
-                    - Archived
-                    - Deleted
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /enums:
+                                get:
+                                  operationId: getEnumTypes
+                                  responses:
+                                    '200':
+                                      description: Enum types
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/EnumTypes'
+                            components:
+                              schemas:
+                                EnumTypes:
+                                  type: object
+                                  properties:
+                                    genderType:
+                                      $ref: '#/components/schemas/GenderType'
+                                    statusType:
+                                      $ref: '#/components/schemas/StatusType'
+                                GenderType:
+                                  type: string
+                                  enum:
+                                    - None
+                                    - NonBinary
+                                    - Male
+                                    - Female
+                                StatusType:
+                                  type: string
+                                  enum:
+                                    - Draft
+                                    - Pending
+                                    - Active
+                                    - Inactive
+                                    - Archived
+                                    - Deleted
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);

@@ -9,23 +9,23 @@ public class ResultClassExtractorTests
     public void Extract_WithStringResponse_UsesMessageParameterName()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /login:
-                post:
-                  operationId: loginUser
-                  responses:
-                    '200':
-                      description: successful operation
-                      content:
-                        application/json:
-                          schema:
-                            type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /login:
+                                post:
+                                  operationId: loginUser
+                                  responses:
+                                    '200':
+                                      description: successful operation
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -61,38 +61,38 @@ public class ResultClassExtractorTests
     public void Extract_WithComplexTypeResponse_UsesResponseParameterName()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /users/{id}:
-                get:
-                  operationId: getUserById
-                  parameters:
-                    - name: id
-                      in: path
-                      required: true
-                      schema:
-                        type: string
-                  responses:
-                    '200':
-                      description: OK
-                      content:
-                        application/json:
-                          schema:
-                            $ref: '#/components/schemas/User'
-            components:
-              schemas:
-                User:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                    name:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /users/{id}:
+                                get:
+                                  operationId: getUserById
+                                  parameters:
+                                    - name: id
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/User'
+                            components:
+                              schemas:
+                                User:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                    name:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -128,23 +128,23 @@ public class ResultClassExtractorTests
     public void Extract_WithStringResponse_ImplicitOperatorUsesMessageParameterName()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /message:
-                get:
-                  operationId: getMessage
-                  responses:
-                    '200':
-                      description: OK
-                      content:
-                        application/json:
-                          schema:
-                            type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /message:
+                                get:
+                                  operationId: getMessage
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -183,38 +183,38 @@ public class ResultClassExtractorTests
     public void Extract_With404Response_GeneratesNotFoundWithStringMessageParameter()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /users/{id}:
-                get:
-                  operationId: getUserById
-                  parameters:
-                    - name: id
-                      in: path
-                      required: true
-                      schema:
-                        type: string
-                  responses:
-                    '200':
-                      description: OK
-                      content:
-                        application/json:
-                          schema:
-                            $ref: '#/components/schemas/User'
-                    '404':
-                      description: Not Found
-            components:
-              schemas:
-                User:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /users/{id}:
+                                get:
+                                  operationId: getUserById
+                                  parameters:
+                                    - name: id
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/User'
+                                    '404':
+                                      description: Not Found
+                            components:
+                              schemas:
+                                User:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -252,33 +252,33 @@ public class ResultClassExtractorTests
     public void Extract_With409Response_GeneratesConflictWithStringMessageParameter()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /users:
-                post:
-                  operationId: createUser
-                  requestBody:
-                    content:
-                      application/json:
-                        schema:
-                          $ref: '#/components/schemas/User'
-                  responses:
-                    '201':
-                      description: Created
-                    '409':
-                      description: Conflict
-            components:
-              schemas:
-                User:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /users:
+                                post:
+                                  operationId: createUser
+                                  requestBody:
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/User'
+                                  responses:
+                                    '201':
+                                      description: Created
+                                    '409':
+                                      description: Conflict
+                            components:
+                              schemas:
+                                User:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -316,39 +316,39 @@ public class ResultClassExtractorTests
     public void Extract_With412Response_GeneratesPreconditionFailedMethod()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /resources/{id}:
-                put:
-                  operationId: updateResource
-                  parameters:
-                    - name: id
-                      in: path
-                      required: true
-                      schema:
-                        type: string
-                  requestBody:
-                    content:
-                      application/json:
-                        schema:
-                          $ref: '#/components/schemas/Resource'
-                  responses:
-                    '200':
-                      description: OK
-                    '412':
-                      description: Precondition Failed
-            components:
-              schemas:
-                Resource:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /resources/{id}:
+                                put:
+                                  operationId: updateResource
+                                  parameters:
+                                    - name: id
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  requestBody:
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/Resource'
+                                  responses:
+                                    '200':
+                                      description: OK
+                                    '412':
+                                      description: Precondition Failed
+                            components:
+                              schemas:
+                                Resource:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -383,38 +383,38 @@ public class ResultClassExtractorTests
     public void Extract_Without412Response_DoesNotGeneratePreconditionFailedMethod()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /users/{id}:
-                get:
-                  operationId: getUserById
-                  parameters:
-                    - name: id
-                      in: path
-                      required: true
-                      schema:
-                        type: string
-                  responses:
-                    '200':
-                      description: OK
-                      content:
-                        application/json:
-                          schema:
-                            $ref: '#/components/schemas/User'
-                    '404':
-                      description: Not Found
-            components:
-              schemas:
-                User:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /users/{id}:
+                                get:
+                                  operationId: getUserById
+                                  parameters:
+                                    - name: id
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/User'
+                                    '404':
+                                      description: Not Found
+                            components:
+                              schemas:
+                                User:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);

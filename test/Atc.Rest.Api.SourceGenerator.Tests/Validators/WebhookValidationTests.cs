@@ -31,19 +31,19 @@ public class WebhookValidationTests
     public void Validate_NoWebhooks_NoWBH003()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.1.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /health:
-                get:
-                  operationId: healthCheck
-                  responses:
-                    '200':
-                      description: Success
-            """;
+        const string yaml = """
+                            openapi: 3.1.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /health:
+                                get:
+                                  operationId: healthCheck
+                                  responses:
+                                    '200':
+                                      description: Success
+                            """;
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
