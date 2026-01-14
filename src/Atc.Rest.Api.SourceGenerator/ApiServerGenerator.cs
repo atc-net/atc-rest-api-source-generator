@@ -1419,11 +1419,17 @@ public class ApiServerGenerator : IIncrementalGenerator
         string projectName,
         ServerConfig config)
     {
-        var generatedContent = ApiOptionsExtractor.Extract(openApiDoc, projectName, config);
-
+        // Generate ApiServiceOptions
+        var serviceOptionsContent = ApiOptionsExtractor.ExtractServiceOptions(openApiDoc, projectName, config);
         context.AddSource(
-            $"{projectName}.ApiOptions.g.cs",
-            SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            $"{projectName}.ApiServiceOptions.g.cs",
+            SourceText.From(serviceOptionsContent.NormalizeForSourceOutput(), Encoding.UTF8));
+
+        // Generate ApiMiddlewareOptions
+        var middlewareOptionsContent = ApiOptionsExtractor.ExtractMiddlewareOptions(openApiDoc, projectName);
+        context.AddSource(
+            $"{projectName}.ApiMiddlewareOptions.g.cs",
+            SourceText.From(middlewareOptionsContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
 
     /// <summary>
