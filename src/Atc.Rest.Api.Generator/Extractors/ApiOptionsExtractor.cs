@@ -7,13 +7,13 @@ namespace Atc.Rest.Api.Generator.Extractors;
 public static class ApiOptionsExtractor
 {
     /// <summary>
-    /// Generates the ApiServiceOptions and ApiMiddlewareOptions classes.
+    /// Generates the ApiServiceOptions class.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document for auto-detection.</param>
     /// <param name="projectName">The project name for namespace.</param>
-    /// <param name="config">The server configuration for versioning and validation settings.</param>
-    /// <returns>Generated code content for the options classes.</returns>
-    public static string Extract(
+    /// <param name="config">The server configuration for versioning settings.</param>
+    /// <returns>Generated code content for the ApiServiceOptions class.</returns>
+    public static string ExtractServiceOptions(
         OpenApiDocument openApiDoc,
         string projectName,
         ServerConfig config)
@@ -23,46 +23,79 @@ public static class ApiOptionsExtractor
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        // Auto-detect features from OpenAPI spec
         var hasRateLimiting = openApiDoc.HasRateLimiting();
-        var hasValidation = config.UseValidationFilter != MinimalApiPackageMode.Disabled;
         var hasVersioning = config.VersioningStrategy != VersioningStrategyType.None;
         var hasSecurity = openApiDoc.HasSecuritySchemes() || openApiDoc.HasJwtBearerSecurity();
 
-        return GenerateFileContent(projectName, hasRateLimiting, hasValidation, hasVersioning, hasSecurity);
+        return GenerateApiServiceOptionsContent(projectName, hasRateLimiting, hasVersioning, hasSecurity);
     }
 
     /// <summary>
-    /// Generates the complete file content for both options classes.
+    /// Generates the ApiMiddlewareOptions class.
     /// </summary>
-    private static string GenerateFileContent(
+    /// <param name="openApiDoc">The OpenAPI document for auto-detection.</param>
+    /// <param name="projectName">The project name for namespace.</param>
+    /// <returns>Generated code content for the ApiMiddlewareOptions class.</returns>
+    public static string ExtractMiddlewareOptions(
+        OpenApiDocument openApiDoc,
+        string projectName)
+    {
+        if (openApiDoc == null)
+        {
+            throw new ArgumentNullException(nameof(openApiDoc));
+        }
+
+        var hasRateLimiting = openApiDoc.HasRateLimiting();
+        var hasSecurity = openApiDoc.HasSecuritySchemes() || openApiDoc.HasJwtBearerSecurity();
+
+        return GenerateApiMiddlewareOptionsContent(projectName, hasRateLimiting, hasSecurity);
+    }
+
+    /// <summary>
+    /// Generates the complete file content for ApiServiceOptions.
+    /// </summary>
+    private static string GenerateApiServiceOptionsContent(
         string projectName,
         bool hasRateLimiting,
-        bool hasValidation,
         bool hasVersioning,
         bool hasSecurity)
     {
-        // Generate content first to analyze for required usings
         var contentBuilder = new StringBuilder();
         contentBuilder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         contentBuilder.AppendLine("public class ApiServiceOptions");
-        contentBuilder.AppendLine("public class ApiMiddlewareOptions");
-        contentBuilder.AppendLine("public Action<GlobalErrorHandlingOptions>? ConfigureErrorHandling { get; set; }");
         var content = contentBuilder.ToString();
 
-        // Build header with only required usings
         var builder = new StringBuilder();
         builder.Append(UsingStatementHelper.BuildHeader(content, "System.CodeDom.Compiler"));
         builder.AppendLine();
         builder.AppendLine($"namespace {projectName}.Generated;");
         builder.AppendLine();
 
-        // Generate ApiServiceOptions class
-        GenerateApiServiceOptions(builder, projectName, hasRateLimiting, hasValidation, hasVersioning, hasSecurity);
+        GenerateApiServiceOptions(builder, projectName, hasRateLimiting, hasVersioning, hasSecurity);
 
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Generates the complete file content for ApiMiddlewareOptions.
+    /// </summary>
+    private static string GenerateApiMiddlewareOptionsContent(
+        string projectName,
+        bool hasRateLimiting,
+        bool hasSecurity)
+    {
+        var contentBuilder = new StringBuilder();
+        contentBuilder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
+        contentBuilder.AppendLine("public class ApiMiddlewareOptions");
+        contentBuilder.AppendLine("public Action<GlobalErrorHandlingOptions>? ConfigureErrorHandling { get; set; }");
+        var content = contentBuilder.ToString();
+
+        var builder = new StringBuilder();
+        builder.Append(UsingStatementHelper.BuildHeader(content, "System.CodeDom.Compiler"));
+        builder.AppendLine();
+        builder.AppendLine($"namespace {projectName}.Generated;");
         builder.AppendLine();
 
-        // Generate ApiMiddlewareOptions class
         GenerateApiMiddlewareOptions(builder, projectName, hasRateLimiting, hasSecurity);
 
         return builder.ToString();
@@ -75,7 +108,6 @@ public static class ApiOptionsExtractor
         StringBuilder builder,
         string projectName,
         bool hasRateLimiting,
-        bool hasValidation,
         bool hasVersioning,
         bool hasSecurity)
     {
