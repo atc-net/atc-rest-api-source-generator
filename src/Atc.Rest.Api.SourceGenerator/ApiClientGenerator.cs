@@ -1012,6 +1012,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine("#nullable enable");
         sb.AppendLine();
         sb.AppendLine("using System.Collections.Generic;");
+        sb.AppendLine("using System.Text.Json;");
+        sb.AppendLine("using System.Text.Json.Serialization;");
         sb.AppendLine();
         sb.AppendLine($"namespace {projectName}.Generated;");
         sb.AppendLine();
@@ -1028,7 +1030,15 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(4, "string? Title,");
         sb.AppendLine(4, "int? Status,");
         sb.AppendLine(4, "string? Detail,");
-        sb.AppendLine(4, "string? Instance);");
+        sb.AppendLine(4, "string? Instance)");
+        sb.AppendLine("{");
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// Gets the extension members for this problem details instance.");
+        sb.AppendLine(4, "/// Extension members appear in the same namespace as other members of a problem type per RFC 7807.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "[JsonExtensionData]");
+        sb.AppendLine(4, "public Dictionary<string, JsonElement>? Extensions { get; init; }");
+        sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// A ProblemDetails response that includes validation errors.");
@@ -1046,7 +1056,15 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(4, "int? Status,");
         sb.AppendLine(4, "string? Detail,");
         sb.AppendLine(4, "string? Instance,");
-        sb.AppendLine(4, "Dictionary<string, string[]>? Errors);");
+        sb.AppendLine(4, "Dictionary<string, string[]>? Errors)");
+        sb.AppendLine("{");
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// Gets the extension members for this problem details instance.");
+        sb.AppendLine(4, "/// Extension members appear in the same namespace as other members of a problem type per RFC 7807.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "[JsonExtensionData]");
+        sb.AppendLine(4, "public Dictionary<string, JsonElement>? Extensions { get; init; }");
+        sb.AppendLine("}");
 
         var normalizeForSourceOutput = sb
             .ToString()
