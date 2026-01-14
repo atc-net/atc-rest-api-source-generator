@@ -196,6 +196,7 @@ Read the full documentation on the [WIKI](https://github.com/atc-net/atc-rest-ap
 | [🔢 Working with Versioning](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Versioning)               | API versioning strategies                    |
 | [📋 Analyzer Rules](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Analyzer-Rules)                                 | OpenAPI validation rules reference           |
 | [🎪 Showcase Demo](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Showcase-Demo)                                   | Full-featured demo with Blazor UI            |
+| [❓ FAQ & Troubleshooting](https://github.com/atc-net/atc-rest-api-source-generator/wiki/FAQ-and-Troubleshooting)                  | Common issues and solutions                  |
 | [🗺️ Roadmap](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Roadmap)                                              | Planned features and status                  |
 | [🔧 Development Notes](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Development-Notes)                           | For contributors                             |
 
