@@ -6,30 +6,30 @@ public class OpenApiSchemaExtensionsTests
     public void ToCSharpTypeForModel_WithOneOfSingleReference_ReturnsReferencedType()
     {
         // Arrange - property with oneOf containing a single reference (common nullable pattern)
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                Device:
-                  type: object
-                  properties:
-                    customer:
-                      nullable: true
-                      oneOf:
-                        - $ref: '#/components/schemas/IdValue'
-                IdValue:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                    name:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Device:
+                                  type: object
+                                  properties:
+                                    customer:
+                                      nullable: true
+                                      oneOf:
+                                        - $ref: '#/components/schemas/IdValue'
+                                IdValue:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                      format: uuid
+                                    name:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -51,26 +51,26 @@ public class OpenApiSchemaExtensionsTests
     public void ToCSharpTypeForModel_WithOneOfSingleReference_NonNullable_ReturnsNonNullableType()
     {
         // Arrange - property with oneOf containing a single reference without nullable
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                Device:
-                  type: object
-                  properties:
-                    owner:
-                      oneOf:
-                        - $ref: '#/components/schemas/User'
-                User:
-                  type: object
-                  properties:
-                    name:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Device:
+                                  type: object
+                                  properties:
+                                    owner:
+                                      oneOf:
+                                        - $ref: '#/components/schemas/User'
+                                User:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -90,32 +90,32 @@ public class OpenApiSchemaExtensionsTests
     {
         // Arrange - property with oneOf containing multiple references (polymorphic)
         // This is a different pattern and should NOT use the single-reference optimization
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                Vehicle:
-                  type: object
-                  properties:
-                    owner:
-                      oneOf:
-                        - $ref: '#/components/schemas/Person'
-                        - $ref: '#/components/schemas/Company'
-                Person:
-                  type: object
-                  properties:
-                    name:
-                      type: string
-                Company:
-                  type: object
-                  properties:
-                    companyName:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Vehicle:
+                                  type: object
+                                  properties:
+                                    owner:
+                                      oneOf:
+                                        - $ref: '#/components/schemas/Person'
+                                        - $ref: '#/components/schemas/Company'
+                                Person:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                Company:
+                                  type: object
+                                  properties:
+                                    companyName:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -137,27 +137,27 @@ public class OpenApiSchemaExtensionsTests
     public void ToCSharpTypeForModel_WithAllOfSingleReference_ReturnsReferencedType()
     {
         // Arrange - property with allOf containing a single reference (existing pattern)
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                Device:
-                  type: object
-                  properties:
-                    settings:
-                      nullable: true
-                      allOf:
-                        - $ref: '#/components/schemas/DeviceSettings'
-                DeviceSettings:
-                  type: object
-                  properties:
-                    enabled:
-                      type: boolean
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Device:
+                                  type: object
+                                  properties:
+                                    settings:
+                                      nullable: true
+                                      allOf:
+                                        - $ref: '#/components/schemas/DeviceSettings'
+                                DeviceSettings:
+                                  type: object
+                                  properties:
+                                    enabled:
+                                      type: boolean
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -176,25 +176,25 @@ public class OpenApiSchemaExtensionsTests
     public void ToCSharpTypeForModel_WithDirectReference_ReturnsReferencedType()
     {
         // Arrange - property with direct $ref (simple case)
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                Device:
-                  type: object
-                  properties:
-                    deviceType:
-                      $ref: '#/components/schemas/DeviceType'
-                DeviceType:
-                  type: string
-                  enum:
-                    - TypeA
-                    - TypeB
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Device:
+                                  type: object
+                                  properties:
+                                    deviceType:
+                                      $ref: '#/components/schemas/DeviceType'
+                                DeviceType:
+                                  type: string
+                                  enum:
+                                    - TypeA
+                                    - TypeB
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -213,27 +213,27 @@ public class OpenApiSchemaExtensionsTests
     public void ToCSharpTypeForModel_WithOneOfAndEnumReference_ReturnsEnumType()
     {
         // Arrange - property with oneOf containing a single enum reference
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                Device:
-                  type: object
-                  properties:
-                    suggestedType:
-                      nullable: true
-                      oneOf:
-                        - $ref: '#/components/schemas/DeviceType'
-                DeviceType:
-                  type: string
-                  enum:
-                    - TypeA
-                    - TypeB
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Device:
+                                  type: object
+                                  properties:
+                                    suggestedType:
+                                      nullable: true
+                                      oneOf:
+                                        - $ref: '#/components/schemas/DeviceType'
+                                DeviceType:
+                                  type: string
+                                  enum:
+                                    - TypeA
+                                    - TypeB
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -252,56 +252,56 @@ public class OpenApiSchemaExtensionsTests
     public void SchemaExtractor_WithOneOfSingleReference_GeneratesCorrectRecordProperty()
     {
         // Arrange - full integration test using SchemaExtractor
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /devices:
-                get:
-                  operationId: getDevices
-                  responses:
-                    '200':
-                      description: OK
-            components:
-              schemas:
-                InsightDevice:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                    name:
-                      type: string
-                    customer:
-                      nullable: true
-                      oneOf:
-                        - $ref: '#/components/schemas/IdValue'
-                    site:
-                      nullable: true
-                      oneOf:
-                        - $ref: '#/components/schemas/IdValue'
-                    suggestedCustomer:
-                      nullable: true
-                      oneOf:
-                        - $ref: '#/components/schemas/KeyValue'
-                IdValue:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-                    name:
-                      type: string
-                KeyValue:
-                  type: object
-                  properties:
-                    key:
-                      type: string
-                    value:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /devices:
+                                get:
+                                  operationId: getDevices
+                                  responses:
+                                    '200':
+                                      description: OK
+                            components:
+                              schemas:
+                                InsightDevice:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                      format: uuid
+                                    name:
+                                      type: string
+                                    customer:
+                                      nullable: true
+                                      oneOf:
+                                        - $ref: '#/components/schemas/IdValue'
+                                    site:
+                                      nullable: true
+                                      oneOf:
+                                        - $ref: '#/components/schemas/IdValue'
+                                    suggestedCustomer:
+                                      nullable: true
+                                      oneOf:
+                                        - $ref: '#/components/schemas/KeyValue'
+                                IdValue:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                      format: uuid
+                                    name:
+                                      type: string
+                                KeyValue:
+                                  type: object
+                                  properties:
+                                    key:
+                                      type: string
+                                    value:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);

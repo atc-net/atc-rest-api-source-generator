@@ -443,6 +443,9 @@ public class ApiServerGenerator : IIncrementalGenerator
                     pathSegment);
             }
 
+            // Determine if this segment has its own models namespace
+            var hasSegmentModels = segmentSchemas.Count > 0;
+
             // Generate parameter classes
             GenerateParameterClasses(
                 context,
@@ -451,7 +454,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                 pathSegment,
                 registry,
                 config.IncludeDeprecated,
-                includeSharedModelsUsing: sharedSchemas.Count > 0);
+                includeSharedModelsUsing: sharedSchemas.Count > 0,
+                includeSegmentModelsUsing: hasSegmentModels);
 
             // Generate result classes
             GenerateResultClasses(
@@ -462,7 +466,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                 registry,
                 systemTypeResolver,
                 config.IncludeDeprecated,
-                includeSharedModelsUsing: sharedSchemas.Count > 0);
+                includeSharedModelsUsing: sharedSchemas.Count > 0,
+                includeSegmentModelsUsing: hasSegmentModels);
 
             // Generate handler interfaces
             GenerateHandlerInterfaces(
@@ -1085,10 +1090,11 @@ public class ApiServerGenerator : IIncrementalGenerator
         string pathSegment,
         TypeConflictRegistry registry,
         bool includeDeprecated,
-        bool includeSharedModelsUsing = false)
+        bool includeSharedModelsUsing = false,
+        bool includeSegmentModelsUsing = true)
     {
         // Use OperationParameterExtractor to extract operation parameters into RecordsParameters filtered by path segment
-        var recordsParams = OperationParameterExtractor.Extract(openApiDoc, projectName, pathSegment, registry, includeDeprecated, includeSharedModelsUsing);
+        var recordsParams = OperationParameterExtractor.Extract(openApiDoc, projectName, pathSegment, registry, includeDeprecated, includeSharedModelsUsing, includeSegmentModelsUsing);
 
         if (recordsParams == null || recordsParams.Parameters.Count == 0)
         {
@@ -1112,7 +1118,8 @@ public class ApiServerGenerator : IIncrementalGenerator
         TypeConflictRegistry registry,
         SystemTypeConflictResolver systemTypeResolver,
         bool includeDeprecated,
-        bool includeSharedModelsUsing = false)
+        bool includeSharedModelsUsing = false,
+        bool includeSegmentModelsUsing = true)
     {
         // Use ResultClassExtractor to extract class parameters filtered by path segment
         // This also extracts inline schemas for type generation
@@ -1154,7 +1161,12 @@ public class ApiServerGenerator : IIncrementalGenerator
             allGeneratedCode.AppendLine($"using {projectName}.Generated.Models;");
         }
 
-        allGeneratedCode.AppendLine($"using {projectName}.Generated.{pathSegment}.Models;");
+        // Only include segment-specific models using if there are segment-specific models
+        if (includeSegmentModelsUsing)
+        {
+            allGeneratedCode.AppendLine($"using {projectName}.Generated.{pathSegment}.Models;");
+        }
+
         allGeneratedCode.AppendLine();
         allGeneratedCode.AppendLine($"namespace {projectName}.Generated.{pathSegment}.Results;");
         allGeneratedCode.AppendLine();

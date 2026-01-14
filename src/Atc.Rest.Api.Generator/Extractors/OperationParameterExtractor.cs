@@ -55,6 +55,8 @@ public static class OperationParameterExtractor
     /// <param name="pathSegment">The path segment to filter by (e.g., "Pets"). If null, extracts all parameters.</param>
     /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
+    /// <param name="includeSharedModelsUsing">Whether to include the shared models namespace in the using directives.</param>
+    /// <param name="includeSegmentModelsUsing">Whether to include the segment-specific models namespace in the using directives.</param>
     /// <returns>RecordsParameters containing parameter records for the path segment, or null if no parameters exist.</returns>
     public static RecordsParameters? Extract(
         OpenApiDocument openApiDoc,
@@ -62,7 +64,8 @@ public static class OperationParameterExtractor
         string? pathSegment,
         TypeConflictRegistry? registry = null,
         bool includeDeprecated = false,
-        bool includeSharedModelsUsing = false)
+        bool includeSharedModelsUsing = false,
+        bool includeSegmentModelsUsing = true)
     {
         var recordsList = ExtractIndividual(openApiDoc, projectName, pathSegment, registry: registry, includeBindingAttributes: true, namespaceSubFolder: "Parameters", includeDeprecated: includeDeprecated);
 
@@ -72,14 +75,18 @@ public static class OperationParameterExtractor
         }
 
         var namespaceValue = NamespaceBuilder.ForParameters(projectName, pathSegment);
-        var modelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
+
+        // Only include segment-specific models namespace if there are segment-specific models
+        var segmentModelsNamespace = includeSegmentModelsUsing && !string.IsNullOrEmpty(pathSegment)
+            ? NamespaceBuilder.ForModels(projectName, pathSegment)
+            : null;
 
         // Only include shared models using if requested AND there's a path segment
         // (no point including root models using if we're already in the root namespace)
         var sharedModelsNamespace = includeSharedModelsUsing && !string.IsNullOrEmpty(pathSegment)
             ? NamespaceBuilder.ForModels(projectName)
             : null;
-        var headerContent = BuildHeaderContent(includeBindingAttributes: true, modelsNamespace, sharedModelsNamespace);
+        var headerContent = BuildHeaderContent(includeBindingAttributes: true, segmentModelsNamespace, sharedModelsNamespace);
 
         return new RecordsParameters(
             HeaderContent: headerContent,
@@ -229,11 +236,11 @@ public static class OperationParameterExtractor
     /// Builds the header content for the generated file.
     /// </summary>
     /// <param name="includeBindingAttributes">Whether to include ASP.NET Core binding attributes.</param>
-    /// <param name="modelsNamespace">The path-segment-specific models namespace.</param>
+    /// <param name="segmentModelsNamespace">Optional path-segment-specific models namespace (null if no segment-specific models exist).</param>
     /// <param name="sharedModelsNamespace">Optional shared models namespace for types in the root namespace.</param>
     private static string BuildHeaderContent(
         bool includeBindingAttributes,
-        string modelsNamespace,
+        string? segmentModelsNamespace,
         string? sharedModelsNamespace = null)
     {
         var headerBuilder = new StringBuilder();
@@ -252,14 +259,20 @@ public static class OperationParameterExtractor
             headerBuilder.Append("using Microsoft.AspNetCore.Mvc;\r\n");
         }
 
-        // Include shared models namespace first (for global schemas like enums)
+        // Include shared models namespace (for global schemas like enums)
         if (!string.IsNullOrEmpty(sharedModelsNamespace) &&
-            !sharedModelsNamespace!.Equals(modelsNamespace, StringComparison.Ordinal))
+            !sharedModelsNamespace!.Equals(segmentModelsNamespace, StringComparison.Ordinal))
         {
             headerBuilder.Append($"using {sharedModelsNamespace};\r\n");
         }
 
-        headerBuilder.Append($"using {modelsNamespace};\r\n\r\n");
+        // Include segment-specific models namespace only if it exists
+        if (!string.IsNullOrEmpty(segmentModelsNamespace))
+        {
+            headerBuilder.Append($"using {segmentModelsNamespace};\r\n");
+        }
+
+        headerBuilder.Append("\r\n");
 
         return headerBuilder.ToString();
     }

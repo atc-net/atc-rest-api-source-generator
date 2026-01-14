@@ -7,34 +7,34 @@ public class EndpointPerOperationExtractorTests
     public void Extract_ArrayResponse_WithoutAsyncEnumerable_GeneratesIEnumerable()
     {
         // Arrange - simple array response WITHOUT x-return-async-enumerable
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /devices:
-                get:
-                  operationId: getDevices
-                  responses:
-                    '200':
-                      description: OK
-                      content:
-                        application/json:
-                          schema:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/Device'
-            components:
-              schemas:
-                Device:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                    name:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /devices:
+                                get:
+                                  operationId: getDevices
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              $ref: '#/components/schemas/Device'
+                            components:
+                              schemas:
+                                Device:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                    name:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -61,35 +61,35 @@ public class EndpointPerOperationExtractorTests
     public void Extract_ArrayResponse_WithAsyncEnumerable_GeneratesIAsyncEnumerable()
     {
         // Arrange - simple array response WITH x-return-async-enumerable: true
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /devices:
-                get:
-                  operationId: getDevices
-                  x-return-async-enumerable: true
-                  responses:
-                    '200':
-                      description: OK
-                      content:
-                        application/json:
-                          schema:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/Device'
-            components:
-              schemas:
-                Device:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                    name:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /devices:
+                                get:
+                                  operationId: getDevices
+                                  x-return-async-enumerable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              $ref: '#/components/schemas/Device'
+                            components:
+                              schemas:
+                                Device:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                    name:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -115,46 +115,46 @@ public class EndpointPerOperationExtractorTests
     public void Extract_PaginationAllOf_WithoutAsyncEnumerable_GeneratesPaginatedResult()
     {
         // Arrange - allOf pagination pattern WITHOUT x-return-async-enumerable
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /devices:
-                get:
-                  operationId: getDevices
-                  responses:
-                    '200':
-                      description: OK
-                      content:
-                        application/json:
-                          schema:
-                            allOf:
-                              - $ref: '#/components/schemas/PaginationResult'
-                              - type: object
-                                properties:
-                                  items:
-                                    type: array
-                                    items:
-                                      $ref: '#/components/schemas/Device'
-            components:
-              schemas:
-                PaginationResult:
-                  type: object
-                  properties:
-                    pageSize:
-                      type: integer
-                    continuationToken:
-                      type: string
-                Device:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                    name:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /devices:
+                                get:
+                                  operationId: getDevices
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            allOf:
+                                              - $ref: '#/components/schemas/PaginationResult'
+                                              - type: object
+                                                properties:
+                                                  items:
+                                                    type: array
+                                                    items:
+                                                      $ref: '#/components/schemas/Device'
+                            components:
+                              schemas:
+                                PaginationResult:
+                                  type: object
+                                  properties:
+                                    pageSize:
+                                      type: integer
+                                    continuationToken:
+                                      type: string
+                                Device:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                    name:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -181,47 +181,47 @@ public class EndpointPerOperationExtractorTests
     public void Extract_PaginationAllOf_WithAsyncEnumerable_GeneratesIAsyncEnumerablePaginatedResult()
     {
         // Arrange - allOf pagination pattern WITH x-return-async-enumerable: true
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /devices:
-                get:
-                  operationId: getDevices
-                  x-return-async-enumerable: true
-                  responses:
-                    '200':
-                      description: OK
-                      content:
-                        application/json:
-                          schema:
-                            allOf:
-                              - $ref: '#/components/schemas/PaginationResult'
-                              - type: object
-                                properties:
-                                  items:
-                                    type: array
-                                    items:
-                                      $ref: '#/components/schemas/Device'
-            components:
-              schemas:
-                PaginationResult:
-                  type: object
-                  properties:
-                    pageSize:
-                      type: integer
-                    continuationToken:
-                      type: string
-                Device:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                    name:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /devices:
+                                get:
+                                  operationId: getDevices
+                                  x-return-async-enumerable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            allOf:
+                                              - $ref: '#/components/schemas/PaginationResult'
+                                              - type: object
+                                                properties:
+                                                  items:
+                                                    type: array
+                                                    items:
+                                                      $ref: '#/components/schemas/Device'
+                            components:
+                              schemas:
+                                PaginationResult:
+                                  type: object
+                                  properties:
+                                    pageSize:
+                                      type: integer
+                                    continuationToken:
+                                      type: string
+                                Device:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                    name:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -247,47 +247,47 @@ public class EndpointPerOperationExtractorTests
     public void Extract_PaginatedResultWithResultsProperty_WithAsyncEnumerable_GeneratesCorrectType()
     {
         // Arrange - using "results" property instead of "items"
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /users:
-                get:
-                  operationId: getUsers
-                  x-return-async-enumerable: true
-                  responses:
-                    '200':
-                      description: OK
-                      content:
-                        application/json:
-                          schema:
-                            allOf:
-                              - $ref: '#/components/schemas/PaginatedResult'
-                              - type: object
-                                properties:
-                                  results:
-                                    type: array
-                                    items:
-                                      $ref: '#/components/schemas/User'
-            components:
-              schemas:
-                PaginatedResult:
-                  type: object
-                  properties:
-                    total:
-                      type: integer
-                    page:
-                      type: integer
-                User:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                    email:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /users:
+                                get:
+                                  operationId: getUsers
+                                  x-return-async-enumerable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            allOf:
+                                              - $ref: '#/components/schemas/PaginatedResult'
+                                              - type: object
+                                                properties:
+                                                  results:
+                                                    type: array
+                                                    items:
+                                                      $ref: '#/components/schemas/User'
+                            components:
+                              schemas:
+                                PaginatedResult:
+                                  type: object
+                                  properties:
+                                    total:
+                                      type: integer
+                                    page:
+                                      type: integer
+                                User:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                    email:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -313,33 +313,33 @@ public class EndpointPerOperationExtractorTests
     public void Extract_ResultInterface_WithAsyncEnumerable_HasCorrectPropertyType()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /items:
-                get:
-                  operationId: getItems
-                  x-return-async-enumerable: true
-                  responses:
-                    '200':
-                      description: OK
-                      content:
-                        application/json:
-                          schema:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/Item'
-            components:
-              schemas:
-                Item:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: getItems
+                                  x-return-async-enumerable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              $ref: '#/components/schemas/Item'
+                            components:
+                              schemas:
+                                Item:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
@@ -368,35 +368,35 @@ public class EndpointPerOperationExtractorTests
     public void Extract_NonSuccessResponse_WithAsyncEnumerable_DoesNotWrapInIAsyncEnumerable()
     {
         // Arrange - error responses should NOT be wrapped in IAsyncEnumerable
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths:
-              /devices:
-                get:
-                  operationId: getDevices
-                  x-return-async-enumerable: true
-                  responses:
-                    '200':
-                      description: OK
-                      content:
-                        application/json:
-                          schema:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/Device'
-                    '400':
-                      description: Bad Request
-            components:
-              schemas:
-                Device:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /devices:
+                                get:
+                                  operationId: getDevices
+                                  x-return-async-enumerable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              $ref: '#/components/schemas/Device'
+                                    '400':
+                                      description: Bad Request
+                            components:
+                              schemas:
+                                Device:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
 
         var document = ParseYaml(yaml);
         Assert.NotNull(document);

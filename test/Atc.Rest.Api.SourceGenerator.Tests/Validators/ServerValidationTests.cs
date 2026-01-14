@@ -70,20 +70,20 @@ public class ServerValidationTests
     public void Validate_ValidUrlWithVariables_NoSRV001()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            servers:
-              - url: "{protocol}://api.{environment}.example.com"
-                variables:
-                  protocol:
-                    default: https
-                  environment:
-                    default: prod
-            paths: {}
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            servers:
+                              - url: "{protocol}://api.{environment}.example.com"
+                                variables:
+                                  protocol:
+                                    default: https
+                                  environment:
+                                    default: prod
+                            paths: {}
+                            """;
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
@@ -127,15 +127,15 @@ public class ServerValidationTests
     public void Validate_UndefinedVariable_ReportsSRV001()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            servers:
-              - url: "https://api.{environment}.example.com"
-            paths: {}
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            servers:
+                              - url: "https://api.{environment}.example.com"
+                            paths: {}
+                            """;
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
@@ -158,13 +158,13 @@ public class ServerValidationTests
     public void Validate_NoServers_NoSRV001()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            """;
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
