@@ -106,7 +106,13 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
                 // Step 6: Modify project files
                 ctx.Status(dryRun ? "Analyzing project modifications..." : "Modifying project files...");
-                ModifyProjectFiles(report, specRelativePath, dryRun, summary);
+                ModifyProjectFiles(
+                    report,
+                    specRelativePath,
+                    PackageVersionDefaults.SourceGeneratorFallback,
+                    PackageVersionDefaults.RestClientMinFallback,
+                    dryRun,
+                    summary);
 
                 // Step 7: Handle ATC coding rules
                 ctx.Status(dryRun ? "Analyzing ATC coding rules..." : "Handling ATC coding rules...");
@@ -207,6 +213,8 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
     private static void ModifyProjectFiles(
         MigrationValidationReport report,
         string specRelativePath,
+        Version sourceGeneratorVersion,
+        Version restClientMinVersion,
         bool dryRun,
         MigrationSummary summary)
     {
@@ -216,6 +224,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             var result = ProjectFileModifier.ModifyServerProject(
                 report.ProjectStructure.ApiGeneratedProject,
                 specRelativePath,
+                sourceGeneratorVersion,
                 dryRun);
             if (result.WasModified)
             {
@@ -234,6 +243,8 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             var result = ProjectFileModifier.ModifyClientProject(
                 report.ProjectStructure.ApiClientGeneratedProject,
                 clientSpecPath,
+                sourceGeneratorVersion,
+                restClientMinVersion,
                 dryRun);
             if (result.WasModified)
             {
@@ -252,6 +263,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             var result = ProjectFileModifier.ModifyDomainProject(
                 report.ProjectStructure.DomainProject,
                 domainSpecPath,
+                sourceGeneratorVersion,
                 dryRun);
             if (result.WasModified)
             {

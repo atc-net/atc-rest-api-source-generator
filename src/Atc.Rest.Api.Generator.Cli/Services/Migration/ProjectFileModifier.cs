@@ -5,22 +5,18 @@ namespace Atc.Rest.Api.Generator.Cli.Services.Migration;
 /// </summary>
 internal static class ProjectFileModifier
 {
-    private const string SourceGeneratorPackage = "Atc.Rest.Api.SourceGenerator";
-    private const string SourceGeneratorVersion = "1.0.59";
-
-    private const string AtcRestClientPackage = "Atc.Rest.Client";
-    private const string AtcRestClientMinVersion = "2.0.12";
-
     /// <summary>
     /// Modifies the Api.Generated (soon to be Api.Contracts) project file.
     /// </summary>
     /// <param name="projectPath">Path to the .csproj file.</param>
     /// <param name="specificationRelativePath">Relative path to the OpenAPI specification.</param>
+    /// <param name="sourceGeneratorVersion">Version of the source generator package to use.</param>
     /// <param name="dryRun">If true, only returns what would be modified.</param>
     /// <returns>The modifications made.</returns>
     public static ProjectModificationResult ModifyServerProject(
         string projectPath,
         string specificationRelativePath,
+        Version sourceGeneratorVersion,
         bool dryRun = false)
     {
         var result = new ProjectModificationResult { ProjectPath = projectPath };
@@ -33,13 +29,14 @@ internal static class ProjectFileModifier
 
         var content = File.ReadAllText(projectPath);
         var modified = content;
+        var versionString = sourceGeneratorVersion.ToString();
 
         // Add source generator package reference
-        if (!content.Contains(SourceGeneratorPackage, StringComparison.OrdinalIgnoreCase))
+        if (!content.Contains(PackageVersionDefaults.SourceGeneratorPackageId, StringComparison.OrdinalIgnoreCase))
         {
-            var packageRef = GenerateSourceGeneratorPackageReference();
+            var packageRef = GenerateSourceGeneratorPackageReference(versionString);
             modified = AddItemGroup(modified, packageRef);
-            result.AddedPackages.Add($"{SourceGeneratorPackage} ({SourceGeneratorVersion})");
+            result.AddedPackages.Add($"{PackageVersionDefaults.SourceGeneratorPackageId} ({versionString})");
         }
 
         // Add AdditionalFiles for spec and marker
@@ -65,11 +62,15 @@ internal static class ProjectFileModifier
     /// </summary>
     /// <param name="projectPath">Path to the .csproj file.</param>
     /// <param name="specificationRelativePath">Relative path to the OpenAPI specification.</param>
+    /// <param name="sourceGeneratorVersion">Version of the source generator package to use.</param>
+    /// <param name="restClientMinVersion">Minimum version of Atc.Rest.Client required.</param>
     /// <param name="dryRun">If true, only returns what would be modified.</param>
     /// <returns>The modifications made.</returns>
     public static ProjectModificationResult ModifyClientProject(
         string projectPath,
         string specificationRelativePath,
+        Version sourceGeneratorVersion,
+        Version restClientMinVersion,
         bool dryRun = false)
     {
         var result = new ProjectModificationResult { ProjectPath = projectPath };
@@ -82,13 +83,15 @@ internal static class ProjectFileModifier
 
         var content = File.ReadAllText(projectPath);
         var modified = content;
+        var versionString = sourceGeneratorVersion.ToString();
+        var clientVersionString = restClientMinVersion.ToString();
 
         // Add source generator package reference
-        if (!content.Contains(SourceGeneratorPackage, StringComparison.OrdinalIgnoreCase))
+        if (!content.Contains(PackageVersionDefaults.SourceGeneratorPackageId, StringComparison.OrdinalIgnoreCase))
         {
-            var packageRef = GenerateSourceGeneratorPackageReference();
+            var packageRef = GenerateSourceGeneratorPackageReference(versionString);
             modified = AddItemGroup(modified, packageRef);
-            result.AddedPackages.Add($"{SourceGeneratorPackage} ({SourceGeneratorVersion})");
+            result.AddedPackages.Add($"{PackageVersionDefaults.SourceGeneratorPackageId} ({versionString})");
         }
 
         // Add AdditionalFiles for spec and marker
@@ -101,7 +104,11 @@ internal static class ProjectFileModifier
         }
 
         // Ensure Atc.Rest.Client >= minimum version (required for generated client code)
-        modified = EnsureMinimumPackageVersion(modified, AtcRestClientPackage, AtcRestClientMinVersion, result);
+        modified = EnsureMinimumPackageVersion(
+            modified,
+            PackageVersionDefaults.RestClientPackageId,
+            clientVersionString,
+            result);
 
         if (!dryRun && modified != content)
         {
@@ -117,11 +124,13 @@ internal static class ProjectFileModifier
     /// </summary>
     /// <param name="projectPath">Path to the .csproj file.</param>
     /// <param name="specificationRelativePath">Relative path to the OpenAPI specification.</param>
+    /// <param name="sourceGeneratorVersion">Version of the source generator package to use.</param>
     /// <param name="dryRun">If true, only returns what would be modified.</param>
     /// <returns>The modifications made.</returns>
     public static ProjectModificationResult ModifyDomainProject(
         string projectPath,
         string specificationRelativePath,
+        Version sourceGeneratorVersion,
         bool dryRun = false)
     {
         var result = new ProjectModificationResult { ProjectPath = projectPath };
@@ -134,13 +143,14 @@ internal static class ProjectFileModifier
 
         var content = File.ReadAllText(projectPath);
         var modified = content;
+        var versionString = sourceGeneratorVersion.ToString();
 
         // Add source generator package reference
-        if (!content.Contains(SourceGeneratorPackage, StringComparison.OrdinalIgnoreCase))
+        if (!content.Contains(PackageVersionDefaults.SourceGeneratorPackageId, StringComparison.OrdinalIgnoreCase))
         {
-            var packageRef = GenerateSourceGeneratorPackageReference();
+            var packageRef = GenerateSourceGeneratorPackageReference(versionString);
             modified = AddItemGroup(modified, packageRef);
-            result.AddedPackages.Add($"{SourceGeneratorPackage} ({SourceGeneratorVersion})");
+            result.AddedPackages.Add($"{PackageVersionDefaults.SourceGeneratorPackageId} ({versionString})");
         }
 
         // Add AdditionalFiles for spec and marker
@@ -202,11 +212,12 @@ internal static class ProjectFileModifier
         return result;
     }
 
-    private static string GenerateSourceGeneratorPackageReference()
+    private static string GenerateSourceGeneratorPackageReference(
+        string version)
         => $"""
               <ItemGroup>
-                <PackageReference Include="{SourceGeneratorPackage}"
-                                  Version="{SourceGeneratorVersion}"
+                <PackageReference Include="{PackageVersionDefaults.SourceGeneratorPackageId}"
+                                  Version="{version}"
                                   OutputItemType="Analyzer"
                                   ReferenceOutputAssembly="false" />
               </ItemGroup>
