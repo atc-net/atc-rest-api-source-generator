@@ -35,59 +35,59 @@ public static class CodeGenerationService
 
     private static readonly string[] ModelUsings =
     [
-        "System.ComponentModel.DataAnnotations",
+        NamespaceConstants.SystemComponentModelDataAnnotations,
     ];
 
     private static readonly string[] PolymorphicModelUsings =
     [
-        "System.CodeDom.Compiler",
-        "System.Text.Json.Serialization",
+        NamespaceConstants.SystemCodeDomCompiler,
+        NamespaceConstants.SystemTextJsonSerialization,
     ];
 
     private static readonly string[] ParameterUsings =
     [
-        "System.CodeDom.Compiler",
-        "System.ComponentModel",
-        "System.ComponentModel.DataAnnotations",
-        "Microsoft.AspNetCore.Mvc",
+        NamespaceConstants.SystemCodeDomCompiler,
+        NamespaceConstants.SystemComponentModel,
+        NamespaceConstants.SystemComponentModelDataAnnotations,
+        NamespaceConstants.MicrosoftAspNetCoreMvc,
     ];
 
     private static readonly string[] ResultUsings =
     [
-        "System.CodeDom.Compiler",
-        "System.Collections.Generic",
-        "Microsoft.AspNetCore.Http",
-        "Microsoft.AspNetCore.Mvc",
+        NamespaceConstants.SystemCodeDomCompiler,
+        NamespaceConstants.SystemCollectionsGeneric,
+        NamespaceConstants.MicrosoftAspNetCoreHttp,
+        NamespaceConstants.MicrosoftAspNetCoreMvc,
     ];
 
     private static readonly string[] HandlerUsings =
     [
-        "System.CodeDom.Compiler",
-        "System.Threading",
-        "System.Threading.Tasks",
+        NamespaceConstants.SystemCodeDomCompiler,
+        NamespaceConstants.SystemThreading,
+        NamespaceConstants.SystemThreadingTasks,
     ];
 
     private static readonly string[] EndpointUsings =
     [
-        "System.Threading",
-        "Microsoft.AspNetCore.Builder",
-        "Microsoft.AspNetCore.Http",
-        "Microsoft.AspNetCore.Mvc",
-        "Microsoft.AspNetCore.Routing",
+        NamespaceConstants.SystemThreading,
+        NamespaceConstants.MicrosoftAspNetCoreBuilder,
+        NamespaceConstants.MicrosoftAspNetCoreHttp,
+        NamespaceConstants.MicrosoftAspNetCoreMvc,
+        NamespaceConstants.MicrosoftAspNetCoreRouting,
     ];
 
     private static readonly string[] DependencyInjectionUsings =
     [
-        "Microsoft.Extensions.DependencyInjection",
+        NamespaceConstants.MicrosoftExtensionsDependencyInjection,
     ];
 
     private static readonly string[] HttpClientUsings =
     [
         "System",
-        "System.Net.Http",
-        "System.Net.Http.Json",
-        "System.Threading",
-        "System.Threading.Tasks",
+        NamespaceConstants.SystemNetHttp,
+        NamespaceConstants.SystemNetHttpJson,
+        NamespaceConstants.SystemThreading,
+        NamespaceConstants.SystemThreadingTasks,
     ];
 
     /// <summary>
@@ -422,7 +422,7 @@ public static class CodeGenerationService
                 p.TypeName.StartsWith("Dictionary<", StringComparison.Ordinal));
             if (usesDictionary)
             {
-                usings.Add("System.Collections.Generic");
+                usings.Add(NamespaceConstants.SystemCollectionsGeneric);
             }
 
             // Determine group name from schema usage in operations
@@ -572,7 +572,7 @@ public static class CodeGenerationService
                 p.TypeName.StartsWith("Dictionary<", StringComparison.Ordinal));
             if (usesDictionary)
             {
-                usings.Add("System.Collections.Generic");
+                usings.Add(NamespaceConstants.SystemCollectionsGeneric);
             }
 
             var subFolder = GetSubFolder("Models", pathSegment, generatorType);
@@ -988,12 +988,12 @@ public static class CodeGenerationService
         // Get namespace availability for this segment
         var namespaces = PathSegmentHelper.GetPathSegmentNamespaces(openApiDoc, pathSegment);
 
-        builder.AppendLine("using System.CodeDom.Compiler;");
-        builder.AppendLine("using System.Threading;");
-        builder.AppendLine("using System.Threading.Tasks;");
-        builder.AppendLine("using Microsoft.AspNetCore.Builder;");
-        builder.AppendLine("using Microsoft.AspNetCore.Http;");
-        builder.AppendLine("using Microsoft.AspNetCore.Mvc;");
+        builder.AppendLine($"using {NamespaceConstants.SystemCodeDomCompiler};");
+        builder.AppendLine($"using {NamespaceConstants.SystemThreading};");
+        builder.AppendLine($"using {NamespaceConstants.SystemThreadingTasks};");
+        builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreBuilder};");
+        builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreHttp};");
+        builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreMvc};");
 
         // Add conditional segment namespace usings
         builder.AppendSegmentUsings(projectName, pathSegment, namespaces);
@@ -1055,8 +1055,8 @@ public static class CodeGenerationService
         builder.AppendLine("// <auto-generated />");
         builder.AppendLine("#nullable enable");
         builder.AppendLine();
-        builder.AppendLine("using System.CodeDom.Compiler;");
-        builder.AppendLine("using Microsoft.AspNetCore.Builder;");
+        builder.AppendLine($"using {NamespaceConstants.SystemCodeDomCompiler};");
+        builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreBuilder};");
         builder.AppendLine();
 
         // Add usings for each path segment's endpoints namespace
@@ -1350,8 +1350,8 @@ public static class CodeGenerationService
         sb.AppendLine("// <auto-generated />");
         sb.AppendLine("#nullable enable");
         sb.AppendLine();
-        sb.AppendLine("using System.CodeDom.Compiler;");
-        sb.AppendLine("using Microsoft.Extensions.DependencyInjection;");
+        sb.AppendLine($"using {NamespaceConstants.SystemCodeDomCompiler};");
+        sb.AppendLine($"using {NamespaceConstants.MicrosoftExtensionsDependencyInjection};");
 
         // Add using statements for each path segment namespace
         foreach (var pathSegment in pathSegments)
@@ -1828,7 +1828,7 @@ public static class CodeGenerationService
 
         var usings = new List<string>(EndpointUsings)
         {
-            "System.CodeDom.Compiler",
+            NamespaceConstants.SystemCodeDomCompiler,
             NamespaceBuilder.ForWebhookHandlers(projectName),
             NamespaceBuilder.ForWebhookParameters(projectName),
             NamespaceBuilder.ForWebhookResults(projectName),
@@ -1874,7 +1874,7 @@ public static class CodeGenerationService
 
         var usings = new List<string>(DependencyInjectionUsings)
         {
-            "System.CodeDom.Compiler",
+            NamespaceConstants.SystemCodeDomCompiler,
             NamespaceBuilder.ForWebhookHandlers(projectName),
         };
 

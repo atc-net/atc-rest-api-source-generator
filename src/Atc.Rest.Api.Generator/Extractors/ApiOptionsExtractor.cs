@@ -66,7 +66,7 @@ public static class ApiOptionsExtractor
         var content = contentBuilder.ToString();
 
         var builder = new StringBuilder();
-        builder.Append(UsingStatementHelper.BuildHeader(content, "System.CodeDom.Compiler"));
+        builder.Append(UsingStatementHelper.BuildHeader(content, NamespaceConstants.SystemCodeDomCompiler));
         builder.AppendLine();
         builder.AppendLine($"namespace {projectName}.Generated;");
         builder.AppendLine();
@@ -91,7 +91,7 @@ public static class ApiOptionsExtractor
         var content = contentBuilder.ToString();
 
         var builder = new StringBuilder();
-        builder.Append(UsingStatementHelper.BuildHeader(content, "System.CodeDom.Compiler"));
+        builder.Append(UsingStatementHelper.BuildHeader(content, NamespaceConstants.SystemCodeDomCompiler));
         builder.AppendLine();
         builder.AppendLine($"namespace {projectName}.Generated;");
         builder.AppendLine();

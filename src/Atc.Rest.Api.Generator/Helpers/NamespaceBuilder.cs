@@ -19,6 +19,8 @@ public static class NamespaceBuilder
         public const string Client = "Client";
         public const string Interfaces = "Interfaces";
         public const string Webhooks = "Webhooks";
+        public const string OAuth = "OAuth";
+        public const string Caching = "Caching";
     }
 
     /// <summary>

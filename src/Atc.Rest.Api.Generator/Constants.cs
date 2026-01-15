@@ -44,4 +44,46 @@ public static class Constants
         /// </summary>
         public const string ClientJson = Client + ".json";
     }
+
+    /// <summary>
+    /// File extension constants for specification and configuration files.
+    /// </summary>
+    public static class FileExtensions
+    {
+        /// <summary>
+        /// YAML file extension (.yaml).
+        /// </summary>
+        public const string Yaml = ".yaml";
+
+        /// <summary>
+        /// Short YAML file extension (.yml).
+        /// </summary>
+        public const string Yml = ".yml";
+
+        /// <summary>
+        /// JSON file extension (.json).
+        /// </summary>
+        public const string Json = ".json";
+    }
+
+    /// <summary>
+    /// Standard directory names used in project scaffolding.
+    /// </summary>
+    public static class Directories
+    {
+        /// <summary>
+        /// Source directory name.
+        /// </summary>
+        public const string Source = "src";
+
+        /// <summary>
+        /// Test directory name.
+        /// </summary>
+        public const string Test = "test";
+
+        /// <summary>
+        /// Scripts and specifications directory name.
+        /// </summary>
+        public const string ScriptsAndSpecifications = "ScriptsAndSpecifications";
+    }
 }

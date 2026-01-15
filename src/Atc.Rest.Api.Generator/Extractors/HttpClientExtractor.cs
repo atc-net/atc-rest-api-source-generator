@@ -203,7 +203,7 @@ public static class HttpClientExtractor
         // Build header content with only required usings
         var usings = UsingStatementHelper.GetRequiredUsings(
             contentForAnalysis,
-            "System.CodeDom.Compiler");
+            NamespaceConstants.SystemCodeDomCompiler);
 
         // Always include the models namespace
         usings.Add(modelsNamespace);

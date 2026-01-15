@@ -67,8 +67,8 @@ public static class HeaderBuilder
     /// <returns>The complete header string.</returns>
     public static string ForDependencyInjection()
         => WithUsings(
-            "System.CodeDom.Compiler",
-            "Microsoft.Extensions.DependencyInjection");
+            NamespaceConstants.SystemCodeDomCompiler,
+            NamespaceConstants.MicrosoftExtensionsDependencyInjection);
 
     /// <summary>
     /// Builds a header for FluentValidation DI extension methods.
@@ -76,9 +76,9 @@ public static class HeaderBuilder
     /// <returns>The complete header string.</returns>
     public static string ForValidatorDependencyInjection()
         => WithUsings(
-            "System.CodeDom.Compiler",
-            "FluentValidation",
-            "Microsoft.Extensions.DependencyInjection");
+            NamespaceConstants.SystemCodeDomCompiler,
+            NamespaceConstants.FluentValidation,
+            NamespaceConstants.MicrosoftExtensionsDependencyInjection);
 
     /// <summary>
     /// Builds a header for WebApplication extension methods.
@@ -86,8 +86,8 @@ public static class HeaderBuilder
     /// <returns>The complete header string.</returns>
     public static string ForWebApplicationExtensions()
         => WithUsings(
-            "System.CodeDom.Compiler",
-            "Microsoft.AspNetCore.Builder");
+            NamespaceConstants.SystemCodeDomCompiler,
+            NamespaceConstants.MicrosoftAspNetCoreBuilder);
 
     /// <summary>
     /// Builds a header for handler interfaces.

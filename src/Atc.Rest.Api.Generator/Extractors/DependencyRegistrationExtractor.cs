@@ -57,8 +57,8 @@ public static class DependencyRegistrationExtractor
         // Build header with handler interface namespaces
         var headerUsings = new List<string>
         {
-            "System.CodeDom.Compiler",
-            "Microsoft.Extensions.DependencyInjection",
+            NamespaceConstants.SystemCodeDomCompiler,
+            NamespaceConstants.MicrosoftExtensionsDependencyInjection,
         };
 
         if (handlerInterfaceNamespaces is { Count: > 0 })

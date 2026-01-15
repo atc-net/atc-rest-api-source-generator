@@ -93,7 +93,7 @@ public static class WebApplicationExtensionsExtractor
 
         // Build header with only required usings
         var builder = new StringBuilder();
-        builder.Append(UsingStatementHelper.BuildHeader(content, "System.CodeDom.Compiler"));
+        builder.Append(UsingStatementHelper.BuildHeader(content, NamespaceConstants.SystemCodeDomCompiler));
         builder.AppendLine($"using {projectName}.Generated;");
         builder.AppendLine($"using {projectName}.Generated.Endpoints;");
 
@@ -210,7 +210,7 @@ public static class WebApplicationExtensionsExtractor
 
         // Build header with only required usings
         var builder = new StringBuilder();
-        builder.Append(UsingStatementHelper.BuildHeader(content, "System.CodeDom.Compiler"));
+        builder.Append(UsingStatementHelper.BuildHeader(content, NamespaceConstants.SystemCodeDomCompiler));
 
         if (includeEndpointUsings)
         {
