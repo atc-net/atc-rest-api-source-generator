@@ -45,19 +45,10 @@ public static class CustomErrorResponseExtractor
                     docTags = new CodeDocumentationTags(prop.Value.Description!);
                 }
 
-                // Add JsonPropertyName attribute if property name differs from JSON name
-                IList<AttributeParameters>? attributes = null;
-                if (prop.Key != propName)
-                {
-                    attributes = new List<AttributeParameters>
-                    {
-                        new("JsonPropertyName", $"\"{prop.Key}\""),
-                    };
-                }
-
+                // JsonPropertyName is handled via JsonName parameter - generator adds the attribute
                 propertyList.Add(new PropertyParameters(
                     DocumentationTags: docTags,
-                    Attributes: attributes,
+                    Attributes: null,
                     DeclarationModifier: DeclarationModifiers.Public,
                     GenericTypeName: null,
                     TypeName: cleanTypeName,

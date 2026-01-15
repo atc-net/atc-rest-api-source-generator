@@ -82,7 +82,8 @@ public static class EndpointPerOperationExtractor
     /// <param name="pathSegment">The path segment to filter by.</param>
     /// <param name="registry">Optional conflict registry.</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
-    /// <param name="customErrorTypeName">Optional custom error type name (replaces ProblemDetails).</param>
+    /// <param name="errorResponseFormat">The expected error response format from the API.</param>
+    /// <param name="customErrorTypeName">Optional custom error type name (used when ErrorResponseFormat is Custom).</param>
     /// <param name="customHttpClientName">Optional custom HTTP client name.</param>
     /// <param name="hasSegmentModels">Whether the segment has segment-specific models.</param>
     /// <param name="hasSharedModels">Whether there are shared models in the project.</param>
@@ -93,6 +94,7 @@ public static class EndpointPerOperationExtractor
         string pathSegment,
         TypeConflictRegistry? registry = null,
         bool includeDeprecated = false,
+        ErrorResponseFormatType errorResponseFormat = ErrorResponseFormatType.ProblemDetails,
         string? customErrorTypeName = null,
         string? customHttpClientName = null,
         bool hasSegmentModels = true,
@@ -105,6 +107,7 @@ public static class EndpointPerOperationExtractor
             pathSegment,
             registry,
             includeDeprecated,
+            errorResponseFormat,
             customErrorTypeName,
             customHttpClientName,
             hasSegmentModels,
@@ -122,7 +125,8 @@ public static class EndpointPerOperationExtractor
     /// <param name="pathSegment">The path segment to filter by.</param>
     /// <param name="registry">Optional conflict registry.</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
-    /// <param name="customErrorTypeName">Optional custom error type name (replaces ProblemDetails).</param>
+    /// <param name="errorResponseFormat">The expected error response format from the API.</param>
+    /// <param name="customErrorTypeName">Optional custom error type name (used when ErrorResponseFormat is Custom).</param>
     /// <param name="customHttpClientName">Optional custom HTTP client name.</param>
     /// <param name="hasSegmentModels">Whether the segment has segment-specific models.</param>
     /// <param name="hasSharedModels">Whether there are shared models in the project.</param>
@@ -134,6 +138,7 @@ public static class EndpointPerOperationExtractor
         string pathSegment,
         TypeConflictRegistry? registry = null,
         bool includeDeprecated = false,
+        ErrorResponseFormatType errorResponseFormat = ErrorResponseFormatType.ProblemDetails,
         string? customErrorTypeName = null,
         string? customHttpClientName = null,
         bool hasSegmentModels = true,
@@ -202,6 +207,7 @@ public static class EndpointPerOperationExtractor
                     openApiDoc,
                     registry,
                     httpClientName,
+                    errorResponseFormat,
                     customErrorTypeName,
                     hasSegmentModels,
                     hasSharedModels,
@@ -229,6 +235,7 @@ public static class EndpointPerOperationExtractor
         OpenApiDocument openApiDoc,
         TypeConflictRegistry? registry,
         string httpClientName,
+        ErrorResponseFormatType errorResponseFormat,
         string? customErrorTypeName,
         bool hasSegmentModels,
         bool hasSharedModels,
@@ -255,6 +262,7 @@ public static class EndpointPerOperationExtractor
             operation,
             openApiDoc,
             registry,
+            errorResponseFormat,
             customErrorTypeName,
             operationId,
             pathSegment,
@@ -406,6 +414,7 @@ public static class EndpointPerOperationExtractor
         OpenApiOperation operation,
         OpenApiDocument openApiDoc,
         TypeConflictRegistry? registry,
+        ErrorResponseFormatType errorResponseFormat,
         string? customErrorTypeName,
         string? operationId,
         string? pathSegment,
@@ -453,19 +462,10 @@ public static class EndpointPerOperationExtractor
                     isAsyncEnumerable && isSuccess);
             }
 
-            // Use custom error type if provided, otherwise use ValidationProblemDetails for 400 Bad Request, ProblemDetails for other errors
+            // Determine error content type based on ErrorResponseFormatType
             if (!isSuccess && contentType == null)
             {
-                if (!string.IsNullOrEmpty(customErrorTypeName))
-                {
-                    contentType = customErrorTypeName;
-                }
-                else
-                {
-                    contentType = statusCodeStr == "400"
-                        ? "ValidationProblemDetails"
-                        : "ProblemDetails";
-                }
+                contentType = GetErrorContentType(errorResponseFormat, customErrorTypeName, statusCodeStr);
             }
 
             responses.Add(new ResponseInfo(statusCodeStr, statusEnumName, propertyName, contentType, isSuccess));
@@ -473,6 +473,34 @@ public static class EndpointPerOperationExtractor
 
         return responses;
     }
+
+    /// <summary>
+    /// Determines the error content type based on the configured error response format.
+    /// </summary>
+    private static string GetErrorContentType(
+        ErrorResponseFormatType errorResponseFormat,
+        string? customErrorTypeName,
+        string statusCodeStr)
+        => errorResponseFormat switch
+        {
+            // ProblemDetails: ValidationProblemDetails for 400, ProblemDetails for others
+            ErrorResponseFormatType.ProblemDetails => statusCodeStr == "400"
+                ? "ValidationProblemDetails"
+                : "ProblemDetails",
+
+            // PlainText: ValidationProblemDetails for 400, string for others
+            ErrorResponseFormatType.PlainText => statusCodeStr == "400"
+                ? "ValidationProblemDetails"
+                : "string",
+
+            // PlainTextOnly: string for all errors including 400
+            ErrorResponseFormatType.PlainTextOnly => "string",
+
+            // Custom: use the custom error type name for all errors
+            ErrorResponseFormatType.Custom => customErrorTypeName ?? "ProblemDetails",
+
+            _ => "ProblemDetails",
+        };
 
     private static string GenerateEndpointInterface(
         string projectName,

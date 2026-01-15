@@ -39,8 +39,15 @@ public class ClientConfig : BaseConfig
     public bool GeneratePartialModels { get; set; }
 
     /// <summary>
+    /// Error response format expected from the API. Default: ProblemDetails.
+    /// Only applies to EndpointPerOperation generation mode.
+    /// </summary>
+    [JsonConverter(typeof(ErrorResponseFormatTypeConverter))]
+    public ErrorResponseFormatType ErrorResponseFormat { get; set; } = ErrorResponseFormatType.ProblemDetails;
+
+    /// <summary>
     /// Custom error response model to use instead of ProblemDetails. Default: null (uses ProblemDetails).
-    /// When specified, generates a custom error response type with the defined schema.
+    /// When specified and ErrorResponseFormat is Custom, generates a custom error response type with the defined schema.
     /// </summary>
     public CustomErrorResponseModelConfig? CustomErrorResponseModel { get; set; }
 

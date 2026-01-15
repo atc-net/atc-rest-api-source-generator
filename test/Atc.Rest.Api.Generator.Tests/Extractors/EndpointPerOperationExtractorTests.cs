@@ -488,6 +488,279 @@ public class EndpointPerOperationExtractorTests
         Assert.Equal(expected, result);
     }
 
+    // ========== Error Response Format Tests ==========
+    [Fact]
+    public void Extract_ProblemDetailsFormat_Uses_ValidationProblemDetails_For400()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: getItems
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                                    '400':
+                                      description: Bad Request
+                                    '401':
+                                      description: Unauthorized
+                                    '500':
+                                      description: Internal Server Error
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act - default is ProblemDetails format
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document!,
+            "TestApi",
+            "items",
+            registry: null,
+            includeDeprecated: false,
+            errorResponseFormat: ErrorResponseFormatType.ProblemDetails);
+
+        // Assert
+        Assert.Single(files);
+        var operationFile = files[0];
+        Assert.NotNull(operationFile.ResultClassContent);
+
+        // 400 should use ValidationProblemDetails
+        Assert.Contains("ValidationProblemDetails BadRequestContent", operationFile.ResultClassContent, StringComparison.Ordinal);
+
+        // Other errors should use ProblemDetails
+        Assert.Contains("ProblemDetails UnauthorizedContent", operationFile.ResultClassContent, StringComparison.Ordinal);
+        Assert.Contains("ProblemDetails InternalServerErrorContent", operationFile.ResultClassContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PlainTextFormat_Uses_String_ForNon400Errors()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: getItems
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                                    '400':
+                                      description: Bad Request
+                                    '401':
+                                      description: Unauthorized
+                                    '500':
+                                      description: Internal Server Error
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act - PlainText format
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document!,
+            "TestApi",
+            "items",
+            registry: null,
+            includeDeprecated: false,
+            errorResponseFormat: ErrorResponseFormatType.PlainText);
+
+        // Assert
+        Assert.Single(files);
+        var operationFile = files[0];
+        Assert.NotNull(operationFile.ResultClassContent);
+
+        // 400 should still use ValidationProblemDetails
+        Assert.Contains("ValidationProblemDetails BadRequestContent", operationFile.ResultClassContent, StringComparison.Ordinal);
+
+        // Other errors should use string
+        Assert.Contains("string UnauthorizedContent", operationFile.ResultClassContent, StringComparison.Ordinal);
+        Assert.Contains("string InternalServerErrorContent", operationFile.ResultClassContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PlainTextOnlyFormat_Uses_String_ForAllErrors()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: getItems
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                                    '400':
+                                      description: Bad Request
+                                    '401':
+                                      description: Unauthorized
+                                    '500':
+                                      description: Internal Server Error
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act - PlainTextOnly format
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document!,
+            "TestApi",
+            "items",
+            registry: null,
+            includeDeprecated: false,
+            errorResponseFormat: ErrorResponseFormatType.PlainTextOnly);
+
+        // Assert
+        Assert.Single(files);
+        var operationFile = files[0];
+        Assert.NotNull(operationFile.ResultClassContent);
+
+        // All errors should use string including 400
+        Assert.Contains("string BadRequestContent", operationFile.ResultClassContent, StringComparison.Ordinal);
+        Assert.Contains("string UnauthorizedContent", operationFile.ResultClassContent, StringComparison.Ordinal);
+        Assert.Contains("string InternalServerErrorContent", operationFile.ResultClassContent, StringComparison.Ordinal);
+
+        // ValidationProblemDetails should NOT be present
+        Assert.DoesNotContain("ValidationProblemDetails", operationFile.ResultClassContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_CustomFormat_Uses_CustomTypeName_ForAllErrors()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: getItems
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                                    '400':
+                                      description: Bad Request
+                                    '401':
+                                      description: Unauthorized
+                                    '500':
+                                      description: Internal Server Error
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act - Custom format with custom error type name
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document!,
+            "TestApi",
+            "items",
+            registry: null,
+            includeDeprecated: false,
+            errorResponseFormat: ErrorResponseFormatType.Custom,
+            customErrorTypeName: "ApiError");
+
+        // Assert
+        Assert.Single(files);
+        var operationFile = files[0];
+        Assert.NotNull(operationFile.ResultClassContent);
+
+        // All errors should use ApiError
+        Assert.Contains("ApiError BadRequestContent", operationFile.ResultClassContent, StringComparison.Ordinal);
+        Assert.Contains("ApiError UnauthorizedContent", operationFile.ResultClassContent, StringComparison.Ordinal);
+        Assert.Contains("ApiError InternalServerErrorContent", operationFile.ResultClassContent, StringComparison.Ordinal);
+
+        // ProblemDetails/ValidationProblemDetails should NOT be present
+        Assert.DoesNotContain("ProblemDetails", operationFile.ResultClassContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("ValidationProblemDetails", operationFile.ResultClassContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_CustomFormat_WithoutCustomTypeName_FallsBackToProblemDetails()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: getItems
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                                    '401':
+                                      description: Unauthorized
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act - Custom format but no custom type name (fallback)
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document!,
+            "TestApi",
+            "items",
+            registry: null,
+            includeDeprecated: false,
+            errorResponseFormat: ErrorResponseFormatType.Custom,
+            customErrorTypeName: null);
+
+        // Assert
+        Assert.Single(files);
+        var operationFile = files[0];
+        Assert.NotNull(operationFile.ResultClassContent);
+
+        // Should fall back to ProblemDetails
+        Assert.Contains("ProblemDetails UnauthorizedContent", operationFile.ResultClassContent, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

@@ -68,6 +68,8 @@ public class ConfigurationTests
         Assert.Null(config.Namespace);
         Assert.Equal(GenerationModeType.TypedClient, config.GenerationMode);
         Assert.Equal("Client", config.ClientSuffix);
+        Assert.Equal(ErrorResponseFormatType.ProblemDetails, config.ErrorResponseFormat);
+        Assert.Null(config.CustomErrorResponseModel);
     }
 
     [Fact]
@@ -220,6 +222,86 @@ public class ConfigurationTests
 
         Assert.NotNull(config);
         Assert.Equal(expected, config!.GenerationMode);
+    }
+
+    // ========== ErrorResponseFormatType Enum Tests ==========
+    [Theory]
+    [InlineData("ProblemDetails", ErrorResponseFormatType.ProblemDetails)]
+    [InlineData("problemdetails", ErrorResponseFormatType.ProblemDetails)]
+    [InlineData("problem-details", ErrorResponseFormatType.ProblemDetails)]
+    [InlineData("PlainText", ErrorResponseFormatType.PlainText)]
+    [InlineData("plaintext", ErrorResponseFormatType.PlainText)]
+    [InlineData("plain-text", ErrorResponseFormatType.PlainText)]
+    [InlineData("PlainTextOnly", ErrorResponseFormatType.PlainTextOnly)]
+    [InlineData("plaintextonly", ErrorResponseFormatType.PlainTextOnly)]
+    [InlineData("plain-text-only", ErrorResponseFormatType.PlainTextOnly)]
+    [InlineData("Custom", ErrorResponseFormatType.Custom)]
+    [InlineData("custom", ErrorResponseFormatType.Custom)]
+    public void ErrorResponseFormatType_CanDeserializeAllValues(
+        string value,
+        ErrorResponseFormatType expected)
+    {
+        var json = $$$"""{"errorResponseFormat": "{{{value}}}"}""";
+        var config = JsonSerializer.Deserialize<ClientConfig>(json, JsonHelper.ConfigOptions);
+
+        Assert.NotNull(config);
+        Assert.Equal(expected, config!.ErrorResponseFormat);
+    }
+
+    [Fact]
+    public void ErrorResponseFormatType_UnknownValue_DefaultsToProblemDetails()
+    {
+        var json = """{"errorResponseFormat": "unknown"}""";
+        var config = JsonSerializer.Deserialize<ClientConfig>(json, JsonHelper.ConfigOptions);
+
+        Assert.NotNull(config);
+        Assert.Equal(ErrorResponseFormatType.ProblemDetails, config!.ErrorResponseFormat);
+    }
+
+    [Fact]
+    public void ClientConfig_CanDeserializeWithErrorResponseFormat()
+    {
+        var json = """
+            {
+                "generationMode": "EndpointPerOperation",
+                "errorResponseFormat": "PlainText"
+            }
+            """;
+
+        var config = JsonSerializer.Deserialize<ClientConfig>(json, JsonHelper.ConfigOptions);
+
+        Assert.NotNull(config);
+        Assert.Equal(GenerationModeType.EndpointPerOperation, config!.GenerationMode);
+        Assert.Equal(ErrorResponseFormatType.PlainText, config.ErrorResponseFormat);
+    }
+
+    [Fact]
+    public void ClientConfig_CanDeserializeWithCustomErrorResponseModel()
+    {
+        var json = """
+            {
+                "generationMode": "EndpointPerOperation",
+                "errorResponseFormat": "Custom",
+                "customErrorResponseModel": {
+                    "name": "ApiError",
+                    "description": "Custom error response",
+                    "schema": {
+                        "code": { "dataType": "string?" },
+                        "message": { "dataType": "string?" }
+                    }
+                }
+            }
+            """;
+
+        var config = JsonSerializer.Deserialize<ClientConfig>(json, JsonHelper.ConfigOptions);
+
+        Assert.NotNull(config);
+        Assert.Equal(ErrorResponseFormatType.Custom, config!.ErrorResponseFormat);
+        Assert.NotNull(config.CustomErrorResponseModel);
+        Assert.Equal("ApiError", config.CustomErrorResponseModel!.Name);
+        Assert.Equal("Custom error response", config.CustomErrorResponseModel.Description);
+        Assert.NotNull(config.CustomErrorResponseModel.Schema);
+        Assert.Equal(2, config.CustomErrorResponseModel.Schema!.Count);
     }
 
     // ========== MinimalApiPackageMode Enum Tests ==========

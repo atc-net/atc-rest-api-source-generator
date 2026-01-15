@@ -291,6 +291,12 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             GenerateProblemDetails(context, projectName);
             GenerateProblemDetailsFactory(context, projectName);
+
+            // Generate custom error response model if configured
+            if (config.CustomErrorResponseModel != null)
+            {
+                GenerateCustomErrorResponse(context, config.CustomErrorResponseModel, projectName);
+            }
         }
 
         // Detect shared schemas (used by multiple path segments) for deduplication
@@ -333,7 +339,15 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 var hasSegmentModels = segmentSchemas.Count > 0;
                 var hasSharedModels = sharedSchemas.Count > 0;
-                var hasEndpoints = GenerateEndpointPerOperation(context, openApiDoc, projectName, pathSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName);
+
+                // If customErrorResponseModel is configured and errorResponseFormat is default (ProblemDetails),
+                // automatically use Custom format for backward compatibility
+                var effectiveErrorFormat = config.CustomErrorResponseModel != null &&
+                                           config.ErrorResponseFormat == ErrorResponseFormatType.ProblemDetails
+                    ? ErrorResponseFormatType.Custom
+                    : config.ErrorResponseFormat;
+
+                var hasEndpoints = GenerateEndpointPerOperation(context, openApiDoc, projectName, pathSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, config.CustomErrorResponseModel?.Name);
                 if (hasEndpoints)
                 {
                     generatedPathSegments.Add(pathSegment);
@@ -801,7 +815,9 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool hasSegmentModels,
         bool hasSharedModels,
         bool useServersBasePath,
-        string? httpClientName)
+        string? httpClientName,
+        ErrorResponseFormatType errorResponseFormat,
+        string? customErrorTypeName)
     {
         // Generate client parameters using shared OperationParameterExtractor (without binding attributes)
         // Parameters are shared between TypedClient and EndpointPerOperation modes
@@ -840,7 +856,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             pathSegment,
             registry,
             includeDeprecated,
-            customErrorTypeName: null,
+            errorResponseFormat: errorResponseFormat,
+            customErrorTypeName: customErrorTypeName,
             customHttpClientName: httpClientName,
             hasSegmentModels: hasSegmentModels,
             hasSharedModels: hasSharedModels,
@@ -1130,6 +1147,24 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         context.AddSource(
             $"{projectName}.ProblemDetailsFactory.g.cs",
+            SourceText.From(normalizedContent, Encoding.UTF8));
+    }
+
+    /// <summary>
+    /// Generates the custom error response model class.
+    /// </summary>
+    private static void GenerateCustomErrorResponse(
+        SourceProductionContext context,
+        CustomErrorResponseModelConfig config,
+        string projectName)
+    {
+        var namespaceName = $"{projectName}.Generated";
+        var content = CustomErrorResponseExtractor.Generate(config, namespaceName);
+
+        var normalizedContent = content.NormalizeForSourceOutput();
+
+        context.AddSource(
+            $"{projectName}.{config.Name}.g.cs",
             SourceText.From(normalizedContent, Encoding.UTF8));
     }
 
