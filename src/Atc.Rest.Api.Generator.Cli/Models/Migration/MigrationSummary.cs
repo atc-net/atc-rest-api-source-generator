@@ -38,4 +38,6 @@ public sealed class MigrationSummary
     public int DomainCodeTotalReplacements { get; set; }
 
     public List<string> HostProjectUpdates { get; } = [];
+
+    public List<string> ParameterMigrations { get; } = [];
 }

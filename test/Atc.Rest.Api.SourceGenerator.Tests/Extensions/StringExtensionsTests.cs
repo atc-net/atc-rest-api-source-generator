@@ -139,4 +139,77 @@ public class StringExtensionsTests
         Assert.Equal("", result[1]);
         Assert.Equal("line3", result[2]);
     }
+
+    // ========== ToHeaderPropertyName Tests ==========
+
+    [Theory]
+    [InlineData("x-continuation", "Continuation")]
+    [InlineData("x-correlation-id", "CorrelationId")]
+    [InlineData("X-Continuation", "Continuation")]
+    [InlineData("X-CORRELATION-ID", "CorrelationId")]
+    [InlineData("Content-Type", "ContentType")]
+    [InlineData("Accept", "Accept")]
+    [InlineData("x-api-key", "ApiKey")]
+    [InlineData("x-request-id", "RequestId")]
+    [InlineData("", "")]
+    public void ToHeaderPropertyName_ReturnsExpectedResult(
+        string input,
+        string expected)
+    {
+        // Act
+        var result = input.ToHeaderPropertyName();
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void ToHeaderPropertyName_WithNull_ReturnsNull()
+    {
+        // Arrange
+        string? input = null;
+
+        // Act
+        var result = input!.ToHeaderPropertyName();
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    // ========== ToPascalCaseForDotNet Tests ==========
+
+    [Theory]
+    [InlineData("myPetStore", "MyPetStore")]
+    [InlineData("my-pet-store", "MyPetStore")]
+    [InlineData("my.pet.store", "MyPetStore")]
+    [InlineData("my_pet_store", "MyPetStore")]
+    [InlineData("XMLParser", "XmlParser")]
+    [InlineData("x-continuation", "XContinuation")]
+    [InlineData("x-correlation-id", "XCorrelationId")]
+    [InlineData("pageSize", "PageSize")]
+    [InlineData("page-size", "PageSize")]
+    [InlineData("", "")]
+    public void ToPascalCaseForDotNet_ReturnsExpectedResult(
+        string input,
+        string expected)
+    {
+        // Act
+        var result = input.ToPascalCaseForDotNet();
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void ToPascalCaseForDotNet_WithNull_ReturnsNull()
+    {
+        // Arrange
+        string? input = null;
+
+        // Act
+        var result = input!.ToPascalCaseForDotNet();
+
+        // Assert
+        Assert.Null(result);
+    }
 }

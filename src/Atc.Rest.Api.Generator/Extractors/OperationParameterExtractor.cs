@@ -346,12 +346,15 @@ public static class OperationParameterExtractor
 
                 var paramLocation = parameter.In ?? ParameterLocation.Query;
 
-                // For header parameters, use the reference ID as property name if available
-                // This allows x-continuation header to become Continuation property
+                // Determine property name based on parameter type
                 string propName;
-                if (paramLocation == ParameterLocation.Header && !string.IsNullOrEmpty(referenceId))
+                if (paramLocation == ParameterLocation.Header)
                 {
-                    propName = referenceId!.ToPascalCaseForDotNet();
+                    // For headers: use reference ID if available, otherwise strip x- prefix
+                    // This allows x-continuation header to become Continuation property
+                    propName = !string.IsNullOrEmpty(referenceId)
+                        ? referenceId!.ToPascalCaseForDotNet()
+                        : parameter.Name!.ToHeaderPropertyName();
                 }
                 else
                 {

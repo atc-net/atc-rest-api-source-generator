@@ -634,10 +634,11 @@ public static class HttpClientExtractor
 
             foreach (var (param, referenceId) in headerParams)
             {
-                // For header parameters, use reference ID as property name if available
+                // For header parameters, use reference ID as property name if available,
+                // otherwise strip x- prefix from header name
                 var propName = !string.IsNullOrEmpty(referenceId)
                     ? referenceId!.ToPascalCaseForDotNet()
-                    : param.Name!.ToPascalCaseForDotNet();
+                    : param.Name!.ToHeaderPropertyName();
                 var paramAccess = $"parameters.{propName}";
                 var headerName = param.Name!;
 

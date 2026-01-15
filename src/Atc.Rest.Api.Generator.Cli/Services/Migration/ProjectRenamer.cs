@@ -52,6 +52,19 @@ internal static class ProjectRenamer
         var newDirectory = Path.Combine(parentDirectory, newDirName);
         result.NewPath = newDirectory;
 
+        // Check if target directory already exists
+        if (!projectDirectory.Equals(newDirectory, StringComparison.OrdinalIgnoreCase) &&
+            Directory.Exists(newDirectory))
+        {
+            // Target directory already exists - this could mean:
+            // 1. Migration was partially completed before
+            // 2. User manually created the target directory
+            // Skip rename and report as already renamed
+            result.Success = true;
+            result.AlreadyRenamed = true;
+            return result;
+        }
+
         // Rename the .csproj file inside the directory first
         var oldCsprojPath = Path.Combine(projectDirectory, $"{oldName}.csproj");
         var newCsprojName = $"{newName}.csproj";
