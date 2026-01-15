@@ -21,6 +21,7 @@ public static class CommandAppExtensions
             config.AddBranch("spec", ConfigureSpecCommands());
             config.AddBranch("generate", ConfigureGenerateCommands());
             config.AddBranch("options", ConfigureOptionsCommands());
+            config.AddBranch("migrate", ConfigureMigrateCommands());
         });
     }
 
@@ -89,5 +90,18 @@ public static class CommandAppExtensions
                 .WithDescription("Validate an ApiGeneratorOptions.json file.")
                 .WithExample("options", "validate", "-o", "./")
                 .WithExample("options", "validate", "-o", "./config/ApiGeneratorOptions.json");
+        };
+
+    private static Action<IConfigurator<CommandSettings>> ConfigureMigrateCommands()
+        => node =>
+        {
+            node.SetDescription("Commands for migrating old CLI-generated projects to source generators.");
+
+            node
+                .AddCommand<MigrateValidateCommand>("validate")
+                .WithDescription("Validate an old-generated API project for migration to source generators.")
+                .WithExample("migrate", "validate", "-s", "D:\\Code\\MyProject", "-p", "specs\\api.yaml")
+                .WithExample("migrate", "validate", "-s", "D:\\Code\\MyProject", "-p", "specs\\api.yaml", "--verbose")
+                .WithExample("migrate", "validate", "-s", "D:\\Code\\MyProject", "-p", "specs\\api.yaml", "--output-report", "report.json");
         };
 }
