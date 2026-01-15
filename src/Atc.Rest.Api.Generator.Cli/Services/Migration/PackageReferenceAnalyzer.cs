@@ -6,8 +6,9 @@ namespace Atc.Rest.Api.Generator.Cli.Services.Migration;
 internal static class PackageReferenceAnalyzer
 {
     private static readonly Regex PackageReferencePattern = new(
-        @"<PackageReference\s+Include=""([^""]+)""\s+Version=""([^""]+)""",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        @"<PackageReference\s+Include=""(?<package>[^""]+)""\s+Version=""(?<version>[^""]+)""",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(1));
 
     private static readonly string[] AtcPackagePrefixes =
     [
@@ -24,7 +25,8 @@ internal static class PackageReferenceAnalyzer
     /// </summary>
     /// <param name="projectFiles">List of .csproj file paths to analyze.</param>
     /// <returns>The package reference analysis result.</returns>
-    public static PackageReferenceResult Analyze(IEnumerable<string> projectFiles)
+    public static PackageReferenceResult Analyze(
+        IEnumerable<string> projectFiles)
     {
         var result = new PackageReferenceResult();
 
@@ -60,7 +62,9 @@ internal static class PackageReferenceAnalyzer
         return result;
     }
 
-    private static void AnalyzeProjectFile(string projectFile, PackageReferenceResult result)
+    private static void AnalyzeProjectFile(
+        string projectFile,
+        PackageReferenceResult result)
     {
         if (!File.Exists(projectFile))
         {
@@ -74,8 +78,8 @@ internal static class PackageReferenceAnalyzer
 
             foreach (Match match in matches)
             {
-                var packageName = match.Groups[1].Value;
-                var packageVersion = match.Groups[2].Value;
+                var packageName = match.Groups["package"].Value;
+                var packageVersion = match.Groups["version"].Value;
 
                 if (IsAtcPackage(packageName))
                 {
@@ -94,18 +98,16 @@ internal static class PackageReferenceAnalyzer
     }
 
     private static bool IsAtcPackage(string packageName)
-    {
-        return AtcPackagePrefixes.Any(prefix =>
+        => AtcPackagePrefixes.Any(prefix =>
             packageName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-    }
 
     private static void IdentifyPackagesToRemove(PackageReferenceResult result)
     {
         // These packages will be replaced by the source generator
+        // Note: Atc.Rest.Client is NOT removed - it's required by generated client code
         string[] packagesToRemove =
         [
             "Atc.Rest.MinimalApi",
-            "Atc.Rest.Client",
             "Atc.Rest.Extended.Options",
         ];
 

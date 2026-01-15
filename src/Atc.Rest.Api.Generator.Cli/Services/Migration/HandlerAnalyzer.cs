@@ -6,12 +6,14 @@ namespace Atc.Rest.Api.Generator.Cli.Services.Migration;
 internal static class HandlerAnalyzer
 {
     private static readonly Regex HandlerClassPattern = new(
-        @"public\s+(?:sealed\s+)?class\s+(\w+Handler)\s*:\s*(I\w+Handler)",
-        RegexOptions.Compiled);
+        @"public\s+(?:sealed\s+)?class\s+(?<class>\w+Handler)\s*:\s*(?<interface>I\w+Handler)",
+        RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(1));
 
     private static readonly Regex HandlerFolderPattern = new(
-        @"[/\\]Handlers[/\\](\w+)[/\\]",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        @"[/\\]Handlers[/\\](?<group>\w+)[/\\]",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(1));
 
     /// <summary>
     /// Analyzes handler implementations in the Domain project.
@@ -19,7 +21,9 @@ internal static class HandlerAnalyzer
     /// <param name="domainProjectPath">Path to the Domain project.</param>
     /// <param name="expectedInterfaces">List of expected handler interfaces from generated code.</param>
     /// <returns>The handler analysis result.</returns>
-    public static HandlerAnalysisResult Analyze(string? domainProjectPath, IReadOnlyList<string> expectedInterfaces)
+    public static HandlerAnalysisResult Analyze(
+        string? domainProjectPath,
+        IReadOnlyList<string> expectedInterfaces)
     {
         var result = new HandlerAnalysisResult();
 
@@ -69,7 +73,9 @@ internal static class HandlerAnalyzer
         return result;
     }
 
-    private static void AnalyzeHandlersDirectory(string directory, HandlerAnalysisResult result)
+    private static void AnalyzeHandlersDirectory(
+        string directory,
+        HandlerAnalysisResult result)
     {
         try
         {
@@ -93,7 +99,9 @@ internal static class HandlerAnalyzer
         }
     }
 
-    private static void AnalyzeHandlerFile(string filePath, HandlerAnalysisResult result)
+    private static void AnalyzeHandlerFile(
+        string filePath,
+        HandlerAnalysisResult result)
     {
         try
         {
@@ -104,9 +112,9 @@ internal static class HandlerAnalyzer
             {
                 var handlerInfo = new HandlerInfo
                 {
-                    ClassName = match.Groups[1].Value,
+                    ClassName = match.Groups["class"].Value,
                     FilePath = filePath,
-                    ImplementedInterface = match.Groups[2].Value,
+                    ImplementedInterface = match.Groups["interface"].Value,
                     ResourceGroup = ExtractResourceGroup(filePath),
                     HasCustomLogic = HasCustomImplementation(content),
                 };
@@ -123,7 +131,7 @@ internal static class HandlerAnalyzer
     private static string? ExtractResourceGroup(string filePath)
     {
         var match = HandlerFolderPattern.Match(filePath);
-        return match.Success ? match.Groups[1].Value : null;
+        return match.Success ? match.Groups["group"].Value : null;
     }
 
     private static bool HasCustomImplementation(string content)
@@ -135,10 +143,10 @@ internal static class HandlerAnalyzer
         // - Database/repository calls
         // - Service injections used in methods
         // - Complex logic (if statements, loops, etc.)
-
-        var hasServiceUsage = Regex.IsMatch(content, @"_\w+\.\w+\(");
-        var hasComplexLogic = Regex.IsMatch(content, @"\b(if|for|foreach|while|switch)\s*\(");
-        var hasAwaitCalls = Regex.IsMatch(content, @"\bawait\s+");
+        var timeout = TimeSpan.FromSeconds(1);
+        var hasServiceUsage = Regex.IsMatch(content, @"_\w+\.\w+\(", RegexOptions.None, timeout);
+        var hasComplexLogic = Regex.IsMatch(content, @"\b(?:if|for|foreach|while|switch)\s*\(", RegexOptions.None, timeout);
+        var hasAwaitCalls = Regex.IsMatch(content, @"\bawait\s+", RegexOptions.None, timeout);
 
         return hasServiceUsage || hasComplexLogic || hasAwaitCalls;
     }

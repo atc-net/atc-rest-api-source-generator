@@ -103,5 +103,12 @@ public static class CommandAppExtensions
                 .WithExample("migrate", "validate", "-s", "D:\\Code\\MyProject", "-p", "specs\\api.yaml")
                 .WithExample("migrate", "validate", "-s", "D:\\Code\\MyProject", "-p", "specs\\api.yaml", "--verbose")
                 .WithExample("migrate", "validate", "-s", "D:\\Code\\MyProject", "-p", "specs\\api.yaml", "--output-report", "report.json");
+
+            node
+                .AddCommand<MigrateExecuteCommand>("execute")
+                .WithDescription("Execute migration from old CLI-generated API to source generators.")
+                .WithExample("migrate", "execute", "-s", "D:\\Code\\MyProject", "-p", "specs\\api.yaml")
+                .WithExample("migrate", "execute", "-s", "D:\\Code\\MyProject", "-p", "specs\\api.yaml", "--dry-run")
+                .WithExample("migrate", "execute", "-s", "D:\\Code\\MyProject", "-p", "specs\\api.yaml", "--force");
         };
 }

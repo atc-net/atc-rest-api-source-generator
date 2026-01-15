@@ -27,10 +27,25 @@ internal static class ProjectStructureValidator
         if (!string.IsNullOrEmpty(result.DetectedProjectName))
         {
             // Find specific project types
-            result.ApiGeneratedProject = FindProjectByPattern(result.AllProjects, $"{result.DetectedProjectName}.Api.Generated");
-            result.ApiClientGeneratedProject = FindProjectByPattern(result.AllProjects, $"{result.DetectedProjectName}.ApiClient.Generated");
-            result.DomainProject = FindProjectByPattern(result.AllProjects, $"{result.DetectedProjectName}.Domain");
-            result.HostApiProject = FindHostApiProject(result.AllProjects, result.DetectedProjectName);
+            result.ApiGeneratedProject = FindProjectByPattern(
+                result.AllProjects,
+                $"{result.DetectedProjectName}.Api.Generated");
+
+            result.ApiClientGeneratedProject = FindProjectByPattern(
+                result.AllProjects,
+                $"{result.DetectedProjectName}.ApiClient.Generated");
+
+            result.DomainProject = FindProjectByPattern(
+                result.AllProjects,
+                $"{result.DetectedProjectName}.Domain");
+
+            result.DomainTestProject = FindProjectByPattern(
+                result.AllProjects,
+                $"{result.DetectedProjectName}.Domain.Tests");
+
+            result.HostApiProject = FindHostApiProject(
+                result.AllProjects,
+                result.DetectedProjectName);
         }
 
         return result;
@@ -46,7 +61,9 @@ internal static class ProjectStructureValidator
         return Path.GetDirectoryName(solutionPath) ?? solutionPath;
     }
 
-    private static string? FindSolutionFile(string solutionPath, string rootDirectory)
+    private static string? FindSolutionFile(
+        string solutionPath,
+        string rootDirectory)
     {
         // If the path is directly to a solution file
         if (File.Exists(solutionPath))
@@ -91,8 +108,8 @@ internal static class ProjectStructureValidator
 
         if (apiGeneratedProject != null)
         {
-            var fileName = Path.GetFileNameWithoutExtension(apiGeneratedProject);
             // Remove ".Api.Generated" suffix to get the base project name
+            var fileName = Path.GetFileNameWithoutExtension(apiGeneratedProject);
             var projectName = fileName.Replace(".Api.Generated", string.Empty, StringComparison.OrdinalIgnoreCase);
             return projectName;
         }
@@ -125,23 +142,23 @@ internal static class ProjectStructureValidator
         return null;
     }
 
-    private static string? FindProjectByPattern(List<string> projects, string pattern)
-    {
-        return projects.FirstOrDefault(p =>
+    private static string? FindProjectByPattern(
+        List<string> projects,
+        string pattern)
+        => projects.FirstOrDefault(p =>
         {
             var fileName = Path.GetFileNameWithoutExtension(p);
             return fileName.Equals(pattern, StringComparison.OrdinalIgnoreCase);
         });
-    }
 
-    private static string? FindHostApiProject(List<string> projects, string projectName)
-    {
-        // Look for {ProjectName}.Api.csproj that is NOT the generated project
-        return projects.FirstOrDefault(p =>
+    private static string? FindHostApiProject(
+        List<string> projects,
+        string projectName)
+        => projects.FirstOrDefault(p =>
         {
+            // Look for {ProjectName}.Api.csproj that is NOT the generated project
             var fileName = Path.GetFileNameWithoutExtension(p);
             return fileName.Equals($"{projectName}.Api", StringComparison.OrdinalIgnoreCase) &&
                    !p.Contains("Generated", StringComparison.OrdinalIgnoreCase);
         });
-    }
 }

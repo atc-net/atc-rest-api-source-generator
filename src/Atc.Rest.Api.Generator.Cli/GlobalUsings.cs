@@ -1,9 +1,12 @@
 global using System;
 global using System.Collections.Concurrent;
+global using System.Collections.Generic;
 global using System.ComponentModel;
 global using System.Diagnostics;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Globalization;
+global using System.IO;
+global using System.Linq;
 global using System.Net.Http;
 global using System.Text;
 global using System.Text.Json;
@@ -14,6 +17,7 @@ global using Atc.Console.Spectre;
 global using Atc.Console.Spectre.Factories;
 global using Atc.Console.Spectre.Helpers;
 global using Atc.Console.Spectre.Logging;
+global using Atc.DotNet;
 global using Atc.Helpers;
 
 global using Atc.OpenApi.Helpers;
