@@ -845,25 +845,32 @@ public static class OpenApiSchemaExtensions
             }
 
             // String length validation - use separate MinLength/MaxLength (match old generator style)
+            // Skip for formats that convert to non-string C# types (Uri, Guid, DateTimeOffset, byte[])
             if (schemaType.HasFlag(JsonSchemaType.String))
             {
-                if (actualSchema.MinLength > 0)
-                {
-                    attributes.Add($"MinLength({actualSchema.MinLength})");
-                }
+                var format = actualSchema.Format?.ToLowerInvariant();
+                var isNonStringFormat = format is "uri" or "uuid" or "date" or "date-time" or "byte";
 
-                if (actualSchema.MaxLength > 0)
+                if (!isNonStringFormat)
                 {
-                    attributes.Add($"MaxLength({actualSchema.MaxLength})");
-                }
+                    if (actualSchema.MinLength > 0)
+                    {
+                        attributes.Add($"MinLength({actualSchema.MinLength})");
+                    }
 
-                // Regular expression validation
-                if (!string.IsNullOrWhiteSpace(actualSchema.Pattern))
-                {
-                    // Use verbatim string literal (@"...") to handle backslashes in regex patterns
-                    // In verbatim strings, double quotes are escaped by doubling them
-                    var escapedPattern = actualSchema.Pattern.Replace("\"", "\"\"");
-                    attributes.Add($"RegularExpression(@\"{escapedPattern}\")");
+                    if (actualSchema.MaxLength > 0)
+                    {
+                        attributes.Add($"MaxLength({actualSchema.MaxLength})");
+                    }
+
+                    // Regular expression validation
+                    if (!string.IsNullOrWhiteSpace(actualSchema.Pattern))
+                    {
+                        // Use verbatim string literal (@"...") to handle backslashes in regex patterns
+                        // In verbatim strings, double quotes are escaped by doubling them
+                        var escapedPattern = actualSchema.Pattern.Replace("\"", "\"\"");
+                        attributes.Add($"RegularExpression(@\"{escapedPattern}\")");
+                    }
                 }
 
                 // Format-based validation attributes

@@ -1,5 +1,11 @@
 var builder = WebApplication.CreateSlimBuilder(args);
 
+// Increase request body size limit for image uploads (base64 encoded in JSON)
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // 10 MB
+});
+
 // Configure JSON serialization to use string enum converter
 builder.Services.ConfigureHttpJsonOptions(options =>
 {

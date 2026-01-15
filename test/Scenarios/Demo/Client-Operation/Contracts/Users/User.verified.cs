@@ -7,7 +7,7 @@ public sealed record User(
     [property: Required, MinLength(2), MaxLength(50)] string LastName,
     [property: Required, MaxLength(254), EmailAddress] string Email,
     [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone,
-    [property: MaxLength(2048)] Uri? Website,
+    Uri? Website,
     [property: Required] DateTimeOffset DateOfBirth,
     [property: Range(0, 150)] int Age,
     [property: MaxLength(1000)] string? Bio,

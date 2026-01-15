@@ -6,7 +6,7 @@ public sealed record CreateUserRequest(
     [property: Required, MinLength(2), MaxLength(50)] string LastName,
     [property: Required, MaxLength(254), EmailAddress] string Email,
     [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone,
-    [property: MaxLength(2048)] Uri? Website,
+    Uri? Website,
     [property: Required] DateTimeOffset DateOfBirth,
     [property: MaxLength(1000)] string? Bio,
     Uri? AvatarUrl,
