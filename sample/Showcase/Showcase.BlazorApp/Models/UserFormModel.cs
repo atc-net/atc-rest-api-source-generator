@@ -25,7 +25,7 @@ public class UserFormModel
     [StringLength(500, ErrorMessage = "Bio cannot exceed 500 characters")]
     public string? Bio { get; set; }
 
-    [Url(ErrorMessage = "Invalid avatar URL format")]
+    // Note: No [Url] validation because data URLs (data:image/...) are valid for avatars
     public string? AvatarUrl { get; set; }
 
     public bool IsActive { get; set; } = true;

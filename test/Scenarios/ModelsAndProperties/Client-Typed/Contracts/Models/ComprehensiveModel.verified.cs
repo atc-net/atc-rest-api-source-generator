@@ -6,7 +6,7 @@ public sealed record ComprehensiveModel(
     [property: Required, MinLength(2), MaxLength(100)] string Name,
     [property: MaxLength(500)] string? Description,
     [property: Required, MaxLength(254), EmailAddress] string Email,
-    [property: MaxLength(2048)] Uri? Website,
+    Uri? Website,
     [property: Required] DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt,
     DateTimeOffset? BirthDate,
