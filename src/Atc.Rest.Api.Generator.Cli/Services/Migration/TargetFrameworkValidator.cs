@@ -5,18 +5,20 @@ namespace Atc.Rest.Api.Generator.Cli.Services.Migration;
 /// </summary>
 internal static class TargetFrameworkValidator
 {
-    private static readonly Regex TargetFrameworkPattern = new(
-        @"<TargetFramework>([^<]+)</TargetFramework>",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-    private static readonly Regex LangVersionPattern = new(
-        @"<LangVersion>([^<]+)</LangVersion>",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
     private const decimal MinimumSupportedFramework = 8.0m;
     private const decimal RequiredFramework = 10.0m;
     private const int MinimumSupportedLangVersion = 12;
     private const int RequiredLangVersion = 14;
+
+    private static readonly Regex TargetFrameworkPattern = new(
+        @"<TargetFramework>(?<tfm>[^<]+)</TargetFramework>",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(1));
+
+    private static readonly Regex LangVersionPattern = new(
+        @"<LangVersion>(?<version>[^<]+)</LangVersion>",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(1));
 
     /// <summary>
     /// Validates target framework and language version in the project.
@@ -24,7 +26,9 @@ internal static class TargetFrameworkValidator
     /// <param name="rootDirectory">The root directory of the solution.</param>
     /// <param name="projectFiles">List of project files to check.</param>
     /// <returns>The target framework validation result.</returns>
-    public static TargetFrameworkResult Validate(string rootDirectory, IReadOnlyList<string> projectFiles)
+    public static TargetFrameworkResult Validate(
+        string rootDirectory,
+        IReadOnlyList<string> projectFiles)
     {
         var result = new TargetFrameworkResult();
 
@@ -55,7 +59,10 @@ internal static class TargetFrameworkValidator
         return result;
     }
 
-    private static void ExtractFromFile(string filePath, TargetFrameworkResult result, string sourceName)
+    private static void ExtractFromFile(
+        string filePath,
+        TargetFrameworkResult result,
+        string sourceName)
     {
         try
         {
@@ -67,7 +74,7 @@ internal static class TargetFrameworkValidator
                 var tfmMatch = TargetFrameworkPattern.Match(content);
                 if (tfmMatch.Success)
                 {
-                    result.CurrentTargetFramework = tfmMatch.Groups[1].Value.Trim();
+                    result.CurrentTargetFramework = tfmMatch.Groups["tfm"].Value.Trim();
                     result.TargetFrameworkSource = sourceName;
                 }
             }
@@ -78,7 +85,7 @@ internal static class TargetFrameworkValidator
                 var langMatch = LangVersionPattern.Match(content);
                 if (langMatch.Success)
                 {
-                    result.CurrentLangVersion = langMatch.Groups[1].Value.Trim();
+                    result.CurrentLangVersion = langMatch.Groups["version"].Value.Trim();
                     result.LangVersionSource = sourceName;
                 }
             }
@@ -89,7 +96,8 @@ internal static class TargetFrameworkValidator
         }
     }
 
-    private static void ValidateFrameworkCompatibility(TargetFrameworkResult result)
+    private static void ValidateFrameworkCompatibility(
+        TargetFrameworkResult result)
     {
         var version = result.TargetFrameworkVersion;
 
@@ -108,7 +116,8 @@ internal static class TargetFrameworkValidator
         result.RequiresTargetFrameworkUpgrade = version < RequiredFramework;
     }
 
-    private static void ValidateLangVersionCompatibility(TargetFrameworkResult result)
+    private static void ValidateLangVersionCompatibility(
+        TargetFrameworkResult result)
     {
         var version = result.LangVersionNumber;
 

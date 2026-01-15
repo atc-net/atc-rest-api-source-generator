@@ -1,9 +1,9 @@
 namespace Atc.Rest.Api.Generator.Cli.Commands.Settings;
 
 /// <summary>
-/// Settings for the migrate validate command.
+/// Settings for the migrate execute command.
 /// </summary>
-public sealed class MigrateValidateCommandSettings : CommandSettings
+public sealed class MigrateExecuteCommandSettings : CommandSettings
 {
     [CommandOption("-s|--solution <PATH>")]
     [Description("Path to the solution file (.sln/.slnx) or root directory of the project to migrate.")]
@@ -13,14 +13,20 @@ public sealed class MigrateValidateCommandSettings : CommandSettings
     [Description("Path to the OpenAPI specification file (.yaml/.yml/.json) used to generate the API.")]
     public string SpecificationPath { get; set; } = string.Empty;
 
+    [CommandOption("--dry-run")]
+    [Description("Preview changes without executing. Shows what would be modified, created, or deleted.")]
+    [DefaultValue(false)]
+    public bool DryRun { get; init; }
+
+    [CommandOption("--force")]
+    [Description("Skip confirmation prompts (git status check, upgrade confirmations).")]
+    [DefaultValue(false)]
+    public bool Force { get; init; }
+
     [CommandOption("--verbose")]
-    [Description("Show detailed validation output including all detected files and configurations.")]
+    [Description("Show detailed output during migration.")]
     [DefaultValue(false)]
     public bool Verbose { get; init; }
-
-    [CommandOption("--output-report <PATH>")]
-    [Description("Save the validation report to a JSON file.")]
-    public string? OutputReportPath { get; init; }
 
     public override ValidationResult Validate()
     {
@@ -63,16 +69,6 @@ public sealed class MigrateValidateCommandSettings : CommandSettings
         if (specExtension is not ".yaml" and not ".yml" and not ".json")
         {
             return ValidationResult.Error("Specification file must be a YAML (.yaml, .yml) or JSON (.json) file.");
-        }
-
-        // Validate output report path if provided
-        if (!string.IsNullOrWhiteSpace(OutputReportPath))
-        {
-            var reportExtension = Path.GetExtension(OutputReportPath).ToLowerInvariant();
-            if (reportExtension is not ".json")
-            {
-                return ValidationResult.Error("Output report file must be a JSON (.json) file.");
-            }
         }
 
         return ValidationResult.Success();

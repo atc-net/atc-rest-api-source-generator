@@ -344,7 +344,16 @@ atc-rest-api-gen migrate execute -s <solution-path> -p <spec-path> [options]
 └───────────────────────────┬─────────────────────────────────────┘
                             │
 ┌───────────────────────────▼─────────────────────────────────────┐
-│ 11. Build Verification                                          │
+│ 11. Update GlobalUsings.cs in Domain                            │
+│     - Find GlobalUsings.cs in Domain project                    │
+│     - Replace *.Api.Generated.* → *.Api.Contracts.Generated.*   │
+│     - Add missing generated namespace usings from OpenAPI spec  │
+│       (Handlers, Models, Parameters, Results per path segment)  │
+│     - Preserve all other using statements                       │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+┌───────────────────────────▼─────────────────────────────────────┐
+│ 12. Build Verification                                          │
 │     - Run dotnet build to verify migration                      │
 │     - Report success or failure                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -472,6 +481,42 @@ If `--force` is specified, the warning is displayed but no confirmation is requi
 <ProjectReference Include="..\{ProjectName}.Api.Contracts\{ProjectName}.Api.Contracts.csproj" />
 ```
 
+**Domain Project** - Update GlobalUsings.cs namespaces:
+
+The migration tool performs two operations on the Domain project's `GlobalUsings.cs`:
+
+1. **Update existing namespace references**: Existing `global using` statements that reference the old `*.Api.Generated.*` namespaces are updated to reference the new `*.Api.Contracts.Generated.*` namespaces.
+
+2. **Add missing generated namespace usings**: Based on the OpenAPI specification, the tool automatically adds any missing `global using` statements for generated types. It uses the `PathSegmentHelper` to intelligently determine exactly which namespaces exist for each API path segment.
+
+**Update Example** (existing usings):
+```csharp
+// Before
+global using MyProject.Api.Generated.Accounts.Handlers;
+global using MyProject.Api.Generated.Accounts.Results;
+
+// After
+global using MyProject.Api.Contracts.Generated.Accounts.Handlers;
+global using MyProject.Api.Contracts.Generated.Accounts.Results;
+```
+
+**Add Example** (missing usings based on spec):
+For an API with paths `/accounts` and `/devices`, the tool analyzes the OpenAPI spec and adds only the namespaces that actually exist:
+```csharp
+// Added based on spec analysis
+global using MyProject.Api.Contracts.Generated.Accounts.Handlers;
+global using MyProject.Api.Contracts.Generated.Accounts.Parameters;
+global using MyProject.Api.Contracts.Generated.Accounts.Results;
+global using MyProject.Api.Contracts.Generated.Devices.Handlers;
+global using MyProject.Api.Contracts.Generated.Devices.Models;
+global using MyProject.Api.Contracts.Generated.Devices.Parameters;
+global using MyProject.Api.Contracts.Generated.Devices.Results;
+```
+
+> **Note**: The tool intelligently analyzes each path segment to determine which sub-namespaces (Handlers, Models, Parameters, Results) actually exist based on the operations defined in the OpenAPI spec. This prevents adding usings for non-existent namespaces.
+
+> **Note**: All other using statements (System.*, FluentValidation.*, Microsoft.*, etc.) are preserved unchanged.
+
 **Other Projects** (SignalR.Contracts, Web, etc.) - Update references:
 ```xml
 <!-- Update any references from Api.Generated/ApiClient.Generated to new names -->
@@ -589,6 +634,8 @@ The following changes will be made:
     ~ Update ProjectReference: Api.Generated → Api.Contracts
   ~ src/KL.IoT.Nexus.Web/KL.IoT.Nexus.Web.csproj
     ~ Update ProjectReference: ApiClient.Generated → ApiClient
+  ~ src/KL.IoT.Nexus.Domain/GlobalUsings.cs
+    ~ KL.IoT.Nexus.Api.Generated.* → KL.IoT.Nexus.Api.Contracts.Generated.*
   ~ Directory.Build.props
     ~ Update TargetFramework: net9.0 → net10.0
     ~ Update LangVersion: 13 → 14
@@ -711,6 +758,12 @@ Run without --dry-run to execute migration.
     - [ ] SignalR.Contracts: Api.Generated → Api.Contracts
     - [ ] Web: ApiClient.Generated → ApiClient
   - [ ] Update any solution folders if needed
+- [x] Implement `GlobalUsingsModifier`
+  - [x] Find GlobalUsings.cs in Domain project
+  - [x] Replace `*.Api.Generated.*` → `*.Api.Contracts.Generated.*`
+  - [x] Add missing generated namespace usings based on OpenAPI spec
+  - [x] Use PathSegmentHelper to determine exactly which namespaces exist
+  - [x] Preserve all other using statements
 - [ ] Implement dry-run mode
   - [ ] Show all planned file operations (create/modify/delete)
   - [ ] Display estimated impact summary

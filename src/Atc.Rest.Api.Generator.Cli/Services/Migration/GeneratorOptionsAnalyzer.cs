@@ -73,7 +73,9 @@ internal static class GeneratorOptionsAnalyzer
         return null;
     }
 
-    private static void ParseOptionsFile(string jsonContent, GeneratorOptionsResult result)
+    private static void ParseOptionsFile(
+        string jsonContent,
+        GeneratorOptionsResult result)
     {
         try
         {
@@ -113,7 +115,9 @@ internal static class GeneratorOptionsAnalyzer
         }
     }
 
-    private static void ParseOldFormatGeneratorSection(JsonElement section, GeneratorOptionsResult result)
+    private static void ParseOldFormatGeneratorSection(
+        JsonElement section,
+        GeneratorOptionsResult result)
     {
         if (section.TryGetProperty("aspNetOutputType", out var outputType))
         {
@@ -130,16 +134,16 @@ internal static class GeneratorOptionsAnalyzer
             result.HttpClientName = httpClientName.GetString();
         }
 
-        if (section.TryGetProperty("response", out var responseSection))
+        if (section.TryGetProperty("response", out var responseSection) &&
+            responseSection.TryGetProperty("useProblemDetailsAsDefaultBody", out var useProblemDetails))
         {
-            if (responseSection.TryGetProperty("useProblemDetailsAsDefaultBody", out var useProblemDetails))
-            {
-                result.UseProblemDetails = useProblemDetails.GetBoolean();
-            }
+            result.UseProblemDetails = useProblemDetails.GetBoolean();
         }
     }
 
-    private static void ParseOldFormatValidationSection(JsonElement section, GeneratorOptionsResult result)
+    private static void ParseOldFormatValidationSection(
+        JsonElement section,
+        GeneratorOptionsResult result)
     {
         if (section.TryGetProperty("strictMode", out var strictMode))
         {
@@ -162,7 +166,9 @@ internal static class GeneratorOptionsAnalyzer
         }
     }
 
-    private static void ParseNewFormatGeneralSection(JsonElement section, GeneratorOptionsResult result)
+    private static void ParseNewFormatGeneralSection(
+        JsonElement section,
+        GeneratorOptionsResult result)
     {
         // New format uses ValidateSpecificationStrategy instead of strictMode
         if (section.TryGetProperty("ValidateSpecificationStrategy", out var strategy))
@@ -172,7 +178,9 @@ internal static class GeneratorOptionsAnalyzer
         }
     }
 
-    private static void ParseNewFormatServerSection(JsonElement section, GeneratorOptionsResult result)
+    private static void ParseNewFormatServerSection(
+        JsonElement section,
+        GeneratorOptionsResult result)
     {
         if (section.TryGetProperty("UseMinimalApiPackage", out var useMinimalApi))
         {
@@ -180,7 +188,9 @@ internal static class GeneratorOptionsAnalyzer
         }
     }
 
-    private static void ParseNewFormatClientSection(JsonElement section, GeneratorOptionsResult result)
+    private static void ParseNewFormatClientSection(
+        JsonElement section,
+        GeneratorOptionsResult result)
     {
         // Client section options for new format
         if (section.TryGetProperty("ClientSuffix", out var clientSuffix))

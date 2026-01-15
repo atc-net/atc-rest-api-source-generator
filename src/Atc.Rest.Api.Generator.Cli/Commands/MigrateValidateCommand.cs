@@ -172,7 +172,9 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
         return report;
     }
 
-    private static void DisplayResults(MigrationValidationReport report, bool verbose)
+    private static void DisplayResults(
+        MigrationValidationReport report,
+        bool verbose)
     {
         AnsiConsole.WriteLine();
 
@@ -353,7 +355,10 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
         AnsiConsole.Write(new Rule().RuleStyle(Style.Parse("dim")));
     }
 
-    private static void DisplayCheck(bool success, string message, bool optional = false)
+    private static void DisplayCheck(
+        bool success,
+        string message,
+        bool optional = false)
     {
         if (success)
         {
@@ -379,7 +384,9 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
         return Path.GetFileNameWithoutExtension(projectPath);
     }
 
-    private static void SaveReport(MigrationValidationReport report, string outputPath)
+    private static void SaveReport(
+        MigrationValidationReport report,
+        string outputPath)
     {
         try
         {

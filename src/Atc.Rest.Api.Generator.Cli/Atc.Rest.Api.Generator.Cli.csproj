@@ -15,6 +15,7 @@
   <ItemGroup>
     <PackageReference Include="Atc" Version="3.0.16" />
     <PackageReference Include="Atc.Console.Spectre" Version="3.0.16" />
+    <PackageReference Include="Atc.DotNet" Version="3.0.16" />
     <PackageReference Include="Microsoft.OpenApi" Version="3.1.2" />
     <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.1.2" />
   </ItemGroup>

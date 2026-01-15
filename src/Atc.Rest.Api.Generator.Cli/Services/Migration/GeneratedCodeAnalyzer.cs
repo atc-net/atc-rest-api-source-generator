@@ -6,24 +6,29 @@ namespace Atc.Rest.Api.Generator.Cli.Services.Migration;
 internal static class GeneratedCodeAnalyzer
 {
     private static readonly Regex GeneratedCodePattern = new(
-        @"\[GeneratedCode\(""ApiGenerator"",\s*""([^""]+)""\)\]",
-        RegexOptions.Compiled);
+        @"\[GeneratedCode\(""ApiGenerator"",\s*""(?<version>[^""]+)""\)\]",
+        RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(1));
 
     private static readonly Regex NamespacePattern = new(
-        @"namespace\s+([\w.]+)",
-        RegexOptions.Compiled);
+        @"namespace\s+(?<ns>[\w.]+)",
+        RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(1));
 
     private static readonly Regex InterfacePattern = new(
-        @"public\s+interface\s+(I\w+Handler)\b",
-        RegexOptions.Compiled);
+        @"public\s+interface\s+(?<name>I\w+Handler)\b",
+        RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(1));
 
     private static readonly Regex EndpointDefinitionPattern = new(
-        @"public\s+(?:sealed\s+)?class\s+(\w+EndpointDefinition)\b",
-        RegexOptions.Compiled);
+        @"public\s+(?:sealed\s+)?class\s+(?<name>\w+EndpointDefinition)\b",
+        RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(1));
 
     private static readonly Regex ModelPattern = new(
-        @"public\s+(?:sealed\s+)?(?:record|class)\s+(\w+)\b",
-        RegexOptions.Compiled);
+        @"public\s+(?:sealed\s+)?(?:record|class)\s+(?<name>\w+)\b",
+        RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(1));
 
     /// <summary>
     /// Analyzes generated code in the specified projects.
@@ -31,7 +36,9 @@ internal static class GeneratedCodeAnalyzer
     /// <param name="apiGeneratedProjectPath">Path to the Api.Generated project.</param>
     /// <param name="apiClientGeneratedProjectPath">Path to the ApiClient.Generated project (optional).</param>
     /// <returns>The generated code analysis result.</returns>
-    public static GeneratedCodeResult Analyze(string? apiGeneratedProjectPath, string? apiClientGeneratedProjectPath)
+    public static GeneratedCodeResult Analyze(
+        string? apiGeneratedProjectPath,
+        string? apiClientGeneratedProjectPath)
     {
         var result = new GeneratedCodeResult();
 
@@ -62,7 +69,10 @@ internal static class GeneratedCodeAnalyzer
         return result;
     }
 
-    private static void AnalyzeDirectory(string directory, GeneratedCodeResult result, bool isServer)
+    private static void AnalyzeDirectory(
+        string directory,
+        GeneratedCodeResult result,
+        bool isServer)
     {
         try
         {
@@ -86,7 +96,10 @@ internal static class GeneratedCodeAnalyzer
         }
     }
 
-    private static void AnalyzeFile(string filePath, GeneratedCodeResult result, bool isServer)
+    private static void AnalyzeFile(
+        string filePath,
+        GeneratedCodeResult result,
+        bool isServer)
     {
         try
         {
@@ -106,7 +119,7 @@ internal static class GeneratedCodeAnalyzer
                 }
 
                 // Extract generator version (use the latest found)
-                var version = generatedMatch.Groups[1].Value;
+                var version = generatedMatch.Groups["version"].Value;
                 if (string.IsNullOrEmpty(result.GeneratorVersion) ||
                     string.Compare(version, result.GeneratorVersion, StringComparison.Ordinal) > 0)
                 {
@@ -118,8 +131,8 @@ internal static class GeneratedCodeAnalyzer
             var namespaceMatches = NamespacePattern.Matches(content);
             foreach (Match match in namespaceMatches)
             {
-                var ns = match.Groups[1].Value;
-                if (!result.DetectedNamespaces.Contains(ns))
+                var ns = match.Groups["ns"].Value;
+                if (!result.DetectedNamespaces.Contains(ns, StringComparer.Ordinal))
                 {
                     result.DetectedNamespaces.Add(ns);
                 }
@@ -129,8 +142,8 @@ internal static class GeneratedCodeAnalyzer
             var interfaceMatches = InterfacePattern.Matches(content);
             foreach (Match match in interfaceMatches)
             {
-                var interfaceName = match.Groups[1].Value;
-                if (!result.HandlerInterfaces.Contains(interfaceName))
+                var interfaceName = match.Groups["name"].Value;
+                if (!result.HandlerInterfaces.Contains(interfaceName, StringComparer.Ordinal))
                 {
                     result.HandlerInterfaces.Add(interfaceName);
                 }
@@ -140,8 +153,8 @@ internal static class GeneratedCodeAnalyzer
             var endpointMatches = EndpointDefinitionPattern.Matches(content);
             foreach (Match match in endpointMatches)
             {
-                var endpointName = match.Groups[1].Value;
-                if (!result.EndpointDefinitions.Contains(endpointName))
+                var endpointName = match.Groups["name"].Value;
+                if (!result.EndpointDefinitions.Contains(endpointName, StringComparer.Ordinal))
                 {
                     result.EndpointDefinitions.Add(endpointName);
                 }
@@ -154,14 +167,15 @@ internal static class GeneratedCodeAnalyzer
                 var modelMatches = ModelPattern.Matches(content);
                 foreach (Match match in modelMatches)
                 {
-                    var modelName = match.Groups[1].Value;
+                    var modelName = match.Groups["name"].Value;
+
                     // Filter out common non-model types
                     if (!modelName.StartsWith("I", StringComparison.Ordinal) &&
                         !modelName.EndsWith("Handler", StringComparison.Ordinal) &&
                         !modelName.EndsWith("Endpoint", StringComparison.Ordinal) &&
                         !modelName.EndsWith("Result", StringComparison.Ordinal) &&
                         !modelName.EndsWith("Parameters", StringComparison.Ordinal) &&
-                        !result.ModelTypes.Contains(modelName))
+                        !result.ModelTypes.Contains(modelName, StringComparer.Ordinal))
                     {
                         result.ModelTypes.Add(modelName);
                     }

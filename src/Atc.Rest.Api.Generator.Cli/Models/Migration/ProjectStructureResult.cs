@@ -26,6 +26,11 @@ public sealed class ProjectStructureResult
     public string? DomainProject { get; set; }
 
     /// <summary>
+    /// Gets or sets the Domain.Tests project path if found.
+    /// </summary>
+    public string? DomainTestProject { get; set; }
+
+    /// <summary>
     /// Gets or sets the Host API project path if found.
     /// </summary>
     public string? HostApiProject { get; set; }
@@ -48,17 +53,25 @@ public sealed class ProjectStructureResult
     /// <summary>
     /// Gets a value indicating whether an Api.Generated project was found.
     /// </summary>
-    public bool HasApiGeneratedProject => !string.IsNullOrEmpty(ApiGeneratedProject);
+    public bool HasApiGeneratedProject
+        => !string.IsNullOrEmpty(ApiGeneratedProject);
 
     /// <summary>
     /// Gets a value indicating whether an ApiClient.Generated project was found.
     /// </summary>
-    public bool HasApiClientGeneratedProject => !string.IsNullOrEmpty(ApiClientGeneratedProject);
+    public bool HasApiClientGeneratedProject
+        => !string.IsNullOrEmpty(ApiClientGeneratedProject);
 
     /// <summary>
     /// Gets a value indicating whether a Domain project was found.
     /// </summary>
     public bool HasDomainProject => !string.IsNullOrEmpty(DomainProject);
+
+    /// <summary>
+    /// Gets a value indicating whether a Domain.Tests project was found.
+    /// </summary>
+    public bool HasDomainTestProject
+        => !string.IsNullOrEmpty(DomainTestProject);
 
     /// <summary>
     /// Gets a value indicating whether a Host API project was found.

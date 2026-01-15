@@ -53,12 +53,13 @@ public sealed class TargetFrameworkResult
     /// <summary>
     /// Gets the required language version for migration.
     /// </summary>
-    public static string RequiredLangVersion => "14";
+    public static string RequiredLangVersion => "14.0";
 
     /// <summary>
     /// Gets a value indicating whether any upgrade is required.
     /// </summary>
-    public bool RequiresAnyUpgrade => RequiresTargetFrameworkUpgrade || RequiresLangVersionUpgrade;
+    public bool RequiresAnyUpgrade
+        => RequiresTargetFrameworkUpgrade || RequiresLangVersionUpgrade;
 
     /// <summary>
     /// Gets a value indicating whether the current configuration is fully compatible (no upgrades needed).
@@ -69,7 +70,8 @@ public sealed class TargetFrameworkResult
     /// <summary>
     /// Gets a value indicating whether migration is blocked due to incompatible versions.
     /// </summary>
-    public bool IsBlocked => !IsTargetFrameworkCompatible || !IsLangVersionCompatible;
+    public bool IsBlocked
+        => !IsTargetFrameworkCompatible || !IsLangVersionCompatible;
 
     /// <summary>
     /// Gets the numeric version of the target framework (e.g., 9.0 for net9.0).
@@ -107,7 +109,7 @@ public sealed class TargetFrameworkResult
 
             // Handle versions like "13.0", "13", "preview", "latest"
             var cleanVersion = CurrentLangVersion
-                .Replace(".0", string.Empty)
+                .Replace(".0", string.Empty, StringComparison.Ordinal)
                 .Replace("preview", "99", StringComparison.OrdinalIgnoreCase)
                 .Replace("latest", "99", StringComparison.OrdinalIgnoreCase);
 

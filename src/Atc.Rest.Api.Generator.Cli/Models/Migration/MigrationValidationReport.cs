@@ -88,5 +88,6 @@ public sealed class MigrationValidationReport
     /// <summary>
     /// Gets a value indicating whether migration can proceed (with or without upgrade prompt).
     /// </summary>
-    public bool CanMigrate => Status is MigrationValidationStatus.Ready or MigrationValidationStatus.RequiresUpgrade;
+    public bool CanMigrate
+        => Status is MigrationValidationStatus.Ready or MigrationValidationStatus.RequiresUpgrade;
 }
