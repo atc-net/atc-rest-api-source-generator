@@ -418,6 +418,16 @@ internal static class GlobalUsingsModifier
 
                 if (!dryRun)
                 {
+                    // Pre-clean the file by writing only filtered namespaces.
+                    // This removes .Generated lines BEFORE DotnetGlobalUsingsHelper reads the file,
+                    // preventing the helper from merging the removed namespaces back in.
+                    var linesToWrite = filteredNamespaces
+                        .Select(ns => $"global using {ns};")
+                        .ToList();
+                    WriteAllLinesWithoutTrailingNewline(globalUsingsPath, linesToWrite);
+
+                    // Now DotnetGlobalUsingsHelper will merge our required namespaces
+                    // with the pre-cleaned file (no more .Generated lines)
                     DotnetGlobalUsingsHelper.CreateOrUpdate(
                         directoryInfo,
                         allNamespaces,
@@ -461,6 +471,55 @@ internal static class GlobalUsingsModifier
         }
 
         return namespaces;
+    }
+
+    /// <summary>
+    /// Sorts global usings using DotnetGlobalUsingsHelper (System first, then by namespace group).
+    /// </summary>
+    /// <param name="projectDirectory">The directory containing the project.</param>
+    /// <param name="dryRun">If true, only returns what would be modified.</param>
+    /// <returns>The result of the modification.</returns>
+    public static GlobalUsingsModificationResult SortGlobalUsings(
+        string projectDirectory,
+        bool dryRun = false)
+    {
+        var globalUsingsPath = Path.Combine(projectDirectory, "GlobalUsings.cs");
+        var result = new GlobalUsingsModificationResult { FilePath = globalUsingsPath };
+
+        if (!File.Exists(globalUsingsPath))
+        {
+            return result;
+        }
+
+        var directoryInfo = new DirectoryInfo(projectDirectory);
+
+        try
+        {
+            var existingNamespaces = ReadExistingNamespaces(globalUsingsPath);
+
+            if (existingNamespaces.Count == 0)
+            {
+                return result;
+            }
+
+            if (!dryRun)
+            {
+                DotnetGlobalUsingsHelper.CreateOrUpdate(
+                    directoryInfo,
+                    existingNamespaces,
+                    setSystemFirst: true,
+                    addNamespaceSeparator: true);
+            }
+
+            result.WasModified = true;
+            result.UpdatedUsings.Add("Sorted usings (System first, then by namespace group)");
+        }
+        catch (Exception ex)
+        {
+            result.Error = $"Failed to sort GlobalUsings.cs: {ex.Message}";
+        }
+
+        return result;
     }
 
     /// <summary>
