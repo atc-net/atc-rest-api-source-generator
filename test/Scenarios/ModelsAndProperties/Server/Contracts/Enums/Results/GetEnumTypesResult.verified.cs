@@ -15,6 +15,9 @@ public sealed class GetEnumTypesResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Enum types demonstration.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class GetEnumTypesResult : IResult
     /// Converts GetEnumTypesResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetEnumTypesResult result)
-        => result;
+        => result.Result;
 }

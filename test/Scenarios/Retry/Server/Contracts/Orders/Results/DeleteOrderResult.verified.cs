@@ -15,6 +15,9 @@ public sealed class DeleteOrderResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 204 No Content - No Content.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class DeleteOrderResult : IResult
     /// Converts DeleteOrderResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(DeleteOrderResult result)
-        => result;
+        => result.Result;
 }

@@ -15,6 +15,9 @@ public sealed class ListCountriesResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Array of countries.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class ListCountriesResult : IResult
     /// Converts ListCountriesResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(ListCountriesResult result)
-        => result;
+        => result.Result;
 }

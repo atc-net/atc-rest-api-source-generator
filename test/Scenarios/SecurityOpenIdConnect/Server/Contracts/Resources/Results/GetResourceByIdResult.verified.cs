@@ -15,6 +15,9 @@ public sealed class GetResourceByIdResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
@@ -43,5 +46,5 @@ public sealed class GetResourceByIdResult : IResult
     /// Converts GetResourceByIdResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetResourceByIdResult result)
-        => result;
+        => result.Result;
 }

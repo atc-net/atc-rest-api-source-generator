@@ -15,6 +15,9 @@ public sealed class CreatePaymentResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 201 Created - Payment created.
     /// </summary>
@@ -40,5 +43,5 @@ public sealed class CreatePaymentResult : IResult
     /// Converts CreatePaymentResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(CreatePaymentResult result)
-        => result;
+        => result.Result;
 }

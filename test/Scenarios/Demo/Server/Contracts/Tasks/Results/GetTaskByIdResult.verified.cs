@@ -15,6 +15,9 @@ public sealed class GetTaskByIdResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Expected response to a valid request.
     /// </summary>
@@ -37,5 +40,5 @@ public sealed class GetTaskByIdResult : IResult
     /// Converts GetTaskByIdResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetTaskByIdResult result)
-        => result;
+        => result.Result;
 }

@@ -15,6 +15,9 @@ public sealed class ListModelsResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Array of comprehensive models.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class ListModelsResult : IResult
     /// Converts ListModelsResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(ListModelsResult result)
-        => result;
+        => result.Result;
 }

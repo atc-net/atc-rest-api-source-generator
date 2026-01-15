@@ -15,6 +15,9 @@ public sealed class GetHealthResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class GetHealthResult : IResult
     /// Converts GetHealthResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetHealthResult result)
-        => result;
+        => result.Result;
 }

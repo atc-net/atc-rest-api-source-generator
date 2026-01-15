@@ -15,6 +15,9 @@ public sealed class GetNullablesResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Nullable types demonstration.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class GetNullablesResult : IResult
     /// Converts GetNullablesResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetNullablesResult result)
-        => result;
+        => result.Result;
 }

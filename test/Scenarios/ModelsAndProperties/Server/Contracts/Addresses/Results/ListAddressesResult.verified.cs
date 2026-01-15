@@ -15,6 +15,9 @@ public sealed class ListAddressesResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Array of addresses.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class ListAddressesResult : IResult
     /// Converts ListAddressesResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(ListAddressesResult result)
-        => result;
+        => result.Result;
 }

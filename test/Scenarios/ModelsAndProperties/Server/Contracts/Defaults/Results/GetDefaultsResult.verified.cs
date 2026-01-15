@@ -15,6 +15,9 @@ public sealed class GetDefaultsResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Default values demonstration.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class GetDefaultsResult : IResult
     /// Converts GetDefaultsResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetDefaultsResult result)
-        => result;
+        => result.Result;
 }

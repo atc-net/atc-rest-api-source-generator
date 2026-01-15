@@ -15,6 +15,9 @@ public sealed class CreateTaskResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 201 Created - Task created successfully.
     /// </summary>
@@ -37,5 +40,5 @@ public sealed class CreateTaskResult : IResult
     /// Converts CreateTaskResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(CreateTaskResult result)
-        => result;
+        => result.Result;
 }

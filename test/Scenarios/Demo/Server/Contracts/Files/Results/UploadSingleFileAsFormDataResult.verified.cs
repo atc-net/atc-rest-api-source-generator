@@ -15,6 +15,9 @@ public sealed class UploadSingleFileAsFormDataResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
@@ -28,5 +31,5 @@ public sealed class UploadSingleFileAsFormDataResult : IResult
     /// Converts UploadSingleFileAsFormDataResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(UploadSingleFileAsFormDataResult result)
-        => result;
+        => result.Result;
 }

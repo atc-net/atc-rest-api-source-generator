@@ -15,6 +15,9 @@ public sealed class GetPaymentByIdResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Payment details.
     /// </summary>
@@ -37,5 +40,5 @@ public sealed class GetPaymentByIdResult : IResult
     /// Converts GetPaymentByIdResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetPaymentByIdResult result)
-        => result;
+        => result.Result;
 }

@@ -15,6 +15,9 @@ public sealed class SendNotificationResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 202 Accepted - Notification queued.
     /// </summary>
@@ -37,5 +40,5 @@ public sealed class SendNotificationResult : IResult
     /// Converts SendNotificationResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(SendNotificationResult result)
-        => result;
+        => result.Result;
 }

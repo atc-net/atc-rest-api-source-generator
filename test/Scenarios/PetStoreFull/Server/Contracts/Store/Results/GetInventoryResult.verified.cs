@@ -15,6 +15,9 @@ public sealed class GetInventoryResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class GetInventoryResult : IResult
     /// Converts GetInventoryResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetInventoryResult result)
-        => result;
+        => result.Result;
 }

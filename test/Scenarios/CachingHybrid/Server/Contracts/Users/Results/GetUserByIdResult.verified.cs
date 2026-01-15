@@ -15,6 +15,9 @@ public sealed class GetUserByIdResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
@@ -37,5 +40,5 @@ public sealed class GetUserByIdResult : IResult
     /// Converts GetUserByIdResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetUserByIdResult result)
-        => result;
+        => result.Result;
 }

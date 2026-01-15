@@ -15,6 +15,9 @@ public sealed class ListAccountsResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Array of accounts.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class ListAccountsResult : IResult
     /// Converts ListAccountsResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(ListAccountsResult result)
-        => result;
+        => result.Result;
 }

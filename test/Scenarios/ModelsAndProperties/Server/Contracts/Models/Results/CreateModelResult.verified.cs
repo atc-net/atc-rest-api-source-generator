@@ -15,6 +15,9 @@ public sealed class CreateModelResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 201 Created - Model created successfully.
     /// </summary>
@@ -40,5 +43,5 @@ public sealed class CreateModelResult : IResult
     /// Converts CreateModelResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(CreateModelResult result)
-        => result;
+        => result.Result;
 }

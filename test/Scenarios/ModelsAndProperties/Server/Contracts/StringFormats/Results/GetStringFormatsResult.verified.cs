@@ -15,6 +15,9 @@ public sealed class GetStringFormatsResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - String format types demonstration.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class GetStringFormatsResult : IResult
     /// Converts GetStringFormatsResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetStringFormatsResult result)
-        => result;
+        => result.Result;
 }

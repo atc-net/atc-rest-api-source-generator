@@ -15,6 +15,9 @@ public sealed class GetArrayTypesResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Array types demonstration.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class GetArrayTypesResult : IResult
     /// Converts GetArrayTypesResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetArrayTypesResult result)
-        => result;
+        => result.Result;
 }

@@ -15,6 +15,9 @@ public sealed class ListTasksResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Array of tasks.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class ListTasksResult : IResult
     /// Converts ListTasksResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(ListTasksResult result)
-        => result;
+        => result.Result;
 }

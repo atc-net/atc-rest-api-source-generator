@@ -15,6 +15,9 @@ public sealed class ListAsyncEnumerableAccountsResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Array of streaming accounts.
     /// </summary>
@@ -28,5 +31,5 @@ public sealed class ListAsyncEnumerableAccountsResult : IResult
     /// Converts ListAsyncEnumerableAccountsResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(ListAsyncEnumerableAccountsResult result)
-        => result;
+        => result.Result;
 }

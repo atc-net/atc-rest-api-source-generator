@@ -15,6 +15,9 @@ public sealed class DeleteTaskByIdResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 204 No Content - Task deleted successfully.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class DeleteTaskByIdResult : IResult
     /// Converts DeleteTaskByIdResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(DeleteTaskByIdResult result)
-        => result;
+        => result.Result;
 }

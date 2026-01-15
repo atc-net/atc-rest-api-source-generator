@@ -15,6 +15,9 @@ public sealed class GetPrimitiveTypesResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Primitive types demonstration.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class GetPrimitiveTypesResult : IResult
     /// Converts GetPrimitiveTypesResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetPrimitiveTypesResult result)
-        => result;
+        => result.Result;
 }

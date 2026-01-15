@@ -15,6 +15,9 @@ public sealed class CreateAddressResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 201 Created - Address created.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class CreateAddressResult : IResult
     /// Converts CreateAddressResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(CreateAddressResult result)
-        => result;
+        => result.Result;
 }

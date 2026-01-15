@@ -15,6 +15,9 @@ public sealed class UpdatePetResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Successful operation.
     /// </summary>
@@ -52,5 +55,5 @@ public sealed class UpdatePetResult : IResult
     /// Converts UpdatePetResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(UpdatePetResult result)
-        => result;
+        => result.Result;
 }

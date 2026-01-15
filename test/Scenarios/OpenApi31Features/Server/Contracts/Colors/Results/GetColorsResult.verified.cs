@@ -15,6 +15,9 @@ public sealed class GetColorsResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - An RGB color.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class GetColorsResult : IResult
     /// Converts GetColorsResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetColorsResult result)
-        => result;
+        => result.Result;
 }

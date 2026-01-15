@@ -15,6 +15,9 @@ public sealed class FindPetsByTagsResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
@@ -49,5 +52,5 @@ public sealed class FindPetsByTagsResult : IResult
     /// Converts FindPetsByTagsResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(FindPetsByTagsResult result)
-        => result;
+        => result.Result;
 }

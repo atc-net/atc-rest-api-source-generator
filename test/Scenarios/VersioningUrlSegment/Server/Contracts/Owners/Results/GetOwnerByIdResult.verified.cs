@@ -15,6 +15,9 @@ public sealed class GetOwnerByIdResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
@@ -37,5 +40,5 @@ public sealed class GetOwnerByIdResult : IResult
     /// Converts GetOwnerByIdResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetOwnerByIdResult result)
-        => result;
+        => result.Result;
 }

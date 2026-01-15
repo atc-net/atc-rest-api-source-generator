@@ -15,6 +15,9 @@ public sealed class GetDataResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class GetDataResult : IResult
     /// Converts GetDataResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetDataResult result)
-        => result;
+        => result.Result;
 }
