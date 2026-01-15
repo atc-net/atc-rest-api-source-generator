@@ -15,6 +15,9 @@ public sealed class CreatePetsResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 201 Created - Null response.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class CreatePetsResult : IResult
     /// Converts CreatePetsResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(CreatePetsResult result)
-        => result;
+        => result.Result;
 }

@@ -15,6 +15,9 @@ public sealed class UpdateUserResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
@@ -37,5 +40,5 @@ public sealed class UpdateUserResult : IResult
     /// Converts UpdateUserResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(UpdateUserResult result)
-        => result;
+        => result.Result;
 }

@@ -15,6 +15,9 @@ public sealed class GenerateReportResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 202 Accepted - Accepted.
     /// </summary>
@@ -28,5 +31,5 @@ public sealed class GenerateReportResult : IResult
     /// Converts GenerateReportResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GenerateReportResult result)
-        => result;
+        => result.Result;
 }

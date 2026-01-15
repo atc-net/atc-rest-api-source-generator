@@ -15,6 +15,9 @@ public sealed class CreateTestItemEmptyResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 201 Created - Item created successfully.
     /// </summary>
@@ -37,5 +40,5 @@ public sealed class CreateTestItemEmptyResult : IResult
     /// Converts CreateTestItemEmptyResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(CreateTestItemEmptyResult result)
-        => result;
+        => result.Result;
 }

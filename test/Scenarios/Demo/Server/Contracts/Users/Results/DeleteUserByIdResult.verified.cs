@@ -15,6 +15,9 @@ public sealed class DeleteUserByIdResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 204 No Content - User deleted successfully.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class DeleteUserByIdResult : IResult
     /// Converts DeleteUserByIdResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(DeleteUserByIdResult result)
-        => result;
+        => result.Result;
 }

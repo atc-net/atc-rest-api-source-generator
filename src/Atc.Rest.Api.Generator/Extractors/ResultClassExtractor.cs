@@ -227,7 +227,7 @@ public static class ResultClassExtractor
             },
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: "result");
+            Content: "result.Result");
 
         methods.Add(toIResult);
 
@@ -253,6 +253,29 @@ public static class ResultClassExtractor
             InheritedClassTypeName: null,
             Parameters: constructorParams);
 
+        // Add Result property to expose the innerResult
+        var properties = new List<PropertyParameters>
+        {
+            new(
+                DocumentationTags: null,
+                Attributes: null,
+                DeclarationModifier: DeclarationModifiers.Public,
+                GenericTypeName: null,
+                TypeName: "IResult",
+                IsNullableType: false,
+                Name: "Result",
+                JsonName: null,
+                DefaultValue: null,
+                IsReferenceType: true,
+                IsGenericListType: false,
+                UseAutoProperty: false,
+                UseGet: true,
+                UseSet: false,
+                UseExpressionBody: true,
+                UseRequired: false,
+                Content: "innerResult"),
+        };
+
         return new ClassParameters(
             HeaderContent: null, // Header added separately per file
             Namespace: namespaceValue,
@@ -268,7 +291,7 @@ public static class ResultClassExtractor
             InheritedGenericClassTypeName: null,
             InheritedInterfaceTypeName: "IResult",
             Constructors: new List<ConstructorParameters> { constructor },
-            Properties: null, // Using constructor with CreateAsPrivateReadonlyMember instead
+            Properties: properties,
             Methods: methods,
             GenerateToStringMethod: false);
     }

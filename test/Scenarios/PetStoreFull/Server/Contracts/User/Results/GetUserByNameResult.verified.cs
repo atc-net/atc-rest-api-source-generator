@@ -15,6 +15,9 @@ public sealed class GetUserByNameResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
@@ -52,5 +55,5 @@ public sealed class GetUserByNameResult : IResult
     /// Converts GetUserByNameResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetUserByNameResult result)
-        => result;
+        => result.Result;
 }

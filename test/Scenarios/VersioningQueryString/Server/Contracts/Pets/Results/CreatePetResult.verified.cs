@@ -15,6 +15,9 @@ public sealed class CreatePetResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 201 Created - Created.
     /// </summary>
@@ -40,5 +43,5 @@ public sealed class CreatePetResult : IResult
     /// Converts CreatePetResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(CreatePetResult result)
-        => result;
+        => result.Result;
 }

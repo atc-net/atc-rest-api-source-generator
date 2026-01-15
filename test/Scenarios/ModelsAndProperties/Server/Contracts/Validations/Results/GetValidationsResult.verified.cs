@@ -15,6 +15,9 @@ public sealed class GetValidationsResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Validation constraints demonstration.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class GetValidationsResult : IResult
     /// Converts GetValidationsResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetValidationsResult result)
-        => result;
+        => result.Result;
 }

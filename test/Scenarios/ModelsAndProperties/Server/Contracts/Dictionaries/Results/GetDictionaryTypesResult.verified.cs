@@ -15,6 +15,9 @@ public sealed class GetDictionaryTypesResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Dictionary/map types demonstration.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class GetDictionaryTypesResult : IResult
     /// Converts GetDictionaryTypesResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetDictionaryTypesResult result)
-        => result;
+        => result.Result;
 }

@@ -15,6 +15,9 @@ public sealed class CreateTestItemWithLocationHeaderResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 201 Created - Item created successfully.
     /// </summary>
@@ -37,5 +40,5 @@ public sealed class CreateTestItemWithLocationHeaderResult : IResult
     /// Converts CreateTestItemWithLocationHeaderResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(CreateTestItemWithLocationHeaderResult result)
-        => result;
+        => result.Result;
 }

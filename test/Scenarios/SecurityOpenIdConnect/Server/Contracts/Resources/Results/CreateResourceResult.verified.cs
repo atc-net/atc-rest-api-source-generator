@@ -15,6 +15,9 @@ public sealed class CreateResourceResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 201 Created - Created.
     /// </summary>
@@ -46,5 +49,5 @@ public sealed class CreateResourceResult : IResult
     /// Converts CreateResourceResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(CreateResourceResult result)
-        => result;
+        => result.Result;
 }

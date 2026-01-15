@@ -15,6 +15,9 @@ public sealed class DeleteAccountByIdResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 204 No Content - Account deleted successfully.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class DeleteAccountByIdResult : IResult
     /// Converts DeleteAccountByIdResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(DeleteAccountByIdResult result)
-        => result;
+        => result.Result;
 }

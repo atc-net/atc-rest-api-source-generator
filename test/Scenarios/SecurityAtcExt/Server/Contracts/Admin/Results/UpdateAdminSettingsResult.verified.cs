@@ -15,6 +15,9 @@ public sealed class UpdateAdminSettingsResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class UpdateAdminSettingsResult : IResult
     /// Converts UpdateAdminSettingsResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(UpdateAdminSettingsResult result)
-        => result;
+        => result.Result;
 }

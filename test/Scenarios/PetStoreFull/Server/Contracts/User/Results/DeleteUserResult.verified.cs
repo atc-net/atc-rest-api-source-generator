@@ -15,6 +15,9 @@ public sealed class DeleteUserResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - User deleted.
     /// </summary>
@@ -49,5 +52,5 @@ public sealed class DeleteUserResult : IResult
     /// Converts DeleteUserResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(DeleteUserResult result)
-        => result;
+        => result.Result;
 }

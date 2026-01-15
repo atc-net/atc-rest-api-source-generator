@@ -15,6 +15,9 @@ public sealed class ListUsersResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Array of users.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class ListUsersResult : IResult
     /// Converts ListUsersResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(ListUsersResult result)
-        => result;
+        => result.Result;
 }

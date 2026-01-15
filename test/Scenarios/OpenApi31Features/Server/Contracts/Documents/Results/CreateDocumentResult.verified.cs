@@ -15,6 +15,9 @@ public sealed class CreateDocumentResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 201 Created - Document created.
     /// </summary>
@@ -40,5 +43,5 @@ public sealed class CreateDocumentResult : IResult
     /// Converts CreateDocumentResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(CreateDocumentResult result)
-        => result;
+        => result.Result;
 }

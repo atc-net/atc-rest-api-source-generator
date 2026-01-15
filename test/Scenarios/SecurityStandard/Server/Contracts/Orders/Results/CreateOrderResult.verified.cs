@@ -15,6 +15,9 @@ public sealed class CreateOrderResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 201 Created - Created.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class CreateOrderResult : IResult
     /// Converts CreateOrderResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(CreateOrderResult result)
-        => result;
+        => result.Result;
 }

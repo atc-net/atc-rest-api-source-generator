@@ -15,6 +15,9 @@ public sealed class CreateExportResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 202 Accepted - Accepted.
     /// </summary>
@@ -28,5 +31,5 @@ public sealed class CreateExportResult : IResult
     /// Converts CreateExportResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(CreateExportResult result)
-        => result;
+        => result.Result;
 }

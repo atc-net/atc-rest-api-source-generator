@@ -15,6 +15,9 @@ public sealed class ListPaginatedAccountsResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Array of paginated accounts.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class ListPaginatedAccountsResult : IResult
     /// Converts ListPaginatedAccountsResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(ListPaginatedAccountsResult result)
-        => result;
+        => result.Result;
 }

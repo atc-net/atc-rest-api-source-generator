@@ -15,6 +15,9 @@ public sealed class ListCoordinatesResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - List of coordinates.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class ListCoordinatesResult : IResult
     /// Converts ListCoordinatesResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(ListCoordinatesResult result)
-        => result;
+        => result.Result;
 }

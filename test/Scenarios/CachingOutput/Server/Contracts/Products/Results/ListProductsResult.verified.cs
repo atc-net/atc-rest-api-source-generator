@@ -15,6 +15,9 @@ public sealed class ListProductsResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class ListProductsResult : IResult
     /// Converts ListProductsResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(ListProductsResult result)
-        => result;
+        => result.Result;
 }

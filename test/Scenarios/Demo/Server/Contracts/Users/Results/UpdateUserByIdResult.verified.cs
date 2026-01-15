@@ -15,6 +15,9 @@ public sealed class UpdateUserByIdResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - User updated successfully.
     /// </summary>
@@ -52,5 +55,5 @@ public sealed class UpdateUserByIdResult : IResult
     /// Converts UpdateUserByIdResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(UpdateUserByIdResult result)
-        => result;
+        => result.Result;
 }

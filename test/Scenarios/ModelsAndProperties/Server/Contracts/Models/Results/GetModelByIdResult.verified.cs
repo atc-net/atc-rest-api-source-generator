@@ -15,6 +15,9 @@ public sealed class GetModelByIdResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Model details.
     /// </summary>
@@ -37,5 +40,5 @@ public sealed class GetModelByIdResult : IResult
     /// Converts GetModelByIdResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetModelByIdResult result)
-        => result;
+        => result.Result;
 }

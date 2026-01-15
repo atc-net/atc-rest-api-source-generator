@@ -15,6 +15,9 @@ public sealed class PlaceOrderResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
@@ -46,5 +49,5 @@ public sealed class PlaceOrderResult : IResult
     /// Converts PlaceOrderResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(PlaceOrderResult result)
-        => result;
+        => result.Result;
 }

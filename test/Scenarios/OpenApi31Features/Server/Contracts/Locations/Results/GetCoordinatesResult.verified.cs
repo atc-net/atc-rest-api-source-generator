@@ -15,6 +15,9 @@ public sealed class GetCoordinatesResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - A geographic coordinate.
     /// </summary>
@@ -31,5 +34,5 @@ public sealed class GetCoordinatesResult : IResult
     /// Converts GetCoordinatesResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(GetCoordinatesResult result)
-        => result;
+        => result.Result;
 }

@@ -15,6 +15,9 @@ public sealed class AddPetResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - Successful operation.
     /// </summary>
@@ -46,5 +49,5 @@ public sealed class AddPetResult : IResult
     /// Converts AddPetResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(AddPetResult result)
-        => result;
+        => result.Result;
 }

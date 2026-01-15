@@ -15,6 +15,9 @@ public sealed class ListPetsResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - A paged array of pets.
     /// </summary>
@@ -40,5 +43,5 @@ public sealed class ListPetsResult : IResult
     /// Converts ListPetsResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(ListPetsResult result)
-        => result;
+        => result.Result;
 }

@@ -15,6 +15,9 @@ public sealed class ListNotificationsResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - List of notifications.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class ListNotificationsResult : IResult
     /// Converts ListNotificationsResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(ListNotificationsResult result)
-        => result;
+        => result.Result;
 }

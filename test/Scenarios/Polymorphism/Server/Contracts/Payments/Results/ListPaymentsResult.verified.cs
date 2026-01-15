@@ -15,6 +15,9 @@ public sealed class ListPaymentsResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 200 OK - List of payments.
     /// </summary>
@@ -34,5 +37,5 @@ public sealed class ListPaymentsResult : IResult
     /// Converts ListPaymentsResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(ListPaymentsResult result)
-        => result;
+        => result.Result;
 }

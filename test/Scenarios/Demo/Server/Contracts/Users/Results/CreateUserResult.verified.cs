@@ -15,6 +15,9 @@ public sealed class CreateUserResult : IResult
         this.innerResult = innerResult;
     }
 
+    public IResult Result
+        => innerResult;
+
     /// <summary>
     /// 201 Created - User created successfully.
     /// </summary>
@@ -46,5 +49,5 @@ public sealed class CreateUserResult : IResult
     /// Converts CreateUserResult to IResult for endpoint responses.
     /// </summary>
     public static IResult ToIResult(CreateUserResult result)
-        => result;
+        => result.Result;
 }
