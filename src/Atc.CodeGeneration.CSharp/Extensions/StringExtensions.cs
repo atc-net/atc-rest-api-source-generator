@@ -57,6 +57,35 @@ public static class StringExtensions
         }
 
         /// <summary>
+        /// Converts a header parameter name to a valid C# property name.
+        /// Strips the "x-" prefix (commonly used for custom HTTP headers) before PascalCase conversion.
+        /// </summary>
+        /// <returns>The property name (e.g., "x-continuation" → "Continuation").</returns>
+        /// <remarks>
+        /// Examples:
+        /// - "x-continuation" → "Continuation"
+        /// - "x-correlation-id" → "CorrelationId"
+        /// - "Content-Type" → "ContentType" (no x- prefix, stays the same)
+        /// </remarks>
+        public string ToHeaderPropertyName()
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return value;
+            }
+
+            var name = value;
+
+            // Strip "x-" prefix (case-insensitive) - common for custom HTTP headers
+            if (name.StartsWith("x-", StringComparison.OrdinalIgnoreCase))
+            {
+                name = name.Substring(2);
+            }
+
+            return name.ToPascalCaseForDotNet();
+        }
+
+        /// <summary>
         /// Converts the string to Pascal case format (each word capitalized) using custom separator characters.
         /// </summary>
         /// <param name="separators">An array of characters to use as word separators.</param>

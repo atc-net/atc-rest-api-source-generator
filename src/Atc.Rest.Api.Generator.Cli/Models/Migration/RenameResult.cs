@@ -15,5 +15,11 @@ public sealed class RenameResult
 
     public bool Success { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the project was already renamed
+    /// (target directory already exists).
+    /// </summary>
+    public bool AlreadyRenamed { get; set; }
+
     public string? Error { get; set; }
 }

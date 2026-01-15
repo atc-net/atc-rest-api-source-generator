@@ -21,6 +21,7 @@ global using Atc.Console.Spectre.Logging;
 global using Atc.DotNet;
 global using Atc.Helpers;
 
+global using Atc.OpenApi.Extensions;
 global using Atc.OpenApi.Helpers;
 global using Atc.Rest.Api.Generator.Cli.Commands;
 global using Atc.Rest.Api.Generator.Cli.Commands.Settings;

@@ -145,7 +145,11 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
                 ctx.Status(dryRun ? "Analyzing domain code namespaces..." : "Updating domain code namespaces...");
                 UpdateDomainCodeNamespaces(report, projectName, dryRun, summary);
 
-                // Step 13: Update Host project (Program.cs and GlobalUsings)
+                // Step 13: Migrate parameter property names in handler code
+                ctx.Status(dryRun ? "Analyzing parameter names..." : "Migrating parameter names...");
+                MigrateParameterNames(report, dryRun, summary);
+
+                // Step 14: Update Host project (Program.cs and GlobalUsings)
                 ctx.Status(dryRun ? "Analyzing Host project..." : "Updating Host project...");
                 UpdateHostProject(report, projectName, dryRun, summary);
 
@@ -596,6 +600,58 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         }
     }
 
+    private static void MigrateParameterNames(
+        MigrationValidationReport report,
+        bool dryRun,
+        MigrationSummary summary)
+    {
+        if (string.IsNullOrEmpty(report.SpecificationPath))
+        {
+            return;
+        }
+
+        // Collect directories to migrate: Domain and Domain.Tests
+        var directoriesToMigrate = new List<string>();
+
+        if (!string.IsNullOrEmpty(report.ProjectStructure.DomainProject))
+        {
+            directoriesToMigrate.Add(Path.GetDirectoryName(report.ProjectStructure.DomainProject)!);
+        }
+
+        if (!string.IsNullOrEmpty(report.ProjectStructure.DomainTestProject))
+        {
+            directoriesToMigrate.Add(Path.GetDirectoryName(report.ProjectStructure.DomainTestProject)!);
+        }
+
+        if (directoriesToMigrate.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var directory in directoriesToMigrate)
+        {
+            var result = ParameterNameMigrator.MigrateParameterNames(directory, report.SpecificationPath, dryRun);
+
+            if (result.ReplacedParameters.Count > 0)
+            {
+                summary.ParameterMigrations.AddRange(result.ReplacedParameters);
+
+                foreach (var file in result.ModifiedFiles)
+                {
+                    if (!summary.ModifiedFiles.Contains(file, StringComparer.Ordinal))
+                    {
+                        summary.ModifiedFiles.Add(file);
+                    }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(result.Error))
+            {
+                AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(result.Error)}");
+            }
+        }
+    }
+
     private static void UpgradeDirectoryBuildProps(
         string rootDirectory,
         bool dryRun,
@@ -732,6 +788,17 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             foreach (var update in summary.HostProjectUpdates)
             {
                 AnsiConsole.MarkupLine($"  [cyan]↳[/] {Markup.Escape(update)}");
+            }
+
+            AnsiConsole.WriteLine();
+        }
+
+        if (summary.ParameterMigrations.Count > 0)
+        {
+            AnsiConsole.MarkupLine("[blue]Parameter Name Migrations[/]");
+            foreach (var migration in summary.ParameterMigrations)
+            {
+                AnsiConsole.MarkupLine($"  [cyan]↳[/] {Markup.Escape(migration)}");
             }
 
             AnsiConsole.WriteLine();
