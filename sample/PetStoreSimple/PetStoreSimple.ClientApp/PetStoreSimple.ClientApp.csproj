@@ -7,7 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="Atc.Rest.Client" Version="2.*" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.2" />
   </ItemGroup>
 
   <ItemGroup>
