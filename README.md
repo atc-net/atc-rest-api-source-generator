@@ -270,6 +270,6 @@ endpoints.MapGet("/pets", async (
 
 | File                                                                                                                                        | Purpose                                   |
 |---------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------|
-| [`.atc-rest-api-server`](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Marker-Files#atc-rest-api-server)                    | Server code (models, endpoints, handlers) |
-| [`.atc-rest-api-server-handlers`](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Marker-Files#atc-rest-api-server-handlers)  | Handler implementation scaffolds          |
-| [`.atc-rest-api-client`](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Marker-Files#atc-rest-api-client)                    | HTTP client generation                    |
+| [`.atc-rest-api-server`](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Marker-Files#-server-contracts-atc-rest-api-server)                    | Server code (models, endpoints, handlers) |
+| [`.atc-rest-api-server-handlers`](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Marker-Files#-server-handlers-atc-rest-api-server-handlers)  | Handler implementation scaffolds          |
+| [`.atc-rest-api-client`](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Marker-Files#-client-contracts-atc-rest-api-client)                    | HTTP client generation                    |
