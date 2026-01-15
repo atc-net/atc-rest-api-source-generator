@@ -109,7 +109,7 @@ public static class VersioningDependencyInjectionExtractor
         var content = contentBuilder.ToString();
 
         // Build header with only required usings
-        return UsingStatementHelper.BuildHeader(content, "System.CodeDom.Compiler");
+        return UsingStatementHelper.BuildHeader(content, NamespaceConstants.SystemCodeDomCompiler);
     }
 
     private static string GenerateMethodContent(ServerConfig config)

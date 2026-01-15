@@ -242,10 +242,10 @@ public static class EnumExtractor
     private static string BuildEnumHeaderContent(bool hasEnumMemberValues)
         => hasEnumMemberValues
             ? HeaderBuilder.WithUsings(
-                "System.CodeDom.Compiler",
-                "System.Runtime.Serialization",
-                "System.Text.Json.Serialization")
-            : HeaderBuilder.WithUsings("System.CodeDom.Compiler");
+                NamespaceConstants.SystemCodeDomCompiler,
+                NamespaceConstants.SystemRuntimeSerialization,
+                NamespaceConstants.SystemTextJsonSerialization)
+            : HeaderBuilder.WithUsings(NamespaceConstants.SystemCodeDomCompiler);
 
     /// <summary>
     /// Generates the content for a single enum using GenerateContentForEnum.

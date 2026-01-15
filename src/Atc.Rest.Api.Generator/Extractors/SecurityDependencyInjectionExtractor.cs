@@ -169,7 +169,7 @@ public static class SecurityDependencyInjectionExtractor
 
         // Build header with only required usings
         var builder = new StringBuilder();
-        builder.Append(UsingStatementHelper.BuildHeader(content, "System.CodeDom.Compiler"));
+        builder.Append(UsingStatementHelper.BuildHeader(content, NamespaceConstants.SystemCodeDomCompiler));
         builder.AppendLine($"using {projectName}.Generated.Security;");
         builder.AppendLine();
         builder.AppendLine($"namespace {projectName}.Generated.Security;");

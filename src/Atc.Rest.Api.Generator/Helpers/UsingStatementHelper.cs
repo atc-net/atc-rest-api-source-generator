@@ -22,125 +22,125 @@ public static class UsingStatementHelper
         ["Func<"] = "System",
 
         // System.Collections.Generic
-        ["Dictionary<"] = "System.Collections.Generic",
-        ["List<"] = "System.Collections.Generic",
-        ["IEnumerable<"] = "System.Collections.Generic",
-        ["IAsyncEnumerable<"] = "System.Collections.Generic",
-        ["IList<"] = "System.Collections.Generic",
-        ["ICollection<"] = "System.Collections.Generic",
-        ["IReadOnlyList<"] = "System.Collections.Generic",
-        ["IReadOnlyDictionary<"] = "System.Collections.Generic",
-        ["HashSet<"] = "System.Collections.Generic",
-        ["KeyValuePair<"] = "System.Collections.Generic",
+        ["Dictionary<"] = NamespaceConstants.SystemCollectionsGeneric,
+        ["List<"] = NamespaceConstants.SystemCollectionsGeneric,
+        ["IEnumerable<"] = NamespaceConstants.SystemCollectionsGeneric,
+        ["IAsyncEnumerable<"] = NamespaceConstants.SystemCollectionsGeneric,
+        ["IList<"] = NamespaceConstants.SystemCollectionsGeneric,
+        ["ICollection<"] = NamespaceConstants.SystemCollectionsGeneric,
+        ["IReadOnlyList<"] = NamespaceConstants.SystemCollectionsGeneric,
+        ["IReadOnlyDictionary<"] = NamespaceConstants.SystemCollectionsGeneric,
+        ["HashSet<"] = NamespaceConstants.SystemCollectionsGeneric,
+        ["KeyValuePair<"] = NamespaceConstants.SystemCollectionsGeneric,
 
         // System.IO
-        ["Stream "] = "System.IO",
-        ["Stream?"] = "System.IO",
-        ["Stream)"] = "System.IO",
-        ["MemoryStream"] = "System.IO",
+        ["Stream "] = NamespaceConstants.SystemIO,
+        ["Stream?"] = NamespaceConstants.SystemIO,
+        ["Stream)"] = NamespaceConstants.SystemIO,
+        ["MemoryStream"] = NamespaceConstants.SystemIO,
 
         // System.Net
-        ["HttpStatusCode"] = "System.Net",
+        ["HttpStatusCode"] = NamespaceConstants.SystemNet,
 
         // System.Net.Http
-        ["HttpClient"] = "System.Net.Http",
-        ["HttpMethod"] = "System.Net.Http",
-        ["HttpRequestMessage"] = "System.Net.Http",
-        ["HttpResponseMessage"] = "System.Net.Http",
-        ["StreamContent"] = "System.Net.Http",
-        ["StringContent"] = "System.Net.Http",
-        ["ByteArrayContent"] = "System.Net.Http",
-        ["FormUrlEncodedContent"] = "System.Net.Http",
-        ["MultipartFormDataContent"] = "System.Net.Http",
+        ["HttpClient"] = NamespaceConstants.SystemNetHttp,
+        ["HttpMethod"] = NamespaceConstants.SystemNetHttp,
+        ["HttpRequestMessage"] = NamespaceConstants.SystemNetHttp,
+        ["HttpResponseMessage"] = NamespaceConstants.SystemNetHttp,
+        ["StreamContent"] = NamespaceConstants.SystemNetHttp,
+        ["StringContent"] = NamespaceConstants.SystemNetHttp,
+        ["ByteArrayContent"] = NamespaceConstants.SystemNetHttp,
+        ["FormUrlEncodedContent"] = NamespaceConstants.SystemNetHttp,
+        ["MultipartFormDataContent"] = NamespaceConstants.SystemNetHttp,
 
         // System.Net.Http.Headers
-        ["AuthenticationHeaderValue"] = "System.Net.Http.Headers",
-        ["MediaTypeHeaderValue"] = "System.Net.Http.Headers",
+        ["AuthenticationHeaderValue"] = NamespaceConstants.SystemNetHttpHeaders,
+        ["MediaTypeHeaderValue"] = NamespaceConstants.SystemNetHttpHeaders,
 
         // System.Net.Http.Json
-        ["ReadFromJsonAsync"] = "System.Net.Http.Json",
-        ["PostAsJsonAsync"] = "System.Net.Http.Json",
-        ["PutAsJsonAsync"] = "System.Net.Http.Json",
-        ["GetFromJsonAsync"] = "System.Net.Http.Json",
+        ["ReadFromJsonAsync"] = NamespaceConstants.SystemNetHttpJson,
+        ["PostAsJsonAsync"] = NamespaceConstants.SystemNetHttpJson,
+        ["PutAsJsonAsync"] = NamespaceConstants.SystemNetHttpJson,
+        ["GetFromJsonAsync"] = NamespaceConstants.SystemNetHttpJson,
 
         // System.Runtime.CompilerServices
         ["[EnumeratorCancellation]"] = "System.Runtime.CompilerServices",
 
         // System.Runtime.Serialization
-        ["[EnumMember("] = "System.Runtime.Serialization",
+        ["[EnumMember("] = NamespaceConstants.SystemRuntimeSerialization,
 
         // System.Text.Json
-        ["JsonSerializer"] = "System.Text.Json",
-        ["JsonSerializerOptions"] = "System.Text.Json",
+        ["JsonSerializer"] = NamespaceConstants.SystemTextJson,
+        ["JsonSerializerOptions"] = NamespaceConstants.SystemTextJson,
 
         // System.Text.Json.Serialization
-        ["[JsonPropertyName("] = "System.Text.Json.Serialization",
-        ["[JsonConverter("] = "System.Text.Json.Serialization",
-        ["[JsonPolymorphic"] = "System.Text.Json.Serialization",
-        ["[JsonDerivedType("] = "System.Text.Json.Serialization",
-        ["JsonStringEnumConverter"] = "System.Text.Json.Serialization",
+        ["[JsonPropertyName("] = NamespaceConstants.SystemTextJsonSerialization,
+        ["[JsonConverter("] = NamespaceConstants.SystemTextJsonSerialization,
+        ["[JsonPolymorphic"] = NamespaceConstants.SystemTextJsonSerialization,
+        ["[JsonDerivedType("] = NamespaceConstants.SystemTextJsonSerialization,
+        ["JsonStringEnumConverter"] = NamespaceConstants.SystemTextJsonSerialization,
 
         // System.Threading
-        ["CancellationToken"] = "System.Threading",
-        ["SemaphoreSlim"] = "System.Threading",
+        ["CancellationToken"] = NamespaceConstants.SystemThreading,
+        ["SemaphoreSlim"] = NamespaceConstants.SystemThreading,
 
         // System.Threading.Tasks
-        ["Task<"] = "System.Threading.Tasks",
-        ["Task "] = "System.Threading.Tasks",
-        ["ValueTask<"] = "System.Threading.Tasks",
-        ["ValueTask "] = "System.Threading.Tasks",
+        ["Task<"] = NamespaceConstants.SystemThreadingTasks,
+        ["Task "] = NamespaceConstants.SystemThreadingTasks,
+        ["ValueTask<"] = NamespaceConstants.SystemThreadingTasks,
+        ["ValueTask "] = NamespaceConstants.SystemThreadingTasks,
 
         // System.Threading.RateLimiting
         ["QueueProcessingOrder"] = "System.Threading.RateLimiting",
 
         // System.ComponentModel.DataAnnotations
-        ["[Required]"] = "System.ComponentModel.DataAnnotations",
-        ["[Range("] = "System.ComponentModel.DataAnnotations",
-        ["[MinLength("] = "System.ComponentModel.DataAnnotations",
-        ["[MaxLength("] = "System.ComponentModel.DataAnnotations",
-        ["[StringLength("] = "System.ComponentModel.DataAnnotations",
-        ["[RegularExpression("] = "System.ComponentModel.DataAnnotations",
-        ["[EmailAddress]"] = "System.ComponentModel.DataAnnotations",
-        ["[Url]"] = "System.ComponentModel.DataAnnotations",
+        ["[Required]"] = NamespaceConstants.SystemComponentModelDataAnnotations,
+        ["[Range("] = NamespaceConstants.SystemComponentModelDataAnnotations,
+        ["[MinLength("] = NamespaceConstants.SystemComponentModelDataAnnotations,
+        ["[MaxLength("] = NamespaceConstants.SystemComponentModelDataAnnotations,
+        ["[StringLength("] = NamespaceConstants.SystemComponentModelDataAnnotations,
+        ["[RegularExpression("] = NamespaceConstants.SystemComponentModelDataAnnotations,
+        ["[EmailAddress]"] = NamespaceConstants.SystemComponentModelDataAnnotations,
+        ["[Url]"] = NamespaceConstants.SystemComponentModelDataAnnotations,
 
         // System.ComponentModel
-        ["[DefaultValue("] = "System.ComponentModel",
+        ["[DefaultValue("] = NamespaceConstants.SystemComponentModel,
 
         // Microsoft.AspNetCore.Http
-        ["IFormFile"] = "Microsoft.AspNetCore.Http",
-        ["IFormFileCollection"] = "Microsoft.AspNetCore.Http",
-        ["StatusCodes."] = "Microsoft.AspNetCore.Http",
-        ["HttpContext"] = "Microsoft.AspNetCore.Http",
-        ["RequestDelegate"] = "Microsoft.AspNetCore.Http",
-        [": IResult"] = "Microsoft.AspNetCore.Http",
-        ["Results.Ok("] = "Microsoft.AspNetCore.Http",
-        ["Results.Created("] = "Microsoft.AspNetCore.Http",
-        ["Results.NotFound("] = "Microsoft.AspNetCore.Http",
-        ["Results.NoContent("] = "Microsoft.AspNetCore.Http",
-        ["Results.BadRequest("] = "Microsoft.AspNetCore.Http",
-        ["Results.Unauthorized("] = "Microsoft.AspNetCore.Http",
-        ["Results.Forbid("] = "Microsoft.AspNetCore.Http",
-        ["TypedResults."] = "Microsoft.AspNetCore.Http",
+        ["IFormFile"] = NamespaceConstants.MicrosoftAspNetCoreHttp,
+        ["IFormFileCollection"] = NamespaceConstants.MicrosoftAspNetCoreHttp,
+        ["StatusCodes."] = NamespaceConstants.MicrosoftAspNetCoreHttp,
+        ["HttpContext"] = NamespaceConstants.MicrosoftAspNetCoreHttp,
+        ["RequestDelegate"] = NamespaceConstants.MicrosoftAspNetCoreHttp,
+        [": IResult"] = NamespaceConstants.MicrosoftAspNetCoreHttp,
+        ["Results.Ok("] = NamespaceConstants.MicrosoftAspNetCoreHttp,
+        ["Results.Created("] = NamespaceConstants.MicrosoftAspNetCoreHttp,
+        ["Results.NotFound("] = NamespaceConstants.MicrosoftAspNetCoreHttp,
+        ["Results.NoContent("] = NamespaceConstants.MicrosoftAspNetCoreHttp,
+        ["Results.BadRequest("] = NamespaceConstants.MicrosoftAspNetCoreHttp,
+        ["Results.Unauthorized("] = NamespaceConstants.MicrosoftAspNetCoreHttp,
+        ["Results.Forbid("] = NamespaceConstants.MicrosoftAspNetCoreHttp,
+        ["TypedResults."] = NamespaceConstants.MicrosoftAspNetCoreHttp,
 
         // Microsoft.AspNetCore.Mvc
-        ["[FromQuery("] = "Microsoft.AspNetCore.Mvc",
-        ["[FromRoute("] = "Microsoft.AspNetCore.Mvc",
-        ["[FromBody]"] = "Microsoft.AspNetCore.Mvc",
-        ["[FromHeader("] = "Microsoft.AspNetCore.Mvc",
-        ["[FromServices]"] = "Microsoft.AspNetCore.Mvc",
-        ["[AsParameters]"] = "Microsoft.AspNetCore.Mvc",
+        ["[FromQuery("] = NamespaceConstants.MicrosoftAspNetCoreMvc,
+        ["[FromRoute("] = NamespaceConstants.MicrosoftAspNetCoreMvc,
+        ["[FromBody]"] = NamespaceConstants.MicrosoftAspNetCoreMvc,
+        ["[FromHeader("] = NamespaceConstants.MicrosoftAspNetCoreMvc,
+        ["[FromServices]"] = NamespaceConstants.MicrosoftAspNetCoreMvc,
+        ["[AsParameters]"] = NamespaceConstants.MicrosoftAspNetCoreMvc,
 
         // Microsoft.AspNetCore.Builder
-        ["WebApplication"] = "Microsoft.AspNetCore.Builder",
-        ["MapGroup("] = "Microsoft.AspNetCore.Builder",
-        ["MapGet("] = "Microsoft.AspNetCore.Builder",
-        ["MapPost("] = "Microsoft.AspNetCore.Builder",
-        ["MapPut("] = "Microsoft.AspNetCore.Builder",
-        ["MapDelete("] = "Microsoft.AspNetCore.Builder",
-        ["MapPatch("] = "Microsoft.AspNetCore.Builder",
+        ["WebApplication"] = NamespaceConstants.MicrosoftAspNetCoreBuilder,
+        ["MapGroup("] = NamespaceConstants.MicrosoftAspNetCoreBuilder,
+        ["MapGet("] = NamespaceConstants.MicrosoftAspNetCoreBuilder,
+        ["MapPost("] = NamespaceConstants.MicrosoftAspNetCoreBuilder,
+        ["MapPut("] = NamespaceConstants.MicrosoftAspNetCoreBuilder,
+        ["MapDelete("] = NamespaceConstants.MicrosoftAspNetCoreBuilder,
+        ["MapPatch("] = NamespaceConstants.MicrosoftAspNetCoreBuilder,
 
         // Microsoft.AspNetCore.Routing
-        ["RouteGroupBuilder"] = "Microsoft.AspNetCore.Routing",
+        ["RouteGroupBuilder"] = NamespaceConstants.MicrosoftAspNetCoreRouting,
 
         // Microsoft.AspNetCore.Authorization
         ["AddAuthorization("] = "Microsoft.AspNetCore.Authorization",
@@ -168,17 +168,17 @@ public static class UsingStatementHelper
         ["IConfiguration"] = "Microsoft.Extensions.Configuration",
 
         // Microsoft.Extensions.DependencyInjection
-        ["IServiceCollection"] = "Microsoft.Extensions.DependencyInjection",
-        ["AddScoped<"] = "Microsoft.Extensions.DependencyInjection",
-        ["AddSingleton<"] = "Microsoft.Extensions.DependencyInjection",
-        ["AddTransient<"] = "Microsoft.Extensions.DependencyInjection",
-        ["AddHttpClient<"] = "Microsoft.Extensions.DependencyInjection",
-        ["AddHttpClient("] = "Microsoft.Extensions.DependencyInjection",
-        ["AddOptions<"] = "Microsoft.Extensions.DependencyInjection",
+        ["IServiceCollection"] = NamespaceConstants.MicrosoftExtensionsDependencyInjection,
+        ["AddScoped<"] = NamespaceConstants.MicrosoftExtensionsDependencyInjection,
+        ["AddSingleton<"] = NamespaceConstants.MicrosoftExtensionsDependencyInjection,
+        ["AddTransient<"] = NamespaceConstants.MicrosoftExtensionsDependencyInjection,
+        ["AddHttpClient<"] = NamespaceConstants.MicrosoftExtensionsDependencyInjection,
+        ["AddHttpClient("] = NamespaceConstants.MicrosoftExtensionsDependencyInjection,
+        ["AddOptions<"] = NamespaceConstants.MicrosoftExtensionsDependencyInjection,
 
         // Microsoft.Extensions.Http
         ["IHttpClientFactory"] = "Microsoft.Extensions.Http",
-        ["IHttpClientBuilder"] = "Microsoft.Extensions.DependencyInjection",
+        ["IHttpClientBuilder"] = NamespaceConstants.MicrosoftExtensionsDependencyInjection,
 
         // Microsoft.Extensions.Http.Resilience
         ["AddResilienceHandler("] = "Microsoft.Extensions.Http.Resilience",

@@ -126,6 +126,6 @@ public static class CustomErrorResponseExtractor
     /// </summary>
     private static string BuildHeaderContent()
         => HeaderBuilder.WithUsings(
-            "System.CodeDom.Compiler",
-            "System.Text.Json.Serialization");
+            NamespaceConstants.SystemCodeDomCompiler,
+            NamespaceConstants.SystemTextJsonSerialization);
 }

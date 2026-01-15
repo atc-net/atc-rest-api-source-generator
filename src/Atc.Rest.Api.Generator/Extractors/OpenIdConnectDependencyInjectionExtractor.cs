@@ -44,7 +44,7 @@ public static class OpenIdConnectDependencyInjectionExtractor
 
         // Build header with only required usings
         var builder = new StringBuilder();
-        builder.Append(UsingStatementHelper.BuildHeader(content, "System.CodeDom.Compiler"));
+        builder.Append(UsingStatementHelper.BuildHeader(content, NamespaceConstants.SystemCodeDomCompiler));
         builder.AppendLine($"namespace {projectName}.Generated.Authentication;");
         builder.AppendLine();
         builder.AppendLine("/// <summary>");

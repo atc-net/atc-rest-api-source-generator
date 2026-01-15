@@ -35,7 +35,7 @@ public static class OAuthTokenProviderExtractor
 
         // Build header with only required usings
         var builder = new StringBuilder();
-        builder.Append(UsingStatementHelper.BuildHeader(content, "System.CodeDom.Compiler"));
+        builder.Append(UsingStatementHelper.BuildHeader(content, NamespaceConstants.SystemCodeDomCompiler));
         builder.AppendLine($"namespace {projectName}.Generated.OAuth;");
         builder.AppendLine();
         builder.AppendLine("/// <summary>");
@@ -97,7 +97,7 @@ public static class OAuthTokenProviderExtractor
 
         // Build header with only required usings
         var builder = new StringBuilder();
-        builder.Append(UsingStatementHelper.BuildHeader(content, "System.CodeDom.Compiler"));
+        builder.Append(UsingStatementHelper.BuildHeader(content, NamespaceConstants.SystemCodeDomCompiler));
         builder.AppendLine($"namespace {projectName}.Generated.OAuth;");
         builder.AppendLine();
         builder.AppendLine("/// <summary>");
@@ -168,7 +168,7 @@ public static class OAuthTokenProviderExtractor
 
         // Build header with only required usings
         var builder = new StringBuilder();
-        builder.Append(UsingStatementHelper.BuildHeader(content, "System.CodeDom.Compiler"));
+        builder.Append(UsingStatementHelper.BuildHeader(content, NamespaceConstants.SystemCodeDomCompiler));
         builder.AppendLine($"namespace {projectName}.Generated.OAuth;");
         builder.AppendLine();
         builder.AppendLine("/// <summary>");

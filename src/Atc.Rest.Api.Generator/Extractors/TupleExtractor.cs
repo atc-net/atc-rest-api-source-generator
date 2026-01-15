@@ -224,7 +224,7 @@ public static class TupleExtractor
         string ns)
     {
         var recordsContainer = new RecordsParameters(
-            HeaderContent: HeaderBuilder.WithUsings("System.CodeDom.Compiler"),
+            HeaderContent: HeaderBuilder.WithUsings(NamespaceConstants.SystemCodeDomCompiler),
             Namespace: ns,
             DocumentationTags: null,
             Attributes: null,

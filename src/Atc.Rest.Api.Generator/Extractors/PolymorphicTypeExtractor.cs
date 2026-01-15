@@ -64,8 +64,8 @@ public static class PolymorphicTypeExtractor
 
         // Header
         sb.Append(HeaderBuilder.WithUsings(
-            "System.CodeDom.Compiler",
-            "System.Text.Json.Serialization"));
+            NamespaceConstants.SystemCodeDomCompiler,
+            NamespaceConstants.SystemTextJsonSerialization));
 
         // Namespace
         var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
