@@ -11,6 +11,7 @@ global using System.Net.Http;
 global using System.Text;
 global using System.Text.Json;
 global using System.Text.RegularExpressions;
+global using System.Threading;
 global using System.Threading.Tasks;
 
 global using Atc.Console.Spectre;
@@ -23,6 +24,7 @@ global using Atc.Helpers;
 global using Atc.OpenApi.Helpers;
 global using Atc.Rest.Api.Generator.Cli.Commands;
 global using Atc.Rest.Api.Generator.Cli.Commands.Settings;
+global using Atc.Rest.Api.Generator.Cli.Defaults;
 global using Atc.Rest.Api.Generator.Cli.Enums;
 global using Atc.Rest.Api.Generator.Cli.Extensions;
 global using Atc.Rest.Api.Generator.Cli.Helpers;
