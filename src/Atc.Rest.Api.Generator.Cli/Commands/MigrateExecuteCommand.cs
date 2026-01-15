@@ -478,6 +478,9 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
                 AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(addResult.Error)}");
             }
         }
+
+        // Step 4: Sort global usings (System first, then by namespace group)
+        GlobalUsingsModifier.SortGlobalUsings(projectDir, dryRun);
     }
 
     private static void UpdateDomainCodeNamespaces(
