@@ -32,15 +32,29 @@ internal static class GlobalUsingsModifier
             var modified = false;
             var newLines = new List<string>();
 
-            // Pattern: {projectName}.Api.Generated -> {projectName}.Api.Contracts.Generated
-            var oldNamespace = $"{projectName}.Api.Generated";
-            var newNamespace = $"{projectName}.Api.Contracts.Generated";
+            // Pattern for transformation: {projectName}.Api.Generated.* -> {projectName}.Api.Contracts.Generated.*
+            // But the BASE namespace {projectName}.Api.Generated (without suffix) should be REMOVED
+            var oldNamespaceBase = $"{projectName}.Api.Generated";
+            var oldNamespaceWithDot = $"{projectName}.Api.Generated.";
+            var newNamespaceWithDot = $"{projectName}.Api.Contracts.Generated.";
 
             foreach (var line in lines)
             {
-                if (line.Contains(oldNamespace, StringComparison.Ordinal))
+                var trimmedLine = line.Trim();
+
+                // Check if this is the exact base namespace (should be removed, not transformed)
+                if (trimmedLine.Equals($"global using {oldNamespaceBase};", StringComparison.Ordinal))
                 {
-                    var newLine = line.Replace(oldNamespace, newNamespace, StringComparison.Ordinal);
+                    // Remove this line - the base namespace is not valid in new pattern
+                    result.RemovedUsings.Add(oldNamespaceBase);
+                    modified = true;
+                    continue;
+                }
+
+                // Transform sub-namespaces: Api.Generated.Something -> Api.Contracts.Generated.Something
+                if (line.Contains(oldNamespaceWithDot, StringComparison.Ordinal))
+                {
+                    var newLine = line.Replace(oldNamespaceWithDot, newNamespaceWithDot, StringComparison.Ordinal);
                     newLines.Add(newLine);
                     result.UpdatedUsings.Add($"{ExtractUsingNamespace(line)} → {ExtractUsingNamespace(newLine)}");
                     modified = true;
@@ -57,7 +71,7 @@ internal static class GlobalUsingsModifier
 
                 if (!dryRun)
                 {
-                    File.WriteAllLines(globalUsingsPath, newLines);
+                    WriteAllLinesWithoutTrailingNewline(globalUsingsPath, newLines);
                 }
             }
         }
@@ -149,7 +163,7 @@ internal static class GlobalUsingsModifier
 
                 if (!dryRun)
                 {
-                    File.WriteAllLines(globalUsingsPath, newLines);
+                    WriteAllLinesWithoutTrailingNewline(globalUsingsPath, newLines);
                 }
             }
         }
@@ -240,7 +254,7 @@ internal static class GlobalUsingsModifier
                 {
                     var insertIndex = FindInsertIndex(existingLines, contractsNamespace);
                     existingLines.InsertRange(insertIndex, usingsToAdd);
-                    File.WriteAllLines(globalUsingsPath, existingLines);
+                    WriteAllLinesWithoutTrailingNewline(globalUsingsPath, existingLines);
                 }
             }
         }
@@ -325,8 +339,11 @@ internal static class GlobalUsingsModifier
 
         try
         {
-            // Pattern to remove: {ProjectName}.Api.Generated (without .Contracts)
-            var oldApiGeneratedPattern = $"{projectName}.Api.Generated";
+            // Patterns to remove:
+            // 1. {ProjectName}.Api.Generated (exact match - old base namespace)
+            // 2. {ProjectName}.Api.Generated.* (any sub-namespace of old pattern)
+            var oldApiGeneratedExact = $"{projectName}.Api.Generated";
+            var oldApiGeneratedPrefix = $"{projectName}.Api.Generated.";
 
             // Also remove Atc.Rest.MinimalApi usings as they're from the old pattern
             var oldMinimalApiPatterns = new[]
@@ -343,7 +360,8 @@ internal static class GlobalUsingsModifier
 
             foreach (var ns in existingNamespaces)
             {
-                if (ns.Equals(oldApiGeneratedPattern, StringComparison.Ordinal))
+                if (ns.Equals(oldApiGeneratedExact, StringComparison.Ordinal) ||
+                    ns.StartsWith(oldApiGeneratedPrefix, StringComparison.Ordinal))
                 {
                     removedUsings.Add(ns);
                 }
@@ -460,5 +478,16 @@ internal static class GlobalUsingsModifier
         }
 
         return trimmed;
+    }
+
+    /// <summary>
+    /// Writes lines to a file without a trailing newline to avoid SA1518 warning.
+    /// </summary>
+    private static void WriteAllLinesWithoutTrailingNewline(
+        string path,
+        IEnumerable<string> lines)
+    {
+        var content = string.Join(Environment.NewLine, lines);
+        File.WriteAllText(path, content);
     }
 }

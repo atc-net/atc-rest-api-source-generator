@@ -108,7 +108,7 @@ internal static class ProgramCsModifier
 
                 if (!dryRun)
                 {
-                    File.WriteAllLines(programCsPath, newLines);
+                    WriteAllLinesWithoutTrailingNewline(programCsPath, newLines);
                 }
             }
         }
@@ -186,5 +186,16 @@ internal static class ProgramCsModifier
 
         // Default to 4 spaces
         return "    ";
+    }
+
+    /// <summary>
+    /// Writes lines to a file without a trailing newline to avoid SA1518 warning.
+    /// </summary>
+    private static void WriteAllLinesWithoutTrailingNewline(
+        string path,
+        IEnumerable<string> lines)
+    {
+        var content = string.Join(Environment.NewLine, lines);
+        File.WriteAllText(path, content);
     }
 }
