@@ -124,6 +124,11 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             .SpinnerStyle(Style.Parse("blue"))
             .Start("Initializing...", ctx =>
             {
+                // Step 0: Resolve package version from NuGet (with fallback)
+                ctx.Status("Resolving package versions...");
+                var sourceGeneratorVersion = AtcApiNugetClientHelper.GetLatestVersionForPackageId(
+                    PackageVersionDefaults.SourceGeneratorPackageId) ?? PackageVersionDefaults.SourceGeneratorFallback;
+
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");
                 var validationResult = ValidateSpecificationWithStats(specPath, serverConfig.ValidateSpecificationStrategy);
@@ -154,7 +159,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 if (isTwoProjects)
                 {
                     // TwoProjects: Combined host + contracts project
-                    if (!GenerateCombinedHostContractsProject(ctx, specPath, contractsOutputPath, contractsProjectName, domainProjectName, outputPath, serverConfig, scaffoldingConfig.TargetFramework, scaffoldingConfig.HostUi, scaffoldingConfig.HostUiMode))
+                    if (!GenerateCombinedHostContractsProject(ctx, specPath, contractsOutputPath, contractsProjectName, domainProjectName, outputPath, serverConfig, scaffoldingConfig.TargetFramework, scaffoldingConfig.HostUi, scaffoldingConfig.HostUiMode, sourceGeneratorVersion))
                     {
                         return 1;
                     }
@@ -163,7 +168,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 }
                 else
                 {
-                    if (!GenerateContractsProject(ctx, specPath, contractsOutputPath, contractsProjectName, outputPath, serverConfig))
+                    if (!GenerateContractsProject(ctx, specPath, contractsOutputPath, contractsProjectName, outputPath, serverConfig, sourceGeneratorVersion))
                     {
                         return 1;
                     }
@@ -175,7 +180,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 if (hasSeparateDomain)
                 {
                     ctx.Status("Setting up domain project...");
-                    if (!GenerateDomainProject(ctx, specPath, domainOutputPath, domainProjectName, contractsProjectName, outputPath, domainConfig))
+                    if (!GenerateDomainProject(ctx, specPath, domainOutputPath, domainProjectName, contractsProjectName, outputPath, domainConfig, sourceGeneratorVersion))
                     {
                         return 1;
                     }
@@ -620,7 +625,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         string outputPath,
         string projectName,
         string repositoryRoot,
-        ServerConfig config)
+        ServerConfig config,
+        Version sourceGeneratorVersion)
     {
         // Validate output directory
         if (!ValidateOutputDirectory(outputPath, projectName))
@@ -677,7 +683,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
         // Create or update project file with relative paths
         ctx.Status("Creating contracts project file...");
-        if (!CreateOrUpdateContractsProjectFile(outputPath, projectName, relativeSpecPaths))
+        if (!CreateOrUpdateContractsProjectFile(outputPath, projectName, relativeSpecPaths, sourceGeneratorVersion))
         {
             return false;
         }
@@ -692,7 +698,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         string projectName,
         string contractsProjectName,
         string repositoryRoot,
-        ServerDomainConfig config)
+        ServerDomainConfig config,
+        Version sourceGeneratorVersion)
     {
         // Validate output directory
         if (!ValidateOutputDirectory(outputPath, projectName))
@@ -749,7 +756,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
         // Create or update project file with relative paths
         ctx.Status("Creating domain project file...");
-        if (!CreateOrUpdateDomainProjectFile(outputPath, projectName, contractsProjectName, relativeSpecPaths))
+        if (!CreateOrUpdateDomainProjectFile(outputPath, projectName, contractsProjectName, relativeSpecPaths, sourceGeneratorVersion))
         {
             return false;
         }
@@ -767,7 +774,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         ServerConfig config,
         string targetFramework,
         HostUiType hostUi,
-        HostUiModeType hostUiMode)
+        HostUiModeType hostUiMode,
+        Version sourceGeneratorVersion)
     {
         // Validate output directory
         if (!ValidateOutputDirectory(outputPath, projectName))
@@ -824,7 +832,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
         // Create or update combined host+contracts project file
         ctx.Status("Creating project file...");
-        if (!CreateOrUpdateCombinedHostContractsProjectFile(outputPath, projectName, domainProjectName, relativeSpecPaths, targetFramework, hostUi))
+        if (!CreateOrUpdateCombinedHostContractsProjectFile(outputPath, projectName, domainProjectName, relativeSpecPaths, targetFramework, hostUi, sourceGeneratorVersion))
         {
             return false;
         }
@@ -1057,7 +1065,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
     private static bool CreateOrUpdateContractsProjectFile(
         string outputPath,
         string projectName,
-        List<string> specFilePaths)
+        List<string> specFilePaths,
+        Version sourceGeneratorVersion)
     {
         var csprojPath = Path.Combine(outputPath, $"{projectName}.csproj");
 
@@ -1065,7 +1074,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             if (!File.Exists(csprojPath))
             {
-                var csprojContent = GenerateContractsProjectFileContent(specFilePaths);
+                var csprojContent = GenerateContractsProjectFileContent(specFilePaths, sourceGeneratorVersion);
                 File.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
             }
@@ -1095,7 +1104,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         string outputPath,
         string projectName,
         string contractsProjectName,
-        List<string> specFilePaths)
+        List<string> specFilePaths,
+        Version sourceGeneratorVersion)
     {
         var csprojPath = Path.Combine(outputPath, $"{projectName}.csproj");
 
@@ -1103,7 +1113,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             if (!File.Exists(csprojPath))
             {
-                var csprojContent = GenerateDomainProjectFileContent(specFilePaths, contractsProjectName);
+                var csprojContent = GenerateDomainProjectFileContent(specFilePaths, contractsProjectName, sourceGeneratorVersion);
                 File.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
             }
@@ -1130,7 +1140,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
     }
 
     private static string GenerateContractsProjectFileContent(
-        List<string> specFilePaths)
+        List<string> specFilePaths,
+        Version sourceGeneratorVersion)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk\">");
@@ -1144,7 +1155,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         sb.AppendLine(2, "</ItemGroup>");
         sb.AppendLine();
         sb.AppendLine(2, "<ItemGroup>");
-        sb.AppendLine(4, "<PackageReference Include=\"Atc.Rest.Api.SourceGenerator\" Version=\"*\" OutputItemType=\"Analyzer\" ReferenceOutputAssembly=\"false\" />");
+        sb.AppendLine(4, $"<PackageReference Include=\"Atc.Rest.Api.SourceGenerator\" Version=\"{sourceGeneratorVersion}\" OutputItemType=\"Analyzer\" ReferenceOutputAssembly=\"false\" />");
         sb.AppendLine(4, "<PackageReference Include=\"Microsoft.Extensions.Caching.Hybrid\" Version=\"10.1.0\" />");
         sb.AppendLine(2, "</ItemGroup>");
         sb.AppendLine();
@@ -1165,7 +1176,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
     private static string GenerateDomainProjectFileContent(
         List<string> specFilePaths,
-        string contractsProjectName)
+        string contractsProjectName,
+        Version sourceGeneratorVersion)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk\">");
@@ -1183,7 +1195,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         sb.AppendLine(2, "</ItemGroup>");
         sb.AppendLine();
         sb.AppendLine(2, "<ItemGroup>");
-        sb.AppendLine(4, "<PackageReference Include=\"Atc.Rest.Api.SourceGenerator\" Version=\"*\" OutputItemType=\"Analyzer\" ReferenceOutputAssembly=\"false\" />");
+        sb.AppendLine(4, $"<PackageReference Include=\"Atc.Rest.Api.SourceGenerator\" Version=\"{sourceGeneratorVersion}\" OutputItemType=\"Analyzer\" ReferenceOutputAssembly=\"false\" />");
         sb.AppendLine(2, "</ItemGroup>");
         sb.AppendLine();
         sb.AppendLine(2, "<ItemGroup>");
@@ -1207,7 +1219,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         string domainProjectName,
         List<string> specFilePaths,
         string targetFramework,
-        HostUiType hostUi)
+        HostUiType hostUi,
+        Version sourceGeneratorVersion)
     {
         var csprojPath = Path.Combine(outputPath, $"{projectName}.csproj");
 
@@ -1215,7 +1228,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             if (!File.Exists(csprojPath))
             {
-                var csprojContent = GenerateCombinedHostContractsProjectFileContent(specFilePaths, domainProjectName, targetFramework, hostUi);
+                var csprojContent = GenerateCombinedHostContractsProjectFileContent(specFilePaths, domainProjectName, targetFramework, hostUi, sourceGeneratorVersion);
                 File.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
             }
@@ -1245,7 +1258,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         List<string> specFilePaths,
         string domainProjectName,
         string targetFramework,
-        HostUiType hostUi)
+        HostUiType hostUi,
+        Version sourceGeneratorVersion)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk.Web\">");
@@ -1259,7 +1273,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         sb.AppendLine(2, "</ItemGroup>");
         sb.AppendLine();
         sb.AppendLine(2, "<ItemGroup>");
-        sb.AppendLine(4, "<PackageReference Include=\"Atc.Rest.Api.SourceGenerator\" Version=\"*\" OutputItemType=\"Analyzer\" ReferenceOutputAssembly=\"false\" />");
+        sb.AppendLine(4, $"<PackageReference Include=\"Atc.Rest.Api.SourceGenerator\" Version=\"{sourceGeneratorVersion}\" OutputItemType=\"Analyzer\" ReferenceOutputAssembly=\"false\" />");
         sb.AppendLine(4, "<PackageReference Include=\"Microsoft.Extensions.Caching.Hybrid\" Version=\"10.1.0\" />");
 
         if (hostUi != HostUiType.None)

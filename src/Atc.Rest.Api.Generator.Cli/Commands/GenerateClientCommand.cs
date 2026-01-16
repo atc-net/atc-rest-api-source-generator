@@ -57,6 +57,11 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             .SpinnerStyle(Style.Parse("blue"))
             .Start("Initializing...", ctx =>
             {
+                // Step 0: Resolve package version from NuGet (with fallback)
+                ctx.Status("Resolving package versions...");
+                var sourceGeneratorVersion = AtcApiNugetClientHelper.GetLatestVersionForPackageId(
+                    PackageVersionDefaults.SourceGeneratorPackageId) ?? PackageVersionDefaults.SourceGeneratorFallback;
+
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");
                 var validationResult = ValidateSpecificationWithStats(specPath, clientConfig.ValidateSpecificationStrategy);
@@ -106,7 +111,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
                 // Step 6: Create or update project file (using local YAML file name)
                 ctx.Status("Creating project file...");
-                if (!CreateOrUpdateProjectFile(outputPath, projectName, specFileName))
+                if (!CreateOrUpdateProjectFile(outputPath, projectName, specFileName, sourceGeneratorVersion))
                 {
                     return 1;
                 }
@@ -402,7 +407,8 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
     private static bool CreateOrUpdateProjectFile(
         string outputPath,
         string projectName,
-        string specFileName)
+        string specFileName,
+        Version sourceGeneratorVersion)
     {
         var csprojPath = Path.Combine(outputPath, $"{projectName}.csproj");
 
@@ -410,7 +416,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         {
             if (!File.Exists(csprojPath))
             {
-                var csprojContent = GenerateProjectFileContent(specFileName);
+                var csprojContent = GenerateProjectFileContent(specFileName, sourceGeneratorVersion);
                 File.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
             }
@@ -436,7 +442,9 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         }
     }
 
-    private static string GenerateProjectFileContent(string specFileName)
+    private static string GenerateProjectFileContent(
+        string specFileName,
+        Version sourceGeneratorVersion)
         => $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
@@ -446,7 +454,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
               </PropertyGroup>
 
               <ItemGroup>
-                <PackageReference Include="Atc.Rest.Api.SourceGenerator" Version="*" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+                <PackageReference Include="Atc.Rest.Api.SourceGenerator" Version="{sourceGeneratorVersion}" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
               </ItemGroup>
 
               <ItemGroup>

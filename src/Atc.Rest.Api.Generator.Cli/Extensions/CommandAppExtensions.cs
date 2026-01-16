@@ -16,7 +16,7 @@ public static class CommandAppExtensions
         app.Configure(config =>
         {
             config.SetApplicationName("atc-rest-api-gen");
-            config.SetApplicationVersion("1.0.0");
+            config.SetApplicationVersion(CliHelper.GetCurrentVersion().ToString());
 
             config.AddBranch("spec", ConfigureSpecCommands());
             config.AddBranch("generate", ConfigureGenerateCommands());

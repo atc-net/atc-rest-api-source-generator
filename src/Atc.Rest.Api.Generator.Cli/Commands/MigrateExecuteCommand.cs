@@ -97,59 +97,66 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
                 // Step 4: Copy specification (stays in place, just track it)
                 ctx.Status("Analyzing specification location...");
-                var specRelativePath = GetRelativeSpecPath(rootDirectory, specPath, report.ProjectStructure.ApiGeneratedProject);
+                var specRelativePath = GetRelativeSpecPath(specPath, report.ProjectStructure.ApiGeneratedProject);
                 summary.SpecificationPath = specRelativePath;
 
                 // Step 5: Generate marker files
                 ctx.Status(dryRun ? "Analyzing marker files..." : "Generating marker files...");
                 GenerateMarkerFiles(report, projectName, dryRun, summary);
 
-                // Step 6: Modify project files
+                // Step 6: Resolve package versions from NuGet (with fallback)
+                ctx.Status("Resolving package versions...");
+                var sourceGeneratorVersion = AtcApiNugetClientHelper.GetLatestVersionForPackageId(
+                    PackageVersionDefaults.SourceGeneratorPackageId) ?? PackageVersionDefaults.SourceGeneratorFallback;
+                var restClientVersion = AtcApiNugetClientHelper.GetLatestVersionForPackageId(
+                    PackageVersionDefaults.RestClientPackageId) ?? PackageVersionDefaults.RestClientMinFallback;
+
+                // Step 7: Modify project files
                 ctx.Status(dryRun ? "Analyzing project modifications..." : "Modifying project files...");
                 ModifyProjectFiles(
                     report,
                     specRelativePath,
-                    PackageVersionDefaults.SourceGeneratorFallback,
-                    PackageVersionDefaults.RestClientMinFallback,
+                    sourceGeneratorVersion,
+                    restClientVersion,
                     dryRun,
                     summary);
 
-                // Step 7: Handle ATC coding rules
+                // Step 8: Handle ATC coding rules
                 ctx.Status(dryRun ? "Analyzing ATC coding rules..." : "Handling ATC coding rules...");
                 HandleAtcCodingRules(rootDirectory, settings.Force, dryRun, summary);
 
-                // Step 7b: Upgrade Directory.Build.props if needed
+                // Step 8b: Upgrade Directory.Build.props if needed
                 if (report.RequiresUpgrade)
                 {
                     ctx.Status(dryRun ? "Analyzing Directory.Build.props..." : "Upgrading Directory.Build.props...");
                     UpgradeDirectoryBuildProps(rootDirectory, dryRun, summary);
                 }
 
-                // Step 8: Clean generated code
+                // Step 9: Clean generated code
                 ctx.Status(dryRun ? "Analyzing generated code cleanup..." : "Cleaning generated code...");
                 CleanGeneratedCode(report, dryRun, summary);
 
-                // Step 9: Rename projects
+                // Step 10: Rename projects
                 ctx.Status(dryRun ? "Analyzing project renames..." : "Renaming projects...");
                 RenameProjects(report, projectName, dryRun, summary);
 
-                // Step 10: Update solution and references
+                // Step 11: Update solution and references
                 ctx.Status(dryRun ? "Analyzing solution updates..." : "Updating solution and references...");
                 UpdateSolutionAndReferences(report, projectName, dryRun, summary);
 
-                // Step 11: Update GlobalUsings.cs in Domain project
+                // Step 12: Update GlobalUsings.cs in Domain project
                 ctx.Status(dryRun ? "Analyzing GlobalUsings.cs..." : "Updating GlobalUsings.cs...");
                 UpdateGlobalUsings(report, projectName, dryRun, summary);
 
-                // Step 12: Update namespace references in Domain code files
+                // Step 13: Update namespace references in Domain code files
                 ctx.Status(dryRun ? "Analyzing domain code namespaces..." : "Updating domain code namespaces...");
                 UpdateDomainCodeNamespaces(report, projectName, dryRun, summary);
 
-                // Step 13: Migrate parameter property names in handler code
+                // Step 14: Migrate parameter property names in handler code
                 ctx.Status(dryRun ? "Analyzing parameter names..." : "Migrating parameter names...");
                 MigrateParameterNames(report, dryRun, summary);
 
-                // Step 14: Update Host project (Program.cs and GlobalUsings)
+                // Step 15: Update Host project (Program.cs and GlobalUsings)
                 ctx.Status(dryRun ? "Analyzing Host project..." : "Updating Host project...");
                 UpdateHostProject(report, projectName, dryRun, summary);
 
@@ -963,7 +970,6 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
     }
 
     private static string GetRelativeSpecPath(
-        string rootDirectory,
         string specPath,
         string? apiGeneratedProject)
     {
