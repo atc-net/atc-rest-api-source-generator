@@ -25,8 +25,8 @@ internal static class DirectoryBuildPropsModifier
     /// <returns>True if the file was modified, false otherwise.</returns>
     public static bool UpgradeTargetFramework(
         string rootDirectory,
-        string targetFramework = "net10.0",
-        string langVersion = "14.0",
+        string targetFramework,
+        string langVersion,
         bool dryRun = false)
     {
         var propsPath = Path.Combine(rootDirectory, "Directory.Build.props");
@@ -92,5 +92,56 @@ internal static class DirectoryBuildPropsModifier
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Upgrades the target framework in all .csproj files that have an explicit TargetFramework element.
+    /// </summary>
+    /// <param name="rootDirectory">The solution root directory.</param>
+    /// <param name="targetFramework">The target framework to set (e.g., "net10.0").</param>
+    /// <param name="dryRun">If true, only returns what would be modified.</param>
+    /// <returns>A list of csproj files that were modified.</returns>
+    public static List<string> UpgradeCsprojTargetFrameworks(
+        string rootDirectory,
+        string targetFramework,
+        bool dryRun = false)
+    {
+        var modifiedFiles = new List<string>();
+        var srcDirectory = Path.Combine(rootDirectory, "src");
+
+        if (!Directory.Exists(srcDirectory))
+        {
+            return modifiedFiles;
+        }
+
+        var csprojFiles = Directory.GetFiles(srcDirectory, "*.csproj", SearchOption.AllDirectories);
+
+        foreach (var csprojFile in csprojFiles)
+        {
+            var content = File.ReadAllText(csprojFile);
+
+            if (!TargetFrameworkPattern.IsMatch(content))
+            {
+                continue;
+            }
+
+            var newContent = TargetFrameworkPattern.Replace(
+                content,
+                $"<TargetFramework>{targetFramework}</TargetFramework>");
+
+            if (string.Equals(content, newContent, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!dryRun)
+            {
+                File.WriteAllText(csprojFile, newContent);
+            }
+
+            modifiedFiles.Add(csprojFile);
+        }
+
+        return modifiedFiles;
     }
 }

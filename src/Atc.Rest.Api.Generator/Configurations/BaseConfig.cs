@@ -65,4 +65,10 @@ public abstract class BaseConfig
     /// Used in route templates like "/api/v{version:apiVersion}/pets".
     /// </summary>
     public string VersionRouteSegmentTemplate { get; set; } = "v{version:apiVersion}";
+
+    /// <summary>
+    /// Remove blank lines between namespace groups in GlobalUsings.cs.
+    /// Default: false (blank lines are preserved between groups).
+    /// </summary>
+    public bool RemoveNamespaceGroupSeparatorInGlobalUsings { get; set; }
 }

@@ -450,7 +450,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
               <PropertyGroup>
                 <OutputType>Exe</OutputType>
-                <TargetFramework>net10.0</TargetFramework>
+                <TargetFramework>{TargetFrameworkResult.RequiredTargetFramework}</TargetFramework>
               </PropertyGroup>
 
               <ItemGroup>

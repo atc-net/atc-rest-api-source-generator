@@ -16,4 +16,10 @@ public sealed class GeneralOptions
     /// Default: false.
     /// </summary>
     public bool IncludeDeprecated { get; set; }
+
+    /// <summary>
+    /// Remove blank lines between namespace groups in GlobalUsings.cs.
+    /// Default: false (blank lines are preserved between groups).
+    /// </summary>
+    public bool RemoveNamespaceGroupSeparatorInGlobalUsings { get; set; }
 }

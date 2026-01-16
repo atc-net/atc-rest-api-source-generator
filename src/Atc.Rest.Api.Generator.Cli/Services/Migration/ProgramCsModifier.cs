@@ -97,6 +97,10 @@ internal static class ProgramCsModifier
                     }
 
                     newLines.Insert(insertIndex, handlerRegistration);
+
+                    // Add an empty line after to separate from builder.Build()
+                    newLines.Insert(insertIndex + 1, string.Empty);
+
                     result.AddedStatements.Add("AddApiHandlersFromDomain()");
                     modified = true;
                 }
@@ -167,6 +171,17 @@ internal static class ProgramCsModifier
         List<string> lines,
         int nearIndex)
     {
+        // First, try to use the indentation from the line at nearIndex directly
+        // This is the line we're inserting before, so we want to match its indentation
+        if (nearIndex >= 0 && nearIndex < lines.Count)
+        {
+            var targetLine = lines[nearIndex];
+            if (!string.IsNullOrWhiteSpace(targetLine))
+            {
+                return targetLine[..^targetLine.TrimStart().Length];
+            }
+        }
+
         // Look at nearby lines to detect the indentation pattern
         var searchStart = System.Math.Max(0, nearIndex - 5);
         var searchEnd = System.Math.Min(lines.Count, nearIndex + 5);

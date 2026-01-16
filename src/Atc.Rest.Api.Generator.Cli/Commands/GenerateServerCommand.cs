@@ -351,6 +351,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             TargetFramework = options.Scaffolding.TargetFramework,
             HostUi = options.Scaffolding.HostUi,
             HostUiMode = options.Scaffolding.HostUiMode,
+            RemoveNamespaceGroupSeparatorInGlobalUsings = options.Scaffolding.RemoveNamespaceGroupSeparatorInGlobalUsings,
         };
 
         // Override with CLI flags
@@ -1147,7 +1148,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk\">");
         sb.AppendLine();
         sb.AppendLine(2, "<PropertyGroup>");
-        sb.AppendLine(4, "<TargetFramework>net10.0</TargetFramework>");
+        sb.AppendLine(4, $"<TargetFramework>{TargetFrameworkResult.RequiredTargetFramework}</TargetFramework>");
         sb.AppendLine(2, "</PropertyGroup>");
         sb.AppendLine();
         sb.AppendLine(2, "<ItemGroup>");
@@ -1183,7 +1184,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk\">");
         sb.AppendLine();
         sb.AppendLine(2, "<PropertyGroup>");
-        sb.AppendLine(4, "<TargetFramework>net10.0</TargetFramework>");
+        sb.AppendLine(4, $"<TargetFramework>{TargetFrameworkResult.RequiredTargetFramework}</TargetFramework>");
         sb.AppendLine(2, "</PropertyGroup>");
         sb.AppendLine();
         sb.AppendLine(2, "<ItemGroup>");

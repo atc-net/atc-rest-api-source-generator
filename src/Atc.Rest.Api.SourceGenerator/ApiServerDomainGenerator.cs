@@ -159,7 +159,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // Ensure GlobalUsings.cs is updated at project root (markerDirectory) before generating handlers
         if (!string.IsNullOrEmpty(markerDirectory))
         {
-            EnsureGlobalUsingsUpdated(markerDirectory, interfaceNamespaces, rootNamespace, pathSegments, openApiDoc);
+            EnsureGlobalUsingsUpdated(markerDirectory, interfaceNamespaces, rootNamespace, pathSegments, openApiDoc, config);
         }
 
         // Collect all handler info for DI registration
@@ -329,7 +329,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         HashSet<string> discoveredInterfaceNamespaces,
         string rootNamespace,
         List<string> pathSegments,
-        OpenApiDocument openApiDoc)
+        OpenApiDocument openApiDoc,
+        ServerDomainConfig config)
     {
         var globalUsingsPath = Path.Combine(projectRootDirectory, "GlobalUsings.cs");
 
@@ -430,48 +431,20 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             return;
         }
 
-        // Build updated content
-        var builder = new StringBuilder();
-
-        // Preserve existing content
-        var hasExistingContent = !string.IsNullOrWhiteSpace(existingContent);
-        if (hasExistingContent)
+        // Merge all usings (existing + required) and re-sort the entire file
+        var allUsings = new HashSet<string>(existingUsings, StringComparer.Ordinal);
+        foreach (var required in requiredUsings)
         {
-            // Keep existing content and append missing usings
-            builder.Append(existingContent.TrimEnd());
-            builder.AppendLine();
-            builder.AppendLine();
+            allUsings.Add(required);
         }
 
-        // Add missing usings (System namespaces first, then others - all alphabetically)
-        // Extract namespace for proper sorting (removes "global using " prefix and ";" suffix)
-        static string ExtractNamespace(string usingDirective)
-        {
-            const string prefix = "global using ";
-            if (usingDirective.StartsWith(prefix, StringComparison.Ordinal))
-            {
-                var ns = usingDirective.Substring(prefix.Length);
-                return ns.EndsWith(";", StringComparison.Ordinal)
-                    ? ns.Substring(0, ns.Length - 1)
-                    : ns;
-            }
-
-            return usingDirective;
-        }
-
-        var sortedMissingList = missingUsings
-            .OrderBy(u => !u.StartsWith("global using System", StringComparison.Ordinal))
-            .ThenBy(ExtractNamespace, StringComparer.Ordinal)
-            .ToList();
-
-        // Add all missing usings
-        foreach (var missing in sortedMissingList)
-        {
-            builder.AppendLine(missing);
-        }
+        // Sort and format global usings with namespace grouping
+        var sortedContent = UsingStatementHelper.SortGlobalUsings(
+            allUsings,
+            config.RemoveNamespaceGroupSeparatorInGlobalUsings);
 
         // Write file using helper (ensures proper newline handling)
-        FileHelper.WriteCsFile(globalUsingsPath, builder.ToString());
+        FileHelper.WriteCsFile(globalUsingsPath, sortedContent);
     }
 
     /// <summary>

@@ -43,7 +43,7 @@ internal static class ProjectFileModifier
         if (!content.Contains("<AdditionalFiles", StringComparison.OrdinalIgnoreCase))
         {
             var additionalFiles = GenerateAdditionalFilesItemGroup(specificationRelativePath, ".atc-rest-api-server");
-            modified = AddItemGroup(modified, additionalFiles);
+            modified = AddItemGroup(modified, Environment.NewLine + additionalFiles + Environment.NewLine);
             result.AddedAdditionalFiles.Add(specificationRelativePath);
             result.AddedAdditionalFiles.Add(".atc-rest-api-server");
         }
@@ -98,7 +98,7 @@ internal static class ProjectFileModifier
         if (!content.Contains("<AdditionalFiles", StringComparison.OrdinalIgnoreCase))
         {
             var additionalFiles = GenerateAdditionalFilesItemGroup(specificationRelativePath, ".atc-rest-api-client");
-            modified = AddItemGroup(modified, additionalFiles);
+            modified = AddItemGroup(modified, Environment.NewLine + additionalFiles + Environment.NewLine);
             result.AddedAdditionalFiles.Add(specificationRelativePath);
             result.AddedAdditionalFiles.Add(".atc-rest-api-client");
         }
@@ -157,7 +157,7 @@ internal static class ProjectFileModifier
         if (!content.Contains(".atc-rest-api-server-handlers", StringComparison.OrdinalIgnoreCase))
         {
             var additionalFiles = GenerateAdditionalFilesItemGroup(specificationRelativePath, ".atc-rest-api-server-handlers");
-            modified = AddItemGroup(modified, additionalFiles);
+            modified = AddItemGroup(modified, Environment.NewLine + additionalFiles + Environment.NewLine);
             result.AddedAdditionalFiles.Add(specificationRelativePath);
             result.AddedAdditionalFiles.Add(".atc-rest-api-server-handlers");
         }

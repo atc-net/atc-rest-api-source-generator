@@ -6,6 +6,14 @@ namespace Atc.Rest.Api.Generator.Cli.Options;
 public sealed class ScaffoldingOptions
 {
     /// <summary>
+    /// Initializes a new instance of the <see cref="ScaffoldingOptions"/> class.
+    /// </summary>
+    public ScaffoldingOptions()
+    {
+        TargetFramework = TargetFrameworkResult.RequiredTargetFramework;
+    }
+
+    /// <summary>
     /// Project structure type for code generation.
     /// Default: ThreeProjects (3 separate projects).
     /// </summary>
@@ -25,9 +33,9 @@ public sealed class ScaffoldingOptions
 
     /// <summary>
     /// Target framework for generated projects.
-    /// Default: "net10.0".
+    /// Default: Uses TargetFrameworkResult.RequiredTargetFramework.
     /// </summary>
-    public string TargetFramework { get; set; } = "net10.0";
+    public string TargetFramework { get; set; }
 
     /// <summary>
     /// Override host project name (ThreeProjects mode only).
@@ -94,4 +102,10 @@ public sealed class ScaffoldingOptions
     /// Default: false.
     /// </summary>
     public bool Aspire { get; set; }
+
+    /// <summary>
+    /// Remove blank lines between namespace groups in GlobalUsings.cs.
+    /// Default: false (blank lines are preserved between groups).
+    /// </summary>
+    public bool RemoveNamespaceGroupSeparatorInGlobalUsings { get; set; }
 }

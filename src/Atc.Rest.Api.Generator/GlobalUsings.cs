@@ -12,6 +12,7 @@ global using System.Text.Json.Serialization;
 global using Atc.CodeGeneration.CSharp.CodeDocumentation.CodeComment;
 global using Atc.CodeGeneration.CSharp.Content;
 global using Atc.CodeGeneration.CSharp.Content.Generators;
+global using Atc.CodeGeneration.CSharp.Helpers;
 global using Atc.Helpers;
 global using Atc.OpenApi.Extensions;
 global using Atc.OpenApi.Helpers;

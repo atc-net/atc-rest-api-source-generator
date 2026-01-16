@@ -1,4 +1,5 @@
 // ReSharper disable StringLiteralTypo
+// ReSharper disable ConvertIfStatementToReturnStatement
 namespace Atc.Rest.Api.Generator.Helpers;
 
 /// <summary>
@@ -244,12 +245,9 @@ public static class UsingStatementHelper
     {
         var usings = new HashSet<string>(alwaysInclude, StringComparer.Ordinal);
 
-        foreach (var kvp in TypeMappings)
+        foreach (var kvp in TypeMappings.Where(kvp => ContentContains(content, kvp.Key)))
         {
-            if (ContentContains(content, kvp.Key))
-            {
-                usings.Add(kvp.Value);
-            }
+            usings.Add(kvp.Value);
         }
 
         return usings;
@@ -326,5 +324,63 @@ public static class UsingStatementHelper
         }
 
         return 5;
+    }
+
+    /// <summary>
+    /// Sorts global using directives with System namespaces first, then groups by namespace prefix
+    /// with empty lines between groups.
+    /// </summary>
+    /// <param name="globalUsings">The collection of global using directives (e.g., "global using System;").</param>
+    /// <param name="removeNamespaceGroupSeparator">If true, removes blank lines between namespace groups. Default: false.</param>
+    /// <returns>A sorted string with global usings grouped by namespace prefix.</returns>
+    public static string SortGlobalUsings(
+        IEnumerable<string> globalUsings,
+        bool removeNamespaceGroupSeparator = false)
+    {
+        // Extract namespaces from "global using X;" statements
+        var namespaces = globalUsings
+            .Select(ExtractNamespaceFromGlobalUsing)
+            .ToList();
+
+        if (namespaces.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        // Delegate to GlobalUsingsHelper for consistent sorting and grouping
+        return GlobalUsingsHelper.GenerateContent(
+            namespaces,
+            setSystemFirst: true,
+            addNamespaceSeparator: !removeNamespaceGroupSeparator);
+    }
+
+    /// <summary>
+    /// Extracts the namespace from a global using directive.
+    /// </summary>
+    /// <param name="usingDirective">The global using directive (e.g., "global using System;").</param>
+    /// <returns>The extracted namespace (e.g., "System").</returns>
+    public static string ExtractNamespaceFromGlobalUsing(string usingDirective)
+    {
+        const string prefix = "global using ";
+        if (!usingDirective.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return usingDirective;
+        }
+
+        var ns = usingDirective.Substring(prefix.Length);
+        return ns.EndsWith(";", StringComparison.Ordinal)
+            ? ns.Substring(0, ns.Length - 1)
+            : ns;
+    }
+
+    /// <summary>
+    /// Gets the first segment of a namespace for grouping purposes.
+    /// </summary>
+    /// <param name="ns">The namespace to extract the prefix from.</param>
+    /// <returns>The first segment of the namespace (e.g., "System" from "System.Threading").</returns>
+    public static string GetNamespacePrefix(string ns)
+    {
+        var dotIndex = ns.IndexOf('.');
+        return dotIndex > 0 ? ns.Substring(0, dotIndex) : ns;
     }
 }

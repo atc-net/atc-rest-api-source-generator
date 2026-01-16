@@ -318,18 +318,20 @@ internal static class GlobalUsingsModifier
     }
 
     /// <summary>
-    /// Removes old namespace patterns and sorts all global usings using DotnetGlobalUsingsHelper.
+    /// Removes old namespace patterns and sorts all global usings using GlobalUsingsHelper.
     /// System namespaces are placed first, followed by other namespaces grouped by prefix.
     /// </summary>
     /// <param name="projectDirectory">The directory containing the project.</param>
     /// <param name="projectName">The base project name (e.g., "MyProject").</param>
     /// <param name="requiredNamespaces">Optional list of namespaces that must be present.</param>
+    /// <param name="removeNamespaceGroupSeparator">If true, removes blank lines between namespace groups.</param>
     /// <param name="dryRun">If true, only returns what would be modified.</param>
     /// <returns>The result of the modification.</returns>
     public static GlobalUsingsModificationResult CleanupAndSortGlobalUsings(
         string projectDirectory,
         string projectName,
         IReadOnlyList<string>? requiredNamespaces = null,
+        bool removeNamespaceGroupSeparator = false,
         bool dryRun = false)
     {
         var globalUsingsPath = Path.Combine(projectDirectory, "GlobalUsings.cs");
@@ -384,11 +386,11 @@ internal static class GlobalUsingsModifier
             }
 
             // Get the new content to compare
-            var newContent = DotnetGlobalUsingsHelper.GetNewContentByReadingExistingIfExistAndMergeWithRequired(
+            var newContent = GlobalUsingsHelper.GetMergedContent(
                 directoryInfo,
                 allNamespaces,
                 setSystemFirst: true,
-                addNamespaceSeparator: true);
+                addNamespaceSeparator: !removeNamespaceGroupSeparator);
 
             // Read current content to compare
             var currentContent = File.Exists(globalUsingsPath)
@@ -410,20 +412,20 @@ internal static class GlobalUsingsModifier
                 if (!dryRun)
                 {
                     // Pre-clean the file by writing only filtered namespaces.
-                    // This removes .Generated lines BEFORE DotnetGlobalUsingsHelper reads the file,
+                    // This removes .Generated lines BEFORE GlobalUsingsHelper reads the file,
                     // preventing the helper from merging the removed namespaces back in.
                     var linesToWrite = filteredNamespaces
                         .Select(ns => $"global using {ns};")
                         .ToList();
                     WriteAllLinesWithoutTrailingNewline(globalUsingsPath, linesToWrite);
 
-                    // Now DotnetGlobalUsingsHelper will merge our required namespaces
+                    // Now GlobalUsingsHelper will merge our required namespaces
                     // with the pre-cleaned file (no more .Generated lines)
-                    DotnetGlobalUsingsHelper.CreateOrUpdate(
+                    GlobalUsingsHelper.CreateOrUpdate(
                         directoryInfo,
                         allNamespaces,
                         setSystemFirst: true,
-                        addNamespaceSeparator: true);
+                        addNamespaceSeparator: !removeNamespaceGroupSeparator);
                 }
             }
         }
@@ -465,13 +467,15 @@ internal static class GlobalUsingsModifier
     }
 
     /// <summary>
-    /// Sorts global usings using DotnetGlobalUsingsHelper (System first, then by namespace group).
+    /// Sorts global usings using GlobalUsingsHelper (System first, then by namespace group).
     /// </summary>
     /// <param name="projectDirectory">The directory containing the project.</param>
+    /// <param name="removeNamespaceGroupSeparator">If true, removes blank lines between namespace groups.</param>
     /// <param name="dryRun">If true, only returns what would be modified.</param>
     /// <returns>The result of the modification.</returns>
     public static GlobalUsingsModificationResult SortGlobalUsings(
         string projectDirectory,
+        bool removeNamespaceGroupSeparator = false,
         bool dryRun = false)
     {
         var globalUsingsPath = Path.Combine(projectDirectory, "GlobalUsings.cs");
@@ -495,11 +499,11 @@ internal static class GlobalUsingsModifier
 
             if (!dryRun)
             {
-                DotnetGlobalUsingsHelper.CreateOrUpdate(
+                GlobalUsingsHelper.CreateOrUpdate(
                     directoryInfo,
                     existingNamespaces,
                     setSystemFirst: true,
-                    addNamespaceSeparator: true);
+                    addNamespaceSeparator: !removeNamespaceGroupSeparator);
             }
 
             result.WasModified = true;

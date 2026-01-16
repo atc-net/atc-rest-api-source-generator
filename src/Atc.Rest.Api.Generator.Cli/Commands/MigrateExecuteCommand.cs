@@ -688,8 +688,8 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         bool dryRun,
         MigrationSummary summary)
     {
-        const string targetFramework = "net10.0";
-        const string langVersion = "14.0";
+        var targetFramework = TargetFrameworkResult.RequiredTargetFramework;
+        var langVersion = TargetFrameworkResult.RequiredLangVersion;
 
         var upgraded = DirectoryBuildPropsModifier.UpgradeTargetFramework(
             rootDirectory,
@@ -703,6 +703,25 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             summary.UpgradedTargetFramework = targetFramework;
             summary.UpgradedLangVersion = langVersion;
             summary.ModifiedFiles.Add(Path.Combine(rootDirectory, "Directory.Build.props"));
+        }
+
+        // Also upgrade any .csproj files that have explicit TargetFramework elements
+        var upgradedCsprojFiles = DirectoryBuildPropsModifier.UpgradeCsprojTargetFrameworks(
+            rootDirectory,
+            targetFramework,
+            dryRun);
+
+        foreach (var csprojFile in upgradedCsprojFiles)
+        {
+            summary.ModifiedFiles.Add(csprojFile);
+
+            // Mark as upgraded even if Directory.Build.props wasn't modified
+            if (!summary.DirectoryBuildPropsUpgraded)
+            {
+                summary.DirectoryBuildPropsUpgraded = true;
+                summary.UpgradedTargetFramework = targetFramework;
+                summary.UpgradedLangVersion = langVersion;
+            }
         }
     }
 
@@ -982,12 +1001,12 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         AnsiConsole.MarkupLine("[yellow]![/] Target framework and language version upgrade required");
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("[dim]Current configuration:[/]");
-        AnsiConsole.MarkupLine($"  • Target framework: {report.TargetFramework.CurrentTargetFramework ?? "unknown"} → net10.0");
-        AnsiConsole.MarkupLine($"  • Language version: C# {report.TargetFramework.CurrentLangVersion ?? "unknown"} → C# 14");
+        AnsiConsole.MarkupLine($"  • Target framework: {report.TargetFramework.CurrentTargetFramework ?? "unknown"} → {TargetFrameworkResult.RequiredTargetFramework}");
+        AnsiConsole.MarkupLine($"  • Language version: C# {report.TargetFramework.CurrentLangVersion ?? "unknown"} → C# {TargetFrameworkResult.RequiredLangVersion}");
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("The source generator requires .NET 10 with C# 14. Migration will update:");
-        AnsiConsole.MarkupLine("  • Directory.Build.props: TargetFramework → net10.0");
-        AnsiConsole.MarkupLine("  • Directory.Build.props: LangVersion → 14.0");
+        AnsiConsole.MarkupLine($"The source generator requires .NET 10 with C# {TargetFrameworkResult.RequiredLangVersion}. Migration will update:");
+        AnsiConsole.MarkupLine($"  • Directory.Build.props: TargetFramework → {TargetFrameworkResult.RequiredTargetFramework}");
+        AnsiConsole.MarkupLine($"  • Directory.Build.props: LangVersion → {TargetFrameworkResult.RequiredLangVersion}");
         AnsiConsole.WriteLine();
 
         return AnsiConsole.Confirm("Do you want to proceed with the upgrade?", defaultValue: true);

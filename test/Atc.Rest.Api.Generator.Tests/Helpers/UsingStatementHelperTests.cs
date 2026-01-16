@@ -285,4 +285,270 @@ public class UsingStatementHelperTests
         var result = UsingStatementHelper.GetRequiredUsings(content);
         Assert.Contains("System.IO", result);
     }
+
+    // ========== ExtractNamespaceFromGlobalUsing Tests ==========
+    [Theory]
+    [InlineData("global using System;", "System")]
+    [InlineData("global using System.Threading;", "System.Threading")]
+    [InlineData("global using Microsoft.Extensions.Logging;", "Microsoft.Extensions.Logging")]
+    [InlineData("global using PetStore.Api.Generated.Pets.Handlers;", "PetStore.Api.Generated.Pets.Handlers")]
+    [InlineData("global using System", "System")] // Without semicolon
+    [InlineData("System.Threading", "System.Threading")] // Without "global using " prefix
+    public void ExtractNamespaceFromGlobalUsing_ReturnsExpectedNamespace(
+        string input,
+        string expected)
+    {
+        var result = UsingStatementHelper.ExtractNamespaceFromGlobalUsing(input);
+        Assert.Equal(expected, result);
+    }
+
+    // ========== GetNamespacePrefix Tests ==========
+    [Theory]
+    [InlineData("System", "System")]
+    [InlineData("System.Threading", "System")]
+    [InlineData("System.Threading.Tasks", "System")]
+    [InlineData("Microsoft.Extensions.Logging", "Microsoft")]
+    [InlineData("PetStore.Api.Generated.Pets.Handlers", "PetStore")]
+    [InlineData("Atc.Rest.Client", "Atc")]
+    public void GetNamespacePrefix_ReturnsFirstSegment(
+        string ns,
+        string expected)
+    {
+        var result = UsingStatementHelper.GetNamespacePrefix(ns);
+        Assert.Equal(expected, result);
+    }
+
+    // ========== SortGlobalUsings Tests ==========
+    [Fact]
+    public void SortGlobalUsings_SystemNamespacesFirst()
+    {
+        var usings = new[]
+        {
+            "global using Microsoft.Extensions.Logging;",
+            "global using System;",
+            "global using System.Threading;",
+        };
+
+        var result = UsingStatementHelper.SortGlobalUsings(usings);
+        var lines = result.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.Equal("global using System;", lines[0]);
+        Assert.Equal("global using System.Threading;", lines[1]);
+        Assert.Equal("global using Microsoft.Extensions.Logging;", lines[2]);
+    }
+
+    [Fact]
+    public void SortGlobalUsings_AddsEmptyLineBetweenNamespaceGroups()
+    {
+        var usings = new[]
+        {
+            "global using System;",
+            "global using Microsoft.Extensions.Logging;",
+        };
+
+        var result = UsingStatementHelper.SortGlobalUsings(usings);
+
+        // Should have an empty line between System and Microsoft groups
+        // Normalize line endings and check for double newline (empty line between groups)
+        var normalizedResult = result.Replace("\r\n", "\n", StringComparison.Ordinal);
+        Assert.Contains("\n\n", normalizedResult, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SortGlobalUsings_SortsAlphabeticallyWithinGroups()
+    {
+        var usings = new[]
+        {
+            "global using System.Threading.Tasks;",
+            "global using System;",
+            "global using System.Threading;",
+        };
+
+        var result = UsingStatementHelper.SortGlobalUsings(usings);
+        var lines = result.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.Equal("global using System;", lines[0]);
+        Assert.Equal("global using System.Threading;", lines[1]);
+        Assert.Equal("global using System.Threading.Tasks;", lines[2]);
+    }
+
+    [Fact]
+    public void SortGlobalUsings_HandlesMultipleNamespaceGroups()
+    {
+        var usings = new[]
+        {
+            "global using Microsoft.Extensions.Options;",
+            "global using System.Threading.Tasks;",
+            "global using PetStore.Api.Generated.Pets.Handlers;",
+            "global using System;",
+            "global using Microsoft.Extensions.Logging;",
+            "global using System.Threading;",
+            "global using PetStore.Api.Generated.Pets.Models;",
+        };
+
+        var result = UsingStatementHelper.SortGlobalUsings(usings);
+        var lines = result.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+        // System group first (sorted)
+        Assert.Equal("global using System;", lines[0]);
+        Assert.Equal("global using System.Threading;", lines[1]);
+        Assert.Equal("global using System.Threading.Tasks;", lines[2]);
+
+        // Microsoft group next (sorted)
+        Assert.Equal("global using Microsoft.Extensions.Logging;", lines[3]);
+        Assert.Equal("global using Microsoft.Extensions.Options;", lines[4]);
+
+        // PetStore group last (sorted)
+        Assert.Equal("global using PetStore.Api.Generated.Pets.Handlers;", lines[5]);
+        Assert.Equal("global using PetStore.Api.Generated.Pets.Models;", lines[6]);
+    }
+
+    /// <summary>
+    /// Regression test: Ensures System namespaces are sorted to the top when
+    /// added to an existing GlobalUsings.cs that already has Microsoft namespaces.
+    /// This simulates the bug where System usings were appended at the end.
+    /// </summary>
+    [Fact]
+    public void SortGlobalUsings_RegressionTest_SystemUsingsNotAppendedAtEnd()
+    {
+        // Simulate existing GlobalUsings.cs with Microsoft namespaces
+        var existingUsings = new[]
+        {
+            "global using Microsoft.Extensions.Logging;",
+            "global using Microsoft.Extensions.Options;",
+        };
+
+        // Simulate required usings including System namespaces
+        var requiredUsings = new[]
+        {
+            "global using System;",
+            "global using System.Threading;",
+            "global using System.Threading.Tasks;",
+        };
+
+        // Merge (simulating what EnsureGlobalUsingsUpdated does)
+        var allUsings = new HashSet<string>(existingUsings, StringComparer.Ordinal);
+        foreach (var required in requiredUsings)
+        {
+            allUsings.Add(required);
+        }
+
+        // Sort using the helper
+        var result = UsingStatementHelper.SortGlobalUsings(allUsings);
+        var lines = result.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+        // System namespaces MUST be at the top, not at the end
+        Assert.Equal("global using System;", lines[0]);
+        Assert.Equal("global using System.Threading;", lines[1]);
+        Assert.Equal("global using System.Threading.Tasks;", lines[2]);
+
+        // Microsoft namespaces should come after
+        Assert.Equal("global using Microsoft.Extensions.Logging;", lines[3]);
+        Assert.Equal("global using Microsoft.Extensions.Options;", lines[4]);
+    }
+
+    [Fact]
+    public void SortGlobalUsings_EmptyInput_ReturnsEmptyString()
+    {
+        var result = UsingStatementHelper.SortGlobalUsings(Array.Empty<string>());
+        Assert.Equal(string.Empty, result);
+    }
+
+    [Fact]
+    public void SortGlobalUsings_SingleUsing_ReturnsWithNewline()
+    {
+        var usings = new[] { "global using System;" };
+
+        var result = UsingStatementHelper.SortGlobalUsings(usings);
+
+        Assert.StartsWith("global using System;", result, StringComparison.Ordinal);
+    }
+
+    // ========== SortGlobalUsings with removeNamespaceGroupSeparator Tests ==========
+    [Fact]
+    public void SortGlobalUsings_WithRemoveNamespaceGroupSeparator_NoBlankLines()
+    {
+        var usings = new[]
+        {
+            "global using System;",
+            "global using Microsoft.Extensions.Logging;",
+        };
+
+        var result = UsingStatementHelper.SortGlobalUsings(usings, removeNamespaceGroupSeparator: true);
+        var normalizedResult = result.Replace("\r\n", "\n", StringComparison.Ordinal);
+
+        // Should NOT have double newlines (no blank lines between groups)
+        Assert.DoesNotContain("\n\n", normalizedResult, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SortGlobalUsings_WithRemoveNamespaceGroupSeparator_StillSortsCorrectly()
+    {
+        var usings = new[]
+        {
+            "global using Microsoft.Extensions.Logging;",
+            "global using System;",
+        };
+
+        var result = UsingStatementHelper.SortGlobalUsings(usings, removeNamespaceGroupSeparator: true);
+        var lines = result.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+        // System should still be first
+        Assert.Equal("global using System;", lines[0]);
+        Assert.Equal("global using Microsoft.Extensions.Logging;", lines[1]);
+    }
+
+    [Fact]
+    public void SortGlobalUsings_WithRemoveNamespaceGroupSeparatorFalse_StillAddsBlankLines()
+    {
+        var usings = new[]
+        {
+            "global using System;",
+            "global using Microsoft.Extensions.Logging;",
+        };
+
+        var result = UsingStatementHelper.SortGlobalUsings(usings, removeNamespaceGroupSeparator: false);
+        var normalizedResult = result.Replace("\r\n", "\n", StringComparison.Ordinal);
+
+        // Should have double newlines (blank line between groups)
+        Assert.Contains("\n\n", normalizedResult, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SortGlobalUsings_WithRemoveNamespaceGroupSeparator_MultipleGroups()
+    {
+        var usings = new[]
+        {
+            "global using Microsoft.Extensions.Options;",
+            "global using System.Threading.Tasks;",
+            "global using PetStore.Api.Generated.Pets.Handlers;",
+            "global using System;",
+            "global using Microsoft.Extensions.Logging;",
+            "global using System.Threading;",
+            "global using PetStore.Api.Generated.Pets.Models;",
+        };
+
+        var result = UsingStatementHelper.SortGlobalUsings(usings, removeNamespaceGroupSeparator: true);
+        var lines = result.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+        // All 7 usings should be present with no blank lines
+        Assert.Equal(7, lines.Length);
+
+        // System group first (sorted)
+        Assert.Equal("global using System;", lines[0]);
+        Assert.Equal("global using System.Threading;", lines[1]);
+        Assert.Equal("global using System.Threading.Tasks;", lines[2]);
+
+        // Microsoft group next (sorted)
+        Assert.Equal("global using Microsoft.Extensions.Logging;", lines[3]);
+        Assert.Equal("global using Microsoft.Extensions.Options;", lines[4]);
+
+        // PetStore group last (sorted)
+        Assert.Equal("global using PetStore.Api.Generated.Pets.Handlers;", lines[5]);
+        Assert.Equal("global using PetStore.Api.Generated.Pets.Models;", lines[6]);
+
+        // Verify no blank lines in result
+        var normalizedResult = result.Replace("\r\n", "\n", StringComparison.Ordinal);
+        Assert.DoesNotContain("\n\n", normalizedResult, StringComparison.Ordinal);
+    }
 }
