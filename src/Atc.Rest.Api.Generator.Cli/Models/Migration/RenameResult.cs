@@ -21,5 +21,11 @@ public sealed class RenameResult
     /// </summary>
     public bool AlreadyRenamed { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the old directory was deleted
+    /// (when target already existed).
+    /// </summary>
+    public bool OldDirectoryDeleted { get; set; }
+
     public string? Error { get; set; }
 }

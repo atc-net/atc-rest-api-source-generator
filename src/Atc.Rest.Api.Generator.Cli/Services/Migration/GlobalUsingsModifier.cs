@@ -342,16 +342,11 @@ internal static class GlobalUsingsModifier
             // Patterns to remove:
             // 1. {ProjectName}.Api.Generated (exact match - old base namespace)
             // 2. {ProjectName}.Api.Generated.* (any sub-namespace of old pattern)
+            // Note: Atc.Rest.MinimalApi.* namespaces are NOT removed as they contain
+            // runtime functionality needed by the Host project (e.g., UseGlobalErrorHandler,
+            // ValidationFilterOptions, ApiVersionConstants).
             var oldApiGeneratedExact = $"{projectName}.Api.Generated";
             var oldApiGeneratedPrefix = $"{projectName}.Api.Generated.";
-
-            // Also remove Atc.Rest.MinimalApi usings as they're from the old pattern
-            var oldMinimalApiPatterns = new[]
-            {
-                "Atc.Rest.MinimalApi.Extensions",
-                "Atc.Rest.MinimalApi.Filters",
-                "Atc.Rest.MinimalApi.Versioning",
-            };
 
             // Read existing namespaces and filter out old patterns
             var existingNamespaces = ReadExistingNamespaces(globalUsingsPath);
@@ -362,10 +357,6 @@ internal static class GlobalUsingsModifier
             {
                 if (ns.Equals(oldApiGeneratedExact, StringComparison.Ordinal) ||
                     ns.StartsWith(oldApiGeneratedPrefix, StringComparison.Ordinal))
-                {
-                    removedUsings.Add(ns);
-                }
-                else if (oldMinimalApiPatterns.Any(p => ns.StartsWith(p, StringComparison.Ordinal)))
                 {
                     removedUsings.Add(ns);
                 }

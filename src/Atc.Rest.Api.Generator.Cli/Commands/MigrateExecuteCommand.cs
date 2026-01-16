@@ -168,10 +168,22 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
                     AnsiConsole.WriteLine();
                     AnsiConsole.MarkupLine("[green]✓ Migration completed successfully![/]");
                     AnsiConsole.WriteLine();
-                    AnsiConsole.MarkupLine("[dim]Next steps:[/]");
-                    AnsiConsole.MarkupLine("  1. Run 'dotnet build' to verify the migration");
-                    AnsiConsole.MarkupLine("  2. Review the generated code");
-                    AnsiConsole.MarkupLine("  3. Commit the changes to git");
+
+                    var nextStepsPanel = new Panel(
+                        new Rows(
+                            new Markup("1. Review [blue]Program.cs[/] and [blue]ServiceCollectionExtensions.cs[/] in the Host project"),
+                            new Markup("   to remove obsolete code (old endpoint registrations, unused services)"),
+                            new Markup("2. Run [blue]'dotnet build'[/] to verify the migration"),
+                            new Markup("3. Review the generated code in the Contracts project"),
+                            new Markup("4. Commit the changes to git"),
+                            new Markup(string.Empty),
+                            new Markup("[dim]For more information, see the wiki:[/]"),
+                            new Markup("[link]https://github.com/atc-net/atc-rest-api-source-generator/wiki[/]")))
+                        .Header("[yellow]Next Steps[/]")
+                        .Border(BoxBorder.Rounded)
+                        .BorderColor(Color.Grey);
+
+                    AnsiConsole.Write(nextStepsPanel);
                 }
 
                 return 0;
@@ -361,6 +373,12 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             if (result.Success)
             {
                 summary.RenamedProjects.Add($"{result.OldName} → {result.NewName}");
+
+                // Report old directory deletion when target already existed
+                if (result.OldDirectoryDeleted)
+                {
+                    summary.DeletedFolders.Add(result.OldPath);
+                }
             }
         }
 
@@ -372,6 +390,12 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             if (result.Success)
             {
                 summary.RenamedProjects.Add($"{result.OldName} → {result.NewName}");
+
+                // Report old directory deletion when target already existed
+                if (result.OldDirectoryDeleted)
+                {
+                    summary.DeletedFolders.Add(result.OldPath);
+                }
             }
         }
     }

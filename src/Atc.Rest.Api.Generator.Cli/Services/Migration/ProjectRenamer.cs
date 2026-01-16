@@ -59,7 +59,17 @@ internal static class ProjectRenamer
             // Target directory already exists - this could mean:
             // 1. Migration was partially completed before
             // 2. User manually created the target directory
-            // Skip rename and report as already renamed
+            // Delete the old directory since it's obsolete
+            if (Directory.Exists(projectDirectory))
+            {
+                if (!dryRun)
+                {
+                    Directory.Delete(projectDirectory, recursive: true);
+                }
+
+                result.OldDirectoryDeleted = true;
+            }
+
             result.Success = true;
             result.AlreadyRenamed = true;
             return result;
