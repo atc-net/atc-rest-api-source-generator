@@ -14,11 +14,11 @@ global using System.Text.RegularExpressions;
 global using System.Threading;
 global using System.Threading.Tasks;
 
+global using Atc.CodeGeneration.CSharp.Helpers;
 global using Atc.Console.Spectre;
 global using Atc.Console.Spectre.Factories;
 global using Atc.Console.Spectre.Helpers;
 global using Atc.Console.Spectre.Logging;
-global using Atc.DotNet;
 global using Atc.Helpers;
 
 global using Atc.OpenApi.Extensions;

@@ -193,7 +193,7 @@ public sealed class ProjectScaffoldingService
     public bool GenerateTestProject(
         string testPath,
         string projectName,
-        string targetFramework = "net10.0")
+        string targetFramework)
     {
         var testProjectName = $"{ExtractSolutionName(projectName)}.Tests";
         var testProjectPath = Path.Combine(testPath, testProjectName);
