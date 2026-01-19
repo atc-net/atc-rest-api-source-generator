@@ -28,6 +28,14 @@ public sealed class MigrateExecuteCommandSettings : CommandSettings
     [DefaultValue(false)]
     public bool Verbose { get; init; }
 
+    [CommandOption("--client-project-suffix <SUFFIX>")]
+    [Description("Override the client project suffix. Default: 'ApiClient'. Use 'Api.Client' for dot-separated naming.")]
+    public string? ClientProjectSuffix { get; init; }
+
+    [CommandOption("--http-client-name <NAME>")]
+    [Description("Set the httpClientName in the client marker file for HttpClientFactory registration.")]
+    public string? HttpClientName { get; init; }
+
     public override ValidationResult Validate()
     {
         // Validate solution path

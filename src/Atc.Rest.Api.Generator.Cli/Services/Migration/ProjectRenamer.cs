@@ -117,19 +117,22 @@ internal static class ProjectRenamer
     }
 
     /// <summary>
-    /// Renames ApiClient.Generated to ApiClient.
+    /// Renames ApiClient.Generated to the specified client suffix.
     /// </summary>
     /// <param name="projectDirectory">The ApiClient.Generated project directory.</param>
     /// <param name="projectName">The base project name (e.g., "MyProject").</param>
+    /// <param name="clientSuffix">The client suffix to use (e.g., "ApiClient" or "Api.Client"). Default: "ApiClient".</param>
     /// <param name="dryRun">If true, only returns what would be renamed.</param>
     /// <returns>The result of the rename operation.</returns>
     public static RenameResult RenameClientProject(
         string projectDirectory,
         string projectName,
+        string? clientSuffix = null,
         bool dryRun = false)
     {
+        var suffix = string.IsNullOrEmpty(clientSuffix) ? "ApiClient" : clientSuffix;
         var oldName = $"{projectName}.ApiClient.Generated";
-        var newName = $"{projectName}.ApiClient";
+        var newName = $"{projectName}.{suffix}";
         return RenameProject(projectDirectory, oldName, newName, dryRun);
     }
 }

@@ -51,11 +51,13 @@ internal static class SolutionModifier
     /// </summary>
     /// <param name="solutionPath">Path to the solution file.</param>
     /// <param name="projectName">The base project name.</param>
+    /// <param name="clientSuffix">The client suffix to use (e.g., "ApiClient" or "Api.Client"). Default: "ApiClient".</param>
     /// <param name="dryRun">If true, only returns what would be modified.</param>
     /// <returns>The combined result of all modifications.</returns>
     public static SolutionModificationResult UpdateAllReferences(
         string solutionPath,
         string projectName,
+        string? clientSuffix = null,
         bool dryRun = false)
     {
         var combinedResult = new SolutionModificationResult { SolutionPath = solutionPath };
@@ -78,9 +80,10 @@ internal static class SolutionModifier
             combinedResult.UpdatedReferences.Add($"{oldServerName} → {newServerName}");
         }
 
-        // Update ApiClient.Generated → ApiClient
+        // Update ApiClient.Generated → client suffix
+        var suffix = string.IsNullOrEmpty(clientSuffix) ? "ApiClient" : clientSuffix;
         var oldClientName = $"{projectName}.ApiClient.Generated";
-        var newClientName = $"{projectName}.ApiClient";
+        var newClientName = $"{projectName}.{suffix}";
         if (modified.Contains(oldClientName, StringComparison.OrdinalIgnoreCase))
         {
             modified = modified.Replace(oldClientName, newClientName, StringComparison.OrdinalIgnoreCase);
@@ -102,20 +105,23 @@ internal static class SolutionModifier
     /// <param name="rootDirectory">The root directory of the solution.</param>
     /// <param name="projectFiles">List of all project files.</param>
     /// <param name="projectName">The base project name.</param>
+    /// <param name="clientSuffix">The client suffix to use (e.g., "ApiClient" or "Api.Client"). Default: "ApiClient".</param>
     /// <param name="dryRun">If true, only returns what would be modified.</param>
     /// <returns>List of modification results.</returns>
     public static List<ProjectModificationResult> UpdateAllProjectReferences(
         string rootDirectory,
         IReadOnlyList<string> projectFiles,
         string projectName,
+        string? clientSuffix = null,
         bool dryRun = false)
     {
         var results = new List<ProjectModificationResult>();
 
+        var suffix = string.IsNullOrEmpty(clientSuffix) ? "ApiClient" : clientSuffix;
         var oldServerName = $"{projectName}.Api.Generated";
         var newServerName = $"{projectName}.Api.Contracts";
         var oldClientName = $"{projectName}.ApiClient.Generated";
-        var newClientName = $"{projectName}.ApiClient";
+        var newClientName = $"{projectName}.{suffix}";
 
         foreach (var projectFile in projectFiles)
         {
