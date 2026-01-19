@@ -102,7 +102,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
                 // Step 5: Generate marker files
                 ctx.Status(dryRun ? "Analyzing marker files..." : "Generating marker files...");
-                GenerateMarkerFiles(report, projectName, dryRun, summary);
+                GenerateMarkerFiles(report, projectName, settings.ClientProjectSuffix, settings.HttpClientName, dryRun, summary);
 
                 // Step 6: Resolve package versions from NuGet (with fallback)
                 ctx.Status("Resolving package versions...");
@@ -138,11 +138,11 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
                 // Step 10: Rename projects
                 ctx.Status(dryRun ? "Analyzing project renames..." : "Renaming projects...");
-                RenameProjects(report, projectName, dryRun, summary);
+                RenameProjects(report, projectName, settings.ClientProjectSuffix, dryRun, summary);
 
                 // Step 11: Update solution and references
                 ctx.Status(dryRun ? "Analyzing solution updates..." : "Updating solution and references...");
-                UpdateSolutionAndReferences(report, projectName, dryRun, summary);
+                UpdateSolutionAndReferences(report, projectName, settings.ClientProjectSuffix, dryRun, summary);
 
                 // Step 12: Update GlobalUsings.cs in Domain project
                 ctx.Status(dryRun ? "Analyzing GlobalUsings.cs..." : "Updating GlobalUsings.cs...");
@@ -193,6 +193,8 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
     private static void GenerateMarkerFiles(
         MigrationValidationReport report,
         string projectName,
+        string? clientSuffix,
+        string? httpClientName,
         bool dryRun,
         MigrationSummary summary)
     {
@@ -216,6 +218,8 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
                 clientDir,
                 report.GeneratorOptions,
                 projectName,
+                clientSuffix,
+                httpClientName,
                 dryRun);
             summary.CreatedFiles.Add(markerPath);
         }
@@ -362,6 +366,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
     private static void RenameProjects(
         MigrationValidationReport report,
         string projectName,
+        string? clientSuffix,
         bool dryRun,
         MigrationSummary summary)
     {
@@ -382,11 +387,11 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             }
         }
 
-        // Rename ApiClient.Generated → ApiClient
+        // Rename ApiClient.Generated → client suffix (default: ApiClient)
         if (!string.IsNullOrEmpty(report.ProjectStructure.ApiClientGeneratedProject))
         {
             var clientDir = Path.GetDirectoryName(report.ProjectStructure.ApiClientGeneratedProject)!;
-            var result = ProjectRenamer.RenameClientProject(clientDir, projectName, dryRun);
+            var result = ProjectRenamer.RenameClientProject(clientDir, projectName, clientSuffix, dryRun);
             if (result.Success)
             {
                 summary.RenamedProjects.Add($"{result.OldName} → {result.NewName}");
@@ -403,6 +408,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
     private static void UpdateSolutionAndReferences(
         MigrationValidationReport report,
         string projectName,
+        string? clientSuffix,
         bool dryRun,
         MigrationSummary summary)
     {
@@ -412,6 +418,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             var result = SolutionModifier.UpdateAllReferences(
                 report.ProjectStructure.SolutionFile,
                 projectName,
+                clientSuffix,
                 dryRun);
             if (result.WasModified)
             {
@@ -425,6 +432,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             Path.GetDirectoryName(report.ProjectStructure.SolutionFile) ?? string.Empty,
             report.ProjectStructure.AllProjects,
             projectName,
+            clientSuffix,
             dryRun);
 
         foreach (var result in projectResults)

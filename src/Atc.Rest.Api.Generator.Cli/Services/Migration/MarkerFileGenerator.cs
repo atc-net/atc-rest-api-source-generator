@@ -42,23 +42,33 @@ internal static class MarkerFileGenerator
     /// <param name="projectDirectory">The directory of the ApiClient project.</param>
     /// <param name="options">The generator options from the old configuration.</param>
     /// <param name="projectName">The base project name.</param>
+    /// <param name="clientSuffix">The client suffix to use (e.g., "ApiClient" or "Api.Client"). Default: "ApiClient".</param>
+    /// <param name="httpClientName">Optional HttpClient name for HttpClientFactory registration.</param>
     /// <param name="dryRun">If true, only returns what would be created.</param>
     /// <returns>The path to the created marker file.</returns>
     public static string GenerateClientMarker(
         string projectDirectory,
         GeneratorOptionsResult options,
         string projectName,
+        string? clientSuffix = null,
+        string? httpClientName = null,
         bool dryRun = false)
     {
         var markerPath = Path.Combine(projectDirectory, ".atc-rest-api-client");
 
+        var suffix = string.IsNullOrEmpty(clientSuffix) ? "ApiClient" : clientSuffix;
         var markerContent = new Dictionary<string, object>(StringComparer.Ordinal)
         {
-            ["namespace"] = $"{projectName}.ApiClient",
+            ["namespace"] = $"{projectName}.{suffix}",
             ["validateSpecificationStrategy"] = options.StrictMode == true ? "Strict" : "Default",
             ["includeDeprecated"] = false,
             ["generationMode"] = "EndpointPerOperation",
         };
+
+        if (!string.IsNullOrEmpty(httpClientName))
+        {
+            markerContent["httpClientName"] = httpClientName;
+        }
 
         if (!dryRun)
         {
