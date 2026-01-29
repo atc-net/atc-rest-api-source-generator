@@ -11,8 +11,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.OpenApi" Version="3.1.2" />
-    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.1.2" />
+    <PackageReference Include="Microsoft.OpenApi" Version="3.3.1" />
+    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.3.1" />
     <PackageReference Include="SharpYaml" Version="2.1.4" />
   </ItemGroup>
 

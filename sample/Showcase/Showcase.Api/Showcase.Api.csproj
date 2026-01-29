@@ -11,7 +11,7 @@
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.12.8" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.12.24" />
   </ItemGroup>
 
   <ItemGroup>
