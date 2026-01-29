@@ -127,54 +127,8 @@ public static class EnumExtractor
         OpenApiSchema schema,
         string ns)
     {
-        if (schema.Enum == null ||
-            schema.Enum.Count == 0)
-        {
-            return null;
-        }
-
-        var enumValues = new List<EnumValueParameters>();
-
-        foreach (var enumValue in schema.Enum)
-        {
-            // OpenAPI enum values are stored as JsonNode
-            var valueStr = enumValue?.ToString();
-            if (string.IsNullOrEmpty(valueStr))
-            {
-                continue;
-            }
-
-            // Clean up the value - remove quotes if present
-            var originalValue = valueStr!.Trim('"');
-
-            // Check if transformation is needed
-            var needsTransformation = NeedsEnumMemberAttribute(originalValue);
-
-            string name;
-            string? enumMemberValue;
-
-            if (needsTransformation)
-            {
-                // Transform to valid C# identifier
-                name = originalValue.ToPascalCase(separators: [' ', '-', '_', ':'], removeSeparators: true);
-                enumMemberValue = originalValue;
-            }
-            else
-            {
-                // Use original value as-is
-                name = originalValue;
-                enumMemberValue = null;
-            }
-
-            enumValues.Add(new EnumValueParameters(
-                DocumentationTags: null,
-                DescriptionAttribute: null,
-                Name: name,
-                EnumMemberValue: enumMemberValue,
-                Value: null));
-        }
-
-        if (enumValues.Count == 0)
+        var enumValues = ExtractEnumValues(schema.Enum);
+        if (enumValues == null)
         {
             return null;
         }
@@ -214,7 +168,7 @@ public static class EnumExtractor
     /// This is required when the value contains characters that are not valid in C# identifiers
     /// or when the casing doesn't match PascalCase.
     /// </summary>
-    private static bool NeedsEnumMemberAttribute(string value)
+    internal static bool NeedsEnumMemberAttribute(string value)
     {
         if (string.IsNullOrEmpty(value))
         {
@@ -239,13 +193,70 @@ public static class EnumExtractor
     /// Builds the header content for generated enum files.
     /// </summary>
     /// <param name="hasEnumMemberValues">Whether the enum has values requiring EnumMember attributes.</param>
-    private static string BuildEnumHeaderContent(bool hasEnumMemberValues)
+    internal static string BuildEnumHeaderContent(bool hasEnumMemberValues)
         => hasEnumMemberValues
             ? HeaderBuilder.WithUsings(
                 NamespaceConstants.SystemCodeDomCompiler,
                 NamespaceConstants.SystemRuntimeSerialization,
                 NamespaceConstants.SystemTextJsonSerialization)
             : HeaderBuilder.WithUsings(NamespaceConstants.SystemCodeDomCompiler);
+
+    /// <summary>
+    /// Extracts enum value parameters from a list of OpenAPI enum values (JsonNode).
+    /// </summary>
+    /// <param name="enumValues">The list of enum values from an OpenAPI schema.</param>
+    /// <returns>List of EnumValueParameters, or null if no valid values could be extracted.</returns>
+    internal static List<EnumValueParameters>? ExtractEnumValues(
+        IList<JsonNode>? enumValues)
+    {
+        if (enumValues == null || enumValues.Count == 0)
+        {
+            return null;
+        }
+
+        var result = new List<EnumValueParameters>();
+
+        foreach (var enumValue in enumValues)
+        {
+            // OpenAPI enum values are stored as JsonNode
+            var valueStr = enumValue?.ToString();
+            if (string.IsNullOrEmpty(valueStr))
+            {
+                continue;
+            }
+
+            // Clean up the value - remove quotes if present
+            var originalValue = valueStr!.Trim('"');
+
+            // Check if transformation is needed
+            var needsTransformation = NeedsEnumMemberAttribute(originalValue);
+
+            string name;
+            string? enumMemberValue;
+
+            if (needsTransformation)
+            {
+                // Transform to valid C# identifier
+                name = originalValue.ToPascalCase(separators: [' ', '-', '_', ':'], removeSeparators: true);
+                enumMemberValue = originalValue;
+            }
+            else
+            {
+                // Use original value as-is
+                name = originalValue;
+                enumMemberValue = null;
+            }
+
+            result.Add(new EnumValueParameters(
+                DocumentationTags: null,
+                DescriptionAttribute: null,
+                Name: name,
+                EnumMemberValue: enumMemberValue,
+                Value: null));
+        }
+
+        return result.Count > 0 ? result : null;
+    }
 
     /// <summary>
     /// Generates the content for a single enum using GenerateContentForEnum.

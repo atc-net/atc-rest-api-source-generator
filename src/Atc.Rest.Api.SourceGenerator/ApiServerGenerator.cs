@@ -594,6 +594,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// <summary>
     /// Generates models for a specific set of schemas.
     /// Used for both shared types (pathSegment = null) and segment-specific types.
+    /// Also generates inline enum types discovered during schema extraction.
     /// </summary>
     private static void GenerateModelsForSchemas(
         SourceProductionContext context,
@@ -606,8 +607,28 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool generatePartialModels,
         bool includeSharedModelsUsing = false)
     {
-        // Use SchemaExtractor.ExtractForSchemas to extract only specific schemas
-        var recordsParameters = SchemaExtractor.ExtractForSchemas(openApiDoc, projectName, schemaNames, pathSegment, registry, includeDeprecated, generatePartialModels, includeSharedModelsUsing);
+        // Use SchemaExtractor.ExtractForSchemasWithInlineEnums to extract schemas and inline enums
+        var (recordsParameters, inlineEnums) = SchemaExtractor.ExtractForSchemasWithInlineEnums(
+            openApiDoc,
+            projectName,
+            schemaNames,
+            pathSegment,
+            registry,
+            includeDeprecated,
+            generatePartialModels,
+            includeSharedModelsUsing);
+
+        // Use "Shared" for file name when no path segment
+        var fileNameSegment = pathSegment ?? "Shared";
+
+        // Generate inline enum files first (before records that use them)
+        foreach (var inlineEnum in inlineEnums)
+        {
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
+            context.AddSource(
+                $"{projectName}.{fileNameSegment}.{inlineEnum.TypeName}.g.cs",
+                SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
+        }
 
         if (recordsParameters == null || recordsParameters.Parameters.Count == 0)
         {
