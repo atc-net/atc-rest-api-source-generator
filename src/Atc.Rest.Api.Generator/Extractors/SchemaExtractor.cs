@@ -146,6 +146,75 @@ public static class SchemaExtractor
     }
 
     /// <summary>
+    /// Extracts model records from OpenAPI document components for specific schemas,
+    /// also extracting inline enum definitions from properties.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document containing schema definitions.</param>
+    /// <param name="projectName">The name of the project (used for namespace).</param>
+    /// <param name="schemaNames">The specific schema names to extract.</param>
+    /// <param name="pathSegment">The path segment for namespace (null = shared namespace without segment).</param>
+    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
+    /// <param name="includeDeprecated">Whether to include deprecated schemas.</param>
+    /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
+    /// <param name="includeSharedModelsUsing">Whether to include a using directive for the shared Models namespace.</param>
+    /// <returns>A tuple containing RecordsParameters and a list of inline enums discovered.</returns>
+    public static (RecordsParameters? Records, List<InlineEnumInfo> InlineEnums) ExtractForSchemasWithInlineEnums(
+        OpenApiDocument openApiDoc,
+        string projectName,
+        HashSet<string> schemaNames,
+        string? pathSegment,
+        TypeConflictRegistry? registry = null,
+        bool includeDeprecated = false,
+        bool generatePartialModels = false,
+        bool includeSharedModelsUsing = false)
+    {
+        var inlineEnums = new List<InlineEnumInfo>();
+
+        if (schemaNames == null || schemaNames.Count == 0)
+        {
+            return (null, inlineEnums);
+        }
+
+        // Use shared namespace if no pathSegment, otherwise segment-specific namespace
+        var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
+        var effectivePathSegment = pathSegment ?? "Shared";
+
+        var recordParametersList = ExtractIndividualWithInlineEnums(
+            openApiDoc,
+            schemaNames,
+            ns,
+            effectivePathSegment,
+            inlineEnums,
+            registry,
+            includeDeprecated,
+            generatePartialModels: generatePartialModels);
+
+        if (recordParametersList == null || recordParametersList.Count == 0)
+        {
+            return (null, inlineEnums);
+        }
+
+        // Build header with optional shared models using
+        var sharedModelsNamespace = includeSharedModelsUsing && !string.IsNullOrEmpty(pathSegment)
+            ? NamespaceBuilder.ForModels(projectName)
+            : null;
+        var headerContent = BuildHeaderContent(recordParametersList, sharedModelsNamespace);
+
+        var records = new RecordsParameters(
+            HeaderContent: headerContent,
+            Namespace: ns,
+            DocumentationTags: null,
+            Attributes: new List<AttributeParameters>
+            {
+                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
+            },
+            DeclarationModifier: DeclarationModifiers.Public,
+            Parameters: recordParametersList);
+
+        return (records, inlineEnums);
+    }
+
+    /// <summary>
     /// Extracts individual record parameters from OpenAPI document components.
     /// Returns a list of individual records without combined header/namespace.
     /// </summary>
@@ -343,6 +412,123 @@ public static class SchemaExtractor
                 }
             }
         }
+
+        return recordParametersList.Count > 0 ? recordParametersList : null;
+    }
+
+    /// <summary>
+    /// Extracts individual record parameters with inline enum support.
+    /// </summary>
+    private static List<RecordParameters>? ExtractIndividualWithInlineEnums(
+        OpenApiDocument openApiDoc,
+        HashSet<string>? schemaFilter,
+        string ns,
+        string pathSegment,
+        List<InlineEnumInfo> inlineEnums,
+        TypeConflictRegistry? registry = null,
+        bool includeDeprecated = false,
+        bool generatePartialModels = false)
+    {
+        if (openApiDoc == null)
+        {
+            throw new ArgumentNullException(nameof(openApiDoc));
+        }
+
+        if (openApiDoc.Components?.Schemas == null || openApiDoc.Components.Schemas.Count == 0)
+        {
+            return null;
+        }
+
+        // Dictionary to track inline enums by their values key for deduplication
+        var inlineEnumsByValuesKey = new Dictionary<string, InlineEnumInfo>(StringComparer.Ordinal);
+
+        var recordParametersList = new List<RecordParameters>();
+
+        foreach (var schema in openApiDoc.Components.Schemas)
+        {
+            var originalSchemaName = schema.Key;
+            var schemaValue = schema.Value;
+
+            // Apply schema filter if provided (uses original name from OpenAPI spec)
+            if (schemaFilter != null && !schemaFilter.Contains(originalSchemaName))
+            {
+                continue;
+            }
+
+            // Skip schema references as they point to other schemas
+            if (schemaValue is OpenApiSchemaReference)
+            {
+                continue;
+            }
+
+            // Skip deprecated schemas if not including them
+            if (!includeDeprecated && schemaValue is OpenApiSchema { Deprecated: true })
+            {
+                continue;
+            }
+
+            // Skip polymorphic base schemas (oneOf/anyOf) - they're handled by PolymorphicTypeExtractor
+            if (schemaValue.HasPolymorphicComposition())
+            {
+                continue;
+            }
+
+            if (schemaValue is OpenApiSchema actualSchema)
+            {
+                // Skip array schemas (like "Pets"), they're handled inline
+                if (actualSchema.Type == JsonSchemaType.Array)
+                {
+                    continue;
+                }
+
+                // Skip enum schemas - handled by EnumExtractor
+                if (actualSchema is { Type: JsonSchemaType.String, Enum.Count: > 0 })
+                {
+                    continue;
+                }
+
+                // Skip tuple schemas - handled by TupleExtractor
+                if (actualSchema.HasPrefixItems())
+                {
+                    continue;
+                }
+
+                if (actualSchema.Type == JsonSchemaType.Object)
+                {
+                    // Sanitize schema name - replace dots with underscores for valid C# identifiers
+                    var schemaName = OpenApiSchemaExtensions.SanitizeSchemaName(originalSchemaName);
+
+                    // Check if this is a pagination base schema (has results: array with empty items)
+                    if (IsPaginationBaseSchema(actualSchema))
+                    {
+                        var genericRecordParams = ExtractGenericPaginatedRecord(schemaName, actualSchema, registry, generatePartialModels);
+                        if (genericRecordParams != null)
+                        {
+                            recordParametersList.Add(genericRecordParams);
+                        }
+                    }
+                    else
+                    {
+                        var recordParams = ExtractRecordFromSchemaWithInlineEnums(
+                            schemaName,
+                            actualSchema,
+                            ns,
+                            pathSegment,
+                            inlineEnumsByValuesKey,
+                            registry,
+                            generatePartialModels);
+
+                        if (recordParams != null)
+                        {
+                            recordParametersList.Add(recordParams);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Collect all unique inline enums
+        inlineEnums.AddRange(inlineEnumsByValuesKey.Values);
 
         return recordParametersList.Count > 0 ? recordParametersList : null;
     }
@@ -591,6 +777,140 @@ public static class SchemaExtractor
         IOpenApiSchema? schemaInterface,
         string typeName)
         => DefaultValueHelper.ExtractSchemaDefault(schemaInterface, typeName);
+
+    /// <summary>
+    /// Extracts a single record definition from an OpenAPI schema, with inline enum support.
+    /// Inline enum properties are detected and tracked in the inlineEnums dictionary.
+    /// </summary>
+    private static RecordParameters? ExtractRecordFromSchemaWithInlineEnums(
+        string schemaName,
+        OpenApiSchema schema,
+        string ns,
+        string pathSegment,
+        Dictionary<string, InlineEnumInfo> inlineEnumsByValuesKey,
+        TypeConflictRegistry? registry = null,
+        bool generatePartialModels = false)
+    {
+        var properties = schema.Properties?.ToList() ?? [];
+        var required = schema.Required ?? new HashSet<string>(StringComparer.Ordinal);
+
+        // Generate empty records for schemas with no properties (e.g., Unit type for 204 No Content responses)
+        var parametersList = new List<ParameterBaseParameters>();
+        var seenPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var prop in properties)
+        {
+            var propName = prop.Key.ToPascalCaseForDotNet();
+
+            // Skip duplicate property names (OpenAPI schemas can have duplicates via allOf composition)
+            if (!seenPropertyNames.Add(propName))
+            {
+                continue;
+            }
+
+            // Rename property if it matches the enclosing type name (C# doesn't allow this)
+            if (propName.Equals(schemaName, StringComparison.OrdinalIgnoreCase))
+            {
+                propName = propName + "Value";
+            }
+
+            var isRequired = required.Contains(prop.Key, StringComparer.Ordinal);
+            string csharpType;
+
+            // Check for inline enum before standard type resolution
+            if (InlineEnumExtractor.IsInlineEnumSchema(prop.Value))
+            {
+                var actualSchema = (OpenApiSchema)prop.Value;
+                var enumTypeName = InlineEnumExtractor.GenerateInlineEnumTypeName(schemaName, propName);
+                var valuesKey = InlineEnumExtractor.GetEnumValuesKey(actualSchema);
+
+                // Check if we already have an enum with the same values (deduplication)
+                if (inlineEnumsByValuesKey.TryGetValue(valuesKey, out var existingEnum))
+                {
+                    // Reuse existing enum type name
+                    csharpType = existingEnum.TypeName;
+                }
+                else
+                {
+                    // Create new inline enum
+                    var enumParams = InlineEnumExtractor.ExtractEnumFromInlineSchema(actualSchema, enumTypeName, ns);
+                    if (enumParams != null)
+                    {
+                        var inlineEnumInfo = new InlineEnumInfo(enumTypeName, pathSegment, enumParams, valuesKey);
+                        inlineEnumsByValuesKey[valuesKey] = inlineEnumInfo;
+                        csharpType = enumTypeName;
+                    }
+                    else
+                    {
+                        // Fallback to string if extraction fails
+                        csharpType = "string";
+                    }
+                }
+
+                // Handle nullable for inline enums
+                if (!isRequired || actualSchema.IsNullable())
+                {
+                    csharpType += "?";
+                }
+            }
+            else
+            {
+                // Standard type resolution
+                csharpType = prop.Value.HasAdditionalProperties()
+                    ? prop.Value.GetDictionaryTypeString(isRequired, registry) ?? prop.Value.ToCSharpTypeForModel(isRequired, registry)
+                    : prop.Value.ToCSharpTypeForModel(isRequired, registry);
+            }
+
+            // Extract nullability from the type name - the code generation library handles adding "?"
+            var isNullableType = csharpType.EndsWith("?", StringComparison.Ordinal);
+            var cleanTypeName = isNullableType
+                ? csharpType.Substring(0, csharpType.Length - 1)
+                : csharpType;
+
+            // Get validation attributes from OpenAPI schema constraints
+            var validationAttributes = prop.Value.GetValidationAttributes(isRequired);
+
+            // Use TypeHelpers extension methods for type classification
+            var isReferenceType = cleanTypeName.IsReferenceType();
+
+            // Convert validation attributes to AttributeParameters
+            IList<AttributeParameters>? attributes = null;
+            if (validationAttributes.Count > 0)
+            {
+                attributes = validationAttributes
+                    .Select(attr => new AttributeParameters(attr, null))
+                    .ToList();
+            }
+
+            // Extract default value from schema
+            var defaultValue = ExtractSchemaDefault(prop.Value, cleanTypeName);
+
+            parametersList.Add(new ParameterBaseParameters(
+                Attributes: attributes,
+                GenericTypeName: null,
+                IsGenericListType: false,
+                TypeName: cleanTypeName,
+                IsNullableType: isNullableType,
+                IsReferenceType: isReferenceType,
+                Name: propName,
+                DefaultValue: defaultValue));
+        }
+
+        // C# records require parameters with default values to come after all required parameters
+        var sortedParameters = parametersList
+            .OrderBy(p => p.DefaultValue != null ? 1 : 0)
+            .ToList();
+
+        var declarationModifier = generatePartialModels
+            ? DeclarationModifiers.PublicPartialRecord
+            : DeclarationModifiers.PublicSealedRecord;
+
+        return new RecordParameters(
+            DocumentationTags: null,
+            DeclarationModifier: declarationModifier,
+            Name: schemaName,
+            Parameters: sortedParameters);
+    }
 
     /// <summary>
     /// Builds the header content for generated models file, including required using directives.

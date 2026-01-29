@@ -523,6 +523,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
     /// <summary>
     /// Generates models for specific schemas (used for shared or segment-specific types).
+    /// Also generates inline enum types discovered during schema extraction.
     /// </summary>
     private static void GenerateModelsForSchemas(
         SourceProductionContext context,
@@ -535,8 +536,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool generatePartialModels,
         bool includeSharedModelsUsing = false)
     {
-        // Use SchemaExtractor to extract specific schemas
-        var recordsParameters = SchemaExtractor.ExtractForSchemas(
+        // Use SchemaExtractor to extract specific schemas with inline enum support
+        var (recordsParameters, inlineEnums) = SchemaExtractor.ExtractForSchemasWithInlineEnums(
             openApiDoc,
             projectName,
             schemaNames,
@@ -545,6 +546,18 @@ public class ApiClientGenerator : IIncrementalGenerator
             includeDeprecated,
             generatePartialModels,
             includeSharedModelsUsing);
+
+        // Use "Shared" for file name when no path segment
+        var fileNameSegment = pathSegment ?? "Shared";
+
+        // Generate inline enum files first (before records that use them)
+        foreach (var inlineEnum in inlineEnums)
+        {
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
+            context.AddSource(
+                $"{projectName}.{fileNameSegment}.{inlineEnum.TypeName}.g.cs",
+                SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
+        }
 
         if (recordsParameters == null || recordsParameters.Parameters.Count == 0)
         {
