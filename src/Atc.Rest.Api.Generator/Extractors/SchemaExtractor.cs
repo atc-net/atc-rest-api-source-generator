@@ -915,7 +915,8 @@ public static class SchemaExtractor
     /// <summary>
     /// Builds the header content for generated models file, including required using directives.
     /// Adds Microsoft.AspNetCore.Http if any record uses IFormFile types.
-    /// Adds System.Collections.Generic if any record uses Dictionary types.
+    /// Adds System.Collections.Generic if any record uses collection types.
+    /// Adds System if any record uses Guid, DateTimeOffset, Uri, or TimeSpan types.
     /// </summary>
     /// <param name="records">The record parameters to analyze for required usings.</param>
     /// <param name="sharedModelsNamespace">Optional shared models namespace to include for segment-specific files.</param>
@@ -933,19 +934,36 @@ public static class SchemaExtractor
             r.Parameters?.Any(p =>
                 p.TypeName.IndexOf("IFormFile", StringComparison.Ordinal) >= 0) ?? false);
 
-        // Check if any record uses Dictionary types
-        var usesDictionary = records.Any(r =>
+        // Check if any record uses collection types (List, Dictionary, etc.)
+        var usesCollections = records.Any(r =>
             r.Parameters?.Any(p =>
-                p.TypeName.StartsWith("Dictionary<", StringComparison.Ordinal)) ?? false);
+                p.TypeName.StartsWith("List<", StringComparison.Ordinal) ||
+                p.TypeName.StartsWith("Dictionary<", StringComparison.Ordinal) ||
+                p.TypeName.StartsWith("IList<", StringComparison.Ordinal) ||
+                p.TypeName.StartsWith("ICollection<", StringComparison.Ordinal) ||
+                p.TypeName.StartsWith("IEnumerable<", StringComparison.Ordinal)) ?? false);
+
+        // Check if any record uses System types (Guid, DateTimeOffset, Uri, etc.)
+        var usesSystemTypes = records.Any(r =>
+            r.Parameters?.Any(p =>
+                p.TypeName.Contains("Guid", StringComparison.Ordinal) ||
+                p.TypeName.Contains("DateTimeOffset", StringComparison.Ordinal) ||
+                p.TypeName.Contains("Uri", StringComparison.Ordinal) ||
+                p.TypeName.Contains("TimeSpan", StringComparison.Ordinal)) ?? false);
 
         if (usesFormFile)
         {
             sb.AppendLine("using Microsoft.AspNetCore.Http;");
         }
 
+        if (usesSystemTypes)
+        {
+            sb.AppendLine("using System;");
+        }
+
         sb.AppendLine("using System.CodeDom.Compiler;");
 
-        if (usesDictionary)
+        if (usesCollections)
         {
             sb.AppendLine("using System.Collections.Generic;");
         }
