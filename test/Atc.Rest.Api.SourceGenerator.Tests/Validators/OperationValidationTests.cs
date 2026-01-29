@@ -502,6 +502,188 @@ public class OperationValidationTests
         Assert.Null(opr008);
     }
 
+    [Fact]
+    public void Validate_PluralOperationIdReturnsWrapperObjectWithArray_NoOPR008()
+    {
+        // Arrange - plural operationId (resendResourceEvents) returns wrapper object containing array
+        var yaml = """
+            openapi: 3.0.0
+            info:
+              title: Test API
+              version: 1.0.0
+            paths:
+              /admin/resend-events:
+                post:
+                  operationId: resendResourceEvents
+                  responses:
+                    '200':
+                      description: Success
+                      content:
+                        application/json:
+                          schema:
+                            type: object
+                            properties:
+                              ids:
+                                type: array
+                                items:
+                                  type: string
+            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert - Should NOT trigger OPR008 because response contains an array
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.Null(opr008);
+    }
+
+    [Fact]
+    public void Validate_PluralOperationIdReturnsWrapperObjectWithAllOfArray_NoOPR008()
+    {
+        // Arrange - plural operationId returns wrapper object with allOf containing array
+        var yaml = """
+            openapi: 3.0.0
+            info:
+              title: Test API
+              version: 1.0.0
+            paths:
+              /events:
+                get:
+                  operationId: getEvents
+                  responses:
+                    '200':
+                      description: Success
+                      content:
+                        application/json:
+                          schema:
+                            allOf:
+                              - type: object
+                                properties:
+                                  metadata:
+                                    type: string
+                              - type: object
+                                properties:
+                                  events:
+                                    type: array
+                                    items:
+                                      type: string
+            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert - Should NOT trigger OPR008 because allOf contains an array
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.Null(opr008);
+    }
+
+    [Fact]
+    public void Validate_PluralOperationIdReturnsWrapperObjectWithoutArray_ReportsOPR008()
+    {
+        // Arrange - plural operationId returns wrapper object WITHOUT any array property
+        var yaml = """
+            openapi: 3.0.0
+            info:
+              title: Test API
+              version: 1.0.0
+            paths:
+              /events:
+                get:
+                  operationId: getEvents
+                  responses:
+                    '200':
+                      description: Success
+                      content:
+                        application/json:
+                          schema:
+                            type: object
+                            properties:
+                              message:
+                                type: string
+                              count:
+                                type: integer
+            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert - SHOULD trigger OPR008 because wrapper has no array
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.NotNull(opr008);
+        Assert.Contains("getEvents", opr008.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_PluralOperationIdReturnsWrapperWithReferencedArray_NoOPR008()
+    {
+        // Arrange - plural operationId returns wrapper with $ref to array schema
+        var yaml = """
+            openapi: 3.0.0
+            info:
+              title: Test API
+              version: 1.0.0
+            paths:
+              /items:
+                get:
+                  operationId: getItems
+                  responses:
+                    '200':
+                      description: Success
+                      content:
+                        application/json:
+                          schema:
+                            type: object
+                            properties:
+                              data:
+                                $ref: '#/components/schemas/ItemList'
+            components:
+              schemas:
+                ItemList:
+                  type: array
+                  items:
+                    type: string
+            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert - Should NOT trigger OPR008 because property references an array
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.Null(opr008);
+    }
+
     // ========== OPR009: Singular operationId but response is array ==========
 
     [Fact]
@@ -540,6 +722,52 @@ public class OperationValidationTests
             TestFilePath);
 
         // Assert
+        var opr009 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdSingularMismatch);
+        Assert.Null(opr009);
+    }
+
+    [Fact]
+    public void Validate_SingularOperationIdReturnsWrapperObjectWithArray_NoOPR009()
+    {
+        // Arrange - singular operationId (createSubscription) returns object with array property
+        // This should NOT trigger OPR009 because the response is an object, not an array
+        var yaml = """
+            openapi: 3.0.0
+            info:
+              title: Test API
+              version: 1.0.0
+            paths:
+              /subscriptions:
+                post:
+                  operationId: createSubscription
+                  responses:
+                    '200':
+                      description: Success
+                      content:
+                        application/json:
+                          schema:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              topics:
+                                type: array
+                                items:
+                                  type: string
+            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert - Should NOT trigger OPR009 because response is an object (not a direct array)
         var opr009 = diagnostics.FirstOrDefault(d =>
             d.RuleId == Generator.RuleIdentifiers.OperationIdSingularMismatch);
         Assert.Null(opr009);

@@ -1674,11 +1674,17 @@ public static class OpenApiDocumentValidator
         }
 
         var isPluralized = IsOperationIdPluralized(operationId);
-        var isArrayResponse = IsArraySchema(responseSchema, document) ||
-                              IsPaginatedSchema(responseSchema, document);
+
+        // Direct array or paginated response (applies to both OPR008 and OPR009)
+        var isDirectArrayResponse = IsArraySchema(responseSchema, document) ||
+                                    IsPaginatedSchema(responseSchema, document);
+
+        // Wrapper object containing an array (only applies to OPR008)
+        var isWrapperWithArray = IsObjectContainingArray(responseSchema, document);
 
         // ATCAPI_OPR008: Pluralized operationId but response is single item
-        if (isPluralized && !isArrayResponse)
+        // Allow if response is direct array, paginated, OR wrapper containing array
+        if (isPluralized && !isDirectArrayResponse && !isWrapperWithArray)
         {
             diagnostics.Add(new DiagnosticMessage(
                 RuleIdentifiers.OperationIdPluralizationMismatch,
@@ -1689,7 +1695,8 @@ public static class OpenApiDocumentValidator
         }
 
         // ATCAPI_OPR009: Singular operationId but response is array
-        if (!isPluralized && isArrayResponse)
+        // Only trigger for direct arrays or paginated responses, NOT for wrappers with arrays
+        if (!isPluralized && isDirectArrayResponse)
         {
             diagnostics.Add(new DiagnosticMessage(
                 RuleIdentifiers.OperationIdSingularMismatch,
@@ -2184,6 +2191,53 @@ public static class OpenApiDocumentValidator
             foreach (var allOfSchema in openApiSchema.AllOf)
             {
                 if (IsPaginatedSchema(allOfSchema, document))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if a schema is an object containing any array property.
+    /// This handles wrapper response objects like ResendEventsResponse that contain arrays.
+    /// </summary>
+    private static bool IsObjectContainingArray(
+        IOpenApiSchema schema,
+        OpenApiDocument document)
+    {
+        var actualSchema = schema;
+
+        if (schema is OpenApiSchemaReference schemaRef)
+        {
+            actualSchema = schemaRef.Target ?? schema;
+        }
+
+        if (actualSchema is not OpenApiSchema openApiSchema)
+        {
+            return false;
+        }
+
+        if (openApiSchema.Type.HasValue &&
+            openApiSchema.Type.Value.HasFlag(JsonSchemaType.Object) &&
+            openApiSchema.Properties != null)
+        {
+            foreach (var prop in openApiSchema.Properties)
+            {
+                if (IsArraySchema(prop.Value, document))
+                {
+                    return true;
+                }
+            }
+        }
+
+        if (openApiSchema.AllOf is { Count: > 0 })
+        {
+            foreach (var allOfSchema in openApiSchema.AllOf)
+            {
+                if (IsObjectContainingArray(allOfSchema, document))
                 {
                     return true;
                 }
