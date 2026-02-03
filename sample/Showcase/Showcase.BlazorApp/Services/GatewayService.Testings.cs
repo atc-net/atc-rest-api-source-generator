@@ -10,11 +10,11 @@ public sealed partial class GatewayService
     /// Test exception handling by code.
     /// Returns success response or throws with HTTP status info.
     /// </summary>
-    public async Task<(bool IsSuccess, int StatusCode, string Message, Showcase.Generated.Testings.Models.ExceptionTestResponse? Response)> TestExceptionAsync(
+    public async Task<(bool IsSuccess, int StatusCode, string Message, Showcase.Generated.Testing.Models.ExceptionTestResponse? Response)> TestExceptionAsync(
         int code,
         CancellationToken cancellationToken = default)
     {
-        var parameters = new Showcase.Generated.Testings.Client.GetExceptionTestParameters(Code: code);
+        var parameters = new Showcase.Generated.Testing.Client.GetExceptionTestParameters(Code: code);
 
         // Use "Showcase-Testing" HttpClient which has NO resilience/retry configured
         // This ensures we get the actual error response without retry interference

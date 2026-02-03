@@ -14,9 +14,11 @@ public class PathSegmentHelperTests
     [InlineData("/apis/accounts", "Accounts")] // skip "apis" prefix
     [InlineData("/v1/pets", "Pets")] // skip version segment only
     [InlineData("/v2/orders/{orderId}", "Orders")] // skip version segment
-    [InlineData("/account", "Accounts")] // "account" -> "Accounts" (pluralized)
-    [InlineData("/category", "Categories")] // "category" -> "Categories" (y -> ies)
-    [InlineData("/box", "Boxes")] // "box" -> "Boxes" (x -> xes)
+    [InlineData("/account", "Account")] // preserve singular form
+    [InlineData("/category", "Category")] // preserve singular form
+    [InlineData("/box", "Box")] // preserve singular form
+    [InlineData("/admin", "Admin")] // preserve singular form (bug fix case)
+    [InlineData("/admin/resend-events", "Admin")] // preserve singular form with nested path
     [InlineData("/{id}", "Default")] // Path parameter only
     [InlineData("/", "Default")] // Empty path
     [InlineData("", "Default")] // Empty string
@@ -35,14 +37,14 @@ public class PathSegmentHelperTests
     public void GetFirstPathSegment_KebabCase_ConvertsToPascalCase()
     {
         var result = PathSegmentHelper.GetFirstPathSegment("/pet-store");
-        Assert.Equal("PetStores", result);
+        Assert.Equal("PetStore", result);
     }
 
     [Fact]
     public void GetFirstPathSegment_SnakeCase_ConvertsToPascalCase()
     {
         var result = PathSegmentHelper.GetFirstPathSegment("/pet_store");
-        Assert.Equal("PetStores", result);
+        Assert.Equal("PetStore", result);
     }
 
     // ========== GetUniquePathSegments Tests ==========
@@ -463,7 +465,7 @@ paths:
 ";
         var doc = OpenApiDocumentHelper.ParseYaml(yaml);
 
-        var result = PathSegmentHelper.PathSegmentHasModels(doc, "Healths");
+        var result = PathSegmentHelper.PathSegmentHasModels(doc, "Health");
 
         Assert.False(result);
     }

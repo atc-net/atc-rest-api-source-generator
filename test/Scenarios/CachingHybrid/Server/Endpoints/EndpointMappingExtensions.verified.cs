@@ -4,7 +4,7 @@
 using System.CodeDom.Compiler;
 using Microsoft.AspNetCore.Builder;
 
-using CachingHybrid.Generated.Healths.Endpoints;
+using CachingHybrid.Generated.Health.Endpoints;
 using CachingHybrid.Generated.Sessions.Endpoints;
 using CachingHybrid.Generated.Settings.Endpoints;
 using CachingHybrid.Generated.Users.Endpoints;
@@ -24,7 +24,7 @@ public static class EndpointMappingExtensions
     /// <returns>The web application for method chaining.</returns>
     public static WebApplication MapEndpoints(this WebApplication app)
     {
-        app.MapHealthsEndpoints();
+        app.MapHealthEndpoints();
         app.MapSessionsEndpoints();
         app.MapSettingsEndpoints();
         app.MapUsersEndpoints();

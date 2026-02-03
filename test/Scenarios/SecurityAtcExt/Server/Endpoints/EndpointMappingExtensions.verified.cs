@@ -4,10 +4,10 @@
 using System.CodeDom.Compiler;
 using Microsoft.AspNetCore.Builder;
 
-using SecurityAtcExt.Generated.Admins.Endpoints;
+using SecurityAtcExt.Generated.Admin.Endpoints;
 using SecurityAtcExt.Generated.ApiKeys.Endpoints;
 using SecurityAtcExt.Generated.Orders.Endpoints;
-using SecurityAtcExt.Generated.Publics.Endpoints;
+using SecurityAtcExt.Generated.Public.Endpoints;
 using SecurityAtcExt.Generated.Reports.Endpoints;
 
 namespace SecurityAtcExt.Generated.Endpoints;
@@ -25,10 +25,10 @@ public static class EndpointMappingExtensions
     /// <returns>The web application for method chaining.</returns>
     public static WebApplication MapEndpoints(this WebApplication app)
     {
-        app.MapAdminsEndpoints();
+        app.MapAdminEndpoints();
         app.MapApiKeysEndpoints();
         app.MapOrdersEndpoints();
-        app.MapPublicsEndpoints();
+        app.MapPublicEndpoints();
         app.MapReportsEndpoints();
 
         return app;

@@ -3,9 +3,9 @@
 
 using System.CodeDom.Compiler;
 using Microsoft.Extensions.DependencyInjection;
-using SecurityAtcExt.Generated.Publics;
+using SecurityAtcExt.Generated.Public;
 using SecurityAtcExt.Generated.Orders;
-using SecurityAtcExt.Generated.Admins;
+using SecurityAtcExt.Generated.Admin;
 using SecurityAtcExt.Generated.Reports;
 using SecurityAtcExt.Generated.ApiKeys;
 
@@ -24,9 +24,9 @@ public static class SecurityAtcExtEndpointsServiceCollectionExtensions
     /// <returns>The service collection for method chaining.</returns>
     public static IServiceCollection AddSecurityAtcExtEndpoints(this IServiceCollection services)
     {
-        services.AddPublicsEndpoints();
+        services.AddPublicEndpoints();
         services.AddOrdersEndpoints();
-        services.AddAdminsEndpoints();
+        services.AddAdminEndpoints();
         services.AddReportsEndpoints();
         services.AddApiKeysEndpoints();
 

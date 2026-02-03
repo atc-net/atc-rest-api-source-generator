@@ -696,8 +696,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Extracts the first path segment from an OpenAPI path (e.g., "/pets/{id}" -> "Pets").
-    /// Returns pluralized form for consistency with REST conventions.
+    /// Extracts the first path segment from an OpenAPI path (e.g., "/pets/{id}" -> "Pet").
     /// </summary>
     private static string ExtractFirstPathSegment(string path)
     {
@@ -707,8 +706,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             return string.Empty;
         }
 
-        var segment = segments[0].ToPascalCaseForDotNet();
-        return segment.Pluralize();
+        return segments[0].ToPascalCaseForDotNet();
     }
 
     /// <summary>

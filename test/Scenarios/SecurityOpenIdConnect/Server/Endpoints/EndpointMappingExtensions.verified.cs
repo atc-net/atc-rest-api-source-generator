@@ -4,8 +4,8 @@
 using System.CodeDom.Compiler;
 using Microsoft.AspNetCore.Builder;
 
-using SecurityOpenIdConnect.Generated.Healths.Endpoints;
-using SecurityOpenIdConnect.Generated.Mes.Endpoints;
+using SecurityOpenIdConnect.Generated.Health.Endpoints;
+using SecurityOpenIdConnect.Generated.Me.Endpoints;
 using SecurityOpenIdConnect.Generated.Resources.Endpoints;
 
 namespace SecurityOpenIdConnect.Generated.Endpoints;
@@ -23,8 +23,8 @@ public static class EndpointMappingExtensions
     /// <returns>The web application for method chaining.</returns>
     public static WebApplication MapEndpoints(this WebApplication app)
     {
-        app.MapHealthsEndpoints();
-        app.MapMesEndpoints();
+        app.MapHealthEndpoints();
+        app.MapMeEndpoints();
         app.MapResourcesEndpoints();
 
         return app;

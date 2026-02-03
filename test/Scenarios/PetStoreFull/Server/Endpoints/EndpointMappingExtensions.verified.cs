@@ -4,9 +4,9 @@
 using System.CodeDom.Compiler;
 using Microsoft.AspNetCore.Builder;
 
-using PetStoreFull.Generated.Pets.Endpoints;
-using PetStoreFull.Generated.Stores.Endpoints;
-using PetStoreFull.Generated.Users.Endpoints;
+using PetStoreFull.Generated.Pet.Endpoints;
+using PetStoreFull.Generated.Store.Endpoints;
+using PetStoreFull.Generated.User.Endpoints;
 
 namespace PetStoreFull.Generated.Endpoints;
 
@@ -23,9 +23,9 @@ public static class EndpointMappingExtensions
     /// <returns>The web application for method chaining.</returns>
     public static WebApplication MapEndpoints(this WebApplication app)
     {
-        app.MapPetsEndpoints();
-        app.MapStoresEndpoints();
-        app.MapUsersEndpoints();
+        app.MapPetEndpoints();
+        app.MapStoreEndpoints();
+        app.MapUserEndpoints();
 
         return app;
     }

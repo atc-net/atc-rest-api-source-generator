@@ -22,9 +22,10 @@ public static class PathSegmentHelper
     /// <summary>
     /// Extracts the first meaningful path segment from an API path.
     /// Skips common prefixes like "api" and version segments like "v1".
+    /// Preserves the original singular/plural form from the path.
     /// </summary>
     /// <param name="path">The API path (e.g., "/api/v1/pets/{petId}").</param>
-    /// <returns>The first meaningful path segment in PascalCase and pluralized (e.g., "Pets"), or "Default" if empty.</returns>
+    /// <returns>The first meaningful path segment in PascalCase (e.g., "Pets" or "Admin"), or "Default" if empty.</returns>
     public static string GetFirstPathSegment(string path)
     {
         // Remove leading slash and split
@@ -57,9 +58,8 @@ public static class PathSegmentHelper
                 continue;
             }
 
-            // Found a meaningful segment - return in PascalCase and pluralized
-            var pascalCase = segment.ToPascalCaseForDotNet();
-            return EnsurePluralized(pascalCase);
+            // Found a meaningful segment - return in PascalCase, preserving singular/plural form
+            return segment.ToPascalCaseForDotNet();
         }
 
         return "Default";
@@ -90,48 +90,6 @@ public static class PathSegmentHelper
 
         return true;
     }
-
-    /// <summary>
-    /// Ensures a string is pluralized. Simple pluralization rules for common cases.
-    /// </summary>
-    private static string EnsurePluralized(string word)
-    {
-        if (string.IsNullOrEmpty(word))
-        {
-            return word;
-        }
-
-        // Already plural (ends with 's')
-        if (word.EndsWith("s", StringComparison.OrdinalIgnoreCase))
-        {
-            return word;
-        }
-
-        // Simple pluralization rules
-        if (word.EndsWith("y", StringComparison.OrdinalIgnoreCase) &&
-            !IsVowel(word[word.Length - 2]))
-        {
-            // e.g., "Category" -> "Categories"
-            return word.Substring(0, word.Length - 1) + "ies";
-        }
-
-        if (word.EndsWith("x", StringComparison.OrdinalIgnoreCase) ||
-            word.EndsWith("ch", StringComparison.OrdinalIgnoreCase) ||
-            word.EndsWith("sh", StringComparison.OrdinalIgnoreCase))
-        {
-            // e.g., "Box" -> "Boxes"
-            return word + "es";
-        }
-
-        // Default: just add 's'
-        return word + "s";
-    }
-
-    /// <summary>
-    /// Checks if a character is a vowel.
-    /// </summary>
-    private static bool IsVowel(char c)
-        => "aeiouAEIOU".IndexOf(c) >= 0;
 
     /// <summary>
     /// Gets all unique first path segments from an OpenAPI document.
