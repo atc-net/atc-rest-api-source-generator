@@ -1,4 +1,4 @@
-namespace NexusSample.Api.Domain.ApiHandlers.EdgeProviders;
+namespace NexusSample.Api.Domain.ApiHandlers.EdgeProvider;
 
 /// <summary>
 /// Handler business logic for the ScanOpcUaConfigurationsByProviderDeviceId operation.

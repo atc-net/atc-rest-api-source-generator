@@ -1,4 +1,4 @@
-namespace NexusSample.Api.Domain.ApiHandlers.DeviceManagements;
+namespace NexusSample.Api.Domain.ApiHandlers.DeviceManagement;
 
 /// <summary>
 /// Handler business logic for the GetDeviceManagementDevices operation.
