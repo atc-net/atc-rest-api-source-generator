@@ -1,0 +1,119 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Header Parameters API
+  description: API to test header parameter generation in client code
+servers:
+  - url: http://api.example.com/v1
+paths:
+  /items:
+    get:
+      summary: List items with pagination via header
+      operationId: listItems
+      tags:
+        - items
+      parameters:
+        - name: x-continuation
+          in: header
+          description: Continuation token for pagination
+          required: false
+          schema:
+            type: string
+        - name: x-correlation-id
+          in: header
+          description: Correlation ID for request tracing
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of items to return
+          required: false
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: A list of items
+          headers:
+            x-continuation:
+              description: Continuation token for next page
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Items"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /items/{itemId}:
+    get:
+      summary: Get a specific item
+      operationId: getItemById
+      tags:
+        - items
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          description: The ID of the item
+          schema:
+            type: string
+        - name: X-Request-Id
+          in: header
+          description: Request ID for tracking
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The requested item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item"
+        '404':
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    Item:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+    Items:
+      type: array
+      items:
+        $ref: "#/components/schemas/Item"
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string

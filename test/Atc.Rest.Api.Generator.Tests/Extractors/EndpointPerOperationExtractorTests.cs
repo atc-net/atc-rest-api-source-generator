@@ -761,6 +761,385 @@ public class EndpointPerOperationExtractorTests
         Assert.Contains("ProblemDetails UnauthorizedContent", operationFile.ResultClassContent, StringComparison.Ordinal);
     }
 
+    // ========== Header Parameter Tests ==========
+    [Fact]
+    public void Extract_RequiredHeaderParameter_GeneratesWithHeaderParameterWithoutNullCheck()
+    {
+        // Arrange - required header parameter
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: getItems
+                                  parameters:
+                                    - name: x-correlation-id
+                                      in: header
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document!,
+            "TestApi",
+            "items",
+            registry: null,
+            includeDeprecated: false);
+
+        // Assert
+        Assert.Single(files);
+        var operationFile = files[0];
+        Assert.NotNull(operationFile.EndpointClassContent);
+
+        // Required header should have WithHeaderParameter call without null check
+        Assert.Contains(
+            "requestBuilder.WithHeaderParameter(\"x-correlation-id\", parameters.CorrelationId);",
+            operationFile.EndpointClassContent,
+            StringComparison.Ordinal);
+
+        // Should NOT have null check for required parameter
+        Assert.DoesNotContain(
+            "if (parameters.CorrelationId != null)",
+            operationFile.EndpointClassContent,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_OptionalHeaderParameter_GeneratesWithHeaderParameterWithNullCheck()
+    {
+        // Arrange - optional header parameter
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: getItems
+                                  parameters:
+                                    - name: x-continuation
+                                      in: header
+                                      required: false
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document!,
+            "TestApi",
+            "items",
+            registry: null,
+            includeDeprecated: false);
+
+        // Assert
+        Assert.Single(files);
+        var operationFile = files[0];
+        Assert.NotNull(operationFile.EndpointClassContent);
+
+        // Optional header should have null check
+        Assert.Contains(
+            "if (parameters.Continuation != null)",
+            operationFile.EndpointClassContent,
+            StringComparison.Ordinal);
+
+        // And the WithHeaderParameter call inside the condition
+        Assert.Contains(
+            "requestBuilder.WithHeaderParameter(\"x-continuation\", parameters.Continuation);",
+            operationFile.EndpointClassContent,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_HeaderParameterWithXPrefix_StripsXPrefixForPropertyName()
+    {
+        // Arrange - header with x- prefix
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: getItems
+                                  parameters:
+                                    - name: x-request-id
+                                      in: header
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document!,
+            "TestApi",
+            "items",
+            registry: null,
+            includeDeprecated: false);
+
+        // Assert
+        Assert.Single(files);
+        var operationFile = files[0];
+        Assert.NotNull(operationFile.EndpointClassContent);
+
+        // Property name should be "RequestId" (x- prefix stripped and PascalCased)
+        // But header name in the call should remain "x-request-id"
+        Assert.Contains(
+            "requestBuilder.WithHeaderParameter(\"x-request-id\", parameters.RequestId);",
+            operationFile.EndpointClassContent,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_HeaderParameterWithoutXPrefix_UsesFullNameForPropertyName()
+    {
+        // Arrange - header without x- prefix (like api_key)
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: getItems
+                                  parameters:
+                                    - name: api_key
+                                      in: header
+                                      required: false
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document!,
+            "TestApi",
+            "items",
+            registry: null,
+            includeDeprecated: false);
+
+        // Assert
+        Assert.Single(files);
+        var operationFile = files[0];
+        Assert.NotNull(operationFile.EndpointClassContent);
+
+        // Property name should be "ApiKey" (PascalCased from api_key, no x- prefix to strip)
+        Assert.Contains(
+            "requestBuilder.WithHeaderParameter(\"api_key\", parameters.ApiKey);",
+            operationFile.EndpointClassContent,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_MixedParameters_GeneratesAllParameterTypes()
+    {
+        // Arrange - path, query, and header parameters combined
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items/{itemId}:
+                                get:
+                                  operationId: getItemById
+                                  parameters:
+                                    - name: itemId
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                    - name: limit
+                                      in: query
+                                      required: false
+                                      schema:
+                                        type: integer
+                                    - name: x-correlation-id
+                                      in: header
+                                      required: true
+                                      schema:
+                                        type: string
+                                    - name: x-request-id
+                                      in: header
+                                      required: false
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: object
+                                            properties:
+                                              id:
+                                                type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document!,
+            "TestApi",
+            "items",
+            registry: null,
+            includeDeprecated: false);
+
+        // Assert
+        Assert.Single(files);
+        var operationFile = files[0];
+        Assert.NotNull(operationFile.EndpointClassContent);
+
+        // Path parameter
+        Assert.Contains(
+            "requestBuilder.WithPathParameter(\"itemId\", parameters.ItemId);",
+            operationFile.EndpointClassContent,
+            StringComparison.Ordinal);
+
+        // Query parameter with null check (optional)
+        Assert.Contains(
+            "if (parameters.Limit != null)",
+            operationFile.EndpointClassContent,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "requestBuilder.WithQueryParameter(\"limit\", parameters.Limit);",
+            operationFile.EndpointClassContent,
+            StringComparison.Ordinal);
+
+        // Required header parameter (no null check)
+        Assert.Contains(
+            "requestBuilder.WithHeaderParameter(\"x-correlation-id\", parameters.CorrelationId);",
+            operationFile.EndpointClassContent,
+            StringComparison.Ordinal);
+
+        // Optional header parameter (with null check)
+        Assert.Contains(
+            "if (parameters.RequestId != null)",
+            operationFile.EndpointClassContent,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "requestBuilder.WithHeaderParameter(\"x-request-id\", parameters.RequestId);",
+            operationFile.EndpointClassContent,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_HeaderParameterReference_UsesReferenceIdForPropertyName()
+    {
+        // Arrange - header parameter defined as a $ref in components/parameters
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: getItems
+                                  parameters:
+                                    - $ref: '#/components/parameters/continuationToken'
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                            components:
+                              parameters:
+                                continuationToken:
+                                  name: x-continuation
+                                  in: header
+                                  required: false
+                                  schema:
+                                    type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document!,
+            "TestApi",
+            "items",
+            registry: null,
+            includeDeprecated: false);
+
+        // Assert
+        Assert.Single(files);
+        var operationFile = files[0];
+        Assert.NotNull(operationFile.EndpointClassContent);
+
+        // Property name should be "ContinuationToken" (from reference ID, PascalCased)
+        // Header name in the call should still be "x-continuation"
+        Assert.Contains(
+            "requestBuilder.WithHeaderParameter(\"x-continuation\", parameters.ContinuationToken);",
+            operationFile.EndpointClassContent,
+            StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
