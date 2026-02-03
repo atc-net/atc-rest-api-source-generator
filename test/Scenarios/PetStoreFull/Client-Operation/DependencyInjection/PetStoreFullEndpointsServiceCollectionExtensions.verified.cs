@@ -3,9 +3,9 @@
 
 using System.CodeDom.Compiler;
 using Microsoft.Extensions.DependencyInjection;
-using PetStoreFull.Generated.Pets;
-using PetStoreFull.Generated.Stores;
-using PetStoreFull.Generated.Users;
+using PetStoreFull.Generated.Pet;
+using PetStoreFull.Generated.Store;
+using PetStoreFull.Generated.User;
 
 namespace PetStoreFull.Generated;
 
@@ -22,9 +22,9 @@ public static class PetStoreFullEndpointsServiceCollectionExtensions
     /// <returns>The service collection for method chaining.</returns>
     public static IServiceCollection AddPetStoreFullEndpoints(this IServiceCollection services)
     {
-        services.AddPetsEndpoints();
-        services.AddStoresEndpoints();
-        services.AddUsersEndpoints();
+        services.AddPetEndpoints();
+        services.AddStoreEndpoints();
+        services.AddUserEndpoints();
 
         return services;
     }

@@ -5,7 +5,7 @@ using System.CodeDom.Compiler;
 using Microsoft.AspNetCore.Builder;
 
 using RateLimit.Generated.Exports.Endpoints;
-using RateLimit.Generated.Healths.Endpoints;
+using RateLimit.Generated.Health.Endpoints;
 using RateLimit.Generated.Notifications.Endpoints;
 using RateLimit.Generated.Orders.Endpoints;
 using RateLimit.Generated.Reports.Endpoints;
@@ -27,7 +27,7 @@ public static class EndpointMappingExtensions
     public static WebApplication MapEndpoints(this WebApplication app)
     {
         app.MapExportsEndpoints();
-        app.MapHealthsEndpoints();
+        app.MapHealthEndpoints();
         app.MapNotificationsEndpoints();
         app.MapOrdersEndpoints();
         app.MapReportsEndpoints();

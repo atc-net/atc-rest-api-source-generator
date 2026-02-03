@@ -147,7 +147,7 @@ public class OperationParameterExtractorTests
         var recordsParams = OperationParameterExtractor.Extract(
             document!,
             "TestApi",
-            "Searches",  // /search gets pluralized to Searches
+            "Search",  // /search preserved as Search (no pluralization)
             registry: null,
             includeDeprecated: false);
 

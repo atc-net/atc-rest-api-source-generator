@@ -3,11 +3,11 @@
 
 using System.CodeDom.Compiler;
 using Microsoft.Extensions.DependencyInjection;
-using SecurityStandard.Generated.Publics;
+using SecurityStandard.Generated.Public;
 using SecurityStandard.Generated.Orders;
 using SecurityStandard.Generated.Users;
-using SecurityStandard.Generated.Admins;
-using SecurityStandard.Generated.Datas;
+using SecurityStandard.Generated.Admin;
+using SecurityStandard.Generated.Data;
 
 namespace SecurityStandard.Generated;
 
@@ -24,11 +24,11 @@ public static class SecurityStandardEndpointsServiceCollectionExtensions
     /// <returns>The service collection for method chaining.</returns>
     public static IServiceCollection AddSecurityStandardEndpoints(this IServiceCollection services)
     {
-        services.AddPublicsEndpoints();
+        services.AddPublicEndpoints();
         services.AddOrdersEndpoints();
         services.AddUsersEndpoints();
-        services.AddAdminsEndpoints();
-        services.AddDatasEndpoints();
+        services.AddAdminEndpoints();
+        services.AddDataEndpoints();
 
         return services;
     }

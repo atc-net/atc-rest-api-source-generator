@@ -3,10 +3,10 @@
 
 using System.CodeDom.Compiler;
 using Microsoft.Extensions.DependencyInjection;
-using SecurityHybrid.Generated.Publics;
+using SecurityHybrid.Generated.Public;
 using SecurityHybrid.Generated.Products;
 using SecurityHybrid.Generated.Orders;
-using SecurityHybrid.Generated.Admins;
+using SecurityHybrid.Generated.Admin;
 using SecurityHybrid.Generated.Reports;
 
 namespace SecurityHybrid.Generated;
@@ -24,10 +24,10 @@ public static class SecurityHybridEndpointsServiceCollectionExtensions
     /// <returns>The service collection for method chaining.</returns>
     public static IServiceCollection AddSecurityHybridEndpoints(this IServiceCollection services)
     {
-        services.AddPublicsEndpoints();
+        services.AddPublicEndpoints();
         services.AddProductsEndpoints();
         services.AddOrdersEndpoints();
-        services.AddAdminsEndpoints();
+        services.AddAdminEndpoints();
         services.AddReportsEndpoints();
 
         return services;

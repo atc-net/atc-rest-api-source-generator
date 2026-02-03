@@ -5,7 +5,7 @@ using System.CodeDom.Compiler;
 using Microsoft.AspNetCore.Builder;
 
 using CachingOutput.Generated.Categories.Endpoints;
-using CachingOutput.Generated.Healths.Endpoints;
+using CachingOutput.Generated.Health.Endpoints;
 using CachingOutput.Generated.Products.Endpoints;
 
 namespace CachingOutput.Generated.Endpoints;
@@ -24,7 +24,7 @@ public static class EndpointMappingExtensions
     public static WebApplication MapEndpoints(this WebApplication app)
     {
         app.MapCategoriesEndpoints();
-        app.MapHealthsEndpoints();
+        app.MapHealthEndpoints();
         app.MapProductsEndpoints();
 
         return app;

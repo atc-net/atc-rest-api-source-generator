@@ -4,8 +4,8 @@
 using System.CodeDom.Compiler;
 using Microsoft.AspNetCore.Builder;
 
-using Retry.Generated.Externals.Endpoints;
-using Retry.Generated.Healths.Endpoints;
+using Retry.Generated.External.Endpoints;
+using Retry.Generated.Health.Endpoints;
 using Retry.Generated.Notifications.Endpoints;
 using Retry.Generated.Orders.Endpoints;
 using Retry.Generated.Reports.Endpoints;
@@ -25,8 +25,8 @@ public static class EndpointMappingExtensions
     /// <returns>The web application for method chaining.</returns>
     public static WebApplication MapEndpoints(this WebApplication app)
     {
-        app.MapExternalsEndpoints();
-        app.MapHealthsEndpoints();
+        app.MapExternalEndpoints();
+        app.MapHealthEndpoints();
         app.MapNotificationsEndpoints();
         app.MapOrdersEndpoints();
         app.MapReportsEndpoints();

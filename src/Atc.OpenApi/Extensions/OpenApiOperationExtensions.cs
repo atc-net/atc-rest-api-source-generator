@@ -232,21 +232,15 @@ public static class OpenApiOperationExtensions
             => operation.Responses?.ContainsKey("404") ?? false;
 
         /// <summary>
-        /// Gets the first tag from an operation, pluralized for REST conventions.
+        /// Gets the first tag from an operation.
         /// </summary>
-        /// <returns>The pluralized first tag name, or empty string if no tags.</returns>
+        /// <returns>The first tag name in PascalCase, or empty string if no tags.</returns>
         public string GetFirstTag()
-        {
-            var tag = operation
+            => operation
                 .Tags?
                 .FirstOrDefault()?
                 .Name?
                 .ToPascalCaseForDotNet() ?? string.Empty;
-
-            return string.IsNullOrEmpty(tag)
-                ? tag
-                : tag.Pluralize();
-        }
 
         /// <summary>
         /// Checks if the operation response is a file download (binary content).

@@ -3,8 +3,8 @@
 
 using System.CodeDom.Compiler;
 using Microsoft.Extensions.DependencyInjection;
-using SecurityOpenIdConnect.Generated.Healths;
-using SecurityOpenIdConnect.Generated.Mes;
+using SecurityOpenIdConnect.Generated.Health;
+using SecurityOpenIdConnect.Generated.Me;
 using SecurityOpenIdConnect.Generated.Resources;
 
 namespace SecurityOpenIdConnect.Generated;
@@ -22,8 +22,8 @@ public static class SecurityOpenIdConnectEndpointsServiceCollectionExtensions
     /// <returns>The service collection for method chaining.</returns>
     public static IServiceCollection AddSecurityOpenIdConnectEndpoints(this IServiceCollection services)
     {
-        services.AddHealthsEndpoints();
-        services.AddMesEndpoints();
+        services.AddHealthEndpoints();
+        services.AddMeEndpoints();
         services.AddResourcesEndpoints();
 
         return services;

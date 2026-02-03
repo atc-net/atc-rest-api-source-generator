@@ -3,7 +3,7 @@
 
 using System.CodeDom.Compiler;
 using Microsoft.Extensions.DependencyInjection;
-using RateLimit.Generated.Healths;
+using RateLimit.Generated.Health;
 using RateLimit.Generated.Orders;
 using RateLimit.Generated.Reports;
 using RateLimit.Generated.Notifications;
@@ -25,7 +25,7 @@ public static class RateLimitEndpointsServiceCollectionExtensions
     /// <returns>The service collection for method chaining.</returns>
     public static IServiceCollection AddRateLimitEndpoints(this IServiceCollection services)
     {
-        services.AddHealthsEndpoints();
+        services.AddHealthEndpoints();
         services.AddOrdersEndpoints();
         services.AddReportsEndpoints();
         services.AddNotificationsEndpoints();

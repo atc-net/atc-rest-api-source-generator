@@ -3,9 +3,9 @@
 
 using System.CodeDom.Compiler;
 using Microsoft.Extensions.DependencyInjection;
-using Retry.Generated.Healths;
+using Retry.Generated.Health;
 using Retry.Generated.Orders;
-using Retry.Generated.Externals;
+using Retry.Generated.External;
 using Retry.Generated.Reports;
 using Retry.Generated.Notifications;
 
@@ -24,9 +24,9 @@ public static class RetryEndpointsServiceCollectionExtensions
     /// <returns>The service collection for method chaining.</returns>
     public static IServiceCollection AddRetryEndpoints(this IServiceCollection services)
     {
-        services.AddHealthsEndpoints();
+        services.AddHealthEndpoints();
         services.AddOrdersEndpoints();
-        services.AddExternalsEndpoints();
+        services.AddExternalEndpoints();
         services.AddReportsEndpoints();
         services.AddNotificationsEndpoints();
 
