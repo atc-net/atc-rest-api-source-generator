@@ -893,6 +893,29 @@ public static class EndpointPerOperationExtractor
             }
         }
 
+        // Add header parameters
+        foreach (var (param, referenceId) in allParams.Where(p => p.Param.In == ParameterLocation.Header))
+        {
+            // For header parameters, use reference ID as property name if available,
+            // otherwise strip x- prefix from header name
+            var propName = !string.IsNullOrEmpty(referenceId)
+                ? referenceId!.ToPascalCaseForDotNet()
+                : param.Name!.ToHeaderPropertyName();
+            var headerName = param.Name!;
+
+            if (param.Required)
+            {
+                sb.AppendLine($"requestBuilder.WithHeaderParameter(\"{headerName}\", parameters.{propName});");
+            }
+            else
+            {
+                sb.AppendLine($"if (parameters.{propName} != null)");
+                sb.AppendLine("{");
+                sb.AppendLine(4, $"requestBuilder.WithHeaderParameter(\"{headerName}\", parameters.{propName});");
+                sb.AppendLine("}");
+            }
+        }
+
         // Add request body
         if (operation.RequestBody?.Content != null)
         {
