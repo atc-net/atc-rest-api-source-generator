@@ -106,9 +106,17 @@ public class EndpointPerOperationExtractorTests
         Assert.Single(files);
         var operationFile = files[0];
 
-        // Result class should use IAsyncEnumerable<Device>
-        Assert.NotNull(operationFile.ResultClassContent);
-        Assert.Contains("IAsyncEnumerable<Device>", operationFile.ResultClassContent, StringComparison.Ordinal);
+        // For streaming endpoints, result classes are not generated (we use StreamingEndpointResponse directly)
+        Assert.Null(operationFile.ResultClassContent);
+        Assert.Null(operationFile.ResultInterfaceContent);
+
+        // Endpoint interface should return StreamingEndpointResponse<Device>
+        Assert.NotNull(operationFile.EndpointInterfaceContent);
+        Assert.Contains("StreamingEndpointResponse<Device>", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+
+        // Endpoint class should call BuildStreamingEndpointResponseAsync<Device>
+        Assert.NotNull(operationFile.EndpointClassContent);
+        Assert.Contains("BuildStreamingEndpointResponseAsync<Device>", operationFile.EndpointClassContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -238,9 +246,17 @@ public class EndpointPerOperationExtractorTests
         Assert.Single(files);
         var operationFile = files[0];
 
-        // Result class should use IAsyncEnumerable<PaginationResult<Device>>
-        Assert.NotNull(operationFile.ResultClassContent);
-        Assert.Contains("IAsyncEnumerable<PaginationResult<Device>>", operationFile.ResultClassContent, StringComparison.Ordinal);
+        // For streaming endpoints, result classes are not generated (we use StreamingEndpointResponse directly)
+        Assert.Null(operationFile.ResultClassContent);
+        Assert.Null(operationFile.ResultInterfaceContent);
+
+        // Endpoint interface should return StreamingEndpointResponse<PaginationResult<Device>>
+        Assert.NotNull(operationFile.EndpointInterfaceContent);
+        Assert.Contains("StreamingEndpointResponse<PaginationResult<Device>>", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+
+        // Endpoint class should call BuildStreamingEndpointResponseAsync
+        Assert.NotNull(operationFile.EndpointClassContent);
+        Assert.Contains("BuildStreamingEndpointResponseAsync<PaginationResult<Device>>", operationFile.EndpointClassContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -304,9 +320,17 @@ public class EndpointPerOperationExtractorTests
         Assert.Single(files);
         var operationFile = files[0];
 
-        // Result class should use IAsyncEnumerable<PaginatedResult<User>>
-        Assert.NotNull(operationFile.ResultClassContent);
-        Assert.Contains("IAsyncEnumerable<PaginatedResult<User>>", operationFile.ResultClassContent, StringComparison.Ordinal);
+        // For streaming endpoints, result classes are not generated (we use StreamingEndpointResponse directly)
+        Assert.Null(operationFile.ResultClassContent);
+        Assert.Null(operationFile.ResultInterfaceContent);
+
+        // Endpoint interface should return StreamingEndpointResponse<PaginatedResult<User>>
+        Assert.NotNull(operationFile.EndpointInterfaceContent);
+        Assert.Contains("StreamingEndpointResponse<PaginatedResult<User>>", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+
+        // Endpoint class should call BuildStreamingEndpointResponseAsync
+        Assert.NotNull(operationFile.EndpointClassContent);
+        Assert.Contains("BuildStreamingEndpointResponseAsync<PaginatedResult<User>>", operationFile.EndpointClassContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -356,12 +380,17 @@ public class EndpointPerOperationExtractorTests
         Assert.Single(files);
         var operationFile = files[0];
 
-        // Both interface and class should have IAsyncEnumerable<Item> OkContent
-        Assert.NotNull(operationFile.ResultInterfaceContent);
-        Assert.NotNull(operationFile.ResultClassContent);
+        // For streaming endpoints, result interfaces/classes are not generated
+        Assert.Null(operationFile.ResultInterfaceContent);
+        Assert.Null(operationFile.ResultClassContent);
 
-        Assert.Contains("IAsyncEnumerable<Item> OkContent", operationFile.ResultInterfaceContent, StringComparison.Ordinal);
-        Assert.Contains("IAsyncEnumerable<Item> OkContent", operationFile.ResultClassContent, StringComparison.Ordinal);
+        // Endpoint interface should return StreamingEndpointResponse<Item>
+        Assert.NotNull(operationFile.EndpointInterfaceContent);
+        Assert.Contains("StreamingEndpointResponse<Item>", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+
+        // Endpoint class should call BuildStreamingEndpointResponseAsync<Item>
+        Assert.NotNull(operationFile.EndpointClassContent);
+        Assert.Contains("BuildStreamingEndpointResponseAsync<Item>", operationFile.EndpointClassContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -412,14 +441,19 @@ public class EndpointPerOperationExtractorTests
         // Assert
         Assert.Single(files);
         var operationFile = files[0];
-        Assert.NotNull(operationFile.ResultClassContent);
 
-        // 200 OK should be IAsyncEnumerable<Device>
-        Assert.Contains("IAsyncEnumerable<Device> OkContent", operationFile.ResultClassContent, StringComparison.Ordinal);
+        // For streaming endpoints, result classes are not generated (we use StreamingEndpointResponse directly)
+        // StreamingEndpointResponse<T> handles error responses internally via ErrorContent property
+        Assert.Null(operationFile.ResultClassContent);
+        Assert.Null(operationFile.ResultInterfaceContent);
 
-        // 400 BadRequest should be ValidationProblemDetails, NOT wrapped
-        Assert.Contains("ValidationProblemDetails BadRequestContent", operationFile.ResultClassContent, StringComparison.Ordinal);
-        Assert.DoesNotContain("IAsyncEnumerable<ValidationProblemDetails>", operationFile.ResultClassContent, StringComparison.Ordinal);
+        // Endpoint interface should return StreamingEndpointResponse<Device>
+        Assert.NotNull(operationFile.EndpointInterfaceContent);
+        Assert.Contains("StreamingEndpointResponse<Device>", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+
+        // Endpoint class should call BuildStreamingEndpointResponseAsync<Device>
+        Assert.NotNull(operationFile.EndpointClassContent);
+        Assert.Contains("BuildStreamingEndpointResponseAsync<Device>", operationFile.EndpointClassContent, StringComparison.Ordinal);
     }
 
     [Theory]

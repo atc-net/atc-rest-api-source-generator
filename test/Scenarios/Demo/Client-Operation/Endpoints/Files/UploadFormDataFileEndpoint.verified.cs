@@ -44,7 +44,24 @@ public sealed class UploadFormDataFileEndpoint : IUploadFormDataFileEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/files/form-data/singleObject");
-        requestBuilder.WithBody(parameters);
+        if (parameters.Request?.ItemName != null)
+        {
+            requestBuilder.WithFormField("itemName", parameters.Request.ItemName.ToString()!);
+        }
+
+        if (parameters.Request?.File != null)
+        {
+            requestBuilder.WithFile(parameters.Request.File, "file", "file");
+        }
+
+        if (parameters.Request?.Items != null)
+        {
+            foreach (var item in parameters.Request.Items)
+            {
+                requestBuilder.WithFormField("items", item?.ToString() ?? string.Empty);
+            }
+        }
+
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
         using var response = await client.SendAsync(requestMessage, cancellationToken);

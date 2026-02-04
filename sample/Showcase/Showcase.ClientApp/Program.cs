@@ -7,10 +7,11 @@ Console.WriteLine("Showcase Client Demo - CRUD Operations");
 Console.WriteLine("=======================================");
 Console.WriteLine();
 
-// Get API endpoint from environment variable (set by Aspire) or use default
+// Get API endpoint from Aspire environment variables or use default
+// Aspire sets services__api__http__0 when using .WithReference(api.GetEndpoint("http"))
 var apiBaseUrl = Environment.GetEnvironmentVariable("services__api__http__0")
     ?? Environment.GetEnvironmentVariable("services__api__https__0")
-    ?? "http://localhost:5046";
+    ?? "http://localhost:15046";
 
 Console.WriteLine($"Connecting to API at: {apiBaseUrl}");
 Console.WriteLine();
@@ -362,7 +363,7 @@ catch (HttpRequestException ex)
 {
     Console.WriteLine($"HTTP Error: {ex.Message}");
     Console.WriteLine($"  Status Code: {ex.StatusCode}");
-    Console.WriteLine("  Make sure the API is running on " + apiBaseUrl);
+    Console.WriteLine("  Make sure the API is running (via Aspire or standalone)");
 }
 catch (Exception ex)
 {

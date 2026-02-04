@@ -581,7 +581,7 @@ public static class HttpClientExtractor
                 GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, hasReturnType, builder, headerParams);
                 break;
             case "POST":
-                GeneratePostMethodBody(operation, returnType, hasParameters, hasReturnType, hasLocationHeader, builder);
+                GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder);
                 break;
             case "PUT":
                 GeneratePutMethodBody(operation, returnType, hasParameters, hasReturnType, builder);
@@ -678,6 +678,7 @@ public static class HttpClientExtractor
 
     private static void GeneratePostMethodBody(
         OpenApiOperation operation,
+        OpenApiDocument openApiDoc,
         string returnType,
         bool hasParameters,
         bool hasReturnType,
@@ -693,6 +694,9 @@ public static class HttpClientExtractor
         // Schema references to objects should use the Request pattern, not File
         var isDirectFileUpload = IsDirectFileUpload(operation);
         var fileUploadContentType = operation.GetFileUploadContentType();
+
+        // Check for schema-based multipart/form-data (object with file properties)
+        var schemaBasedMultipartSchema = GetSchemaBasedMultipartSchema(operation, openApiDoc);
 
         if (isDirectFileUpload && hasParameters)
         {
@@ -730,6 +734,13 @@ public static class HttpClientExtractor
                 builder.AppendLine($"content.Headers.ContentType = new MediaTypeHeaderValue(\"{fileUploadContentType ?? "application/octet-stream"}\");");
             }
 
+            builder.AppendLine();
+            builder.AppendLine("var response = await httpClient.PostAsync(url, content, cancellationToken);");
+        }
+        else if (schemaBasedMultipartSchema != null && hasParameters)
+        {
+            // Schema-based multipart/form-data with object containing file properties
+            GenerateSchemaBasedMultipartFormData(builder, schemaBasedMultipartSchema, requestAccess);
             builder.AppendLine();
             builder.AppendLine("var response = await httpClient.PostAsync(url, content, cancellationToken);");
         }
@@ -1167,5 +1178,117 @@ public static class HttpClientExtractor
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Gets the schema for schema-based multipart/form-data requests.
+    /// Returns the resolved schema if the request body is multipart/form-data with a schema reference,
+    /// otherwise returns null.
+    /// </summary>
+    private static IOpenApiSchema? GetSchemaBasedMultipartSchema(
+        OpenApiOperation operation,
+        OpenApiDocument openApiDoc)
+    {
+        if (operation.RequestBody?.Content == null)
+        {
+            return null;
+        }
+
+        // Check for multipart/form-data content type with schema reference
+        if (!operation.RequestBody.Content.TryGetValue("multipart/form-data", out var mediaType))
+        {
+            return null;
+        }
+
+        // If schema is a reference to a component schema, resolve it
+        if (mediaType.Schema is OpenApiSchemaReference schemaRef)
+        {
+            var schemaId = schemaRef.Reference?.Id;
+            if (!string.IsNullOrEmpty(schemaId) &&
+                openApiDoc.Components?.Schemas != null &&
+                openApiDoc.Components.Schemas.TryGetValue(schemaId!, out var schema))
+            {
+                return schema;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Generates code for schema-based multipart/form-data requests.
+    /// Creates MultipartFormDataContent with StringContent for text fields and StreamContent for binary fields.
+    /// </summary>
+    private static void GenerateSchemaBasedMultipartFormData(
+        StringBuilder builder,
+        IOpenApiSchema schema,
+        string requestAccess)
+    {
+        builder.AppendLine("using var content = new MultipartFormDataContent();");
+        builder.AppendLine();
+
+        var properties = schema.Properties?.ToList() ?? [];
+        if (properties.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var prop in properties)
+        {
+            var propName = prop.Key;
+            var propSchema = prop.Value;
+            var pascalPropName = propName.ToPascalCaseForDotNet();
+            var isBinary = propSchema.Type?.HasFlag(JsonSchemaType.String) == true &&
+                           string.Equals(propSchema.Format, "binary", StringComparison.OrdinalIgnoreCase);
+            var isArray = propSchema.Type?.HasFlag(JsonSchemaType.Array) == true;
+            var isArrayOfBinary = isArray &&
+                                  propSchema.Items?.Type?.HasFlag(JsonSchemaType.String) == true &&
+                                  string.Equals(propSchema.Items?.Format, "binary", StringComparison.OrdinalIgnoreCase);
+
+            if (isBinary)
+            {
+                // Single file property - use StreamContent
+                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} != null)");
+                builder.AppendLine("{");
+                builder.AppendLine(4, $"var fileContent = new StreamContent({requestAccess}.{pascalPropName});");
+                builder.AppendLine(4, $"content.Add(fileContent, \"{propName}\", \"{propName}\");");
+                builder.AppendLine("}");
+                builder.AppendLine();
+            }
+            else if (isArrayOfBinary)
+            {
+                // Array of files - use StreamContent for each
+                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} != null)");
+                builder.AppendLine("{");
+                builder.AppendLine(4, $"for (var i = 0; i < {requestAccess}.{pascalPropName}.Count; i++)");
+                builder.AppendLine(4, "{");
+                builder.AppendLine(8, $"var fileContent = new StreamContent({requestAccess}.{pascalPropName}[i]);");
+                builder.AppendLine(8, $"content.Add(fileContent, \"{propName}\", $\"{propName}_{{i}}\");");
+                builder.AppendLine(4, "}");
+                builder.AppendLine("}");
+                builder.AppendLine();
+            }
+            else if (isArray)
+            {
+                // Array of non-binary values - add as multiple form fields
+                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} != null)");
+                builder.AppendLine("{");
+                builder.AppendLine(4, $"foreach (var item in {requestAccess}.{pascalPropName})");
+                builder.AppendLine(4, "{");
+                builder.AppendLine(8, $"content.Add(new StringContent(item?.ToString() ?? string.Empty), \"{propName}\");");
+                builder.AppendLine(4, "}");
+                builder.AppendLine("}");
+                builder.AppendLine();
+            }
+            else
+            {
+                // Simple value - use StringContent
+                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} != null)");
+                builder.AppendLine("{");
+                builder.AppendLine(4, $"content.Add(new StringContent({requestAccess}.{pascalPropName}.ToString()!), \"{propName}\");");
+                builder.AppendLine("}");
+                builder.AppendLine();
+            }
+        }
     }
 }

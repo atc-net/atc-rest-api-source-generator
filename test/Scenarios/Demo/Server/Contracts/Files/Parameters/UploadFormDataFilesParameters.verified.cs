@@ -2,4 +2,4 @@
 namespace Demo.Generated.Parameters;
 
 public sealed record UploadFormDataFilesParameters(
-    [property: FromBody, Required] FilesAsFormDataRequest Request);
+    [property: Required] FilesAsFormDataRequest Request);

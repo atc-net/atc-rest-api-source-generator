@@ -13,8 +13,8 @@ public partial class FilesUpload
     // Single file
     private IBrowserFile? singleFile;
 
-    // Multiple files
-    private IReadOnlyList<IBrowserFile>? multipleFiles;
+    // Multiple files - store as tuples with pre-read data to avoid stale IBrowserFile references
+    private List<(MemoryStream Stream, string Name, string ContentType, long Size)>? multipleFilesData;
 
     // File with metadata
     private IBrowserFile? metadataFile;
@@ -31,9 +31,30 @@ public partial class FilesUpload
         singleFile = file;
     }
 
-    private void OnMultipleFilesSelected(IReadOnlyList<IBrowserFile> files)
+    private async Task OnMultipleFilesSelected(
+        IReadOnlyList<IBrowserFile> files)
     {
-        multipleFiles = files;
+        // Dispose previous files if any
+        if (multipleFilesData != null)
+        {
+            foreach (var (stream, _, _, _) in multipleFilesData)
+            {
+                await stream.DisposeAsync();
+            }
+        }
+
+        // Read all files into memory immediately to avoid stale IBrowserFile references
+        multipleFilesData = new List<(MemoryStream, string, string, long)>();
+        foreach (var file in files)
+        {
+            await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            ms.Position = 0;
+            multipleFilesData.Add((ms, file.Name, file.ContentType, file.Size));
+        }
+
+        StateHasChanged();
     }
 
     private void OnMetadataFileSelected(IBrowserFile file)
@@ -77,7 +98,7 @@ public partial class FilesUpload
 
     private async Task UploadMultipleFilesAsync()
     {
-        if (multipleFiles == null || multipleFiles.Count == 0)
+        if (multipleFilesData == null || multipleFilesData.Count == 0)
         {
             return;
         }
@@ -85,28 +106,24 @@ public partial class FilesUpload
         isLoading = true;
         try
         {
+            // Reset stream positions before upload
             var files = new List<(Stream, string, string)>();
-            var memoryStreams = new List<MemoryStream>();
-
-            foreach (var file in multipleFiles)
+            foreach (var (stream, name, contentType, _) in multipleFilesData)
             {
-                await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-                var ms = new MemoryStream();
-                await stream.CopyToAsync(ms);
-                ms.Position = 0;
-                memoryStreams.Add(ms);
-                files.Add((ms, file.Name, file.ContentType));
+                stream.Position = 0;
+                files.Add((stream, name, contentType));
             }
 
             await Gateway.UploadMultipleFilesAsync(files);
 
-            foreach (var ms in memoryStreams)
+            // Dispose streams after upload
+            foreach (var (stream, _, _, _) in multipleFilesData)
             {
-                await ms.DisposeAsync();
+                await stream.DisposeAsync();
             }
 
-            Snackbar.Add($"Uploaded {multipleFiles.Count} files", Severity.Success);
-            multipleFiles = null;
+            Snackbar.Add($"Uploaded {multipleFilesData.Count} files", Severity.Success);
+            multipleFilesData = null;
         }
         catch (Exception ex)
         {

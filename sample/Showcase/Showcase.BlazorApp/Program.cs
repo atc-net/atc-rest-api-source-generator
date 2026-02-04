@@ -8,7 +8,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 var apiBaseAddress = builder.Configuration["services:api:https:0"]
     ?? builder.Configuration["services:api:http:0"]
     ?? builder.Configuration["ApiBaseAddress"]
-    ?? "https://localhost:5046";
+    ?? "http://localhost:15046";
 
 // Demo JWT token (validation is disabled in API's Program.cs for demo purposes)
 // This is a valid JWT structure but with fake claims - works because validation is disabled

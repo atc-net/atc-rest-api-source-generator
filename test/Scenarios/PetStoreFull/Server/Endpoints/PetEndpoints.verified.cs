@@ -152,6 +152,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
                 .RequireAuthenticatedUser())
+            .Accepts<Stream>("application/octet-stream")
             .DisableAntiforgery();
     }
 

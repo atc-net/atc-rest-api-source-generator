@@ -122,24 +122,26 @@ public sealed partial class GatewayService
 
     /// <summary>
     /// List accounts as async enumerable stream.
-    /// Note: IAsyncEnumerable streaming requires special handling that may not be fully supported
-    /// by the endpoint pattern. This implementation extracts items from the result.
+    /// Uses StreamingEndpointResponse for proper HTTP streaming with lifecycle management.
     /// </summary>
     public async IAsyncEnumerable<Account> ListAsyncEnumerableAccountsAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var result = await listAsyncEnumerableAccountsEndpoint
+        using var result = await listAsyncEnumerableAccountsEndpoint
             .ExecuteAsync(cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
-        if (!result.IsOk)
+        if (!result.IsSuccess || result.Content is null)
         {
             yield break;
         }
 
-        await foreach (var item in result.OkContent.ConfigureAwait(false))
+        await foreach (var item in result.Content.WithCancellation(cancellationToken).ConfigureAwait(false))
         {
-            yield return item;
+            if (item is not null)
+            {
+                yield return item;
+            }
         }
     }
 }

@@ -555,6 +555,8 @@ using Microsoft.AspNetCore.Builder;
         }
 
         sb.AppendLine("using System.CodeDom.Compiler;");
+        sb.AppendLine("using System.Collections.Generic;");
+        sb.AppendLine("using System.Linq;");
         sb.AppendLine("using System.Threading;");
         sb.AppendLine("using Microsoft.AspNetCore.Builder;");
         sb.AppendLine("using Microsoft.AspNetCore.Http;");
@@ -1055,9 +1057,20 @@ using Microsoft.AspNetCore.Builder;
             GenerateOutputCachingMetadata(builder, httpMethod, operation, pathItem, openApiDoc, groupOutputCache);
         }
 
-        // Add DisableAntiforgery for file upload endpoints
+        // Add Accepts and DisableAntiforgery for file upload endpoints
         if (operation.HasFileUpload())
         {
+            var contentType = operation.GetFileUploadContentType();
+            builder.AppendLine();
+            if (contentType is "application/octet-stream")
+            {
+                builder.Append("    .Accepts<Stream>(\"application/octet-stream\")");
+            }
+            else
+            {
+                builder.Append("    .Accepts<IFormFile>(\"multipart/form-data\")");
+            }
+
             builder.AppendLine();
             builder.Append("    .DisableAntiforgery()");
         }
@@ -1213,6 +1226,13 @@ using Microsoft.AspNetCore.Builder;
         OpenApiPathItem? pathItem,
         string methodName)
     {
+        // Skip ValidationFilter for endpoints that use form binding flattening
+        // (they don't use [AsParameters] so the filter can't validate them)
+        if (operation.RequiresFormBindingFlattening())
+        {
+            return;
+        }
+
         // Determine if operation has parameters (operation-level OR path-level)
         var hasOperationParams = operation.Parameters != null && operation.Parameters.Count > 0;
         var hasPathParams = pathItem?.Parameters != null && pathItem.Parameters.Count > 0;
@@ -1458,6 +1478,9 @@ using Microsoft.AspNetCore.Builder;
         var hasParameters = hasOperationParams || hasPathParams;
         var hasRequestBody = operation.HasRequestBody();
 
+        // Check if this is a multipart/form-data with complex schema that needs flattening
+        var requiresFormFlattening = operation.RequiresFormBindingFlattening();
+
         // Build method parameters
         var methodParameters = new List<ParameterBaseParameters>();
 
@@ -1472,9 +1495,63 @@ using Microsoft.AspNetCore.Builder;
             Name: "handler",
             DefaultValue: null));
 
-        // Add Parameters class if operation has parameters OR request body
-        if (hasParameters || hasRequestBody)
+        // For form flattening, add individual form parameters instead of [AsParameters]
+        var formParameterNames = new List<(string ParamName, string PropName, string TypeName)>();
+        if (requiresFormFlattening)
         {
+            var (schemaName, properties) = operation.GetMultipartFormDataSchemaInfo();
+            if (properties != null)
+            {
+                foreach (var kvp in properties)
+                {
+                    var propName = kvp.Key;
+                    var propSchema = kvp.Value;
+                    var pascalPropName = propName.ToPascalCaseForDotNet();
+
+                    // Convert to camelCase for parameter name
+                    var paramName = char.ToLowerInvariant(pascalPropName[0]) + pascalPropName.Substring(1);
+                    var (isFile, isCollection) = propSchema.GetFileUploadInfo();
+
+                    string typeName;
+                    List<AttributeParameters>? attributes = null;
+
+                    if (isFile)
+                    {
+                        // File property - use IFormFile (no attribute needed, ASP.NET Core binds it automatically)
+                        typeName = isCollection ? "IFormFileCollection" : "IFormFile";
+
+                        // Make nullable since file is often optional
+                        typeName += "?";
+                    }
+                    else
+                    {
+                        // Non-file property - needs [FromForm] attribute
+                        // Use ToCSharpType for proper type mapping (handles format, nullable, etc.)
+                        typeName = propSchema.ToCSharpType(isRequired: false, registry: null);
+
+                        attributes = new List<AttributeParameters>
+                        {
+                            new("FromForm", $"Name = \"{propName}\""),
+                        };
+                    }
+
+                    methodParameters.Add(new ParameterBaseParameters(
+                        Attributes: attributes,
+                        GenericTypeName: null,
+                        IsGenericListType: typeName.StartsWith("List<", StringComparison.Ordinal),
+                        TypeName: typeName.TrimEnd('?'),
+                        IsNullableType: typeName.EndsWith("?", StringComparison.Ordinal),
+                        IsReferenceType: true,
+                        Name: paramName,
+                        DefaultValue: null));
+
+                    formParameterNames.Add((paramName, pascalPropName, typeName));
+                }
+            }
+        }
+        else if (hasParameters || hasRequestBody)
+        {
+            // Standard case: use [AsParameters] with the parameters class
             var parameterClassName = $"{methodName}Parameters";
             methodParameters.Add(new ParameterBaseParameters(
                 Attributes: new List<AttributeParameters> { new("AsParameters", null) },
@@ -1500,6 +1577,69 @@ using Microsoft.AspNetCore.Builder;
 
         // Build method content
         string content;
+        if (requiresFormFlattening)
+        {
+            // For form flattening, construct the request object and parameters manually
+            var (schemaName, _) = operation.GetMultipartFormDataSchemaInfo();
+            var requestTypeName = schemaName?.ToPascalCaseForDotNet() ?? "Request";
+            var parameterClassName = $"{methodName}Parameters";
+
+            // Build constructor arguments for the request object
+            // Add null-coalescing for required parameters to handle nullable form binding
+            var requestArgs = string.Join(", ", formParameterNames.Select(p =>
+            {
+                var cleanTypeName = p.TypeName.TrimEnd('?');
+
+                // IFormFile types - handle collection conversion if needed
+                if (cleanTypeName.Contains("IFormFile", StringComparison.Ordinal))
+                {
+                    // IFormFileCollection needs conversion to List<IFormFile> for model compatibility
+                    // The model uses List<IFormFile> but ASP.NET Core binds to IFormFileCollection
+                    if (cleanTypeName == "IFormFileCollection")
+                    {
+                        return $"{p.ParamName}?.ToList() ?? new List<IFormFile>()";
+                    }
+
+                    return p.ParamName;
+                }
+
+                // String parameters - use null-coalescing with empty string
+                if (cleanTypeName.Equals("string", StringComparison.OrdinalIgnoreCase))
+                {
+                    return $"{p.ParamName} ?? string.Empty";
+                }
+
+                // List parameters - use null-coalescing with empty list
+                if (cleanTypeName.StartsWith("List<", StringComparison.Ordinal))
+                {
+                    return $"{p.ParamName} ?? new {cleanTypeName}()";
+                }
+
+                return p.ParamName;
+            }));
+
+            // Use block body since we need to construct objects
+            // Note: Content should NOT include braces - the code generator adds them
+            content = $@"var request = new {requestTypeName}({requestArgs});
+        var parameters = new {parameterClassName}(request);
+        return {resultClassName}.ToIResult(
+            await handler.ExecuteAsync(
+                parameters,
+                cancellationToken));";
+
+            return new MethodParameters(
+                DocumentationTags: null,
+                Attributes: null,
+                DeclarationModifier: DeclarationModifiers.InternalAsync,
+                ReturnGenericTypeName: systemTypeResolver.EnsureFullNamespaceIfNeeded(nameof(Task)),
+                ReturnTypeName: "IResult",
+                Name: methodName,
+                Parameters: methodParameters,
+                AlwaysBreakDownParameters: true,
+                UseExpressionBody: false,
+                Content: content);
+        }
+
         if (hasParameters || hasRequestBody)
         {
             content = $@"{resultClassName}.ToIResult(

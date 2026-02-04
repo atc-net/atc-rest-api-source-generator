@@ -325,6 +325,9 @@ public static class EndpointPerOperationExtractor
         var hasRequestBody = operation.RequestBody is { Content: not null };
         var hasParameters = hasQueryRouteParams || hasRequestBody;
 
+        // Extract streaming item type for IAsyncEnumerable endpoints (e.g., "Account" from "IAsyncEnumerable<Account>")
+        var streamingItemType = isAsyncEnumerable ? ExtractStreamingItemType(responses) : null;
+
         // Generate endpoint interface
         var endpointInterfaceContent = GenerateEndpointInterface(
             projectName,
@@ -334,6 +337,8 @@ public static class EndpointPerOperationExtractor
             hasParameters,
             httpClientName,
             isBinaryEndpoint,
+            isAsyncEnumerable,
+            streamingItemType,
             hasSegmentModels,
             hasSharedModels);
 
@@ -352,17 +357,20 @@ public static class EndpointPerOperationExtractor
             httpClientName,
             responses,
             isBinaryEndpoint,
+            isAsyncEnumerable,
+            streamingItemType,
             hasSegmentModels,
             hasSharedModels,
             useServersBasePath);
 
-        // For binary endpoints, skip generating result interface/class (use BinaryEndpointResponse directly)
+        // For binary and streaming endpoints, skip generating result interface/class
+        // (use BinaryEndpointResponse or StreamingEndpointResponse directly)
         string? resultInterfaceFileName = null;
         string? resultInterfaceContent = null;
         string? resultClassFileName = null;
         string? resultClassContent = null;
 
-        if (!isBinaryEndpoint)
+        if (!isBinaryEndpoint && !isAsyncEnumerable)
         {
             // Generate result interface
             resultInterfaceContent = GenerateResultInterface(
@@ -510,6 +518,8 @@ public static class EndpointPerOperationExtractor
         bool hasParameters,
         string httpClientName,
         bool isBinaryEndpoint,
+        bool isAsyncEnumerable,
+        string? streamingItemType,
         bool hasSegmentModels,
         bool hasSharedModels)
     {
@@ -524,9 +534,9 @@ public static class EndpointPerOperationExtractor
         headerBuilder.AppendLine("using System.Threading;");
         headerBuilder.AppendLine("using System.Threading.Tasks;");
 
-        if (isBinaryEndpoint)
+        if (isBinaryEndpoint || isAsyncEnumerable)
         {
-            // Add using for BinaryEndpointResponse
+            // Add using for BinaryEndpointResponse or StreamingEndpointResponse
             headerBuilder.AppendLine("using Atc.Rest.Client;");
         }
 
@@ -535,10 +545,24 @@ public static class EndpointPerOperationExtractor
             headerBuilder.AppendLine($"using {projectName}.Generated.{pathSegment}.Client;");
         }
 
-        // Add using for result type (in Endpoints.Results namespace) - only for non-binary endpoints
-        if (!isBinaryEndpoint)
+        // Add using for result type (in Endpoints.Results namespace) - only for non-binary and non-streaming endpoints
+        if (!isBinaryEndpoint && !isAsyncEnumerable)
         {
             headerBuilder.AppendLine($"using {projectName}.Generated.{pathSegment}.Endpoints.Results;");
+        }
+
+        // For streaming endpoints, add model usings for the item type
+        if (isAsyncEnumerable)
+        {
+            if (hasSharedModels)
+            {
+                headerBuilder.AppendLine($"using {projectName}.Generated.Models;");
+            }
+
+            if (hasSegmentModels)
+            {
+                headerBuilder.AppendLine($"using {projectName}.Generated.{pathSegment}.Models;");
+            }
         }
 
         // Add blank line before namespace
@@ -580,10 +604,20 @@ public static class EndpointPerOperationExtractor
             Name: "cancellationToken",
             DefaultValue: "default"));
 
-        // Determine return type: BinaryEndpointResponse for binary endpoints, custom result class otherwise
-        var returnTypeName = isBinaryEndpoint
-            ? "Task<BinaryEndpointResponse>"
-            : $"Task<{operationName}EndpointResult>";
+        // Determine return type: BinaryEndpointResponse for binary, StreamingEndpointResponse for streaming, custom result class otherwise
+        string returnTypeName;
+        if (isBinaryEndpoint)
+        {
+            returnTypeName = "Task<BinaryEndpointResponse>";
+        }
+        else if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
+        {
+            returnTypeName = $"Task<StreamingEndpointResponse<{streamingItemType}>>";
+        }
+        else
+        {
+            returnTypeName = $"Task<{operationName}EndpointResult>";
+        }
 
         // Build ExecuteAsync method
         var executeMethod = new MethodParameters(
@@ -637,6 +671,8 @@ public static class EndpointPerOperationExtractor
         string httpClientName,
         List<ResponseInfo> responses,
         bool isBinaryEndpoint,
+        bool isAsyncEnumerable,
+        string? streamingItemType,
         bool hasSegmentModels,
         bool hasSharedModels,
         bool useServersBasePath = true)
@@ -655,9 +691,9 @@ public static class EndpointPerOperationExtractor
         headerBuilder.AppendLine("using System.Threading;");
         headerBuilder.AppendLine("using System.Threading.Tasks;");
 
-        if (isBinaryEndpoint)
+        if (isBinaryEndpoint || isAsyncEnumerable)
         {
-            // Add using for BinaryEndpointResponse
+            // Add using for BinaryEndpointResponse or StreamingEndpointResponse
             headerBuilder.AppendLine("using Atc.Rest.Client;");
         }
 
@@ -666,14 +702,14 @@ public static class EndpointPerOperationExtractor
         headerBuilder.AppendLine($"using {projectName}.Generated;");
         headerBuilder.AppendLine($"using {projectName}.Generated.{pathSegment}.Endpoints.Interfaces;");
 
-        // Add using for result types (in Results namespace) - only for non-binary endpoints
-        if (!isBinaryEndpoint)
+        // Add using for result types (in Results namespace) - only for non-binary and non-streaming endpoints
+        if (!isBinaryEndpoint && !isAsyncEnumerable)
         {
             headerBuilder.AppendLine($"using {projectName}.Generated.{pathSegment}.Endpoints.Results;");
         }
 
-        // Only add Models using for non-binary endpoints (they use ProblemDetails etc.)
-        if (!isBinaryEndpoint)
+        // Add Models usings for non-binary endpoints (they use ProblemDetails etc.) or streaming endpoints (for item type)
+        if (!isBinaryEndpoint || isAsyncEnumerable)
         {
             // Add shared Models using if there are shared models
             if (hasSharedModels)
@@ -773,12 +809,24 @@ public static class EndpointPerOperationExtractor
             operationName,
             responses,
             isBinaryEndpoint,
+            isAsyncEnumerable,
+            streamingItemType,
             useServersBasePath);
 
-        // Determine return type: BinaryEndpointResponse for binary endpoints, custom result class otherwise
-        var returnTypeName = isBinaryEndpoint
-            ? "Task<BinaryEndpointResponse>"
-            : $"Task<{operationName}EndpointResult>";
+        // Determine return type: BinaryEndpointResponse for binary, StreamingEndpointResponse for streaming, custom result class otherwise
+        string returnTypeName;
+        if (isBinaryEndpoint)
+        {
+            returnTypeName = "Task<BinaryEndpointResponse>";
+        }
+        else if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
+        {
+            returnTypeName = $"Task<StreamingEndpointResponse<{streamingItemType}>>";
+        }
+        else
+        {
+            returnTypeName = $"Task<{operationName}EndpointResult>";
+        }
 
         var executeMethod = new MethodParameters(
             DocumentationTags: null,
@@ -831,6 +879,8 @@ public static class EndpointPerOperationExtractor
         string operationName,
         List<ResponseInfo> responses,
         bool isBinaryEndpoint,
+        bool isAsyncEnumerable,
+        string? streamingItemType,
         bool useServersBasePath = true)
     {
         var sb = new StringBuilder();
@@ -927,23 +977,50 @@ public static class EndpointPerOperationExtractor
                 var contentType = operation.GetFileUploadContentType();
                 if (contentType is "application/octet-stream")
                 {
-                    // Single file upload via octet-stream
-                    sb.AppendLine("requestBuilder.WithBody(parameters.File);");
+                    // Single file upload via octet-stream - use WithBinaryBody for raw stream upload
+                    sb.AppendLine("requestBuilder.WithBinaryBody(parameters.File);");
                 }
                 else if (contentType is "multipart/form-data")
                 {
                     // Check if it's a schema-based upload or raw file(s)
-                    var schemaRef = operation.RequestBody.Content.TryGetValue("multipart/form-data", out var mediaType)
-                        ? mediaType.Schema as OpenApiSchemaReference
-                        : null;
-                    if (schemaRef != null)
+                    if (!operation.RequestBody.Content.TryGetValue("multipart/form-data", out var mediaType))
                     {
-                        // Schema-based multipart - use full object (properties mapped to form fields)
-                        sb.AppendLine("requestBuilder.WithBody(parameters);");
+                        sb.AppendLine("requestBuilder.WithBody(parameters.File);");
+                    }
+                    else if (mediaType.Schema is OpenApiSchemaReference schemaRef)
+                    {
+                        // Schema-based multipart - generate WithFile/WithFormField calls for each property
+                        GenerateMultipartFormDataCode(sb, schemaRef, openApiDoc);
+                    }
+                    else if (mediaType.Schema != null)
+                    {
+                        // Raw file(s) multipart - check if single or array
+                        var (isFile, isCollection) = mediaType.Schema.GetFileUploadInfo();
+                        if (isFile && isCollection)
+                        {
+                            // Array of files - iterate and add each with WithFile
+                            sb.AppendLine("if (parameters.File != null)");
+                            sb.AppendLine("{");
+                            sb.AppendLine(4, "for (var i = 0; i < parameters.File.Length; i++)");
+                            sb.AppendLine(4, "{");
+                            sb.AppendLine(8, "requestBuilder.WithFile(parameters.File[i], \"files\", $\"file{i}\");");
+                            sb.AppendLine(4, "}");
+                            sb.AppendLine("}");
+                        }
+                        else if (isFile)
+                        {
+                            // Single file - use WithFile
+                            sb.AppendLine("requestBuilder.WithFile(parameters.File, \"file\", \"file\");");
+                        }
+                        else
+                        {
+                            // Fallback
+                            sb.AppendLine("requestBuilder.WithBody(parameters.File);");
+                        }
                     }
                     else
                     {
-                        // Raw file(s) multipart
+                        // No schema - fallback
                         sb.AppendLine("requestBuilder.WithBody(parameters.File);");
                     }
                 }
@@ -968,7 +1045,19 @@ public static class EndpointPerOperationExtractor
             .Substring(1)
             .ToLowerInvariant();
         sb.AppendLine($"using var requestMessage = requestBuilder.Build(HttpMethod.{httpMethodPascal});");
-        sb.AppendLine("using var response = await client.SendAsync(requestMessage, cancellationToken);");
+
+        // Use ResponseHeadersRead for streaming (IAsyncEnumerable) to enable true HTTP streaming
+        // instead of buffering the entire response before iteration.
+        // For streaming, don't use 'using' - StreamingEndpointResponse manages the response lifecycle.
+        if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
+        {
+            sb.AppendLine("var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken);");
+        }
+        else
+        {
+            sb.AppendLine("using var response = await client.SendAsync(requestMessage, cancellationToken);");
+        }
+
         sb.AppendLine();
 
         // Build response
@@ -978,6 +1067,13 @@ public static class EndpointPerOperationExtractor
         {
             // For binary endpoints, use BuildBinaryResponseAsync directly
             sb.Append("return await responseBuilder.BuildBinaryResponseAsync(cancellationToken);");
+        }
+        else if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
+        {
+            // For streaming endpoints, use BuildStreamingEndpointResponseAsync directly.
+            // This returns a StreamingEndpointResponse<T> that manages the response lifecycle
+            // and allows proper streaming enumeration.
+            sb.Append($"return await responseBuilder.BuildStreamingEndpointResponseAsync<{streamingItemType}>(cancellationToken);");
         }
         else
         {
@@ -1437,4 +1533,128 @@ public static class EndpointPerOperationExtractor
             "OK" => "Ok",
             _ => statusName,
         };
+
+    /// <summary>
+    /// Extracts the item type from an IAsyncEnumerable type string.
+    /// For example, "IAsyncEnumerable&lt;Account&gt;" returns "Account".
+    /// </summary>
+    private static string? ExtractStreamingItemType(
+        List<ResponseInfo> responses)
+    {
+        // Find the success response with IAsyncEnumerable content type
+        var successResponse = responses.FirstOrDefault(r => r.IsSuccess && r.ContentType != null);
+        if (successResponse?.ContentType == null)
+        {
+            return null;
+        }
+
+        var contentType = successResponse.ContentType;
+        const string prefix = "IAsyncEnumerable<";
+
+        if (!contentType.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        // Extract the type between IAsyncEnumerable< and >
+        var startIndex = prefix.Length;
+        var endIndex = contentType.LastIndexOf('>');
+
+        if (endIndex <= startIndex)
+        {
+            return null;
+        }
+
+        return contentType.Substring(startIndex, endIndex - startIndex);
+    }
+
+    /// <summary>
+    /// Generates code for multipart/form-data requests with schema-based content.
+    /// Maps schema properties to WithFile() for binary properties and WithFormField() for others.
+    /// </summary>
+    private static void GenerateMultipartFormDataCode(
+        StringBuilder sb,
+        OpenApiSchemaReference schemaRef,
+        OpenApiDocument openApiDoc)
+    {
+        // Resolve the schema from the document
+        var schemaId = schemaRef.Reference?.Id;
+        if (string.IsNullOrEmpty(schemaId))
+        {
+            // Fallback to simple body if schema can't be resolved
+            sb.AppendLine("requestBuilder.WithBody(parameters.Request);");
+            return;
+        }
+
+        if (openApiDoc.Components?.Schemas == null ||
+            !openApiDoc.Components.Schemas.TryGetValue(schemaId!, out var schema))
+        {
+            // Fallback to simple body if schema can't be resolved
+            sb.AppendLine("requestBuilder.WithBody(parameters.Request);");
+            return;
+        }
+
+        var properties = schema.Properties?.ToList() ?? [];
+        if (properties.Count == 0)
+        {
+            sb.AppendLine("requestBuilder.WithBody(parameters.Request);");
+            return;
+        }
+
+        // Generate code for each property
+        foreach (var prop in properties)
+        {
+            var propName = prop.Key;
+            var propSchema = prop.Value;
+            var pascalPropName = CasingHelper.ToPascalCase(propName);
+            var isBinary = propSchema.Type?.HasFlag(JsonSchemaType.String) == true && propSchema.Format == "binary";
+            var isArray = propSchema.Type?.HasFlag(JsonSchemaType.Array) == true;
+            var isArrayOfBinary = isArray &&
+                                  propSchema.Items?.Type?.HasFlag(JsonSchemaType.String) == true &&
+                                  propSchema.Items?.Format == "binary";
+
+            if (isBinary)
+            {
+                // Single file property - use WithFile
+                sb.AppendLine($"if (parameters.Request?.{pascalPropName} != null)");
+                sb.AppendLine("{");
+                sb.AppendLine(4, $"requestBuilder.WithFile(parameters.Request.{pascalPropName}, \"{propName}\", \"{propName}\");");
+                sb.AppendLine("}");
+                sb.AppendLine();
+            }
+            else if (isArrayOfBinary)
+            {
+                // Array of files - use WithFiles
+                sb.AppendLine($"if (parameters.Request?.{pascalPropName} != null)");
+                sb.AppendLine("{");
+                sb.AppendLine(4, $"foreach (var (stream, index) in parameters.Request.{pascalPropName}.Select((s, i) => (s, i)))");
+                sb.AppendLine(4, "{");
+                sb.AppendLine(8, $"requestBuilder.WithFile(stream, \"{propName}\", $\"{propName}_{{index}}\");");
+                sb.AppendLine(4, "}");
+                sb.AppendLine("}");
+                sb.AppendLine();
+            }
+            else if (isArray)
+            {
+                // Array of non-binary values - serialize as JSON or comma-separated
+                sb.AppendLine($"if (parameters.Request?.{pascalPropName} != null)");
+                sb.AppendLine("{");
+                sb.AppendLine(4, $"foreach (var item in parameters.Request.{pascalPropName})");
+                sb.AppendLine(4, "{");
+                sb.AppendLine(8, $"requestBuilder.WithFormField(\"{propName}\", item?.ToString() ?? string.Empty);");
+                sb.AppendLine(4, "}");
+                sb.AppendLine("}");
+                sb.AppendLine();
+            }
+            else
+            {
+                // Simple value - use WithFormField
+                sb.AppendLine($"if (parameters.Request?.{pascalPropName} != null)");
+                sb.AppendLine("{");
+                sb.AppendLine(4, $"requestBuilder.WithFormField(\"{propName}\", parameters.Request.{pascalPropName}.ToString()!);");
+                sb.AppendLine("}");
+                sb.AppendLine();
+            }
+        }
+    }
 }

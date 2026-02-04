@@ -38,13 +38,13 @@
                 </MudButton>
             </ActivatorContent>
         </MudFileUpload>
-        @if (multipleFiles != null && multipleFiles.Count > 0)
+        @if (multipleFilesData != null && multipleFilesData.Count > 0)
         {
             <MudList T="string" Dense="true" Class="mt-4">
-                @foreach (var file in multipleFiles)
+                @foreach (var (_, name, _, size) in multipleFilesData)
                 {
                     <MudListItem Icon="@Icons.Material.Filled.InsertDriveFile">
-                        @file.Name (@file.Size bytes)
+                        @name (@size bytes)
                     </MudListItem>
                 }
             </MudList>
@@ -53,7 +53,7 @@
                 {
                     <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
                 }
-                Upload All (@multipleFiles.Count files)
+                Upload All (@multipleFilesData.Count files)
             </MudButton>
         }
     </MudTabPanel>

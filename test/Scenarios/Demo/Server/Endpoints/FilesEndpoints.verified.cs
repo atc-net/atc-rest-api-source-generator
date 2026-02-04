@@ -54,6 +54,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .Accepts<IFormFile>("multipart/form-data")
             .DisableAntiforgery();
 
         files
@@ -64,6 +65,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .Accepts<IFormFile>("multipart/form-data")
             .DisableAntiforgery();
 
         files
@@ -74,6 +76,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .Accepts<Stream>("application/octet-stream")
             .DisableAntiforgery();
 
         files
@@ -84,6 +87,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .Accepts<IFormFile>("multipart/form-data")
             .DisableAntiforgery();
     }
 
@@ -98,21 +102,31 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
 
     internal async System.Threading.Tasks.Task<IResult> UploadFormDataFile(
         [FromServices] IUploadFormDataFileHandler handler,
-        [AsParameters] UploadFormDataFileParameters parameters,
+        [FromForm(Name = "itemName")] string? itemName,
+        IFormFile? file,
+        [FromForm(Name = "items")] List<string>? items,
         CancellationToken cancellationToken)
-        => UploadFormDataFileResult.ToIResult(
+    {
+        var request = new FileAsFormDataRequest(itemName ?? string.Empty, file, items ?? new List<string>());
+                var parameters = new UploadFormDataFileParameters(request);
+                return UploadFormDataFileResult.ToIResult(
                     await handler.ExecuteAsync(
                         parameters,
                         cancellationToken));
+    }
 
     internal async System.Threading.Tasks.Task<IResult> UploadFormDataFiles(
         [FromServices] IUploadFormDataFilesHandler handler,
-        [AsParameters] UploadFormDataFilesParameters parameters,
+        IFormFileCollection? files,
         CancellationToken cancellationToken)
-        => UploadFormDataFilesResult.ToIResult(
+    {
+        var request = new FilesAsFormDataRequest(files?.ToList() ?? new List<IFormFile>());
+                var parameters = new UploadFormDataFilesParameters(request);
+                return UploadFormDataFilesResult.ToIResult(
                     await handler.ExecuteAsync(
                         parameters,
                         cancellationToken));
+    }
 
     internal async System.Threading.Tasks.Task<IResult> UploadSingleFileAsFormData(
         [FromServices] IUploadSingleFileAsFormDataHandler handler,
