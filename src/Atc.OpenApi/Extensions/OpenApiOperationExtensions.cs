@@ -293,6 +293,84 @@ public static class OpenApiOperationExtensions
             return response.Content?.Keys.FirstOrDefault(IsFileDownloadContentType);
         }
 
+        /// <summary>
+        /// Checks if the operation has a multipart/form-data request body with a complex schema
+        /// that requires flattening for proper parameter binding in Minimal APIs.
+        /// This is needed for any schema reference (complex type wrapper) because ASP.NET Core
+        /// Minimal APIs with [AsParameters] can't bind wrapped complex types from form data.
+        /// </summary>
+        /// <returns>True if the request body requires form binding flattening.</returns>
+        public bool RequiresFormBindingFlattening()
+        {
+            if (operation.RequestBody?.Content == null)
+            {
+                return false;
+            }
+
+            // Only applies to multipart/form-data
+            if (!operation.RequestBody.Content.TryGetValue("multipart/form-data", out var mediaType))
+            {
+                return false;
+            }
+
+            var schema = mediaType.Schema;
+            if (schema == null)
+            {
+                return false;
+            }
+
+            // Check if it's a schema reference (complex type) with properties
+            // Direct file upload schemas (binary type) don't need flattening
+            var (isFile, _) = schema.GetFileUploadInfo();
+            if (isFile)
+            {
+                return false;
+            }
+
+            // Check if schema has properties - if it's a reference, resolve it
+            var properties = schema.Properties;
+            if (properties == null || properties.Count == 0)
+            {
+                return false;
+            }
+
+            // Any complex schema (object wrapper) with properties needs flattening
+            // because ASP.NET Core Minimal APIs can't bind wrapped types from form data
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the multipart/form-data schema and its properties for flattening.
+        /// </summary>
+        /// <returns>The schema reference name and its properties, or null if not applicable.</returns>
+        public (string? SchemaName, IDictionary<string, IOpenApiSchema>? Properties) GetMultipartFormDataSchemaInfo()
+        {
+            if (operation.RequestBody?.Content == null)
+            {
+                return (null, null);
+            }
+
+            if (!operation.RequestBody.Content.TryGetValue("multipart/form-data", out var mediaType))
+            {
+                return (null, null);
+            }
+
+            var schema = mediaType.Schema;
+            if (schema == null)
+            {
+                return (null, null);
+            }
+
+            // Get schema name from reference
+            string? schemaName = null;
+            if (schema is OpenApiSchemaReference schemaRef)
+            {
+                schemaName = schemaRef.Reference?.Id ?? schemaRef.Id;
+            }
+
+            return (schemaName, schema.Properties);
+        }
+
         private IEnumerable<OpenApiParameter> GetParametersByLocationIterator(
             ParameterLocation location)
         {

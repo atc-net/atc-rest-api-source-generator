@@ -40,6 +40,20 @@
     </MudCardActions>
 </MudCard>
 
+<MudPaper Class="pa-4 mb-4" Elevation="0" Style="background-color: var(--mud-palette-background-gray);">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudIcon Icon="@Icons.Material.Filled.FormatListNumbered" Color="Color.Primary" />
+        <MudText Typo="Typo.h6">Total Items:</MudText>
+        <MudChip T="string" Color="@(isLoading ? Color.Warning : Color.Success)" Size="Size.Large">
+            @accounts.Count
+        </MudChip>
+        @if (isLoading)
+        {
+            <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Warning" />
+        }
+    </MudStack>
+</MudPaper>
+
 <MudTable Items="accounts" Hover="true" Striped="true" Loading="isLoading" LoadingProgressColor="Color.Primary" FixedHeader="true" Height="400px">
     <HeaderContent>
         <MudTh>ID</MudTh>

@@ -270,7 +270,29 @@ public sealed class DemoClient
         CancellationToken cancellationToken = default)
     {
         var url = "/files/form-data/singleObject";
-        var response = await httpClient.PostAsync(url, null, cancellationToken);
+        using var content = new MultipartFormDataContent();
+
+        if (parameters.Request?.ItemName != null)
+        {
+            content.Add(new StringContent(parameters.Request.ItemName.ToString()!), "itemName");
+        }
+
+        if (parameters.Request?.File != null)
+        {
+            var fileContent = new StreamContent(parameters.Request.File);
+            content.Add(fileContent, "file", "file");
+        }
+
+        if (parameters.Request?.Items != null)
+        {
+            foreach (var item in parameters.Request.Items)
+            {
+                content.Add(new StringContent(item?.ToString() ?? string.Empty), "items");
+            }
+        }
+
+
+        var response = await httpClient.PostAsync(url, content, cancellationToken);
         response.EnsureSuccessStatusCode();
     }
 
@@ -279,7 +301,19 @@ public sealed class DemoClient
         CancellationToken cancellationToken = default)
     {
         var url = "/files/form-data/singleObjectMultiFile";
-        var response = await httpClient.PostAsync(url, null, cancellationToken);
+        using var content = new MultipartFormDataContent();
+
+        if (parameters.Request?.Files != null)
+        {
+            for (var i = 0; i < parameters.Request.Files.Count; i++)
+            {
+                var fileContent = new StreamContent(parameters.Request.Files[i]);
+                content.Add(fileContent, "files", $"files_{i}");
+            }
+        }
+
+
+        var response = await httpClient.PostAsync(url, content, cancellationToken);
         response.EnsureSuccessStatusCode();
     }
 

@@ -44,7 +44,13 @@ public sealed class UploadMultiFilesAsFormDataEndpoint : IUploadMultiFilesAsForm
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/files/form-data/multiFile");
-        requestBuilder.WithBody(parameters.File);
+        if (parameters.File != null)
+        {
+            for (var i = 0; i < parameters.File.Length; i++)
+            {
+                requestBuilder.WithFile(parameters.File[i], "files", $"file{i}");
+            }
+        }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
         using var response = await client.SendAsync(requestMessage, cancellationToken);

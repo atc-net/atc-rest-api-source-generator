@@ -491,14 +491,22 @@ public static class OperationParameterExtractor
                 }
                 else
                 {
-                    // JSON body with [FromBody]
+                    // Schema-based body (not a direct file upload)
                     bodyType = requestBodySchema.ToCSharpType(isRequired, registry);
                     propertyName = "Request";
 
                     // Add binding attribute only for server-side parameters
                     if (includeBindingAttributes)
                     {
-                        bodyAttributes.Add(new AttributeParameters("FromBody", null));
+                        // For multipart/form-data with schema reference (e.g., objects containing IFormFile),
+                        // don't add any binding attribute - ASP.NET Core will automatically use form binding
+                        // when it detects IFormFile properties. [FromBody] would force JSON deserialization,
+                        // and [FromForm] causes issues with complex types in minimal APIs.
+                        var isMultipartFormData = contentType?.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) == true;
+                        if (!isMultipartFormData)
+                        {
+                            bodyAttributes.Add(new AttributeParameters("FromBody", null));
+                        }
                     }
                 }
 

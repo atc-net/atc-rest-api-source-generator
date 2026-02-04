@@ -49,7 +49,7 @@ public sealed class UploadFileEndpoint : IUploadFileEndpoint
         {
             requestBuilder.WithQueryParameter("additionalMetadata", parameters.AdditionalMetadata);
         }
-        requestBuilder.WithBody(parameters.File);
+        requestBuilder.WithBinaryBody(parameters.File);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
         using var response = await client.SendAsync(requestMessage, cancellationToken);

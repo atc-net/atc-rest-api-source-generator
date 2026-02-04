@@ -2,11 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Atc.Rest.Client" Version="2.0.15" />
+    <PackageReference Include="Atc.Rest.Client" Version="2.0.20" />
   </ItemGroup>
 
   <ItemGroup>
