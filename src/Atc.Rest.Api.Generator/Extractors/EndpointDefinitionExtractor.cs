@@ -1620,12 +1620,14 @@ using Microsoft.AspNetCore.Builder;
 
             // Use block body since we need to construct objects
             // Note: Content should NOT include braces - the code generator adds them
-            content = $@"var request = new {requestTypeName}({requestArgs});
-        var parameters = new {parameterClassName}(request);
-        return {resultClassName}.ToIResult(
-            await handler.ExecuteAsync(
-                parameters,
-                cancellationToken));";
+            content = $"""
+                       var request = new {requestTypeName}({requestArgs});
+                               var parameters = new {parameterClassName}(request);
+                               return {resultClassName}.ToIResult(
+                                   await handler.ExecuteAsync(
+                                       parameters,
+                                       cancellationToken));
+                       """;
 
             return new MethodParameters(
                 DocumentationTags: null,
@@ -1642,16 +1644,20 @@ using Microsoft.AspNetCore.Builder;
 
         if (hasParameters || hasRequestBody)
         {
-            content = $@"{resultClassName}.ToIResult(
-            await handler.ExecuteAsync(
-                parameters,
-                cancellationToken))";
+            content = $"""
+                       {resultClassName}.ToIResult(
+                                   await handler.ExecuteAsync(
+                                       parameters,
+                                       cancellationToken))
+                       """;
         }
         else
         {
-            content = $@"{resultClassName}.ToIResult(
-            await handler.ExecuteAsync(
-                cancellationToken))";
+            content = $"""
+                       {resultClassName}.ToIResult(
+                                   await handler.ExecuteAsync(
+                                       cancellationToken))
+                       """;
         }
 
         return new MethodParameters(
