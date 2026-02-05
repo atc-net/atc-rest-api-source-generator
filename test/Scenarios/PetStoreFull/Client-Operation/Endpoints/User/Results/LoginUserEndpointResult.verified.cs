@@ -24,9 +24,6 @@ public sealed class LoginUserEndpointResult : EndpointResponse, ILoginUserEndpoi
     {
     }
 
-    public bool IsOk
-        => StatusCode == HttpStatusCode.OK;
-
     public bool IsBadRequest
         => StatusCode == HttpStatusCode.BadRequest;
 

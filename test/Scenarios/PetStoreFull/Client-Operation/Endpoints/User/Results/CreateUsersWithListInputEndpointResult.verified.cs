@@ -24,9 +24,6 @@ public sealed class CreateUsersWithListInputEndpointResult : EndpointResponse, I
     {
     }
 
-    public bool IsOk
-        => StatusCode == HttpStatusCode.OK;
-
     public bool IsBadRequest
         => StatusCode == HttpStatusCode.BadRequest;
 

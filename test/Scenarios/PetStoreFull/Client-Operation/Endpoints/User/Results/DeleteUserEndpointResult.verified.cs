@@ -24,9 +24,6 @@ public sealed class DeleteUserEndpointResult : EndpointResponse, IDeleteUserEndp
     {
     }
 
-    public bool IsOk
-        => StatusCode == HttpStatusCode.OK;
-
     public bool IsBadRequest
         => StatusCode == HttpStatusCode.BadRequest;
 
