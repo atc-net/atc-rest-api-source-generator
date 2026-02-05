@@ -36,10 +36,18 @@ public sealed class DeletePetEndpointResult : EndpointResponse, IDeletePetEndpoi
     public ProblemDetails NotFoundContent
         => IsNotFound && ContentObject is ProblemDetails result
             ? result
-            : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.NotFound, "NotFoundContent");
+            : IsNotFound && ContentObject is string message
+                ? ProblemDetailsFactory.Create(HttpStatusCode.NotFound, message)
+                : IsNotFound && ContentObject is null
+                    ? ProblemDetailsFactory.Create(HttpStatusCode.NotFound)
+                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.NotFound, "NotFoundContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result
             ? result
-            : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
+            : IsInternalServerError && ContentObject is string message
+                ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError, message)
+                : IsInternalServerError && ContentObject is null
+                    ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError)
+                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
 }

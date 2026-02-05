@@ -1248,12 +1248,14 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine(8, $"=> Is{response.PropertyName} && ContentObject is {response.ContentType} result");
             sb.AppendLine(12, "? result");
 
-            // For 401/403 with ProblemDetails, add fallback for plain text responses
-            if ((response.StatusCode == "401" || response.StatusCode == "403") && response.ContentType == "ProblemDetails")
+            // For ProblemDetails, add fallback for plain text responses and null ContentObject
+            if (response.ContentType == "ProblemDetails")
             {
                 sb.AppendLine(12, $": Is{response.PropertyName} && ContentObject is string message");
                 sb.AppendLine(16, $"? ProblemDetailsFactory.Create(HttpStatusCode.{response.StatusEnumName}, message)");
-                sb.AppendLine(16, $": throw InvalidContentAccessException<{response.ContentType}>(HttpStatusCode.{response.StatusEnumName}, \"{response.PropertyName}Content\");");
+                sb.AppendLine(16, $": Is{response.PropertyName} && ContentObject is null");
+                sb.AppendLine(20, $"? ProblemDetailsFactory.Create(HttpStatusCode.{response.StatusEnumName})");
+                sb.AppendLine(20, $": throw InvalidContentAccessException<{response.ContentType}>(HttpStatusCode.{response.StatusEnumName}, \"{response.PropertyName}Content\");");
             }
             else
             {
