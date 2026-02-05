@@ -39,15 +39,27 @@ public sealed class DeleteOrderEndpointResult : EndpointResponse, IDeleteOrderEn
     public ProblemDetails NotFoundContent
         => IsNotFound && ContentObject is ProblemDetails result
             ? result
-            : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.NotFound, "NotFoundContent");
+            : IsNotFound && ContentObject is string message
+                ? ProblemDetailsFactory.Create(HttpStatusCode.NotFound, message)
+                : IsNotFound && ContentObject is null
+                    ? ProblemDetailsFactory.Create(HttpStatusCode.NotFound)
+                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.NotFound, "NotFoundContent");
 
     public ProblemDetails TooManyRequestsContent
         => IsTooManyRequests && ContentObject is ProblemDetails result
             ? result
-            : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.TooManyRequests, "TooManyRequestsContent");
+            : IsTooManyRequests && ContentObject is string message
+                ? ProblemDetailsFactory.Create(HttpStatusCode.TooManyRequests, message)
+                : IsTooManyRequests && ContentObject is null
+                    ? ProblemDetailsFactory.Create(HttpStatusCode.TooManyRequests)
+                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.TooManyRequests, "TooManyRequestsContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result
             ? result
-            : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
+            : IsInternalServerError && ContentObject is string message
+                ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError, message)
+                : IsInternalServerError && ContentObject is null
+                    ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError)
+                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
 }

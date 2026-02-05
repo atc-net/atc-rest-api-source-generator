@@ -579,6 +579,70 @@ public class EndpointPerOperationExtractorTests
     }
 
     [Fact]
+    public void Extract_ProblemDetailsFormat_HasNullContentObjectFallback()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: getItems
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                                    '400':
+                                      description: Bad Request
+                                    '401':
+                                      description: Unauthorized
+                                    '500':
+                                      description: Internal Server Error
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document!,
+            "TestApi",
+            "items",
+            registry: null,
+            includeDeprecated: false,
+            errorResponseFormat: ErrorResponseFormatType.ProblemDetails);
+
+        // Assert
+        Assert.Single(files);
+        var operationFile = files[0];
+        Assert.NotNull(operationFile.ResultClassContent);
+
+        // 401 (ProblemDetails) should have string message fallback
+        Assert.Contains("IsUnauthorized && ContentObject is string message", operationFile.ResultClassContent, StringComparison.Ordinal);
+
+        // 401 (ProblemDetails) should have null ContentObject fallback
+        Assert.Contains("IsUnauthorized && ContentObject is null", operationFile.ResultClassContent, StringComparison.Ordinal);
+
+        // 500 (ProblemDetails) should have string message fallback
+        Assert.Contains("IsInternalServerError && ContentObject is string message", operationFile.ResultClassContent, StringComparison.Ordinal);
+
+        // 500 (ProblemDetails) should have null ContentObject fallback
+        Assert.Contains("IsInternalServerError && ContentObject is null", operationFile.ResultClassContent, StringComparison.Ordinal);
+
+        // 400 uses ValidationProblemDetails, NOT ProblemDetails - should NOT have these fallbacks
+        Assert.DoesNotContain("IsBadRequest && ContentObject is string message", operationFile.ResultClassContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("IsBadRequest && ContentObject is null", operationFile.ResultClassContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Extract_PlainTextFormat_Uses_String_ForNon400Errors()
     {
         // Arrange

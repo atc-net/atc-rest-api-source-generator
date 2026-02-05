@@ -44,7 +44,11 @@ public sealed class CreateTaskEndpointResult : EndpointResponse, ICreateTaskEndp
     public ProblemDetails ConflictContent
         => IsConflict && ContentObject is ProblemDetails result
             ? result
-            : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
+            : IsConflict && ContentObject is string message
+                ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict, message)
+                : IsConflict && ContentObject is null
+                    ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict)
+                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
 
     public ValidationProblemDetails BadRequestContent
         => IsBadRequest && ContentObject is ValidationProblemDetails result
@@ -54,5 +58,9 @@ public sealed class CreateTaskEndpointResult : EndpointResponse, ICreateTaskEndp
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result
             ? result
-            : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
+            : IsInternalServerError && ContentObject is string message
+                ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError, message)
+                : IsInternalServerError && ContentObject is null
+                    ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError)
+                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
 }

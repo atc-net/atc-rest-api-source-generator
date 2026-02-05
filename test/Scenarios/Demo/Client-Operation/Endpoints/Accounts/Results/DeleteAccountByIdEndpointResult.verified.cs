@@ -39,7 +39,11 @@ public sealed class DeleteAccountByIdEndpointResult : EndpointResponse, IDeleteA
     public ProblemDetails NotFoundContent
         => IsNotFound && ContentObject is ProblemDetails result
             ? result
-            : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.NotFound, "NotFoundContent");
+            : IsNotFound && ContentObject is string message
+                ? ProblemDetailsFactory.Create(HttpStatusCode.NotFound, message)
+                : IsNotFound && ContentObject is null
+                    ? ProblemDetailsFactory.Create(HttpStatusCode.NotFound)
+                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.NotFound, "NotFoundContent");
 
     public ValidationProblemDetails BadRequestContent
         => IsBadRequest && ContentObject is ValidationProblemDetails result
@@ -49,5 +53,9 @@ public sealed class DeleteAccountByIdEndpointResult : EndpointResponse, IDeleteA
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result
             ? result
-            : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
+            : IsInternalServerError && ContentObject is string message
+                ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError, message)
+                : IsInternalServerError && ContentObject is null
+                    ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError)
+                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
 }
