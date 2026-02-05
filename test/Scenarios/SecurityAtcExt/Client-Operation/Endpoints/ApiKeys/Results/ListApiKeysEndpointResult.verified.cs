@@ -24,6 +24,9 @@ public sealed class ListApiKeysEndpointResult : EndpointResponse, IListApiKeysEn
     {
     }
 
+    public new bool IsOk
+        => StatusCode == HttpStatusCode.OK;
+
     public bool IsUnauthorized
         => StatusCode == HttpStatusCode.Unauthorized;
 

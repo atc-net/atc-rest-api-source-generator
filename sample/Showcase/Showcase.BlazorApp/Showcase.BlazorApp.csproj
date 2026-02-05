@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Atc" Version="3.0.16" />
-    <PackageReference Include="Atc.Rest.Client" Version="2.0.24" />
+    <PackageReference Include="Atc.Rest.Client" Version="2.0.25" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.2" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.2.0" />

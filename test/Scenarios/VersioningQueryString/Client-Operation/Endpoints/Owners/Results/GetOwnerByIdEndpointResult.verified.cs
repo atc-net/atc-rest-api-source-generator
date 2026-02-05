@@ -24,6 +24,9 @@ public sealed class GetOwnerByIdEndpointResult : EndpointResponse, IGetOwnerById
     {
     }
 
+    public new bool IsOk
+        => StatusCode == HttpStatusCode.OK;
+
     public bool IsNotFound
         => StatusCode == HttpStatusCode.NotFound;
 

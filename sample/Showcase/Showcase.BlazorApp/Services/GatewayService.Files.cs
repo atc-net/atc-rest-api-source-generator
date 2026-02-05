@@ -20,7 +20,7 @@ public sealed partial class GatewayService
             .ExecuteAsync(parameters, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
-        if (!result.IsOk || result.Content is null)
+        if (!result.IsSuccess || result.Content is null)
         {
             return null;
         }

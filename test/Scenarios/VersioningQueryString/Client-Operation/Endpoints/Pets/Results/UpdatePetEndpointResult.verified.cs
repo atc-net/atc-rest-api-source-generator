@@ -24,6 +24,9 @@ public sealed class UpdatePetEndpointResult : EndpointResponse, IUpdatePetEndpoi
     {
     }
 
+    public new bool IsOk
+        => StatusCode == HttpStatusCode.OK;
+
     public bool IsNotFound
         => StatusCode == HttpStatusCode.NotFound;
 

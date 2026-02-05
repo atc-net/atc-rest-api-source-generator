@@ -24,6 +24,9 @@ public sealed class GetAccountByIdEndpointResult : EndpointResponse, IGetAccount
     {
     }
 
+    public new bool IsOk
+        => StatusCode == HttpStatusCode.OK;
+
     public bool IsNotFound
         => StatusCode == HttpStatusCode.NotFound;
 

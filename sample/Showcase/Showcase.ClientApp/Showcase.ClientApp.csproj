@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Atc.Rest.Client" Version="2.0.24" />
+    <PackageReference Include="Atc.Rest.Client" Version="2.0.25" />
   </ItemGroup>
 
   <ItemGroup>

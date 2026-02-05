@@ -24,6 +24,9 @@ public sealed class ProcessPaymentEndpointResult : EndpointResponse, IProcessPay
     {
     }
 
+    public new bool IsOk
+        => StatusCode == HttpStatusCode.OK;
+
     public bool IsServiceUnavailable
         => StatusCode == HttpStatusCode.ServiceUnavailable;
 

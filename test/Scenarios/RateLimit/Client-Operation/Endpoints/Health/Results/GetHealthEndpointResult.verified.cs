@@ -24,6 +24,9 @@ public sealed class GetHealthEndpointResult : EndpointResponse, IGetHealthEndpoi
     {
     }
 
+    public new bool IsOk
+        => StatusCode == HttpStatusCode.OK;
+
     public bool IsTooManyRequests
         => StatusCode == HttpStatusCode.TooManyRequests;
 

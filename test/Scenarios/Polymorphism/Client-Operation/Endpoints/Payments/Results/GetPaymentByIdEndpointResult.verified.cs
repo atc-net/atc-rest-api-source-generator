@@ -24,6 +24,9 @@ public sealed class GetPaymentByIdEndpointResult : EndpointResponse, IGetPayment
     {
     }
 
+    public new bool IsOk
+        => StatusCode == HttpStatusCode.OK;
+
     public bool IsNotFound
         => StatusCode == HttpStatusCode.NotFound;
 
