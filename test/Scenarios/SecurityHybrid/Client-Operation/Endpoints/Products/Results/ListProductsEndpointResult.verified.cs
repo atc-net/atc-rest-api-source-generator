@@ -24,6 +24,9 @@ public sealed class ListProductsEndpointResult : EndpointResponse, IListProducts
     {
     }
 
+    public new bool IsOk
+        => StatusCode == HttpStatusCode.OK;
+
     public bool IsUnauthorized
         => StatusCode == HttpStatusCode.Unauthorized;
 

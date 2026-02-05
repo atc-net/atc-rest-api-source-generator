@@ -24,6 +24,9 @@ public sealed class GetPetByIdEndpointResult : EndpointResponse, IGetPetByIdEndp
     {
     }
 
+    public new bool IsOk
+        => StatusCode == HttpStatusCode.OK;
+
     public bool IsNotFound
         => StatusCode == HttpStatusCode.NotFound;
 

@@ -24,6 +24,9 @@ public sealed class UpdateAdminSettingsEndpointResult : EndpointResponse, IUpdat
     {
     }
 
+    public new bool IsOk
+        => StatusCode == HttpStatusCode.OK;
+
     public bool IsBadRequest
         => StatusCode == HttpStatusCode.BadRequest;
 

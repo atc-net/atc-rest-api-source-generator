@@ -24,6 +24,9 @@ public sealed class GetCurrentUserEndpointResult : EndpointResponse, IGetCurrent
     {
     }
 
+    public new bool IsOk
+        => StatusCode == HttpStatusCode.OK;
+
     public bool IsUnauthorized
         => StatusCode == HttpStatusCode.Unauthorized;
 

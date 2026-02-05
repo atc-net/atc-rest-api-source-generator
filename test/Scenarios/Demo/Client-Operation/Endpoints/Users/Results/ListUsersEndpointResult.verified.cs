@@ -24,6 +24,9 @@ public sealed class ListUsersEndpointResult : EndpointResponse, IListUsersEndpoi
     {
     }
 
+    public new bool IsOk
+        => StatusCode == HttpStatusCode.OK;
+
     public bool IsBadRequest
         => StatusCode == HttpStatusCode.BadRequest;
 

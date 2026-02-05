@@ -24,6 +24,9 @@ public sealed class GetAnalyticsSummaryEndpointResult : EndpointResponse, IGetAn
     {
     }
 
+    public new bool IsOk
+        => StatusCode == HttpStatusCode.OK;
+
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
 

@@ -1147,13 +1147,8 @@ public static class EndpointPerOperationExtractor
 
         foreach (var response in responses)
         {
-            // Skip IsOk - already provided by IEndpointResponse base interface
-            if (response.PropertyName == "Ok")
-            {
-                continue;
-            }
-
-            sb.AppendLine(4, $"bool Is{response.PropertyName} {{ get; }}");
+            var newModifier = response.PropertyName == "Ok" ? "new " : string.Empty;
+            sb.AppendLine(4, $"{newModifier}bool Is{response.PropertyName} {{ get; }}");
             sb.AppendLine();
         }
 
@@ -1230,13 +1225,8 @@ public static class EndpointPerOperationExtractor
         // Is{PropertyName} properties
         foreach (var response in responses)
         {
-            // Skip IsOk - already provided by EndpointResponse base class
-            if (response.PropertyName == "Ok")
-            {
-                continue;
-            }
-
-            sb.AppendLine(4, $"public bool Is{response.PropertyName}");
+            var newModifier = response.PropertyName == "Ok" ? "new " : string.Empty;
+            sb.AppendLine(4, $"public {newModifier}bool Is{response.PropertyName}");
             sb.AppendLine(8, $"=> StatusCode == HttpStatusCode.{response.StatusEnumName};");
             sb.AppendLine();
         }
