@@ -16,8 +16,6 @@ namespace PetStoreFull.Generated.User.Endpoints.Interfaces;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface ICreateUsersWithListInputEndpointResult : IEndpointResponse
 {
-    bool IsOk { get; }
-
     bool IsBadRequest { get; }
 
     bool IsConflict { get; }

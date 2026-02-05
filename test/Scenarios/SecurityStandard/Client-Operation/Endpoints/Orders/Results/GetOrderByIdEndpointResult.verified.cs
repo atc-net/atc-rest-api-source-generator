@@ -24,9 +24,6 @@ public sealed class GetOrderByIdEndpointResult : EndpointResponse, IGetOrderById
     {
     }
 
-    public bool IsOk
-        => StatusCode == HttpStatusCode.OK;
-
     public bool IsNotFound
         => StatusCode == HttpStatusCode.NotFound;
 

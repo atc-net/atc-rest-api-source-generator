@@ -24,9 +24,6 @@ public sealed class LogoutUserEndpointResult : EndpointResponse, ILogoutUserEndp
     {
     }
 
-    public bool IsOk
-        => StatusCode == HttpStatusCode.OK;
-
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
 

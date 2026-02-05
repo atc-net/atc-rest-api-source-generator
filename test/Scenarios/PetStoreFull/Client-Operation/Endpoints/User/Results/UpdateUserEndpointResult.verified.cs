@@ -24,9 +24,6 @@ public sealed class UpdateUserEndpointResult : EndpointResponse, IUpdateUserEndp
     {
     }
 
-    public bool IsOk
-        => StatusCode == HttpStatusCode.OK;
-
     public bool IsBadRequest
         => StatusCode == HttpStatusCode.BadRequest;
 
