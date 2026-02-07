@@ -33,7 +33,9 @@ public static class OperationParameterExtractor
 
         var namespaceValue = NamespaceBuilder.ForParameters(projectName);
         var modelsNamespace = NamespaceBuilder.ForModels(projectName);
-        var headerContent = BuildHeaderContent(includeBindingAttributes: true, modelsNamespace);
+        var headerContent = BuildHeaderContent(
+            includeBindingAttributes: true,
+            modelsNamespace);
 
         return new RecordsParameters(
             HeaderContent: headerContent,
@@ -86,7 +88,10 @@ public static class OperationParameterExtractor
         var sharedModelsNamespace = includeSharedModelsUsing && !string.IsNullOrEmpty(pathSegment)
             ? NamespaceBuilder.ForModels(projectName)
             : null;
-        var headerContent = BuildHeaderContent(includeBindingAttributes: true, segmentModelsNamespace, sharedModelsNamespace);
+        var headerContent = BuildHeaderContent(
+            includeBindingAttributes: true,
+            segmentModelsNamespace,
+            sharedModelsNamespace);
 
         return new RecordsParameters(
             HeaderContent: headerContent,
@@ -374,6 +379,15 @@ public static class OperationParameterExtractor
                     ? paramType.Substring(0, paramType.Length - 1)
                     : paramType;
 
+                // For server-side query parameters, List<T> must be wrapped with ParsableList<T>
+                // because [AsParameters] binding requires TryParse, which List<T> doesn't have
+                if (includeBindingAttributes &&
+                    paramLocation == ParameterLocation.Query &&
+                    cleanTypeName.StartsWith("List<", StringComparison.Ordinal))
+                {
+                    cleanTypeName = "Parsable" + cleanTypeName;
+                }
+
                 // Build attributes list
                 var attributes = new List<AttributeParameters>();
 
@@ -618,8 +632,10 @@ public static class OperationParameterExtractor
                 return $"{baseType}?";
             }
 
-            // String and arrays should also be nullable when not required or nullable
-            if (baseType == "string" || baseType.EndsWith("[]", StringComparison.Ordinal))
+            // String, arrays, and generic collections should also be nullable when not required or nullable
+            if (baseType == "string" ||
+                baseType.EndsWith("[]", StringComparison.Ordinal) ||
+                baseType.StartsWith("List<", StringComparison.Ordinal))
             {
                 return $"{baseType}?";
             }
