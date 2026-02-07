@@ -181,9 +181,14 @@ public static class JsonSchemaTypeExtensions
             "binary" when includeIFormFile => "IFormFile",
             "byte" => "byte[]", // base64 encoded content - System.Text.Json handles serialization
             "uuid" => "Guid",
+            "guid" => "Guid",
             "date-time" => "DateTimeOffset",
             "date" => "DateTimeOffset",
             "uri" => "Uri",
+            "int32" => "int",
+            "int" => "int",
+            "int64" => "long",
+            "long" => "long",
             _ => "string",
         };
     }
