@@ -41,11 +41,16 @@ public class JsonSchemaTypeExtensionsTests
     // ========== ToCSharpTypeName - String Tests ==========
     [Theory]
     [InlineData(null, "string")]
-    [InlineData("uuid", "Guid")]
-    [InlineData("date-time", "DateTimeOffset")]
     [InlineData("date", "DateTimeOffset")]
-    [InlineData("uri", "Uri")]
+    [InlineData("date-time", "DateTimeOffset")]
+    [InlineData("guid", "Guid")]
+    [InlineData("int", "int")]
+    [InlineData("int32", "int")]
+    [InlineData("int64", "long")]
+    [InlineData("long", "long")]
     [InlineData("unknown", "string")]
+    [InlineData("uri", "Uri")]
+    [InlineData("uuid", "Guid")]
     public void ToCSharpTypeName_String_ReturnsExpectedType(
         string? format,
         string expected)

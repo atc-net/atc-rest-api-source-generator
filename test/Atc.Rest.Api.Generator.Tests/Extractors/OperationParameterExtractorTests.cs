@@ -585,8 +585,181 @@ public class OperationParameterExtractorTests
         var param = recordsParams.Parameters[0].Parameters![0];
         Assert.Equal("Types", param.Name);
 
-        // For arrays, TypeName is the full generic type
-        Assert.Equal("List<DeviceType>", param.TypeName);
+        // For server-side query arrays, TypeName is ParsableList (supports TryParse for [AsParameters])
+        Assert.Equal("ParsableList<DeviceType>", param.TypeName);
+
+        // Not required (default), so should be nullable
+        Assert.True(param.IsNullableType);
+    }
+
+    [Theory]
+    [InlineData("boolean", null, "ParsableList<bool>")]
+    [InlineData("integer", "int32", "ParsableList<int>")]
+    [InlineData("integer", "int64", "ParsableList<long>")]
+    [InlineData("number", "double", "ParsableList<double>")]
+    [InlineData("number", "float", "ParsableList<float>")]
+    [InlineData("string", null, "ParsableList<string>")]
+    [InlineData("string", "date-time", "ParsableList<DateTimeOffset>")]
+    [InlineData("string", "guid", "ParsableList<Guid>")]
+    [InlineData("string", "int", "ParsableList<int>")]
+    [InlineData("string", "int32", "ParsableList<int>")]
+    [InlineData("string", "int64", "ParsableList<long>")]
+    [InlineData("string", "long", "ParsableList<long>")]
+    [InlineData("string", "uuid", "ParsableList<Guid>")]
+    public void Extract_WithRequiredArrayQueryParameter_GeneratesParsableListNotNullable(
+        string itemType,
+        string? itemFormat,
+        string expectedTypeName)
+    {
+        // Arrange - required array query parameter
+        var formatLine = itemFormat != null ? $"\n              format: {itemFormat}" : string.Empty;
+        var yaml = $"""
+                    openapi: 3.0.0
+                    info:
+                      title: Test API
+                      version: 1.0.0
+                    paths:
+                      /items:
+                        get:
+                          operationId: getItems
+                          parameters:
+                            - name: ids
+                              in: query
+                              required: true
+                              schema:
+                                type: array
+                                items:
+                                  type: {itemType}{formatLine}
+                          responses:
+                            '200':
+                              description: OK
+                    """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var recordsParams = OperationParameterExtractor.Extract(
+            document!,
+            "TestApi",
+            "Items",
+            registry: null,
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(recordsParams);
+        var param = recordsParams.Parameters[0].Parameters![0];
+        Assert.Equal("Ids", param.Name);
+        Assert.Equal(expectedTypeName, param.TypeName);
+        Assert.False(param.IsNullableType);
+    }
+
+    [Theory]
+    [InlineData("boolean", null, "ParsableList<bool>")]
+    [InlineData("integer", "int32", "ParsableList<int>")]
+    [InlineData("integer", "int64", "ParsableList<long>")]
+    [InlineData("number", "double", "ParsableList<double>")]
+    [InlineData("number", "float", "ParsableList<float>")]
+    [InlineData("string", null, "ParsableList<string>")]
+    [InlineData("string", "date-time", "ParsableList<DateTimeOffset>")]
+    [InlineData("string", "guid", "ParsableList<Guid>")]
+    [InlineData("string", "int", "ParsableList<int>")]
+    [InlineData("string", "int32", "ParsableList<int>")]
+    [InlineData("string", "int64", "ParsableList<long>")]
+    [InlineData("string", "long", "ParsableList<long>")]
+    [InlineData("string", "uuid", "ParsableList<Guid>")]
+    public void Extract_WithOptionalArrayQueryParameter_GeneratesParsableListNullable(
+        string itemType,
+        string? itemFormat,
+        string expectedTypeName)
+    {
+        // Arrange - optional array query parameter (required: false / not specified)
+        var formatLine = itemFormat != null ? $"\n              format: {itemFormat}" : string.Empty;
+        var yaml = $"""
+                    openapi: 3.0.0
+                    info:
+                      title: Test API
+                      version: 1.0.0
+                    paths:
+                      /items:
+                        get:
+                          operationId: getItems
+                          parameters:
+                            - name: ids
+                              in: query
+                              schema:
+                                type: array
+                                items:
+                                  type: {itemType}{formatLine}
+                          responses:
+                            '200':
+                              description: OK
+                    """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var recordsParams = OperationParameterExtractor.Extract(
+            document!,
+            "TestApi",
+            "Items",
+            registry: null,
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(recordsParams);
+        var param = recordsParams.Parameters[0].Parameters![0];
+        Assert.Equal("Ids", param.Name);
+        Assert.Equal(expectedTypeName, param.TypeName);
+        Assert.True(param.IsNullableType);
+    }
+
+    [Fact]
+    public void Extract_WithNullableArrayQueryParameter_GeneratesParsableListNullable()
+    {
+        // Arrange - required but nullable array (OpenAPI 3.0 nullable: true)
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: getItems
+                                  parameters:
+                                    - name: teamIds
+                                      in: query
+                                      required: true
+                                      schema:
+                                        type: array
+                                        items:
+                                          type: integer
+                                          format: int64
+                                        nullable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var recordsParams = OperationParameterExtractor.Extract(
+            document!,
+            "TestApi",
+            "Items",
+            registry: null,
+            includeDeprecated: false);
+
+        // Assert - required but nullable should still be nullable
+        Assert.NotNull(recordsParams);
+        var param = recordsParams.Parameters[0].Parameters![0];
+        Assert.Equal("TeamIds", param.Name);
+        Assert.Equal("ParsableList<long>", param.TypeName);
+        Assert.True(param.IsNullableType);
     }
 
     [Fact]
@@ -694,6 +867,61 @@ public class OperationParameterExtractorTests
         Assert.False(param.IsNullableType); // Always non-nullable (required)
         Assert.NotNull(param.Attributes);
         Assert.Contains(param.Attributes, a => a.Name == "Required"); // Always has Required attribute
+    }
+
+    [Theory]
+    [InlineData("date", "DateTimeOffset")]
+    [InlineData("date-time", "DateTimeOffset")]
+    [InlineData("guid", "Guid")]
+    [InlineData("int", "int")]
+    [InlineData("int32", "int")]
+    [InlineData("int64", "long")]
+    [InlineData("long", "long")]
+    [InlineData("uri", "Uri")]
+    [InlineData("uuid", "Guid")]
+    public void Extract_WithScalarStringFormatQueryParameter_GeneratesCorrectType(
+        string format,
+        string expectedTypeName)
+    {
+        // Arrange - scalar query parameter with type: string and a format hint
+        var yaml = $"""
+                    openapi: 3.0.0
+                    info:
+                      title: Test API
+                      version: 1.0.0
+                    paths:
+                      /items:
+                        get:
+                          operationId: getItems
+                          parameters:
+                            - name: value
+                              in: query
+                              required: true
+                              schema:
+                                type: string
+                                format: {format}
+                          responses:
+                            '200':
+                              description: OK
+                    """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var recordsParams = OperationParameterExtractor.Extract(
+            document!,
+            "TestApi",
+            "Items",
+            registry: null,
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(recordsParams);
+        var param = recordsParams.Parameters[0].Parameters![0];
+        Assert.Equal("Value", param.Name);
+        Assert.Equal(expectedTypeName, param.TypeName);
+        Assert.False(param.IsNullableType);
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)
