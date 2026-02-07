@@ -62,6 +62,13 @@ public static class GeneratorTestHelper
             yield return type;
         }
 
+        // Generate ParsableList<T> helper type when any query parameter uses array types
+        var parsableList = CodeGenerationService.GenerateParsableList(openApiDoc, scenarioName);
+        if (parsableList != null)
+        {
+            yield return parsableList;
+        }
+
         foreach (var type in CodeGenerationService.GenerateResults(openApiDoc, scenarioName, generatorType))
         {
             yield return type;
