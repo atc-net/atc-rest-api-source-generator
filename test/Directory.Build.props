@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Atc.Test" Version="2.0.16" />
+    <PackageReference Include="Atc.Test" Version="2.0.17" />
     <PackageReference Include="NSubstitute.Analyzers.CSharp" Version="1.0.17" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.4.1" />

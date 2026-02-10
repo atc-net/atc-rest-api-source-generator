@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Atc" Version="3.0.16" GeneratePathProperty="true" />
+    <PackageReference Include="Atc" Version="3.0.18" GeneratePathProperty="true" />
     <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
   </ItemGroup>
 

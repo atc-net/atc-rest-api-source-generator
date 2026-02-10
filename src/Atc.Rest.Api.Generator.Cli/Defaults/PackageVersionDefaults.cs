@@ -18,10 +18,10 @@ internal static class PackageVersionDefaults
     /// <summary>
     /// Fallback version for Atc.Rest.Api.SourceGenerator.
     /// </summary>
-    public static readonly Version SourceGeneratorFallback = new(1, 0, 67);
+    public static readonly Version SourceGeneratorFallback = new(1, 0, 85);
 
     /// <summary>
     /// Fallback minimum version for Atc.Rest.Client.
     /// </summary>
-    public static readonly Version RestClientMinFallback = new(2, 0, 12);
+    public static readonly Version RestClientMinFallback = new(2, 0, 26);
 }
