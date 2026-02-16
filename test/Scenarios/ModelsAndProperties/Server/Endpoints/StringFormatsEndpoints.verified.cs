@@ -31,10 +31,12 @@ public interface IEndpointDefinition
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class StringFormatsEndpointDefinition : IEndpointDefinition
 {
+    internal const string ApiRouteBase = "/string-formats";
+
     public void DefineEndpoints(WebApplication app)
     {
         var stringformats = app
-            .MapGroup("/string-formats")
+            .MapGroup(ApiRouteBase)
             .WithTags("StringFormats");
 
         stringformats

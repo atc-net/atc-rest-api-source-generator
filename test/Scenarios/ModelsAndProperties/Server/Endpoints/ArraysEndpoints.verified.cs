@@ -31,10 +31,12 @@ public interface IEndpointDefinition
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class ArraysEndpointDefinition : IEndpointDefinition
 {
+    internal const string ApiRouteBase = "/arrays";
+
     public void DefineEndpoints(WebApplication app)
     {
         var arrays = app
-            .MapGroup("/arrays")
+            .MapGroup(ApiRouteBase)
             .WithTags("Arrays");
 
         arrays

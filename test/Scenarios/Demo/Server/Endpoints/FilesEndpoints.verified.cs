@@ -32,10 +32,12 @@ public interface IEndpointDefinition
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class FilesEndpointDefinition : IEndpointDefinition
 {
+    internal const string ApiRouteBase = "/files";
+
     public void DefineEndpoints(WebApplication app)
     {
         var files = app
-            .MapGroup("/files")
+            .MapGroup(ApiRouteBase)
             .WithTags("Files");
 
         files

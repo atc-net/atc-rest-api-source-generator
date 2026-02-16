@@ -56,6 +56,12 @@ public record InterfaceParameters(
         DeclarationModifier,
         InterfaceTypeName);
 
+public record ConstantFieldParameters(
+    string AccessModifier,
+    string TypeName,
+    string Name,
+    string Value);
+
 public record ClassParameters(
     string? HeaderContent,
     string Namespace,
@@ -70,7 +76,8 @@ public record ClassParameters(
     IList<ConstructorParameters>? Constructors,
     IList<PropertyParameters>? Properties,
     IList<MethodParameters>? Methods,
-    bool GenerateToStringMethod)
+    bool GenerateToStringMethod,
+    IList<ConstantFieldParameters>? Constants = null)
     : BaseParameters(
         HeaderContent,
         Namespace,

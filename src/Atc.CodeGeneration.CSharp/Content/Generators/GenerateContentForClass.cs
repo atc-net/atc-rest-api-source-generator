@@ -57,6 +57,15 @@ public class GenerateContentForClass : IContentGenerator
         sb.AppendLine("{");
 
         var isFirstEntry = true;
+        if (parameters.Constants is not null)
+        {
+            foreach (var constant in parameters.Constants)
+            {
+                sb.AppendLine($"    {constant.AccessModifier} const {constant.TypeName} {constant.Name} = \"{constant.Value}\";");
+                isFirstEntry = false;
+            }
+        }
+
         if (parameters.Constructors is not null)
         {
             var content = contentWriter.GeneratePrivateReadonlyMembersToConstructor(parameters.Constructors);

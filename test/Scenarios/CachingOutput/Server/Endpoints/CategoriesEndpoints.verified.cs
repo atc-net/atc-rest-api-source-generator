@@ -31,10 +31,12 @@ public interface IEndpointDefinition
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class CategoriesEndpointDefinition : IEndpointDefinition
 {
+    internal const string ApiRouteBase = "/categories";
+
     public void DefineEndpoints(WebApplication app)
     {
         var categories = app
-            .MapGroup("/categories")
+            .MapGroup(ApiRouteBase)
             .WithTags("Categories")
             .CacheOutput(OutputCachePolicies.Categories);
 

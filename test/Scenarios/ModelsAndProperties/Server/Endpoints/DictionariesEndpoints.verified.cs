@@ -31,10 +31,12 @@ public interface IEndpointDefinition
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class DictionariesEndpointDefinition : IEndpointDefinition
 {
+    internal const string ApiRouteBase = "/dictionaries";
+
     public void DefineEndpoints(WebApplication app)
     {
         var dictionaries = app
-            .MapGroup("/dictionaries")
+            .MapGroup(ApiRouteBase)
             .WithTags("Dictionaries");
 
         dictionaries
