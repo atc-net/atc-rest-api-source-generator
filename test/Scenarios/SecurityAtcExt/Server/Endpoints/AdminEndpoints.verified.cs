@@ -32,10 +32,12 @@ public interface IEndpointDefinition
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class AdminEndpointDefinition : IEndpointDefinition
 {
+    internal const string ApiRouteBase = "/admin/settings";
+
     public void DefineEndpoints(WebApplication app)
     {
         var admin = app
-            .MapGroup("/admin/settings")
+            .MapGroup(ApiRouteBase)
             .WithTags("Admin")
             .RequireAuthorization();
 

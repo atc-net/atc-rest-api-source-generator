@@ -31,10 +31,12 @@ public interface IEndpointDefinition
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class EnumsEndpointDefinition : IEndpointDefinition
 {
+    internal const string ApiRouteBase = "/enums";
+
     public void DefineEndpoints(WebApplication app)
     {
         var enums = app
-            .MapGroup("/enums")
+            .MapGroup(ApiRouteBase)
             .WithTags("Enums");
 
         enums

@@ -31,14 +31,16 @@ public interface IEndpointDefinition
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class PublicEndpointDefinition : IEndpointDefinition
 {
+    internal const string ApiRouteBase = "/public";
+
     public void DefineEndpoints(WebApplication app)
     {
         var public = app
-            .MapGroup("/public/health")
+            .MapGroup(ApiRouteBase)
             .WithTags("Public");
 
         public
-            .MapGet("/", GetHealth)
+            .MapGet("health", GetHealth)
             .WithName("GetHealth")
             .WithSummary("Health check (public)")
             .Produces<HealthStatus>()

@@ -32,10 +32,12 @@ public interface IEndpointDefinition
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class WebhooksEndpointDefinition : IEndpointDefinition
 {
+    internal const string ApiRouteBase = "/webhooks";
+
     public void DefineEndpoints(WebApplication app)
     {
         var webhooks = app
-            .MapGroup("/webhooks")
+            .MapGroup(ApiRouteBase)
             .WithTags("Webhooks");
 
         webhooks

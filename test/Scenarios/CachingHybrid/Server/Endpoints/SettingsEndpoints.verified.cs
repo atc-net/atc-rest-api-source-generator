@@ -31,10 +31,12 @@ public interface IEndpointDefinition
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class SettingsEndpointDefinition : IEndpointDefinition
 {
+    internal const string ApiRouteBase = "/settings";
+
     public void DefineEndpoints(WebApplication app)
     {
         var settings = app
-            .MapGroup("/settings")
+            .MapGroup(ApiRouteBase)
             .WithTags("Settings");
 
         settings

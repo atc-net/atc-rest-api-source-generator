@@ -31,10 +31,12 @@ public interface IEndpointDefinition
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class CoordinatesEndpointDefinition : IEndpointDefinition
 {
+    internal const string ApiRouteBase = "/coordinates";
+
     public void DefineEndpoints(WebApplication app)
     {
         var coordinates = app
-            .MapGroup("/coordinates")
+            .MapGroup(ApiRouteBase)
             .WithTags("Coordinates");
 
         coordinates

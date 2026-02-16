@@ -32,14 +32,16 @@ public interface IEndpointDefinition
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class ExternalEndpointDefinition : IEndpointDefinition
 {
+    internal const string ApiRouteBase = "/external";
+
     public void DefineEndpoints(WebApplication app)
     {
         var external = app
-            .MapGroup("/external/payment")
+            .MapGroup(ApiRouteBase)
             .WithTags("External");
 
         external
-            .MapPost("/", ProcessPayment)
+            .MapPost("payment", ProcessPayment)
             .WithName("ProcessPayment")
             .WithSummary("Process payment (circuit breaker enabled)")
             .Produces<PaymentResult>()

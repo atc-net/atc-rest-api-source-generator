@@ -32,14 +32,16 @@ public interface IEndpointDefinition
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class ReportsEndpointDefinition : IEndpointDefinition
 {
+    internal const string ApiRouteBase = "/reports";
+
     public void DefineEndpoints(WebApplication app)
     {
         var reports = app
-            .MapGroup("/reports/generate")
+            .MapGroup(ApiRouteBase)
             .WithTags("Reports");
 
         reports
-            .MapPost("/", GenerateReport)
+            .MapPost("generate", GenerateReport)
             .WithName("GenerateReport")
             .WithSummary("Generate report (no retry, long timeout)")
             .Produces<ReportJob>(StatusCodes.Status202Accepted)

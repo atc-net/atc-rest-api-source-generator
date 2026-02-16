@@ -31,10 +31,12 @@ public interface IEndpointDefinition
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class HealthEndpointDefinition : IEndpointDefinition
 {
+    internal const string ApiRouteBase = "/health";
+
     public void DefineEndpoints(WebApplication app)
     {
         var health = app
-            .MapGroup("/health")
+            .MapGroup(ApiRouteBase)
             .WithTags("Health");
 
         health

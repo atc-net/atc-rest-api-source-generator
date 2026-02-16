@@ -493,6 +493,21 @@ using Microsoft.AspNetCore.Builder;
         var headerContent = GenerateHeaderContent(projectName, pathSegment, useMinimalApiPackage, useValidationFilter, versioningStrategy, hasOutputCaching, namespaces);
         var namespaceValue = NamespaceBuilder.ForEndpoints(projectName, pathSegment);
 
+        // Compute the effective route base (may include versioning prefix)
+        var effectiveRouteBase = apiRouteBase;
+        if (versioningStrategy == VersioningStrategyType.UrlSegment &&
+            effectiveRouteBase.StartsWith("/", StringComparison.Ordinal) &&
+            effectiveRouteBase.IndexOf("{version:", StringComparison.OrdinalIgnoreCase) < 0)
+        {
+            effectiveRouteBase = "/v{version:apiVersion}" + effectiveRouteBase;
+        }
+
+        // Create the ApiRouteBase constant
+        var constants = new List<ConstantFieldParameters>
+        {
+            new("internal", "string", "ApiRouteBase", effectiveRouteBase),
+        };
+
         return new ClassParameters(
             HeaderContent: headerContent,
             Namespace: namespaceValue,
@@ -510,7 +525,8 @@ using Microsoft.AspNetCore.Builder;
             Constructors: null,
             Properties: null,
             Methods: methods,
-            GenerateToStringMethod: false);
+            GenerateToStringMethod: false,
+            Constants: constants);
     }
 
     private static string GenerateHeaderContent(
@@ -622,7 +638,7 @@ using Microsoft.AspNetCore.Builder;
         return (routeBase, commonPrefix);
     }
 
-    private static string GetCommonPathPrefix(List<string> paths)
+    internal static string GetCommonPathPrefix(List<string> paths)
     {
         if (paths.Count == 0)
         {
@@ -631,14 +647,17 @@ using Microsoft.AspNetCore.Builder;
 
         if (paths.Count == 1)
         {
-            // For single path, get the base path without parameters
+            // For single path, use only the first segment (the group identity).
+            // This avoids overly specific MapGroup bases and is consistent with
+            // multi-path groups where additional paths would narrow the prefix.
             var path = paths[0];
-            var segments = path
+            var allSegments = path
                 .Split('/')
-                .Where(s => !string.IsNullOrEmpty(s) && !s.StartsWith("{", StringComparison.Ordinal))
-                .ToList();
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToArray();
 
-            return "/" + string.Join("/", segments);
+            var firstSegment = allSegments.FirstOrDefault(s => !s.StartsWith("{", StringComparison.Ordinal));
+            return firstSegment is not null ? "/" + firstSegment : "/";
         }
 
         // Find common prefix among all paths
@@ -704,17 +723,6 @@ using Microsoft.AspNetCore.Builder;
         var builder = new StringBuilder();
         var hasVersioning = versioningStrategy != VersioningStrategyType.None;
 
-        // For URL segment versioning, modify the route base to include version pattern
-        var effectiveRouteBase = apiRouteBase;
-        if (versioningStrategy == VersioningStrategyType.UrlSegment &&
-            effectiveRouteBase.StartsWith("/", StringComparison.Ordinal) &&
-            effectiveRouteBase.IndexOf("{version:", StringComparison.OrdinalIgnoreCase) < 0)
-        {
-            // Insert version segment after the first slash if not already present
-            // e.g., "/pets" becomes "/v{version:apiVersion}/pets"
-            effectiveRouteBase = "/v{version:apiVersion}" + effectiveRouteBase;
-        }
-
         // Create versioned API group if versioning is enabled
         if (hasVersioning)
         {
@@ -730,9 +738,9 @@ using Microsoft.AspNetCore.Builder;
             builder.AppendLine();
         }
 
-        // Create the route group with inline route base
+        // Create the route group using the ApiRouteBase constant
         builder.AppendLine($"var {segment.ToLowerInvariant()} = app");
-        builder.AppendLine(4, $".MapGroup(\"{effectiveRouteBase}\")");
+        builder.AppendLine(4, ".MapGroup(ApiRouteBase)");
 
         // Add versioning to the group if enabled
         if (hasVersioning)
