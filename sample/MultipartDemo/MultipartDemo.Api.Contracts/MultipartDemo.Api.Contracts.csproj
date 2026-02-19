@@ -10,8 +10,8 @@
 
   <ItemGroup>
     <PackageReference Include="Atc.Rest.MinimalApi" Version="2.*" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.3.0" />
   </ItemGroup>
 
   <ItemGroup>
