@@ -4,18 +4,34 @@ namespace Polymorphism.Generated.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class PolymorphismClient
 {
+    private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     private readonly HttpClient httpClient;
+    private readonly JsonSerializerOptions jsonSerializerOptions;
 
     public PolymorphismClient(
         HttpClient httpClient)
     {
         this.httpClient = httpClient;
+        this.jsonSerializerOptions = defaultJsonSerializerOptions;
+    }
+
+    public PolymorphismClient(
+        HttpClient httpClient,
+        JsonSerializerOptions jsonSerializerOptions)
+    {
+        this.httpClient = httpClient;
+        this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
     public async Task<List<PaymentMethod>> ListPaymentsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/payments";
-        return (await httpClient.GetFromJsonAsync<List<PaymentMethod>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<PaymentMethod>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<PaymentMethod> CreatePaymentAsync(
@@ -23,9 +39,9 @@ public sealed class PolymorphismClient
         CancellationToken cancellationToken = default)
     {
         var url = "/payments";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<PaymentMethod>(cancellationToken: cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<PaymentMethod>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<PaymentMethod> GetPaymentByIdAsync(
@@ -33,7 +49,7 @@ public sealed class PolymorphismClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/payments/{parameters.PaymentId}";
-        return (await httpClient.GetFromJsonAsync<PaymentMethod>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<PaymentMethod>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task SendNotificationAsync(
@@ -41,13 +57,13 @@ public sealed class PolymorphismClient
         CancellationToken cancellationToken = default)
     {
         var url = "/notifications";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
     }
 
     public async Task<List<Notification>> ListNotificationsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/notifications";
-        return (await httpClient.GetFromJsonAsync<List<Notification>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Notification>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 }

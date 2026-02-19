@@ -77,7 +77,8 @@ public record ClassParameters(
     IList<PropertyParameters>? Properties,
     IList<MethodParameters>? Methods,
     bool GenerateToStringMethod,
-    IList<ConstantFieldParameters>? Constants = null)
+    IList<ConstantFieldParameters>? Constants = null,
+    IList<string>? AdditionalFieldDeclarations = null)
     : BaseParameters(
         HeaderContent,
         Namespace,
@@ -131,7 +132,8 @@ public record ConstructorParameters(
     string? GenericTypeName,
     string TypeName,
     string? InheritedClassTypeName,
-    IList<ConstructorParameterBaseParameters>? Parameters);
+    IList<ConstructorParameterBaseParameters>? Parameters,
+    IList<string>? AdditionalStatements = null);
 
 public record PropertyParameters(
     CodeDocumentationTags? DocumentationTags,

@@ -4,24 +4,40 @@ namespace SecurityAtcExt.Generated.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class SecurityAtcExtClient
 {
+    private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     private readonly HttpClient httpClient;
+    private readonly JsonSerializerOptions jsonSerializerOptions;
 
     public SecurityAtcExtClient(
         HttpClient httpClient)
     {
         this.httpClient = httpClient;
+        this.jsonSerializerOptions = defaultJsonSerializerOptions;
+    }
+
+    public SecurityAtcExtClient(
+        HttpClient httpClient,
+        JsonSerializerOptions jsonSerializerOptions)
+    {
+        this.httpClient = httpClient;
+        this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
     public async Task<HealthStatus> GetHealthAsync(CancellationToken cancellationToken = default)
     {
         var url = "/public/health";
-        return (await httpClient.GetFromJsonAsync<HealthStatus>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<HealthStatus>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<Order>> ListOrdersAsync(CancellationToken cancellationToken = default)
     {
         var url = "/orders";
-        return (await httpClient.GetFromJsonAsync<List<Order>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Order>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Order> CreateOrderAsync(
@@ -29,9 +45,9 @@ public sealed class SecurityAtcExtClient
         CancellationToken cancellationToken = default)
     {
         var url = "/orders";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<Order>(cancellationToken: cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Order> GetOrderByIdAsync(
@@ -39,7 +55,7 @@ public sealed class SecurityAtcExtClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/orders/{parameters.OrderId}";
-        return (await httpClient.GetFromJsonAsync<Order>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<Order>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task DeleteOrderAsync(
@@ -56,13 +72,13 @@ public sealed class SecurityAtcExtClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/orders/{parameters.OrderId}/tracking";
-        return (await httpClient.GetFromJsonAsync<TrackingInfo>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<TrackingInfo>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<AdminSettings> GetAdminSettingsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/admin/settings";
-        return (await httpClient.GetFromJsonAsync<AdminSettings>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<AdminSettings>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<AdminSettings> UpdateAdminSettingsAsync(
@@ -70,20 +86,20 @@ public sealed class SecurityAtcExtClient
         CancellationToken cancellationToken = default)
     {
         var url = "/admin/settings";
-        var response = await httpClient.PutAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<AdminSettings>(cancellationToken: cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<AdminSettings>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<Report>> ListReportsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/reports";
-        return (await httpClient.GetFromJsonAsync<List<Report>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Report>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<ApiKey>> ListApiKeysAsync(CancellationToken cancellationToken = default)
     {
         var url = "/api-keys";
-        return (await httpClient.GetFromJsonAsync<List<ApiKey>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<ApiKey>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 }

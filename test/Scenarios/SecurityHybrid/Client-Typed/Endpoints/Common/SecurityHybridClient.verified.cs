@@ -4,24 +4,40 @@ namespace SecurityHybrid.Generated.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class SecurityHybridClient
 {
+    private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     private readonly HttpClient httpClient;
+    private readonly JsonSerializerOptions jsonSerializerOptions;
 
     public SecurityHybridClient(
         HttpClient httpClient)
     {
         this.httpClient = httpClient;
+        this.jsonSerializerOptions = defaultJsonSerializerOptions;
+    }
+
+    public SecurityHybridClient(
+        HttpClient httpClient,
+        JsonSerializerOptions jsonSerializerOptions)
+    {
+        this.httpClient = httpClient;
+        this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
     public async Task<HealthStatus> GetHealthAsync(CancellationToken cancellationToken = default)
     {
         var url = "/public/health";
-        return (await httpClient.GetFromJsonAsync<HealthStatus>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<HealthStatus>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<Product>> ListProductsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/products";
-        return (await httpClient.GetFromJsonAsync<List<Product>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Product>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Product> GetProductByIdAsync(
@@ -29,13 +45,13 @@ public sealed class SecurityHybridClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/products/{parameters.ProductId}";
-        return (await httpClient.GetFromJsonAsync<Product>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<Product>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<Order>> ListOrdersAsync(CancellationToken cancellationToken = default)
     {
         var url = "/orders";
-        return (await httpClient.GetFromJsonAsync<List<Order>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Order>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Order> CreateOrderAsync(
@@ -43,9 +59,9 @@ public sealed class SecurityHybridClient
         CancellationToken cancellationToken = default)
     {
         var url = "/orders";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<Order>(cancellationToken: cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Order> GetOrderByIdAsync(
@@ -53,7 +69,7 @@ public sealed class SecurityHybridClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/orders/{parameters.OrderId}";
-        return (await httpClient.GetFromJsonAsync<Order>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<Order>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task DeleteOrderAsync(
@@ -68,7 +84,7 @@ public sealed class SecurityHybridClient
     public async Task<AdminSettings> GetAdminSettingsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/admin/settings";
-        return (await httpClient.GetFromJsonAsync<AdminSettings>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<AdminSettings>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<AdminSettings> UpdateAdminSettingsAsync(
@@ -76,15 +92,15 @@ public sealed class SecurityHybridClient
         CancellationToken cancellationToken = default)
     {
         var url = "/admin/settings";
-        var response = await httpClient.PutAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<AdminSettings>(cancellationToken: cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<AdminSettings>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<ListReportsResponseItem>> ListReportsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/reports";
-        return (await httpClient.GetFromJsonAsync<List<ListReportsResponseItem>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<ListReportsResponseItem>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<GetOrderTrackingResponse> GetOrderTrackingAsync(
@@ -92,6 +108,6 @@ public sealed class SecurityHybridClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/orders/{parameters.OrderId}/tracking";
-        return (await httpClient.GetFromJsonAsync<GetOrderTrackingResponse>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<GetOrderTrackingResponse>(url, jsonSerializerOptions, cancellationToken))!;
     }
 }

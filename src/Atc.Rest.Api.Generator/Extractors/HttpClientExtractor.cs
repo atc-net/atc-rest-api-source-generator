@@ -97,7 +97,16 @@ public static class HttpClientExtractor
         var namespaceValue = NamespaceBuilder.ForClient(projectName, pathSegment);
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
 
-        var constructorParams = new List<ConstructorParameterBaseParameters>
+        var additionalFieldDeclarations = new List<string>
+        {
+            "private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions",
+            "{",
+            "    PropertyNameCaseInsensitive = true,",
+            "    Converters = { new JsonStringEnumConverter() },",
+            "};",
+        };
+
+        var constructor1Params = new List<ConstructorParameterBaseParameters>
         {
             new(
                 GenericTypeName: null,
@@ -110,13 +119,44 @@ public static class HttpClientExtractor
                 CreateAaOneLiner: false),
         };
 
-        var constructor = new ConstructorParameters(
+        var constructor1 = new ConstructorParameters(
             DocumentationTags: null,
             DeclarationModifier: DeclarationModifiers.Public,
             GenericTypeName: null,
             TypeName: className,
             InheritedClassTypeName: null,
-            Parameters: constructorParams);
+            Parameters: constructor1Params,
+            AdditionalStatements: new List<string> { "this.jsonSerializerOptions = defaultJsonSerializerOptions;" });
+
+        var constructor2Params = new List<ConstructorParameterBaseParameters>
+        {
+            new(
+                GenericTypeName: null,
+                TypeName: "HttpClient",
+                IsNullableType: false,
+                Name: "httpClient",
+                DefaultValue: null,
+                PassToInheritedClass: false,
+                CreateAsPrivateReadonlyMember: false,
+                CreateAaOneLiner: false),
+            new(
+                GenericTypeName: null,
+                TypeName: "JsonSerializerOptions",
+                IsNullableType: false,
+                Name: "jsonSerializerOptions",
+                DefaultValue: null,
+                PassToInheritedClass: false,
+                CreateAsPrivateReadonlyMember: true,
+                CreateAaOneLiner: false),
+        };
+
+        var constructor2 = new ConstructorParameters(
+            DocumentationTags: null,
+            DeclarationModifier: DeclarationModifiers.Public,
+            GenericTypeName: null,
+            TypeName: className,
+            InheritedClassTypeName: null,
+            Parameters: constructor2Params);
 
         var methods = new List<MethodParameters>();
 
@@ -198,6 +238,9 @@ public static class HttpClientExtractor
             }
         }
 
+        contentPreview.AppendLine("JsonSerializerOptions");
+        contentPreview.AppendLine("JsonStringEnumConverter");
+
         var contentForAnalysis = contentPreview.ToString();
 
         // Build header content with only required usings
@@ -229,10 +272,11 @@ public static class HttpClientExtractor
             InheritedClassTypeName: null,
             InheritedGenericClassTypeName: null,
             InheritedInterfaceTypeName: null,
-            Constructors: new List<ConstructorParameters> { constructor },
+            Constructors: new List<ConstructorParameters> { constructor1, constructor2 },
             Properties: null,
             Methods: methods,
-            GenerateToStringMethod: false);
+            GenerateToStringMethod: false,
+            AdditionalFieldDeclarations: additionalFieldDeclarations);
     }
 
     /// <summary>
@@ -607,14 +651,12 @@ public static class HttpClientExtractor
         // Special handling for async enumerable streaming
         if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
         {
-            builder.AppendLine("var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };");
-            builder.AppendLine();
             builder.AppendLine("using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);");
             builder.AppendLine("response.EnsureSuccessStatusCode();");
             builder.AppendLine();
             builder.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken);");
             builder.AppendLine();
-            builder.AppendLine($"await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable<{streamingItemType}>(stream, jsonOptions, cancellationToken))");
+            builder.AppendLine($"await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken))");
             builder.AppendLine("{");
             builder.AppendLine(4, "if (item != null)");
             builder.AppendLine(4, "{");
@@ -662,12 +704,12 @@ public static class HttpClientExtractor
 
             if (hasReturnType)
             {
-                builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(cancellationToken: cancellationToken))!;");
+                builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
             }
         }
         else if (hasReturnType)
         {
-            builder.Append($"return (await httpClient.GetFromJsonAsync<{returnType}>(url, cancellationToken))!;");
+            builder.Append($"return (await httpClient.GetFromJsonAsync<{returnType}>(url, jsonSerializerOptions, cancellationToken))!;");
         }
         else
         {
@@ -746,7 +788,7 @@ public static class HttpClientExtractor
         }
         else if (hasJsonBody)
         {
-            builder.AppendLine($"var response = await httpClient.PostAsJsonAsync(url, {requestAccess}, cancellationToken);");
+            builder.AppendLine($"var response = await httpClient.PostAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);");
         }
         else
         {
@@ -763,7 +805,7 @@ public static class HttpClientExtractor
         else if (hasReturnType)
         {
             // Use null-forgiving operator since we validated the response succeeded
-            builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(cancellationToken: cancellationToken))!;");
+            builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
         }
     }
 
@@ -779,11 +821,11 @@ public static class HttpClientExtractor
 
         if (hasJsonBody)
         {
-            builder.AppendLine($"var response = await httpClient.PutAsJsonAsync(url, {requestAccess}, cancellationToken);");
+            builder.AppendLine($"var response = await httpClient.PutAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);");
             if (hasReturnType)
             {
                 builder.AppendLine("response.EnsureSuccessStatusCode();");
-                builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(cancellationToken: cancellationToken))!;");
+                builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
             }
             else
             {
@@ -796,7 +838,7 @@ public static class HttpClientExtractor
             {
                 builder.AppendLine("var response = await httpClient.PutAsync(url, null, cancellationToken);");
                 builder.AppendLine("response.EnsureSuccessStatusCode();");
-                builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(cancellationToken: cancellationToken))!;");
+                builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
             }
             else
             {
@@ -815,7 +857,7 @@ public static class HttpClientExtractor
         {
             builder.AppendLine("var response = await httpClient.DeleteAsync(url, cancellationToken);");
             builder.AppendLine("response.EnsureSuccessStatusCode();");
-            builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(cancellationToken: cancellationToken))!;");
+            builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
         }
         else
         {

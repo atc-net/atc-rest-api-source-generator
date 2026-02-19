@@ -349,6 +349,222 @@ public class HttpClientExtractorTests
         Assert.Equal("EnumeratorCancellation", ctParameter.Attributes[0].Name);
     }
 
+    // ========== JSON Serializer Options Tests ==========
+    [Fact]
+    public void Extract_GeneratesDefaultJsonSerializerOptionsStaticField()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /widgets:
+                                get:
+                                  operationId: getWidgets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Widget'
+                            components:
+                              schemas:
+                                Widget:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var clientClass = HttpClientExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(clientClass);
+        Assert.NotNull(clientClass.AdditionalFieldDeclarations);
+        var declarations = string.Join("\n", clientClass.AdditionalFieldDeclarations);
+        Assert.Contains("defaultJsonSerializerOptions", declarations, StringComparison.Ordinal);
+        Assert.Contains("JsonStringEnumConverter", declarations, StringComparison.Ordinal);
+        Assert.Contains("PropertyNameCaseInsensitive", declarations, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_GeneratesTwoConstructors_WithJsonSerializerOptions()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /widgets:
+                                get:
+                                  operationId: getWidgets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Widget'
+                            components:
+                              schemas:
+                                Widget:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var clientClass = HttpClientExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(clientClass);
+        Assert.NotNull(clientClass.Constructors);
+        Assert.Equal(2, clientClass.Constructors.Count);
+
+        // Constructor 1 should have AdditionalStatements referencing defaultJsonSerializerOptions
+        var ctor1 = clientClass.Constructors[0];
+        Assert.NotNull(ctor1.AdditionalStatements);
+        Assert.Contains("defaultJsonSerializerOptions", ctor1.AdditionalStatements[0], StringComparison.Ordinal);
+
+        // Constructor 2 should have jsonSerializerOptions parameter
+        var ctor2 = clientClass.Constructors[1];
+        Assert.NotNull(ctor2.Parameters);
+        Assert.Equal(2, ctor2.Parameters.Count);
+        Assert.Equal("jsonSerializerOptions", ctor2.Parameters[1].Name);
+    }
+
+    [Fact]
+    public void Extract_GetMethodBody_PassesJsonSerializerOptions()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /widgets:
+                                get:
+                                  operationId: getWidgets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Widget'
+                            components:
+                              schemas:
+                                Widget:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var clientClass = HttpClientExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(clientClass);
+        var method = clientClass.Methods![0];
+        Assert.NotNull(method.Content);
+        Assert.Contains("jsonSerializerOptions", method.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("new JsonSerializerOptions", method.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PostMethodBody_PassesJsonSerializerOptionsToPostAndRead()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /gadgets:
+                                post:
+                                  operationId: createGadget
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/CreateGadgetRequest'
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Gadget'
+                            components:
+                              schemas:
+                                CreateGadgetRequest:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                Gadget:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                    name:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var clientClass = HttpClientExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(clientClass);
+        var method = clientClass.Methods![0];
+        Assert.NotNull(method.Content);
+        Assert.Contains("PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("ReadFromJsonAsync<Gadget>(jsonSerializerOptions, cancellationToken)", method.Content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

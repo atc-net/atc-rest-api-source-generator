@@ -4,24 +4,40 @@ namespace Retry.Generated.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class RetryClient
 {
+    private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     private readonly HttpClient httpClient;
+    private readonly JsonSerializerOptions jsonSerializerOptions;
 
     public RetryClient(
         HttpClient httpClient)
     {
         this.httpClient = httpClient;
+        this.jsonSerializerOptions = defaultJsonSerializerOptions;
+    }
+
+    public RetryClient(
+        HttpClient httpClient,
+        JsonSerializerOptions jsonSerializerOptions)
+    {
+        this.httpClient = httpClient;
+        this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
     public async Task<HealthStatus> GetHealthAsync(CancellationToken cancellationToken = default)
     {
         var url = "/health";
-        return (await httpClient.GetFromJsonAsync<HealthStatus>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<HealthStatus>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<Order>> ListOrdersAsync(CancellationToken cancellationToken = default)
     {
         var url = "/orders";
-        return (await httpClient.GetFromJsonAsync<List<Order>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Order>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Order> CreateOrderAsync(
@@ -29,9 +45,9 @@ public sealed class RetryClient
         CancellationToken cancellationToken = default)
     {
         var url = "/orders";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<Order>(cancellationToken: cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Order> GetOrderByIdAsync(
@@ -39,7 +55,7 @@ public sealed class RetryClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/orders/{parameters.OrderId}";
-        return (await httpClient.GetFromJsonAsync<Order>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<Order>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task DeleteOrderAsync(
@@ -56,9 +72,9 @@ public sealed class RetryClient
         CancellationToken cancellationToken = default)
     {
         var url = "/external/payment";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<PaymentResult>(cancellationToken: cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<PaymentResult>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task GenerateReportAsync(
@@ -66,7 +82,7 @@ public sealed class RetryClient
         CancellationToken cancellationToken = default)
     {
         var url = "/reports/generate";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
     }
 
@@ -75,7 +91,7 @@ public sealed class RetryClient
         CancellationToken cancellationToken = default)
     {
         var url = "/notifications";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
     }
 }

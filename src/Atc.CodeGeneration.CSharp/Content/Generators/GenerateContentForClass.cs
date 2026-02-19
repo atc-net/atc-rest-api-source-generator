@@ -66,12 +66,33 @@ public class GenerateContentForClass : IContentGenerator
             }
         }
 
+        if (parameters.AdditionalFieldDeclarations is not null)
+        {
+            if (!isFirstEntry)
+            {
+                sb.AppendLine();
+            }
+
+            foreach (var declaration in parameters.AdditionalFieldDeclarations)
+            {
+                sb.AppendLine($"    {declaration}");
+            }
+
+            isFirstEntry = false;
+        }
+
         if (parameters.Constructors is not null)
         {
             var content = contentWriter.GeneratePrivateReadonlyMembersToConstructor(parameters.Constructors);
             if (!string.IsNullOrEmpty(content))
             {
-                sb.AppendLine(content);
+                if (!isFirstEntry)
+                {
+                    sb.AppendLine();
+                }
+
+                sb.Append(content);
+                isFirstEntry = false;
             }
 
             foreach (var constructorParameters in parameters.Constructors)

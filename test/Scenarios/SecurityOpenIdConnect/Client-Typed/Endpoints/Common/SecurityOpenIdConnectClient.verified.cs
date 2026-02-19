@@ -4,36 +4,52 @@ namespace SecurityOpenIdConnect.Generated.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class SecurityOpenIdConnectClient
 {
+    private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     private readonly HttpClient httpClient;
+    private readonly JsonSerializerOptions jsonSerializerOptions;
 
     public SecurityOpenIdConnectClient(
         HttpClient httpClient)
     {
         this.httpClient = httpClient;
+        this.jsonSerializerOptions = defaultJsonSerializerOptions;
+    }
+
+    public SecurityOpenIdConnectClient(
+        HttpClient httpClient,
+        JsonSerializerOptions jsonSerializerOptions)
+    {
+        this.httpClient = httpClient;
+        this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
     public async Task<HealthStatus> GetHealthAsync(CancellationToken cancellationToken = default)
     {
         var url = "/health";
-        return (await httpClient.GetFromJsonAsync<HealthStatus>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<HealthStatus>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<UserProfile> GetCurrentUserAsync(CancellationToken cancellationToken = default)
     {
         var url = "/me";
-        return (await httpClient.GetFromJsonAsync<UserProfile>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<UserProfile>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<UserProfile> GetCurrentUserProfileAsync(CancellationToken cancellationToken = default)
     {
         var url = "/me/profile";
-        return (await httpClient.GetFromJsonAsync<UserProfile>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<UserProfile>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<Resource>> ListResourcesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/resources";
-        return (await httpClient.GetFromJsonAsync<List<Resource>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Resource>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Resource> CreateResourceAsync(
@@ -41,9 +57,9 @@ public sealed class SecurityOpenIdConnectClient
         CancellationToken cancellationToken = default)
     {
         var url = "/resources";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<Resource>(cancellationToken: cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<Resource>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Resource> GetResourceByIdAsync(
@@ -51,7 +67,7 @@ public sealed class SecurityOpenIdConnectClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/resources/{parameters.ResourceId}";
-        return (await httpClient.GetFromJsonAsync<Resource>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<Resource>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task DeleteResourceAsync(

@@ -4,12 +4,28 @@ namespace PetStoreSimple.Generated.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class PetStoreSimpleClient
 {
+    private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     private readonly HttpClient httpClient;
+    private readonly JsonSerializerOptions jsonSerializerOptions;
 
     public PetStoreSimpleClient(
         HttpClient httpClient)
     {
         this.httpClient = httpClient;
+        this.jsonSerializerOptions = defaultJsonSerializerOptions;
+    }
+
+    public PetStoreSimpleClient(
+        HttpClient httpClient,
+        JsonSerializerOptions jsonSerializerOptions)
+    {
+        this.httpClient = httpClient;
+        this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
     public async Task<List<Pet>> ListPetsAsync(
@@ -29,7 +45,7 @@ public sealed class PetStoreSimpleClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<List<Pet>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Pet>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task CreatePetsAsync(CancellationToken cancellationToken = default)
@@ -44,6 +60,6 @@ public sealed class PetStoreSimpleClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/pets/{Uri.EscapeDataString(parameters.PetId)}";
-        return (await httpClient.GetFromJsonAsync<Pet>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<Pet>(url, jsonSerializerOptions, cancellationToken))!;
     }
 }

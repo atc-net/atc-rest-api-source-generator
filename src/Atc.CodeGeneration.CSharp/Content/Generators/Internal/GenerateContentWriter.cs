@@ -108,6 +108,14 @@ public class GenerateContentWriter
                     sb.AppendLine(8, $"this.{item.Name} = {item.Name};");
                 }
 
+                if (parameters.AdditionalStatements is not null)
+                {
+                    foreach (var stmt in parameters.AdditionalStatements)
+                    {
+                        sb.AppendLine(8, stmt);
+                    }
+                }
+
                 sb.Append(4, "}");
             }
         }
