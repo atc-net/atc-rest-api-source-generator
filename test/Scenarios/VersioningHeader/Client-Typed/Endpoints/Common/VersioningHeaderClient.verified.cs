@@ -4,12 +4,28 @@ namespace VersioningHeader.Generated.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class VersioningHeaderClient
 {
+    private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     private readonly HttpClient httpClient;
+    private readonly JsonSerializerOptions jsonSerializerOptions;
 
     public VersioningHeaderClient(
         HttpClient httpClient)
     {
         this.httpClient = httpClient;
+        this.jsonSerializerOptions = defaultJsonSerializerOptions;
+    }
+
+    public VersioningHeaderClient(
+        HttpClient httpClient,
+        JsonSerializerOptions jsonSerializerOptions)
+    {
+        this.httpClient = httpClient;
+        this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
     public async Task<List<Pet>> ListPetsAsync(
@@ -29,7 +45,7 @@ public sealed class VersioningHeaderClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<List<Pet>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Pet>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Pet> CreatePetAsync(
@@ -37,9 +53,9 @@ public sealed class VersioningHeaderClient
         CancellationToken cancellationToken = default)
     {
         var url = "/pets";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<Pet>(cancellationToken: cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Pet> GetPetByIdAsync(
@@ -47,7 +63,7 @@ public sealed class VersioningHeaderClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/pets/{parameters.PetId}";
-        return (await httpClient.GetFromJsonAsync<Pet>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<Pet>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Pet> UpdatePetAsync(
@@ -55,9 +71,9 @@ public sealed class VersioningHeaderClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/pets/{parameters.PetId}";
-        var response = await httpClient.PutAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<Pet>(cancellationToken: cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task DeletePetAsync(
@@ -72,7 +88,7 @@ public sealed class VersioningHeaderClient
     public async Task<List<Owner>> ListOwnersAsync(CancellationToken cancellationToken = default)
     {
         var url = "/owners";
-        return (await httpClient.GetFromJsonAsync<List<Owner>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Owner>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Owner> CreateOwnerAsync(
@@ -80,9 +96,9 @@ public sealed class VersioningHeaderClient
         CancellationToken cancellationToken = default)
     {
         var url = "/owners";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<Owner>(cancellationToken: cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<Owner>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Owner> GetOwnerByIdAsync(
@@ -90,6 +106,6 @@ public sealed class VersioningHeaderClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/owners/{parameters.OwnerId}";
-        return (await httpClient.GetFromJsonAsync<Owner>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<Owner>(url, jsonSerializerOptions, cancellationToken))!;
     }
 }

@@ -4,18 +4,34 @@ namespace ModelsAndProperties.Generated.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class ModelsAndPropertiesClient
 {
+    private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     private readonly HttpClient httpClient;
+    private readonly JsonSerializerOptions jsonSerializerOptions;
 
     public ModelsAndPropertiesClient(
         HttpClient httpClient)
     {
         this.httpClient = httpClient;
+        this.jsonSerializerOptions = defaultJsonSerializerOptions;
+    }
+
+    public ModelsAndPropertiesClient(
+        HttpClient httpClient,
+        JsonSerializerOptions jsonSerializerOptions)
+    {
+        this.httpClient = httpClient;
+        this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
     public async Task<List<ComprehensiveModel>> ListModelsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/models";
-        return (await httpClient.GetFromJsonAsync<List<ComprehensiveModel>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<ComprehensiveModel>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<ComprehensiveModel> CreateModelAsync(
@@ -23,9 +39,9 @@ public sealed class ModelsAndPropertiesClient
         CancellationToken cancellationToken = default)
     {
         var url = "/models";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<ComprehensiveModel>(cancellationToken: cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<ComprehensiveModel>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<ComprehensiveModel> GetModelByIdAsync(
@@ -33,13 +49,13 @@ public sealed class ModelsAndPropertiesClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/models/{parameters.ModelId}";
-        return (await httpClient.GetFromJsonAsync<ComprehensiveModel>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<ComprehensiveModel>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<Address>> ListAddressesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/addresses";
-        return (await httpClient.GetFromJsonAsync<List<Address>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Address>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Address> CreateAddressAsync(
@@ -47,15 +63,15 @@ public sealed class ModelsAndPropertiesClient
         CancellationToken cancellationToken = default)
     {
         var url = "/addresses";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<Address>(cancellationToken: cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<Address>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<Country>> ListCountriesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/countries";
-        return (await httpClient.GetFromJsonAsync<List<Country>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Country>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<Person>> ListPersonsAsync(
@@ -75,54 +91,54 @@ public sealed class ModelsAndPropertiesClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<List<Person>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Person>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<PrimitiveTypes> GetPrimitiveTypesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/primitives";
-        return (await httpClient.GetFromJsonAsync<PrimitiveTypes>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<PrimitiveTypes>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<StringFormats> GetStringFormatsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/string-formats";
-        return (await httpClient.GetFromJsonAsync<StringFormats>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<StringFormats>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<ValidationConstraints> GetValidationsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/validations";
-        return (await httpClient.GetFromJsonAsync<ValidationConstraints>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<ValidationConstraints>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<DefaultValues> GetDefaultsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/defaults";
-        return (await httpClient.GetFromJsonAsync<DefaultValues>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<DefaultValues>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<NullableTypes> GetNullablesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/nullables";
-        return (await httpClient.GetFromJsonAsync<NullableTypes>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<NullableTypes>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<ArrayTypes> GetArrayTypesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/arrays";
-        return (await httpClient.GetFromJsonAsync<ArrayTypes>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<ArrayTypes>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<DictionaryTypes> GetDictionaryTypesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/dictionaries";
-        return (await httpClient.GetFromJsonAsync<DictionaryTypes>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<DictionaryTypes>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<EnumTypes> GetEnumTypesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/enums";
-        return (await httpClient.GetFromJsonAsync<EnumTypes>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<EnumTypes>(url, jsonSerializerOptions, cancellationToken))!;
     }
 }

@@ -4,24 +4,40 @@ namespace OpenApi31Features.Generated.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class OpenApi31FeaturesClient
 {
+    private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     private readonly HttpClient httpClient;
+    private readonly JsonSerializerOptions jsonSerializerOptions;
 
     public OpenApi31FeaturesClient(
         HttpClient httpClient)
     {
         this.httpClient = httpClient;
+        this.jsonSerializerOptions = defaultJsonSerializerOptions;
+    }
+
+    public OpenApi31FeaturesClient(
+        HttpClient httpClient,
+        JsonSerializerOptions jsonSerializerOptions)
+    {
+        this.httpClient = httpClient;
+        this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
     public async Task<Coordinate> GetCoordinatesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/coordinates";
-        return (await httpClient.GetFromJsonAsync<Coordinate>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<Coordinate>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<Coordinate>> ListCoordinatesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/coordinates/list";
-        return (await httpClient.GetFromJsonAsync<List<Coordinate>>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<List<Coordinate>>(url, jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<DocumentResponse> CreateDocumentAsync(
@@ -29,14 +45,14 @@ public sealed class OpenApi31FeaturesClient
         CancellationToken cancellationToken = default)
     {
         var url = "/documents";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<DocumentResponse>(cancellationToken: cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<DocumentResponse>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<RgbColor> GetColorsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/colors";
-        return (await httpClient.GetFromJsonAsync<RgbColor>(url, cancellationToken))!;
+        return (await httpClient.GetFromJsonAsync<RgbColor>(url, jsonSerializerOptions, cancellationToken))!;
     }
 }
