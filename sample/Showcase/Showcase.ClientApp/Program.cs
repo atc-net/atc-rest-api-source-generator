@@ -275,7 +275,7 @@ try
     {
         await filesClient
             .UploadSingleFileAsFormDataAsync(
-                new UploadSingleFileAsFormDataParameters(File: singleFileStream, FileName: "client-upload.txt"),
+                new UploadSingleFileAsFormDataParameters(File: new StreamFileContent(singleFileStream, "client-upload.txt")),
                 CancellationToken.None)
             .ConfigureAwait(false);
 
@@ -297,7 +297,10 @@ try
 
     await filesClient
         .UploadMultiFilesAsFormDataAsync(
-            new UploadMultiFilesAsFormDataParameters(File: [multiFileStream1, multiFileStream2, multiFileStream3]),
+            new UploadMultiFilesAsFormDataParameters(File: [
+                new StreamFileContent(multiFileStream1, "requirements.txt"),
+                new StreamFileContent(multiFileStream2, "design.txt"),
+                new StreamFileContent(multiFileStream3, "metadata.json")]),
             CancellationToken.None)
         .ConfigureAwait(false);
 
@@ -315,7 +318,7 @@ try
     {
         var formDataRequest = new FileAsFormDataRequest(
             ItemName: "Q4 Financial Report",
-            File: objectFileStream,
+            File: new StreamFileContent(objectFileStream, "financial-report.txt"),
             Items: ["finance", "quarterly", "confidential"]);
 
         await filesClient
@@ -341,7 +344,7 @@ try
     using var attachmentStream2 = new MemoryStream(attachment2Content);
 
     var filesFormDataRequest = new FilesAsFormDataRequest(
-        Files: [attachmentStream1, attachmentStream2]);
+        Files: [new StreamFileContent(attachmentStream1, "supporting-docs.txt"), new StreamFileContent(attachmentStream2, "charts.txt")]);
 
     await filesClient
         .UploadSingleObjectWithFilesAsFormDataAsync(

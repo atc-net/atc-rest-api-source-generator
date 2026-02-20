@@ -293,8 +293,14 @@ public sealed class DemoClient
 
         if (parameters.Request?.File != null)
         {
-            var fileContent = new StreamContent(parameters.Request.File);
-            content.Add(fileContent, "file", "file");
+            var fileContent = new StreamContent(parameters.Request.File.OpenReadStream());
+
+            if (parameters.Request.File.ContentType != null)
+            {
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(parameters.Request.File.ContentType);
+            }
+
+            content.Add(fileContent, "file", parameters.Request.File.FileName);
         }
 
         if (parameters.Request?.Items != null)
@@ -321,8 +327,15 @@ public sealed class DemoClient
         {
             for (var i = 0; i < parameters.Request.Files.Count; i++)
             {
-                var fileContent = new StreamContent(parameters.Request.Files[i]);
-                content.Add(fileContent, "files", $"files_{i}");
+                var fileItem = parameters.Request.Files[i];
+                var fileContent = new StreamContent(fileItem.OpenReadStream());
+
+                if (fileItem.ContentType != null)
+                {
+                    fileContent.Headers.ContentType = new MediaTypeHeaderValue(fileItem.ContentType);
+                }
+
+                content.Add(fileContent, "files", fileItem.FileName);
             }
         }
 
@@ -337,8 +350,8 @@ public sealed class DemoClient
     {
         var url = "/files/form-data/singleFile";
 
-        using var content = new StreamContent(parameters.File!);
-        content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        using var content = new StreamContent(parameters.File!.OpenReadStream());
+        content.Headers.ContentType = new MediaTypeHeaderValue(parameters.File.ContentType ?? "application/octet-stream");
 
         var response = await httpClient.PostAsync(url, content, cancellationToken);
         response.EnsureSuccessStatusCode();
@@ -354,8 +367,15 @@ public sealed class DemoClient
 
         for (var i = 0; i < parameters.File!.Length; i++)
         {
-            var streamContent = new StreamContent(parameters.File[i]);
-            content.Add(streamContent, "files", $"file{i}");
+            var fileItem = parameters.File[i];
+            var streamContent = new StreamContent(fileItem.OpenReadStream());
+
+            if (fileItem.ContentType != null)
+            {
+                streamContent.Headers.ContentType = new MediaTypeHeaderValue(fileItem.ContentType);
+            }
+
+            content.Add(streamContent, "files", fileItem.FileName);
         }
 
         var response = await httpClient.PostAsync(url, content, cancellationToken);

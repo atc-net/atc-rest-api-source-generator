@@ -51,7 +51,7 @@ public sealed class UploadFormDataFileEndpoint : IUploadFormDataFileEndpoint
 
         if (parameters.Request?.File != null)
         {
-            requestBuilder.WithFile(parameters.Request.File, "file", "file");
+            requestBuilder.WithFile(parameters.Request.File.OpenReadStream(), "file", parameters.Request.File.FileName);
         }
 
         if (parameters.Request?.Items != null)

@@ -46,9 +46,9 @@ public sealed class UploadFormDataFilesEndpoint : IUploadFormDataFilesEndpoint
         var requestBuilder = httpMessageFactory.FromTemplate("/files/form-data/singleObjectMultiFile");
         if (parameters.Request?.Files != null)
         {
-            foreach (var (stream, index) in parameters.Request.Files.Select((s, i) => (s, i)))
+            foreach (var (fileItem, index) in parameters.Request.Files.Select((f, i) => (f, i)))
             {
-                requestBuilder.WithFile(stream, "files", $"files_{index}");
+                requestBuilder.WithFile(fileItem.OpenReadStream(), "files", fileItem.FileName);
             }
         }
 

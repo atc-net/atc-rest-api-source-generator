@@ -6,6 +6,7 @@ global using System.Runtime.CompilerServices;
 global using System.Text.Json;
 
 global using Atc.Rest.Api.SourceGenerator;
+global using Atc.Rest.Client;
 
 global using Microsoft.AspNetCore.Components;
 global using Microsoft.AspNetCore.Components.Forms;
