@@ -142,8 +142,8 @@ public sealed class PetStoreFullClient
         }
 
 
-        using var content = new StreamContent(parameters.File!);
-        content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        using var content = new StreamContent(parameters.File!.OpenReadStream());
+        content.Headers.ContentType = new MediaTypeHeaderValue(parameters.File.ContentType ?? "application/octet-stream");
 
         var response = await httpClient.PostAsync(url, content, cancellationToken);
         response.EnsureSuccessStatusCode();

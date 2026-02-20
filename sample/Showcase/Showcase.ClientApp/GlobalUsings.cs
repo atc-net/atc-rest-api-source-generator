@@ -1,5 +1,6 @@
 global using System.Diagnostics;
 global using System.Text;
+global using Atc.Rest.Client;
 global using Showcase.ClientApp;
 global using Showcase.Generated.Accounts.Client;
 global using Showcase.Generated.Accounts.Models;

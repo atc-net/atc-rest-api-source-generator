@@ -758,22 +758,35 @@ public static class HttpClientExtractor
                     builder.AppendLine();
                     builder.AppendLine("for (var i = 0; i < parameters.File!.Length; i++)");
                     builder.AppendLine("{");
-                    builder.AppendLine(4, "var streamContent = new StreamContent(parameters.File[i]);");
-                    builder.AppendLine(4, "content.Add(streamContent, \"files\", $\"file{i}\");");
+                    builder.AppendLine(4, "var fileItem = parameters.File[i];");
+                    builder.AppendLine(4, "var streamContent = new StreamContent(fileItem.OpenReadStream());");
+                    builder.AppendLine();
+                    builder.AppendLine(4, "if (fileItem.ContentType != null)");
+                    builder.AppendLine(4, "{");
+                    builder.AppendLine(8, "streamContent.Headers.ContentType = new MediaTypeHeaderValue(fileItem.ContentType);");
+                    builder.AppendLine(4, "}");
+                    builder.AppendLine();
+                    builder.AppendLine(4, "content.Add(streamContent, \"files\", fileItem.FileName);");
                     builder.AppendLine("}");
                 }
                 else
                 {
                     // Single file upload
-                    builder.AppendLine("var streamContent = new StreamContent(parameters.File!);");
-                    builder.AppendLine("content.Add(streamContent, \"file\", parameters.FileName ?? \"file\");");
+                    builder.AppendLine("var streamContent = new StreamContent(parameters.File!.OpenReadStream());");
+                    builder.AppendLine();
+                    builder.AppendLine("if (parameters.File!.ContentType != null)");
+                    builder.AppendLine("{");
+                    builder.AppendLine(4, "streamContent.Headers.ContentType = new MediaTypeHeaderValue(parameters.File.ContentType);");
+                    builder.AppendLine("}");
+                    builder.AppendLine();
+                    builder.AppendLine("content.Add(streamContent, \"file\", parameters.File.FileName);");
                 }
             }
             else
             {
                 // application/octet-stream or image/* content types
-                builder.AppendLine("using var content = new StreamContent(parameters.File!);");
-                builder.AppendLine($"content.Headers.ContentType = new MediaTypeHeaderValue(\"{fileUploadContentType ?? "application/octet-stream"}\");");
+                builder.AppendLine("using var content = new StreamContent(parameters.File!.OpenReadStream());");
+                builder.AppendLine($"content.Headers.ContentType = new MediaTypeHeaderValue(parameters.File.ContentType ?? \"{fileUploadContentType ?? "application/octet-stream"}\");");
             }
 
             builder.AppendLine();
@@ -1289,23 +1302,36 @@ public static class HttpClientExtractor
 
             if (isBinary)
             {
-                // Single file property - use StreamContent
+                // Single file property - use StreamContent with IFileContent
                 builder.AppendLine($"if ({requestAccess}?.{pascalPropName} != null)");
                 builder.AppendLine("{");
-                builder.AppendLine(4, $"var fileContent = new StreamContent({requestAccess}.{pascalPropName});");
-                builder.AppendLine(4, $"content.Add(fileContent, \"{propName}\", \"{propName}\");");
+                builder.AppendLine(4, $"var fileContent = new StreamContent({requestAccess}.{pascalPropName}.OpenReadStream());");
+                builder.AppendLine();
+                builder.AppendLine(4, $"if ({requestAccess}.{pascalPropName}.ContentType != null)");
+                builder.AppendLine(4, "{");
+                builder.AppendLine(8, $"fileContent.Headers.ContentType = new MediaTypeHeaderValue({requestAccess}.{pascalPropName}.ContentType);");
+                builder.AppendLine(4, "}");
+                builder.AppendLine();
+                builder.AppendLine(4, $"content.Add(fileContent, \"{propName}\", {requestAccess}.{pascalPropName}.FileName);");
                 builder.AppendLine("}");
                 builder.AppendLine();
             }
             else if (isArrayOfBinary)
             {
-                // Array of files - use StreamContent for each
+                // Array of files - use StreamContent with IFileContent for each
                 builder.AppendLine($"if ({requestAccess}?.{pascalPropName} != null)");
                 builder.AppendLine("{");
                 builder.AppendLine(4, $"for (var i = 0; i < {requestAccess}.{pascalPropName}.Count; i++)");
                 builder.AppendLine(4, "{");
-                builder.AppendLine(8, $"var fileContent = new StreamContent({requestAccess}.{pascalPropName}[i]);");
-                builder.AppendLine(8, $"content.Add(fileContent, \"{propName}\", $\"{propName}_{{i}}\");");
+                builder.AppendLine(8, $"var fileItem = {requestAccess}.{pascalPropName}[i];");
+                builder.AppendLine(8, "var fileContent = new StreamContent(fileItem.OpenReadStream());");
+                builder.AppendLine();
+                builder.AppendLine(8, "if (fileItem.ContentType != null)");
+                builder.AppendLine(8, "{");
+                builder.AppendLine(12, "fileContent.Headers.ContentType = new MediaTypeHeaderValue(fileItem.ContentType);");
+                builder.AppendLine(8, "}");
+                builder.AppendLine();
+                builder.AppendLine(8, $"content.Add(fileContent, \"{propName}\", fileItem.FileName);");
                 builder.AppendLine(4, "}");
                 builder.AppendLine("}");
                 builder.AppendLine();

@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Atc.Rest.Client" Version="2.0.31" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.3.0" />
   </ItemGroup>
 

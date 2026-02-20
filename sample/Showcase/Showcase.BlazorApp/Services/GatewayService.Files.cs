@@ -37,7 +37,8 @@ public sealed partial class GatewayService
         string contentType,
         CancellationToken cancellationToken = default)
     {
-        var parameters = new UploadSingleFileAsFormDataParameters(File: fileStream, FileName: fileName);
+        var fileContent = new StreamFileContent(fileStream, fileName, contentType);
+        var parameters = new UploadSingleFileAsFormDataParameters(File: fileContent);
 
         var result = await uploadSingleFileAsFormDataEndpoint
             .ExecuteAsync(parameters, cancellationToken: cancellationToken)
@@ -56,10 +57,10 @@ public sealed partial class GatewayService
         IEnumerable<(Stream Stream, string FileName, string ContentType)> files,
         CancellationToken cancellationToken = default)
     {
-        var fileStreams = files
-            .Select(f => f.Stream)
+        var fileContents = files
+            .Select(f => (Atc.Rest.Client.IFileContent)new StreamFileContent(f.Stream, f.FileName, f.ContentType))
             .ToArray();
-        var parameters = new UploadMultiFilesAsFormDataParameters(File: fileStreams);
+        var parameters = new UploadMultiFilesAsFormDataParameters(File: fileContents);
 
         var result = await uploadMultiFilesAsFormDataEndpoint
             .ExecuteAsync(parameters, cancellationToken: cancellationToken)
@@ -82,7 +83,8 @@ public sealed partial class GatewayService
         string[] items,
         CancellationToken cancellationToken = default)
     {
-        var request = new FileAsFormDataRequest(itemName, fileStream, [..items]);
+        var fileContent = new StreamFileContent(fileStream, fileName, contentType);
+        var request = new FileAsFormDataRequest(itemName, fileContent, [..items]);
         var parameters = new UploadSingleObjectWithFileAsFormDataParameters(Request: request);
 
         var result = await uploadSingleObjectWithFileAsFormDataEndpoint
@@ -106,7 +108,7 @@ public sealed partial class GatewayService
         string[] items,
         CancellationToken cancellationToken = default)
     {
-        var request = new FilesAsFormDataRequest([..files.Select(f => f.Stream)]);
+        var request = new FilesAsFormDataRequest([..files.Select(f => (Atc.Rest.Client.IFileContent)new StreamFileContent(f.Stream, f.FileName, f.ContentType))]);
         var parameters = new UploadSingleObjectWithFilesAsFormDataParameters(Request: request);
 
         var result = await uploadSingleObjectWithFilesAsFormDataEndpoint

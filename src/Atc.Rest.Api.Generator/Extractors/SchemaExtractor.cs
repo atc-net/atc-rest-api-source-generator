@@ -934,6 +934,11 @@ public static class SchemaExtractor
             r.Parameters?.Any(p =>
                 p.TypeName.IndexOf("IFormFile", StringComparison.Ordinal) >= 0) ?? false);
 
+        // Check if any record uses IFileContent (client-side file type)
+        var usesFileContent = records.Any(r =>
+            r.Parameters?.Any(p =>
+                p.TypeName.IndexOf("IFileContent", StringComparison.Ordinal) >= 0) ?? false);
+
         // Check if any record uses collection types (List, Dictionary, etc.)
         var usesCollections = records.Any(r =>
             r.Parameters?.Any(p =>
@@ -950,6 +955,11 @@ public static class SchemaExtractor
                 p.TypeName.Contains("DateTimeOffset", StringComparison.Ordinal) ||
                 p.TypeName.Contains("Uri", StringComparison.Ordinal) ||
                 p.TypeName.Contains("TimeSpan", StringComparison.Ordinal)) ?? false);
+
+        if (usesFileContent)
+        {
+            sb.AppendLine("using Atc.Rest.Client;");
+        }
 
         if (usesFormFile)
         {

@@ -977,15 +977,15 @@ public static class EndpointPerOperationExtractor
                 var contentType = operation.GetFileUploadContentType();
                 if (contentType is "application/octet-stream")
                 {
-                    // Single file upload via octet-stream - use WithBinaryBody for raw stream upload
-                    sb.AppendLine("requestBuilder.WithBinaryBody(parameters.File);");
+                    // Single file upload via octet-stream - use WithBinaryBody with stream from IFileContent
+                    sb.AppendLine("requestBuilder.WithBinaryBody(parameters.File!.OpenReadStream());");
                 }
                 else if (contentType is "multipart/form-data")
                 {
                     // Check if it's a schema-based upload or raw file(s)
                     if (!operation.RequestBody.Content.TryGetValue("multipart/form-data", out var mediaType))
                     {
-                        sb.AppendLine("requestBuilder.WithBody(parameters.File);");
+                        sb.AppendLine("requestBuilder.WithBody(parameters.File!.OpenReadStream());");
                     }
                     else if (mediaType.Schema is OpenApiSchemaReference schemaRef)
                     {
@@ -998,36 +998,36 @@ public static class EndpointPerOperationExtractor
                         var (isFile, isCollection) = mediaType.Schema.GetFileUploadInfo();
                         if (isFile && isCollection)
                         {
-                            // Array of files - iterate and add each with WithFile
+                            // Array of files - iterate and add each with WithFile using IFileContent
                             sb.AppendLine("if (parameters.File != null)");
                             sb.AppendLine("{");
                             sb.AppendLine(4, "for (var i = 0; i < parameters.File.Length; i++)");
                             sb.AppendLine(4, "{");
-                            sb.AppendLine(8, "requestBuilder.WithFile(parameters.File[i], \"files\", $\"file{i}\");");
+                            sb.AppendLine(8, "requestBuilder.WithFile(parameters.File[i].OpenReadStream(), \"files\", parameters.File[i].FileName);");
                             sb.AppendLine(4, "}");
                             sb.AppendLine("}");
                         }
                         else if (isFile)
                         {
-                            // Single file - use WithFile
-                            sb.AppendLine("requestBuilder.WithFile(parameters.File, \"file\", \"file\");");
+                            // Single file - use WithFile with IFileContent metadata
+                            sb.AppendLine("requestBuilder.WithFile(parameters.File!.OpenReadStream(), \"file\", parameters.File.FileName);");
                         }
                         else
                         {
                             // Fallback
-                            sb.AppendLine("requestBuilder.WithBody(parameters.File);");
+                            sb.AppendLine("requestBuilder.WithBody(parameters.File!.OpenReadStream());");
                         }
                     }
                     else
                     {
                         // No schema - fallback
-                        sb.AppendLine("requestBuilder.WithBody(parameters.File);");
+                        sb.AppendLine("requestBuilder.WithBody(parameters.File!.OpenReadStream());");
                     }
                 }
                 else
                 {
                     // Other file upload content types
-                    sb.AppendLine("requestBuilder.WithBody(parameters.File);");
+                    sb.AppendLine("requestBuilder.WithBody(parameters.File!.OpenReadStream());");
                 }
             }
             else
@@ -1617,21 +1617,21 @@ public static class EndpointPerOperationExtractor
 
             if (isBinary)
             {
-                // Single file property - use WithFile
+                // Single file property - use WithFile with IFileContent
                 sb.AppendLine($"if (parameters.Request?.{pascalPropName} != null)");
                 sb.AppendLine("{");
-                sb.AppendLine(4, $"requestBuilder.WithFile(parameters.Request.{pascalPropName}, \"{propName}\", \"{propName}\");");
+                sb.AppendLine(4, $"requestBuilder.WithFile(parameters.Request.{pascalPropName}.OpenReadStream(), \"{propName}\", parameters.Request.{pascalPropName}.FileName);");
                 sb.AppendLine("}");
                 sb.AppendLine();
             }
             else if (isArrayOfBinary)
             {
-                // Array of files - use WithFiles
+                // Array of files - use WithFile for each IFileContent
                 sb.AppendLine($"if (parameters.Request?.{pascalPropName} != null)");
                 sb.AppendLine("{");
-                sb.AppendLine(4, $"foreach (var (stream, index) in parameters.Request.{pascalPropName}.Select((s, i) => (s, i)))");
+                sb.AppendLine(4, $"foreach (var (fileItem, index) in parameters.Request.{pascalPropName}.Select((f, i) => (f, i)))");
                 sb.AppendLine(4, "{");
-                sb.AppendLine(8, $"requestBuilder.WithFile(stream, \"{propName}\", $\"{propName}_{{index}}\");");
+                sb.AppendLine(8, $"requestBuilder.WithFile(fileItem.OpenReadStream(), \"{propName}\", fileItem.FileName);");
                 sb.AppendLine(4, "}");
                 sb.AppendLine("}");
                 sb.AppendLine();

@@ -215,6 +215,7 @@ public static class UsingStatementHelper
         ["GlobalErrorHandlingOptions"] = "Atc.Rest.MinimalApi.Options",
 
         // Atc.Rest.Client
+        ["IFileContent"] = "Atc.Rest.Client",
         ["IHttpMessageFactory"] = "Atc.Rest.Client.Builder",
         ["BinaryEndpointResponse"] = "Atc.Rest.Client",
         ["EndpointResponse<"] = "Atc.Rest.Client",
