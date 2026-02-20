@@ -11,8 +11,13 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Get compilation for handler scanning (marker file presence is the trigger)
-        var compilationProvider = context.CompilationProvider;
+        // Extract a stable, equatable summary from the compilation.
+        // This runs on every C# edit but its output only changes when the handler set,
+        // validator set, interface namespaces, or assembly references actually change.
+        // Because DomainCompilationSummary has value equality, unchanged results
+        // prevent the downstream RegisterSourceOutput callback from firing.
+        var compilationSummary = context.CompilationProvider
+            .Select(static (compilation, _) => ExtractCompilationSummary(compilation));
 
         // Find marker files - marker file presence IS the trigger for this generator
         var markerFiles = context.AdditionalTextsProvider
@@ -45,15 +50,17 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             .Select(static (file, cancellationToken) => (file.Path, Content: file.GetText(cancellationToken)?.ToString() ?? string.Empty))
             .Where(static file => !string.IsNullOrEmpty(file.Content));
 
-        // Combine all providers
+        // Combine YAML files with the stable compilation summary (not raw compilation).
+        // This means the callback only fires when YAML content, marker config,
+        // or meaningful compilation state changes — not on every C# keystroke.
         var combined = yamlFiles
-            .Combine(compilationProvider)
+            .Combine(compilationSummary)
             .Combine(markerFiles);
 
         // Register source output for handler scaffolds
         context.RegisterSourceOutput(combined, (productionContext, combinedData) =>
         {
-            var ((yamlFile, compilation), markers) = combinedData;
+            var ((yamlFile, summary), markers) = combinedData;
 
             // Skip if no marker file found - marker file presence IS the trigger
             if (markers.IsEmpty)
@@ -72,10 +79,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             }
 
             // Validate ASP.NET Core references - generated handlers require them
-            var hasAspNetCore = compilation.ReferencedAssemblyNames
-                .Any(a => a.Name.StartsWith("Microsoft.AspNetCore", StringComparison.OrdinalIgnoreCase));
-
-            if (!hasAspNetCore)
+            if (!summary.HasAspNetCore)
             {
                 DiagnosticHelpers.ReportDomainRequiresAspNetCore(productionContext);
                 return;
@@ -83,7 +87,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
             try
             {
-                GenerateHandlerScaffolds(productionContext, yamlFile.Path, yamlFile.Content, compilation, config, markerDirectory);
+                GenerateHandlerScaffolds(productionContext, yamlFile.Path, yamlFile.Content, summary, config, markerDirectory);
             }
             catch (Exception ex)
             {
@@ -92,11 +96,47 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         });
     }
 
+    /// <summary>
+    /// Extracts a stable, equatable summary from the compilation.
+    /// Scans for implemented handlers, interface namespaces, and validators so that
+    /// the pipeline can detect when these sets actually change.
+    /// </summary>
+    private static DomainCompilationSummary ExtractCompilationSummary(
+        Compilation compilation)
+    {
+        var hasAspNetCore = compilation.ReferencedAssemblyNames
+            .Any(a => a.Name.StartsWith("Microsoft.AspNetCore", StringComparison.OrdinalIgnoreCase));
+
+        var assemblyName = compilation.AssemblyName;
+
+        // Sort all collections to ensure deterministic equality comparison
+        var implementedHandlers = FindImplementedHandlers(compilation)
+            .Select(kvp => new HandlerInfo(kvp.Key, kvp.Value))
+            .OrderBy(h => h.Name, StringComparer.OrdinalIgnoreCase)
+            .ToImmutableArray();
+
+        var interfaceNamespaces = FindHandlerInterfaceNamespaces(compilation)
+            .OrderBy(ns => ns, StringComparer.Ordinal)
+            .ToImmutableArray();
+
+        var validators = FindImplementedValidators(compilation)
+            .Select(v => new ValidatorInfo(v.ValidatorName, v.ValidatorNamespace, v.ModelType))
+            .OrderBy(v => v.Name, StringComparer.Ordinal)
+            .ToImmutableArray();
+
+        return new DomainCompilationSummary(
+            hasAspNetCore,
+            assemblyName,
+            new EquatableArray<HandlerInfo>(implementedHandlers),
+            new EquatableArray<string>(interfaceNamespaces),
+            new EquatableArray<ValidatorInfo>(validators));
+    }
+
     private static void GenerateHandlerScaffolds(
         SourceProductionContext context,
         string yamlPath,
         string yamlContent,
-        Compilation compilation,
+        DomainCompilationSummary summary,
         ServerDomainConfig config,
         string markerDirectory)
     {
@@ -140,8 +180,14 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                 .Replace(".Api.Domain", string.Empty)
                 .Replace(".Domain", string.Empty);
 
-        // Scan assembly for existing handler implementations
-        var implementedHandlers = FindImplementedHandlers(compilation);
+        var assemblyName = summary.AssemblyName ?? "Generated";
+
+        // Convert summary handler data to lookup dictionary
+        var implementedHandlers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var handler in summary.ImplementedHandlers.Values)
+        {
+            implementedHandlers[handler.Name] = handler.Namespace;
+        }
 
         // Get all operations from the OpenAPI document
         var operations = openApiDoc.GetAllOperations();
@@ -153,8 +199,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // Get all path segments for GlobalUsings generation
         var pathSegments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
 
-        // Discover handler interface namespaces from compilation (may be in referenced assembly)
-        var interfaceNamespaces = FindHandlerInterfaceNamespaces(compilation);
+        // Convert summary interface namespaces to HashSet
+        var interfaceNamespaces = new HashSet<string>(summary.InterfaceNamespaces.Values, StringComparer.Ordinal);
 
         // Ensure GlobalUsings.cs is updated at project root (markerDirectory) before generating handlers
         if (!string.IsNullOrEmpty(markerDirectory))
@@ -186,7 +232,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             // Use actual namespace if implemented, otherwise use config-based namespace
             var handlerNamespace = isImplemented && !string.IsNullOrEmpty(actualNamespace)
                 ? actualNamespace
-                : GetHandlerNamespace(compilation, path, operation, config);
+                : GetHandlerNamespace(assemblyName, path, operation, config);
 
             // Add to all handlers list for DI registration (regardless of implementation status)
             allHandlers.Add((operationId, handlerName, handlerNamespace));
@@ -212,10 +258,13 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         }
 
         // Generate DI registration extension method for handlers
-        GenerateDependencyRegistration(context, compilation, rootNamespace, allHandlers, config, interfaceNamespaces, pathSegments);
+        GenerateDependencyRegistration(context, assemblyName, rootNamespace, allHandlers, config, interfaceNamespaces, pathSegments);
 
         // Generate DI registration extension method for validators
-        GenerateValidatorDependencyRegistration(context, compilation, rootNamespace);
+        var validators = summary.ImplementedValidators.Values
+            .Select(v => (v.Name, v.Namespace, v.ModelType))
+            .ToList();
+        GenerateValidatorDependencyRegistration(context, assemblyName, rootNamespace, validators);
     }
 
     /// <summary>
@@ -223,7 +272,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     /// </summary>
     private static void GenerateDependencyRegistration(
         SourceProductionContext context,
-        Compilation compilation,
+        string assemblyName,
         string rootNamespace,
         List<(string OperationId, string HandlerName, string HandlerNamespace)> allHandlers,
         ServerDomainConfig config,
@@ -234,8 +283,6 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         {
             return;
         }
-
-        var assemblyName = compilation.AssemblyName ?? "Generated";
 
         // Use discovered interface namespaces if available, otherwise fall back to path-segment based
         List<string> handlerInterfaceNamespaces;
@@ -283,18 +330,14 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     /// </summary>
     private static void GenerateValidatorDependencyRegistration(
         SourceProductionContext context,
-        Compilation compilation,
-        string rootNamespace)
+        string assemblyName,
+        string rootNamespace,
+        List<(string ValidatorName, string ValidatorNamespace, string ModelType)> validators)
     {
-        // Find all validators in the compilation
-        var validators = FindImplementedValidators(compilation);
-
         if (validators.Count == 0)
         {
             return;
         }
-
-        var assemblyName = compilation.AssemblyName ?? "Generated";
 
         // Use ValidatorDependencyRegistrationExtractor to extract class parameters
         var classParameters = ValidatorDependencyRegistrationExtractor.Extract(
@@ -563,13 +606,13 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     /// Uses assembly name as the base namespace, with optional override via config.Namespace.
     /// </summary>
     private static string GetHandlerNamespace(
-        Compilation compilation,
+        string assemblyName,
         string path,
         OpenApiOperation operation,
         ServerDomainConfig config)
     {
         // Use assembly name as base namespace by default, config.Namespace only as explicit override
-        var baseNamespace = compilation.AssemblyName ?? "Generated";
+        var baseNamespace = assemblyName;
 
         // Build handler folder name from config (default: "ApiHandlers")
         var handlerFolder = config.GenerateHandlersOutput
