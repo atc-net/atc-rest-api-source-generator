@@ -40,7 +40,7 @@ This will start both the API and the client with proper service discovery config
 ## Aspire v13 Features
 
 This project uses .NET Aspire v13 features:
-- **New SDK format**: `<Project Sdk="Aspire.AppHost.Sdk/13.1.0">`
+- **New SDK format**: `<Project Sdk="Aspire.AppHost.Sdk/13.1.1">`
 - **Simplified project references**: The `Aspire.Hosting.AppHost` package is implicit in the SDK
 - **Service references**: Automatic endpoint injection for service discovery
 - **RunAsync**: Using the async Run method for better async/await patterns

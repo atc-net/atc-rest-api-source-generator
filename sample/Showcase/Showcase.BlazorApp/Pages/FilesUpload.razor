@@ -4,15 +4,13 @@
 
 <MudText Typo="Typo.h4" Class="mb-4">Files - Upload</MudText>
 
-<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true">
     <MudTabPanel Text="Single File">
         <MudText Typo="Typo.h6" Class="mb-4">Upload Single File</MudText>
-        <MudFileUpload T="IBrowserFile" FilesChanged="OnSingleFileSelected">
-            <ActivatorContent>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">
-                    Select File
-                </MudButton>
-            </ActivatorContent>
+        <MudFileUpload T="IBrowserFile" @bind-Files="singleFile" SuppressOnChangeWhenInvalid="false">
+            <SelectedTemplate>
+                <MudChip T="string" Color="Color.Dark" Text="@context?.Name" />
+            </SelectedTemplate>
         </MudFileUpload>
         @if (singleFile != null)
         {
@@ -31,12 +29,17 @@
 
     <MudTabPanel Text="Multiple Files">
         <MudText Typo="Typo.h6" Class="mb-4">Upload Multiple Files</MudText>
-        <MudFileUpload T="IReadOnlyList<IBrowserFile>" FilesChanged="OnMultipleFilesSelected">
-            <ActivatorContent>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">
-                    Select Files
-                </MudButton>
-            </ActivatorContent>
+        <MudFileUpload T="IReadOnlyList<IBrowserFile>" @bind-Files="multipleFiles" @bind-Files:after="OnMultipleFilesSelected" SuppressOnChangeWhenInvalid="false">
+            <SelectedTemplate>
+                @if (context != null && context.Count > 0)
+                {
+                    <MudChip T="string" Color="Color.Dark" Text="@($"{context.Count} file(s) selected")" />
+                }
+                else
+                {
+                    <span></span>
+                }
+            </SelectedTemplate>
         </MudFileUpload>
         @if (multipleFilesData != null && multipleFilesData.Count > 0)
         {
@@ -68,12 +71,10 @@
                 <MudTextField @bind-Value="itemsText" Label="Items (comma-separated)" Variant="Variant.Outlined" HelperText="e.g., tag1, tag2, tag3" />
             </MudItem>
         </MudGrid>
-        <MudFileUpload T="IBrowserFile" FilesChanged="OnMetadataFileSelected" Class="mt-4">
-            <ActivatorContent>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">
-                    Select File
-                </MudButton>
-            </ActivatorContent>
+        <MudFileUpload T="IBrowserFile" @bind-Files="metadataFile" Class="mt-4" SuppressOnChangeWhenInvalid="false">
+            <SelectedTemplate>
+                <MudChip T="string" Color="Color.Dark" Text="@context?.Name" />
+            </SelectedTemplate>
         </MudFileUpload>
         @if (metadataFile != null)
         {
@@ -100,12 +101,17 @@
                 <MudTextField @bind-Value="batchItemsText" Label="Items (comma-separated)" Variant="Variant.Outlined" HelperText="e.g., tag1, tag2, tag3" />
             </MudItem>
         </MudGrid>
-        <MudFileUpload T="IReadOnlyList<IBrowserFile>" FilesChanged="OnBatchFilesSelected" Class="mt-4">
-            <ActivatorContent>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">
-                    Select Files
-                </MudButton>
-            </ActivatorContent>
+        <MudFileUpload T="IReadOnlyList<IBrowserFile>" @bind-Files="batchFiles" Class="mt-4" SuppressOnChangeWhenInvalid="false">
+            <SelectedTemplate>
+                @if (context != null && context.Count > 0)
+                {
+                    <MudChip T="string" Color="Color.Dark" Text="@($"{context.Count} file(s) selected")" />
+                }
+                else
+                {
+                    <span></span>
+                }
+            </SelectedTemplate>
         </MudFileUpload>
         @if (batchFiles != null && batchFiles.Count > 0)
         {

@@ -14,6 +14,7 @@ public partial class FilesUpload
     private IBrowserFile? singleFile;
 
     // Multiple files - store as tuples with pre-read data to avoid stale IBrowserFile references
+    private IReadOnlyList<IBrowserFile>? multipleFiles;
     private List<(MemoryStream Stream, string Name, string ContentType, long Size)>? multipleFilesData;
 
     // File with metadata
@@ -26,14 +27,13 @@ public partial class FilesUpload
     private string batchItemName = string.Empty;
     private string batchItemsText = string.Empty;
 
-    private void OnSingleFileSelected(IBrowserFile file)
+    private async Task OnMultipleFilesSelected()
     {
-        singleFile = file;
-    }
+        if (multipleFiles == null || multipleFiles.Count == 0)
+        {
+            return;
+        }
 
-    private async Task OnMultipleFilesSelected(
-        IReadOnlyList<IBrowserFile> files)
-    {
         // Dispose previous files if any
         if (multipleFilesData != null)
         {
@@ -45,7 +45,7 @@ public partial class FilesUpload
 
         // Read all files into memory immediately to avoid stale IBrowserFile references
         multipleFilesData = new List<(MemoryStream, string, string, long)>();
-        foreach (var file in files)
+        foreach (var file in multipleFiles)
         {
             await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
             var ms = new MemoryStream();
@@ -55,16 +55,6 @@ public partial class FilesUpload
         }
 
         StateHasChanged();
-    }
-
-    private void OnMetadataFileSelected(IBrowserFile file)
-    {
-        metadataFile = file;
-    }
-
-    private void OnBatchFilesSelected(IReadOnlyList<IBrowserFile> files)
-    {
-        batchFiles = files;
     }
 
     private async Task UploadSingleFileAsync()

@@ -75,7 +75,7 @@ else
 @code {
     private List<Subscription> subscriptions = [];
     private string? newSubscriptionName;
-    private IEnumerable<NotificationType> selectedTopics = [NotificationType.System, NotificationType.Alert];
+    private IReadOnlyCollection<NotificationType> selectedTopics = new List<NotificationType> { NotificationType.System, NotificationType.Alert };
     private bool isLoading;
 
     protected override async Task OnInitializedAsync()
