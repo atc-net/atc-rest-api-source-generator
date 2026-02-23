@@ -2,7 +2,8 @@ namespace Atc.OpenApi.Models;
 
 /// <summary>
 /// Registry for detecting and resolving type name conflicts between OpenAPI schemas
-/// and .NET system types (e.g., "Task" vs System.Threading.Tasks.Task).
+/// and .NET system types (e.g., "Task" vs System.Threading.Tasks.Task) or project
+/// namespace segments (e.g., schema "Device" in namespace "KL.IoT.Device.Management").
 /// </summary>
 public sealed class TypeConflictRegistry
 {
@@ -51,12 +52,16 @@ public sealed class TypeConflictRegistry
     }
 
     /// <summary>
-    /// Scans an OpenAPI document once and returns the set of schema names that conflict with reserved .NET types.
+    /// Scans an OpenAPI document once and returns the set of schema names that conflict with reserved .NET types
+    /// or with segments of the project namespace.
     /// Call this once per document, then use <see cref="ForSegment"/> to create registries for each path segment.
     /// </summary>
     /// <param name="doc">The OpenAPI document to scan.</param>
+    /// <param name="projectNamespace">Optional project namespace; segments are checked for conflicts with schema names.</param>
     /// <returns>Set of conflicting schema names.</returns>
-    public static ISet<string> ScanForConflicts(OpenApiDocument doc)
+    public static ISet<string> ScanForConflicts(
+        OpenApiDocument doc,
+        string? projectNamespace = null)
     {
         var conflicts = new HashSet<string>(StringComparer.Ordinal);
 
@@ -65,9 +70,18 @@ public sealed class TypeConflictRegistry
             return conflicts;
         }
 
+        HashSet<string>? namespaceSegments = null;
+        if (!string.IsNullOrEmpty(projectNamespace))
+        {
+            namespaceSegments = new HashSet<string>(
+                projectNamespace!.Split('.'),
+                StringComparer.Ordinal);
+        }
+
         foreach (var schema in doc.Components.Schemas)
         {
-            if (ReservedSystemTypes.Contains(schema.Key))
+            if (ReservedSystemTypes.Contains(schema.Key) ||
+                namespaceSegments?.Contains(schema.Key) == true)
             {
                 conflicts.Add(schema.Key);
             }
@@ -104,7 +118,7 @@ public sealed class TypeConflictRegistry
         OpenApiDocument doc,
         string projectName,
         string? pathSegment = null)
-        => ForSegment(ScanForConflicts(doc), projectName, pathSegment);
+        => ForSegment(ScanForConflicts(doc, projectName), projectName, pathSegment);
 
     /// <summary>
     /// Checks if a type name conflicts with a reserved .NET system type.

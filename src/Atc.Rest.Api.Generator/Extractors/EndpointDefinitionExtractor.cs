@@ -1715,6 +1715,11 @@ using Microsoft.AspNetCore.Builder;
             if (!string.IsNullOrEmpty(refName))
             {
                 var typeName = refName!.ToPascalCaseForDotNet();
+                if (registry?.IsConflicting(typeName) == true)
+                {
+                    return registry.GetFullyQualifiedName(typeName);
+                }
+
                 return ResolveModelTypeConflict(typeName, projectName, segment, systemTypeResolver);
             }
         }
@@ -1775,6 +1780,11 @@ using Microsoft.AspNetCore.Builder;
             if (!string.IsNullOrEmpty(refName))
             {
                 var typeName = refName!.ToPascalCaseForDotNet();
+                if (registry?.IsConflicting(typeName) == true)
+                {
+                    return registry.GetFullyQualifiedName(typeName);
+                }
+
                 return ResolveModelTypeConflict(typeName, projectName, segment, systemTypeResolver);
             }
         }
@@ -1799,6 +1809,11 @@ using Microsoft.AspNetCore.Builder;
                         string.Equals(componentSchema.Title, openApiSchema.Title, StringComparison.Ordinal))
                     {
                         var typeName = kvp.Key.ToPascalCaseForDotNet();
+                        if (registry?.IsConflicting(typeName) == true)
+                        {
+                            return registry.GetFullyQualifiedName(typeName);
+                        }
+
                         return ResolveModelTypeConflict(typeName, projectName, segment, systemTypeResolver);
                     }
                 }

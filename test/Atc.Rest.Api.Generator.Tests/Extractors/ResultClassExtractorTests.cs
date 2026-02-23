@@ -436,6 +436,75 @@ public class ResultClassExtractorTests
         Assert.Null(preconditionFailedMethod);
     }
 
+    // ========== Namespace Segment Conflict Tests ==========
+
+    [Fact]
+    public void Extract_SchemaNameMatchingNamespaceSegment_UsesFullyQualifiedTypeName()
+    {
+        // Arrange: Schema "Device" conflicts with namespace segment "Device" in "KL.IoT.Device.Management"
+        const string yaml = """
+                            openapi: "3.1.1"
+                            info:
+                              title: Test API
+                              version: "1.0.0"
+                            paths:
+                              /devices/{id}:
+                                get:
+                                  operationId: getDeviceById
+                                  parameters:
+                                    - name: id
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Device'
+                                    '404':
+                                      description: Not Found
+                            components:
+                              schemas:
+                                Device:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                    name:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var registry = TypeConflictRegistry.Build(document!, "KL.IoT.Device.Management", "Devices");
+
+        // Act
+        var resultClasses = ResultClassExtractor.Extract(
+            document!,
+            "KL.IoT.Device.Management",
+            registry: registry,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        Assert.Single(resultClasses);
+
+        var resultClass = resultClasses[0];
+        var okMethod = resultClass.Methods?.FirstOrDefault(m => m.Name == "Ok");
+        Assert.NotNull(okMethod);
+        Assert.NotNull(okMethod.Parameters);
+        Assert.Single(okMethod.Parameters);
+
+        // The parameter type should be fully qualified to avoid CS0118
+        var param = okMethod.Parameters[0];
+        Assert.Equal("KL.IoT.Device.Management.Generated.Devices.Models.Device", param.TypeName);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

@@ -280,7 +280,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         var pathSegments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
 
         // Scan for type conflicts once (optimization: O(schemas) instead of O(pathSegments × schemas))
-        var conflicts = TypeConflictRegistry.ScanForConflicts(openApiDoc);
+        var conflicts = TypeConflictRegistry.ScanForConflicts(openApiDoc, projectName);
 
         // Create system type conflict resolver for conditional Task qualification
         var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
