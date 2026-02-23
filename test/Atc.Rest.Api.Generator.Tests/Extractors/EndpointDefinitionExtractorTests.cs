@@ -285,4 +285,68 @@ public class EndpointDefinitionExtractorTests
 
         Assert.Equal("/api/v1/charge-points", result);
     }
+
+    // ========== Namespace Segment Conflict Tests ==========
+    [Fact]
+    public void Extract_SchemaNameMatchingNamespaceSegment_ProducesFullyQualifiedType()
+    {
+        // Arrange: Schema "Device" conflicts with namespace segment "Device" in "KL.IoT.Device.Management"
+        const string yaml = """
+                            openapi: "3.1.1"
+                            info:
+                              title: Test API
+                              version: "1.0.0"
+                            paths:
+                              /devices/{id}:
+                                get:
+                                  operationId: getDeviceById
+                                  parameters:
+                                    - name: id
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Device'
+                                    '404':
+                                      description: Not Found
+                            components:
+                              schemas:
+                                Device:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var registry = TypeConflictRegistry.Build(document, "KL.IoT.Device.Management", "Devices");
+        var modelNames = document.Components?.Schemas?.Keys ?? [];
+        var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
+
+        // Act
+        var (_, classes) = EndpointDefinitionExtractor.Extract(
+            document,
+            "KL.IoT.Device.Management",
+            "Devices",
+            registry,
+            systemTypeResolver);
+
+        // Assert: generated endpoint code should use FQN for Device in .Produces<>()
+        Assert.NotNull(classes);
+        Assert.NotEmpty(classes);
+
+        var allMethodBodies = classes
+            .SelectMany(c => c.Methods ?? [])
+            .Select(m => m.Content ?? string.Empty)
+            .Aggregate(string.Empty, (a, b) => a + b);
+
+        // Should contain the FQN, not just "Device"
+        Assert.Contains("KL.IoT.Device.Management.Generated.Devices.Models.Device", allMethodBodies, StringComparison.Ordinal);
+    }
 }

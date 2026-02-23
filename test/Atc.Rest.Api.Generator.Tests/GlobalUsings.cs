@@ -9,6 +9,7 @@ global using Atc.CodeGeneration.CSharp.Content;
 global using Atc.CodeGeneration.CSharp.Helpers;
 global using Atc.OpenApi.Extensions;
 global using Atc.OpenApi.Helpers;
+global using Atc.OpenApi.Models;
 global using Atc.Rest.Api.Generator.Configurations;
 global using Atc.Rest.Api.Generator.Extensions;
 global using Atc.Rest.Api.Generator.Extractors;
