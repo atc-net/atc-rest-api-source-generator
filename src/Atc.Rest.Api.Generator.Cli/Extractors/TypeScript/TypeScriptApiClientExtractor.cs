@@ -51,6 +51,7 @@ public static class TypeScriptApiClientExtractor
         sb.AppendLine("  query?: Record<string, string | number | boolean | undefined>;");
         sb.AppendLine("  headers?: Record<string, string>;");
         sb.AppendLine("  signal?: AbortSignal;");
+        sb.AppendLine("  responseType?: 'json' | 'blob';");
         sb.AppendLine("}");
         sb.AppendLine();
     }
@@ -91,6 +92,9 @@ public static class TypeScriptApiClientExtractor
         sb.AppendLine("    if (options?.body !== undefined) {");
         sb.AppendLine("      if (options.body instanceof FormData) {");
         sb.AppendLine("        fetchBody = options.body;");
+        sb.AppendLine("      } else if (options.body instanceof Blob) {");
+        sb.AppendLine("        headers.set('Content-Type', 'application/octet-stream');");
+        sb.AppendLine("        fetchBody = options.body;");
         sb.AppendLine("      } else {");
         sb.AppendLine("        headers.set('Content-Type', 'application/json');");
         sb.AppendLine("        fetchBody = JSON.stringify(options.body);");
@@ -104,7 +108,7 @@ public static class TypeScriptApiClientExtractor
         sb.AppendLine("      signal: options?.signal,");
         sb.AppendLine("    });");
         sb.AppendLine();
-        sb.AppendLine("    return this.handleResponse<T>(response);");
+        sb.AppendLine("    return this.handleResponse<T>(response, options?.responseType);");
         sb.AppendLine("  }");
         sb.AppendLine();
     }
@@ -202,13 +206,13 @@ public static class TypeScriptApiClientExtractor
 
     private static void AppendHandleResponseMethod(StringBuilder sb)
     {
-        sb.AppendLine("  private async handleResponse<T>(response: Response): Promise<ApiResult<T>> {");
+        sb.AppendLine("  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob'): Promise<ApiResult<T>> {");
         sb.AppendLine("    if (response.status === 204) {");
         sb.AppendLine("      return { status: 'noContent', response };");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    const contentType = response.headers.get('Content-Type') ?? '';");
-        sb.AppendLine("    const isJson = contentType.includes('application/json');");
+        sb.AppendLine("    const isJson = responseType ? responseType === 'json' : contentType.includes('application/json');");
         sb.AppendLine();
         sb.AppendLine("    if (response.ok) {");
         sb.AppendLine("      const data = isJson ? await response.json() : await response.blob();");

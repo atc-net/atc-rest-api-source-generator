@@ -21,6 +21,15 @@ builder
     .WaitFor(api)
     .WithExternalHttpEndpoints();
 
+// Add the React application (Vite dev server)
+// AddViteApp handles Vite lifecycle (port injection, dev-server readiness detection)
+// VITE_API_BASE_URL is exposed to client code via import.meta.env
+builder
+    .AddViteApp("react-app", "../Showcase.ReactApp")
+    .WithEnvironment("VITE_API_BASE_URL", api.GetEndpoint("http"))
+    .WaitFor(api)
+    .WithExternalHttpEndpoints();
+
 await builder
     .Build()
     .RunAsync()

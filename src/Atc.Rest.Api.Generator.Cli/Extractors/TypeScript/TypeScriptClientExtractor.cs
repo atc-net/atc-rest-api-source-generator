@@ -149,7 +149,7 @@ public static class TypeScriptClientExtractor
         }
         else
         {
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, bodySchema, bodyContentType, isFileUpload, returnType);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, returnType);
         }
     }
 
@@ -163,6 +163,7 @@ public static class TypeScriptClientExtractor
         IOpenApiSchema? bodySchema,
         string bodyContentType,
         bool isFileUpload,
+        bool isFileDownload,
         string returnType)
     {
         // Build parameter list
@@ -176,7 +177,7 @@ public static class TypeScriptClientExtractor
         var hasQuery = queryParams.Count > 0;
         var hasBody = bodySchema != null;
 
-        if (hasQuery || hasBody || isFileUpload)
+        if (hasQuery || hasBody || isFileUpload || isFileDownload)
         {
             sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(interpolatedPath).AppendLine(", {");
 
@@ -192,6 +193,11 @@ public static class TypeScriptClientExtractor
             if (hasQuery)
             {
                 AppendQueryObject(sb, queryParams);
+            }
+
+            if (isFileDownload)
+            {
+                sb.AppendLine("      responseType: 'blob',");
             }
 
             sb.AppendLine("    });");
@@ -385,17 +391,15 @@ public static class TypeScriptClientExtractor
         IOpenApiSchema bodySchema,
         string bodyContentType)
     {
-        sb.AppendLine("      body: (() => {");
-        sb.AppendLine("        const formData = new FormData();");
-
-        // For raw binary upload
+        // For raw binary upload (application/octet-stream), pass file directly
         if (bodyContentType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase))
         {
-            sb.AppendLine("        formData.append('file', file);");
-            sb.AppendLine("        return formData;");
-            sb.AppendLine("      })(),");
+            sb.AppendLine("      body: file,");
             return;
         }
+
+        sb.AppendLine("      body: (() => {");
+        sb.AppendLine("        const formData = new FormData();");
 
         // For array of files
         if (bodySchema is OpenApiSchema { Type: var type } && type?.HasFlag(JsonSchemaType.Array) == true)
