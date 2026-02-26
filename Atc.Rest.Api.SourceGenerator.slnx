@@ -60,6 +60,7 @@
   </Folder>
   <Folder Name="/src/libs/">
     <Project Path="src/Atc.CodeGeneration.CSharp/Atc.CodeGeneration.CSharp.csproj" />
+    <Project Path="src/Atc.CodeGeneration.TypeScript/Atc.CodeGeneration.TypeScript.csproj" />
     <Project Path="src/Atc.OpenApi/Atc.OpenApi.csproj" />
     <Project Path="src/Atc.Rest.Api.Generator/Atc.Rest.Api.Generator.csproj" />
   </Folder>

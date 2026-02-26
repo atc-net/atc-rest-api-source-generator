@@ -1,0 +1,40 @@
+# ATC coding rules - https://github.com/atc-net/atc-coding-rules
+# Location: Atc.CodeGeneration.TypeScript
+
+##########################################
+# Code Analyzers Rules
+##########################################
+[*.{cs,csx,cake}]
+
+##########################################
+# Custom - Code Analyzers Rules
+##########################################
+dotnet_diagnostic.MA0048.severity = none         # File name must match type name
+
+dotnet_diagnostic.SA1649.severity = none         # File name must match type name
+
+
+dotnet_diagnostic.ATC201.severity = none         # Single parameter on same line
+dotnet_diagnostic.SA1200.severity = none         # Using directives placement
+
+dotnet_diagnostic.SA1118.severity = none         # Parameter spans multiple lines
+dotnet_diagnostic.SA1310.severity = none         # Field names should not contain underscore
+dotnet_diagnostic.SA1402.severity = none         # File may only contain a single type
+dotnet_diagnostic.SA1518.severity = none         # File may not end with a newline character
+dotnet_diagnostic.SA1615.severity = none         # Element return value should be documented
+
+dotnet_diagnostic.MA0051.severity = none         # Method is too long
+dotnet_diagnostic.MA0074.severity = none         # Use StringComparison parameter
+
+dotnet_diagnostic.S2094.severity = none          # Remove empty class
+dotnet_diagnostic.S2325.severity = none          # Make method static
+dotnet_diagnostic.S3267.severity = none          # Loop should be simplified
+dotnet_diagnostic.S6608.severity = none          # Use indexing instead of Last()
+
+dotnet_diagnostic.CA1305.severity = none         # ToString with IFormatProvider
+dotnet_diagnostic.CA1310.severity = none         # Use StringComparison parameter
+dotnet_diagnostic.CA1711.severity = none         # Rename type so it does not end in Enum
+
+# Nullable reference warnings
+dotnet_diagnostic.CS8602.severity = none         # Dereference of a possibly null reference
+dotnet_diagnostic.CS8604.severity = none         # Possible null reference argument

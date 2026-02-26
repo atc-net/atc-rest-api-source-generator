@@ -72,6 +72,12 @@ public static class CommandAppExtensions
                 .WithExample("generate", "server", "-s", "api.yaml", "-o", "output/MyApp.Api.Contracts", "-n", "MyApp.Api.Contracts")
                 .WithExample("generate", "server", "-s", "api.yaml", "-o", "output/MyApp.Api.Contracts", "-n", "MyApp.Api.Contracts", "--no-domain")
                 .WithExample("generate", "server", "-s", "api.yaml", "-o", "output/MyApp.Api.Contracts", "-n", "MyApp.Api.Contracts", "--versioning-strategy", "UrlSegment");
+
+            node
+                .AddCommand<GenerateClientTypeScriptCommand>("client-typescript")
+                .WithDescription("Generate TypeScript client files from an OpenAPI specification.")
+                .WithExample("generate", "client-typescript", "-s", "api.yaml", "-o", "output/ts-client")
+                .WithExample("generate", "client-typescript", "-s", "api.yaml", "-o", "output/ts-client", "--enum-style", "Enum");
         };
 
     private static Action<IConfigurator<CommandSettings>> ConfigureOptionsCommands()

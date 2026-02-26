@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Atc.Rest.Api.Generator\Atc.Rest.Api.Generator.csproj" />
+    <ProjectReference Include="..\Atc.CodeGeneration.TypeScript\Atc.CodeGeneration.TypeScript.csproj" />
   </ItemGroup>
 
   <ItemGroup>
