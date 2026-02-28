@@ -44,11 +44,12 @@ public class GeneratorComparisonTests
             .GetExpectedFiles(scenario, masterFolder, generator)
             .ToList();
 
+        var isTypeScript = string.Equals(generator, "TypeScriptClient", StringComparison.OrdinalIgnoreCase);
         var actualTypes = GetActualTypes(scenario, masterFolder, generator).ToList();
 
         // Act
         var actualRelativePaths = actualTypes
-            .Select(FileComparer.GetRelativePath)
+            .Select(t => FileComparer.GetRelativePath(t, isTypeScript))
             .ToList();
 
         // Assert
@@ -190,6 +191,7 @@ public class GeneratorComparisonTests
             "SERVER" => GeneratorTestHelper.GetServerTypesWithPaths(yamlPath, scenario),
             "CLIENT" => GeneratorTestHelper.GetClientTypesWithPaths(yamlPath, markerPath, scenario),
             "SERVERDOMAIN" => GeneratorTestHelper.GetServerDomainTypesWithPaths(yamlPath, scenario),
+            "TYPESCRIPTCLIENT" => GeneratorTestHelper.GetTypeScriptClientTypesWithPaths(yamlPath, markerPath, scenario),
             _ => throw new ArgumentException($"Unknown generator type: {generator}", nameof(generator)),
         };
     }

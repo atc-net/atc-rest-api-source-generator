@@ -17,6 +17,8 @@
     <ProjectReference Include="..\..\src\Atc.Rest.Api.Generator\Atc.Rest.Api.Generator.csproj">
       <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
     </ProjectReference>
+    <ProjectReference Include="..\..\src\Atc.Rest.Api.Generator.Cli\Atc.Rest.Api.Generator.Cli.csproj" />
+    <ProjectReference Include="..\..\src\Atc.CodeGeneration.TypeScript\Atc.CodeGeneration.TypeScript.csproj" />
   </ItemGroup>
 
   <!-- Include scenario files as content (exclude from compilation) -->
@@ -40,6 +42,10 @@
       </Reference>
       <Reference Include="Atc.CodeGeneration.CSharp">
         <HintPath>..\..\src\Atc.CodeGeneration.CSharp\bin\$(Configuration)\netstandard2.0\Atc.CodeGeneration.CSharp.dll</HintPath>
+        <Private>true</Private>
+      </Reference>
+      <Reference Include="Atc.CodeGeneration.TypeScript">
+        <HintPath>..\..\src\Atc.CodeGeneration.TypeScript\bin\$(Configuration)\netstandard2.0\Atc.CodeGeneration.TypeScript.dll</HintPath>
         <Private>true</Private>
       </Reference>
     </ItemGroup>

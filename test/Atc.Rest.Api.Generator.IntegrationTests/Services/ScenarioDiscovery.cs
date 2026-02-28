@@ -29,6 +29,7 @@ public static class ScenarioDiscovery
         [".atc-rest-api-server"] = ("Server", "Server"),
         [".atc-rest-api-server-handlers"] = ("ServerDomain", "ServerDomain"),
         [".atc-rest-api-client"] = ("Client", "Client"),
+        [".atc-rest-api-ts-client"] = ("TypeScriptClient", "TypeScriptClient"),
     };
 
     /// <summary>
@@ -40,12 +41,12 @@ public static class ScenarioDiscovery
     /// <summary>
     /// Known master folders for different generator configurations.
     /// </summary>
-    public static readonly string[] MasterFolders = ["Server", "Client-Typed", "Client-Operation", "ServerDomain"];
+    public static readonly string[] MasterFolders = ["Server", "Client-Typed", "Client-Operation", "ServerDomain", "TS-Client-Fetch", "TS-Client-Axios"];
 
     /// <summary>
     /// Valid generator types for comparison.
     /// </summary>
-    public static readonly string[] GeneratorTypes = ["Server", "Client", "ServerDomain"];
+    public static readonly string[] GeneratorTypes = ["Server", "Client", "ServerDomain", "TypeScriptClient"];
 
     /// <summary>
     /// Gets the base path for test scenarios (test/Scenarios/).
@@ -188,7 +189,10 @@ public static class ScenarioDiscovery
             yield break;
         }
 
-        foreach (var file in Directory.EnumerateFiles(baselinePath, "*.verified.cs", SearchOption.AllDirectories))
+        var isTypeScript = string.Equals(generator, "TypeScriptClient", StringComparison.OrdinalIgnoreCase);
+        var pattern = isTypeScript ? "*.verified.ts" : "*.verified.cs";
+
+        foreach (var file in Directory.EnumerateFiles(baselinePath, pattern, SearchOption.AllDirectories))
         {
             yield return Path.GetRelativePath(baselinePath, file);
         }

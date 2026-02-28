@@ -494,6 +494,277 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
         Assert.True(tscSuccess, $"tsc --strict should compile without errors. tsc output:\n{tscOutput}");
     }
 
+    [Fact]
+    public async Task DryRun_ReportsCountsWithoutWritingFiles()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "DemoTsDryRun");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --dry-run";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+        Assert.Contains("(dry run)", cleanOutput, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Models generated:", cleanOutput, StringComparison.Ordinal);
+        Assert.False(Directory.Exists(outputPath), "Output directory should NOT exist in dry-run mode");
+    }
+
+    [Fact]
+    public async Task DryRun_ShowsDryRunLabel()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "DemoTsDryLabel");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --dry-run";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+        Assert.Contains("(dry run)", cleanOutput, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Watch_AppearsInHelp()
+    {
+        // Arrange
+        var arguments = "generate client-typescript --help";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful);
+        Assert.Contains("--watch", cleanOutput, StringComparison.Ordinal);
+        Assert.Contains("--dry-run", cleanOutput, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AxiosClient_GeneratesAxiosApiClient()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "DemoTsAxios");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --client-type Axios";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var apiClientContent = await File.ReadAllTextAsync(
+            Path.Combine(outputPath, "client", "ApiClient.ts"), TestContext.Current.CancellationToken);
+        Assert.Contains("axios", apiClientContent, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ReactQueryHooks_GeneratesHookFiles()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "DemoTsHooks");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --hooks ReactQuery";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var hooksDir = Path.Combine(outputPath, "hooks");
+        Assert.True(Directory.Exists(hooksDir), "hooks directory should exist");
+
+        var hookFiles = Directory.GetFiles(hooksDir, "use*.ts");
+        Assert.True(hookFiles.Length > 0, "Should have generated hook files matching use*.ts");
+    }
+
+    [Fact]
+    public async Task ZodSchemas_GeneratesZodFiles()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "DemoTsZod");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --zod";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var modelsDir = Path.Combine(outputPath, "models");
+        var zodFiles = Directory.GetFiles(modelsDir, "*.zod.ts");
+        Assert.True(zodFiles.Length > 0, "Should have generated .zod.ts files in models directory");
+    }
+
+    [Fact]
+    public async Task Scaffold_GeneratesPackageJson()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "DemoTsScaffold");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --scaffold";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        Assert.True(File.Exists(Path.Combine(outputPath, "package.json")), "package.json should exist");
+        Assert.True(File.Exists(Path.Combine(outputPath, "tsconfig.json")), "tsconfig.json should exist");
+    }
+
+    [Fact]
+    public async Task ConvertDates_GeneratesDateReviver()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "DemoTsDates");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --convert-dates";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var apiClientContent = await File.ReadAllTextAsync(
+            Path.Combine(outputPath, "client", "ApiClient.ts"), TestContext.Current.CancellationToken);
+        Assert.Contains("dateReviver", apiClientContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task NoReadonly_OmitsReadonlyModifier()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "DemoTsMutable");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --no-readonly";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var modelsDir = Path.Combine(outputPath, "models");
+        var modelFiles = Directory.GetFiles(modelsDir, "*.ts")
+            .Where(f => !f.EndsWith("index.ts", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        Assert.True(modelFiles.Length > 0, "Should have generated model files");
+
+        foreach (var modelFile in modelFiles)
+        {
+            var content = await File.ReadAllTextAsync(modelFile, TestContext.Current.CancellationToken);
+            Assert.DoesNotContain("readonly ", content, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task NamingStrategyOriginal_PreservesPropertyNames()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "DemoTsOriginal");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --naming-strategy Original";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+        Assert.Contains("TypeScript client generation completed successfully", cleanOutput, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task EnumStyleEnum_GeneratesTsEnums()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "DemoTsEnumStyle");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --enum-style Enum";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var enumsDir = Path.Combine(outputPath, "enums");
+        Assert.True(Directory.Exists(enumsDir), "enums directory should exist");
+
+        var enumFiles = Directory.GetFiles(enumsDir, "*.ts")
+            .Where(f => !f.EndsWith("index.ts", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        Assert.True(enumFiles.Length > 0, "Should have generated enum files");
+
+        // At least one enum file should use export enum syntax
+        var anyHasExportEnum = false;
+        foreach (var enumFile in enumFiles)
+        {
+            var content = await File.ReadAllTextAsync(enumFile, TestContext.Current.CancellationToken);
+            if (content.Contains("export enum", StringComparison.Ordinal))
+            {
+                anyHasExportEnum = true;
+                break;
+            }
+        }
+
+        Assert.True(anyHasExportEnum, "At least one enum file should contain 'export enum'");
+    }
+
     private static async Task<bool> IsNodeAvailable(
         CancellationToken cancellationToken)
     {

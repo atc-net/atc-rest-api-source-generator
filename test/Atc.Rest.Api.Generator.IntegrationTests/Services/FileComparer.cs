@@ -9,6 +9,14 @@ public static class FileComparer
     /// Gets the relative path for a generated type based on its SubFolder and TypeName.
     /// </summary>
     public static string GetRelativePath(GeneratedType type)
+        => GetRelativePath(type, isTypeScript: false);
+
+    /// <summary>
+    /// Gets the relative path for a generated type based on its SubFolder and TypeName.
+    /// </summary>
+    public static string GetRelativePath(
+        GeneratedType type,
+        bool isTypeScript)
     {
         var subFolder = type.SubFolder ?? string.Empty;
 
@@ -19,7 +27,8 @@ public static class FileComparer
             .Replace(">", "]", StringComparison.Ordinal)
             .Replace(":", " -", StringComparison.Ordinal);
 
-        var fileName = $"{safeTypeName}.verified.cs";
+        var extension = isTypeScript ? "ts" : "cs";
+        var fileName = $"{safeTypeName}.verified.{extension}";
 
         if (string.IsNullOrEmpty(subFolder))
         {
