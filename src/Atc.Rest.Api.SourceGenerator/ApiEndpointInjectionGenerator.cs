@@ -30,9 +30,10 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
             .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
                                  file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
             .Select(static (file, cancellationToken) =>
-                (Path: file.Path, Content: file.GetText(cancellationToken)?.ToString() ?? string.Empty))
+                new YamlFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
             .Where(static file => !string.IsNullOrEmpty(file.Content))
-            .Collect();
+            .Collect()
+            .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
 
         // 4. Combine class declarations with YAML files
         var combined = classDeclarations.Combine(yamlFiles);
@@ -146,14 +147,14 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
     /// </summary>
     private static void GeneratePartialClass(
         SourceProductionContext context,
-        (ClassInfo ClassInfo, ImmutableArray<(string Path, string Content)> YamlFiles) input)
+        (ClassInfo ClassInfo, EquatableArray<YamlFileInfo> YamlFiles) input)
     {
         var (classInfo, yamlFiles) = input;
 
         try
         {
             // Find YAML file matching the project name
-            var matchingYaml = yamlFiles.FirstOrDefault(y =>
+            var matchingYaml = yamlFiles.Values.FirstOrDefault(y =>
                 Path.GetFileNameWithoutExtension(y.Path).Equals(classInfo.ProjectName, StringComparison.OrdinalIgnoreCase));
 
             if (string.IsNullOrEmpty(matchingYaml.Content))
