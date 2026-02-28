@@ -16,7 +16,9 @@ Console.WriteLine($"Connecting to API at: {apiBaseUrl}");
 Console.WriteLine();
 
 // Demo JWT token (validation is disabled in API's Program.cs for demo purposes)
+#pragma warning disable S6418 // Secrets should not be hard-coded
 const string demoToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vLXVzZXIiLCJuYW1lIjoiRGVtbyBVc2VyIiwiaWF0IjoxNzE2MjM5MDIyfQ.demo-signature";
+#pragma warning restore S6418 // Secrets should not be hard-coded
 
 // Create HTTP client with base address and demo auth token
 using var httpClient = new HttpClient { BaseAddress = new Uri(apiBaseUrl) };

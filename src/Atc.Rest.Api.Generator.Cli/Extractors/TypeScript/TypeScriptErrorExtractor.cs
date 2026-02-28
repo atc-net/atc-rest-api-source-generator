@@ -9,8 +9,11 @@ public static class TypeScriptErrorExtractor
     /// Generates the content for ApiError.ts.
     /// </summary>
     /// <param name="headerContent">Optional auto-generated file header.</param>
+    /// <param name="httpClient">The HTTP client library to use.</param>
     /// <returns>The TypeScript file content.</returns>
-    public static string GenerateApiError(string? headerContent)
+    public static string GenerateApiError(
+        string? headerContent,
+        TypeScriptHttpClient httpClient = TypeScriptHttpClient.Fetch)
     {
         var sb = new StringBuilder();
 
@@ -19,12 +22,20 @@ public static class TypeScriptErrorExtractor
             sb.Append(headerContent);
         }
 
+        var responseType = httpClient == TypeScriptHttpClient.Axios ? "AxiosResponse" : "Response";
+
+        if (httpClient == TypeScriptHttpClient.Axios)
+        {
+            sb.AppendLine("import type { AxiosResponse } from 'axios';");
+            sb.AppendLine();
+        }
+
         sb.AppendLine("export class ApiError extends Error {");
         sb.AppendLine("  readonly status: number;");
         sb.AppendLine("  readonly statusText: string;");
-        sb.AppendLine("  readonly response?: Response;");
+        sb.Append("  readonly response?: ").Append(responseType).AppendLine(";");
         sb.AppendLine();
-        sb.AppendLine("  constructor(status: number, statusText: string, message: string, response?: Response) {");
+        sb.Append("  constructor(status: number, statusText: string, message: string, response?: ").Append(responseType).AppendLine(") {");
         sb.AppendLine("    super(message);");
         sb.AppendLine("    this.name = 'ApiError';");
         sb.AppendLine("    this.status = status;");
@@ -40,14 +51,24 @@ public static class TypeScriptErrorExtractor
     /// Generates the content for ValidationError.ts.
     /// </summary>
     /// <param name="headerContent">Optional auto-generated file header.</param>
+    /// <param name="httpClient">The HTTP client library to use.</param>
     /// <returns>The TypeScript file content.</returns>
-    public static string GenerateValidationError(string? headerContent)
+    public static string GenerateValidationError(
+        string? headerContent,
+        TypeScriptHttpClient httpClient = TypeScriptHttpClient.Fetch)
     {
         var sb = new StringBuilder();
 
         if (headerContent != null)
         {
             sb.Append(headerContent);
+        }
+
+        var responseType = httpClient == TypeScriptHttpClient.Axios ? "AxiosResponse" : "Response";
+
+        if (httpClient == TypeScriptHttpClient.Axios)
+        {
+            sb.AppendLine("import type { AxiosResponse } from 'axios';");
         }
 
         sb.AppendLine("import { ApiError } from './ApiError';");
@@ -60,7 +81,7 @@ public static class TypeScriptErrorExtractor
         sb.AppendLine("    statusText: string,");
         sb.AppendLine("    message: string,");
         sb.AppendLine("    errors: Record<string, string[]>,");
-        sb.AppendLine("    response?: Response,");
+        sb.Append("    response?: ").Append(responseType).AppendLine(",");
         sb.AppendLine("  ) {");
         sb.AppendLine("    super(status, statusText, message, response);");
         sb.AppendLine("    this.name = 'ValidationError';");

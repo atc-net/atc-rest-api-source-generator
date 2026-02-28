@@ -12,10 +12,12 @@ public static class TypeScriptTypeMapper
     /// </summary>
     /// <param name="schemaType">The JSON schema type (can be combined flags like String | Null).</param>
     /// <param name="format">Optional format string (e.g., "int64", "uuid", "date-time").</param>
+    /// <param name="convertDates">When true, maps date/date-time formats to Date instead of string.</param>
     /// <returns>The TypeScript type name, or "unknown" if type cannot be determined.</returns>
     public static string ToTypeScriptTypeName(
         this JsonSchemaType? schemaType,
-        string? format = null)
+        string? format = null,
+        bool convertDates = false)
     {
         if (schemaType == null)
         {
@@ -42,7 +44,7 @@ public static class TypeScriptTypeMapper
 
         if (typeValue.HasFlag(JsonSchemaType.String))
         {
-            return GetStringTypeName(format);
+            return GetStringTypeName(format, convertDates);
         }
 
         if (typeValue.HasFlag(JsonSchemaType.Boolean))
@@ -66,8 +68,11 @@ public static class TypeScriptTypeMapper
         /// Handles $ref, allOf, arrays, nullable (T | null), Record&lt;string, T&gt;, and primitives.
         /// </summary>
         /// <param name="isRequired">Whether the property is in the required array.</param>
+        /// <param name="convertDates">When true, maps date/date-time formats to Date instead of string.</param>
         /// <returns>A TypeScript type string representation.</returns>
-        public string ToTypeScriptTypeForModel(bool isRequired)
+        public string ToTypeScriptTypeForModel(
+            bool isRequired,
+            bool convertDates = false)
         {
             // Handle schema references
             if (schema is OpenApiSchemaReference schemaRef)
@@ -108,7 +113,7 @@ public static class TypeScriptTypeMapper
             // Handle additionalProperties (Dictionary/Record types)
             if (actualSchema.AdditionalProperties != null)
             {
-                var valueType = actualSchema.AdditionalProperties.ToTypeScriptTypeForModel(isRequired: true);
+                var valueType = actualSchema.AdditionalProperties.ToTypeScriptTypeForModel(isRequired: true, convertDates);
                 return isNullable ? $"Record<string, {valueType}> | null" : $"Record<string, {valueType}>";
             }
 
@@ -120,7 +125,7 @@ public static class TypeScriptTypeMapper
             }
 
             // Handle primitive types
-            var baseType = actualSchema.Type.ToTypeScriptTypeName(actualSchema.Format);
+            var baseType = actualSchema.Type.ToTypeScriptTypeName(actualSchema.Format, convertDates);
 
             return isNullable ? $"{baseType} | null" : baseType;
         }
@@ -177,15 +182,17 @@ public static class TypeScriptTypeMapper
     /// <summary>
     /// Gets the TypeScript type name for String JsonSchemaType with format.
     /// </summary>
-    private static string GetStringTypeName(string? format)
+    private static string GetStringTypeName(
+        string? format,
+        bool convertDates = false)
         => format?.ToLowerInvariant() switch
         {
             "binary" => "Blob | File",
             "byte" => "string",
             "uuid" => "string",
             "guid" => "string",
-            "date-time" => "string",
-            "date" => "string",
+            "date-time" => convertDates ? "Date" : "string",
+            "date" => convertDates ? "Date" : "string",
             "uri" => "string",
             _ => "string",
         };

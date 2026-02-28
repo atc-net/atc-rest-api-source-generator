@@ -69,7 +69,7 @@ public static class TypeScriptModelExtractor
                 continue;
             }
 
-            var interfaceParams = ExtractInterfaceFromSchema(originalSchemaName, actualSchema, headerContent, enumNames);
+            var interfaceParams = ExtractInterfaceFromSchema(originalSchemaName, actualSchema, headerContent, enumNames, config.NamingStrategy, config.ConvertDates, config.MutableModels);
             if (interfaceParams != null)
             {
                 results.Add((originalSchemaName, interfaceParams));
@@ -168,7 +168,10 @@ public static class TypeScriptModelExtractor
         string schemaName,
         OpenApiSchema schema,
         string? headerContent,
-        HashSet<string>? enumNames)
+        HashSet<string>? enumNames,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates,
+        bool mutableModels)
     {
         var properties = schema.Properties?.ToList() ?? [];
         var required = schema.Required ?? new HashSet<string>(StringComparer.Ordinal);
@@ -197,9 +200,9 @@ public static class TypeScriptModelExtractor
 
         foreach (var prop in properties)
         {
-            var propName = prop.Key.ToCamelCase();
+            var propName = prop.Key.ApplyNamingStrategy(namingStrategy);
             var isRequired = required.Contains(prop.Key, StringComparer.Ordinal);
-            var tsType = prop.Value.ToTypeScriptTypeForModel(isRequired);
+            var tsType = prop.Value.ToTypeScriptTypeForModel(isRequired, convertDates);
 
             // Track referenced types for imports
             CollectReferencedTypes(prop.Value, importTypes);
@@ -213,7 +216,7 @@ public static class TypeScriptModelExtractor
 
             tsProperties.Add(new TypeScriptPropertyParameters(
                 DocumentationTags: docTags,
-                IsReadonly: true,
+                IsReadonly: !mutableModels,
                 TypeAnnotation: tsType,
                 IsOptional: !isRequired,
                 Name: propName,

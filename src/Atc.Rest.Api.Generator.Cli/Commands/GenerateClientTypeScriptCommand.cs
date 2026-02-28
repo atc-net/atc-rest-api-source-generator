@@ -29,8 +29,41 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         AnsiConsole.MarkupLine($"[blue]Output path:[/] {outputPath}");
         AnsiConsole.MarkupLine($"[blue]Validation mode:[/] {config.ValidateSpecificationStrategy}");
         AnsiConsole.MarkupLine($"[blue]Enum style:[/] {config.EnumStyle}");
+        AnsiConsole.MarkupLine($"[blue]Hooks style:[/] {config.HooksStyle}");
+        AnsiConsole.MarkupLine($"[blue]Client type:[/] {config.HttpClient}");
+        AnsiConsole.MarkupLine($"[blue]Naming strategy:[/] {config.NamingStrategy}");
+        AnsiConsole.MarkupLine($"[blue]Convert dates:[/] {config.ConvertDates}");
+        AnsiConsole.MarkupLine($"[blue]Mutable models:[/] {config.MutableModels}");
+        AnsiConsole.MarkupLine($"[blue]Zod schemas:[/] {config.GenerateZodSchemas}");
+        AnsiConsole.MarkupLine($"[blue]Scaffold:[/] {config.Scaffold}");
+        if (config.DryRun)
+        {
+            AnsiConsole.MarkupLine("[blue]Dry run:[/] True");
+        }
+
         AnsiConsole.WriteLine();
 
+        var result = RunGeneration(specPath, outputPath, config, stopwatch);
+        if (result != 0)
+        {
+            return result;
+        }
+
+        // Watch mode: re-run generation when the spec file changes
+        if (settings.Watch)
+        {
+            return RunWatchLoop(specPath, outputPath, config);
+        }
+
+        return 0;
+    }
+
+    private static int RunGeneration(
+        string specPath,
+        string outputPath,
+        TypeScriptClientConfig config,
+        Stopwatch stopwatch)
+    {
         TypeScriptGenerationResult? generationResult = null;
 
         var statusResult = AnsiConsole
@@ -49,20 +82,23 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
 
                 var parsedDocument = validationResult.Document!;
 
-                // Step 2: Create output directory if it doesn't exist
-                ctx.Status("Creating output directory...");
-                try
+                // Step 2: Create output directory if it doesn't exist (skip in dry-run)
+                if (!config.DryRun)
                 {
-                    if (!Directory.Exists(outputPath))
+                    ctx.Status("Creating output directory...");
+                    try
                     {
-                        Directory.CreateDirectory(outputPath);
-                        AnsiConsole.MarkupLine($"[green]\u2713[/] Created output directory: {outputPath}");
+                        if (!Directory.Exists(outputPath))
+                        {
+                            Directory.CreateDirectory(outputPath);
+                            AnsiConsole.MarkupLine($"[green]\u2713[/] Created output directory: {outputPath}");
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    AnsiConsole.MarkupLine($"[red]\u2717[/] Error creating output directory: {ex.Message}");
-                    return 1;
+                    catch (Exception ex)
+                    {
+                        AnsiConsole.MarkupLine($"[red]\u2717[/] Error creating output directory: {ex.Message}");
+                        return 1;
+                    }
                 }
 
                 // Step 3: Generate TypeScript files
@@ -93,17 +129,94 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         // Report results
         if (generationResult != null)
         {
-            AnsiConsole.MarkupLine("[green]TypeScript client generation completed successfully.[/]");
-            AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine($"  Models generated:      [blue]{generationResult.ModelCount}[/]");
-            AnsiConsole.MarkupLine($"  Enums generated:       [blue]{generationResult.EnumCount}[/]");
-            AnsiConsole.MarkupLine($"  Error types generated: [blue]{generationResult.ErrorTypeCount}[/]");
-            AnsiConsole.MarkupLine($"  Types generated:       [blue]{generationResult.TypeCount}[/]");
-            AnsiConsole.MarkupLine($"  Clients generated:     [blue]{generationResult.ClientCount}[/]");
-            AnsiConsole.MarkupLine($"  Duration:              [dim]{stopwatch.Elapsed.TotalSeconds:F1}s[/]");
-            AnsiConsole.WriteLine();
+            WriteReport(generationResult, outputPath, stopwatch.Elapsed, config.DryRun);
+        }
+
+        return 0;
+    }
+
+    private static void WriteReport(
+        TypeScriptGenerationResult generationResult,
+        string outputPath,
+        TimeSpan elapsed,
+        bool dryRun)
+    {
+        var dryRunLabel = dryRun ? "[dim](dry run)[/] " : string.Empty;
+
+        AnsiConsole.MarkupLine($"{dryRunLabel}[green]TypeScript client generation completed successfully.[/]");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"  Models generated:      [blue]{generationResult.ModelCount}[/]");
+        AnsiConsole.MarkupLine($"  Enums generated:       [blue]{generationResult.EnumCount}[/]");
+        AnsiConsole.MarkupLine($"  Error types generated: [blue]{generationResult.ErrorTypeCount}[/]");
+        AnsiConsole.MarkupLine($"  Types generated:       [blue]{generationResult.TypeCount}[/]");
+        AnsiConsole.MarkupLine($"  Clients generated:     [blue]{generationResult.ClientCount}[/]");
+        AnsiConsole.MarkupLine($"  Hooks generated:       [blue]{generationResult.HookCount}[/]");
+        AnsiConsole.MarkupLine($"  Zod schemas generated: [blue]{generationResult.ZodSchemaCount}[/]");
+        AnsiConsole.MarkupLine($"  Scaffold generated:    [blue]{generationResult.ScaffoldGenerated}[/]");
+        AnsiConsole.MarkupLine($"  Duration:              [dim]{elapsed.TotalSeconds:F1}s[/]");
+        AnsiConsole.WriteLine();
+
+        if (dryRun)
+        {
+            AnsiConsole.MarkupLine("[dim]Dry run - no files were written.[/]");
+        }
+        else
+        {
             AnsiConsole.MarkupLine($"[dim]Output written to: {outputPath}[/]");
         }
+    }
+
+    [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "Timer is disposed in the finally block.")]
+    private static int RunWatchLoop(
+        string specPath,
+        string outputPath,
+        TypeScriptClientConfig config)
+    {
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("[blue]Watching for changes...[/] Press Ctrl+C to stop.");
+
+        var specDirectory = Path.GetDirectoryName(specPath)!;
+        var specFileName = Path.GetFileName(specPath);
+
+        using var watcher = new FileSystemWatcher(specDirectory, specFileName)
+        {
+            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.CreationTime,
+            EnableRaisingEvents = true,
+        };
+
+        using var exitEvent = new ManualResetEventSlim(false);
+        using var debounceTimer = new System.Threading.Timer(_ =>
+        {
+            AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine($"[yellow]Change detected at {DateTime.Now:HH:mm:ss}[/]");
+
+            var stopwatch = Stopwatch.StartNew();
+            try
+            {
+                RunGeneration(specPath, outputPath, config, stopwatch);
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]\u2717[/] Error during re-generation: {ex.Message}");
+            }
+
+            AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine("[blue]Watching for changes...[/] Press Ctrl+C to stop.");
+        });
+
+        watcher.Changed += (_, _) => debounceTimer.Change(300, Timeout.Infinite);
+        watcher.Created += (_, _) => debounceTimer.Change(300, Timeout.Infinite);
+
+        System.Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            exitEvent.Set();
+        };
+
+        exitEvent.Wait();
+
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("[dim]Watch mode stopped.[/]");
 
         return 0;
     }
@@ -127,6 +240,59 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
             Enum.TryParse<TypeScriptEnumStyle>(settings.EnumStyle, ignoreCase: true, out var enumStyle))
         {
             config.EnumStyle = enumStyle;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.HooksStyle) &&
+            Enum.TryParse<TypeScriptHooksStyle>(settings.HooksStyle, ignoreCase: true, out var hooksStyle))
+        {
+            config.HooksStyle = hooksStyle;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.ClientType) &&
+            Enum.TryParse<TypeScriptHttpClient>(settings.ClientType, ignoreCase: true, out var httpClient))
+        {
+            config.HttpClient = httpClient;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.NamingStrategy) &&
+            Enum.TryParse<TypeScriptNamingStrategy>(settings.NamingStrategy, ignoreCase: true, out var namingStrategy))
+        {
+            config.NamingStrategy = namingStrategy;
+        }
+
+        if (settings.ConvertDates)
+        {
+            config.ConvertDates = true;
+        }
+
+        if (settings.NoReadonly)
+        {
+            config.MutableModels = true;
+        }
+
+        if (settings.GenerateZodSchemas)
+        {
+            config.GenerateZodSchemas = true;
+        }
+
+        if (settings.Scaffold)
+        {
+            config.Scaffold = true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.PackageName))
+        {
+            config.PackageName = settings.PackageName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.PackageVersion))
+        {
+            config.PackageVersion = settings.PackageVersion;
+        }
+
+        if (settings.DryRun)
+        {
+            config.DryRun = true;
         }
 
         return config;
