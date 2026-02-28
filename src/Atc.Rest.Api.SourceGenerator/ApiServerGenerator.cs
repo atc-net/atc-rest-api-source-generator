@@ -142,7 +142,7 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         // Identify the base file (non-part file or the first file that is not a part file)
         // Part files follow the naming convention: {BaseName}_{PartName}.yaml
-        var baseFile = IdentifyBaseFile(yamlFiles.Values);
+        var baseFile = YamlFileHelper.IdentifyBaseFile(yamlFiles.Values);
         if (baseFile == null)
         {
             return;
@@ -153,7 +153,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             // Check if multi-parts specification
             var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);
             var partFiles = yamlFiles.Values
-                .Where(f => IsPartFile(f.Path, baseName))
+                .Where(f => YamlFileHelper.IsPartFile(f.Path, baseName))
                 .ToList();
 
             if (partFiles.Count > 0)
@@ -185,62 +185,6 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             DiagnosticHelpers.ReportServerGenerationError(productionContext, baseFile.Value.Path, ex);
         }
-    }
-
-    /// <summary>
-    /// Identifies the base file from the collection of YAML files.
-    /// The base file is the one that doesn't follow the part file naming convention.
-    /// </summary>
-    private static YamlFileInfo? IdentifyBaseFile(
-        ImmutableArray<YamlFileInfo> yamlFiles)
-    {
-        // Get all file names without extension
-        var files = yamlFiles
-            .Select(f => (File: f, Name: Path.GetFileNameWithoutExtension(f.Path)))
-            .ToList();
-
-        // Find files that are not part files (don't contain underscore that indicates part)
-        // A base file either:
-        // 1. Has no underscore in the name
-        // 2. The part before the underscore doesn't match any other file name
-        foreach (var file in files)
-        {
-            var underscoreIndex = file.Name.LastIndexOf('_');
-            if (underscoreIndex <= 0)
-            {
-                // No underscore - this is likely the base file
-                return file.File;
-            }
-
-            // Check if the part before underscore matches another file
-            var potentialBase = file.Name.Substring(0, underscoreIndex);
-            var hasMatchingBase = files.Any(f =>
-                f.Name.Equals(potentialBase, StringComparison.OrdinalIgnoreCase));
-
-            if (!hasMatchingBase)
-            {
-                // No matching base file, so this could be the base
-                return file.File;
-            }
-        }
-
-        // If all files look like parts, take the shortest name as base
-        return files
-            .OrderBy(f => f.Name.Length)
-            .Select(f => (YamlFileInfo?)f.File)
-            .FirstOrDefault();
-    }
-
-    /// <summary>
-    /// Checks if a file is a part file for the given base name.
-    /// Part files follow the naming convention: {BaseName}_{PartName}.yaml
-    /// </summary>
-    private static bool IsPartFile(
-        string filePath,
-        string baseName)
-    {
-        var fileName = Path.GetFileNameWithoutExtension(filePath);
-        return fileName.StartsWith($"{baseName}_", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

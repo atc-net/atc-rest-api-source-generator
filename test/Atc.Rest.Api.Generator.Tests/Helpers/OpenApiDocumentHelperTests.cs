@@ -217,4 +217,26 @@ public class OpenApiDocumentHelperTests
 
         Assert.Same(docFromDiag, docFromTry);
     }
+
+    // ========== ClearCache Tests ==========
+    [Fact]
+    public void ClearCache_InvalidatesCachedEntries()
+    {
+        var uniqueYaml = """
+            openapi: 3.1.0
+            info:
+              title: Cache Test ClearCache
+              version: 1.0.0
+            paths: {}
+            """;
+
+        var (doc1, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "test.yaml");
+
+        OpenApiDocumentHelper.ClearCache();
+
+        var (doc2, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "test.yaml");
+
+        // After clearing, a new parse should produce a different object instance
+        Assert.NotSame(doc1, doc2);
+    }
 }
