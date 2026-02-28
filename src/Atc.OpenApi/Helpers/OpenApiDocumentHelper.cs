@@ -15,6 +15,14 @@ public static class OpenApiDocumentHelper
         = new(StringComparer.Ordinal);
 
     /// <summary>
+    /// Clears the in-process parse cache.
+    /// Call this in long-running processes (e.g., CLI watch mode) to release
+    /// memory held by previously parsed OpenAPI documents.
+    /// </summary>
+    public static void ClearCache()
+        => ParseCache.Clear();
+
+    /// <summary>
     /// Parses a YAML string into an OpenAPI document.
     /// </summary>
     /// <param name="yamlContent">The YAML content as a string.</param>
