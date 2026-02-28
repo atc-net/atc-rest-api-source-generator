@@ -24,30 +24,16 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             .Where(static file => Path.GetFileName(file.Path).Equals(Constants.MarkerFile.ServerHandlers, StringComparison.OrdinalIgnoreCase) ||
                                   Path.GetFileName(file.Path).Equals(Constants.MarkerFile.ServerHandlersJson, StringComparison.OrdinalIgnoreCase))
             .Select(static (file, cancellationToken) =>
-            {
-                var directory = Path.GetDirectoryName(file.Path) ?? string.Empty;
-                var content = file.GetText(cancellationToken)?.ToString() ?? "{}";
-
-                ServerDomainConfig config;
-
-                try
-                {
-                    config = JsonSerializer.Deserialize<ServerDomainConfig>(content, JsonHelper.ConfigOptions) ?? new ServerDomainConfig();
-                }
-                catch
-                {
-                    config = new ServerDomainConfig(); // Use defaults if parsing fails
-                }
-
-                return (Directory: directory, Config: config);
-            })
-            .Collect();
+                new MarkerFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? "{}"))
+            .Collect()
+            .Select(static (array, _) => new EquatableArray<MarkerFileInfo>(array));
 
         // Find OpenAPI YAML files
         var yamlFiles = context.AdditionalTextsProvider
             .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
                                  file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
-            .Select(static (file, cancellationToken) => (file.Path, Content: file.GetText(cancellationToken)?.ToString() ?? string.Empty))
+            .Select(static (file, cancellationToken) =>
+                new YamlFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
             .Where(static file => !string.IsNullOrEmpty(file.Content));
 
         // Combine YAML files with the stable compilation summary (not raw compilation).
@@ -68,9 +54,18 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                 return;
             }
 
-            var markerInfo = markers.First();
-            var markerDirectory = markerInfo.Directory;
-            var config = markerInfo.Config ?? new ServerDomainConfig();
+            var markerInfo = markers.Values.First();
+            var markerDirectory = Path.GetDirectoryName(markerInfo.Path) ?? string.Empty;
+
+            ServerDomainConfig config;
+            try
+            {
+                config = JsonSerializer.Deserialize<ServerDomainConfig>(markerInfo.Content, JsonHelper.ConfigOptions) ?? new ServerDomainConfig();
+            }
+            catch
+            {
+                config = new ServerDomainConfig();
+            }
 
             // Skip if generation is disabled
             if (!config.Generate)

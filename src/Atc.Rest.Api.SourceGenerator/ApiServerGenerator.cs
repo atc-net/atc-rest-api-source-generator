@@ -13,31 +13,19 @@ public class ApiServerGenerator : IIncrementalGenerator
             .Where(static file => Path.GetFileName(file.Path).Equals(Constants.MarkerFile.Server, StringComparison.OrdinalIgnoreCase) ||
                                   Path.GetFileName(file.Path).Equals(Constants.MarkerFile.ServerJson, StringComparison.OrdinalIgnoreCase))
             .Select(static (file, cancellationToken) =>
-            {
-                var content = file.GetText(cancellationToken)?.ToString() ?? "{}";
-
-                ServerConfig config;
-
-                try
-                {
-                    config = JsonSerializer.Deserialize<ServerConfig>(content, JsonHelper.ConfigOptions) ?? new ServerConfig();
-                }
-                catch
-                {
-                    config = new ServerConfig();
-                }
-
-                return (file.Path, Config: config);
-            })
-            .Collect();
+                new MarkerFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? "{}"))
+            .Collect()
+            .Select(static (array, _) => new EquatableArray<MarkerFileInfo>(array));
 
         // Register a pipeline to collect ALL OpenAPI YAML files (for multi-parts support)
         var yamlFiles = context.AdditionalTextsProvider
             .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
                                  file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
-            .Select(static (file, cancellationToken) => (file.Path, Content: file.GetText(cancellationToken)?.ToString() ?? string.Empty))
+            .Select(static (file, cancellationToken) =>
+                new YamlFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
             .Where(static file => !string.IsNullOrEmpty(file.Content))
-            .Collect();
+            .Collect()
+            .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
 
         // Check for ASP.NET Core references (required for compilation)
         var hasAspNetCoreProvider = context.CompilationProvider
@@ -61,8 +49,8 @@ public class ApiServerGenerator : IIncrementalGenerator
 
     private static void RegisterSourceOutputAction(
         SourceProductionContext productionContext,
-        (((ImmutableArray<(string Path, string Content)> Left,
-            ImmutableArray<(string Path, ServerConfig Config)> Right) Left,
+        (((EquatableArray<YamlFileInfo> Left,
+            EquatableArray<MarkerFileInfo> Right) Left,
             bool Right) Left,
             bool Right) combinedData)
     {
@@ -80,7 +68,17 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        var (markerPath, config) = markers.First();
+        var marker = markers.Values.First();
+
+        ServerConfig config;
+        try
+        {
+            config = JsonSerializer.Deserialize<ServerConfig>(marker.Content, JsonHelper.ConfigOptions) ?? new ServerConfig();
+        }
+        catch
+        {
+            config = new ServerConfig();
+        }
 
         // Skip if generation is disabled
         if (!config.Generate)
@@ -144,7 +142,7 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         // Identify the base file (non-part file or the first file that is not a part file)
         // Part files follow the naming convention: {BaseName}_{PartName}.yaml
-        var baseFile = IdentifyBaseFile(yamlFiles);
+        var baseFile = IdentifyBaseFile(yamlFiles.Values);
         if (baseFile == null)
         {
             return;
@@ -154,7 +152,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             // Check if multi-parts specification
             var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);
-            var partFiles = yamlFiles
+            var partFiles = yamlFiles.Values
                 .Where(f => IsPartFile(f.Path, baseName))
                 .ToList();
 
@@ -193,12 +191,12 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// Identifies the base file from the collection of YAML files.
     /// The base file is the one that doesn't follow the part file naming convention.
     /// </summary>
-    private static (string Path, string Content)? IdentifyBaseFile(
-        ImmutableArray<(string Path, string Content)> yamlFiles)
+    private static YamlFileInfo? IdentifyBaseFile(
+        ImmutableArray<YamlFileInfo> yamlFiles)
     {
         // Get all file names without extension
         var files = yamlFiles
-            .Select(f => (f.Path, f.Content, Name: Path.GetFileNameWithoutExtension(f.Path)))
+            .Select(f => (File: f, Name: Path.GetFileNameWithoutExtension(f.Path)))
             .ToList();
 
         // Find files that are not part files (don't contain underscore that indicates part)
@@ -211,7 +209,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             if (underscoreIndex <= 0)
             {
                 // No underscore - this is likely the base file
-                return (file.Path, file.Content);
+                return file.File;
             }
 
             // Check if the part before underscore matches another file
@@ -222,14 +220,14 @@ public class ApiServerGenerator : IIncrementalGenerator
             if (!hasMatchingBase)
             {
                 // No matching base file, so this could be the base
-                return (file.Path, file.Content);
+                return file.File;
             }
         }
 
         // If all files look like parts, take the shortest name as base
         return files
             .OrderBy(f => f.Name.Length)
-            .Select(f => ((string Path, string Content)?)(f.Path, f.Content))
+            .Select(f => (YamlFileInfo?)f.File)
             .FirstOrDefault();
     }
 
@@ -251,8 +249,8 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// </summary>
     private static void GenerateApiServerMultiPart(
         SourceProductionContext context,
-        (string Path, string Content) baseFile,
-        List<(string Path, string Content)> partFiles,
+        YamlFileInfo baseFile,
+        List<YamlFileInfo> partFiles,
         ServerConfig config,
         bool useMinimalApiPackage,
         bool useValidationFilter,

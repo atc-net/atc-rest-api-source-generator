@@ -15,31 +15,19 @@ public class ApiClientGenerator : IIncrementalGenerator
             .Where(static file => Path.GetFileName(file.Path).Equals(Constants.MarkerFile.Client, StringComparison.OrdinalIgnoreCase) ||
                                   Path.GetFileName(file.Path).Equals(Constants.MarkerFile.ClientJson, StringComparison.OrdinalIgnoreCase))
             .Select(static (file, cancellationToken) =>
-            {
-                var content = file.GetText(cancellationToken)?.ToString() ?? "{}";
-
-                ClientConfig config;
-
-                try
-                {
-                    config = JsonSerializer.Deserialize<ClientConfig>(content, JsonHelper.ConfigOptions) ?? new ClientConfig();
-                }
-                catch
-                {
-                    config = new ClientConfig();
-                }
-
-                return (file.Path, Config: config);
-            })
-            .Collect();
+                new MarkerFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? "{}"))
+            .Collect()
+            .Select(static (array, _) => new EquatableArray<MarkerFileInfo>(array));
 
         // Register a pipeline to collect ALL OpenAPI YAML files (for multi-parts support)
         var yamlFiles = context.AdditionalTextsProvider
             .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
                                  file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
-            .Select(static (file, cancellationToken) => (file.Path, Content: file.GetText(cancellationToken)?.ToString() ?? string.Empty))
+            .Select(static (file, cancellationToken) =>
+                new YamlFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
             .Where(static file => !string.IsNullOrEmpty(file.Content))
-            .Collect();
+            .Collect()
+            .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
 
         // Check for required package references
         var packageReferencesProvider = context.CompilationProvider
@@ -62,8 +50,8 @@ public class ApiClientGenerator : IIncrementalGenerator
 
     private static void RegisterSourceOutputAction(
         SourceProductionContext productionContext,
-        ((ImmutableArray<(string Path, string Content)> Left,
-            ImmutableArray<(string Path, ClientConfig Config)> Right) Left,
+        ((EquatableArray<YamlFileInfo> Left,
+            EquatableArray<MarkerFileInfo> Right) Left,
             ClientPackageReferences Right) combinedData)
     {
         var ((yamlFiles, markers), packages) = combinedData;
@@ -80,7 +68,17 @@ public class ApiClientGenerator : IIncrementalGenerator
             return;
         }
 
-        var (markerPath, config) = markers.First();
+        var marker = markers.Values.First();
+
+        ClientConfig config;
+        try
+        {
+            config = JsonSerializer.Deserialize<ClientConfig>(marker.Content, JsonHelper.ConfigOptions) ?? new ClientConfig();
+        }
+        catch
+        {
+            config = new ClientConfig();
+        }
 
         // Skip if generation is disabled in config
         if (!config.Generate)
@@ -96,7 +94,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         }
 
         // Identify the base file (non-part file or the first file that is not a part file)
-        var baseFile = IdentifyBaseFile(yamlFiles);
+        var baseFile = IdentifyBaseFile(yamlFiles.Values);
         if (baseFile == null)
         {
             return;
@@ -106,7 +104,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             // Check if multi-parts specification
             var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);
-            var partFiles = yamlFiles
+            var partFiles = yamlFiles.Values
                 .Where(f => IsPartFile(f.Path, baseName))
                 .ToList();
 
@@ -130,11 +128,11 @@ public class ApiClientGenerator : IIncrementalGenerator
     /// <summary>
     /// Identifies the base file from the collection of YAML files.
     /// </summary>
-    private static (string Path, string Content)? IdentifyBaseFile(
-        ImmutableArray<(string Path, string Content)> yamlFiles)
+    private static YamlFileInfo? IdentifyBaseFile(
+        ImmutableArray<YamlFileInfo> yamlFiles)
     {
         var files = yamlFiles
-            .Select(f => (f.Path, f.Content, Name: Path.GetFileNameWithoutExtension(f.Path)))
+            .Select(f => (File: f, Name: Path.GetFileNameWithoutExtension(f.Path)))
             .ToList();
 
         foreach (var file in files)
@@ -142,7 +140,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             var underscoreIndex = file.Name.LastIndexOf('_');
             if (underscoreIndex <= 0)
             {
-                return (file.Path, file.Content);
+                return file.File;
             }
 
             var potentialBase = file.Name.Substring(0, underscoreIndex);
@@ -151,13 +149,13 @@ public class ApiClientGenerator : IIncrementalGenerator
 
             if (!hasMatchingBase)
             {
-                return (file.Path, file.Content);
+                return file.File;
             }
         }
 
         return files
             .OrderBy(f => f.Name.Length)
-            .Select(f => ((string Path, string Content)?)(f.Path, f.Content))
+            .Select(f => (YamlFileInfo?)f.File)
             .FirstOrDefault();
     }
 
@@ -177,8 +175,8 @@ public class ApiClientGenerator : IIncrementalGenerator
     /// </summary>
     private static void GenerateApiClientMultiPart(
         SourceProductionContext context,
-        (string Path, string Content) baseFile,
-        List<(string Path, string Content)> partFiles,
+        YamlFileInfo baseFile,
+        List<YamlFileInfo> partFiles,
         ClientConfig config,
         ClientPackageReferences packages)
     {
