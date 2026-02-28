@@ -101,14 +101,16 @@ public class ScenarioTests
             "SERVER" => GeneratorTestHelper.GetServerTypesWithPaths(yamlPath, scenarioName).ToList(),
             "CLIENT" => GeneratorTestHelper.GetClientTypesWithPaths(yamlPath, markerPath, scenarioName).ToList(),
             "SERVERDOMAIN" => GeneratorTestHelper.GetServerDomainTypesWithPaths(yamlPath, scenarioName).ToList(),
+            "TYPESCRIPTCLIENT" => GeneratorTestHelper.GetTypeScriptClientTypesWithPaths(yamlPath, markerPath, scenarioName).ToList(),
             _ => throw new ArgumentException($"Unknown generator type: {generator}", nameof(generator)),
         };
 
         var baseDir = GetSourceSnapshotDirectory(scenarioName, masterFolder);
+        var isTypeScript = string.Equals(generator, "TypeScriptClient", StringComparison.OrdinalIgnoreCase);
 
         foreach (var type in types)
         {
-            await VerifyGeneratedTypeAsync(type, baseDir);
+            await VerifyGeneratedTypeAsync(type, baseDir, isTypeScript);
         }
     }
 
@@ -117,7 +119,8 @@ public class ScenarioTests
     /// </summary>
     private Task VerifyGeneratedTypeAsync(
         GeneratedType type,
-        string baseDir)
+        string baseDir,
+        bool isTypeScript = false)
     {
         var directory = Path.Combine(baseDir, type.SubFolder ?? string.Empty);
 
@@ -128,15 +131,27 @@ public class ScenarioTests
             .Replace(">", "]", StringComparison.Ordinal)
             .Replace(":", " -", StringComparison.Ordinal);
 
-        var actualContent = CodeGenerationService
-            .FormatAsTestFile(type)
-            .NormalizeForSourceOutput();
+        string actualContent;
+        string extension;
+
+        if (isTypeScript)
+        {
+            // TypeScript files store their content directly
+            actualContent = type.Content;
+            extension = "ts";
+        }
+        else
+        {
+            var formattedContent = CodeGenerationService.FormatAsTestFile(type);
+            actualContent = formattedContent.TrimEnd();
+            extension = "cs";
+        }
 
         var settings = new VerifySettings();
         settings.UseDirectory(directory);
         settings.UseFileName(safeTypeName);
 
-        return Verify(actualContent, "cs", settings);
+        return Verify(actualContent, extension, settings);
     }
 
     /// <summary>

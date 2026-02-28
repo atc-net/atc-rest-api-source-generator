@@ -9,6 +9,7 @@ global using System.Text.Json;
 global using System.Text.RegularExpressions;
 
 global using Atc.OpenApi.Helpers;
+global using Atc.Rest.Api.Generator.Cli.Services;
 global using Atc.Rest.Api.Generator.Configurations;
 global using Atc.Rest.Api.Generator.IntegrationTests.Helpers;
 global using Atc.Rest.Api.Generator.IntegrationTests.Services;
