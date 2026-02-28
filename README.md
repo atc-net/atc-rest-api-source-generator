@@ -22,6 +22,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 | **Data**   | 📁 **File Uploads**              | Full support for binary uploads (single, multiple, with metadata)                |
 |            | 🌊 **Streaming**                 | `IAsyncEnumerable<T>` support for efficient data streaming                       |
 | **CLI**    | 🖥️ **Project Scaffolding**       | `generate server` / `generate client` creates complete project structure         |
+|            | 🟦 **TypeScript Client**         | `generate client-typescript` produces typed fetch client from OpenAPI            |
 |            | 📋 **Spec Validation**           | `spec validate` validates OpenAPI specs with strict/standard modes               |
 |            | 🔗 **Multi-Part Specs**          | `spec merge` / `spec split` for large API specifications                         |
 |            | ⚙️ **Options Management**        | `options create` / `options validate` for configuration files                    |
@@ -170,6 +171,9 @@ atc-rest-api-gen generate server -s api.yaml -o output/MyApp.Api.Contracts -n My
 # Generate client project
 atc-rest-api-gen generate client -s api.yaml -o output/MyApp.Client -n MyApp.Client
 
+# Generate TypeScript client (models, enums, typed fetch client)
+atc-rest-api-gen generate client-typescript -s api.yaml -o ./src/api
+
 # Validate OpenAPI specification
 atc-rest-api-gen spec validate -s api.yaml
 
@@ -197,7 +201,8 @@ Read the full documentation on the [WIKI](https://github.com/atc-net/atc-rest-ap
 | [💾 Working with Caching](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Caching)                     | Output caching and HybridCache configuration |
 | [🔢 Working with Versioning](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Versioning)               | API versioning strategies                    |
 | [📋 Analyzer Rules](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Analyzer-Rules)                                 | OpenAPI validation rules reference           |
-| [🎪 Showcase Demo](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Showcase-Demo)                                   | Full-featured demo with Blazor UI            |
+| [🟦 Working with TypeScript Client](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-TypeScript-Client) | TypeScript/React client generation           |
+| [🎪 Showcase Demo](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Showcase-Demo)                                   | Full-featured demo with Blazor & React UI    |
 | [❓ FAQ & Troubleshooting](https://github.com/atc-net/atc-rest-api-source-generator/wiki/FAQ-and-Troubleshooting)                  | Common issues and solutions                  |
 | [🗺️ Roadmap](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Roadmap)                                              | Planned features and status                  |
 | [🔧 Development Notes](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Development-Notes)                           | For contributors                             |
