@@ -3,14 +3,17 @@ namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 /// <summary>
 /// Generates the base ApiClient.ts with fetch wrapper, interfaces, and response handling.
 /// </summary>
-public static class TypeScriptApiClientExtractor
+public static class TypeScriptFetchApiClientExtractor
 {
     /// <summary>
     /// Generates the content for ApiClient.ts.
     /// </summary>
     /// <param name="headerContent">Optional auto-generated file header.</param>
+    /// <param name="convertDates">When true, emits dateReviver/dateReplacer for automatic Date conversion.</param>
     /// <returns>The TypeScript file content.</returns>
-    public static string Generate(string? headerContent)
+    public static string Generate(
+        string? headerContent,
+        bool convertDates = false)
     {
         var sb = new StringBuilder();
 
@@ -20,9 +23,15 @@ public static class TypeScriptApiClientExtractor
         }
 
         AppendImports(sb);
+
+        if (convertDates)
+        {
+            AppendDateReviverReplacer(sb);
+        }
+
         AppendApiClientOptionsInterface(sb);
         AppendRequestOptionsInterface(sb);
-        AppendApiClientClass(sb);
+        AppendApiClientClass(sb, convertDates);
 
         return sb.ToString();
     }
@@ -37,9 +46,14 @@ public static class TypeScriptApiClientExtractor
 
     private static void AppendApiClientOptionsInterface(StringBuilder sb)
     {
+        sb.AppendLine("export type FetchRequestInterceptor = (url: string, init: RequestInit) => RequestInit | Promise<RequestInit>;");
+        sb.AppendLine("export type FetchResponseInterceptor = (response: Response) => Response | Promise<Response>;");
+        sb.AppendLine();
         sb.AppendLine("export interface ApiClientOptions {");
         sb.AppendLine("  getAccessToken?: () => string | Promise<string>;");
         sb.AppendLine("  defaultHeaders?: Record<string, string>;");
+        sb.AppendLine("  requestInterceptors?: FetchRequestInterceptor[];");
+        sb.AppendLine("  responseInterceptors?: FetchResponseInterceptor[];");
         sb.AppendLine("}");
         sb.AppendLine();
     }
@@ -56,7 +70,29 @@ public static class TypeScriptApiClientExtractor
         sb.AppendLine();
     }
 
-    private static void AppendApiClientClass(StringBuilder sb)
+    private static void AppendDateReviverReplacer(StringBuilder sb)
+    {
+        sb.AppendLine("const ISO_DATE_RE = /^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2})/;");
+        sb.AppendLine();
+        sb.AppendLine("function dateReviver(_key: string, value: unknown): unknown {");
+        sb.AppendLine("  if (typeof value === 'string' && ISO_DATE_RE.test(value)) {");
+        sb.AppendLine("    return new Date(value);");
+        sb.AppendLine("  }");
+        sb.AppendLine("  return value;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("function dateReplacer(_key: string, value: unknown): unknown {");
+        sb.AppendLine("  if (value instanceof Date) {");
+        sb.AppendLine("    return value.toISOString();");
+        sb.AppendLine("  }");
+        sb.AppendLine("  return value;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+    }
+
+    private static void AppendApiClientClass(
+        StringBuilder sb,
+        bool convertDates)
     {
         sb.AppendLine("export class ApiClient {");
         sb.AppendLine("  private readonly baseUrl: string;");
@@ -64,11 +100,11 @@ public static class TypeScriptApiClientExtractor
         sb.AppendLine();
 
         AppendConstructor(sb);
-        AppendRequestMethod(sb);
-        AppendRequestStreamMethod(sb);
+        AppendRequestMethod(sb, convertDates);
+        AppendRequestStreamMethod(sb, convertDates);
         AppendBuildUrlMethod(sb);
         AppendGetHeadersMethod(sb);
-        AppendHandleResponseMethod(sb);
+        AppendHandleResponseMethod(sb, convertDates);
 
         sb.AppendLine("}");
     }
@@ -82,8 +118,12 @@ public static class TypeScriptApiClientExtractor
         sb.AppendLine();
     }
 
-    private static void AppendRequestMethod(StringBuilder sb)
+    private static void AppendRequestMethod(
+        StringBuilder sb,
+        bool convertDates)
     {
+        var stringify = convertDates ? "JSON.stringify(options.body, dateReplacer)" : "JSON.stringify(options.body)";
+
         sb.AppendLine("  async request<T>(method: string, path: string, options?: RequestOptions): Promise<ApiResult<T>> {");
         sb.AppendLine("    const url = this.buildUrl(path, options?.query);");
         sb.AppendLine("    const headers = await this.getHeaders(options?.headers);");
@@ -97,33 +137,54 @@ public static class TypeScriptApiClientExtractor
         sb.AppendLine("        fetchBody = options.body;");
         sb.AppendLine("      } else {");
         sb.AppendLine("        headers.set('Content-Type', 'application/json');");
-        sb.AppendLine("        fetchBody = JSON.stringify(options.body);");
+        sb.Append("        fetchBody = ").Append(stringify).AppendLine(";");
         sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const response = await fetch(url, {");
+        sb.AppendLine("    let init: RequestInit = {");
         sb.AppendLine("      method,");
         sb.AppendLine("      headers,");
         sb.AppendLine("      body: fetchBody,");
         sb.AppendLine("      signal: options?.signal,");
-        sb.AppendLine("    });");
+        sb.AppendLine("    };");
+        sb.AppendLine();
+        sb.AppendLine("    for (const interceptor of this.options.requestInterceptors ?? []) {");
+        sb.AppendLine("      init = await interceptor(url, init);");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    let response = await fetch(url, init);");
+        sb.AppendLine();
+        sb.AppendLine("    for (const interceptor of this.options.responseInterceptors ?? []) {");
+        sb.AppendLine("      response = await interceptor(response);");
+        sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    return this.handleResponse<T>(response, options?.responseType);");
         sb.AppendLine("  }");
         sb.AppendLine();
     }
 
-    private static void AppendRequestStreamMethod(StringBuilder sb)
+    private static void AppendRequestStreamMethod(
+        StringBuilder sb,
+        bool convertDates)
     {
+        var jsonParse = convertDates ? "JSON.parse(trimmed, dateReviver)" : "JSON.parse(trimmed)";
+        var jsonParseBuffer = convertDates ? "JSON.parse(buffer.trim(), dateReviver)" : "JSON.parse(buffer.trim())";
+
         sb.AppendLine("  async *requestStream<T>(method: string, path: string, options?: RequestOptions): AsyncGenerator<T> {");
         sb.AppendLine("    const url = this.buildUrl(path, options?.query);");
         sb.AppendLine("    const headers = await this.getHeaders(options?.headers);");
         sb.AppendLine();
-        sb.AppendLine("    const response = await fetch(url, {");
+        sb.AppendLine("    let init: RequestInit = {");
         sb.AppendLine("      method,");
         sb.AppendLine("      headers,");
         sb.AppendLine("      signal: options?.signal,");
-        sb.AppendLine("    });");
+        sb.AppendLine("    };");
+        sb.AppendLine();
+        sb.AppendLine("    for (const interceptor of this.options.requestInterceptors ?? []) {");
+        sb.AppendLine("      init = await interceptor(url, init);");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    const response = await fetch(url, init);");
         sb.AppendLine();
         sb.AppendLine("    if (!response.ok) {");
         sb.AppendLine("      const result = await this.handleResponse<T>(response);");
@@ -153,12 +214,12 @@ public static class TypeScriptApiClientExtractor
         sb.AppendLine("        for (const line of lines) {");
         sb.AppendLine("          const trimmed = line.trim();");
         sb.AppendLine("          if (trimmed.length === 0) continue;");
-        sb.AppendLine("          yield JSON.parse(trimmed) as T;");
+        sb.Append("          yield ").Append(jsonParse).AppendLine(" as T;");
         sb.AppendLine("        }");
         sb.AppendLine("      }");
         sb.AppendLine();
         sb.AppendLine("      if (buffer.trim().length > 0) {");
-        sb.AppendLine("        yield JSON.parse(buffer.trim()) as T;");
+        sb.Append("        yield ").Append(jsonParseBuffer).AppendLine(" as T;");
         sb.AppendLine("      }");
         sb.AppendLine("    } finally {");
         sb.AppendLine("      reader.releaseLock();");
@@ -204,8 +265,14 @@ public static class TypeScriptApiClientExtractor
         sb.AppendLine();
     }
 
-    private static void AppendHandleResponseMethod(StringBuilder sb)
+    private static void AppendHandleResponseMethod(
+        StringBuilder sb,
+        bool convertDates)
     {
+        var parseJson = convertDates
+            ? "JSON.parse(await response.text(), dateReviver)"
+            : "await response.json()";
+
         sb.AppendLine("  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob'): Promise<ApiResult<T>> {");
         sb.AppendLine("    if (response.status === 204) {");
         sb.AppendLine("      return { status: 'noContent', response };");
@@ -215,12 +282,12 @@ public static class TypeScriptApiClientExtractor
         sb.AppendLine("    const isJson = responseType ? responseType === 'json' : contentType.includes('application/json');");
         sb.AppendLine();
         sb.AppendLine("    if (response.ok) {");
-        sb.AppendLine("      const data = isJson ? await response.json() : await response.blob();");
+        sb.Append("      const data = isJson ? ").Append(parseJson).AppendLine(" : await response.blob();");
         sb.AppendLine("      const status = response.status === 201 ? 'created' as const : 'ok' as const;");
         sb.AppendLine("      return { status, data: data as T, response };");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const errorBody = isJson ? await response.json() : null;");
+        sb.Append("    const errorBody = isJson ? ").Append(parseJson).AppendLine(" : null;");
         sb.AppendLine("    const message = errorBody?.title ?? errorBody?.message ?? response.statusText;");
         sb.AppendLine();
         sb.AppendLine("    if (response.status === 400 && errorBody?.errors) {");

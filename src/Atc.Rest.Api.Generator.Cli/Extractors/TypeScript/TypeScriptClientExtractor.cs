@@ -16,7 +16,8 @@ public static class TypeScriptClientExtractor
     public static List<(string ClassName, string Content)> Extract(
         OpenApiDocument openApiDoc,
         string? headerContent,
-        HashSet<string>? enumNames = null)
+        HashSet<string>? enumNames = null,
+        TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase)
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
@@ -32,7 +33,7 @@ public static class TypeScriptClientExtractor
             }
 
             var className = segment + "Client";
-            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames);
+            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy);
             results.Add((className, content));
         }
 
@@ -44,7 +45,8 @@ public static class TypeScriptClientExtractor
         List<(string Path, string Method, OpenApiOperation Operation)> operations,
         OpenApiDocument openApiDoc,
         string? headerContent,
-        HashSet<string>? enumNames)
+        HashSet<string>? enumNames,
+        TypeScriptNamingStrategy namingStrategy)
     {
         var sb = new StringBuilder();
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
@@ -52,7 +54,66 @@ public static class TypeScriptClientExtractor
         // First pass: collect all import types
         foreach (var (_, _, operation) in operations)
         {
-            CollectImportTypes(operation, importTypes);
+            TypeScriptOperationHelper.CollectImportTypes(operation, importTypes);
+        }
+
+        // Second pass: fix imports for streaming operations whose response schema
+        // is a $ref to an array type (e.g., Accounts -> Account[]).
+        // Add the item type import; only remove the wrapper if no non-streaming
+        // operation also references it.
+        foreach (var (_, _, operation) in operations)
+        {
+            if (!operation.IsAsyncEnumerableOperation())
+            {
+                continue;
+            }
+
+            var schema = operation.GetResponseSchema("200") ?? operation.GetResponseSchema("201");
+            if (schema is OpenApiSchemaReference streamingRef)
+            {
+                var resolved = streamingRef.Target;
+                if (resolved is OpenApiSchema resolvedSchema &&
+                    resolvedSchema.Type?.HasFlag(JsonSchemaType.Array) == true)
+                {
+                    var wrapperName = streamingRef.Reference.Id ?? streamingRef.Id;
+
+                    // Check if any non-streaming operation also uses this wrapper type
+                    var usedByNonStreaming = false;
+                    if (wrapperName != null)
+                    {
+                        foreach (var (_, _, otherOp) in operations)
+                        {
+                            if (otherOp == operation || otherOp.IsAsyncEnumerableOperation())
+                            {
+                                continue;
+                            }
+
+                            var otherImports = new HashSet<string>(StringComparer.Ordinal);
+                            TypeScriptOperationHelper.CollectImportTypes(otherOp, otherImports);
+                            if (otherImports.Contains(wrapperName))
+                            {
+                                usedByNonStreaming = true;
+                                break;
+                            }
+                        }
+
+                        if (!usedByNonStreaming)
+                        {
+                            importTypes.Remove(wrapperName);
+                        }
+                    }
+
+                    // Add the item type (e.g., "Account")
+                    if (resolvedSchema.Items is OpenApiSchemaReference itemRef)
+                    {
+                        var itemName = itemRef.Reference.Id ?? itemRef.Id;
+                        if (itemName != null)
+                        {
+                            importTypes.Add(itemName);
+                        }
+                    }
+                }
+            }
         }
 
         // Write header
@@ -72,7 +133,7 @@ public static class TypeScriptClientExtractor
         foreach (var (path, method, operation) in operations)
         {
             sb.AppendLine();
-            AppendMethod(sb, path, method, operation, openApiDoc);
+            AppendMethod(sb, path, method, operation, openApiDoc, namingStrategy);
         }
 
         sb.AppendLine("}");
@@ -125,7 +186,8 @@ public static class TypeScriptClientExtractor
         string path,
         string httpMethod,
         OpenApiOperation operation,
-        OpenApiDocument openApiDoc)
+        OpenApiDocument openApiDoc,
+        TypeScriptNamingStrategy namingStrategy)
     {
         var isStreaming = operation.IsAsyncEnumerableOperation();
         var isFileDownload = operation.HasFileDownload();
@@ -134,22 +196,22 @@ public static class TypeScriptClientExtractor
         var methodName = operationId.ToCamelCase();
 
         // Get parameters (merge path-level and operation-level)
-        var pathParams = GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Path);
-        var queryParams = GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Query);
+        var pathParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Path);
+        var queryParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Query);
 
         // Get request body
         var (bodySchema, bodyContentType) = operation.GetRequestBodySchemaWithContentType();
 
         // Get response type
-        var returnType = GetReturnType(operation, isStreaming, isFileDownload);
+        var returnType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming, isFileDownload);
 
         if (isStreaming)
         {
-            AppendStreamingMethod(sb, methodName, path, pathParams, queryParams, returnType);
+            AppendStreamingMethod(sb, methodName, path, pathParams, queryParams, returnType, namingStrategy);
         }
         else
         {
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, returnType);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, returnType, namingStrategy);
         }
     }
 
@@ -164,14 +226,15 @@ public static class TypeScriptClientExtractor
         string bodyContentType,
         bool isFileUpload,
         bool isFileDownload,
-        string returnType)
+        string returnType,
+        TypeScriptNamingStrategy namingStrategy)
     {
         // Build parameter list
-        var paramList = BuildParameterList(pathParams, queryParams, bodySchema, bodyContentType, isFileUpload);
+        var paramList = BuildParameterList(pathParams, queryParams, bodySchema, bodyContentType, isFileUpload, namingStrategy);
         sb.Append("  async ").Append(methodName).Append('(').Append(paramList).Append("): Promise<ApiResult<").Append(returnType).AppendLine(">> {");
 
         // Build path with interpolation
-        var interpolatedPath = BuildInterpolatedPath(path, pathParams);
+        var interpolatedPath = TypeScriptOperationHelper.BuildInterpolatedPath(path, pathParams, namingStrategy);
 
         // Build request options
         var hasQuery = queryParams.Count > 0;
@@ -183,7 +246,7 @@ public static class TypeScriptClientExtractor
 
             if (hasBody && isFileUpload)
             {
-                AppendFormDataBody(sb, bodySchema!, bodyContentType);
+                AppendFormDataBody(sb, bodySchema!, bodyContentType, namingStrategy);
             }
             else if (hasBody)
             {
@@ -192,7 +255,7 @@ public static class TypeScriptClientExtractor
 
             if (hasQuery)
             {
-                AppendQueryObject(sb, queryParams);
+                AppendQueryObject(sb, queryParams, namingStrategy);
             }
 
             if (isFileDownload)
@@ -216,21 +279,22 @@ public static class TypeScriptClientExtractor
         string path,
         List<OpenApiParameter> pathParams,
         List<OpenApiParameter> queryParams,
-        string itemType)
+        string itemType,
+        TypeScriptNamingStrategy namingStrategy)
     {
         // Build parameter list (streaming methods may have query params + signal)
         var paramParts = new List<string>();
 
         foreach (var param in pathParams)
         {
-            var paramName = (param.Name ?? string.Empty).ToCamelCase();
-            var paramType = GetParameterType(param);
+            var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var paramType = TypeScriptOperationHelper.GetParameterType(param);
             paramParts.Add(paramName + ": " + paramType);
         }
 
         if (queryParams.Count > 0)
         {
-            var queryType = BuildQueryTypeInline(queryParams);
+            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, namingStrategy);
             paramParts.Add("query?: " + queryType);
         }
 
@@ -240,13 +304,13 @@ public static class TypeScriptClientExtractor
 
         sb.Append("  async *").Append(methodName).Append('(').Append(paramList).Append("): AsyncGenerator<").Append(itemType).AppendLine("> {");
 
-        var interpolatedPath = BuildInterpolatedPath(path, pathParams);
+        var interpolatedPath = TypeScriptOperationHelper.BuildInterpolatedPath(path, pathParams, namingStrategy);
         var hasQuery = queryParams.Count > 0;
 
         if (hasQuery)
         {
             sb.Append("    yield* this.api.requestStream<").Append(itemType).Append(">('GET', ").Append(interpolatedPath).AppendLine(", {");
-            AppendQueryObject(sb, queryParams);
+            AppendQueryObject(sb, queryParams, namingStrategy);
             sb.AppendLine("      signal,");
             sb.AppendLine("    });");
         }
@@ -258,40 +322,21 @@ public static class TypeScriptClientExtractor
         sb.AppendLine("  }");
     }
 
-    private static string GetReturnType(
-        OpenApiOperation operation,
-        bool isStreaming,
-        bool isFileDownload)
-    {
-        if (isFileDownload)
-        {
-            return "Blob";
-        }
-
-        // Try to get 200 response schema, then 201
-        var schema = operation.GetResponseSchema("200") ?? operation.GetResponseSchema("201");
-        if (schema == null)
-        {
-            return isStreaming ? "unknown" : "void";
-        }
-
-        return schema.ToTypeScriptReturnType();
-    }
-
     private static string BuildParameterList(
         List<OpenApiParameter> pathParams,
         List<OpenApiParameter> queryParams,
         IOpenApiSchema? bodySchema,
         string bodyContentType,
-        bool isFileUpload)
+        bool isFileUpload,
+        TypeScriptNamingStrategy namingStrategy)
     {
         var parts = new List<string>();
 
         // Path parameters (required)
         foreach (var param in pathParams)
         {
-            var paramName = (param.Name ?? string.Empty).ToCamelCase();
-            var paramType = GetParameterType(param);
+            var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var paramType = TypeScriptOperationHelper.GetParameterType(param);
             parts.Add(paramName + ": " + paramType);
         }
 
@@ -300,7 +345,7 @@ public static class TypeScriptClientExtractor
         {
             if (isFileUpload)
             {
-                AppendFileUploadParams(parts, bodySchema, bodyContentType);
+                AppendFileUploadParams(parts, bodySchema, bodyContentType, namingStrategy);
             }
             else
             {
@@ -312,7 +357,7 @@ public static class TypeScriptClientExtractor
         // Query parameters (optional object)
         if (queryParams.Count > 0)
         {
-            var queryType = BuildQueryTypeInline(queryParams);
+            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, namingStrategy);
             parts.Add("query?: " + queryType);
         }
 
@@ -322,7 +367,8 @@ public static class TypeScriptClientExtractor
     private static void AppendFileUploadParams(
         List<string> parts,
         IOpenApiSchema bodySchema,
-        string bodyContentType)
+        string bodyContentType,
+        TypeScriptNamingStrategy namingStrategy)
     {
         // For raw binary upload (application/octet-stream), single file parameter
         if (bodyContentType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase))
@@ -353,11 +399,11 @@ public static class TypeScriptClientExtractor
 
             foreach (var prop in bodySchema.Properties)
             {
-                var propName = prop.Key.ToCamelCase();
+                var propName = prop.Key.ApplyNamingStrategy(namingStrategy);
                 var isRequired = required.Contains(prop.Key);
                 var propType = prop.Value.ToTypeScriptTypeForModel(isRequired);
 
-                // File properties: binary → Blob | File
+                // File properties: binary -> Blob | File
                 if (prop.Value is OpenApiSchema propSchema)
                 {
                     if (propSchema.Type?.HasFlag(JsonSchemaType.String) == true &&
@@ -389,7 +435,8 @@ public static class TypeScriptClientExtractor
     private static void AppendFormDataBody(
         StringBuilder sb,
         IOpenApiSchema bodySchema,
-        string bodyContentType)
+        string bodyContentType,
+        TypeScriptNamingStrategy namingStrategy)
     {
         // For raw binary upload (application/octet-stream), pass file directly
         if (bodyContentType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase))
@@ -417,7 +464,7 @@ public static class TypeScriptClientExtractor
         {
             foreach (var prop in bodySchema.Properties)
             {
-                var propName = prop.Key.ToCamelCase();
+                var propName = prop.Key.ApplyNamingStrategy(namingStrategy);
                 var isFileProperty = false;
                 var isFileArrayProperty = false;
 
@@ -465,39 +512,17 @@ public static class TypeScriptClientExtractor
         sb.AppendLine("      })(),");
     }
 
-    private static string BuildInterpolatedPath(
-        string path,
-        List<OpenApiParameter> pathParams)
-    {
-        if (pathParams.Count == 0)
-        {
-            return "'" + path + "'";
-        }
-
-        // Replace {paramName} with ${paramName} for template literal
-        var interpolated = path;
-        foreach (var param in pathParams)
-        {
-            var camelName = (param.Name ?? string.Empty).ToCamelCase();
-            interpolated = interpolated.Replace(
-                "{" + param.Name + "}",
-                "${" + camelName + "}",
-                StringComparison.Ordinal);
-        }
-
-        return "`" + interpolated + "`";
-    }
-
     private static void AppendQueryObject(
         StringBuilder sb,
-        List<OpenApiParameter> queryParams)
+        List<OpenApiParameter> queryParams,
+        TypeScriptNamingStrategy namingStrategy)
     {
         sb.AppendLine("      query: {");
         foreach (var param in queryParams)
         {
-            var propName = (param.Name ?? string.Empty).ToCamelCase();
+            var propName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
 
-            // Use original name as key if different from camelCase
+            // Use original name as key if different from the transformed name
             if (!(param.Name ?? string.Empty).Equals(propName, StringComparison.Ordinal))
             {
                 sb.Append("        '").Append(param.Name).Append("': query?.").Append(propName).AppendLine(",");
@@ -509,182 +534,5 @@ public static class TypeScriptClientExtractor
         }
 
         sb.AppendLine("      },");
-    }
-
-    private static string BuildQueryTypeInline(
-        List<OpenApiParameter> queryParams)
-    {
-        var parts = new List<string>();
-        foreach (var param in queryParams)
-        {
-            var paramName = (param.Name ?? string.Empty).ToCamelCase();
-            var paramType = GetParameterType(param);
-            parts.Add(paramName + "?: " + paramType);
-        }
-
-        return "{ " + string.Join("; ", parts) + " }";
-    }
-
-    private static string GetParameterType(OpenApiParameter param)
-    {
-        if (param.Schema == null)
-        {
-            return "string";
-        }
-
-        var tsType = param.Schema.ToTypeScriptTypeForModel(isRequired: true);
-
-        // Strip "| null" from query/path parameter types — URL parameters are either
-        // present (with a value) or absent (undefined), never null.
-        if (tsType.EndsWith(" | null", StringComparison.Ordinal))
-        {
-            tsType = tsType[..^" | null".Length];
-        }
-
-        return tsType;
-    }
-
-    /// <summary>
-    /// Merges path-level and operation-level parameters by location.
-    /// Resolves parameter references ($ref) to actual parameters.
-    /// Operation-level parameters take precedence over path-level parameters with the same name.
-    /// </summary>
-    private static List<OpenApiParameter> GetMergedParameters(
-        OpenApiOperation operation,
-        OpenApiDocument openApiDoc,
-        string path,
-        ParameterLocation location)
-    {
-        var result = new List<OpenApiParameter>();
-
-        // Resolve operation-level parameters (handles both direct and $ref)
-        var operationParams = ResolveParametersByLocation(operation.Parameters, location);
-        var operationParamNames = new HashSet<string>(
-            operationParams.Select(p => p.Name ?? string.Empty),
-            StringComparer.OrdinalIgnoreCase);
-
-        // Add path-level parameters first (only those not overridden at operation level)
-        if (openApiDoc.Paths != null &&
-            openApiDoc.Paths.TryGetValue(path, out var pathItemValue) &&
-            pathItemValue is OpenApiPathItem pathItem &&
-            pathItem.Parameters != null)
-        {
-            var pathLevelParams = ResolveParametersByLocation(pathItem.Parameters, location);
-            foreach (var param in pathLevelParams)
-            {
-                if (!operationParamNames.Contains(param.Name ?? string.Empty))
-                {
-                    result.Add(param);
-                }
-            }
-        }
-
-        // Add operation-level parameters
-        result.AddRange(operationParams);
-
-        return result;
-    }
-
-    /// <summary>
-    /// Resolves a list of IOpenApiParameter (which may include $ref references) to concrete
-    /// OpenApiParameter objects filtered by location.
-    /// </summary>
-    private static List<OpenApiParameter> ResolveParametersByLocation(
-        IList<IOpenApiParameter>? parameters,
-        ParameterLocation location)
-    {
-        var result = new List<OpenApiParameter>();
-        if (parameters == null)
-        {
-            return result;
-        }
-
-        foreach (var paramInterface in parameters)
-        {
-            var resolved = paramInterface.Resolve();
-            if (resolved.Parameter != null && resolved.Parameter.In == location)
-            {
-                result.Add(resolved.Parameter);
-            }
-        }
-
-        return result;
-    }
-
-    private static void CollectImportTypes(
-        OpenApiOperation operation,
-        HashSet<string> importTypes)
-    {
-        // From response schemas (200, 201)
-        CollectSchemaRefTypes(operation.GetResponseSchema("200"), importTypes);
-        CollectSchemaRefTypes(operation.GetResponseSchema("201"), importTypes);
-
-        // From request body
-        var (bodySchema, _) = operation.GetRequestBodySchemaWithContentType();
-        if (bodySchema != null)
-        {
-            CollectSchemaRefTypes(bodySchema, importTypes);
-
-            // For multipart form data objects, also collect property types
-            if (bodySchema.Properties is { Count: > 0 })
-            {
-                foreach (var prop in bodySchema.Properties)
-                {
-                    CollectSchemaRefTypes(prop.Value, importTypes);
-                }
-            }
-        }
-    }
-
-    private static void CollectSchemaRefTypes(
-        IOpenApiSchema? schema,
-        HashSet<string> importTypes)
-    {
-        if (schema == null)
-        {
-            return;
-        }
-
-        if (schema is OpenApiSchemaReference schemaRef)
-        {
-            var refName = schemaRef.Reference.Id ?? schemaRef.Id;
-            if (refName != null)
-            {
-                importTypes.Add(refName);
-            }
-
-            return;
-        }
-
-        if (schema is not OpenApiSchema actualSchema)
-        {
-            return;
-        }
-
-        // Handle allOf references
-        if (actualSchema.AllOf is { Count: > 0 })
-        {
-            foreach (var subSchema in actualSchema.AllOf)
-            {
-                if (subSchema is OpenApiSchemaReference allOfRef)
-                {
-                    var refName = allOfRef.Reference.Id ?? allOfRef.Id;
-                    if (refName != null)
-                    {
-                        importTypes.Add(refName);
-                    }
-                }
-            }
-        }
-
-        // Handle array item references
-        if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true && actualSchema.Items is OpenApiSchemaReference itemRef)
-        {
-            var refName = itemRef.Reference.Id ?? itemRef.Id;
-            if (refName != null)
-            {
-                importTypes.Add(refName);
-            }
-        }
     }
 }

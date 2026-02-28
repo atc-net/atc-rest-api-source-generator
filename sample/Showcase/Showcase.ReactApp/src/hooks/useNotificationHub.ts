@@ -55,10 +55,16 @@ export function useNotificationHub(callbacks: NotificationHubCallbacks) {
 
     try {
       await connection.start();
-      setConnectionState('Connected');
+      // Only update state if this connection is still the current one
+      // (StrictMode cleanup may have replaced it while start() was in-flight)
+      if (connectionRef.current === connection) {
+        setConnectionState('Connected');
+      }
     } catch {
-      setConnectionState('Disconnected');
-      connectionRef.current = null;
+      if (connectionRef.current === connection) {
+        setConnectionState('Disconnected');
+        connectionRef.current = null;
+      }
     }
   }, []);
 

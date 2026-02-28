@@ -3,9 +3,14 @@ import { ApiError } from '../errors/ApiError';
 import { ValidationError } from '../errors/ValidationError';
 import type { ApiResult } from '../types/ApiResult';
 
+export type FetchRequestInterceptor = (url: string, init: RequestInit) => RequestInit | Promise<RequestInit>;
+export type FetchResponseInterceptor = (response: Response) => Response | Promise<Response>;
+
 export interface ApiClientOptions {
   getAccessToken?: () => string | Promise<string>;
   defaultHeaders?: Record<string, string>;
+  requestInterceptors?: FetchRequestInterceptor[];
+  responseInterceptors?: FetchResponseInterceptor[];
 }
 
 export interface RequestOptions {
@@ -42,12 +47,22 @@ export class ApiClient {
       }
     }
 
-    const response = await fetch(url, {
+    let init: RequestInit = {
       method,
       headers,
       body: fetchBody,
       signal: options?.signal,
-    });
+    };
+
+    for (const interceptor of this.options.requestInterceptors ?? []) {
+      init = await interceptor(url, init);
+    }
+
+    let response = await fetch(url, init);
+
+    for (const interceptor of this.options.responseInterceptors ?? []) {
+      response = await interceptor(response);
+    }
 
     return this.handleResponse<T>(response, options?.responseType);
   }
@@ -56,11 +71,17 @@ export class ApiClient {
     const url = this.buildUrl(path, options?.query);
     const headers = await this.getHeaders(options?.headers);
 
-    const response = await fetch(url, {
+    let init: RequestInit = {
       method,
       headers,
       signal: options?.signal,
-    });
+    };
+
+    for (const interceptor of this.options.requestInterceptors ?? []) {
+      init = await interceptor(url, init);
+    }
+
+    const response = await fetch(url, init);
 
     if (!response.ok) {
       const result = await this.handleResponse<T>(response);

@@ -45,7 +45,7 @@ export class AccountsClient {
     });
   }
 
-  async *listAsyncEnumerableAccounts(signal?: AbortSignal): AsyncGenerator<Accounts> {
-    yield* this.api.requestStream<Accounts>('GET', '/accounts/async-enumerable', { signal });
+  async *listAsyncEnumerableAccounts(signal?: AbortSignal): AsyncGenerator<Account> {
+    yield* this.api.requestStream<Account>('GET', '/accounts/async-enumerable', { signal });
   }
 }
