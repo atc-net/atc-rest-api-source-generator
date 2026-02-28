@@ -12,7 +12,9 @@ var apiBaseAddress = builder.Configuration["services:api:https:0"]
 
 // Demo JWT token (validation is disabled in API's Program.cs for demo purposes)
 // This is a valid JWT structure but with fake claims - works because validation is disabled
+#pragma warning disable S6418 // Secrets should not be hard-coded
 const string demoToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vLXVzZXIiLCJuYW1lIjoiRGVtbyBVc2VyIiwiaWF0IjoxNzE2MjM5MDIyfQ.demo-signature";
+#pragma warning restore S6418 // Secrets should not be hard-coded
 
 // Register HttpClient factory with named client for the API
 // Resilience is configured via generated AddApiResilience() extension
