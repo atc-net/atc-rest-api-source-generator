@@ -15,12 +15,12 @@ public static class UsingStatementHelper
     private static readonly Dictionary<string, string> TypeMappings = new(StringComparer.Ordinal)
     {
         // System namespace (basic types that need explicit using)
-        ["ArgumentNullException"] = "System",
-        ["ArgumentException"] = "System",
-        ["InvalidOperationException"] = "System",
-        ["NotImplementedException"] = "System",
-        ["Action<"] = "System",
-        ["Func<"] = "System",
+        ["ArgumentNullException"] = NamespaceConstants.System,
+        ["ArgumentException"] = NamespaceConstants.System,
+        ["InvalidOperationException"] = NamespaceConstants.System,
+        ["NotImplementedException"] = NamespaceConstants.System,
+        ["Action<"] = NamespaceConstants.System,
+        ["Func<"] = NamespaceConstants.System,
 
         // System.Collections.Generic
         ["Dictionary<"] = NamespaceConstants.SystemCollectionsGeneric,

@@ -135,10 +135,27 @@ public static class PolymorphicTypeExtractor
             discriminatorPropertyName = schema.DetectDiscriminatorProperty(document);
         }
 
-        // If we still don't have a discriminator, we can't generate proper polymorphic code
+        // If we still don't have a discriminator, generate a union type with try-parse JsonConverter
         if (string.IsNullOrEmpty(discriminatorPropertyName))
         {
-            return null;
+            var unionConfig = new PolymorphicConfig
+            {
+                BaseTypeName = schemaName,
+                IsOneOf = isOneOf,
+                IsDiscriminatorExplicit = false,
+                UsesCustomConverter = true,
+            };
+
+            foreach (var variantName in variantNames)
+            {
+                unionConfig.Variants.Add(new PolymorphicVariant
+                {
+                    TypeName = variantName,
+                    SchemaRefId = variantName,
+                });
+            }
+
+            return unionConfig;
         }
 
         var config = new PolymorphicConfig
@@ -210,6 +227,12 @@ public static class PolymorphicTypeExtractor
 
         foreach (var config in configs.Values)
         {
+            // Skip union types — variants don't inherit from the wrapper
+            if (config.UsesCustomConverter)
+            {
+                continue;
+            }
+
             foreach (var variant in config.Variants)
             {
                 if (variant.SchemaRefId.Equals(schemaName, StringComparison.Ordinal))
@@ -220,6 +243,143 @@ public static class PolymorphicTypeExtractor
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Generates code for a union type wrapper (sealed record with [JsonConverter] attribute and implicit operators).
+    /// Used for oneOf/anyOf schemas without a discriminator property.
+    /// </summary>
+    /// <param name="config">The polymorphic configuration (must have UsesCustomConverter = true).</param>
+    /// <param name="projectName">The project name for namespace.</param>
+    /// <param name="pathSegment">Optional path segment for sub-namespace.</param>
+    /// <returns>The generated C# code for the union wrapper type.</returns>
+    public static string GenerateUnionBaseType(
+        PolymorphicConfig config,
+        string projectName,
+        string? pathSegment = null)
+    {
+        var sb = new StringBuilder();
+
+        // Header
+        sb.Append(HeaderBuilder.WithUsings(
+            NamespaceConstants.SystemCodeDomCompiler,
+            NamespaceConstants.SystemTextJsonSerialization));
+
+        // Namespace
+        var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
+        sb.AppendLine($"namespace {ns};");
+        sb.AppendLine();
+
+        // XML documentation
+        var compositionType = config.IsOneOf ? "oneOf" : "anyOf";
+        var variantList = string.Join(", ", config.Variants.Select(v => v.TypeName));
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine($"/// Union type ({compositionType}) without discriminator — uses try-parse deserialization.");
+        sb.AppendLine($"/// Variants: {variantList}");
+        sb.AppendLine("/// </summary>");
+
+        // GeneratedCode attribute
+        sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
+
+        // JsonConverter attribute
+        sb.AppendLine($"[JsonConverter(typeof({config.BaseTypeName}JsonConverter))]");
+
+        // Sealed record with Value property
+        sb.AppendLine($"public sealed record {config.BaseTypeName}(object Value)");
+        sb.AppendLine("{");
+
+        // Implicit conversion operators for each variant
+        foreach (var variant in config.Variants)
+        {
+            sb.AppendLine($"    public static implicit operator {config.BaseTypeName}({variant.TypeName} value) => new(value);");
+        }
+
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Generates code for a union type JSON converter (try-parse deserialization).
+    /// Used for oneOf/anyOf schemas without a discriminator property.
+    /// </summary>
+    /// <param name="config">The polymorphic configuration (must have UsesCustomConverter = true).</param>
+    /// <param name="projectName">The project name for namespace.</param>
+    /// <param name="pathSegment">Optional path segment for sub-namespace.</param>
+    /// <returns>The generated C# code for the JSON converter class.</returns>
+    public static string GenerateUnionConverter(
+        PolymorphicConfig config,
+        string projectName,
+        string? pathSegment = null)
+    {
+        var sb = new StringBuilder();
+
+        // Header
+        sb.Append(HeaderBuilder.WithUsings(
+            "System",
+            NamespaceConstants.SystemCodeDomCompiler,
+            NamespaceConstants.SystemTextJson,
+            NamespaceConstants.SystemTextJsonSerialization));
+
+        // Namespace
+        var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
+        sb.AppendLine($"namespace {ns};");
+        sb.AppendLine();
+
+        // XML documentation
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine($"/// Try-parse JSON converter for the <see cref=\"{config.BaseTypeName}\"/> union type.");
+        sb.AppendLine("/// Attempts deserialization of each variant in order until one succeeds.");
+        sb.AppendLine("/// </summary>");
+
+        // GeneratedCode attribute
+        sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
+
+        // Class declaration
+        sb.AppendLine($"public sealed class {config.BaseTypeName}JsonConverter : JsonConverter<{config.BaseTypeName}>");
+        sb.AppendLine("{");
+
+        // Read method
+        sb.AppendLine($"    public override {config.BaseTypeName}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        using var document = JsonDocument.ParseValue(ref reader);");
+        sb.AppendLine("        var rawText = document.RootElement.GetRawText();");
+        sb.AppendLine();
+        sb.AppendLine("        JsonException? lastException = null;");
+
+        foreach (var variant in config.Variants)
+        {
+            sb.AppendLine();
+            sb.AppendLine("        try");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            var result = JsonSerializer.Deserialize<{variant.TypeName}>(rawText, options);");
+            sb.AppendLine("            if (result is not null)");
+            sb.AppendLine("            {");
+            sb.AppendLine($"                return new {config.BaseTypeName}(result);");
+            sb.AppendLine("            }");
+            sb.AppendLine("        }");
+            sb.AppendLine("        catch (JsonException ex)");
+            sb.AppendLine("        {");
+            sb.AppendLine("            lastException = ex;");
+            sb.AppendLine("        }");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("        throw new JsonException(");
+        sb.AppendLine($"            $\"Unable to deserialize {{nameof({config.BaseTypeName})}}: no matching variant found.\",");
+        sb.AppendLine("            lastException);");
+        sb.AppendLine("    }");
+
+        // Write method
+        sb.AppendLine();
+        sb.AppendLine($"    public override void Write(Utf8JsonWriter writer, {config.BaseTypeName} value, JsonSerializerOptions options)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        JsonSerializer.Serialize(writer, value.Value, value.Value.GetType(), options);");
+        sb.AppendLine("    }");
+
+        sb.AppendLine("}");
+
+        return sb.ToString();
     }
 
     /// <summary>

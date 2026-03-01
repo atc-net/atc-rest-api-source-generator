@@ -97,6 +97,21 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Notification'
+  /shapes:
+    get:
+      operationId: listShapes
+      summary: List all shapes
+      tags:
+        - shapes
+      responses:
+        '200':
+          description: List of shapes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Shape'
 components:
   schemas:
     # oneOf WITH explicit discriminator and mapping
@@ -279,3 +294,27 @@ components:
           type: string
           description: Sound file name
           nullable: true
+
+    # oneOf WITHOUT any discriminator property (no common string property across variants)
+    Shape:
+      oneOf:
+        - $ref: '#/components/schemas/Circle'
+        - $ref: '#/components/schemas/Square'
+
+    Circle:
+      type: object
+      required:
+        - radius
+      properties:
+        radius:
+          type: number
+          format: double
+
+    Square:
+      type: object
+      required:
+        - sideLength
+      properties:
+        sideLength:
+          type: number
+          format: double

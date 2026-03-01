@@ -3,3 +3,4 @@ export * from './ApiClient';
 export * from './ApiService';
 export * from './NotificationsClient';
 export * from './PaymentsClient';
+export * from './ShapesClient';
