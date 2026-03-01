@@ -71,6 +71,16 @@ public class GenerateContentForRecords : IContentGenerator
             if (recordParameters.Parameters is not null &&
                 recordParameters.Parameters.Any())
             {
+                if (!string.IsNullOrEmpty(recordParameters.BaseTypeName) &&
+                    recordParameters.BaseConstructorArguments is { Count: > 0 })
+                {
+                    sb.Append(" : ");
+                    sb.Append(recordParameters.BaseTypeName);
+                    sb.Append('(');
+                    sb.Append(string.Join(", ", recordParameters.BaseConstructorArguments));
+                    sb.Append(')');
+                }
+
                 sb.Append(';');
             }
 

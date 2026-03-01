@@ -243,6 +243,51 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnumTypes"
+  /animals:
+    get:
+      summary: List animals
+      operationId: listAnimals
+      tags:
+        - animals
+      responses:
+        '200':
+          description: Array of animals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Animal"
+  /dogs:
+    get:
+      summary: List dogs
+      operationId: listDogs
+      tags:
+        - animals
+      responses:
+        '200':
+          description: Array of dogs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Dog"
+  /cats:
+    get:
+      summary: List cats
+      operationId: listCats
+      tags:
+        - animals
+      responses:
+        '200':
+          description: Array of cats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Cat"
 components:
   schemas:
     # ========================================
@@ -1148,3 +1193,44 @@ components:
         - high
         - very_high
         - critical
+
+    # ========================================
+    # ALLOF INHERITANCE - Base and derived types
+    # ========================================
+    Animal:
+      title: Animal
+      description: Base animal type for allOf inheritance
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Animal name
+        age:
+          type: integer
+          description: Animal age in years
+
+    Dog:
+      title: Dog
+      description: Dog type inheriting from Animal via allOf
+      allOf:
+        - $ref: '#/components/schemas/Animal'
+        - type: object
+          required:
+            - breed
+          properties:
+            breed:
+              type: string
+              description: Dog breed
+
+    Cat:
+      title: Cat
+      description: Cat type inheriting from Animal via allOf
+      allOf:
+        - $ref: '#/components/schemas/Animal'
+        - type: object
+          properties:
+            indoor:
+              type: boolean
+              description: Whether the cat is indoor-only

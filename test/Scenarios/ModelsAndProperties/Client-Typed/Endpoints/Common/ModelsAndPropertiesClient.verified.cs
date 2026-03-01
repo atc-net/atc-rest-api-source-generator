@@ -141,4 +141,22 @@ public sealed class ModelsAndPropertiesClient
         var url = "/enums";
         return (await httpClient.GetFromJsonAsync<EnumTypes>(url, jsonSerializerOptions, cancellationToken))!;
     }
+
+    public async Task<List<Animal>> ListAnimalsAsync(CancellationToken cancellationToken = default)
+    {
+        var url = "/animals";
+        return (await httpClient.GetFromJsonAsync<List<Animal>>(url, jsonSerializerOptions, cancellationToken))!;
+    }
+
+    public async Task<List<Dog>> ListDogsAsync(CancellationToken cancellationToken = default)
+    {
+        var url = "/dogs";
+        return (await httpClient.GetFromJsonAsync<List<Dog>>(url, jsonSerializerOptions, cancellationToken))!;
+    }
+
+    public async Task<List<Cat>> ListCatsAsync(CancellationToken cancellationToken = default)
+    {
+        var url = "/cats";
+        return (await httpClient.GetFromJsonAsync<List<Cat>>(url, jsonSerializerOptions, cancellationToken))!;
+    }
 }

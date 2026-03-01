@@ -333,6 +333,9 @@ public static class SchemaExtractor
             return null;
         }
 
+        // Pre-scan: collect schema names that are referenced as allOf bases
+        var allOfBaseSchemas = CollectAllOfBaseSchemas(openApiDoc);
+
         var recordParametersList = new List<RecordParameters>();
 
         foreach (var schema in openApiDoc.Components.Schemas)
@@ -384,13 +387,23 @@ public static class SchemaExtractor
                     continue;
                 }
 
-                if (actualSchema.Type == JsonSchemaType.Object)
+                // Detect allOf base reference for inheritance
+                var allOfBaseName = DetectAllOfBaseName(actualSchema);
+
+                if (actualSchema.Type == JsonSchemaType.Object || allOfBaseName != null)
                 {
                     // Sanitize schema name - replace dots with underscores for valid C# identifiers
                     var schemaName = OpenApiSchemaExtensions.SanitizeSchemaName(originalSchemaName);
 
                     // Check if this schema is a polymorphic variant and get its base type (uses original name)
                     var baseTypeName = PolymorphicTypeExtractor.GetBaseTypeForVariant(originalSchemaName, polymorphicConfigs);
+
+                    // Use non-sealed modifier for schemas that are allOf bases
+                    var declarationModifier = allOfBaseSchemas.Contains(originalSchemaName)
+                        ? DeclarationModifiers.PublicRecord
+                        : (generatePartialModels
+                            ? DeclarationModifiers.PublicPartialRecord
+                            : DeclarationModifiers.PublicSealedRecord);
 
                     // Check if this is a pagination base schema (has results: array with empty items)
                     if (IsPaginationBaseSchema(actualSchema))
@@ -403,7 +416,25 @@ public static class SchemaExtractor
                     }
                     else
                     {
-                        var recordParams = ExtractRecordFromSchema(schemaName, actualSchema, registry, baseTypeName, generatePartialModels);
+                        // For allOf schemas, merge properties from all sub-schemas
+                        var effectiveSchema = allOfBaseName != null
+                            ? MergeAllOfProperties(actualSchema)
+                            : actualSchema;
+
+                        var recordParams = ExtractRecordFromSchema(schemaName, effectiveSchema, registry, baseTypeName, generatePartialModels, declarationModifier);
+
+                        // Add allOf inheritance info (only if not already a polymorphic variant)
+                        if (recordParams != null && allOfBaseName != null && string.IsNullOrEmpty(baseTypeName))
+                        {
+                            var baseName = OpenApiSchemaExtensions.SanitizeSchemaName(allOfBaseName);
+                            var baseArgs = GetBaseConstructorArguments(openApiDoc, allOfBaseName);
+                            recordParams = recordParams with
+                            {
+                                BaseTypeName = baseName,
+                                BaseConstructorArguments = baseArgs,
+                            };
+                        }
+
                         if (recordParams != null)
                         {
                             recordParametersList.Add(recordParams);
@@ -442,6 +473,9 @@ public static class SchemaExtractor
         // Dictionary to track inline enums by their values key for deduplication
         var inlineEnumsByValuesKey = new Dictionary<string, InlineEnumInfo>(StringComparer.Ordinal);
 
+        // Pre-scan: collect schema names that are referenced as allOf bases
+        var allOfBaseSchemas = CollectAllOfBaseSchemas(openApiDoc);
+
         var recordParametersList = new List<RecordParameters>();
 
         foreach (var schema in openApiDoc.Components.Schemas)
@@ -493,10 +527,20 @@ public static class SchemaExtractor
                     continue;
                 }
 
-                if (actualSchema.Type == JsonSchemaType.Object)
+                // Detect allOf base reference for inheritance
+                var allOfBaseName = DetectAllOfBaseName(actualSchema);
+
+                if (actualSchema.Type == JsonSchemaType.Object || allOfBaseName != null)
                 {
                     // Sanitize schema name - replace dots with underscores for valid C# identifiers
                     var schemaName = OpenApiSchemaExtensions.SanitizeSchemaName(originalSchemaName);
+
+                    // Use non-sealed modifier for schemas that are allOf bases
+                    var declarationModifier = allOfBaseSchemas.Contains(originalSchemaName)
+                        ? DeclarationModifiers.PublicRecord
+                        : (generatePartialModels
+                            ? DeclarationModifiers.PublicPartialRecord
+                            : DeclarationModifiers.PublicSealedRecord);
 
                     // Check if this is a pagination base schema (has results: array with empty items)
                     if (IsPaginationBaseSchema(actualSchema))
@@ -509,14 +553,32 @@ public static class SchemaExtractor
                     }
                     else
                     {
+                        // For allOf schemas, merge properties from all sub-schemas
+                        var effectiveSchema = allOfBaseName != null
+                            ? MergeAllOfProperties(actualSchema)
+                            : actualSchema;
+
                         var recordParams = ExtractRecordFromSchemaWithInlineEnums(
                             schemaName,
-                            actualSchema,
+                            effectiveSchema,
                             ns,
                             pathSegment,
                             inlineEnumsByValuesKey,
                             registry,
-                            generatePartialModels);
+                            generatePartialModels,
+                            declarationModifier);
+
+                        // Add allOf inheritance info
+                        if (recordParams != null && allOfBaseName != null)
+                        {
+                            var baseName = OpenApiSchemaExtensions.SanitizeSchemaName(allOfBaseName);
+                            var baseArgs = GetBaseConstructorArguments(openApiDoc, allOfBaseName);
+                            recordParams = recordParams with
+                            {
+                                BaseTypeName = baseName,
+                                BaseConstructorArguments = baseArgs,
+                            };
+                        }
 
                         if (recordParams != null)
                         {
@@ -671,12 +733,14 @@ public static class SchemaExtractor
     /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
     /// <param name="baseTypeName">Optional base type name for polymorphic inheritance.</param>
     /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
+    /// <param name="declarationModifierOverride">Optional declaration modifier override (e.g., for allOf base schemas).</param>
     private static RecordParameters? ExtractRecordFromSchema(
         string schemaName,
         OpenApiSchema schema,
         TypeConflictRegistry? registry = null,
         string? baseTypeName = null,
-        bool generatePartialModels = false)
+        bool generatePartialModels = false,
+        DeclarationModifiers? declarationModifierOverride = null)
     {
         var properties = schema.Properties?.ToList() ?? [];
         var required = schema.Required ?? new HashSet<string>(StringComparer.Ordinal);
@@ -759,9 +823,10 @@ public static class SchemaExtractor
             ? schemaName
             : $"{schemaName} : {baseTypeName}";
 
-        var declarationModifier = generatePartialModels
-            ? DeclarationModifiers.PublicPartialRecord
-            : DeclarationModifiers.PublicSealedRecord;
+        var declarationModifier = declarationModifierOverride
+            ?? (generatePartialModels
+                ? DeclarationModifiers.PublicPartialRecord
+                : DeclarationModifiers.PublicSealedRecord);
 
         return new RecordParameters(
             DocumentationTags: null,
@@ -789,7 +854,8 @@ public static class SchemaExtractor
         string pathSegment,
         Dictionary<string, InlineEnumInfo> inlineEnumsByValuesKey,
         TypeConflictRegistry? registry = null,
-        bool generatePartialModels = false)
+        bool generatePartialModels = false,
+        DeclarationModifiers? declarationModifierOverride = null)
     {
         var properties = schema.Properties?.ToList() ?? [];
         var required = schema.Required ?? new HashSet<string>(StringComparer.Ordinal);
@@ -901,9 +967,10 @@ public static class SchemaExtractor
             .OrderBy(p => p.DefaultValue != null ? 1 : 0)
             .ToList();
 
-        var declarationModifier = generatePartialModels
-            ? DeclarationModifiers.PublicPartialRecord
-            : DeclarationModifiers.PublicSealedRecord;
+        var declarationModifier = declarationModifierOverride
+            ?? (generatePartialModels
+                ? DeclarationModifiers.PublicPartialRecord
+                : DeclarationModifiers.PublicSealedRecord);
 
         return new RecordParameters(
             DocumentationTags: null,
@@ -989,5 +1056,164 @@ public static class SchemaExtractor
         sb.AppendLine();
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Collects schema names that are referenced as allOf base types.
+    /// These schemas should be generated as non-sealed records to allow inheritance.
+    /// </summary>
+    private static HashSet<string> CollectAllOfBaseSchemas(
+        OpenApiDocument openApiDoc)
+    {
+        var allOfBaseSchemas = new HashSet<string>(StringComparer.Ordinal);
+
+        if (openApiDoc.Components?.Schemas == null)
+        {
+            return allOfBaseSchemas;
+        }
+
+        foreach (var schema in openApiDoc.Components.Schemas)
+        {
+            if (schema.Value is not OpenApiSchema s || s.AllOf is not { Count: > 0 })
+            {
+                continue;
+            }
+
+            foreach (var sub in s.AllOf)
+            {
+                if (sub is OpenApiSchemaReference refSchema)
+                {
+                    var baseId = refSchema.Reference?.Id;
+                    if (!string.IsNullOrEmpty(baseId))
+                    {
+                        allOfBaseSchemas.Add(baseId!);
+                    }
+                }
+            }
+        }
+
+        return allOfBaseSchemas;
+    }
+
+    /// <summary>
+    /// Detects the allOf base schema name from a schema's allOf composition.
+    /// Returns the first $ref found in the allOf array, or null if none.
+    /// </summary>
+    /// <summary>
+    /// Merges properties and required sets from all allOf sub-schemas into a single OpenApiSchema.
+    /// This is needed because Microsoft.OpenApi does not flatten allOf properties.
+    /// </summary>
+    private static OpenApiSchema MergeAllOfProperties(OpenApiSchema schema)
+    {
+        var mergedProperties = new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal);
+        var mergedRequired = new HashSet<string>(StringComparer.Ordinal);
+
+        // Copy any top-level properties first
+        if (schema.Properties != null)
+        {
+            foreach (var prop in schema.Properties)
+            {
+                mergedProperties[prop.Key] = prop.Value;
+            }
+        }
+
+        if (schema.Required != null)
+        {
+            foreach (var req in schema.Required)
+            {
+                mergedRequired.Add(req);
+            }
+        }
+
+        // Merge from each allOf sub-schema
+        if (schema.AllOf != null)
+        {
+            foreach (var sub in schema.AllOf)
+            {
+                // Resolve references to get the actual schema
+                var actualSub = sub is OpenApiSchemaReference subRef && subRef.Target != null
+                    ? subRef.Target
+                    : sub;
+
+                if (actualSub.Properties != null)
+                {
+                    foreach (var prop in actualSub.Properties)
+                    {
+                        // First occurrence wins (avoids overwriting)
+                        if (!mergedProperties.ContainsKey(prop.Key))
+                        {
+                            mergedProperties[prop.Key] = prop.Value;
+                        }
+                    }
+                }
+
+                if (actualSub.Required != null)
+                {
+                    foreach (var req in actualSub.Required)
+                    {
+                        mergedRequired.Add(req);
+                    }
+                }
+            }
+        }
+
+        var merged = new OpenApiSchema
+        {
+            Type = JsonSchemaType.Object,
+            Required = mergedRequired,
+        };
+
+        merged.Properties ??= new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal);
+        foreach (var prop in mergedProperties)
+        {
+            merged.Properties.Add(prop.Key, prop.Value);
+        }
+
+        return merged;
+    }
+
+    private static string? DetectAllOfBaseName(OpenApiSchema schema)
+    {
+        if (schema.AllOf is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        foreach (var sub in schema.AllOf)
+        {
+            if (sub is OpenApiSchemaReference refSchema)
+            {
+                return refSchema.Reference?.Id;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the base type's property names as constructor arguments for allOf inheritance.
+    /// </summary>
+    private static IList<string> GetBaseConstructorArguments(
+        OpenApiDocument doc,
+        string baseSchemaName)
+    {
+        if (doc.Components?.Schemas == null)
+        {
+            return [];
+        }
+
+        if (!doc.Components.Schemas.TryGetValue(baseSchemaName, out var baseSchema))
+        {
+            return [];
+        }
+
+        if (baseSchema.Properties == null || baseSchema.Properties.Count == 0)
+        {
+            return [];
+        }
+
+        return baseSchema.Properties
+            .Select(p => p.Key.ToPascalCaseForDotNet())
+            .ToList();
     }
 }

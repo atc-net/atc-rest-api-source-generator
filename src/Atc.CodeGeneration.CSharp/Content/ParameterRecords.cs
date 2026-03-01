@@ -194,4 +194,6 @@ public record RecordParameters(
     CodeDocumentationTags? DocumentationTags,
     DeclarationModifiers DeclarationModifier,
     string Name,
-    IList<ParameterBaseParameters>? Parameters);
+    IList<ParameterBaseParameters>? Parameters,
+    string? BaseTypeName = null,
+    IList<string>? BaseConstructorArguments = null);
