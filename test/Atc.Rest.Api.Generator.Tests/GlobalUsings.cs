@@ -4,6 +4,7 @@ global using System.Diagnostics.CodeAnalysis;
 global using System.IO;
 global using System.Text;
 global using System.Text.Json;
+global using System.Text.Json.Nodes;
 
 global using Atc.CodeGeneration.CSharp.Content;
 global using Atc.CodeGeneration.CSharp.Helpers;
