@@ -28,6 +28,13 @@ public class PolymorphicConfig
     public bool IsDiscriminatorExplicit { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether this type requires a custom
+    /// JsonConverter (try-parse) instead of JsonPolymorphic attributes.
+    /// True for oneOf/anyOf schemas without a discriminator.
+    /// </summary>
+    public bool UsesCustomConverter { get; set; }
+
+    /// <summary>
     /// Gets the list of polymorphic variants.
     /// </summary>
     public List<PolymorphicVariant> Variants { get; } = [];

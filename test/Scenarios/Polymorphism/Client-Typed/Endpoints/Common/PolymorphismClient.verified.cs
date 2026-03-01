@@ -66,4 +66,10 @@ public sealed class PolymorphismClient
         var url = "/notifications";
         return (await httpClient.GetFromJsonAsync<List<Notification>>(url, jsonSerializerOptions, cancellationToken))!;
     }
+
+    public async Task<List<Shape>> ListShapesAsync(CancellationToken cancellationToken = default)
+    {
+        var url = "/shapes";
+        return (await httpClient.GetFromJsonAsync<List<Shape>>(url, jsonSerializerOptions, cancellationToken))!;
+    }
 }

@@ -5,6 +5,7 @@ using System.CodeDom.Compiler;
 using Microsoft.Extensions.DependencyInjection;
 using Polymorphism.Generated.Payments;
 using Polymorphism.Generated.Notifications;
+using Polymorphism.Generated.Shapes;
 
 namespace Polymorphism.Generated;
 
@@ -23,6 +24,7 @@ public static class PolymorphismEndpointsServiceCollectionExtensions
     {
         services.AddPaymentsEndpoints();
         services.AddNotificationsEndpoints();
+        services.AddShapesEndpoints();
 
         return services;
     }

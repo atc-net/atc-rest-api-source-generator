@@ -16,6 +16,7 @@ public static class ServiceCollectionEndpointHandlerExtensions
         services.AddScoped<IGetPaymentByIdHandler, GetPaymentByIdHandler>();
         services.AddScoped<ISendNotificationHandler, SendNotificationHandler>();
         services.AddScoped<IListNotificationsHandler, ListNotificationsHandler>();
+        services.AddScoped<IListShapesHandler, ListShapesHandler>();
 
         return services;
     }

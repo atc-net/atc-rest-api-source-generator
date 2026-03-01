@@ -2,14 +2,17 @@
 import { ApiClient, ApiClientOptions } from './ApiClient';
 import { NotificationsClient } from './NotificationsClient';
 import { PaymentsClient } from './PaymentsClient';
+import { ShapesClient } from './ShapesClient';
 
 export class ApiService {
   readonly notifications: NotificationsClient;
   readonly payments: PaymentsClient;
+  readonly shapes: ShapesClient;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
     const api = new ApiClient(baseUrl, options);
     this.notifications = new NotificationsClient(api);
     this.payments = new PaymentsClient(api);
+    this.shapes = new ShapesClient(api);
   }
 }

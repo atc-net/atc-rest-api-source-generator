@@ -14,6 +14,8 @@ public static class ServiceCollectionExtensions
         // services.AddScoped<IListNotificationsHandler, YourImplementation>();
         // Handler for IListPaymentsHandler must be registered in the Domain project
         // services.AddScoped<IListPaymentsHandler, YourImplementation>();
+        // Handler for IListShapesHandler must be registered in the Domain project
+        // services.AddScoped<IListShapesHandler, YourImplementation>();
         // Handler for ISendNotificationHandler must be registered in the Domain project
         // services.AddScoped<ISendNotificationHandler, YourImplementation>();
 

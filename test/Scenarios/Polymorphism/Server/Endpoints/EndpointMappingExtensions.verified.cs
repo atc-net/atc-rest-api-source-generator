@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Builder;
 
 using Polymorphism.Generated.Notifications.Endpoints;
 using Polymorphism.Generated.Payments.Endpoints;
+using Polymorphism.Generated.Shapes.Endpoints;
 
 namespace Polymorphism.Generated.Endpoints;
 
@@ -24,6 +25,7 @@ public static class EndpointMappingExtensions
     {
         app.MapNotificationsEndpoints();
         app.MapPaymentsEndpoints();
+        app.MapShapesEndpoints();
 
         return app;
     }

@@ -44,6 +44,20 @@ public static class CodeGenerationService
         NamespaceConstants.SystemTextJsonSerialization,
     ];
 
+    private static readonly string[] UnionModelUsings =
+    [
+        NamespaceConstants.SystemCodeDomCompiler,
+        NamespaceConstants.SystemTextJsonSerialization,
+    ];
+
+    private static readonly string[] UnionConverterUsings =
+    [
+        NamespaceConstants.System,
+        NamespaceConstants.SystemCodeDomCompiler,
+        NamespaceConstants.SystemTextJson,
+        NamespaceConstants.SystemTextJsonSerialization,
+    ];
+
     private static readonly string[] ParameterUsings =
     [
         NamespaceConstants.SystemCodeDomCompiler,
@@ -83,7 +97,7 @@ public static class CodeGenerationService
 
     private static readonly string[] HttpClientUsings =
     [
-        "System",
+        NamespaceConstants.System,
         NamespaceConstants.SystemNetHttp,
         NamespaceConstants.SystemNetHttpJson,
         NamespaceConstants.SystemThreading,
@@ -614,24 +628,55 @@ public static class CodeGenerationService
             var schemaName = kvp.Key;
             var config = kvp.Value;
 
-            // Generate the polymorphic base type content
-            var content = PolymorphicTypeExtractor.GeneratePolymorphicBaseType(config, projectName);
-
-            // Extract just the record declaration part (after the namespace declaration)
-            var recordContent = ExtractRecordContentFromFullCode(content);
-
             // Determine group name from schema usage in operations
             var groupName = GetGroupNameForSchema(openApiDoc, schemaName);
             var subFolder = GetSubFolder("Models", groupName, generatorType);
 
-            result.Add(new GeneratedType(
-                TypeName: schemaName,
-                Category: "Models",
-                Namespace: @namespace,
-                Content: recordContent,
-                RequiredUsings: new List<string>(PolymorphicModelUsings),
-                GroupName: groupName,
-                SubFolder: subFolder));
+            if (config.UsesCustomConverter)
+            {
+                // Generate union wrapper type
+                var unionContent = PolymorphicTypeExtractor.GenerateUnionBaseType(config, projectName);
+                var unionRecordContent = ExtractRecordContentFromFullCode(unionContent);
+
+                result.Add(new GeneratedType(
+                    TypeName: schemaName,
+                    Category: "Models",
+                    Namespace: @namespace,
+                    Content: unionRecordContent,
+                    RequiredUsings: new List<string>(UnionModelUsings),
+                    GroupName: groupName,
+                    SubFolder: subFolder));
+
+                // Generate converter class
+                var converterContent = PolymorphicTypeExtractor.GenerateUnionConverter(config, projectName);
+                var converterClassContent = ExtractRecordContentFromFullCode(converterContent);
+
+                result.Add(new GeneratedType(
+                    TypeName: $"{schemaName}JsonConverter",
+                    Category: "Models",
+                    Namespace: @namespace,
+                    Content: converterClassContent,
+                    RequiredUsings: new List<string>(UnionConverterUsings),
+                    GroupName: groupName,
+                    SubFolder: subFolder));
+            }
+            else
+            {
+                // Generate the polymorphic base type content (discriminator-based)
+                var content = PolymorphicTypeExtractor.GeneratePolymorphicBaseType(config, projectName);
+
+                // Extract just the record declaration part (after the namespace declaration)
+                var recordContent = ExtractRecordContentFromFullCode(content);
+
+                result.Add(new GeneratedType(
+                    TypeName: schemaName,
+                    Category: "Models",
+                    Namespace: @namespace,
+                    Content: recordContent,
+                    RequiredUsings: new List<string>(PolymorphicModelUsings),
+                    GroupName: groupName,
+                    SubFolder: subFolder));
+            }
         }
 
         return result;
@@ -645,6 +690,7 @@ public static class CodeGenerationService
         // Find the namespace line and extract everything after it
         var lines = fullCode.Split('\n');
         var inNamespace = false;
+        var foundContent = false;
         var contentLines = new List<string>();
 
         foreach (var line in lines)
@@ -655,10 +701,19 @@ public static class CodeGenerationService
                 continue;
             }
 
-            if (inNamespace && !string.IsNullOrWhiteSpace(line))
+            if (!inNamespace)
             {
-                contentLines.Add(line.TrimEnd('\r'));
+                continue;
             }
+
+            // Skip blank lines before the first content line
+            if (!foundContent && string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            foundContent = true;
+            contentLines.Add(line.TrimEnd('\r'));
         }
 
         return string

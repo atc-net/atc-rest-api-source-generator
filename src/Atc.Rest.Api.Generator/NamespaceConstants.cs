@@ -8,6 +8,11 @@ public static class NamespaceConstants
     // System namespaces
 
     /// <summary>
+    /// System.
+    /// </summary>
+    public const string System = "System";
+
+    /// <summary>
     /// System.CodeDom.Compiler - Required for [GeneratedCode] attribute.
     /// </summary>
     public const string SystemCodeDomCompiler = "System.CodeDom.Compiler";
