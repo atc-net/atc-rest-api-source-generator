@@ -676,6 +676,19 @@ public static class SpecificationService
                             sourceFilePath));
                         break;
 
+                    case MergeStrategy.MergeIfIdentical:
+                        if (!AreOpenApiElementsIdentical(
+                            (IOpenApiSerializable)target.Paths[path.Key],
+                            (IOpenApiSerializable)path.Value))
+                        {
+                            diagnostics.Add(DiagnosticMessage.Error(
+                                RuleIdentifiers.NonIdenticalMergeConflict,
+                                $"Path '{path.Key}' exists in both base and part file with different definitions",
+                                sourceFilePath));
+                        }
+
+                        break;
+
                     case MergeStrategy.FirstWins:
                         // Skip - already exists
                         break;
@@ -718,7 +731,16 @@ public static class SpecificationService
                         break;
 
                     case MergeStrategy.MergeIfIdentical:
-                        // Check if schemas are identical - for now just skip if exists
+                        if (!AreOpenApiElementsIdentical(
+                            (IOpenApiSerializable)target.Components.Schemas[schema.Key],
+                            (IOpenApiSerializable)schema.Value))
+                        {
+                            diagnostics.Add(DiagnosticMessage.Error(
+                                RuleIdentifiers.NonIdenticalMergeConflict,
+                                $"Schema '{schema.Key}' exists in both base and part file with different definitions",
+                                sourceFilePath));
+                        }
+
                         break;
 
                     case MergeStrategy.FirstWins:
@@ -757,12 +779,24 @@ public static class SpecificationService
                 {
                     case MergeStrategy.ErrorOnDuplicate:
                         diagnostics.Add(DiagnosticMessage.Error(
-                            RuleIdentifiers.DuplicateSchemaInPart,
+                            RuleIdentifiers.DuplicateParameterInPart,
                             $"Duplicate parameter '{parameter.Key}' found in part file",
                             sourceFilePath));
                         break;
 
                     case MergeStrategy.MergeIfIdentical:
+                        if (!AreOpenApiElementsIdentical(
+                            (IOpenApiSerializable)target.Components.Parameters[parameter.Key],
+                            (IOpenApiSerializable)parameter.Value))
+                        {
+                            diagnostics.Add(DiagnosticMessage.Error(
+                                RuleIdentifiers.NonIdenticalMergeConflict,
+                                $"Parameter '{parameter.Key}' exists in both base and part file with different definitions",
+                                sourceFilePath));
+                        }
+
+                        break;
+
                     case MergeStrategy.FirstWins:
                         // Skip - already exists
                         break;
@@ -811,6 +845,22 @@ public static class SpecificationService
             target.Tags.Add(tag);
             existingTags.Add(tag.Name!);
         }
+    }
+
+    private static bool AreOpenApiElementsIdentical(
+        IOpenApiSerializable existing,
+        IOpenApiSerializable incoming)
+    {
+        using var existingWriter = new StringWriter();
+        existing.SerializeAsV3(new OpenApiJsonWriter(existingWriter));
+
+        using var incomingWriter = new StringWriter();
+        incoming.SerializeAsV3(new OpenApiJsonWriter(incomingWriter));
+
+        return string.Equals(
+            existingWriter.ToString(),
+            incomingWriter.ToString(),
+            StringComparison.Ordinal);
     }
 
     private static IReadOnlyList<string> ValidateReferences(

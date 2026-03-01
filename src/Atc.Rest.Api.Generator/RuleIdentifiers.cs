@@ -483,4 +483,14 @@ public static class RuleIdentifiers
     /// ATC_API_MPT008: Base file not found for multi-part specification.
     /// </summary>
     public const string BaseFileNotFound = "ATC_API_MPT008";
+
+    /// <summary>
+    /// ATC_API_MPT009: Duplicate parameter found in part file.
+    /// </summary>
+    public const string DuplicateParameterInPart = "ATC_API_MPT009";
+
+    /// <summary>
+    /// ATC_API_MPT010: Non-identical duplicate found during MergeIfIdentical.
+    /// </summary>
+    public const string NonIdenticalMergeConflict = "ATC_API_MPT010";
 }
