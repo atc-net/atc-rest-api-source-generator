@@ -932,4 +932,372 @@ public class SpecificationServiceTests
         Assert.Equal(MergeStrategy.ErrorOnDuplicate, config.SchemasMergeStrategy);
         Assert.Equal(MergeStrategy.MergeIfIdentical, config.ParametersMergeStrategy);
     }
+
+    [Fact]
+    public void MergeSpecifications_DuplicateSchema_MergeIfIdentical_IdenticalSkips()
+    {
+        const string baseYaml = """
+
+                                openapi: 3.1.1
+                                info:
+                                  title: Test API
+                                  version: 1.0.0
+                                paths: {}
+                                components:
+                                  schemas:
+                                    Pet:
+                                      type: object
+                                      properties:
+                                        id:
+                                          type: integer
+
+                                """;
+
+        const string partYaml = """
+
+                                openapi: 3.1.1
+                                info:
+                                  title: Part File
+                                  version: 1.0.0
+                                paths: {}
+                                components:
+                                  schemas:
+                                    Pet:
+                                      type: object
+                                      properties:
+                                        id:
+                                          type: integer
+
+                                """;
+        var baseFile = SpecificationService.ReadFromContent(baseYaml, "Showcase.yaml");
+        var partFile = SpecificationService.ReadFromContent(partYaml, "Showcase_Pets.yaml");
+
+        var config = MultiPartConfiguration.Default with
+        {
+            SchemasMergeStrategy = MergeStrategy.MergeIfIdentical,
+        };
+
+        var result = SpecificationService.MergeSpecifications(
+            baseFile,
+            new List<SpecificationFile> { partFile },
+            config);
+
+        Assert.True(result.IsSuccess);
+        Assert.DoesNotContain(result.Diagnostics, d => d.RuleId == RuleIdentifiers.NonIdenticalMergeConflict);
+    }
+
+    [Fact]
+    public void MergeSpecifications_DuplicateSchema_MergeIfIdentical_DifferentReportsMPT010()
+    {
+        const string baseYaml = """
+
+                                openapi: 3.1.1
+                                info:
+                                  title: Test API
+                                  version: 1.0.0
+                                paths: {}
+                                components:
+                                  schemas:
+                                    Pet:
+                                      type: object
+                                      properties:
+                                        id:
+                                          type: integer
+
+                                """;
+
+        const string partYaml = """
+
+                                openapi: 3.1.1
+                                info:
+                                  title: Part File
+                                  version: 1.0.0
+                                paths: {}
+                                components:
+                                  schemas:
+                                    Pet:
+                                      type: object
+                                      properties:
+                                        name:
+                                          type: string
+
+                                """;
+        var baseFile = SpecificationService.ReadFromContent(baseYaml, "Showcase.yaml");
+        var partFile = SpecificationService.ReadFromContent(partYaml, "Showcase_Pets.yaml");
+
+        var config = MultiPartConfiguration.Default with
+        {
+            SchemasMergeStrategy = MergeStrategy.MergeIfIdentical,
+        };
+
+        var result = SpecificationService.MergeSpecifications(
+            baseFile,
+            new List<SpecificationFile> { partFile },
+            config);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.RuleId == RuleIdentifiers.NonIdenticalMergeConflict);
+    }
+
+    [Fact]
+    public void MergeSpecifications_DuplicateParameter_MergeIfIdentical_IdenticalSkips()
+    {
+        const string baseYaml = """
+
+                                openapi: 3.1.1
+                                info:
+                                  title: Test API
+                                  version: 1.0.0
+                                paths: {}
+                                components:
+                                  parameters:
+                                    LimitParam:
+                                      name: limit
+                                      in: query
+                                      schema:
+                                        type: integer
+
+                                """;
+
+        const string partYaml = """
+
+                                openapi: 3.1.1
+                                info:
+                                  title: Part File
+                                  version: 1.0.0
+                                paths: {}
+                                components:
+                                  parameters:
+                                    LimitParam:
+                                      name: limit
+                                      in: query
+                                      schema:
+                                        type: integer
+
+                                """;
+        var baseFile = SpecificationService.ReadFromContent(baseYaml, "Showcase.yaml");
+        var partFile = SpecificationService.ReadFromContent(partYaml, "Showcase_Pets.yaml");
+
+        var config = MultiPartConfiguration.Default with
+        {
+            ParametersMergeStrategy = MergeStrategy.MergeIfIdentical,
+        };
+
+        var result = SpecificationService.MergeSpecifications(
+            baseFile,
+            new List<SpecificationFile> { partFile },
+            config);
+
+        Assert.True(result.IsSuccess);
+        Assert.DoesNotContain(result.Diagnostics, d => d.RuleId == RuleIdentifiers.NonIdenticalMergeConflict);
+    }
+
+    [Fact]
+    public void MergeSpecifications_DuplicateParameter_MergeIfIdentical_DifferentReportsMPT010()
+    {
+        const string baseYaml = """
+
+                                openapi: 3.1.1
+                                info:
+                                  title: Test API
+                                  version: 1.0.0
+                                paths: {}
+                                components:
+                                  parameters:
+                                    LimitParam:
+                                      name: limit
+                                      in: query
+                                      schema:
+                                        type: integer
+
+                                """;
+
+        const string partYaml = """
+
+                                openapi: 3.1.1
+                                info:
+                                  title: Part File
+                                  version: 1.0.0
+                                paths: {}
+                                components:
+                                  parameters:
+                                    LimitParam:
+                                      name: limit
+                                      in: query
+                                      schema:
+                                        type: string
+
+                                """;
+        var baseFile = SpecificationService.ReadFromContent(baseYaml, "Showcase.yaml");
+        var partFile = SpecificationService.ReadFromContent(partYaml, "Showcase_Pets.yaml");
+
+        var config = MultiPartConfiguration.Default with
+        {
+            ParametersMergeStrategy = MergeStrategy.MergeIfIdentical,
+        };
+
+        var result = SpecificationService.MergeSpecifications(
+            baseFile,
+            new List<SpecificationFile> { partFile },
+            config);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.RuleId == RuleIdentifiers.NonIdenticalMergeConflict);
+    }
+
+    [Fact]
+    public void MergeSpecifications_DuplicateParameter_ErrorOnDuplicate_UsesMPT009()
+    {
+        const string baseYaml = """
+
+                                openapi: 3.1.1
+                                info:
+                                  title: Test API
+                                  version: 1.0.0
+                                paths: {}
+                                components:
+                                  parameters:
+                                    LimitParam:
+                                      name: limit
+                                      in: query
+                                      schema:
+                                        type: integer
+
+                                """;
+
+        const string partYaml = """
+
+                                openapi: 3.1.1
+                                info:
+                                  title: Part File
+                                  version: 1.0.0
+                                paths: {}
+                                components:
+                                  parameters:
+                                    LimitParam:
+                                      name: limit
+                                      in: query
+                                      schema:
+                                        type: integer
+
+                                """;
+        var baseFile = SpecificationService.ReadFromContent(baseYaml, "Showcase.yaml");
+        var partFile = SpecificationService.ReadFromContent(partYaml, "Showcase_Pets.yaml");
+
+        var config = MultiPartConfiguration.Default with
+        {
+            ParametersMergeStrategy = MergeStrategy.ErrorOnDuplicate,
+        };
+
+        var result = SpecificationService.MergeSpecifications(
+            baseFile,
+            new List<SpecificationFile> { partFile },
+            config);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.RuleId == RuleIdentifiers.DuplicateParameterInPart);
+        Assert.DoesNotContain(result.Diagnostics, d => d.RuleId == RuleIdentifiers.DuplicateSchemaInPart);
+    }
+
+    [Fact]
+    public void MergeSpecifications_DuplicatePath_MergeIfIdentical_IdenticalSkips()
+    {
+        const string baseYaml = """
+
+                                openapi: 3.1.1
+                                info:
+                                  title: Test API
+                                  version: 1.0.0
+                                paths:
+                                  /pets:
+                                    get:
+                                      operationId: listPets
+                                      responses:
+                                        '200':
+                                          description: OK
+
+                                """;
+
+        const string partYaml = """
+
+                                openapi: 3.1.1
+                                info:
+                                  title: Part File
+                                  version: 1.0.0
+                                paths:
+                                  /pets:
+                                    get:
+                                      operationId: listPets
+                                      responses:
+                                        '200':
+                                          description: OK
+
+                                """;
+        var baseFile = SpecificationService.ReadFromContent(baseYaml, "Showcase.yaml");
+        var partFile = SpecificationService.ReadFromContent(partYaml, "Showcase_Pets.yaml");
+
+        var config = MultiPartConfiguration.Default with
+        {
+            PathsMergeStrategy = MergeStrategy.MergeIfIdentical,
+        };
+
+        var result = SpecificationService.MergeSpecifications(
+            baseFile,
+            new List<SpecificationFile> { partFile },
+            config);
+
+        Assert.True(result.IsSuccess);
+        Assert.DoesNotContain(result.Diagnostics, d => d.RuleId == RuleIdentifiers.NonIdenticalMergeConflict);
+    }
+
+    [Fact]
+    public void MergeSpecifications_DuplicatePath_MergeIfIdentical_DifferentReportsMPT010()
+    {
+        const string baseYaml = """
+
+                                openapi: 3.1.1
+                                info:
+                                  title: Test API
+                                  version: 1.0.0
+                                paths:
+                                  /pets:
+                                    get:
+                                      operationId: listPets
+                                      responses:
+                                        '200':
+                                          description: OK
+
+                                """;
+
+        const string partYaml = """
+
+                                openapi: 3.1.1
+                                info:
+                                  title: Part File
+                                  version: 1.0.0
+                                paths:
+                                  /pets:
+                                    get:
+                                      operationId: listPetsV2
+                                      responses:
+                                        '200':
+                                          description: OK
+
+                                """;
+        var baseFile = SpecificationService.ReadFromContent(baseYaml, "Showcase.yaml");
+        var partFile = SpecificationService.ReadFromContent(partYaml, "Showcase_Pets.yaml");
+
+        var config = MultiPartConfiguration.Default with
+        {
+            PathsMergeStrategy = MergeStrategy.MergeIfIdentical,
+        };
+
+        var result = SpecificationService.MergeSpecifications(
+            baseFile,
+            new List<SpecificationFile> { partFile },
+            config);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Diagnostics, d => d.RuleId == RuleIdentifiers.NonIdenticalMergeConflict);
+    }
 }
