@@ -30,8 +30,14 @@ public static class ServiceCollectionExtensions
         // services.AddScoped<IGetValidationsHandler, YourImplementation>();
         // Handler for IListAddressesHandler must be registered in the Domain project
         // services.AddScoped<IListAddressesHandler, YourImplementation>();
+        // Handler for IListAnimalsHandler must be registered in the Domain project
+        // services.AddScoped<IListAnimalsHandler, YourImplementation>();
+        // Handler for IListCatsHandler must be registered in the Domain project
+        // services.AddScoped<IListCatsHandler, YourImplementation>();
         // Handler for IListCountriesHandler must be registered in the Domain project
         // services.AddScoped<IListCountriesHandler, YourImplementation>();
+        // Handler for IListDogsHandler must be registered in the Domain project
+        // services.AddScoped<IListDogsHandler, YourImplementation>();
         // Handler for IListModelsHandler must be registered in the Domain project
         // services.AddScoped<IListModelsHandler, YourImplementation>();
         // Handler for IListPersonsHandler must be registered in the Domain project

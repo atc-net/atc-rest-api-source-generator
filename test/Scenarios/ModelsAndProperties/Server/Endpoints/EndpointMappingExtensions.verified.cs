@@ -5,10 +5,13 @@ using System.CodeDom.Compiler;
 using Microsoft.AspNetCore.Builder;
 
 using ModelsAndProperties.Generated.Addresses.Endpoints;
+using ModelsAndProperties.Generated.Animals.Endpoints;
 using ModelsAndProperties.Generated.Arrays.Endpoints;
+using ModelsAndProperties.Generated.Cats.Endpoints;
 using ModelsAndProperties.Generated.Countries.Endpoints;
 using ModelsAndProperties.Generated.Defaults.Endpoints;
 using ModelsAndProperties.Generated.Dictionaries.Endpoints;
+using ModelsAndProperties.Generated.Dogs.Endpoints;
 using ModelsAndProperties.Generated.Enums.Endpoints;
 using ModelsAndProperties.Generated.Models.Endpoints;
 using ModelsAndProperties.Generated.Nullables.Endpoints;
@@ -33,10 +36,13 @@ public static class EndpointMappingExtensions
     public static WebApplication MapEndpoints(this WebApplication app)
     {
         app.MapAddressesEndpoints();
+        app.MapAnimalsEndpoints();
         app.MapArraysEndpoints();
+        app.MapCatsEndpoints();
         app.MapCountriesEndpoints();
         app.MapDefaultsEndpoints();
         app.MapDictionariesEndpoints();
+        app.MapDogsEndpoints();
         app.MapEnumsEndpoints();
         app.MapModelsEndpoints();
         app.MapNullablesEndpoints();
