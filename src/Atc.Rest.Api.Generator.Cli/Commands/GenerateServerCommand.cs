@@ -126,7 +126,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             {
                 // Step 0: Resolve package version from NuGet (with fallback)
                 ctx.Status("Resolving package versions...");
-                var sourceGeneratorVersion = AtcApiNugetClientHelper.GetLatestVersionForPackageId(
+                var sourceGeneratorVersion = NugetApiClientHelper.GetLatestVersionForPackageId(
                     PackageVersionDefaults.SourceGeneratorPackageId) ?? PackageVersionDefaults.SourceGeneratorFallback;
 
                 // Step 1: Validate the OpenAPI specification

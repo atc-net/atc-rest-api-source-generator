@@ -12,7 +12,7 @@ public static class CliVersionHelper
     /// </summary>
     /// <returns>The latest version, or null if unavailable.</returns>
     public static Version? GetLatestVersion()
-        => AtcApiNugetClientHelper.GetLatestVersionForPackageId(PackageId);
+        => NugetApiClientHelper.GetLatestVersionForPackageId(PackageId);
 
     /// <summary>
     /// Checks if the current version is the latest available.
