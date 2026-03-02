@@ -45,7 +45,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         // - SingleProject: {Name}.Api (all-in-one)
         // - TwoProjects: {Name}.Api (host+contracts), {Name}.Domain
         // - ThreeProjects: {Name}.Api (host), {Name}.Api.Contracts, {Name}.Domain
-        var baseName = ExtractSolutionName(projectName);
+        var baseName = ProjectNameHelper.ExtractSolutionName(projectName);
 
         string contractsProjectName;
         string hostProjectName;
@@ -131,7 +131,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");
-                var validationResult = ValidateSpecificationWithStats(specPath, serverConfig.ValidateSpecificationStrategy);
+                var validationResult = SpecificationValidationHelper.ValidateSpecificationWithStats(specPath, serverConfig.ValidateSpecificationStrategy);
                 if (!validationResult.Success)
                 {
                     return 1;
@@ -263,7 +263,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 }
 
                 // Get test project name using same logic as ProjectScaffoldingService
-                var testProjectName = ExtractSolutionName(contractsProjectName) + ".Tests";
+                var testProjectName = ProjectNameHelper.ExtractSolutionName(contractsProjectName) + ".Tests";
                 var testProjects = new List<string>
                 {
                     $"test/{testProjectName}/{testProjectName}.csproj",
@@ -449,6 +449,10 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             config.Namespace = settings.Namespace;
         }
+        else
+        {
+            config.Namespace = ProjectNameHelper.ExtractSolutionName(settings.ProjectName);
+        }
 
         // Override sub-folder strategy if specified
         if (!string.IsNullOrWhiteSpace(settings.SubFolderStrategy) &&
@@ -498,6 +502,14 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             config.Namespace = scaffoldingConfig.DomainNamespace;
         }
+        else if (!string.IsNullOrWhiteSpace(settings.Namespace))
+        {
+            config.Namespace = settings.Namespace;
+        }
+        else
+        {
+            config.Namespace = ProjectNameHelper.ExtractSolutionName(settings.ProjectName);
+        }
 
         // Override handler suffix if specified
         if (!string.IsNullOrWhiteSpace(settings.HandlerSuffix))
@@ -514,110 +526,11 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         return config;
     }
 
-    private static string ExtractSolutionName(string projectName)
-    {
-        // Remove common suffixes to get base name
-        var name = projectName;
-        var suffixes = new[] { ".Api.Contracts", ".Api.Domain", ".Api", ".Contracts", ".Domain" };
-
-        foreach (var suffix in suffixes)
-        {
-            if (name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-            {
-                name = name[..^suffix.Length];
-                break;
-            }
-        }
-
-        return name;
-    }
-
     private static void WriteHeader()
     {
         AnsiConsole.Write(new FigletText("ATC REST API").Color(Color.Blue));
         AnsiConsole.MarkupLine("[dim]Server Project Generator[/]");
         AnsiConsole.WriteLine();
-    }
-
-    private static (bool Success, OpenApiDocument? Document, IReadOnlyList<DiagnosticMessage> Diagnostics) ValidateSpecificationWithStats(
-        string specPath,
-        ValidateSpecificationStrategy strategy)
-    {
-        string yamlContent;
-        try
-        {
-            yamlContent = File.ReadAllText(specPath);
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error reading file: {ex.Message}");
-            return (false, null, []);
-        }
-
-        try
-        {
-            var (parsedDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, specPath);
-
-            if (parsedDoc == null)
-            {
-                AnsiConsole.MarkupLine("[red]✗[/] Failed to parse OpenAPI specification");
-
-                if (openApiDiagnostic?.Errors != null)
-                {
-                    foreach (var error in openApiDiagnostic.Errors)
-                    {
-                        AnsiConsole.MarkupLine($"  [red]{Markup.Escape(error.Message)}[/]");
-                    }
-                }
-
-                return (false, null, []);
-            }
-
-            var diagnostics = OpenApiDocumentValidator.Validate(
-                strategy,
-                parsedDoc,
-                openApiDiagnostic?.Errors ?? [],
-                specPath);
-
-            var errors = diagnostics
-                .Where(d => d.Severity == DiagnosticSeverity.Error)
-                .ToList();
-
-            if (errors.Count > 0)
-            {
-                AnsiConsole.MarkupLine($"[red]✗[/] Validation failed with {errors.Count} error(s):");
-                foreach (var error in errors)
-                {
-                    AnsiConsole.MarkupLine($"  [red][[{error.RuleId}]] {Markup.Escape(error.Message)}[/]");
-                }
-
-                return (false, parsedDoc, diagnostics);
-            }
-
-            var warnings = diagnostics
-                .Where(d => d.Severity == DiagnosticSeverity.Warning)
-                .ToList();
-
-            if (warnings.Count > 0)
-            {
-                AnsiConsole.MarkupLine($"[yellow]![/] Validation passed with {warnings.Count} warning(s):");
-                foreach (var warning in warnings)
-                {
-                    AnsiConsole.MarkupLine($"  [yellow][[{warning.RuleId}]] {Markup.Escape(warning.Message)}[/]");
-                }
-            }
-            else
-            {
-                AnsiConsole.MarkupLine("[green]✓[/] Validation passed - no issues found");
-            }
-
-            return (true, parsedDoc, diagnostics);
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error parsing OpenAPI specification: {ex.Message}");
-            return (false, null, []);
-        }
     }
 
     private static bool GenerateContractsProject(
@@ -1157,7 +1070,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         sb.AppendLine();
         sb.AppendLine(2, "<ItemGroup>");
         sb.AppendLine(4, $"<PackageReference Include=\"Atc.Rest.Api.SourceGenerator\" Version=\"{sourceGeneratorVersion}\" OutputItemType=\"Analyzer\" ReferenceOutputAssembly=\"false\" />");
-        sb.AppendLine(4, "<PackageReference Include=\"Microsoft.Extensions.Caching.Hybrid\" Version=\"10.1.0\" />");
+        sb.AppendLine(4, "<PackageReference Include=\"Microsoft.Extensions.Caching.Hybrid\" Version=\"10.3.0\" />");
         sb.AppendLine(2, "</ItemGroup>");
         sb.AppendLine();
         sb.AppendLine(2, "<ItemGroup>");
@@ -1275,7 +1188,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         sb.AppendLine();
         sb.AppendLine(2, "<ItemGroup>");
         sb.AppendLine(4, $"<PackageReference Include=\"Atc.Rest.Api.SourceGenerator\" Version=\"{sourceGeneratorVersion}\" OutputItemType=\"Analyzer\" ReferenceOutputAssembly=\"false\" />");
-        sb.AppendLine(4, "<PackageReference Include=\"Microsoft.Extensions.Caching.Hybrid\" Version=\"10.1.0\" />");
+        sb.AppendLine(4, "<PackageReference Include=\"Microsoft.Extensions.Caching.Hybrid\" Version=\"10.3.0\" />");
 
         if (hostUi != HostUiType.None)
         {
@@ -1320,7 +1233,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
         try
         {
-            var baseName = ExtractSolutionName(projectName);
+            var baseName = ProjectNameHelper.ExtractSolutionName(projectName);
 
             if (!File.Exists(programPath))
             {

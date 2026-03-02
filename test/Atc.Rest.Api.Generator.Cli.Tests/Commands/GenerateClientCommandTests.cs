@@ -375,6 +375,58 @@ public sealed class GenerateClientCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task GenerateClient_WithProjectNameOnly_WritesNamespaceToMarkerFile()
+    {
+        // Arrange - Use a project name that differs from the YAML filename
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "PizzaClient");
+        var projectName = "PizzaPlanet";
+        var arguments = $"generate client -s \"{yamlPath}\" -o \"{outputPath}\" -n \"{projectName}\"";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var markerFilePath = Path.Combine(outputPath, ".atc-rest-api-client");
+        Assert.True(File.Exists(markerFilePath), $"Marker file should exist at {markerFilePath}");
+
+        var markerContent = await File.ReadAllTextAsync(markerFilePath, TestContext.Current.CancellationToken);
+        Assert.Contains("\"namespace\": \"PizzaPlanet\"", markerContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GenerateClient_WithExplicitNamespace_WritesExplicitNamespaceToMarkerFile()
+    {
+        // Arrange - Explicit --namespace should take precedence over project name fallback
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "ExplicitNsClient");
+        var projectName = "PizzaPlanet";
+        var arguments = $"generate client -s \"{yamlPath}\" -o \"{outputPath}\" -n \"{projectName}\" --namespace MyClientNamespace";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var markerFilePath = Path.Combine(outputPath, ".atc-rest-api-client");
+        Assert.True(File.Exists(markerFilePath), $"Marker file should exist at {markerFilePath}");
+
+        var markerContent = await File.ReadAllTextAsync(markerFilePath, TestContext.Current.CancellationToken);
+        Assert.Contains("\"namespace\": \"MyClientNamespace\"", markerContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task GenerateClient_CreatesOutputDirectoryIfNotExists()
     {
         // Arrange
