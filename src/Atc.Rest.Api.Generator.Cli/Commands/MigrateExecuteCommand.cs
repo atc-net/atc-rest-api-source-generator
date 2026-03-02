@@ -106,9 +106,9 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
                 // Step 6: Resolve package versions from NuGet (with fallback)
                 ctx.Status("Resolving package versions...");
-                var sourceGeneratorVersion = AtcApiNugetClientHelper.GetLatestVersionForPackageId(
+                var sourceGeneratorVersion = NugetApiClientHelper.GetLatestVersionForPackageId(
                     PackageVersionDefaults.SourceGeneratorPackageId) ?? PackageVersionDefaults.SourceGeneratorFallback;
-                var restClientVersion = AtcApiNugetClientHelper.GetLatestVersionForPackageId(
+                var restClientVersion = NugetApiClientHelper.GetLatestVersionForPackageId(
                     PackageVersionDefaults.RestClientPackageId) ?? PackageVersionDefaults.RestClientMinFallback;
 
                 // Step 7: Modify project files

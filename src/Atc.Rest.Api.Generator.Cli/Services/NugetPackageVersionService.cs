@@ -1,10 +1,12 @@
 namespace Atc.Rest.Api.Generator.Cli.Services;
 
 /// <summary>
-/// Implementation that fetches package versions from the ATC NuGet search API.
+/// Implementation that fetches package versions from the NuGet.org flat container API.
 /// </summary>
 internal sealed class NugetPackageVersionService : INugetPackageVersionService
 {
+    [SuppressMessage("", "S1075:Refactor your code not to use hardcoded absolute paths or URIs.", Justification = "OK")]
+    private const string NugetFlatContainerBaseUrl = "https://api.nuget.org/v3-flatcontainer";
     private static readonly ConcurrentDictionary<string, Version> VersionCache = new(StringComparer.Ordinal);
     private readonly HttpClient httpClient;
 
@@ -26,10 +28,21 @@ internal sealed class NugetPackageVersionService : INugetPackageVersionService
 
         try
         {
-            var uri = new Uri($"https://atc-api.azurewebsites.net/nuget-search/package?packageId={Uri.EscapeDataString(packageId)}");
-            var response = await httpClient.GetStringAsync(uri, cancellationToken);
+            var uri = new Uri($"{NugetFlatContainerBaseUrl}/{packageId.ToLowerInvariant()}/index.json");
+            var response = await httpClient
+                .GetStringAsync(uri, cancellationToken)
+                .ConfigureAwait(false);
 
-            if (Version.TryParse(response.Trim(), out var version))
+            var jsonNode = JsonNode.Parse(response);
+            var versions = jsonNode?["versions"]?.AsArray();
+            if (versions is null || versions.Count == 0)
+            {
+                return null;
+            }
+
+            var latestVersionString = versions[^1]?.GetValue<string>();
+            if (latestVersionString is not null &&
+                Version.TryParse(latestVersionString, out var version))
             {
                 VersionCache.TryAdd(packageId, version);
                 return version;
@@ -52,7 +65,7 @@ internal sealed class NugetPackageVersionService : INugetPackageVersionService
         Version fallbackVersion,
         CancellationToken cancellationToken = default)
     {
-        var version = await GetLatestVersionAsync(packageId, cancellationToken);
+        var version = await GetLatestVersionAsync(packageId, cancellationToken).ConfigureAwait(false);
         return version ?? fallbackVersion;
     }
 }
