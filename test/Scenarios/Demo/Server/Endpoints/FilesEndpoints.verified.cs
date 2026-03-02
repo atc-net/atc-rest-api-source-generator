@@ -110,11 +110,11 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
         CancellationToken cancellationToken)
     {
         var request = new FileAsFormDataRequest(itemName ?? string.Empty, file, items ?? new List<string>());
-                var parameters = new UploadFormDataFileParameters(request);
-                return UploadFormDataFileResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        var parameters = new UploadFormDataFileParameters(request);
+        return UploadFormDataFileResult.ToIResult(
+            await handler.ExecuteAsync(
+                parameters,
+                cancellationToken));
     }
 
     internal async System.Threading.Tasks.Task<IResult> UploadFormDataFiles(
@@ -123,11 +123,11 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
         CancellationToken cancellationToken)
     {
         var request = new FilesAsFormDataRequest(files?.ToList() ?? new List<IFormFile>());
-                var parameters = new UploadFormDataFilesParameters(request);
-                return UploadFormDataFilesResult.ToIResult(
-                    await handler.ExecuteAsync(
-                        parameters,
-                        cancellationToken));
+        var parameters = new UploadFormDataFilesParameters(request);
+        return UploadFormDataFilesResult.ToIResult(
+            await handler.ExecuteAsync(
+                parameters,
+                cancellationToken));
     }
 
     internal async System.Threading.Tasks.Task<IResult> UploadSingleFileAsFormData(

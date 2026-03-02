@@ -135,7 +135,7 @@ public sealed class ProjectScaffoldingService
         IEnumerable<string> srcProjects,
         IEnumerable<string>? testProjects = null)
     {
-        var solutionName = ExtractSolutionName(projectName);
+        var solutionName = ProjectNameHelper.ExtractSolutionName(projectName);
         var slnxPath = Path.Combine(repoPath, $"{solutionName}.slnx");
 
         try
@@ -195,7 +195,7 @@ public sealed class ProjectScaffoldingService
         string projectName,
         string targetFramework)
     {
-        var testProjectName = $"{ExtractSolutionName(projectName)}.Tests";
+        var testProjectName = $"{ProjectNameHelper.ExtractSolutionName(projectName)}.Tests";
         var testProjectPath = Path.Combine(testPath, testProjectName);
         var csprojPath = Path.Combine(testProjectPath, $"{testProjectName}.csproj");
 
@@ -433,7 +433,7 @@ public sealed class ProjectScaffoldingService
             // Create Program.cs file
             if (!File.Exists(programPath))
             {
-                var baseName = ExtractSolutionName(hostProjectName);
+                var baseName = ProjectNameHelper.ExtractSolutionName(hostProjectName);
                 var programContent = GenerateProgramContent(baseName, hostUi, hostUiMode);
                 File.WriteAllText(programPath, programContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created Program.cs");
@@ -447,7 +447,7 @@ public sealed class ProjectScaffoldingService
             var globalUsingsPath = Path.Combine(hostProjectPath, "GlobalUsings.cs");
             if (!File.Exists(globalUsingsPath))
             {
-                var baseName = ExtractSolutionName(hostProjectName);
+                var baseName = ProjectNameHelper.ExtractSolutionName(hostProjectName);
                 var globalUsingsContent = GenerateHostGlobalUsingsContent(baseName, hostUi);
                 File.WriteAllText(globalUsingsPath, globalUsingsContent);
                 AnsiConsole.MarkupLine("[green]✓[/] Created GlobalUsings.cs");
@@ -524,24 +524,6 @@ public sealed class ProjectScaffoldingService
             AnsiConsole.MarkupLine($"[red]✗[/] Error creating Aspire project: {ex.Message}");
             return false;
         }
-    }
-
-    private static string ExtractSolutionName(string projectName)
-    {
-        // Remove common suffixes to get base name
-        var name = projectName;
-        var suffixes = new[] { ".Api.Contracts", ".Api.Domain", ".Api", ".Contracts", ".Domain" };
-
-        foreach (var suffix in suffixes)
-        {
-            if (name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-            {
-                name = name[..^suffix.Length];
-                break;
-            }
-        }
-
-        return name;
     }
 
     private static string GenerateTestProjectContent(

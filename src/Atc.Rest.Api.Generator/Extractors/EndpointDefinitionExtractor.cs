@@ -1505,6 +1505,7 @@ using Microsoft.AspNetCore.Builder;
 
         // For form flattening, add individual form parameters instead of [AsParameters]
         var formParameterNames = new List<(string ParamName, string PropName, string TypeName)>();
+        var routeParameterNames = new List<(string ParamName, string PropName)>();
         if (requiresFormFlattening)
         {
             var (schemaName, properties) = operation.GetMultipartFormDataSchemaInfo();
@@ -1555,6 +1556,69 @@ using Microsoft.AspNetCore.Builder;
 
                     formParameterNames.Add((paramName, pascalPropName, typeName));
                 }
+            }
+
+            // Also add path-level and operation-level parameters (e.g., {pizzaId}) to the method signature
+            var allNonFormParameters = new List<IOpenApiParameter>();
+            if (pathParameters != null)
+            {
+                allNonFormParameters.AddRange(pathParameters);
+            }
+
+            if (operation.Parameters != null)
+            {
+                foreach (var opParam in operation.Parameters)
+                {
+                    var opParamName = opParam.GetName();
+                    if (!string.IsNullOrEmpty(opParamName))
+                    {
+                        allNonFormParameters.RemoveAll(p => p.GetName() == opParamName);
+                    }
+
+                    allNonFormParameters.Add(opParam);
+                }
+            }
+
+            foreach (var paramOrRef in allNonFormParameters)
+            {
+                var resolved = paramOrRef.Resolve();
+                var parameter = resolved.Parameter;
+                if (parameter == null || string.IsNullOrEmpty(parameter.Name))
+                {
+                    continue;
+                }
+
+                var propName = parameter.Name!.ToPascalCaseForDotNet();
+                var paramName = char.ToLowerInvariant(propName[0]) + propName.Substring(1);
+                var paramType = parameter.Schema!.ToCSharpType(isRequired: parameter.Required, registry: null);
+                var isNullable = paramType.EndsWith("?", StringComparison.Ordinal);
+                var cleanType = isNullable ? paramType.Substring(0, paramType.Length - 1) : paramType;
+
+                var paramLocation = parameter.In ?? ParameterLocation.Query;
+                var bindingAttrName = paramLocation switch
+                {
+                    ParameterLocation.Path => "FromRoute",
+                    ParameterLocation.Header => "FromHeader",
+                    ParameterLocation.Cookie => "FromCookie",
+                    _ => "FromQuery",
+                };
+
+                var attributes = new List<AttributeParameters>
+                {
+                    new(bindingAttrName, $"Name = \"{parameter.Name}\""),
+                };
+
+                methodParameters.Add(new ParameterBaseParameters(
+                    Attributes: attributes,
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: cleanType,
+                    IsNullableType: isNullable,
+                    IsReferenceType: false,
+                    Name: paramName,
+                    DefaultValue: null));
+
+                routeParameterNames.Add((paramName, propName));
             }
         }
         else if (hasParameters || hasRequestBody)
@@ -1626,15 +1690,20 @@ using Microsoft.AspNetCore.Builder;
                 return p.ParamName;
             }));
 
+            // Build constructor arguments: path/query params first, then request (matching record order)
+            var constructorArgs = string.Join(
+                ", ",
+                routeParameterNames.Select(r => r.ParamName).Append("request"));
+
             // Use block body since we need to construct objects
             // Note: Content should NOT include braces - the code generator adds them
             content = $"""
                        var request = new {requestTypeName}({requestArgs});
-                               var parameters = new {parameterClassName}(request);
-                               return {resultClassName}.ToIResult(
-                                   await handler.ExecuteAsync(
-                                       parameters,
-                                       cancellationToken));
+                       var parameters = new {parameterClassName}({constructorArgs});
+                       return {resultClassName}.ToIResult(
+                           await handler.ExecuteAsync(
+                               parameters,
+                               cancellationToken));
                        """;
 
             return new MethodParameters(
