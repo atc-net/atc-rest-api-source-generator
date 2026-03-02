@@ -167,8 +167,9 @@ public static class TypeScriptFetchApiClientExtractor
         StringBuilder sb,
         bool convertDates)
     {
-        var jsonParse = convertDates ? "JSON.parse(trimmed, dateReviver)" : "JSON.parse(trimmed)";
-        var jsonParseBuffer = convertDates ? "JSON.parse(buffer.trim(), dateReviver)" : "JSON.parse(buffer.trim())";
+        var jsonParse = convertDates
+            ? "JSON.parse(buffer.substring(objStart, objEnd + 1), dateReviver)"
+            : "JSON.parse(buffer.substring(objStart, objEnd + 1))";
 
         sb.AppendLine("  async *requestStream<T>(method: string, path: string, options?: RequestOptions): AsyncGenerator<T> {");
         sb.AppendLine("    const url = this.buildUrl(path, options?.query);");
@@ -208,18 +209,32 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("        if (done) break;");
         sb.AppendLine();
         sb.AppendLine("        buffer += decoder.decode(value, { stream: true });");
-        sb.AppendLine("        const lines = buffer.split('\\n');");
-        sb.AppendLine("        buffer = lines.pop() ?? '';");
         sb.AppendLine();
-        sb.AppendLine("        for (const line of lines) {");
-        sb.AppendLine("          const trimmed = line.trim();");
-        sb.AppendLine("          if (trimmed.length === 0) continue;");
+        sb.AppendLine("        // Extract complete JSON objects from buffer.");
+        sb.AppendLine("        // Handles JSON array ([{...},{...}]) and NDJSON ({...}\\n{...}).");
+        sb.AppendLine("        while (true) {");
+        sb.AppendLine("          const objStart = buffer.indexOf('{');");
+        sb.AppendLine("          if (objStart === -1) { buffer = ''; break; }");
+        sb.AppendLine();
+        sb.AppendLine("          let depth = 0, inStr = false, esc = false, objEnd = -1;");
+        sb.AppendLine("          for (let i = objStart; i < buffer.length; i++) {");
+        sb.AppendLine("            const ch = buffer[i];");
+        sb.AppendLine("            if (esc) { esc = false; continue; }");
+        sb.AppendLine("            if (ch === '\\\\' && inStr) { esc = true; continue; }");
+        sb.AppendLine("            if (ch === '\"') { inStr = !inStr; continue; }");
+        sb.AppendLine("            if (inStr) continue;");
+        sb.AppendLine("            if (ch === '{') depth++;");
+        sb.AppendLine("            if (ch === '}') { depth--; if (depth === 0) { objEnd = i; break; } }");
+        sb.AppendLine("          }");
+        sb.AppendLine();
+        sb.AppendLine("          if (objEnd === -1) {");
+        sb.AppendLine("            buffer = buffer.substring(objStart);");
+        sb.AppendLine("            break;");
+        sb.AppendLine("          }");
+        sb.AppendLine();
         sb.Append("          yield ").Append(jsonParse).AppendLine(" as T;");
+        sb.AppendLine("          buffer = buffer.substring(objEnd + 1);");
         sb.AppendLine("        }");
-        sb.AppendLine("      }");
-        sb.AppendLine();
-        sb.AppendLine("      if (buffer.trim().length > 0) {");
-        sb.Append("        yield ").Append(jsonParseBuffer).AppendLine(" as T;");
         sb.AppendLine("      }");
         sb.AppendLine("    } finally {");
         sb.AppendLine("      reader.releaseLock();");

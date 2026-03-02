@@ -134,18 +134,32 @@ export class ApiClient {
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
 
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed.length === 0) continue;
-          yield JSON.parse(trimmed) as T;
+        // Extract complete JSON objects from buffer.
+        // Handles JSON array ([{...},{...}]) and NDJSON ({...}\n{...}).
+        while (true) {
+          const objStart = buffer.indexOf('{');
+          if (objStart === -1) { buffer = ''; break; }
+
+          let depth = 0, inStr = false, esc = false, objEnd = -1;
+          for (let i = objStart; i < buffer.length; i++) {
+            const ch = buffer[i];
+            if (esc) { esc = false; continue; }
+            if (ch === '\\' && inStr) { esc = true; continue; }
+            if (ch === '"') { inStr = !inStr; continue; }
+            if (inStr) continue;
+            if (ch === '{') depth++;
+            if (ch === '}') { depth--; if (depth === 0) { objEnd = i; break; } }
+          }
+
+          if (objEnd === -1) {
+            buffer = buffer.substring(objStart);
+            break;
+          }
+
+          yield JSON.parse(buffer.substring(objStart, objEnd + 1)) as T;
+          buffer = buffer.substring(objEnd + 1);
         }
-      }
-
-      if (buffer.trim().length > 0) {
-        yield JSON.parse(buffer.trim()) as T;
       }
     } finally {
       reader.releaseLock();
