@@ -665,7 +665,7 @@ public sealed class ProjectScaffoldingService
         sb.AppendLine("// Configure middleware and map all endpoints");
         sb.AppendLine("app.MapEndpoints();");
         sb.AppendLine();
-        sb.Append("app.Run();");
+        sb.Append("await app.RunAsync();");
 
         return sb.ToString();
     }
@@ -711,7 +711,9 @@ public sealed class ProjectScaffoldingService
             sb.AppendLine("global using Scalar.AspNetCore;");
         }
 
-        return sb.ToString();
+        return sb
+            .ToString()
+            .TrimEnd();
     }
 
     private static string GenerateAspireProjectContent(

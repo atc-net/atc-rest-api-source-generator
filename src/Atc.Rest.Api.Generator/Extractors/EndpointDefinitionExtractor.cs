@@ -1672,7 +1672,7 @@ using Microsoft.AspNetCore.Builder;
                         return $"{p.ParamName}?.ToList() ?? new List<IFormFile>()";
                     }
 
-                    return p.ParamName;
+                    return p.ParamName + "!";
                 }
 
                 // String parameters - use null-coalescing with empty string
