@@ -439,6 +439,11 @@ public static class CodeGenerationService
                 usings.Add(NamespaceConstants.SystemCollectionsGeneric);
             }
 
+            if (UsingStatementHelper.RecordUsesSystemTypes(recordParams))
+            {
+                usings.Add(NamespaceConstants.System);
+            }
+
             // Determine group name from schema usage in operations
             var groupName = GetGroupNameForSchema(openApiDoc, recordParams.Name);
             var subFolder = GetSubFolder("Models", groupName, generatorType);
@@ -587,6 +592,11 @@ public static class CodeGenerationService
             if (usesDictionary)
             {
                 usings.Add(NamespaceConstants.SystemCollectionsGeneric);
+            }
+
+            if (UsingStatementHelper.RecordUsesSystemTypes(recordParams))
+            {
+                usings.Add(NamespaceConstants.System);
             }
 
             var subFolder = GetSubFolder("Models", pathSegment, generatorType);
@@ -754,6 +764,11 @@ public static class CodeGenerationService
             {
                 $"{projectName}.Generated.Models",
             };
+
+            if (UsingStatementHelper.RecordUsesSystemTypes(recordParams))
+            {
+                usings.Add(NamespaceConstants.System);
+            }
 
             // Extract operation ID from type name to look up group name
             var operationId = ExtractOperationIdFromTypeName(recordParams.Name, "Parameters");

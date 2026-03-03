@@ -1015,13 +1015,8 @@ public static class SchemaExtractor
                 p.TypeName.StartsWith("ICollection<", StringComparison.Ordinal) ||
                 p.TypeName.StartsWith("IEnumerable<", StringComparison.Ordinal)) ?? false);
 
-        // Check if any record uses System types (Guid, DateTimeOffset, Uri, etc.)
-        var usesSystemTypes = records.Any(r =>
-            r.Parameters?.Any(p =>
-                p.TypeName.Contains("Guid", StringComparison.Ordinal) ||
-                p.TypeName.Contains("DateTimeOffset", StringComparison.Ordinal) ||
-                p.TypeName.Contains("Uri", StringComparison.Ordinal) ||
-                p.TypeName.Contains("TimeSpan", StringComparison.Ordinal)) ?? false);
+        // Check if any record uses System types (Guid, DateTimeOffset, DateTime, Uri, etc.)
+        var usesSystemTypes = UsingStatementHelper.RecordsUseSystemTypes(records);
 
         if (usesFileContent)
         {
