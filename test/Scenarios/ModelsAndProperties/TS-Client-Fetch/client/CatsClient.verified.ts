@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { Cat } from '../models';
 
 export class CatsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listCats(): Promise<ApiResult<Cat[]>> {
     return this.api.request<Cat[]>('GET', '/cats');

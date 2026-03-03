@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { Coordinate } from '../models';
 
 export class CoordinatesClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async getCoordinates(): Promise<ApiResult<Coordinate>> {
     return this.api.request<Coordinate>('GET', '/coordinates');

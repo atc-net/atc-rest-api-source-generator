@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { DictionaryTypes } from '../models';
 
 export class DictionariesClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async getDictionaryTypes(): Promise<ApiResult<DictionaryTypes>> {
     return this.api.request<DictionaryTypes>('GET', '/dictionaries');

@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { Product } from '../models';
 
 export class ProductsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listProducts(): Promise<ApiResult<Product[]>> {
     return this.api.request<Product[]>('GET', '/products');

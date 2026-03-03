@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { ExportRequest } from '../models';
 
 export class ExportsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async createExport(body: ExportRequest): Promise<ApiResult<void>> {
     return this.api.request<void>('POST', '/exports', {

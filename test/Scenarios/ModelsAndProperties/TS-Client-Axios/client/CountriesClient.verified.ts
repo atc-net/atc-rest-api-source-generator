@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { Country } from '../models';
 
 export class CountriesClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listCountries(): Promise<ApiResult<Country[]>> {
     return this.api.request<Country[]>('GET', '/countries');

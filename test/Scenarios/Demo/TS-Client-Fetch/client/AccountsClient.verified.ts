@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { Account, Accounts, PaginatedResult } from '../models';
 
 export class AccountsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listAccounts(query?: { limit?: number }): Promise<ApiResult<Accounts>> {
     return this.api.request<Accounts>('GET', '/accounts', {

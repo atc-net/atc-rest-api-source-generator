@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { Item, Items } from '../models';
 
 export class ItemsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listItems(query?: { limit?: number }): Promise<ApiResult<Items>> {
     return this.api.request<Items>('GET', '/items', {

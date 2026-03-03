@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { EnumTypes } from '../models';
 
 export class EnumsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async getEnumTypes(): Promise<ApiResult<EnumTypes>> {
     return this.api.request<EnumTypes>('GET', '/enums');

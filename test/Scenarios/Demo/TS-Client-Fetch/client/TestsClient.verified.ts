@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { CreateTestItemRequest, TestItem } from '../models';
 
 export class TestsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async createTestItemWithModel(body: CreateTestItemRequest): Promise<ApiResult<TestItem>> {
     return this.api.request<TestItem>('POST', '/tests/create/create-model', {

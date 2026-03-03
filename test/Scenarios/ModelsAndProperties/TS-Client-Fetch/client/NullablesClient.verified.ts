@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { NullableTypes } from '../models';
 
 export class NullablesClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async getNullables(): Promise<ApiResult<NullableTypes>> {
     return this.api.request<NullableTypes>('GET', '/nullables');

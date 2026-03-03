@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { CreateOwnerRequest, Owner } from '../models';
 
 export class OwnersClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listOwners(): Promise<ApiResult<Owner[]>> {
     return this.api.request<Owner[]>('GET', '/owners');

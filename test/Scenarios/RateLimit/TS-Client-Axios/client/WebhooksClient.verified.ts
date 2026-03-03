@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { WebhookData, WebhookPayload } from '../models';
 
 export class WebhooksClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async receiveWebhook(body: WebhookPayload): Promise<ApiResult<void>> {
     return this.api.request<void>('POST', '/webhooks', {

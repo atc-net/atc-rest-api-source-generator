@@ -604,6 +604,48 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task PizzaPlanet_ReactQueryHooks_FileUploadWithPathParams()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("PizzaPlanet");
+        var outputPath = Path.Combine(tempOutputDir, "PizzaPlanetHooks");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --hooks ReactQuery --no-strict";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        // Bug 1: Hook file for pizzas should have pizzaId in the upload mutation
+        var hooksDir = Path.Combine(outputPath, "hooks");
+        var pizzaHookFile = Path.Combine(hooksDir, "usePizzas.ts");
+        Assert.True(File.Exists(pizzaHookFile), "usePizzas.ts hook file should exist");
+        var hookContent = await File.ReadAllTextAsync(pizzaHookFile, TestContext.Current.CancellationToken);
+        Assert.Contains("pizzaId", hookContent, StringComparison.Ordinal);
+
+        // Bug 3: Client files should use explicit field + constructor, not parameter property shorthand
+        var pizzasClientFile = Path.Combine(outputPath, "client", "PizzasClient.ts");
+        Assert.True(File.Exists(pizzasClientFile), "PizzasClient.ts should exist");
+        var clientContent = await File.ReadAllTextAsync(pizzasClientFile, TestContext.Current.CancellationToken);
+        Assert.Contains("private readonly api: ApiClient;", clientContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("constructor(private readonly", clientContent, StringComparison.Ordinal);
+
+        // Bug 2: ApiService.ts should use type keyword on ApiClientOptions import
+        var apiServiceFile = Path.Combine(outputPath, "client", "ApiService.ts");
+        Assert.True(File.Exists(apiServiceFile), "ApiService.ts should exist");
+        var apiServiceContent = await File.ReadAllTextAsync(apiServiceFile, TestContext.Current.CancellationToken);
+        Assert.Contains("type ApiClientOptions", apiServiceContent, StringComparison.Ordinal);
+
+        // Bug 4: Client files should not import PizzaImageUploadRequest (unused ref type for file uploads)
+        Assert.DoesNotContain("PizzaImageUploadRequest", clientContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ZodSchemas_GeneratesZodFiles()
     {
         // Arrange

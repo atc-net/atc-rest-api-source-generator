@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { CreateResourceRequest, Resource } from '../models';
 
 export class ResourcesClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listResources(): Promise<ApiResult<Resource[]>> {
     return this.api.request<Resource[]>('GET', '/resources');

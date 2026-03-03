@@ -137,12 +137,25 @@ public static class TypeScriptOperationHelper
         {
             CollectSchemaRefTypes(bodySchema, importTypes);
 
-            // For multipart form data objects, also collect property types
-            if (bodySchema.Properties is { Count: > 0 })
+            // For multipart form data objects, collect property types
+            // ONLY if the body itself is NOT a file upload (file uploads use inline types)
+            var isFileUpload = operation.HasFileUpload();
+            if (!isFileUpload && bodySchema.Properties is { Count: > 0 })
             {
                 foreach (var prop in bodySchema.Properties)
                 {
                     CollectSchemaRefTypes(prop.Value, importTypes);
+                }
+            }
+
+            // If this is a file upload and the body schema is a $ref, remove it
+            // since the client method uses inline type literals, not the named type
+            if (isFileUpload && bodySchema is OpenApiSchemaReference fileUploadRef)
+            {
+                var refName = fileUploadRef.Reference.Id ?? fileUploadRef.Id;
+                if (refName != null)
+                {
+                    importTypes.Remove(refName);
                 }
             }
         }

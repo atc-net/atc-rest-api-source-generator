@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { CreateOrderRequest, Order, TrackingInfo } from '../models';
 
 export class OrdersClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listOrders(): Promise<ApiResult<Order[]>> {
     return this.api.request<Order[]>('GET', '/orders');
