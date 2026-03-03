@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { ApiResponse, Category, Pet, Tag } from '../models';
 
 export class PetClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async updatePet(body: Pet): Promise<ApiResult<Pet>> {
     return this.api.request<Pet>('PUT', '/pet', {

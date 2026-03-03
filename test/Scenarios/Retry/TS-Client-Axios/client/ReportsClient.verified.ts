@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { ReportRequest } from '../models';
 
 export class ReportsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async generateReport(body: ReportRequest): Promise<ApiResult<void>> {
     return this.api.request<void>('POST', '/reports/generate', {

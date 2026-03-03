@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { DefaultValues } from '../models';
 
 export class DefaultsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async getDefaults(): Promise<ApiResult<DefaultValues>> {
     return this.api.request<DefaultValues>('GET', '/defaults');

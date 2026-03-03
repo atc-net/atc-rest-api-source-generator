@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { Report } from '../models';
 
 export class ReportsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listReports(): Promise<ApiResult<Report[]>> {
     return this.api.request<Report[]>('GET', '/reports');

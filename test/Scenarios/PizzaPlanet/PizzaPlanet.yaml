@@ -1,0 +1,1569 @@
+openapi: 3.1.0
+info:
+  title: 🍕 Pizza Planet API
+  description: |
+    The ultimate Pizza Planet ordering system API.
+
+    Built for **The Great Pizza API Hackathon** — may the best team win! 🏆
+
+    ## Features
+    - Full CRUD for pizzas, orders, and customers
+    - Rate limiting, resilience, and caching
+    - File upload/download for pizza images
+    - Real-time order status streaming via SSE
+
+  version: 1.0.0
+  contact:
+    name: Pizza Planet HQ
+    email: hackathon@pizzaplanet.dev
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: http://localhost:5000/api/v1
+    description: Local development server
+
+tags:
+  - name: pizzas
+    description: Pizza menu management
+  - name: pizza-images
+    description: Pizza image upload and download
+  - name: orders
+    description: Order management
+  - name: order-streaming
+    description: Real-time order status streaming
+  - name: customers
+    description: Customer management
+
+x-ratelimit-policy: sliding-window
+x-ratelimit-permit-limit: 1000
+x-ratelimit-window-seconds: 60
+x-ratelimit-algorithm: sliding-window
+
+x-retry-policy: exponential-backoff
+x-retry-max-attempts: 3
+x-retry-backoff:
+  initial-delay-ms: 200
+  max-delay-ms: 5000
+  jitter: true
+
+paths:
+  # ═══════════════════════════════════════════════════════════════
+  # 🍕 PIZZAS
+  # ═══════════════════════════════════════════════════════════════
+
+  /pizzas:
+    get:
+      tags: [pizzas]
+      operationId: getPizzas
+      summary: Get all pizzas
+      description: Returns a paginated list of all pizzas on the menu.
+
+      x-cache-type: output-cache
+      x-cache-policy: public
+      x-cache-expiration-seconds: 30
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 200
+      x-ratelimit-window-seconds: 60
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+        - name: search
+          in: query
+          description: Search pizzas by name or description
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: sortBy
+          in: query
+          description: Field to sort results by
+          required: false
+          schema:
+            type: string
+            enum: [name, price, popularity]
+            default: name
+        - name: sortDirection
+          in: query
+          description: Sort direction
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        '200':
+          description: A paginated list of pizzas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPizzaResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    post:
+      tags: [pizzas]
+      operationId: createPizza
+      summary: Create a new pizza
+      description: Adds a new pizza to the menu. Requires Admin role.
+
+      x-retry-policy: none
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 50
+      x-ratelimit-window-seconds: 60
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePizzaRequest'
+      responses:
+        '201':
+          description: Pizza created successfully
+          headers:
+            Location:
+              description: URL of the created pizza
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pizza'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+        '409':
+          description: A pizza with this name already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /pizzas/{pizzaId}:
+    parameters:
+      - $ref: '#/components/parameters/PizzaId'
+
+    get:
+      tags: [pizzas]
+      operationId: getPizzaById
+      summary: Get pizza by ID
+      description: Returns a single pizza by its unique identifier.
+
+      x-cache-type: hybrid-cache
+      x-cache-policy: public
+      x-cache-expiration-seconds: 60
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 200
+      x-ratelimit-window-seconds: 60
+      responses:
+        '200':
+          description: The requested pizza
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pizza'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    put:
+      tags: [pizzas]
+      operationId: updatePizza
+      summary: Update a pizza
+      description: Updates an existing pizza on the menu. Requires Admin role.
+
+      x-retry-policy: none
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 50
+      x-ratelimit-window-seconds: 60
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePizzaRequest'
+      responses:
+        '200':
+          description: Pizza updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pizza'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    delete:
+      tags: [pizzas]
+      operationId: deletePizza
+      summary: Delete a pizza
+      description: Removes a pizza from the menu. Requires Admin role.
+
+      x-retry-policy: none
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 50
+      x-ratelimit-window-seconds: 60
+      responses:
+        '204':
+          description: Pizza deleted successfully
+
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ═══════════════════════════════════════════════════════════════
+  # 🖼️ PIZZA IMAGES
+  # ═══════════════════════════════════════════════════════════════
+
+  /pizzas/{pizzaId}/image:
+    parameters:
+      - $ref: '#/components/parameters/PizzaId'
+
+    get:
+      tags: [pizza-images]
+      operationId: getPizzaImage
+      summary: Download pizza image
+      description: Downloads the image for a pizza. Public endpoint — no authentication required.
+
+      x-cache-type: output-cache
+      x-cache-policy: public
+      x-cache-expiration-seconds: 300
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 200
+      x-ratelimit-window-seconds: 60
+      responses:
+        '200':
+          description: The pizza image file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    post:
+      tags: [pizza-images]
+      operationId: uploadPizzaImage
+      summary: Upload pizza image
+      description: Uploads an image for a pizza. Requires Admin role. Max file size 5MB.
+
+      x-retry-policy: none
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 20
+      x-ratelimit-window-seconds: 60
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PizzaImageUploadRequest'
+            encoding:
+              file:
+                contentType: image/png, image/jpeg, image/webp
+      responses:
+        '200':
+          description: Image uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PizzaImageUploadResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '413':
+          description: File too large (max 5MB)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ═══════════════════════════════════════════════════════════════
+  # 📦 ORDERS
+  # ═══════════════════════════════════════════════════════════════
+
+  /orders:
+    get:
+      tags: [orders]
+      operationId: getOrders
+      summary: Get all orders
+      description: Returns a paginated list of all orders. Requires Admin or Manager role.
+
+      x-cache-type: output-cache
+      x-cache-policy: private
+      x-cache-expiration-seconds: 10
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 100
+      x-ratelimit-window-seconds: 60
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          description: Filter by order status
+          required: false
+          schema:
+            $ref: '#/components/schemas/OrderStatus'
+        - name: customerId
+          in: query
+          description: Filter by customer ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: fromDate
+          in: query
+          description: Filter orders created after this date
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: toDate
+          in: query
+          description: Filter orders created before this date
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: A paginated list of orders
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrderResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    post:
+      tags: [orders]
+      operationId: createOrder
+      summary: Create a new order
+      description: Places a new pizza order. Authenticated users with any role can create orders.
+
+      x-retry-policy: none
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 50
+      x-ratelimit-window-seconds: 60
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created successfully
+          headers:
+            Location:
+              description: URL of the created order
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '422':
+          description: One or more pizza IDs are invalid or unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /orders/{orderId}:
+    parameters:
+      - $ref: '#/components/parameters/OrderId'
+
+    get:
+      tags: [orders]
+      operationId: getOrderById
+      summary: Get order by ID
+      description: Returns a single order by its unique identifier.
+
+      x-cache-type: hybrid-cache
+      x-cache-policy: private
+      x-cache-expiration-seconds: 15
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 200
+      x-ratelimit-window-seconds: 60
+      responses:
+        '200':
+          description: The requested order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    delete:
+      tags: [orders]
+      operationId: deleteOrder
+      summary: Cancel an order
+      description: |
+        Cancels an existing order. Only orders with status `Received` or `Preparing` can be cancelled.
+        Customers can only cancel their own orders.
+
+      x-retry-policy: none
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 50
+      x-ratelimit-window-seconds: 60
+      responses:
+        '204':
+          description: Order cancelled successfully
+
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /orders/{orderId}/status:
+    parameters:
+      - $ref: '#/components/parameters/OrderId'
+
+    put:
+      tags: [orders]
+      operationId: updateOrderStatus
+      summary: Update order status
+      description: |
+        Transitions an order to a new status. Requires Admin or Manager role.
+
+        **Valid transitions:**
+        - `Received` → `Preparing`
+        - `Preparing` → `Baking`
+        - `Baking` → `QualityCheck`
+        - `QualityCheck` → `OutForDelivery`
+        - `OutForDelivery` → `Delivered`
+        - Any status → `Cancelled` (except `Delivered`)
+
+      x-retry-policy: none
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 100
+      x-ratelimit-window-seconds: 60
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrderStatusRequest'
+      responses:
+        '200':
+          description: Order status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Invalid status transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ═══════════════════════════════════════════════════════════════
+  # 📡 ORDER STREAMING
+  # ═══════════════════════════════════════════════════════════════
+
+  /orders/{orderId}/stream:
+    parameters:
+      - $ref: '#/components/parameters/OrderId'
+
+    get:
+      tags: [order-streaming]
+      operationId: getOrderStatusStream
+      summary: Stream order status updates
+      description: |
+        Opens a Server-Sent Events (SSE) stream for real-time order status updates.
+        The stream will emit an event each time the order status changes,
+        and will close automatically when the order reaches a terminal status
+        (`Delivered` or `Cancelled`).
+      x-return-async-enumerable: true
+
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 50
+      x-ratelimit-window-seconds: 60
+      responses:
+        '200':
+          description: A stream of order status update events
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/OrderStatusUpdate'
+
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ═══════════════════════════════════════════════════════════════
+  # 👤 CUSTOMERS
+  # ═══════════════════════════════════════════════════════════════
+
+  /customers:
+    get:
+      tags: [customers]
+      operationId: getCustomers
+      summary: Get all customers
+      description: Returns a paginated list of all customers. Requires Admin or Manager role.
+
+      x-cache-type: output-cache
+      x-cache-policy: private
+      x-cache-expiration-seconds: 30
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 100
+      x-ratelimit-window-seconds: 60
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+        - name: search
+          in: query
+          description: Search customers by name or email
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        '200':
+          description: A paginated list of customers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCustomerResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    post:
+      tags: [customers]
+      operationId: createCustomer
+      summary: Register a new customer
+      description: Creates a new customer account.
+
+      x-retry-policy: none
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 20
+      x-ratelimit-window-seconds: 60
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Customer registered successfully
+          headers:
+            Location:
+              description: URL of the created customer
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: A customer with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /customers/{customerId}:
+    parameters:
+      - $ref: '#/components/parameters/CustomerId'
+
+    get:
+      tags: [customers]
+      operationId: getCustomerById
+      summary: Get customer by ID
+      description: Returns a single customer by their unique identifier.
+
+      x-cache-type: hybrid-cache
+      x-cache-policy: private
+      x-cache-expiration-seconds: 60
+      x-ratelimit-policy: sliding-window
+      x-ratelimit-permit-limit: 200
+      x-ratelimit-window-seconds: 60
+      responses:
+        '200':
+          description: The requested customer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+# ═════════════════════════════════════════════════════════════════
+# COMPONENTS
+# ═════════════════════════════════════════════════════════════════
+
+components:
+
+
+  # ─────────────────────────────────────────────────────────────
+  # 📐 Parameters
+  # ─────────────────────────────────────────────────────────────
+
+  parameters:
+    PizzaId:
+      name: pizzaId
+      in: path
+      required: true
+      description: Unique identifier of the pizza
+      schema:
+        type: string
+        format: uuid
+        example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      description: Unique identifier of the order
+      schema:
+        type: string
+        format: uuid
+        example: '550e8400-e29b-41d4-a716-446655440000'
+
+    CustomerId:
+      name: customerId
+      in: path
+      required: true
+      description: Unique identifier of the customer
+      schema:
+        type: string
+        format: uuid
+        example: '6ba7b810-9dad-11d1-80b4-00c04fd430c8'
+
+    PageNumber:
+      name: pageNumber
+      in: query
+      description: Page number for pagination (1-based)
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        default: 1
+        example: 1
+
+    PageSize:
+      name: pageSize
+      in: query
+      description: Number of items per page
+      required: false
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+        maximum: 100
+        default: 10
+        example: 10
+
+  # ─────────────────────────────────────────────────────────────
+  # 📦 Schemas
+  # ─────────────────────────────────────────────────────────────
+
+  schemas:
+
+    # ── 🍕 Pizza Schemas ──────────────────────────────────────
+
+    Pizza:
+      title: Pizza
+      type: object
+      description: A pizza on the menu
+      required: [id, name, description, price, size, crustType, toppings, isAvailable, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier
+          example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+        name:
+          type: string
+          description: Display name of the pizza
+          minLength: 2
+          maxLength: 100
+          example: 'Margherita Supreme'
+        description:
+          type: string
+          description: Appetizing description
+          minLength: 10
+          maxLength: 500
+          example: 'Classic Italian pizza with fresh mozzarella, San Marzano tomatoes, and fragrant basil'
+        price:
+          type: number
+          format: decimal
+          description: Price in USD
+          minimum: 0.01
+          maximum: 999.99
+          example: 14.99
+        size:
+          $ref: '#/components/schemas/PizzaSize'
+        crustType:
+          $ref: '#/components/schemas/CrustType'
+        toppings:
+          type: array
+          description: List of toppings
+          minItems: 1
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+          example: ['Mozzarella', 'Tomato Sauce', 'Fresh Basil']
+        isAvailable:
+          type: boolean
+          description: Whether this pizza is currently available for ordering
+          example: true
+        imageUrl:
+          type: string
+          format: uri
+          description: URL of the pizza image
+          nullable: true
+          example: 'http://localhost:5000/api/v1/pizzas/f47ac10b-58cc-4372-a567-0e02b2c3d479/image'
+        calorieCount:
+          type: integer
+          format: int32
+          description: Approximate calorie count per serving
+          minimum: 0
+          maximum: 10000
+          nullable: true
+          example: 850
+        isVegetarian:
+          type: boolean
+          description: Whether this pizza is vegetarian
+          example: true
+        isGlutenFree:
+          type: boolean
+          description: Whether this pizza has a gluten-free option
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+          description: When the pizza was added to the menu
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the pizza was last updated
+
+    CreatePizzaRequest:
+      title: CreatePizzaRequest
+      type: object
+      description: Request body for creating a new pizza
+      required: [name, description, price, size, crustType, toppings]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Display name of the pizza
+          example: 'Truffle Mushroom Bliss'
+        description:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: Appetizing description
+          example: 'Wild mushroom medley with black truffle oil on a crispy thin crust'
+        price:
+          type: number
+          format: decimal
+          minimum: 0.01
+          maximum: 999.99
+          description: Price in USD
+          example: 18.99
+        size:
+          $ref: '#/components/schemas/PizzaSize'
+        crustType:
+          $ref: '#/components/schemas/CrustType'
+        toppings:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+          description: List of toppings
+          example: ['Truffle Oil', 'Portobello', 'Shiitake', 'Mozzarella']
+        isAvailable:
+          type: boolean
+          description: Whether this pizza is available for ordering
+          default: true
+        calorieCount:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 10000
+          nullable: true
+          description: Approximate calorie count
+        isVegetarian:
+          type: boolean
+          description: Whether this pizza is vegetarian
+          default: false
+        isGlutenFree:
+          type: boolean
+          description: Whether this pizza has a gluten-free option
+          default: false
+
+    UpdatePizzaRequest:
+      title: UpdatePizzaRequest
+      type: object
+      description: Request body for updating an existing pizza
+      required: [name, description, price, size, crustType, toppings]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Display name of the pizza
+          example: 'Margherita Supreme Deluxe'
+        description:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: Appetizing description
+          example: 'Our classic Margherita, now with buffalo mozzarella and DOP tomatoes'
+        price:
+          type: number
+          format: decimal
+          minimum: 0.01
+          maximum: 999.99
+          description: Price in USD
+          example: 16.99
+        size:
+          $ref: '#/components/schemas/PizzaSize'
+        crustType:
+          $ref: '#/components/schemas/CrustType'
+        toppings:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+          description: List of toppings
+          example: ['Buffalo Mozzarella', 'DOP Tomatoes', 'Fresh Basil', 'Extra Virgin Olive Oil']
+        isAvailable:
+          type: boolean
+          description: Whether this pizza is available for ordering
+        calorieCount:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 10000
+          nullable: true
+          description: Approximate calorie count
+        isVegetarian:
+          type: boolean
+          description: Whether this pizza is vegetarian
+        isGlutenFree:
+          type: boolean
+          description: Whether this pizza has a gluten-free option
+
+    PizzaSize:
+      type: string
+      description: Available pizza sizes
+      enum:
+        - Small
+        - Medium
+        - Large
+        - ExtraLarge
+        - FamilySize
+      example: 'Large'
+
+    CrustType:
+      type: string
+      description: Available crust types
+      enum:
+        - Thin
+        - Classic
+        - ThickCrust
+        - Stuffed
+        - GlutenFree
+        - Sourdough
+      example: 'Thin'
+
+    PizzaImageUploadRequest:
+      title: PizzaImageUploadRequest
+      type: object
+      description: Multipart form data for pizza image upload
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+          description: The image file (PNG, JPEG, or WebP, max 5MB)
+        altText:
+          type: string
+          minLength: 2
+          maxLength: 200
+          description: Alt text describing the pizza image
+          example: 'A golden Margherita pizza fresh from the brick oven'
+
+    PizzaImageUploadResponse:
+      title: PizzaImageUploadResponse
+      type: object
+      description: Response after successful image upload
+      required: [imageUrl, contentType, fileSizeBytes]
+      properties:
+        imageUrl:
+          type: string
+          format: uri
+          description: URL to access the uploaded image
+          example: 'http://localhost:5000/api/v1/pizzas/f47ac10b-58cc-4372-a567-0e02b2c3d479/image'
+        contentType:
+          type: string
+          description: MIME type of the uploaded image
+          example: 'image/png'
+        fileSizeBytes:
+          type: integer
+          format: int64
+          description: Size of the uploaded file in bytes
+          example: 245760
+
+    # ── 📦 Order Schemas ──────────────────────────────────────
+
+    Order:
+      title: Order
+      type: object
+      description: A pizza order
+      required: [id, customerId, orderItems, status, totalPrice, deliveryAddress, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier
+          example: '550e8400-e29b-41d4-a716-446655440000'
+        customerId:
+          type: string
+          format: uuid
+          description: Customer who placed the order
+          example: '6ba7b810-9dad-11d1-80b4-00c04fd430c8'
+        orderItems:
+          type: array
+          description: Ordered items
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        totalPrice:
+          type: number
+          format: decimal
+          description: Total price of the order in USD
+          minimum: 0.01
+          example: 42.97
+        deliveryAddress:
+          $ref: '#/components/schemas/Address'
+        specialInstructions:
+          type: string
+          maxLength: 500
+          description: Special delivery or preparation instructions
+          nullable: true
+          example: 'Ring the doorbell twice. Extra napkins please!'
+        estimatedDeliveryTime:
+          type: string
+          format: date-time
+          description: Estimated delivery time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          description: When the order was placed
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the order was last updated
+
+    CreateOrderRequest:
+      title: CreateOrderRequest
+      type: object
+      description: Request body for creating a new order
+      required: [customerId, orderItems, deliveryAddress]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+          description: Customer placing the order
+          example: '6ba7b810-9dad-11d1-80b4-00c04fd430c8'
+        orderItems:
+          type: array
+          minItems: 1
+          maxItems: 50
+          description: Items to order
+          items:
+            $ref: '#/components/schemas/CreateOrderItemRequest'
+        deliveryAddress:
+          $ref: '#/components/schemas/Address'
+        specialInstructions:
+          type: string
+          maxLength: 500
+          description: Special delivery or preparation instructions
+          nullable: true
+          example: 'Please cut into squares instead of triangles'
+
+    OrderItem:
+      title: OrderItem
+      type: object
+      description: A single item in an order
+      required: [pizzaId, pizzaName, size, quantity, unitPrice, totalPrice]
+      properties:
+        pizzaId:
+          type: string
+          format: uuid
+          description: ID of the pizza ordered
+        pizzaName:
+          type: string
+          description: Name of the pizza at time of order
+          example: 'Margherita Supreme'
+        size:
+          $ref: '#/components/schemas/PizzaSize'
+        quantity:
+          type: integer
+          format: int32
+          description: How many of this pizza
+          minimum: 1
+          maximum: 99
+          example: 2
+        unitPrice:
+          type: number
+          format: decimal
+          description: Price per pizza at time of order
+          example: 14.99
+        totalPrice:
+          type: number
+          format: decimal
+          description: Subtotal for this line item
+          example: 29.98
+        extraToppings:
+          type: array
+          description: Additional toppings requested
+          maxItems: 10
+          items:
+            type: string
+            maxLength: 50
+          nullable: true
+          example: ['Extra Cheese', 'Jalapeños']
+
+    CreateOrderItemRequest:
+      title: CreateOrderItemRequest
+      type: object
+      description: A single item in a new order request
+      required: [pizzaId, size, quantity]
+      properties:
+        pizzaId:
+          type: string
+          format: uuid
+          description: ID of the pizza to order
+          example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+        size:
+          $ref: '#/components/schemas/PizzaSize'
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 99
+          description: How many of this pizza
+          example: 2
+        extraToppings:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            maxLength: 50
+          description: Additional toppings
+          nullable: true
+
+    OrderStatus:
+      type: string
+      description: |
+        Current status of an order.
+
+        **Status flow:** Received → Preparing → Baking → QualityCheck → OutForDelivery → Delivered
+
+        An order can be `Cancelled` from any status except `Delivered`.
+      enum:
+        - Received
+        - Preparing
+        - Baking
+        - QualityCheck
+        - OutForDelivery
+        - Delivered
+        - Cancelled
+      example: 'Preparing'
+
+    UpdateOrderStatusRequest:
+      title: UpdateOrderStatusRequest
+      type: object
+      description: Request body for updating an order's status
+      required: [newStatus]
+      properties:
+        newStatus:
+          $ref: '#/components/schemas/OrderStatus'
+        reason:
+          type: string
+          maxLength: 500
+          description: Reason for the status change (required for cancellation)
+          nullable: true
+          example: 'Customer requested cancellation'
+
+    OrderStatusUpdate:
+      title: OrderStatusUpdate
+      type: object
+      description: A real-time order status update event (SSE payload)
+      required: [orderId, previousStatus, newStatus, timestamp]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          description: ID of the order
+          example: '550e8400-e29b-41d4-a716-446655440000'
+        previousStatus:
+          $ref: '#/components/schemas/OrderStatus'
+        newStatus:
+          $ref: '#/components/schemas/OrderStatus'
+        timestamp:
+          type: string
+          format: date-time
+          description: When the status changed
+        message:
+          type: string
+          description: Human-readable status message
+          example: '🔥 Your pizza is now in the oven!'
+        estimatedMinutesRemaining:
+          type: integer
+          format: int32
+          description: Estimated minutes until delivery
+          minimum: 0
+          nullable: true
+          example: 15
+
+    # ── 👤 Customer Schemas ───────────────────────────────────
+
+    Customer:
+      title: Customer
+      type: object
+      description: A registered customer
+      required: [id, firstName, lastName, email, phoneNumber, defaultDeliveryAddress, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier
+          example: '6ba7b810-9dad-11d1-80b4-00c04fd430c8'
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Customer's first name
+          example: 'Buzz'
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Customer's last name
+          example: 'Lightyear'
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: Customer's email address
+          example: 'buzz.lightyear@pizzaplanet.dev'
+        phoneNumber:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Customer's phone number (E.164 format)
+          example: '+1234567890'
+        defaultDeliveryAddress:
+          $ref: '#/components/schemas/Address'
+        totalOrders:
+          type: integer
+          format: int32
+          description: Total number of orders placed
+          minimum: 0
+          example: 42
+        loyaltyPoints:
+          type: integer
+          format: int32
+          description: Accumulated loyalty points
+          minimum: 0
+          example: 1337
+        createdAt:
+          type: string
+          format: date-time
+          description: When the customer registered
+
+    CreateCustomerRequest:
+      title: CreateCustomerRequest
+      type: object
+      description: Request body for registering a new customer
+      required: [firstName, lastName, email, phoneNumber, defaultDeliveryAddress]
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Customer's first name
+          example: 'Woody'
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Customer's last name
+          example: 'Pride'
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: Customer's email address
+          example: 'woody.pride@pizzaplanet.dev'
+        phoneNumber:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Customer's phone number (E.164 format)
+          example: '+1987654321'
+        defaultDeliveryAddress:
+          $ref: '#/components/schemas/Address'
+
+    # ── 📍 Shared Schemas ─────────────────────────────────────
+
+    Address:
+      title: Address
+      type: object
+      description: A delivery address
+      required: [street, city, state, zipCode, country]
+      properties:
+        street:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Street address
+          example: '1 Infinite Loop, Suite 42'
+        city:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: City name
+          example: 'Pizza City'
+        state:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: State or province
+          example: 'CA'
+        zipCode:
+          type: string
+          pattern: '^\d{5}(-\d{4})?$'
+          description: ZIP or postal code (US format)
+          example: '90210'
+        country:
+          type: string
+          minLength: 2
+          maxLength: 2
+          description: ISO 3166-1 alpha-2 country code
+          default: 'US'
+          example: 'US'
+
+    # ── 📄 Pagination Schemas ─────────────────────────────────
+
+    PaginatedPizzaResult:
+      title: PaginatedPizzaResult
+      type: object
+      description: A paginated list of pizzas
+      required: [items, pageNumber, pageSize, totalPages, totalCount]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pizza'
+        pageNumber:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        pageSize:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+          example: 10
+        totalPages:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 3
+        totalCount:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 27
+        hasNextPage:
+          type: boolean
+          example: true
+        hasPreviousPage:
+          type: boolean
+          example: false
+
+    PaginatedOrderResult:
+      title: PaginatedOrderResult
+      type: object
+      description: A paginated list of orders
+      required: [items, pageNumber, pageSize, totalPages, totalCount]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+        pageNumber:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        pageSize:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+          example: 10
+        totalPages:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 5
+        totalCount:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 48
+        hasNextPage:
+          type: boolean
+          example: true
+        hasPreviousPage:
+          type: boolean
+          example: false
+
+    PaginatedCustomerResult:
+      title: PaginatedCustomerResult
+      type: object
+      description: A paginated list of customers
+      required: [items, pageNumber, pageSize, totalPages, totalCount]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Customer'
+        pageNumber:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        pageSize:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+          example: 10
+        totalPages:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 2
+        totalCount:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 15
+        hasNextPage:
+          type: boolean
+          example: true
+        hasPreviousPage:
+          type: boolean
+          example: false
+
+    # ── ⚠️ Error Schemas ──────────────────────────────────────
+
+    ProblemDetails:
+      title: ProblemDetails
+      type: object
+      description: RFC 9457 Problem Details for HTTP APIs
+      properties:
+        type:
+          type: string
+          format: uri
+          description: A URI reference that identifies the problem type
+          example: 'https://tools.ietf.org/html/rfc9110#section-15.5.5'
+        title:
+          type: string
+          description: A short, human-readable summary of the problem
+          example: 'Not Found'
+        status:
+          type: integer
+          format: int32
+          description: The HTTP status code
+          example: 404
+        detail:
+          type: string
+          description: A human-readable explanation specific to this occurrence
+          example: 'Pizza with ID f47ac10b-58cc-4372-a567-0e02b2c3d479 was not found'
+        instance:
+          type: string
+          format: uri
+          description: A URI reference that identifies the specific occurrence
+        traceId:
+          type: string
+          description: Trace ID for debugging
+          example: '00-1234567890abcdef-fedcba0987654321-01'
+
+    ValidationProblemDetails:
+      title: ValidationProblemDetails
+      type: object
+      description: RFC 9457 Problem Details with validation errors
+      properties:
+        type:
+          type: string
+          format: uri
+          description: A URI reference that identifies the problem type
+        title:
+          type: string
+          description: A short, human-readable summary of the problem
+        status:
+          type: integer
+          format: int32
+          description: The HTTP status code
+        detail:
+          type: string
+          description: A human-readable explanation specific to this occurrence
+        instance:
+          type: string
+          format: uri
+          description: A URI reference that identifies the specific occurrence
+        traceId:
+          type: string
+          description: Trace ID for debugging
+        errors:
+          type: object
+          description: Validation errors keyed by property name
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            name: ['The Name field is required.', 'Name must be between 2 and 100 characters.']
+            price: ['Price must be between 0.01 and 999.99.']
+
+  # ─────────────────────────────────────────────────────────────
+  # 📨 Reusable Responses
+  # ─────────────────────────────────────────────────────────────
+
+  responses:
+    BadRequest:
+      description: Bad request — invalid query parameters or request format
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+    ValidationError:
+      description: Validation failed — check the errors object for details
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblemDetails'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+    TooManyRequests:
+      description: Rate limit exceeded — try again later
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying
+          schema:
+            type: integer
+            format: int32
+            example: 30
+        X-RateLimit-Limit:
+          description: The rate limit ceiling
+          schema:
+            type: integer
+            format: int32
+            example: 1000
+        X-RateLimit-Remaining:
+          description: Remaining requests in current window
+          schema:
+            type: integer
+            format: int32
+            example: 0
+        X-RateLimit-Reset:
+          description: UTC epoch seconds when the rate limit resets
+          schema:
+            type: integer
+            format: int64
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'

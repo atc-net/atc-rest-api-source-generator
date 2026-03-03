@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { ApiKey } from '../models';
 
 export class ApiKeysClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listApiKeys(): Promise<ApiResult<ApiKey[]>> {
     return this.api.request<ApiKey[]>('GET', '/api-keys');

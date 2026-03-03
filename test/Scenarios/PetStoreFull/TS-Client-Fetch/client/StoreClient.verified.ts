@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { Order } from '../models';
 
 export class StoreClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async getInventory(): Promise<ApiResult<unknown>> {
     return this.api.request<unknown>('GET', '/store/inventory');

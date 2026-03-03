@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { Task, Tasks } from '../models';
 
 export class TasksClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listTasks(query?: { limit?: number }): Promise<ApiResult<Tasks>> {
     return this.api.request<Tasks>('GET', '/tasks', {

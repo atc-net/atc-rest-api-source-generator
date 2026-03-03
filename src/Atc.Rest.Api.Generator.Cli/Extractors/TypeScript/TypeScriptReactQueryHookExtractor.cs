@@ -344,9 +344,48 @@ public static class TypeScriptReactQueryHookExtractor
             mutationArg = "(body: " + info.BodyType + ")";
             clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, hasBody: true, namingStrategy: namingStrategy);
         }
+        else if (info.HasFileUploadArg && info.PathParams.Count > 0)
+        {
+            // File upload with path params — merge path params into mutation arg
+            var pathParamParts = new List<string>();
+            var pathParamNames = new List<string>();
+            foreach (var param in info.PathParams)
+            {
+                var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+                var paramType = TypeScriptOperationHelper.GetParameterType(param);
+                pathParamParts.Add(paramName + ": " + paramType);
+                pathParamNames.Add(paramName);
+            }
+
+            // Parse the existing file upload param declaration to extract its type
+            var colonIdx = info.FileUploadParam.IndexOf(':', StringComparison.Ordinal);
+            var fileArgName = info.FileUploadParam[..colonIdx].Trim();
+            var fileTypeStr = info.FileUploadParam[(colonIdx + 1)..].Trim();
+
+            // Build destructured param: ({ pizzaId, ...data }: { pizzaId: string; file?: ...; altText?: ... })
+            string mutationParamDestructure;
+            string mutationParamType;
+
+            if (fileTypeStr.StartsWith("{", StringComparison.Ordinal) && fileTypeStr.EndsWith("}", StringComparison.Ordinal))
+            {
+                // Inline object type — merge path params into it
+                var innerProps = fileTypeStr[1..^1].Trim();
+                mutationParamType = "{ " + string.Join("; ", pathParamParts) + "; " + innerProps + " }";
+                mutationParamDestructure = "{ " + string.Join(", ", pathParamNames) + ", ..." + fileArgName + " }";
+            }
+            else
+            {
+                // Non-object type (e.g., Blob | File) — wrap in object with path params
+                mutationParamType = "{ " + string.Join("; ", pathParamParts) + "; " + info.FileUploadParam + " }";
+                mutationParamDestructure = "{ " + string.Join(", ", pathParamNames) + ", " + fileArgName + " }";
+            }
+
+            mutationArg = "(" + mutationParamDestructure + ": " + mutationParamType + ")";
+            clientCallArgs = string.Join(", ", pathParamNames) + ", " + fileArgName;
+        }
         else if (info.HasFileUploadArg)
         {
-            // File upload arg as mutation arg
+            // File upload without path params
             mutationArg = "(" + info.FileUploadParam + ")";
             clientCallArgs = info.FileUploadArgName;
         }

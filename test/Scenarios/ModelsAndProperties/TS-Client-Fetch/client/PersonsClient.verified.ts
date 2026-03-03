@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { Person } from '../models';
 
 export class PersonsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listPersons(query?: { gender?: GenderType }): Promise<ApiResult<Person[]>> {
     return this.api.request<Person[]>('GET', '/persons', {

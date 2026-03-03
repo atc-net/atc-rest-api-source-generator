@@ -5,7 +5,11 @@ import type { AddressRequest, CreateUserRequest, UpdateUserRequest, User, Users 
 import type { UserRole } from '../enums';
 
 export class UsersClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listUsers(query?: { search?: string; country?: string; role?: string; isActive?: boolean; limit?: number }): Promise<ApiResult<Users>> {
     return this.api.request<Users>('GET', '/users', {

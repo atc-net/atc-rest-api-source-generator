@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { AdminSettings } from '../models';
 
 export class AdminClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async getAdminSettings(): Promise<ApiResult<AdminSettings>> {
     return this.api.request<AdminSettings>('GET', '/admin/settings');

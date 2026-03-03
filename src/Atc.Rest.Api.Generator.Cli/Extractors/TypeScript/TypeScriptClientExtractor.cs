@@ -127,7 +127,11 @@ public static class TypeScriptClientExtractor
 
         // Class declaration
         sb.Append("export class ").Append(className).AppendLine(" {");
-        sb.AppendLine("  constructor(private readonly api: ApiClient) {}");
+        sb.AppendLine("  private readonly api: ApiClient;");
+        sb.AppendLine();
+        sb.AppendLine("  constructor(api: ApiClient) {");
+        sb.AppendLine("    this.api = api;");
+        sb.AppendLine("  }");
 
         // Generate methods
         foreach (var (path, method, operation) in operations)

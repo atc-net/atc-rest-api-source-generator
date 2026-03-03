@@ -34,7 +34,7 @@ public static class TypeScriptApiServiceExtractor
         StringBuilder sb,
         List<string> clientClassNames)
     {
-        sb.AppendLine("import { ApiClient, ApiClientOptions } from './ApiClient';");
+        sb.AppendLine("import { ApiClient, type ApiClientOptions } from './ApiClient';");
 
         foreach (var className in clientClassNames)
         {

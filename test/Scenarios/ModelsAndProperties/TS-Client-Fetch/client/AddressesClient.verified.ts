@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { Address, Country } from '../models';
 
 export class AddressesClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listAddresses(): Promise<ApiResult<Address[]>> {
     return this.api.request<Address[]>('GET', '/addresses');

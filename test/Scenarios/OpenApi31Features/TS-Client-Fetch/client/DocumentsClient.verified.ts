@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { DocumentRequest, DocumentResponse } from '../models';
 
 export class DocumentsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async createDocument(body: DocumentRequest): Promise<ApiResult<DocumentResponse>> {
     return this.api.request<DocumentResponse>('POST', '/documents', {

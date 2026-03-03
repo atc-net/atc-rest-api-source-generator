@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { PaymentRequest, PaymentResult } from '../models';
 
 export class ExternalClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async processPayment(body: PaymentRequest): Promise<ApiResult<PaymentResult>> {
     return this.api.request<PaymentResult>('POST', '/external/payment', {

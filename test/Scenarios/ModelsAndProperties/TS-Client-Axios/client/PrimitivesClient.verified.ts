@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { PrimitiveTypes } from '../models';
 
 export class PrimitivesClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async getPrimitiveTypes(): Promise<ApiResult<PrimitiveTypes>> {
     return this.api.request<PrimitiveTypes>('GET', '/primitives');

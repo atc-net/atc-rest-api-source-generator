@@ -3,7 +3,11 @@ import { ApiClient } from './ApiClient';
 import type { ApiResult } from '../types/ApiResult';
 
 export class AnalyticsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async getAnalyticsSummary(): Promise<ApiResult<unknown>> {
     return this.api.request<unknown>('GET', '/analytics/summary');

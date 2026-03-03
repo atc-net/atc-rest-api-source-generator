@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { UserProfile } from '../models';
 
 export class MeClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async getCurrentUser(): Promise<ApiResult<UserProfile>> {
     return this.api.request<UserProfile>('GET', '/me');

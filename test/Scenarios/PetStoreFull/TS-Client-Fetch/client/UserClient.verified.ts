@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { User } from '../models';
 
 export class UserClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async createUser(body: User): Promise<ApiResult<User>> {
     return this.api.request<User>('POST', '/user', {

@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { CreatePetRequest, Pet, UpdatePetRequest } from '../models';
 
 export class PetsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listPets(query?: { limit?: number }): Promise<ApiResult<Pet[]>> {
     return this.api.request<Pet[]>('GET', '/pets', {

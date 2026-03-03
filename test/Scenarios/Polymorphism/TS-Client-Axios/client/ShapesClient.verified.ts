@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { Shape } from '../models';
 
 export class ShapesClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listShapes(): Promise<ApiResult<Shape[]>> {
     return this.api.request<Shape[]>('GET', '/shapes');

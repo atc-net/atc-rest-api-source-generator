@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { ValidationConstraints } from '../models';
 
 export class ValidationsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async getValidations(): Promise<ApiResult<ValidationConstraints>> {
     return this.api.request<ValidationConstraints>('GET', '/validations');

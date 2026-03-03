@@ -5,7 +5,11 @@ import type { Address, ComprehensiveModel } from '../models';
 import type { GenderType, RoleType, StatusType } from '../enums';
 
 export class ModelsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async listModels(): Promise<ApiResult<ComprehensiveModel[]>> {
     return this.api.request<ComprehensiveModel[]>('GET', '/models');

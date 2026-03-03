@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { HealthStatus } from '../models';
 
 export class HealthClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async getHealth(): Promise<ApiResult<HealthStatus>> {
     return this.api.request<HealthStatus>('GET', '/health');

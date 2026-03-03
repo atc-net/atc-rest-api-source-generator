@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { ArrayTypes } from '../models';
 
 export class ArraysClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async getArrayTypes(): Promise<ApiResult<ArrayTypes>> {
     return this.api.request<ArrayTypes>('GET', '/arrays');

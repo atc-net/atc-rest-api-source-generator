@@ -4,7 +4,11 @@ import type { ApiResult } from '../types/ApiResult';
 import type { Notification } from '../models';
 
 export class NotificationsClient {
-  constructor(private readonly api: ApiClient) {}
+  private readonly api: ApiClient;
+
+  constructor(api: ApiClient) {
+    this.api = api;
+  }
 
   async sendNotification(body: Notification): Promise<ApiResult<void>> {
     return this.api.request<void>('POST', '/notifications', {
