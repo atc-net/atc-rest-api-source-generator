@@ -16,12 +16,22 @@ internal static class PackageVersionDefaults
     public const string RestClientPackageId = "Atc.Rest.Client";
 
     /// <summary>
+    /// Package ID for the HTTP resilience package.
+    /// </summary>
+    public const string ResiliencePackageId = "Microsoft.Extensions.Http.Resilience";
+
+    /// <summary>
     /// Fallback version for Atc.Rest.Api.SourceGenerator.
     /// </summary>
-    public static readonly Version SourceGeneratorFallback = new(1, 0, 110);
+    public static readonly Version SourceGeneratorFallback = new(1, 0, 113);
 
     /// <summary>
     /// Fallback minimum version for Atc.Rest.Client.
     /// </summary>
     public static readonly Version RestClientMinFallback = new(2, 0, 31);
+
+    /// <summary>
+    /// Fallback minimum version for Microsoft.Extensions.Http.Resilience.
+    /// </summary>
+    public static readonly Version ResilienceMinFallback = new(10, 3, 0);
 }
