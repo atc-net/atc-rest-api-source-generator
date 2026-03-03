@@ -73,7 +73,7 @@ public sealed class GenerateClientCommandTests : IDisposable
 
         // Verify csproj content references local YAML file (not relative path)
         var csprojContent = await File.ReadAllTextAsync(csprojPath, TestContext.Current.CancellationToken);
-        Assert.Contains("<OutputType>Exe</OutputType>", csprojContent, StringComparison.Ordinal);
+        Assert.Contains("<OutputType>Library</OutputType>", csprojContent, StringComparison.Ordinal);
         Assert.Contains("<TargetFramework>net10.0</TargetFramework>", csprojContent, StringComparison.Ordinal);
         Assert.Contains("<AdditionalFiles Include=\"Demo.yaml\"", csprojContent, StringComparison.Ordinal);
         Assert.Contains(".atc-rest-api-client", csprojContent, StringComparison.Ordinal);
@@ -448,5 +448,84 @@ public sealed class GenerateClientCommandTests : IDisposable
         var cleanOutput = CliTestHelper.StripAnsiCodes(output);
         Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
         Assert.True(Directory.Exists(outputPath), "Output directory should have been created");
+    }
+
+    [Fact]
+    public async Task GenerateClient_CsprojContainsRestClientPackageReference()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "PkgRefTest", "Client");
+        var projectName = "Demo.PkgTest";
+        var arguments = $"generate client -s \"{yamlPath}\" -o \"{outputPath}\" -n \"{projectName}\"";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var csprojPath = Path.Combine(outputPath, $"{projectName}.csproj");
+        var csprojContent = await File.ReadAllTextAsync(csprojPath, TestContext.Current.CancellationToken);
+
+        Assert.Contains("Atc.Rest.Api.SourceGenerator", csprojContent, StringComparison.Ordinal);
+        Assert.Contains("Atc.Rest.Client", csprojContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GenerateClient_WithRetrySpec_CsprojContainsResiliencePackageReference()
+    {
+        // Arrange - Retry scenario has x-retry-policy extensions
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Retry");
+        var outputPath = Path.Combine(tempOutputDir, "RetryPkgTest", "Client");
+        var projectName = "Retry.PkgTest";
+        var arguments = $"generate client -s \"{yamlPath}\" -o \"{outputPath}\" -n \"{projectName}\"";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var csprojPath = Path.Combine(outputPath, $"{projectName}.csproj");
+        var csprojContent = await File.ReadAllTextAsync(csprojPath, TestContext.Current.CancellationToken);
+
+        Assert.Contains("Atc.Rest.Api.SourceGenerator", csprojContent, StringComparison.Ordinal);
+        Assert.Contains("Atc.Rest.Client", csprojContent, StringComparison.Ordinal);
+        Assert.Contains("Microsoft.Extensions.Http.Resilience", csprojContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GenerateClient_WithoutRetrySpec_CsprojDoesNotContainResiliencePackage()
+    {
+        // Arrange - Demo scenario has no x-retry extensions
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "NoRetryPkgTest", "Client");
+        var projectName = "Demo.NoRetryPkg";
+        var arguments = $"generate client -s \"{yamlPath}\" -o \"{outputPath}\" -n \"{projectName}\"";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var csprojPath = Path.Combine(outputPath, $"{projectName}.csproj");
+        var csprojContent = await File.ReadAllTextAsync(csprojPath, TestContext.Current.CancellationToken);
+
+        Assert.Contains("Atc.Rest.Client", csprojContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("Microsoft.Extensions.Http.Resilience", csprojContent, StringComparison.Ordinal);
     }
 }

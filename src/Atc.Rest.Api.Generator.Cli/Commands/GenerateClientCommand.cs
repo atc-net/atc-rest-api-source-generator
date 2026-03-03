@@ -57,10 +57,12 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             .SpinnerStyle(Style.Parse("blue"))
             .Start("Initializing...", ctx =>
             {
-                // Step 0: Resolve package version from NuGet (with fallback)
+                // Step 0: Resolve package versions from NuGet (with fallback)
                 ctx.Status("Resolving package versions...");
                 var sourceGeneratorVersion = NugetApiClientHelper.GetLatestVersionForPackageId(
                     PackageVersionDefaults.SourceGeneratorPackageId) ?? PackageVersionDefaults.SourceGeneratorFallback;
+                var restClientVersion = NugetApiClientHelper.GetLatestVersionForPackageId(
+                    PackageVersionDefaults.RestClientPackageId) ?? PackageVersionDefaults.RestClientMinFallback;
 
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");
@@ -72,6 +74,14 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
                 parsedDocument = validationResult.Document;
                 validationDiagnostics = validationResult.Diagnostics;
+
+                // Resolve resilience package if spec has retry configuration
+                Version? resilienceVersion = null;
+                if (parsedDocument is not null && parsedDocument.HasRetryConfiguration())
+                {
+                    resilienceVersion = NugetApiClientHelper.GetLatestVersionForPackageId(
+                        PackageVersionDefaults.ResiliencePackageId) ?? PackageVersionDefaults.ResilienceMinFallback;
+                }
 
                 // Step 2: Check for conflicting project files in output directory
                 if (!ValidateOutputDirectory(outputPath, projectName))
@@ -111,7 +121,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
                 // Step 6: Create or update project file (using local YAML file name)
                 ctx.Status("Creating project file...");
-                if (!CreateOrUpdateProjectFile(outputPath, projectName, specFileName, sourceGeneratorVersion))
+                if (!CreateOrUpdateProjectFile(outputPath, projectName, specFileName, sourceGeneratorVersion, restClientVersion, resilienceVersion))
                 {
                     return 1;
                 }
@@ -331,7 +341,9 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         string outputPath,
         string projectName,
         string specFileName,
-        Version sourceGeneratorVersion)
+        Version sourceGeneratorVersion,
+        Version restClientVersion,
+        Version? resilienceVersion)
     {
         var csprojPath = Path.Combine(outputPath, $"{projectName}.csproj");
 
@@ -339,7 +351,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         {
             if (!File.Exists(csprojPath))
             {
-                var csprojContent = GenerateProjectFileContent(specFileName, sourceGeneratorVersion);
+                var csprojContent = GenerateProjectFileContent(specFileName, sourceGeneratorVersion, restClientVersion, resilienceVersion);
                 File.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
             }
@@ -367,17 +379,28 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
     private static string GenerateProjectFileContent(
         string specFileName,
-        Version sourceGeneratorVersion)
-        => $"""
+        Version sourceGeneratorVersion,
+        Version restClientVersion,
+        Version? resilienceVersion)
+    {
+        var resilienceRef = resilienceVersion is not null
+            ? $"""
+
+                   <PackageReference Include="{PackageVersionDefaults.ResiliencePackageId}" Version="{resilienceVersion}" />
+               """
+            : string.Empty;
+
+        return $"""
             <Project Sdk="Microsoft.NET.Sdk">
 
               <PropertyGroup>
-                <OutputType>Exe</OutputType>
+                <OutputType>Library</OutputType>
                 <TargetFramework>{TargetFrameworkResult.RequiredTargetFramework}</TargetFramework>
               </PropertyGroup>
 
               <ItemGroup>
-                <PackageReference Include="Atc.Rest.Api.SourceGenerator" Version="{sourceGeneratorVersion}" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+                <PackageReference Include="{PackageVersionDefaults.SourceGeneratorPackageId}" Version="{sourceGeneratorVersion}" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+                <PackageReference Include="{PackageVersionDefaults.RestClientPackageId}" Version="{restClientVersion}" />{resilienceRef}
               </ItemGroup>
 
               <ItemGroup>
@@ -387,6 +410,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
             </Project>
             """;
+    }
 
     private static bool UpdateProjectFileIfNeeded(
         string csprojPath,
