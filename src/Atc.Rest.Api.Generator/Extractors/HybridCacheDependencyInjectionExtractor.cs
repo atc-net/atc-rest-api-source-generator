@@ -292,10 +292,11 @@ public static class HybridCacheDependencyInjectionExtractor
 
         // Build header with only required usings
         var builder = new StringBuilder();
-        builder.Append(UsingStatementHelper.BuildHeader(content, NamespaceConstants.SystemCodeDomCompiler));
-        builder.AppendLine($"using {projectName}.Generated.Caching;");
-        builder.AppendLine("using Microsoft.Extensions.Caching.Hybrid;");
-        builder.AppendLine();
+        builder.Append(UsingStatementHelper.BuildHeader(
+            content,
+            NamespaceConstants.SystemCodeDomCompiler,
+            "Microsoft.Extensions.Caching.Hybrid",
+            $"{projectName}.Generated.Caching"));
         builder.AppendLine($"namespace {projectName}.Generated.Caching;");
         builder.AppendLine();
         builder.AppendLine("/// <summary>");

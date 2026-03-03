@@ -21,6 +21,17 @@ public static class UsingStatementHelper
         ["NotImplementedException"] = NamespaceConstants.System,
         ["Action<"] = NamespaceConstants.System,
         ["Func<"] = NamespaceConstants.System,
+        ["Guid"] = NamespaceConstants.System,
+        ["DateTimeOffset"] = NamespaceConstants.System,
+        ["DateTime "] = NamespaceConstants.System,
+        ["DateTime?"] = NamespaceConstants.System,
+        ["DateTime)"] = NamespaceConstants.System,
+        ["DateOnly"] = NamespaceConstants.System,
+        ["TimeOnly"] = NamespaceConstants.System,
+        ["TimeSpan"] = NamespaceConstants.System,
+        ["Uri "] = NamespaceConstants.System,
+        ["Uri?"] = NamespaceConstants.System,
+        ["Uri)"] = NamespaceConstants.System,
 
         // System.Collections.Generic
         ["Dictionary<"] = NamespaceConstants.SystemCollectionsGeneric,
@@ -223,6 +234,26 @@ public static class UsingStatementHelper
     };
 
     /// <summary>
+    /// Checks if any record in the collection uses System types (Guid, DateTimeOffset, DateTime, etc.).
+    /// </summary>
+    public static bool RecordsUseSystemTypes(
+        IEnumerable<RecordParameters> records)
+        => records.Any(r => RecordUsesSystemTypes(r));
+
+    /// <summary>
+    /// Checks if a single record uses System types (Guid, DateTimeOffset, DateTime, etc.).
+    /// </summary>
+    public static bool RecordUsesSystemTypes(RecordParameters record)
+        => record.Parameters?.Any(p =>
+            p.TypeName.Contains("Guid", StringComparison.Ordinal) ||
+            p.TypeName.Contains("DateTimeOffset", StringComparison.Ordinal) ||
+            p.TypeName.Contains("DateTime", StringComparison.Ordinal) ||
+            p.TypeName.Contains("DateOnly", StringComparison.Ordinal) ||
+            p.TypeName.Contains("TimeOnly", StringComparison.Ordinal) ||
+            p.TypeName.Contains("TimeSpan", StringComparison.Ordinal) ||
+            p.TypeName.Contains("Uri", StringComparison.Ordinal)) ?? false;
+
+    /// <summary>
     /// Checks if content contains a specific type pattern.
     /// Uses ordinal comparison for performance.
     /// </summary>
@@ -293,39 +324,12 @@ public static class UsingStatementHelper
     }
 
     /// <summary>
-    /// Gets the sort order for a namespace to ensure consistent ordering.
+    /// Gets the sort order for a namespace per SA1210: System namespaces first, then all others alphabetically.
     /// </summary>
     /// <param name="ns">The namespace to get sort order for.</param>
     /// <returns>A sort order value.</returns>
     private static int GetSortOrder(string ns)
-    {
-        if (ns.StartsWith("System", StringComparison.Ordinal))
-        {
-            return 0;
-        }
-
-        if (ns.StartsWith("Microsoft", StringComparison.Ordinal))
-        {
-            return 1;
-        }
-
-        if (ns.StartsWith("Asp.", StringComparison.Ordinal))
-        {
-            return 2;
-        }
-
-        if (ns.StartsWith("Atc.", StringComparison.Ordinal))
-        {
-            return 3;
-        }
-
-        if (ns.StartsWith("Polly", StringComparison.Ordinal))
-        {
-            return 4;
-        }
-
-        return 5;
-    }
+        => ns.StartsWith("System", StringComparison.Ordinal) ? 0 : 1;
 
     /// <summary>
     /// Sorts global using directives with System namespaces first, then groups by namespace prefix

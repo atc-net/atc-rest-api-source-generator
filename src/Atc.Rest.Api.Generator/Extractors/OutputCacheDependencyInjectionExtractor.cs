@@ -265,9 +265,10 @@ public static class OutputCacheDependencyInjectionExtractor
 
         // Build header with only required usings
         var builder = new StringBuilder();
-        builder.Append(UsingStatementHelper.BuildHeader(content, NamespaceConstants.SystemCodeDomCompiler));
-        builder.AppendLine($"using {projectName}.Generated.Caching;");
-        builder.AppendLine();
+        builder.Append(UsingStatementHelper.BuildHeader(
+            content,
+            NamespaceConstants.SystemCodeDomCompiler,
+            $"{projectName}.Generated.Caching"));
         builder.AppendLine($"namespace {projectName}.Generated.Caching;");
         builder.AppendLine();
         builder.AppendLine("/// <summary>");

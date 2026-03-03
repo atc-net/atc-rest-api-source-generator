@@ -163,41 +163,26 @@ public class UsingStatementHelperTests
     }
 
     [Fact]
-    public void AppendUsings_MicrosoftBeforeAsp()
+    public void AppendUsings_SA1210_NonSystemNamespacesAlphabetically()
     {
         var usings = new[]
         {
-            "Asp.Versioning",
             "Microsoft.AspNetCore.Http",
-        };
-
-        var sb = new StringBuilder();
-        UsingStatementHelper.AppendUsings(sb, usings);
-
-        var result = sb.ToString();
-        var microsoftIndex = result.IndexOf("Microsoft.", StringComparison.Ordinal);
-        var aspIndex = result.IndexOf("Asp.", StringComparison.Ordinal);
-
-        Assert.True(microsoftIndex < aspIndex);
-    }
-
-    [Fact]
-    public void AppendUsings_AtcAfterAsp()
-    {
-        var usings = new[]
-        {
-            "Atc.Rest.Client",
             "Asp.Versioning",
+            "Atc.Rest.Client",
+            "Polly",
         };
 
         var sb = new StringBuilder();
         UsingStatementHelper.AppendUsings(sb, usings);
 
         var result = sb.ToString();
-        var aspIndex = result.IndexOf("Asp.", StringComparison.Ordinal);
-        var atcIndex = result.IndexOf("Atc.", StringComparison.Ordinal);
+        var lines = result.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
 
-        Assert.True(aspIndex < atcIndex);
+        Assert.Equal("using Asp.Versioning;", lines[0]);
+        Assert.Equal("using Atc.Rest.Client;", lines[1]);
+        Assert.Equal("using Microsoft.AspNetCore.Http;", lines[2]);
+        Assert.Equal("using Polly;", lines[3]);
     }
 
     // ========== BuildHeader Tests ==========
@@ -284,6 +269,113 @@ public class UsingStatementHelperTests
         var content = "public Stream GetFileStream()";
         var result = UsingStatementHelper.GetRequiredUsings(content);
         Assert.Contains("System.IO", result);
+    }
+
+    // ========== System Type Detection Tests ==========
+    [Theory]
+    [InlineData("Guid Id", "System")]
+    [InlineData("DateTimeOffset CreatedAt", "System")]
+    [InlineData("DateTime CreatedAt", "System")]
+    [InlineData("DateTime? OptionalDate", "System")]
+    [InlineData("DateOnly BirthDate", "System")]
+    [InlineData("TimeOnly StartTime", "System")]
+    [InlineData("TimeSpan Duration", "System")]
+    [InlineData("Uri Website", "System")]
+    [InlineData("Uri? OptionalUri", "System")]
+    public void GetRequiredUsings_DetectsSystemTypes(
+        string content,
+        string expectedUsing)
+    {
+        var result = UsingStatementHelper.GetRequiredUsings(content);
+        Assert.Contains(expectedUsing, result);
+    }
+
+    // ========== RecordsUseSystemTypes Tests ==========
+    [Fact]
+    public void RecordsUseSystemTypes_WithGuidParameter_ReturnsTrue()
+    {
+        var records = new List<RecordParameters>
+        {
+            new(
+                DocumentationTags: null,
+                DeclarationModifier: DeclarationModifiers.Public,
+                Name: "TestRecord",
+                Parameters:
+                [
+                    new ParameterBaseParameters(
+                        Attributes: null,
+                        GenericTypeName: null,
+                        IsGenericListType: false,
+                        TypeName: "Guid",
+                        IsNullableType: false,
+                        IsReferenceType: false,
+                        Name: "Id",
+                        DefaultValue: null),
+                ]),
+        };
+
+        Assert.True(UsingStatementHelper.RecordsUseSystemTypes(records));
+    }
+
+    [Fact]
+    public void RecordsUseSystemTypes_WithOnlyStringParameters_ReturnsFalse()
+    {
+        var records = new List<RecordParameters>
+        {
+            new(
+                DocumentationTags: null,
+                DeclarationModifier: DeclarationModifiers.Public,
+                Name: "TestRecord",
+                Parameters:
+                [
+                    new ParameterBaseParameters(
+                        Attributes: null,
+                        GenericTypeName: null,
+                        IsGenericListType: false,
+                        TypeName: "string",
+                        IsNullableType: false,
+                        IsReferenceType: true,
+                        Name: "Name",
+                        DefaultValue: null),
+                ]),
+        };
+
+        Assert.False(UsingStatementHelper.RecordsUseSystemTypes(records));
+    }
+
+    [Fact]
+    public void RecordUsesSystemTypes_WithDateTimeOffsetParameter_ReturnsTrue()
+    {
+        var record = new RecordParameters(
+            DocumentationTags: null,
+            DeclarationModifier: DeclarationModifiers.Public,
+            Name: "TestRecord",
+            Parameters:
+            [
+                new ParameterBaseParameters(
+                    Attributes: null,
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: "DateTimeOffset",
+                    IsNullableType: false,
+                    IsReferenceType: false,
+                    Name: "CreatedAt",
+                    DefaultValue: null),
+            ]);
+
+        Assert.True(UsingStatementHelper.RecordUsesSystemTypes(record));
+    }
+
+    [Fact]
+    public void RecordUsesSystemTypes_WithNullParameters_ReturnsFalse()
+    {
+        var record = new RecordParameters(
+            DocumentationTags: null,
+            DeclarationModifier: DeclarationModifiers.Public,
+            Name: "TestRecord",
+            Parameters: null);
+
+        Assert.False(UsingStatementHelper.RecordUsesSystemTypes(record));
     }
 
     // ========== ExtractNamespaceFromGlobalUsing Tests ==========
