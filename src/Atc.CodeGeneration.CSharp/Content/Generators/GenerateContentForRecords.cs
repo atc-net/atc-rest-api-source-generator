@@ -30,6 +30,15 @@ public class GenerateContentForRecords : IContentGenerator
         {
             var recordParameters = parameters.Parameters[i];
 
+            if (recordParameters.Attributes is not null)
+            {
+                foreach (var attribute in recordParameters.Attributes)
+                {
+                    sb.AppendAttribute(usePropertyPrefix: false, attribute);
+                    sb.AppendLine();
+                }
+            }
+
             if (recordParameters.Parameters is not null &&
                 recordParameters.Parameters.Any(x => x.IsGenericListType &&
                                                      x.TypeName.Equals("T", StringComparison.Ordinal)))

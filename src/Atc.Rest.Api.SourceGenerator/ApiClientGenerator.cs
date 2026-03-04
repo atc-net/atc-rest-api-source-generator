@@ -675,7 +675,8 @@ public class ApiClientGenerator : IIncrementalGenerator
                 DocumentationTags: record.DocumentationTags,
                 DeclarationModifier: record.DeclarationModifier,
                 Name: record.Name,
-                Parameters: convertedParams));
+                Parameters: convertedParams,
+                Attributes: record.Attributes));
         }
 
         // Update header content to use Atc.Rest.Client instead of Microsoft.AspNetCore.Http
@@ -1153,6 +1154,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             sb.Append("using System;\r\n");
         }
 
+        sb.Append("using System.CodeDom.Compiler;\r\n");
         sb.Append("using System.ComponentModel;\r\n");
         sb.Append("using System.ComponentModel.DataAnnotations;\r\n");
 

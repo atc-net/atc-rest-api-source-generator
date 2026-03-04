@@ -196,4 +196,5 @@ public record RecordParameters(
     string Name,
     IList<ParameterBaseParameters>? Parameters,
     string? BaseTypeName = null,
-    IList<string>? BaseConstructorArguments = null);
+    IList<string>? BaseConstructorArguments = null,
+    IList<AttributeParameters>? Attributes = null);
