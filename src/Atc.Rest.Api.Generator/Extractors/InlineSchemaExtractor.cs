@@ -136,7 +136,11 @@ public static class InlineSchemaExtractor
             DocumentationTags: null,
             DeclarationModifier: DeclarationModifiers.PublicSealedRecord,
             Name: typeName,
-            Parameters: sortedParameters);
+            Parameters: sortedParameters,
+            Attributes: new List<AttributeParameters>
+            {
+                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
+            });
     }
 
     /// <summary>

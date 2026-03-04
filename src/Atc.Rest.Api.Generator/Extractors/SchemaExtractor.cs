@@ -41,10 +41,7 @@ public static class SchemaExtractor
             HeaderContent: headerContent,
             Namespace: NamespaceBuilder.ForModels(projectName),
             DocumentationTags: null,
-            Attributes: new List<AttributeParameters>
-            {
-                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-            },
+            Attributes: null,
             DeclarationModifier: DeclarationModifiers.Public,
             Parameters: recordParametersList);
     }
@@ -81,10 +78,7 @@ public static class SchemaExtractor
             HeaderContent: headerContent,
             Namespace: NamespaceBuilder.ForModels(projectName, pathSegment),
             DocumentationTags: null,
-            Attributes: new List<AttributeParameters>
-            {
-                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-            },
+            Attributes: null,
             DeclarationModifier: DeclarationModifiers.Public,
             Parameters: recordParametersList);
     }
@@ -137,10 +131,7 @@ public static class SchemaExtractor
             HeaderContent: headerContent,
             Namespace: ns,
             DocumentationTags: null,
-            Attributes: new List<AttributeParameters>
-            {
-                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-            },
+            Attributes: null,
             DeclarationModifier: DeclarationModifiers.Public,
             Parameters: recordParametersList);
     }
@@ -204,10 +195,7 @@ public static class SchemaExtractor
             HeaderContent: headerContent,
             Namespace: ns,
             DocumentationTags: null,
-            Attributes: new List<AttributeParameters>
-            {
-                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-            },
+            Attributes: null,
             DeclarationModifier: DeclarationModifiers.Public,
             Parameters: recordParametersList);
 
@@ -722,7 +710,11 @@ public static class SchemaExtractor
             DocumentationTags: null,
             DeclarationModifier: declarationModifier,
             Name: $"{schemaName}<T>",
-            Parameters: parametersList);
+            Parameters: parametersList,
+            Attributes: new List<AttributeParameters>
+            {
+                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
+            });
     }
 
     /// <summary>
@@ -832,7 +824,11 @@ public static class SchemaExtractor
             DocumentationTags: null,
             DeclarationModifier: declarationModifier,
             Name: recordName,
-            Parameters: sortedParameters);
+            Parameters: sortedParameters,
+            Attributes: new List<AttributeParameters>
+            {
+                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
+            });
     }
 
     /// <summary>
@@ -976,7 +972,11 @@ public static class SchemaExtractor
             DocumentationTags: null,
             DeclarationModifier: declarationModifier,
             Name: schemaName,
-            Parameters: sortedParameters);
+            Parameters: sortedParameters,
+            Attributes: new List<AttributeParameters>
+            {
+                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
+            });
     }
 
     /// <summary>

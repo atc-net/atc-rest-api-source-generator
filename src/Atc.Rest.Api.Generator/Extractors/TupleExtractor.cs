@@ -285,6 +285,10 @@ public static class TupleExtractor
             DocumentationTags: new CodeDocumentationTags(summary),
             DeclarationModifier: DeclarationModifiers.PublicSealedRecord,
             Name: OpenApiSchemaExtensions.SanitizeSchemaName(schemaName),
-            Parameters: parameters);
+            Parameters: parameters,
+            Attributes: new List<AttributeParameters>
+            {
+                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
+            });
     }
 }

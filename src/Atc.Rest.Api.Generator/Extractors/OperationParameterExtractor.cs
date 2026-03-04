@@ -42,10 +42,7 @@ public static class OperationParameterExtractor
             HeaderContent: headerContent,
             Namespace: namespaceValue,
             DocumentationTags: null,
-            Attributes: new List<AttributeParameters>
-            {
-                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-            },
+            Attributes: null,
             DeclarationModifier: DeclarationModifiers.Public,
             Parameters: recordsList);
     }
@@ -99,10 +96,7 @@ public static class OperationParameterExtractor
             HeaderContent: headerContent,
             Namespace: namespaceValue,
             DocumentationTags: null,
-            Attributes: new List<AttributeParameters>
-            {
-                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-            },
+            Attributes: null,
             DeclarationModifier: DeclarationModifiers.Public,
             Parameters: recordsList);
     }
@@ -589,7 +583,11 @@ public static class OperationParameterExtractor
             DocumentationTags: recordDoc,
             DeclarationModifier: DeclarationModifiers.PublicSealedRecord,
             Name: recordName,
-            Parameters: sortedParameters);
+            Parameters: sortedParameters,
+            Attributes: new List<AttributeParameters>
+            {
+                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
+            });
     }
 
     /// <summary>

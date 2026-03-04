@@ -329,7 +329,9 @@ public static class UsingStatementHelper
     /// <param name="ns">The namespace to get sort order for.</param>
     /// <returns>A sort order value.</returns>
     private static int GetSortOrder(string ns)
-        => ns.StartsWith("System", StringComparison.Ordinal) ? 0 : 1;
+        => ns.StartsWith("System", StringComparison.Ordinal)
+            ? 0
+            : 1;
 
     /// <summary>
     /// Sorts global using directives with System namespaces first, then groups by namespace prefix
