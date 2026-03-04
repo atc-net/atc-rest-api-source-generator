@@ -640,6 +640,9 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         // Write physical file
         FileHelper.WriteCsFile(filePath, content);
+
+        // Also emit as in-memory source so the current compilation can reference this type
+        context.AddSource($"{handlerName}.scaffold.g.cs", SourceText.From(content, Encoding.UTF8));
     }
 
     /// <summary>
