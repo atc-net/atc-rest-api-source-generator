@@ -203,6 +203,13 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             DomainGlobalUsingsHelper.EnsureUpdated(markerDirectory, interfaceNamespaces, rootNamespace, pathSegments, openApiDoc, config);
         }
 
+        // Also emit global usings as in-memory source so the current compilation can resolve types
+        // (on first build, the physical GlobalUsings.cs isn't part of the compilation yet)
+        var requiredUsings = DomainGlobalUsingsHelper.BuildRequiredUsings(
+            interfaceNamespaces, rootNamespace, pathSegments, openApiDoc);
+        var globalUsingsContent = string.Join("\n", requiredUsings.OrderBy(u => u, StringComparer.Ordinal));
+        context.AddSource("DomainGlobalUsings.g.cs", SourceText.From(globalUsingsContent, Encoding.UTF8));
+
         // Collect all handler info for DI registration
         var allHandlers = new List<(string OperationId, string HandlerName, string HandlerNamespace)>();
 
