@@ -53,14 +53,14 @@ public static class TypeScriptStringExtensions
             => string.IsNullOrEmpty(value)
                 ? Array.Empty<string>()
                 : value
-                    .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None)
+                    .Split(["\r\n", "\n", "\r"], StringSplitOptions.None)
                     .Where(x => !string.IsNullOrWhiteSpace(x))
                     .ToArray();
 
         public string[] SplitIntoLinesPreserveEmpty()
             => string.IsNullOrEmpty(value)
                 ? Array.Empty<string>()
-                : value.Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None);
+                : value.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
 
         public string NormalizeForSourceOutput()
             => string.IsNullOrEmpty(value)
