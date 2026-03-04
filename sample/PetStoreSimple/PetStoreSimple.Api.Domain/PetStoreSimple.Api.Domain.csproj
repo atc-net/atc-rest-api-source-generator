@@ -21,4 +21,8 @@
     <AdditionalFiles Include=".atc-rest-api-server-handlers" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="ApiHandlers\" />
+  </ItemGroup>
+
 </Project>
