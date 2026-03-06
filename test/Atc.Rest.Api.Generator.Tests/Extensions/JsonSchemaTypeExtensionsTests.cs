@@ -48,6 +48,7 @@ public class JsonSchemaTypeExtensionsTests
     [InlineData("int32", "int")]
     [InlineData("int64", "long")]
     [InlineData("long", "long")]
+    [InlineData("byte", "byte[]")]
     [InlineData("unknown", "string")]
     [InlineData("uri", "Uri")]
     [InlineData("uuid", "Guid")]
@@ -157,6 +158,26 @@ public class JsonSchemaTypeExtensionsTests
         var result = schemaType.ToCSharpTypeName();
 
         Assert.Equal("int", result);
+    }
+
+    [Fact]
+    public void ToCSharpTypeName_NumberWithNullFlag_ReturnsDouble()
+    {
+        JsonSchemaType? schemaType = JsonSchemaType.Number | JsonSchemaType.Null;
+
+        var result = schemaType.ToCSharpTypeName();
+
+        Assert.Equal("double", result);
+    }
+
+    [Fact]
+    public void ToCSharpTypeName_BooleanWithNullFlag_ReturnsBool()
+    {
+        JsonSchemaType? schemaType = JsonSchemaType.Boolean | JsonSchemaType.Null;
+
+        var result = schemaType.ToCSharpTypeName();
+
+        Assert.Equal("bool", result);
     }
 
     // ========== ToPrimitiveCSharpTypeName Tests ==========
