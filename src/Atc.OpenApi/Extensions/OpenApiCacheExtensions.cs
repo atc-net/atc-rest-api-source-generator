@@ -491,10 +491,10 @@ public static class OpenApiCacheExtensions
                 return intValue;
             }
 
-            // Also try long and convert to int
+            // Also try long and clamp to int range
             if (jsonValue.TryGetValue<long>(out var longValue))
             {
-                return (int)longValue;
+                return longValue > int.MaxValue ? int.MaxValue : longValue < int.MinValue ? int.MinValue : (int)longValue;
             }
         }
 

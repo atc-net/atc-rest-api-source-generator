@@ -339,6 +339,12 @@ public static class CasingHelper
             return operationId;
         }
 
+        // If it's already camelCase, return as-is
+        if (IsCamelCase(operationId))
+        {
+            return operationId;
+        }
+
         // If it's PascalCase, just lowercase the first character
         if (IsPascalCase(operationId))
         {
@@ -346,8 +352,10 @@ public static class CasingHelper
         }
 
         // If it contains separators, convert to camelCase
+        // Lowercase all characters within each word segment, then capitalize first char of subsequent words
         var result = new StringBuilder();
         var capitalizeNext = false;
+        var isFirstChar = true;
 
         for (var i = 0; i < operationId.Length; i++)
         {
@@ -359,9 +367,10 @@ public static class CasingHelper
                 continue;
             }
 
-            if (i == 0)
+            if (isFirstChar)
             {
                 result.Append(char.ToLowerInvariant(c));
+                isFirstChar = false;
             }
             else if (capitalizeNext)
             {
@@ -370,7 +379,7 @@ public static class CasingHelper
             }
             else
             {
-                result.Append(c);
+                result.Append(char.ToLowerInvariant(c));
             }
         }
 
@@ -396,6 +405,7 @@ public static class CasingHelper
         }
 
         // If it contains separators, convert to PascalCase
+        // Capitalize first char of each word, lowercase the rest within each word
         var result = new StringBuilder();
         var capitalizeNext = true;
 
