@@ -5,4 +5,8 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Atc" Version="3.0.18" GeneratePathProperty="true" />
+  </ItemGroup>
+
 </Project>
