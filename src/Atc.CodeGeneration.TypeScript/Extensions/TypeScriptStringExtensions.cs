@@ -67,45 +67,6 @@ public static class TypeScriptStringExtensions
                 ? value
                 : value.TrimEnd();
 
-        public string EnsureEnvironmentNewLines()
-        {
-            if (string.IsNullOrEmpty(value))
-            {
-                return value;
-            }
-
-            return value
-                .Replace("\r\n", "\n")
-                .Replace("\r", "\n")
-                .Replace("\n", Environment.NewLine);
-        }
-
-        public string ReplaceAt(
-            int index,
-            char newChar)
-        {
-            if (string.IsNullOrEmpty(value) || index < 0 || index >= value.Length)
-            {
-                return value;
-            }
-
-            var chars = value.ToCharArray();
-            chars[index] = newChar;
-            return new string(chars);
-        }
-
-        public string EnsureEndsWithDot()
-        {
-            if (string.IsNullOrEmpty(value))
-            {
-                return value;
-            }
-
-            return value.EndsWith(".", StringComparison.Ordinal)
-                ? value
-                : value + ".";
-        }
-
         private static List<string> SplitIntoWords(string input)
         {
             var words = new List<string>();

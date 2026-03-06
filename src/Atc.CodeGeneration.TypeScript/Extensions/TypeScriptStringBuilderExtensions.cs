@@ -7,30 +7,6 @@ public static class TypeScriptStringBuilderExtensions
 {
     extension(StringBuilder sb)
     {
-        internal void Append(
-            int indentSpaces,
-            string value)
-        {
-            if (indentSpaces > 0)
-            {
-                sb.Append(new string(' ', indentSpaces));
-            }
-
-            sb.Append(value);
-        }
-
-        internal void AppendLine(
-            int indentSpaces,
-            string value)
-        {
-            if (indentSpaces > 0)
-            {
-                sb.Append(new string(' ', indentSpaces));
-            }
-
-            sb.AppendLine(value);
-        }
-
         public void AppendModifiers(TypeScriptModifiers modifiers)
         {
             var rendered = TypeScriptModifiersHelper.Render(modifiers);

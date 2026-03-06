@@ -193,21 +193,21 @@ public class TypeScriptStringExtensionsTests
     }
 
     [Fact]
-    public void ReplaceAt_NegativeIndex_ReturnsOriginal()
+    public void ReplaceAt_NegativeIndex_Throws()
     {
-        Assert.Equal("hello", "hello".ReplaceAt(-1, 'X'));
+        Assert.Throws<IndexOutOfRangeException>(() => "hello".ReplaceAt(-1, 'X'));
     }
 
     [Fact]
-    public void ReplaceAt_IndexBeyondLength_ReturnsOriginal()
+    public void ReplaceAt_IndexBeyondLength_Throws()
     {
-        Assert.Equal("hello", "hello".ReplaceAt(10, 'X'));
+        Assert.Throws<IndexOutOfRangeException>(() => "hello".ReplaceAt(10, 'X'));
     }
 
     [Fact]
-    public void ReplaceAt_Empty_ReturnsEmpty()
+    public void ReplaceAt_Empty_Throws()
     {
-        Assert.Equal("", "".ReplaceAt(0, 'X'));
+        Assert.Throws<IndexOutOfRangeException>(() => "".ReplaceAt(0, 'X'));
     }
 
     // ========== EnsureEndsWithDot Tests ==========
@@ -224,8 +224,8 @@ public class TypeScriptStringExtensionsTests
     }
 
     [Fact]
-    public void EnsureEndsWithDot_Empty_ReturnsEmpty()
+    public void EnsureEndsWithDot_Empty_ReturnsDot()
     {
-        Assert.Equal("", "".EnsureEndsWithDot());
+        Assert.Equal(".", "".EnsureEndsWithDot());
     }
 }
