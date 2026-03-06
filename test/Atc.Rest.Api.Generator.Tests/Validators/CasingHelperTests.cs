@@ -169,7 +169,7 @@ public class CasingHelperTests
     [InlineData("ListPets", "listPets")] // PascalCase to camelCase
     [InlineData("list-pets", "listPets")] // kebab-case to camelCase
     [InlineData("list_pets", "listPets")] // snake_case to camelCase
-    [InlineData("LIST_PETS", "lISTPETS")] // Note: UPPER_SNAKE keeps case after first
+    [InlineData("LIST_PETS", "listPets")] // UPPER_SNAKE_CASE to camelCase
     [InlineData("", "")]
     [InlineData(null, null)]
     public void SuggestCamelCase_ReturnsExpectedResult(

@@ -128,10 +128,10 @@ public class OpenApiDocumentHelperTests
             paths: {}
             """;
 
-        var (doc1, diag1) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "first.yaml");
-        var (doc2, diag2) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "second.yaml");
+        var (doc1, diag1) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "cache-same.yaml");
+        var (doc2, diag2) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "cache-same.yaml");
 
-        // Same content returns the same cached object references
+        // Same path+content returns the same cached object references
         Assert.Same(doc1, doc2);
         Assert.Same(diag1, diag2);
     }
@@ -164,14 +164,15 @@ public class OpenApiDocumentHelperTests
     }
 
     [Fact]
-    public void TryParseYamlWithDiagnostic_SameContentDifferentPaths_ReturnsCachedResult()
+    public void TryParseYamlWithDiagnostic_SameContentDifferentPaths_ReturnsDifferentInstances()
     {
-        // The cache is keyed by content, not by path.
-        // Different paths with the same content should return the cached result.
+        // The cache is keyed by (path, content).
+        // Different paths with the same content should return different results
+        // because the path affects $ref resolution via baseUri.
         var uniqueYaml = """
             openapi: 3.1.0
             info:
-              title: Cache Test Path Invariant
+              title: Cache Test Path Variant
               version: 1.0.0
             paths: {}
             """;
@@ -179,7 +180,7 @@ public class OpenApiDocumentHelperTests
         var (doc1, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "path/a.yaml");
         var (doc2, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "path/b.yaml");
 
-        Assert.Same(doc1, doc2);
+        Assert.NotSame(doc1, doc2);
     }
 
     [Fact]
@@ -194,7 +195,8 @@ public class OpenApiDocumentHelperTests
             paths: {}
             """;
 
-        var (docFromTry, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "first.yaml");
+        // ParseYaml uses "test.yaml" as the default path
+        var (docFromTry, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "test.yaml");
         var docFromParse = OpenApiDocumentHelper.ParseYaml(uniqueYaml);
 
         Assert.Same(docFromTry, docFromParse);
@@ -212,8 +214,8 @@ public class OpenApiDocumentHelperTests
             paths: {}
             """;
 
-        var (docFromDiag, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "first.yaml");
-        OpenApiDocumentHelper.TryParseYaml(uniqueYaml, "second.yaml", out var docFromTry);
+        var (docFromDiag, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "shared.yaml");
+        OpenApiDocumentHelper.TryParseYaml(uniqueYaml, "shared.yaml", out var docFromTry);
 
         Assert.Same(docFromDiag, docFromTry);
     }

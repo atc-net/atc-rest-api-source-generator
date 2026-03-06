@@ -161,8 +161,8 @@ public static class StatisticsCollector
         }
 
         return document.Components.Schemas.Count(kvp =>
-            kvp.Value.Enum?.Count > 0 ||
-            (kvp.Value is OpenApiSchema schema && schema.Type?.ToString() == "string" && schema.Enum?.Count > 0));
+            kvp.Value is OpenApiSchema schema &&
+            schema.Enum?.Count > 0);
     }
 
     private static int CountPathSegments(OpenApiDocument document)
@@ -175,7 +175,7 @@ public static class StatisticsCollector
         var segments = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in document.Paths.Keys)
         {
-            var segment = GetFirstPathSegment(path);
+            var segment = PathSegmentHelper.GetFirstPathSegment(path);
             if (!string.IsNullOrEmpty(segment))
             {
                 segments.Add(segment);
@@ -183,13 +183,6 @@ public static class StatisticsCollector
         }
 
         return System.Math.Max(1, segments.Count);
-    }
-
-    private static string GetFirstPathSegment(string path)
-    {
-        var trimmed = path.TrimStart('/');
-        var slashIndex = trimmed.IndexOf('/');
-        return slashIndex > 0 ? trimmed.Substring(0, slashIndex) : trimmed;
     }
 
     private static string GetOpenApiVersion(OpenApiDocument document)

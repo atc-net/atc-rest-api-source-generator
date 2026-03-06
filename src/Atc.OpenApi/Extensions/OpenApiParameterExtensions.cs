@@ -117,12 +117,19 @@ public static class OpenApiParameterExtensions
                 throw new ArgumentNullException(nameof(parameter));
             }
 
-            if (parameter.Schema is not OpenApiSchema schema)
+            if (parameter.Schema is not OpenApiSchema schema || schema.Type == null)
             {
                 return false;
             }
 
-            return schema.Type is JsonSchemaType.Integer
+            // Strip the Null flag before checking (OpenAPI 3.1 uses combined flags for nullable types)
+            var typeValue = schema.Type.Value;
+            if (typeValue.HasFlag(JsonSchemaType.Null))
+            {
+                typeValue &= ~JsonSchemaType.Null;
+            }
+
+            return typeValue is JsonSchemaType.Integer
                 or JsonSchemaType.Number
                 or JsonSchemaType.Boolean;
         }

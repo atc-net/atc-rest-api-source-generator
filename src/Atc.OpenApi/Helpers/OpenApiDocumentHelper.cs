@@ -5,14 +5,13 @@ namespace Atc.OpenApi.Helpers;
 public static class OpenApiDocumentHelper
 {
     /// <summary>
-    /// In-process cache for parsed OpenAPI documents, keyed by YAML content.
+    /// In-process cache for parsed OpenAPI documents, keyed by (yamlPath, yamlContent).
     /// Avoids redundant parsing when the same content is processed multiple times
     /// (e.g., when a source generator callback fires for non-content reasons).
     /// Uses <see cref="System.Collections.Concurrent.ConcurrentDictionary{TKey,TValue}"/>
     /// for thread safety.
     /// </summary>
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (OpenApiDocument? Document, OpenApiDiagnostic? Diagnostic)> ParseCache
-        = new(StringComparer.Ordinal);
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(string Path, string Content), (OpenApiDocument? Document, OpenApiDiagnostic? Diagnostic)> ParseCache = new();
 
     /// <summary>
     /// Clears the in-process parse cache.
@@ -98,8 +97,9 @@ public static class OpenApiDocumentHelper
             throw new ArgumentNullException(nameof(yamlPath));
         }
 
-        // Return cached result if the same content was already parsed
-        if (ParseCache.TryGetValue(yamlContent, out var cached))
+        // Return cached result if the same path+content was already parsed
+        var cacheKey = (yamlPath, yamlContent);
+        if (ParseCache.TryGetValue(cacheKey, out var cached))
         {
             return cached;
         }
@@ -111,7 +111,7 @@ public static class OpenApiDocumentHelper
         var readResult = reader.Read(memoryStream, baseUri, settings);
 
         var result = (readResult.Document, readResult.Diagnostic);
-        ParseCache.TryAdd(yamlContent, result);
+        ParseCache.TryAdd(cacheKey, result);
 
         return result;
     }

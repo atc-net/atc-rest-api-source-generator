@@ -46,7 +46,7 @@ public static class ServerUrlHelper
         if (serverUrl.StartsWith("/", StringComparison.Ordinal))
         {
             var path = serverUrl.TrimEnd('/');
-            return string.IsNullOrEmpty(path) || path == "/" ? null : path;
+            return string.IsNullOrEmpty(path) ? null : path;
         }
 
         // Handle absolute URLs (e.g., http://example.com/api/v1)
