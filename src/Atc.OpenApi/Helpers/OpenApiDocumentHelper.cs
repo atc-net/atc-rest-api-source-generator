@@ -5,13 +5,15 @@ namespace Atc.OpenApi.Helpers;
 public static class OpenApiDocumentHelper
 {
     /// <summary>
-    /// In-process cache for parsed OpenAPI documents, keyed by (yamlPath, yamlContent).
-    /// Avoids redundant parsing when the same content is processed multiple times
-    /// (e.g., when a source generator callback fires for non-content reasons).
-    /// Uses <see cref="System.Collections.Concurrent.ConcurrentDictionary{TKey,TValue}"/>
+    /// In-process cache for parsed OpenAPI documents, keyed by yamlPath.
+    /// Each entry stores a content hash to detect when the file has changed,
+    /// so stale entries are automatically replaced (one slot per path).
+    /// This prevents unbounded memory growth in long-running processes
+    /// (e.g., IDE source generators) where each edit would otherwise add a new entry.
+    /// Uses <see cref="ConcurrentDictionary{TKey,TValue}"/>
     /// for thread safety.
     /// </summary>
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(string Path, string Content), (OpenApiDocument? Document, OpenApiDiagnostic? Diagnostic)> ParseCache = new();
+    private static readonly ConcurrentDictionary<string, (int ContentHash, OpenApiDocument? Document, OpenApiDiagnostic? Diagnostic)> ParseCache = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Clears the in-process parse cache.
@@ -97,11 +99,13 @@ public static class OpenApiDocumentHelper
             throw new ArgumentNullException(nameof(yamlPath));
         }
 
-        // Return cached result if the same path+content was already parsed
-        var cacheKey = (yamlPath, yamlContent);
-        if (ParseCache.TryGetValue(cacheKey, out var cached))
+        // Return cached result if the same path+content was already parsed.
+        // Uses content hash (one cache slot per path) to prevent unbounded growth.
+        var contentHash = StringComparer.Ordinal.GetHashCode(yamlContent);
+        if (ParseCache.TryGetValue(yamlPath, out var cached) &&
+            cached.ContentHash == contentHash)
         {
-            return cached;
+            return (cached.Document, cached.Diagnostic);
         }
 
         var reader = new OpenApiYamlReader();
@@ -110,9 +114,8 @@ public static class OpenApiDocumentHelper
         var baseUri = new Uri("file://" + yamlPath.Replace("\\", "/"));
         var readResult = reader.Read(memoryStream, baseUri, settings);
 
-        var result = (readResult.Document, readResult.Diagnostic);
-        ParseCache.TryAdd(cacheKey, result);
+        ParseCache[yamlPath] = (contentHash, readResult.Document, readResult.Diagnostic);
 
-        return result;
+        return (readResult.Document, readResult.Diagnostic);
     }
 }
