@@ -70,5 +70,6 @@
     <Project Path="test/Atc.Rest.Api.Generator.IntegrationTests/Atc.Rest.Api.Generator.IntegrationTests.csproj" />
     <Project Path="test/Atc.Rest.Api.Generator.Tests/Atc.Rest.Api.Generator.Tests.csproj" />
     <Project Path="test/Atc.CodeGeneration.TypeScript.Tests/Atc.CodeGeneration.TypeScript.Tests.csproj" />
+    <Project Path="test/Atc.CodeGeneration.CSharp.Tests/Atc.CodeGeneration.CSharp.Tests.csproj" />
   </Folder>
 </Solution>

@@ -61,7 +61,10 @@ public class GenerateContentForClass : IContentGenerator
         {
             foreach (var constant in parameters.Constants)
             {
-                sb.AppendLine($"    {constant.AccessModifier} const {constant.TypeName} {constant.Name} = \"{constant.Value}\";");
+                var formattedValue = IsStringType(constant.TypeName)
+                    ? $"\"{constant.Value}\""
+                    : constant.Value;
+                sb.AppendLine($"    {constant.AccessModifier} const {constant.TypeName} {constant.Name} = {formattedValue};");
                 isFirstEntry = false;
             }
         }
@@ -153,4 +156,7 @@ public class GenerateContentForClass : IContentGenerator
 
         return sb.ToString();
     }
+
+    private static bool IsStringType(string typeName)
+        => typeName.Equals("string", StringComparison.OrdinalIgnoreCase);
 }
