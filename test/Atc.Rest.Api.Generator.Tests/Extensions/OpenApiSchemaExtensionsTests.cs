@@ -342,6 +342,45 @@ public class OpenApiSchemaExtensionsTests
         Assert.True(suggestedCustomerParam.IsNullableType);
     }
 
+    // ========== SanitizeSchemaName Tests ==========
+    [Theory]
+    [InlineData("Pet", "Pet")]
+    [InlineData("Foo.Bar.Baz", "Foo_Bar_Baz")]
+    [InlineData("Simple", "Simple")]
+    [InlineData("A.B", "A_B")]
+    [InlineData("", "")]
+    public void SanitizeSchemaName_ReturnsExpected(
+        string input,
+        string expected)
+    {
+        var result = OpenApiSchemaExtensions.SanitizeSchemaName(input);
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void SanitizeSchemaName_NullInput_ReturnsNull()
+    {
+        var result = OpenApiSchemaExtensions.SanitizeSchemaName(null!);
+        Assert.Null(result);
+    }
+
+    // ========== ResolveTypeName Tests ==========
+    [Fact]
+    public void ResolveTypeName_WithDots_SanitizesToUnderscores()
+    {
+        var result = OpenApiSchemaExtensions.ResolveTypeName("Foo.Bar");
+        Assert.Equal("Foo_Bar", result);
+    }
+
+    [Fact]
+    public void ResolveTypeName_NoRegistry_ReturnsSanitized()
+    {
+        var result = OpenApiSchemaExtensions.ResolveTypeName(
+            "Pet",
+            null);
+        Assert.Equal("Pet", result);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
