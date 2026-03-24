@@ -2,7 +2,6 @@ global using System;
 global using System.Collections.Immutable;
 global using System.Diagnostics.CodeAnalysis;
 
-global using Atc.OpenApi.Extensions;
 global using Atc.OpenApi.Helpers;
 global using Atc.Rest.Api.Generator.Configurations;
 global using Atc.Rest.Api.Generator.Extractors;
