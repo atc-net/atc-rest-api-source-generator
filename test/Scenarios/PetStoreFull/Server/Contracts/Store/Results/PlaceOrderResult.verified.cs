@@ -43,6 +43,12 @@ public sealed class PlaceOrderResult : IResult
                     : TypedResults.BadRequest(errors));
 
     /// <summary>
+    /// 422 Unprocessable Entity - Validation exception.
+    /// </summary>
+    public static PlaceOrderResult UnprocessableEntity(string? message = null)
+        => new(TypedResults.UnprocessableEntity(message));
+
+    /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
     public static PlaceOrderResult Error(string message)

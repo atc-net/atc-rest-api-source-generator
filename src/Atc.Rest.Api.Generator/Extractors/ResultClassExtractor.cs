@@ -371,6 +371,10 @@ public static class ResultClassExtractor
         {
             methods.Add(GenerateConflictMethod(className, description, contentType));
         }
+        else if (statusCode == "422")
+        {
+            methods.Add(GenerateUnprocessableEntityMethod(className, description, contentType));
+        }
         else if (statusCode == "412")
         {
             methods.Add(GeneratePreconditionFailedMethod(className, description));
@@ -950,6 +954,37 @@ public static class ResultClassExtractor
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
             Content: "new(TypedResults.Conflict(message))");
+    }
+
+    private static MethodParameters GenerateUnprocessableEntityMethod(
+        string className,
+        string description,
+        string? contentType)
+    {
+        var doc = new CodeDocumentationTags($"422 Unprocessable Entity - {description}");
+
+        return new MethodParameters(
+            DocumentationTags: doc,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.PublicStatic,
+            ReturnGenericTypeName: null,
+            ReturnTypeName: className,
+            Name: "UnprocessableEntity",
+            Parameters: new List<ParameterBaseParameters>
+            {
+                new(
+                    Attributes: null,
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: "string",
+                    IsNullableType: true,
+                    IsReferenceType: true,
+                    Name: "message",
+                    DefaultValue: "null"),
+            },
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: true,
+            Content: "new(TypedResults.UnprocessableEntity(message))");
     }
 
     private static MethodParameters GeneratePreconditionFailedMethod(

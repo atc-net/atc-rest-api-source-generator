@@ -49,6 +49,12 @@ public sealed class UpdatePetResult : IResult
         => new(TypedResults.NotFound(message));
 
     /// <summary>
+    /// 422 Unprocessable Entity - Validation exception.
+    /// </summary>
+    public static UpdatePetResult UnprocessableEntity(string? message = null)
+        => new(TypedResults.UnprocessableEntity(message));
+
+    /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
     public static UpdatePetResult Error(string message)

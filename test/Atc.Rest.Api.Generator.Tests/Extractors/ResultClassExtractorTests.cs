@@ -436,6 +436,137 @@ public class ResultClassExtractorTests
         Assert.Null(preconditionFailedMethod);
     }
 
+    // ========== UnprocessableEntity (422) Tests ==========
+
+    [Fact]
+    public void Extract_With422Response_GeneratesUnprocessableEntityMethod()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /resources:
+                                post:
+                                  operationId: createResource
+                                  requestBody:
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/Resource'
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: string
+                                            format: uuid
+                                    '422':
+                                      description: Unprocessable Entity
+                            components:
+                              schemas:
+                                Resource:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var resultClasses = ResultClassExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        var resultClass = resultClasses[0];
+        var unprocessableEntityMethod = resultClass.Methods?.FirstOrDefault(m => m.Name == "UnprocessableEntity");
+        Assert.NotNull(unprocessableEntityMethod);
+        Assert.NotNull(unprocessableEntityMethod.Parameters);
+        Assert.Single(unprocessableEntityMethod.Parameters);
+
+        // Verify parameter is string? message = null
+        var param = unprocessableEntityMethod.Parameters[0];
+        Assert.Equal("string", param.TypeName);
+        Assert.Equal("message", param.Name);
+        Assert.True(param.IsNullableType);
+        Assert.Equal("null", param.DefaultValue);
+
+        // Verify Content uses TypedResults.UnprocessableEntity(message)
+        Assert.Contains("TypedResults.UnprocessableEntity(message)", unprocessableEntityMethod.Content, StringComparison.Ordinal);
+
+        // Verify documentation
+        Assert.NotNull(unprocessableEntityMethod.DocumentationTags);
+        Assert.Contains("422", unprocessableEntityMethod.DocumentationTags.Summary, StringComparison.Ordinal);
+        Assert.Contains("Unprocessable Entity", unprocessableEntityMethod.DocumentationTags.Summary, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_Without422Response_DoesNotGenerateUnprocessableEntityMethod()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /users/{id}:
+                                get:
+                                  operationId: getUserById
+                                  parameters:
+                                    - name: id
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/User'
+                                    '404':
+                                      description: Not Found
+                            components:
+                              schemas:
+                                User:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var resultClasses = ResultClassExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        var resultClass = resultClasses[0];
+        var unprocessableEntityMethod = resultClass.Methods?.FirstOrDefault(m => m.Name == "UnprocessableEntity");
+
+        // UnprocessableEntity should NOT exist since 422 is not in the spec
+        Assert.Null(unprocessableEntityMethod);
+    }
+
     // ========== Namespace Segment Conflict Tests ==========
 
     [Fact]
