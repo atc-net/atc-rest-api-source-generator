@@ -1,6 +1,5 @@
 // ReSharper disable ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
 // ReSharper disable InvertIf
-
 namespace Atc.Rest.Api.Generator.Extractors;
 
 /// <summary>
@@ -312,7 +311,7 @@ public static class ResultClassExtractor
 
         // Check for binary file download response first
         string? fileDownloadContentType = null;
-        bool isFileDownload = false;
+        var isFileDownload = false;
 
         if (responseValue.Content != null)
         {
@@ -343,11 +342,11 @@ public static class ResultClassExtractor
             case "201":
                 methods.AddRange(GenerateCreatedMethods(className, description, contentType));
                 break;
-            case "204":
-                methods.Add(GenerateNoContentMethod(className, description));
-                break;
             case "202":
                 methods.Add(GenerateAcceptedMethod(className, description, contentType));
+                break;
+            case "204":
+                methods.Add(GenerateNoContentMethod(className, description));
                 break;
             case "400":
                 methods.Add(GenerateBadRequestMethod(className, description, contentType));
@@ -364,11 +363,11 @@ public static class ResultClassExtractor
             case "409":
                 methods.Add(GenerateConflictMethod(className, description, contentType));
                 break;
-            case "422":
-                methods.Add(GenerateUnprocessableEntityMethod(className, description, contentType));
-                break;
             case "412":
                 methods.Add(GeneratePreconditionFailedMethod(className, description));
+                break;
+            case "422":
+                methods.Add(GenerateUnprocessableEntityMethod(className, description, contentType));
                 break;
             case "429":
                 methods.Add(GenerateTooManyRequestsMethod(className, description));
