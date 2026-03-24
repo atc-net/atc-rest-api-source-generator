@@ -3,7 +3,7 @@ namespace Atc.Rest.Api.Generator.Tests.Extractors;
 [SuppressMessage("", "SA1512:Single-line comments should not be followed by blank line", Justification = "OK")]
 public class ResultClassExtractorTests
 {
-    // ========== Ok Method Parameter Naming Tests ==========
+    // ========== 200 OK Tests ==========
 
     [Fact]
     public void Extract_WithStringResponse_UsesMessageParameterName()
@@ -177,7 +177,7 @@ public class ResultClassExtractorTests
         Assert.Contains("message", implicitOperator.Content, StringComparison.Ordinal);
     }
 
-    // ========== NotFound Method Tests ==========
+    // ========== 404 Not Found Tests ==========
 
     [Fact]
     public void Extract_With404Response_GeneratesNotFoundWithStringMessageParameter()
@@ -246,7 +246,7 @@ public class ResultClassExtractorTests
         Assert.Contains("TypedResults.NotFound(message)", notFoundMethod.Content, StringComparison.Ordinal);
     }
 
-    // ========== Conflict Method Tests ==========
+    // ========== 409 Conflict Tests ==========
 
     [Fact]
     public void Extract_With409Response_GeneratesConflictWithStringMessageParameter()
@@ -310,7 +310,57 @@ public class ResultClassExtractorTests
         Assert.Contains("TypedResults.Conflict(message)", conflictMethod.Content, StringComparison.Ordinal);
     }
 
-    // ========== PreconditionFailed (412) Tests ==========
+    // ========== 410 Gone Tests (Generic Fallback) ==========
+
+    [Fact]
+    public void Extract_With410Response_GeneratesGoneMethod()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /legacy/{id}:
+                                get:
+                                  operationId: getLegacyResource
+                                  parameters:
+                                    - name: id
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                    '410':
+                                      description: Resource permanently removed
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var resultClasses = ResultClassExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        var resultClass = resultClasses[0];
+        var method = resultClass.Methods?.FirstOrDefault(m => m.Name == "Gone");
+        Assert.NotNull(method);
+
+        Assert.Contains("TypedResults.Problem(message, statusCode: 410)", method.Content, StringComparison.Ordinal);
+        Assert.NotNull(method.DocumentationTags);
+        Assert.Contains("410", method.DocumentationTags.Summary, StringComparison.Ordinal);
+    }
+
+    // ========== 412 Precondition Failed Tests ==========
 
     [Fact]
     public void Extract_With412Response_GeneratesPreconditionFailedMethod()
@@ -436,7 +486,65 @@ public class ResultClassExtractorTests
         Assert.Null(preconditionFailedMethod);
     }
 
-    // ========== UnprocessableEntity (422) Tests ==========
+    // ========== 413 Payload Too Large Tests (Generic Fallback) ==========
+
+    [Fact]
+    public void Extract_With413Response_GeneratesPayloadTooLargeMethod()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /files:
+                                post:
+                                  operationId: uploadFile
+                                  requestBody:
+                                    content:
+                                      application/octet-stream:
+                                        schema:
+                                          type: string
+                                          format: binary
+                                  responses:
+                                    '200':
+                                      description: OK
+                                    '413':
+                                      description: File too large
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var resultClasses = ResultClassExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        var resultClass = resultClasses[0];
+        var method = resultClass.Methods?.FirstOrDefault(m => m.Name == "RequestEntityTooLarge");
+        Assert.NotNull(method);
+        Assert.NotNull(method.Parameters);
+        Assert.Single(method.Parameters);
+
+        var param = method.Parameters[0];
+        Assert.Equal("string", param.TypeName);
+        Assert.Equal("message", param.Name);
+        Assert.True(param.IsNullableType);
+        Assert.Equal("null", param.DefaultValue);
+
+        Assert.Contains("TypedResults.Problem(message, statusCode: 413)", method.Content, StringComparison.Ordinal);
+        Assert.NotNull(method.DocumentationTags);
+        Assert.Contains("413", method.DocumentationTags.Summary, StringComparison.Ordinal);
+    }
+
+    // ========== 422 Unprocessable Entity Tests ==========
 
     [Fact]
     public void Extract_With422Response_GeneratesUnprocessableEntityMethod()
@@ -565,6 +673,71 @@ public class ResultClassExtractorTests
 
         // UnprocessableEntity should NOT exist since 422 is not in the spec
         Assert.Null(unprocessableEntityMethod);
+    }
+
+    // ========== 503 Service Unavailable Tests (Generic Fallback) ==========
+
+    [Fact]
+    public void Extract_With503Response_GeneratesServiceUnavailableMethod()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /payments:
+                                post:
+                                  operationId: processPayment
+                                  requestBody:
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/Payment'
+                                  responses:
+                                    '200':
+                                      description: OK
+                                    '503':
+                                      description: Service Unavailable
+                            components:
+                              schemas:
+                                Payment:
+                                  type: object
+                                  properties:
+                                    amount:
+                                      type: number
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var resultClasses = ResultClassExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        var resultClass = resultClasses[0];
+        var method = resultClass.Methods?.FirstOrDefault(m => m.Name == "ServiceUnavailable");
+        Assert.NotNull(method);
+        Assert.NotNull(method.Parameters);
+        Assert.Single(method.Parameters);
+
+        var param = method.Parameters[0];
+        Assert.Equal("string", param.TypeName);
+        Assert.Equal("message", param.Name);
+        Assert.True(param.IsNullableType);
+        Assert.Equal("null", param.DefaultValue);
+
+        Assert.Contains("TypedResults.Problem(message, statusCode: 503)", method.Content, StringComparison.Ordinal);
+        Assert.NotNull(method.DocumentationTags);
+        Assert.Contains("503", method.DocumentationTags.Summary, StringComparison.Ordinal);
+        Assert.Contains("Service Unavailable", method.DocumentationTags.Summary, StringComparison.Ordinal);
     }
 
     // ========== Namespace Segment Conflict Tests ==========
