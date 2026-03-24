@@ -334,62 +334,62 @@ public static class ResultClassExtractor
             contentType = GetSchemaTypeName(mediaType.Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
         }
 
-        // Generate factory method based on status code
-        if (statusCode == "200")
+        switch (statusCode)
         {
-            methods.AddRange(GenerateOkMethods(className, description, contentType, isAsyncEnumerable, isFileDownload, fileDownloadContentType));
-        }
-        else if (statusCode == "201")
-        {
-            methods.AddRange(GenerateCreatedMethods(className, description, contentType));
-        }
-        else if (statusCode == "204")
-        {
-            methods.Add(GenerateNoContentMethod(className, description));
-        }
-        else if (statusCode == "202")
-        {
-            methods.Add(GenerateAcceptedMethod(className, description, contentType));
-        }
-        else if (statusCode == "400")
-        {
-            methods.Add(GenerateBadRequestMethod(className, description, contentType));
-        }
-        else if (statusCode == "401")
-        {
-            methods.Add(GenerateUnauthorizedMethod(className, description));
-        }
-        else if (statusCode == "403")
-        {
-            methods.Add(GenerateForbiddenMethod(className, description));
-        }
-        else if (statusCode == "404")
-        {
-            methods.Add(GenerateNotFoundMethod(className, description, contentType));
-        }
-        else if (statusCode == "409")
-        {
-            methods.Add(GenerateConflictMethod(className, description, contentType));
-        }
-        else if (statusCode == "422")
-        {
-            methods.Add(GenerateUnprocessableEntityMethod(className, description, contentType));
-        }
-        else if (statusCode == "412")
-        {
-            methods.Add(GeneratePreconditionFailedMethod(className, description));
-        }
-        else if (statusCode == "429")
-        {
-            methods.Add(GenerateTooManyRequestsMethod(className, description));
-        }
-        else if (statusCode == "500")
-        {
-            methods.Add(GenerateInternalServerErrorMethod(className, description, contentType));
-        }
-        else if (statusCode.Equals("default", StringComparison.OrdinalIgnoreCase))
-        {
-            methods.Add(GenerateErrorMethod(className, description, contentType));
+            // Generate factory method based on status code
+            case "200":
+                methods.AddRange(GenerateOkMethods(className, description, contentType, isAsyncEnumerable, isFileDownload, fileDownloadContentType));
+                break;
+            case "201":
+                methods.AddRange(GenerateCreatedMethods(className, description, contentType));
+                break;
+            case "204":
+                methods.Add(GenerateNoContentMethod(className, description));
+                break;
+            case "202":
+                methods.Add(GenerateAcceptedMethod(className, description, contentType));
+                break;
+            case "400":
+                methods.Add(GenerateBadRequestMethod(className, description, contentType));
+                break;
+            case "401":
+                methods.Add(GenerateUnauthorizedMethod(className, description));
+                break;
+            case "403":
+                methods.Add(GenerateForbiddenMethod(className, description));
+                break;
+            case "404":
+                methods.Add(GenerateNotFoundMethod(className, description, contentType));
+                break;
+            case "409":
+                methods.Add(GenerateConflictMethod(className, description, contentType));
+                break;
+            case "422":
+                methods.Add(GenerateUnprocessableEntityMethod(className, description, contentType));
+                break;
+            case "412":
+                methods.Add(GeneratePreconditionFailedMethod(className, description));
+                break;
+            case "429":
+                methods.Add(GenerateTooManyRequestsMethod(className, description));
+                break;
+            case "500":
+                methods.Add(GenerateInternalServerErrorMethod(className, description, contentType));
+                break;
+            default:
+            {
+                if (statusCode.Equals("default", StringComparison.OrdinalIgnoreCase))
+                {
+                    methods.Add(GenerateErrorMethod(className, description, contentType));
+                }
+                else if (int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var statusCodeInt))
+                {
+                    var methodName = ((System.Net.HttpStatusCode)statusCodeInt).ToString();
+                    methods.Add(GenerateGenericStatusCodeMethod(className, description, statusCode, methodName));
+                }
+
+                break;
+            }
         }
 
         return methods;
@@ -1066,6 +1066,38 @@ public static class ResultClassExtractor
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
             Content: $"new(\n        error is null\n            ? TypedResults.StatusCode(500)\n            : TypedResults.Json(error, statusCode: 500))");
+    }
+
+    private static MethodParameters GenerateGenericStatusCodeMethod(
+        string className,
+        string description,
+        string statusCode,
+        string methodName)
+    {
+        var doc = new CodeDocumentationTags($"{statusCode} {methodName} - {description}");
+
+        return new MethodParameters(
+            DocumentationTags: doc,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.PublicStatic,
+            ReturnGenericTypeName: null,
+            ReturnTypeName: className,
+            Name: methodName,
+            Parameters: new List<ParameterBaseParameters>
+            {
+                new(
+                    Attributes: null,
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: "string",
+                    IsNullableType: true,
+                    IsReferenceType: true,
+                    Name: "message",
+                    DefaultValue: "null"),
+            },
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: true,
+            Content: $"new(TypedResults.Problem(message, statusCode: {statusCode}))");
     }
 
     private static string GetSchemaTypeName(

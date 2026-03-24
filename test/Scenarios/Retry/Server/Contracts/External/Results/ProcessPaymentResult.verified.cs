@@ -33,6 +33,12 @@ public sealed class ProcessPaymentResult : IResult
     public static implicit operator ProcessPaymentResult(PaymentResult response)
         => Ok(response);
 
+    /// <summary>
+    /// 503 ServiceUnavailable - Service Unavailable.
+    /// </summary>
+    public static ProcessPaymentResult ServiceUnavailable(string? message = null)
+        => new(TypedResults.Problem(message, statusCode: 503));
+
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
 
