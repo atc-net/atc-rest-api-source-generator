@@ -43,6 +43,12 @@ public sealed class AddPetResult : IResult
                     : TypedResults.BadRequest(errors));
 
     /// <summary>
+    /// 422 Unprocessable Entity - Validation exception.
+    /// </summary>
+    public static AddPetResult UnprocessableEntity(string? message = null)
+        => new(TypedResults.UnprocessableEntity(message));
+
+    /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
     public static AddPetResult Error(string message)
