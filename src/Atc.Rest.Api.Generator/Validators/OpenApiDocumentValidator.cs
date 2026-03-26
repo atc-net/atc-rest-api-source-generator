@@ -1851,7 +1851,7 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
-    /// Validates 409 Conflict response is on mutating operation (POST/PUT/PATCH).
+    /// Validates 409 Conflict response is on mutating operation (POST/PUT/PATCH/DELETE).
     /// </summary>
     private static void ValidateConflictResponse(
         List<DiagnosticMessage> diagnostics,
@@ -1866,15 +1866,14 @@ public static class OpenApiDocumentValidator
             return;
         }
 
-        // ATCAPI_OPR024: Has 409 Conflict on non-mutating operation (GET/DELETE)
-        var isNonMutating = string.Equals(httpMethod, "get", StringComparison.OrdinalIgnoreCase) ||
-                           string.Equals(httpMethod, "delete", StringComparison.OrdinalIgnoreCase);
+        // ATCAPI_OPR024: Has 409 Conflict on read-only operation (GET)
+        var isReadOnly = string.Equals(httpMethod, "get", StringComparison.OrdinalIgnoreCase);
 
-        if (isNonMutating)
+        if (isReadOnly)
         {
             diagnostics.Add(new DiagnosticMessage(
                 RuleIdentifiers.ConflictOnNonMutatingOperation,
-                $"Operation '{operationId}' defines 409 Conflict response but operation is {httpMethod.ToUpperInvariant()} - conflicts typically occur during POST/PUT/PATCH operations.",
+                $"Operation '{operationId}' defines 409 Conflict response but operation is {httpMethod.ToUpperInvariant()} - conflicts typically occur during POST/PUT/PATCH/DELETE operations.",
                 DiagnosticSeverity.Warning,
                 sourceFilePath));
         }

@@ -1208,11 +1208,11 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR024: 409 Conflict response on non-mutating operation (GET/DELETE).
+    /// ATCAPI_OPR024: 409 Conflict response on read-only operation (GET).
     /// </summary>
     public static readonly DiagnosticDescriptor ConflictOnNonMutatingOperation = new(
         RuleIdentifiers.ConflictOnNonMutatingOperation,
-        "Conflict Response on Non-Mutating Operation",
+        "Conflict Response on Read-Only Operation",
         "{0}",
         RuleIdentifiers.Category,
         DiagnosticSeverity.Warning,
