@@ -416,7 +416,7 @@ public static class RuleIdentifiers
     public const string NotFoundOnPostOperation = "ATC_API_OPR023";
 
     /// <summary>
-    /// ATC_API_OPR024: 409 Conflict response on non-mutating operation (GET/DELETE).
+    /// ATC_API_OPR024: 409 Conflict response on read-only operation (GET).
     /// </summary>
     public const string ConflictOnNonMutatingOperation = "ATC_API_OPR024";
 

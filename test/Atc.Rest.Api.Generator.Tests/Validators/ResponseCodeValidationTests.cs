@@ -163,7 +163,7 @@ public class ResponseCodeValidationTests
         Assert.DoesNotContain(diagnostics, d => d.RuleId == RuleIdentifiers.NotFoundOnPostOperation);
     }
 
-    // ========== 409 Conflict on Non-Mutating Operation Tests (ATC_API_OPR024) ==========
+    // ========== 409 Conflict on Read-Only Operation Tests (ATC_API_OPR024) ==========
     [Fact]
     public void StrictMode_Warns_409OnGetOperation()
     {
@@ -195,9 +195,9 @@ public class ResponseCodeValidationTests
     }
 
     [Fact]
-    public void StrictMode_Warns_409OnDeleteOperation()
+    public void StrictMode_NoWarning_409OnDeleteOperation()
     {
-        // Arrange: DELETE operation with 409 response
+        // Arrange: DELETE operation with 409 response (this is expected - e.g., dependent resources)
         const string yaml = """
                             openapi: "3.1.1"
                             info:
@@ -226,8 +226,8 @@ public class ResponseCodeValidationTests
         var diagnostics = OpenApiDocumentValidator.Validate(
             ValidateSpecificationStrategy.Strict, doc, [], TestFilePath);
 
-        // Assert: Should have ATC_API_OPR024 warning
-        Assert.Contains(diagnostics, d => d.RuleId == RuleIdentifiers.ConflictOnNonMutatingOperation);
+        // Assert: Should NOT have ATC_API_OPR024 warning (409 is valid on DELETE)
+        Assert.DoesNotContain(diagnostics, d => d.RuleId == RuleIdentifiers.ConflictOnNonMutatingOperation);
     }
 
     [Fact]
