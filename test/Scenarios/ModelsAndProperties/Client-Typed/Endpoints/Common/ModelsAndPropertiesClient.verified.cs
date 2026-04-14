@@ -90,7 +90,7 @@ public sealed class ModelsAndPropertiesClient
 
         if (parameters.Gender != null)
         {
-            queryParams.Add($"gender={parameters.Gender}");
+            queryParams.Add($"gender={Uri.EscapeDataString($"{parameters.Gender}")}");
         }
 
         if (queryParams.Count > 0)

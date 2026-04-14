@@ -63,13 +63,17 @@ public class UrlEncodingTests
         Assert.Equal(expected, result);
     }
 
-    // ========== NeedsUrlEncoding - Custom/Reference Types ==========
+    // ========== NeedsUrlEncoding - Custom/Reference Types (defensive encoding) ==========
 
     [Theory]
-    [InlineData("MyCustomType", false)]    // Custom types are not strings
-    [InlineData("object", false)]          // Object is not a string
-    [InlineData("Pet", false)]             // Model type is not a string
-    public void NeedsUrlEncoding_CustomTypes_ReturnsFalse(
+    [InlineData("MyCustomType", true)]     // Custom types encoded defensively (ToString() may contain URL-unsafe chars)
+    [InlineData("object", true)]           // Object encoded defensively
+    [InlineData("Pet", true)]              // Model type encoded defensively
+    [InlineData("DateTimeOffset", true)]   // DateTimeOffset contains '+' for timezone offset
+    [InlineData("DateTime", true)]         // DateTime may contain special chars
+    [InlineData("DateOnly", true)]         // Date types encoded for safety
+    [InlineData("TimeOnly", true)]         // Time types encoded for safety
+    public void NeedsUrlEncoding_CustomTypes_ReturnsTrue(
         string csharpType,
         bool expected)
     {
@@ -101,8 +105,8 @@ public class UrlEncodingTests
     // ========== Edge Cases ==========
 
     [Theory]
-    [InlineData("String", false)]          // PascalCase String is a reference type, not "string"
-    [InlineData("INT", false)]             // Uppercase INT is not recognized as int
+    [InlineData("String", true)]           // PascalCase String is not a known safe type, encoded defensively
+    [InlineData("INT", true)]              // Uppercase INT is not recognized as int, encoded defensively
     public void NeedsUrlEncoding_CaseSensitive_ReturnsExpected(
         string csharpType,
         bool expected)

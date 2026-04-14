@@ -565,6 +565,66 @@ public class HttpClientExtractorTests
         Assert.Contains("ReadFromJsonAsync<Gadget>(jsonSerializerOptions, cancellationToken)", method.Content, StringComparison.Ordinal);
     }
 
+    // ========== NeedsUrlEncoding Tests ==========
+    [Theory]
+    [InlineData("string", true)]
+    [InlineData("DateTimeOffset", true)]
+    [InlineData("OrderStatus", true)]   // custom enum type
+    [InlineData("MyCustomType", true)]  // unknown custom type
+    [InlineData("int", false)]
+    [InlineData("long", false)]
+    [InlineData("short", false)]
+    [InlineData("byte", false)]
+    [InlineData("bool", false)]
+    [InlineData("float", false)]
+    [InlineData("double", false)]
+    [InlineData("decimal", false)]
+    [InlineData("Guid", false)]
+    [InlineData("int?", false)]
+    [InlineData("Guid?", false)]
+    [InlineData("string?", true)]
+    [InlineData("DateTimeOffset?", true)]
+    [InlineData("int[]", false)]        // arrays handled separately
+    public void NeedsUrlEncoding_ReturnsExpectedResult(
+        string csharpType,
+        bool expected)
+    {
+        var result = HttpClientExtractor.NeedsUrlEncoding(csharpType);
+        Assert.Equal(expected, result);
+    }
+
+    // ========== BuildPathParameterReplacement Tests ==========
+    [Theory]
+    [InlineData("Name", "string", "{Uri.EscapeDataString(parameters.Name)}")]
+    [InlineData("Status", "OrderStatus", "{Uri.EscapeDataString($\"{parameters.Status}\")}")]
+    [InlineData("Date", "DateTimeOffset", "{Uri.EscapeDataString($\"{parameters.Date}\")}")]
+    [InlineData("Id", "int", "{parameters.Id}")]
+    [InlineData("Id", "Guid", "{parameters.Id}")]
+    [InlineData("Count", "long", "{parameters.Count}")]
+    public void BuildPathParameterReplacement_ReturnsExpectedResult(
+        string propName,
+        string paramType,
+        string expected)
+    {
+        var result = HttpClientExtractor.BuildPathParameterReplacement(propName, paramType);
+        Assert.Equal(expected, result);
+    }
+
+    // ========== BuildEncodedExpression Tests ==========
+    [Theory]
+    [InlineData("parameters.Name", "string", "Uri.EscapeDataString(parameters.Name)")]
+    [InlineData("parameters.Status", "OrderStatus", "Uri.EscapeDataString($\"{parameters.Status}\")")]
+    [InlineData("parameters.Id", "int", "parameters.Id")]
+    [InlineData("parameters.Id", "Guid", "parameters.Id")]
+    public void BuildEncodedExpression_ReturnsExpectedResult(
+        string accessExpression,
+        string paramType,
+        string expected)
+    {
+        var result = HttpClientExtractor.BuildEncodedExpression(accessExpression, paramType);
+        Assert.Equal(expected, result);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
