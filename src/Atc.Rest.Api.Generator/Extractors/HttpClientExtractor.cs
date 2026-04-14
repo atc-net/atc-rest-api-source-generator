@@ -493,11 +493,7 @@ public static class HttpClientExtractor
                 {
                     var propName = param.Name!.ToPascalCaseForDotNet();
                     var paramType = GetParameterType(param, openApiDoc);
-
-                    // URL-encode string path parameters to handle special characters (RFC 3986)
-                    var replacement = NeedsUrlEncoding(paramType)
-                        ? $"{{Uri.EscapeDataString(parameters.{propName})}}"
-                        : $"{{parameters.{propName}}}";
+                    var replacement = BuildPathParameterReplacement(propName, paramType);
                     urlBuilder = urlBuilder.Replace($"{{{param.Name}}}", replacement);
                 }
             }
@@ -520,11 +516,7 @@ public static class HttpClientExtractor
                 {
                     var propName = param.Name!.ToPascalCaseForDotNet();
                     var paramType = GetParameterType(param, openApiDoc);
-
-                    // URL-encode string path parameters to handle special characters (RFC 3986)
-                    var replacement = NeedsUrlEncoding(paramType)
-                        ? $"{{Uri.EscapeDataString(parameters.{propName})}}"
-                        : $"{{parameters.{propName}}}";
+                    var replacement = BuildPathParameterReplacement(propName, paramType);
                     urlBuilder = urlBuilder.Replace($"{{{param.Name}}}", replacement);
                 }
             }
@@ -570,10 +562,7 @@ public static class HttpClientExtractor
                 // Required parameters are always added (non-nullable)
                 if (isRequired)
                 {
-                    // URL-encode string parameters to handle special characters (RFC 3986)
-                    var valueExpression = needsEncoding
-                        ? $"Uri.EscapeDataString({paramAccess})"
-                        : paramAccess;
+                    var valueExpression = BuildEncodedExpression(paramAccess, paramType);
                     builder.AppendLine($"queryParams.Add($\"{param.Name}={{{valueExpression}}}\");");
                 }
                 else
@@ -598,10 +587,7 @@ public static class HttpClientExtractor
                         nullCheck = $"{paramAccess} != null";
                     }
 
-                    // URL-encode string parameters to handle special characters (RFC 3986)
-                    var valueExpression = needsEncoding
-                        ? $"Uri.EscapeDataString({paramAccess})"
-                        : paramAccess;
+                    var valueExpression = BuildEncodedExpression(paramAccess, paramType);
 
                     builder.AppendLine();
                     builder.AppendLine($"if ({nullCheck})");
@@ -1145,6 +1131,56 @@ public static class HttpClientExtractor
     /// String types need encoding, value types don't (their ToString() is URL-safe).
     /// Arrays are excluded - they require special handling (encoding each element separately).
     /// </summary>
+    /// <summary>
+    /// Builds a Uri.EscapeDataString expression for a parameter access expression.
+    /// String types use Uri.EscapeDataString directly.
+    /// Other types use .ToString() before encoding.
+    /// Returns the original expression if encoding is not needed.
+    /// </summary>
+    public static string BuildEncodedExpression(
+        string accessExpression,
+        string paramType)
+    {
+        if (!NeedsUrlEncoding(paramType))
+        {
+            return accessExpression;
+        }
+
+        var baseType = paramType.TrimEnd('?');
+        if (baseType == "string")
+        {
+            return $"Uri.EscapeDataString({accessExpression})";
+        }
+
+        // Use string interpolation for non-string types to avoid nullable ToString() warnings
+        return $"Uri.EscapeDataString($\"{{{accessExpression}}}\")";
+    }
+
+    /// <summary>
+    /// Builds the string interpolation replacement for a path parameter.
+    /// String types use Uri.EscapeDataString directly.
+    /// Other types that need encoding use .ToString() + Uri.EscapeDataString.
+    /// Value types known to produce URL-safe output are used directly.
+    /// </summary>
+    public static string BuildPathParameterReplacement(
+        string propName,
+        string paramType)
+    {
+        if (!NeedsUrlEncoding(paramType))
+        {
+            return $"{{parameters.{propName}}}";
+        }
+
+        var baseType = paramType.TrimEnd('?');
+        if (baseType == "string")
+        {
+            return $"{{Uri.EscapeDataString(parameters.{propName})}}";
+        }
+
+        // Use string interpolation for non-string types to avoid nullable ToString() warnings
+        return $"{{Uri.EscapeDataString($\"{{parameters.{propName}}}\")}}";
+    }
+
     public static bool NeedsUrlEncoding(string csharpType)
     {
         // Remove nullable indicator for comparison
@@ -1156,7 +1192,7 @@ public static class HttpClientExtractor
             return false;
         }
 
-        // Value types that don't need encoding (their ToString() produces URL-safe output)
+        // Types whose ToString() always produces URL-safe output (digits, hex, true/false)
         return baseType switch
         {
             "int" => false,
@@ -1168,7 +1204,16 @@ public static class HttpClientExtractor
             "double" => false,
             "decimal" => false,
             "Guid" => false,
-            _ => baseType == "string",
+
+            // String and DateTimeOffset need encoding (DateTimeOffset contains '+' for timezone)
+            "string" => true,
+            "DateTimeOffset" => true,
+            "DateTime" => true,
+            "DateOnly" => true,
+            "TimeOnly" => true,
+
+            // Custom/enum types: encode defensively since ToString() may produce URL-unsafe characters
+            _ => true,
         };
     }
 

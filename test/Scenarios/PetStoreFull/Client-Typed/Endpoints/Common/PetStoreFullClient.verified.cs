@@ -77,7 +77,7 @@ public sealed class PetStoreFullClient
     {
         var url = "/pet/findByTags";
         var queryParams = new List<string>();
-        queryParams.Add($"tags={parameters.Tags}");
+        queryParams.Add($"tags={Uri.EscapeDataString($"{parameters.Tags}")}");
 
         if (queryParams.Count > 0)
         {
