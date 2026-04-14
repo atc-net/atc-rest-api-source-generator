@@ -434,17 +434,14 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     {
         var implementedHandlers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        // Get all named type symbols in the compilation
-        var allTypes = compilation.GetSymbolsWithName(
-            _ => true,
-            SymbolFilter.Type);
+        // Get type symbols from the current assembly only (avoids scanning all referenced assemblies)
+        var allTypes = GetAllTypesFromAssembly(compilation.Assembly.GlobalNamespace);
 
-        foreach (var typeSymbol in allTypes.OfType<INamedTypeSymbol>())
+        foreach (var typeSymbol in allTypes)
         {
-            // Skip interfaces, abstract classes, and generated code
+            // Skip interfaces and abstract classes
             if (typeSymbol.TypeKind == TypeKind.Interface ||
-                typeSymbol.IsAbstract ||
-                typeSymbol.DeclaringSyntaxReferences.Length == 0)
+                typeSymbol.IsAbstract)
             {
                 continue;
             }
@@ -504,12 +501,10 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     {
         var validators = new List<(string ValidatorName, string ValidatorNamespace, string ModelType)>();
 
-        // Get all named type symbols in the compilation
-        var allTypes = compilation.GetSymbolsWithName(
-            _ => true,
-            SymbolFilter.Type);
+        // Get type symbols from the current assembly only (avoids scanning all referenced assemblies)
+        var allTypes = GetAllTypesFromAssembly(compilation.Assembly.GlobalNamespace);
 
-        foreach (var typeSymbol in allTypes.OfType<INamedTypeSymbol>())
+        foreach (var typeSymbol in allTypes)
         {
             // Walk up the inheritance hierarchy to find AbstractValidator<T>
             var baseType = typeSymbol.BaseType;
@@ -602,6 +597,27 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         }
 
         return namespaces;
+    }
+
+    /// <summary>
+    /// Recursively collects all named type symbols from a namespace (current assembly only).
+    /// This avoids GetSymbolsWithName(_ => true) which scans all referenced assemblies.
+    /// </summary>
+    private static IEnumerable<INamedTypeSymbol> GetAllTypesFromAssembly(
+        INamespaceSymbol namespaceSymbol)
+    {
+        foreach (var member in namespaceSymbol.GetTypeMembers())
+        {
+            yield return member;
+        }
+
+        foreach (var nestedNamespace in namespaceSymbol.GetNamespaceMembers())
+        {
+            foreach (var type in GetAllTypesFromAssembly(nestedNamespace))
+            {
+                yield return type;
+            }
+        }
     }
 
     /// <summary>
