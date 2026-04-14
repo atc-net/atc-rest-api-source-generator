@@ -41,7 +41,7 @@ public sealed class PetStoreFullClient
     {
         var url = "/pet";
         var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -51,7 +51,7 @@ public sealed class PetStoreFullClient
     {
         var url = "/pet";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -118,7 +118,7 @@ public sealed class PetStoreFullClient
         }
 
         var response = await httpClient.PostAsync(url, null, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -128,7 +128,7 @@ public sealed class PetStoreFullClient
     {
         var url = $"/pet/{parameters.PetId}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task<ApiResponse> UploadFileAsync(
@@ -153,7 +153,7 @@ public sealed class PetStoreFullClient
         content.Headers.ContentType = new MediaTypeHeaderValue(parameters.File.ContentType ?? "application/octet-stream");
 
         var response = await httpClient.PostAsync(url, content, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<ApiResponse>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -169,7 +169,7 @@ public sealed class PetStoreFullClient
     {
         var url = "/store/order";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -187,7 +187,7 @@ public sealed class PetStoreFullClient
     {
         var url = $"/store/order/{parameters.OrderId}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task<User> CreateUserAsync(
@@ -196,7 +196,7 @@ public sealed class PetStoreFullClient
     {
         var url = "/user";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<User>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -206,7 +206,7 @@ public sealed class PetStoreFullClient
     {
         var url = "/user/createWithList";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<User>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -239,7 +239,7 @@ public sealed class PetStoreFullClient
     {
         var url = "/user/logout";
         var response = await httpClient.GetAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task<User> GetUserByNameAsync(
@@ -256,7 +256,7 @@ public sealed class PetStoreFullClient
     {
         var url = $"/user/{Uri.EscapeDataString(parameters.Username)}";
         var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task DeleteUserAsync(
@@ -265,6 +265,22 @@ public sealed class PetStoreFullClient
     {
         var url = $"/user/{Uri.EscapeDataString(parameters.Username)}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        throw new HttpRequestException(
+            $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
+            inner: null,
+            response.StatusCode);
     }
 }

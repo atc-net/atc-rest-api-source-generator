@@ -59,7 +59,7 @@ public sealed class PetStoreSimpleClient
     {
         var url = "/pets";
         var response = await httpClient.PostAsync(url, null, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task<Pet> ShowPetByIdAsync(
@@ -68,5 +68,21 @@ public sealed class PetStoreSimpleClient
     {
         var url = $"/pets/{Uri.EscapeDataString(parameters.PetId)}";
         return (await httpClient.GetFromJsonAsync<Pet>(url, jsonSerializerOptions, cancellationToken))!;
+    }
+
+    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        throw new HttpRequestException(
+            $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
+            inner: null,
+            response.StatusCode);
     }
 }

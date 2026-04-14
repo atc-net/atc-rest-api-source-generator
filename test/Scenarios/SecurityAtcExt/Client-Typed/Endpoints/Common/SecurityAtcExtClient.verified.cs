@@ -53,7 +53,7 @@ public sealed class SecurityAtcExtClient
     {
         var url = "/orders";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -71,7 +71,7 @@ public sealed class SecurityAtcExtClient
     {
         var url = $"/orders/{parameters.OrderId}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task<TrackingInfo> GetOrderTrackingAsync(
@@ -94,7 +94,7 @@ public sealed class SecurityAtcExtClient
     {
         var url = "/admin/settings";
         var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<AdminSettings>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -108,5 +108,21 @@ public sealed class SecurityAtcExtClient
     {
         var url = "/api-keys";
         return (await httpClient.GetFromJsonAsync<List<ApiKey>>(url, jsonSerializerOptions, cancellationToken))!;
+    }
+
+    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        throw new HttpRequestException(
+            $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
+            inner: null,
+            response.StatusCode);
     }
 }
