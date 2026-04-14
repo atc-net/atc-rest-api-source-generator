@@ -484,12 +484,25 @@ public static class PathSegmentHelper
 
     /// <summary>
     /// Collects schema names from an OpenAPI schema recursively.
+    /// Uses a visited set to prevent infinite recursion on circular inline schemas.
     /// </summary>
     private static void CollectSchemaNames(
         IOpenApiSchema? schema,
         HashSet<string> schemaNames)
+        => CollectSchemaNames(schema, schemaNames, []);
+
+    private static void CollectSchemaNames(
+        IOpenApiSchema? schema,
+        HashSet<string> schemaNames,
+        HashSet<object> visited)
     {
         if (schema == null)
+        {
+            return;
+        }
+
+        // Guard against circular references in inline schemas
+        if (!visited.Add(schema))
         {
             return;
         }
@@ -510,7 +523,7 @@ public static class PathSegmentHelper
             // Handle array items (use HasFlag since JsonSchemaType is a flags enum in OpenAPI 3.1.x)
             if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true && actualSchema.Items != null)
             {
-                CollectSchemaNames(actualSchema.Items, schemaNames);
+                CollectSchemaNames(actualSchema.Items, schemaNames, visited);
             }
 
             // Handle object properties
@@ -518,14 +531,14 @@ public static class PathSegmentHelper
             {
                 foreach (var property in actualSchema.Properties)
                 {
-                    CollectSchemaNames(property.Value, schemaNames);
+                    CollectSchemaNames(property.Value, schemaNames, visited);
                 }
             }
 
             // Handle additionalProperties
             if (actualSchema.AdditionalProperties != null)
             {
-                CollectSchemaNames(actualSchema.AdditionalProperties, schemaNames);
+                CollectSchemaNames(actualSchema.AdditionalProperties, schemaNames, visited);
             }
 
             // Handle allOf
@@ -533,7 +546,7 @@ public static class PathSegmentHelper
             {
                 foreach (var allOfSchema in actualSchema.AllOf)
                 {
-                    CollectSchemaNames(allOfSchema, schemaNames);
+                    CollectSchemaNames(allOfSchema, schemaNames, visited);
                 }
             }
 
@@ -542,7 +555,7 @@ public static class PathSegmentHelper
             {
                 foreach (var oneOfSchema in actualSchema.OneOf)
                 {
-                    CollectSchemaNames(oneOfSchema, schemaNames);
+                    CollectSchemaNames(oneOfSchema, schemaNames, visited);
                 }
             }
 
@@ -551,7 +564,7 @@ public static class PathSegmentHelper
             {
                 foreach (var anyOfSchema in actualSchema.AnyOf)
                 {
-                    CollectSchemaNames(anyOfSchema, schemaNames);
+                    CollectSchemaNames(anyOfSchema, schemaNames, visited);
                 }
             }
         }
