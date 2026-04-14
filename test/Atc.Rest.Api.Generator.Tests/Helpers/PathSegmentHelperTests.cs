@@ -728,4 +728,97 @@ paths:
 
         return doc;
     }
+
+    // ========== Circular Schema Reference Tests ==========
+    [Fact]
+    public void GetSchemasUsedBySegment_CircularInlineSchema_DoesNotStackOverflow()
+    {
+        // Arrange — create a self-referencing inline schema (TreeNode with children: TreeNode[])
+        // Build via YAML with $ref cycle, which the library resolves eagerly
+        var yaml = @"
+openapi: 3.1.1
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /trees:
+    get:
+      operationId: listTrees
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TreeNode'
+components:
+  schemas:
+    TreeNode:
+      type: object
+      properties:
+        name:
+          type: string
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/TreeNode'
+";
+        var doc = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        // Act — should complete without StackOverflowException
+        var result = PathSegmentHelper.GetSchemasUsedBySegment(doc, "Trees");
+
+        // Assert — should find the TreeNode $ref
+        Assert.Contains("TreeNode", result);
+    }
+
+    [Fact]
+    public void GetSchemasUsedBySegment_DeeplyNestedSchema_CollectsAllRefNames()
+    {
+        // Arrange — a non-circular deep chain: response -> array -> object -> nested ref
+        var yaml = @"
+openapi: 3.1.1
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /orders:
+    get:
+      operationId: listOrders
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+components:
+  schemas:
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+    OrderItem:
+      type: object
+      properties:
+        name:
+          type: string
+";
+        var doc = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        // Act
+        var result = PathSegmentHelper.GetSchemasUsedBySegment(doc, "Orders");
+
+        // Assert — should find the $ref to Order
+        Assert.Contains("Order", result);
+    }
 }
