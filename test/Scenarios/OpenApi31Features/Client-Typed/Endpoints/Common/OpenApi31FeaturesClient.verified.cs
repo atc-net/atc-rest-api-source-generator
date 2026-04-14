@@ -53,7 +53,7 @@ public sealed class OpenApi31FeaturesClient
     {
         var url = "/documents";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<DocumentResponse>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -61,5 +61,21 @@ public sealed class OpenApi31FeaturesClient
     {
         var url = "/colors";
         return (await httpClient.GetFromJsonAsync<RgbColor>(url, jsonSerializerOptions, cancellationToken))!;
+    }
+
+    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        throw new HttpRequestException(
+            $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
+            inner: null,
+            response.StatusCode);
     }
 }

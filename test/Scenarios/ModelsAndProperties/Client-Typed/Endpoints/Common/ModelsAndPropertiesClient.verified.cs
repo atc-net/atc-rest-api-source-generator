@@ -47,7 +47,7 @@ public sealed class ModelsAndPropertiesClient
     {
         var url = "/models";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<ComprehensiveModel>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -71,7 +71,7 @@ public sealed class ModelsAndPropertiesClient
     {
         var url = "/addresses";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Address>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -165,5 +165,21 @@ public sealed class ModelsAndPropertiesClient
     {
         var url = "/cats";
         return (await httpClient.GetFromJsonAsync<List<Cat>>(url, jsonSerializerOptions, cancellationToken))!;
+    }
+
+    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        throw new HttpRequestException(
+            $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
+            inner: null,
+            response.StatusCode);
     }
 }

@@ -47,7 +47,7 @@ public sealed class PolymorphismClient
     {
         var url = "/payments";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<PaymentMethod>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -65,7 +65,7 @@ public sealed class PolymorphismClient
     {
         var url = "/notifications";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task<List<Notification>> ListNotificationsAsync(CancellationToken cancellationToken = default)
@@ -78,5 +78,21 @@ public sealed class PolymorphismClient
     {
         var url = "/shapes";
         return (await httpClient.GetFromJsonAsync<List<Shape>>(url, jsonSerializerOptions, cancellationToken))!;
+    }
+
+    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        throw new HttpRequestException(
+            $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
+            inner: null,
+            response.StatusCode);
     }
 }

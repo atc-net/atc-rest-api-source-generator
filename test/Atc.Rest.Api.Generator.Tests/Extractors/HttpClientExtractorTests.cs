@@ -84,10 +84,9 @@ public class HttpClientExtractorTests
         // Assert
         Assert.NotNull(clientClass);
         Assert.NotNull(clientClass.Methods);
-        Assert.Single(clientClass.Methods);
 
-        var method = clientClass.Methods[0];
-        Assert.Equal("GetDevicesAsync", method.Name);
+        // Methods include the operation method + the EnsureSuccessAsync helper
+        var method = clientClass.Methods.First(m => m.Name == "GetDevicesAsync");
 
         // Verify generic return type: Task<PaginationResult<Device>>
         Assert.Equal("Task", method.ReturnGenericTypeName);

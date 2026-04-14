@@ -61,7 +61,7 @@ public sealed class DemoClient
     {
         var url = "/accounts";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Account>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -79,7 +79,7 @@ public sealed class DemoClient
     {
         var url = $"/accounts/{Uri.EscapeDataString(parameters.AccountId)}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async System.Threading.Tasks.Task<Account> UpdateAccountByIdAsync(
@@ -88,7 +88,7 @@ public sealed class DemoClient
     {
         var url = $"/accounts/{Uri.EscapeDataString(parameters.AccountId)}";
         var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Account>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -131,7 +131,7 @@ public sealed class DemoClient
     {
         var url = "/accounts/async-enumerable";
         using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
 
@@ -170,7 +170,7 @@ public sealed class DemoClient
     {
         var url = "/tasks";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async System.Threading.Tasks.Task GetTaskByIdAsync(
@@ -179,7 +179,7 @@ public sealed class DemoClient
     {
         var url = $"/tasks/{Uri.EscapeDataString(parameters.TaskId)}";
         var response = await httpClient.GetAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async System.Threading.Tasks.Task DeleteTaskByIdAsync(
@@ -188,7 +188,7 @@ public sealed class DemoClient
     {
         var url = $"/tasks/{Uri.EscapeDataString(parameters.TaskId)}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async System.Threading.Tasks.Task UpdateTaskByIdAsync(
@@ -197,7 +197,7 @@ public sealed class DemoClient
     {
         var url = $"/tasks/{Uri.EscapeDataString(parameters.TaskId)}";
         var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async System.Threading.Tasks.Task<List<User>> ListUsersAsync(
@@ -246,7 +246,7 @@ public sealed class DemoClient
     {
         var url = "/users";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<User>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -264,7 +264,7 @@ public sealed class DemoClient
     {
         var url = $"/users/{parameters.UserId}";
         var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<User>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -274,7 +274,7 @@ public sealed class DemoClient
     {
         var url = $"/users/{parameters.UserId}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async System.Threading.Tasks.Task GetFileByIdAsync(
@@ -283,7 +283,7 @@ public sealed class DemoClient
     {
         var url = $"/files/{Uri.EscapeDataString(parameters.Id)}";
         var response = await httpClient.GetAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async System.Threading.Tasks.Task UploadFormDataFileAsync(
@@ -320,7 +320,7 @@ public sealed class DemoClient
 
 
         var response = await httpClient.PostAsync(url, content, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async System.Threading.Tasks.Task UploadFormDataFilesAsync(
@@ -348,7 +348,7 @@ public sealed class DemoClient
 
 
         var response = await httpClient.PostAsync(url, content, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async System.Threading.Tasks.Task UploadSingleFileAsFormDataAsync(
@@ -361,7 +361,7 @@ public sealed class DemoClient
         content.Headers.ContentType = new MediaTypeHeaderValue(parameters.File.ContentType ?? "application/octet-stream");
 
         var response = await httpClient.PostAsync(url, content, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async System.Threading.Tasks.Task UploadMultiFilesAsFormDataAsync(
@@ -386,7 +386,7 @@ public sealed class DemoClient
         }
 
         var response = await httpClient.PostAsync(url, content, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async System.Threading.Tasks.Task<TestItem> CreateTestItemWithModelAsync(
@@ -395,7 +395,7 @@ public sealed class DemoClient
     {
         var url = "/tests/create/create-model";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<TestItem>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -405,7 +405,7 @@ public sealed class DemoClient
     {
         var url = "/tests/create/create-location-header";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return response.Headers.Location!;
     }
 
@@ -415,7 +415,7 @@ public sealed class DemoClient
     {
         var url = "/tests/create/create-location-body";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Uri>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -425,6 +425,22 @@ public sealed class DemoClient
     {
         var url = "/tests/create/create-empty";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        throw new HttpRequestException(
+            $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
+            inner: null,
+            response.StatusCode);
     }
 }

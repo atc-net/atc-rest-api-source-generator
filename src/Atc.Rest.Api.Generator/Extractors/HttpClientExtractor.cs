@@ -243,6 +243,9 @@ public static class HttpClientExtractor
 
         var contentForAnalysis = contentPreview.ToString();
 
+        // Add the EnsureSuccessAsync helper method that reads error body before throwing
+        methods.Add(CreateEnsureSuccessMethod());
+
         // Build header content with only required usings
         var usings = UsingStatementHelper.GetRequiredUsings(
             contentForAnalysis,
@@ -638,7 +641,7 @@ public static class HttpClientExtractor
         if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
         {
             builder.AppendLine("using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);");
-            builder.AppendLine("response.EnsureSuccessStatusCode();");
+            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
             builder.AppendLine();
             builder.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken);");
             builder.AppendLine();
@@ -686,7 +689,7 @@ public static class HttpClientExtractor
 
             builder.AppendLine();
             builder.AppendLine("var response = await httpClient.SendAsync(request, cancellationToken);");
-            builder.AppendLine("response.EnsureSuccessStatusCode();");
+            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
 
             if (hasReturnType)
             {
@@ -700,7 +703,7 @@ public static class HttpClientExtractor
         else
         {
             builder.AppendLine("var response = await httpClient.GetAsync(url, cancellationToken);");
-            builder.Append("response.EnsureSuccessStatusCode();");
+            builder.Append("await EnsureSuccessAsync(response, cancellationToken);");
         }
     }
 
@@ -794,7 +797,7 @@ public static class HttpClientExtractor
             builder.AppendLine("var response = await httpClient.PostAsync(url, null, cancellationToken);");
         }
 
-        builder.AppendLine("response.EnsureSuccessStatusCode();");
+        builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
 
         if (hasLocationHeader)
         {
@@ -823,12 +826,12 @@ public static class HttpClientExtractor
             builder.AppendLine($"var response = await httpClient.PutAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);");
             if (hasReturnType)
             {
-                builder.AppendLine("response.EnsureSuccessStatusCode();");
+                builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
                 builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
             }
             else
             {
-                builder.Append("response.EnsureSuccessStatusCode();");
+                builder.Append("await EnsureSuccessAsync(response, cancellationToken);");
             }
         }
         else
@@ -836,13 +839,13 @@ public static class HttpClientExtractor
             if (hasReturnType)
             {
                 builder.AppendLine("var response = await httpClient.PutAsync(url, null, cancellationToken);");
-                builder.AppendLine("response.EnsureSuccessStatusCode();");
+                builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
                 builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
             }
             else
             {
                 builder.AppendLine("var response = await httpClient.PutAsync(url, null, cancellationToken);");
-                builder.Append("response.EnsureSuccessStatusCode();");
+                builder.Append("await EnsureSuccessAsync(response, cancellationToken);");
             }
         }
     }
@@ -855,13 +858,13 @@ public static class HttpClientExtractor
         if (hasReturnType)
         {
             builder.AppendLine("var response = await httpClient.DeleteAsync(url, cancellationToken);");
-            builder.AppendLine("response.EnsureSuccessStatusCode();");
+            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
             builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
         }
         else
         {
             builder.AppendLine("var response = await httpClient.DeleteAsync(url, cancellationToken);");
-            builder.Append("response.EnsureSuccessStatusCode();");
+            builder.Append("await EnsureSuccessAsync(response, cancellationToken);");
         }
     }
 
@@ -1403,5 +1406,56 @@ public static class HttpClientExtractor
                 builder.AppendLine();
             }
         }
+    }
+
+    /// <summary>
+    /// Creates the EnsureSuccessAsync helper method that reads error response body before throwing.
+    /// This replaces the standard EnsureSuccessStatusCode() to preserve error details.
+    /// </summary>
+    private static MethodParameters CreateEnsureSuccessMethod()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("if (response.IsSuccessStatusCode)");
+        sb.AppendLine("{");
+        sb.AppendLine(4, "return;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);");
+        sb.AppendLine("throw new HttpRequestException(");
+        sb.AppendLine(4, "$\"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}\",");
+        sb.AppendLine(4, "inner: null,");
+        sb.Append(4, "response.StatusCode);");
+
+        return new MethodParameters(
+            DocumentationTags: null,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.PrivateStaticAsync,
+            ReturnGenericTypeName: null,
+            ReturnTypeName: "System.Threading.Tasks.Task",
+            Name: "EnsureSuccessAsync",
+            Parameters:
+            [
+                new ParameterBaseParameters(
+                    Attributes: null,
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: "HttpResponseMessage",
+                    IsNullableType: false,
+                    IsReferenceType: true,
+                    Name: "response",
+                    DefaultValue: null),
+                new ParameterBaseParameters(
+                    Attributes: null,
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: "CancellationToken",
+                    IsNullableType: false,
+                    IsReferenceType: false,
+                    Name: "cancellationToken",
+                    DefaultValue: null),
+            ],
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: false,
+            Content: sb.ToString());
     }
 }

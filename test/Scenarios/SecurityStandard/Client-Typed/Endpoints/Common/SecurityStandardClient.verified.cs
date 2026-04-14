@@ -54,7 +54,7 @@ public sealed class SecurityStandardClient
     {
         var url = "/orders";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -72,7 +72,7 @@ public sealed class SecurityStandardClient
     {
         var url = $"/orders/{parameters.OrderId}";
         var response = await httpClient.DeleteAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task<List<User>> ListUsersAsync(CancellationToken cancellationToken = default)
@@ -101,7 +101,7 @@ public sealed class SecurityStandardClient
     {
         var url = "/admin/settings";
         var response = await httpClient.PutAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<AdminSettings>(jsonSerializerOptions, cancellationToken))!;
     }
 
@@ -109,5 +109,21 @@ public sealed class SecurityStandardClient
     {
         var url = "/data";
         return (await httpClient.GetFromJsonAsync<GetDataResponse>(url, jsonSerializerOptions, cancellationToken))!;
+    }
+
+    private static async System.Threading.Tasks.Task EnsureSuccessAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        throw new HttpRequestException(
+            $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}): {errorContent}",
+            inner: null,
+            response.StatusCode);
     }
 }
