@@ -28,15 +28,17 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             .Collect()
             .Select(static (array, _) => new EquatableArray<MarkerFileInfo>(array));
 
-        // Find OpenAPI YAML files
+        // Find OpenAPI YAML files - collect ALL files for multi-part spec support
         var yamlFiles = context.AdditionalTextsProvider
             .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
                                  file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
             .Select(static (file, cancellationToken) =>
                 new YamlFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
-            .Where(static file => !string.IsNullOrEmpty(file.Content));
+            .Where(static file => !string.IsNullOrEmpty(file.Content))
+            .Collect()
+            .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
 
-        // Combine YAML files with the stable compilation summary (not raw compilation).
+        // Combine ALL YAML files (as collection) with the stable compilation summary and marker files.
         // This means the callback only fires when YAML content, marker config,
         // or meaningful compilation state changes — not on every C# keystroke.
         var combined = yamlFiles
@@ -46,10 +48,16 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // Register source output for handler scaffolds
         context.RegisterSourceOutput(combined, (productionContext, combinedData) =>
         {
-            var ((yamlFile, summary), markers) = combinedData;
+            var ((yamlFiles, summary), markers) = combinedData;
 
             // Skip if no marker file found - marker file presence IS the trigger
             if (markers.IsEmpty)
+            {
+                return;
+            }
+
+            // Skip if no YAML files found
+            if (yamlFiles.IsEmpty)
             {
                 return;
             }
@@ -80,13 +88,52 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                 return;
             }
 
+            // Identify base file and part files for multi-part spec support
+            var baseFile = YamlFileHelper.IdentifyBaseFile(yamlFiles.Values);
+            if (baseFile == null)
+            {
+                return;
+            }
+
             try
             {
-                GenerateHandlerScaffolds(productionContext, yamlFile.Path, yamlFile.Content, summary, config, markerDirectory);
+                var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);
+                var partFiles = yamlFiles.Values
+                    .Where(f => YamlFileHelper.IsPartFile(f.Path, baseName))
+                    .ToList();
+
+                if (partFiles.Count > 0)
+                {
+                    // Multi-part mode: merge all files before generating scaffolds
+                    var baseSpec = SpecificationService.ReadFromContent(baseFile.Value.Content, baseFile.Value.Path);
+                    var partSpecs = partFiles
+                        .Select(p => SpecificationService.ReadFromContent(p.Content, p.Path))
+                        .ToList();
+
+                    var mergeConfig = MultiPartConfiguration.Default;
+                    var mergeResult = SpecificationService.MergeSpecifications(baseSpec, partSpecs, mergeConfig);
+
+                    foreach (var diagnostic in mergeResult.Diagnostics)
+                    {
+                        productionContext.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
+                    }
+
+                    if (!mergeResult.IsSuccess || mergeResult.Document == null)
+                    {
+                        return;
+                    }
+
+                    GenerateHandlerScaffoldsFromDocument(productionContext, baseFile.Value.Path, mergeResult.Document, summary, config, markerDirectory);
+                }
+                else
+                {
+                    // Single file mode
+                    GenerateHandlerScaffolds(productionContext, baseFile.Value.Path, baseFile.Value.Content, summary, config, markerDirectory);
+                }
             }
             catch (Exception ex)
             {
-                DiagnosticHelpers.ReportHandlerScaffoldGenerationError(productionContext, yamlFile.Path, ex);
+                DiagnosticHelpers.ReportHandlerScaffoldGenerationError(productionContext, baseFile.Value.Path, ex);
             }
         });
     }
@@ -163,6 +210,17 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             return;
         }
 
+        GenerateHandlerScaffoldsFromDocument(context, yamlPath, openApiDoc, summary, config, markerDirectory);
+    }
+
+    private static void GenerateHandlerScaffoldsFromDocument(
+        SourceProductionContext context,
+        string yamlPath,
+        OpenApiDocument openApiDoc,
+        DomainCompilationSummary summary,
+        ServerDomainConfig config,
+        string markerDirectory)
+    {
         // Determine contracts namespace for GlobalUsings:
         // Priority: explicit config > server marker (same dir or sibling) > derive from domain namespace
         var serverNamespace = MarkerFileHelper.TryGetServerNamespace(markerDirectory);
