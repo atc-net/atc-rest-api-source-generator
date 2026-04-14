@@ -9,6 +9,13 @@ namespace Atc.Rest.Api.SourceGenerator;
 [Generator(LanguageNames.CSharp)]
 public class ApiServerDomainGenerator : IIncrementalGenerator
 {
+    private static readonly Regex WhitespaceNormalizerRegex = new(@"\s+", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
+
+    private static readonly Regex ExecuteAsyncSignatureRegex = new(
+        @"public\s+(?:async\s+)?(?:System\.Threading\.Tasks\.)?Task<\w+Result>\s+ExecuteAsync\s*\(\s*[\s\S]*?\)",
+        RegexOptions.Singleline | RegexOptions.Compiled | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(1));
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Extract a stable, equatable summary from the compilation.
@@ -789,7 +796,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     /// Normalizes a method signature by removing extra whitespace for comparison.
     /// </summary>
     private static string NormalizeSignature(string signature)
-        => Regex.Replace(signature.Trim(), @"\s+", " ", RegexOptions.None, TimeSpan.FromSeconds(1));
+        => WhitespaceNormalizerRegex.Replace(signature.Trim(), " ");
 
     /// <summary>
     /// Updates the ExecuteAsync method signature in an existing handler file if it doesn't match the expected signature.
@@ -808,10 +815,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             // - Also handles fully qualified System.Threading.Tasks.Task<...>
             // - Uses [\s\S]*? to match multi-line parameter lists (ATC201/ATC202 compliant)
             // - Captures everything up to and including the closing parenthesis
-            var signaturePattern = @"public\s+(async\s+)?(System\.Threading\.Tasks\.)?Task<\w+Result>\s+ExecuteAsync\s*\(\s*[\s\S]*?\)";
-            var regexTimeout = TimeSpan.FromSeconds(1);
-
-            var match = Regex.Match(content, signaturePattern, RegexOptions.Singleline, regexTimeout);
+            var match = ExecuteAsyncSignatureRegex.Match(content);
             if (!match.Success)
             {
                 // Can't find ExecuteAsync method, skip update
@@ -846,12 +850,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             }
 
             // Replace the signature while preserving everything else
-            var updatedContent = Regex.Replace(
-                content,
-                signaturePattern,
-                replacementSignature,
-                RegexOptions.Singleline,
-                regexTimeout);
+            var updatedContent = ExecuteAsyncSignatureRegex.Replace(content, replacementSignature);
 
             // Write the updated content back to the file
             File.WriteAllText(filePath, updatedContent, Encoding.UTF8);
