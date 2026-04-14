@@ -6,7 +6,7 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
 public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
 {
-    public override int Execute(
+    protected override int Execute(
         CommandContext context,
         SpecSplitCommandSettings settings,
         CancellationToken cancellationToken)

@@ -8,7 +8,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 {
     private readonly ProjectScaffoldingService scaffoldingService = new();
 
-    public override int Execute(
+    protected override int Execute(
         CommandContext context,
         GenerateServerCommandSettings settings,
         CancellationToken cancellationToken)
