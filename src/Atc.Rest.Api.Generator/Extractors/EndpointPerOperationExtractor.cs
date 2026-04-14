@@ -444,8 +444,7 @@ public static class EndpointPerOperationExtractor
                 continue;
             }
 
-            var statusCode = (System.Net.HttpStatusCode)statusCodeInt;
-            var statusEnumName = statusCode.ToString();
+            var statusEnumName = HttpStatusCodeHelper.ToEnumName(statusCodeInt);
             var propertyName = NormalizeStatusName(statusEnumName);
             var isSuccess = statusCodeInt >= 200 && statusCodeInt < 300;
 

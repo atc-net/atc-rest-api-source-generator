@@ -383,7 +383,7 @@ public static class ResultClassExtractor
                 }
                 else if (int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var statusCodeInt))
                 {
-                    var methodName = ((System.Net.HttpStatusCode)statusCodeInt).ToString();
+                    var methodName = HttpStatusCodeHelper.ToEnumName(statusCodeInt);
                     methods.Add(GenerateGenericStatusCodeMethod(className, description, statusCode, methodName));
                 }
 
