@@ -5,7 +5,7 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 /// </summary>
 public sealed class OptionsCreateCommand : Command<OptionsCommandSettings>
 {
-    public override int Execute(
+    protected override int Execute(
         CommandContext context,
         OptionsCommandSettings settings,
         CancellationToken cancellationToken)
