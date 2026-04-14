@@ -371,9 +371,18 @@ public static class PathSegmentHelper
     public static HashSet<string> GetSegmentSpecificSchemas(
         OpenApiDocument openApiDoc,
         string pathSegment)
+        => GetSegmentSpecificSchemas(openApiDoc, pathSegment, GetSharedSchemas(openApiDoc));
+
+    /// <summary>
+    /// Gets schema names that are used by only one path segment (segment-specific types),
+    /// using a pre-computed shared schemas set to avoid recomputation in loops.
+    /// </summary>
+    public static HashSet<string> GetSegmentSpecificSchemas(
+        OpenApiDocument openApiDoc,
+        string pathSegment,
+        HashSet<string> sharedSchemas)
     {
         var allForSegment = GetSchemasUsedBySegment(openApiDoc, pathSegment);
-        var sharedSchemas = GetSharedSchemas(openApiDoc);
 
         // Return only schemas NOT in the shared set
         allForSegment.ExceptWith(sharedSchemas);
@@ -671,8 +680,18 @@ public static class PathSegmentHelper
     public static bool PathSegmentHasModels(
         OpenApiDocument openApiDoc,
         string pathSegment)
+        => PathSegmentHasModels(openApiDoc, pathSegment, GetSharedSchemas(openApiDoc));
+
+    /// <summary>
+    /// Checks if a path segment has segment-specific models (not shared models),
+    /// using a pre-computed shared schemas set to avoid recomputation in loops.
+    /// </summary>
+    public static bool PathSegmentHasModels(
+        OpenApiDocument openApiDoc,
+        string pathSegment,
+        HashSet<string> sharedSchemas)
     {
-        var segmentSchemas = GetSegmentSpecificSchemas(openApiDoc, pathSegment);
+        var segmentSchemas = GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
         return segmentSchemas.Count > 0;
     }
 
@@ -685,6 +704,16 @@ public static class PathSegmentHelper
     public static PathSegmentNamespaces GetPathSegmentNamespaces(
         OpenApiDocument openApiDoc,
         string pathSegment)
+        => GetPathSegmentNamespaces(openApiDoc, pathSegment, GetSharedSchemas(openApiDoc));
+
+    /// <summary>
+    /// Gets the namespace availability flags for a path segment,
+    /// using a pre-computed shared schemas set to avoid recomputation in loops.
+    /// </summary>
+    public static PathSegmentNamespaces GetPathSegmentNamespaces(
+        OpenApiDocument openApiDoc,
+        string pathSegment,
+        HashSet<string> sharedSchemas)
     {
         var hasOperations = PathSegmentHasOperations(openApiDoc, pathSegment);
 
@@ -692,7 +721,7 @@ public static class PathSegmentHelper
             HasHandlers: hasOperations,
             HasResults: hasOperations,
             HasParameters: PathSegmentHasParameters(openApiDoc, pathSegment),
-            HasModels: PathSegmentHasModels(openApiDoc, pathSegment));
+            HasModels: PathSegmentHasModels(openApiDoc, pathSegment, sharedSchemas));
     }
 
     /// <summary>

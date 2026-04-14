@@ -276,8 +276,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             // Create conflict registry for this path segment (lightweight: O(1))
             var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, pathSegment);
 
-            // Get segment-specific schemas (excluding shared ones)
-            var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment);
+            // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
+            var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
 
             // Generate segment-specific models (excluding shared schemas)
             // Include shared models using directive so segment types can reference shared types
