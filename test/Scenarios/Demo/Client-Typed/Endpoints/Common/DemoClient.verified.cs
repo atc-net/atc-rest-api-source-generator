@@ -277,13 +277,14 @@ public sealed class DemoClient
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
-    public async System.Threading.Tasks.Task GetFileByIdAsync(
+    public async System.Threading.Tasks.Task<byte[]> GetFileByIdAsync(
         GetFileByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
         var url = $"/files/{Uri.EscapeDataString(parameters.Id)}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadAsByteArrayAsync(cancellationToken);
     }
 
     public async System.Threading.Tasks.Task UploadFormDataFileAsync(

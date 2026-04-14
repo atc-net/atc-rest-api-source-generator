@@ -362,6 +362,11 @@ public static class HttpClientExtractor
                 }
             }
         }
+        else if (response?.Content != null && IsBinaryResponseContent(response.Content))
+        {
+            // Binary content (application/octet-stream, image/*, etc.) returns byte[]
+            returnType = "byte[]";
+        }
         else if (response is OpenApiResponse openApiResp &&
                  openApiResp.Headers != null &&
                  openApiResp.Headers.TryGetValue("Location", out var locationHeader) &&
@@ -695,6 +700,13 @@ public static class HttpClientExtractor
             {
                 builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
             }
+        }
+        else if (hasReturnType && returnType == "byte[]")
+        {
+            // Binary content download - use ReadAsByteArrayAsync
+            builder.AppendLine("var response = await httpClient.GetAsync(url, cancellationToken);");
+            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
+            builder.Append("return await response.Content.ReadAsByteArrayAsync(cancellationToken);");
         }
         else if (hasReturnType)
         {
@@ -1406,6 +1418,26 @@ public static class HttpClientExtractor
                 builder.AppendLine();
             }
         }
+    }
+
+    /// <summary>
+    /// Checks if any of the response content types are binary (application/octet-stream, image/*, etc.).
+    /// </summary>
+    private static bool IsBinaryResponseContent(
+        IDictionary<string, IOpenApiMediaType> content)
+    {
+        foreach (var key in content.Keys)
+        {
+            if (key.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase) ||
+                key.StartsWith("image/", StringComparison.OrdinalIgnoreCase) ||
+                key.Equals("application/pdf", StringComparison.OrdinalIgnoreCase) ||
+                key.Equals("application/zip", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
