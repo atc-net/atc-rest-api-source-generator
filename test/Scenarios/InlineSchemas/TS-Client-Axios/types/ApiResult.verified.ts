@@ -9,8 +9,11 @@ export type ApiResult<T> =
   | { status: 'noContent'; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
   | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
+  | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
+  | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse };
 
 export function isOk<T>(result: ApiResult<T>): result is { status: 'ok'; data: T; response: AxiosResponse } {
@@ -33,12 +36,24 @@ export function isUnauthorized<T>(result: ApiResult<T>): result is { status: 'un
   return result.status === 'unauthorized';
 }
 
+export function isForbidden<T>(result: ApiResult<T>): result is { status: 'forbidden'; error: ApiError; response: AxiosResponse } {
+  return result.status === 'forbidden';
+}
+
 export function isNotFound<T>(result: ApiResult<T>): result is { status: 'notFound'; error: ApiError; response: AxiosResponse } {
   return result.status === 'notFound';
 }
 
 export function isConflict<T>(result: ApiResult<T>): result is { status: 'conflict'; error: ApiError; response: AxiosResponse } {
   return result.status === 'conflict';
+}
+
+export function isUnprocessableEntity<T>(result: ApiResult<T>): result is { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse } {
+  return result.status === 'unprocessableEntity';
+}
+
+export function isTooManyRequests<T>(result: ApiResult<T>): result is { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse } {
+  return result.status === 'tooManyRequests';
 }
 
 export function isServerError<T>(result: ApiResult<T>): result is { status: 'serverError'; error: ApiError; response: AxiosResponse } {

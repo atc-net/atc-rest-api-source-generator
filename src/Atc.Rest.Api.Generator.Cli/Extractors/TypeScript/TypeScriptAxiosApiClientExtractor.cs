@@ -343,10 +343,16 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("    switch (response.status) {");
         sb.AppendLine("      case 401:");
         sb.AppendLine("        return { status: 'unauthorized', error: apiError, response };");
+        sb.AppendLine("      case 403:");
+        sb.AppendLine("        return { status: 'forbidden', error: apiError, response };");
         sb.AppendLine("      case 404:");
         sb.AppendLine("        return { status: 'notFound', error: apiError, response };");
         sb.AppendLine("      case 409:");
         sb.AppendLine("        return { status: 'conflict', error: apiError, response };");
+        sb.AppendLine("      case 422:");
+        sb.AppendLine("        return { status: 'unprocessableEntity', error: apiError, response };");
+        sb.AppendLine("      case 429:");
+        sb.AppendLine("        return { status: 'tooManyRequests', error: apiError, response };");
         sb.AppendLine("      default:");
         sb.AppendLine("        return { status: 'serverError', error: apiError, response };");
         sb.AppendLine("    }");

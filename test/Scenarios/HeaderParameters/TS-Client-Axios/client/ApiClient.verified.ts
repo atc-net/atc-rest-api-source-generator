@@ -207,10 +207,16 @@ export class ApiClient {
     switch (response.status) {
       case 401:
         return { status: 'unauthorized', error: apiError, response };
+      case 403:
+        return { status: 'forbidden', error: apiError, response };
       case 404:
         return { status: 'notFound', error: apiError, response };
       case 409:
         return { status: 'conflict', error: apiError, response };
+      case 422:
+        return { status: 'unprocessableEntity', error: apiError, response };
+      case 429:
+        return { status: 'tooManyRequests', error: apiError, response };
       default:
         return { status: 'serverError', error: apiError, response };
     }
