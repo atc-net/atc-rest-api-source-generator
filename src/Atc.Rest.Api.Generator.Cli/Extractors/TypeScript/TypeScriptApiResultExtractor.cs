@@ -41,8 +41,11 @@ public static class TypeScriptApiResultExtractor
         sb.Append("  | { status: 'noContent'; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'badRequest'; error: ValidationError; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'unauthorized'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
+        sb.Append("  | { status: 'forbidden'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'notFound'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'conflict'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
+        sb.Append("  | { status: 'unprocessableEntity'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
+        sb.Append("  | { status: 'tooManyRequests'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'serverError'; error: ApiError; response: ").Append(responseType).AppendLine(" };");
         sb.AppendLine();
 
@@ -52,8 +55,11 @@ public static class TypeScriptApiResultExtractor
         AppendTypeGuard(sb, "isNoContent", "noContent", hasData: false, responseType);
         AppendErrorTypeGuard(sb, "isBadRequest", "badRequest", "ValidationError", responseType);
         AppendErrorTypeGuard(sb, "isUnauthorized", "unauthorized", "ApiError", responseType);
+        AppendErrorTypeGuard(sb, "isForbidden", "forbidden", "ApiError", responseType);
         AppendErrorTypeGuard(sb, "isNotFound", "notFound", "ApiError", responseType);
         AppendErrorTypeGuard(sb, "isConflict", "conflict", "ApiError", responseType);
+        AppendErrorTypeGuard(sb, "isUnprocessableEntity", "unprocessableEntity", "ApiError", responseType);
+        AppendErrorTypeGuard(sb, "isTooManyRequests", "tooManyRequests", "ApiError", responseType);
         AppendErrorTypeGuard(sb, "isServerError", "serverError", "ApiError", responseType);
 
         return sb.ToString();

@@ -8,8 +8,11 @@ export type ApiResult<T> =
   | { status: 'noContent'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
+  | { status: 'forbidden'; error: ApiError; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
   | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'unprocessableEntity'; error: ApiError; response: Response }
+  | { status: 'tooManyRequests'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response };
 
 export function isOk<T>(result: ApiResult<T>): result is { status: 'ok'; data: T; response: Response } {
@@ -32,12 +35,24 @@ export function isUnauthorized<T>(result: ApiResult<T>): result is { status: 'un
   return result.status === 'unauthorized';
 }
 
+export function isForbidden<T>(result: ApiResult<T>): result is { status: 'forbidden'; error: ApiError; response: Response } {
+  return result.status === 'forbidden';
+}
+
 export function isNotFound<T>(result: ApiResult<T>): result is { status: 'notFound'; error: ApiError; response: Response } {
   return result.status === 'notFound';
 }
 
 export function isConflict<T>(result: ApiResult<T>): result is { status: 'conflict'; error: ApiError; response: Response } {
   return result.status === 'conflict';
+}
+
+export function isUnprocessableEntity<T>(result: ApiResult<T>): result is { status: 'unprocessableEntity'; error: ApiError; response: Response } {
+  return result.status === 'unprocessableEntity';
+}
+
+export function isTooManyRequests<T>(result: ApiResult<T>): result is { status: 'tooManyRequests'; error: ApiError; response: Response } {
+  return result.status === 'tooManyRequests';
 }
 
 export function isServerError<T>(result: ApiResult<T>): result is { status: 'serverError'; error: ApiError; response: Response } {
