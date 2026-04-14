@@ -38,7 +38,7 @@ public sealed class UpdatePetWithFormEndpoint : IUpdatePetWithFormEndpoint
 
     public async Task<UpdatePetWithFormEndpointResult> ExecuteAsync(
         UpdatePetWithFormParameters parameters,
-        string httpClientName = "PetStoreFull-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

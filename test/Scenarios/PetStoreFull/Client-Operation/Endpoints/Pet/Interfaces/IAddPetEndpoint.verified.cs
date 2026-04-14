@@ -22,6 +22,6 @@ public interface IAddPetEndpoint
     /// </summary>
     Task<AddPetEndpointResult> ExecuteAsync(
         AddPetParameters parameters,
-        string httpClientName = "PetStoreFull-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

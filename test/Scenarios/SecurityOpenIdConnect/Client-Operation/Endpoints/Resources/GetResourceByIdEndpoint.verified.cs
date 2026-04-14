@@ -38,7 +38,7 @@ public sealed class GetResourceByIdEndpoint : IGetResourceByIdEndpoint
 
     public async Task<GetResourceByIdEndpointResult> ExecuteAsync(
         GetResourceByIdParameters parameters,
-        string httpClientName = "SecurityOpenIdConnect-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

@@ -22,6 +22,6 @@ public interface IDeletePetEndpoint
     /// </summary>
     Task<DeletePetEndpointResult> ExecuteAsync(
         DeletePetParameters parameters,
-        string httpClientName = "PetStoreFull-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

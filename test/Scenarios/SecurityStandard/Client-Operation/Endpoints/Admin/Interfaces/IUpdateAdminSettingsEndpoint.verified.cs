@@ -22,6 +22,6 @@ public interface IUpdateAdminSettingsEndpoint
     /// </summary>
     Task<UpdateAdminSettingsEndpointResult> ExecuteAsync(
         UpdateAdminSettingsParameters parameters,
-        string httpClientName = "SecurityStandard-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

@@ -38,7 +38,7 @@ public sealed class CreatePetEndpoint : ICreatePetEndpoint
 
     public async Task<CreatePetEndpointResult> ExecuteAsync(
         CreatePetParameters parameters,
-        string httpClientName = "VersioningHeader-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

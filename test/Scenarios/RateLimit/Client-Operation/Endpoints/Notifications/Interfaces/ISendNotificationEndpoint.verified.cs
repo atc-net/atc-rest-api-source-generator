@@ -22,6 +22,6 @@ public interface ISendNotificationEndpoint
     /// </summary>
     Task<SendNotificationEndpointResult> ExecuteAsync(
         SendNotificationParameters parameters,
-        string httpClientName = "RateLimit-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

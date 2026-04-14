@@ -38,7 +38,7 @@ public sealed class UploadFormDataFilesEndpoint : IUploadFormDataFilesEndpoint
 
     public async Task<UploadFormDataFilesEndpointResult> ExecuteAsync(
         UploadFormDataFilesParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

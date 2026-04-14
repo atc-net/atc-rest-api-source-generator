@@ -38,7 +38,7 @@ public sealed class UpdateUserByIdEndpoint : IUpdateUserByIdEndpoint
 
     public async Task<UpdateUserByIdEndpointResult> ExecuteAsync(
         UpdateUserByIdParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

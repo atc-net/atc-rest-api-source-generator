@@ -592,7 +592,7 @@ public static class EndpointPerOperationExtractor
             IsNullableType: false,
             IsReferenceType: true,
             Name: "httpClientName",
-            DefaultValue: httpClientName));
+            DefaultValue: "Constants.HttpClientName"));
 
         methodParameters.Add(new ParameterBaseParameters(
             Attributes: null,
@@ -787,7 +787,7 @@ public static class EndpointPerOperationExtractor
             IsNullableType: false,
             IsReferenceType: true,
             Name: "httpClientName",
-            DefaultValue: httpClientName));
+            DefaultValue: "Constants.HttpClientName"));
 
         methodParameters.Add(new ParameterBaseParameters(
             Attributes: null,

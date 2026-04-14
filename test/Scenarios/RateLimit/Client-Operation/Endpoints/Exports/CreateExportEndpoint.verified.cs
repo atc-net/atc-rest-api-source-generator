@@ -38,7 +38,7 @@ public sealed class CreateExportEndpoint : ICreateExportEndpoint
 
     public async Task<CreateExportEndpointResult> ExecuteAsync(
         CreateExportParameters parameters,
-        string httpClientName = "RateLimit-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

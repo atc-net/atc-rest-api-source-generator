@@ -20,6 +20,6 @@ public interface IGetHealthEndpoint
     /// Execute method.
     /// </summary>
     Task<GetHealthEndpointResult> ExecuteAsync(
-        string httpClientName = "SecurityOpenIdConnect-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

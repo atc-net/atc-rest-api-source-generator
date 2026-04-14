@@ -22,6 +22,6 @@ public interface IFindPetsByStatusEndpoint
     /// </summary>
     Task<FindPetsByStatusEndpointResult> ExecuteAsync(
         FindPetsByStatusParameters parameters,
-        string httpClientName = "PetStoreFull-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

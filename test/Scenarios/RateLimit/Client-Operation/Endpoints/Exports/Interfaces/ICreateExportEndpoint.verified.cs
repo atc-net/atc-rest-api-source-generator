@@ -22,6 +22,6 @@ public interface ICreateExportEndpoint
     /// </summary>
     Task<CreateExportEndpointResult> ExecuteAsync(
         CreateExportParameters parameters,
-        string httpClientName = "RateLimit-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

@@ -22,6 +22,6 @@ public interface IGetPetByIdEndpoint
     /// </summary>
     Task<GetPetByIdEndpointResult> ExecuteAsync(
         GetPetByIdParameters parameters,
-        string httpClientName = "VersioningQueryString-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

@@ -38,7 +38,7 @@ public sealed class CreateOrderEndpoint : ICreateOrderEndpoint
 
     public async Task<CreateOrderEndpointResult> ExecuteAsync(
         CreateOrderParameters parameters,
-        string httpClientName = "SecurityAtcExt-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

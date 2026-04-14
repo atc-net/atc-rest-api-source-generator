@@ -22,6 +22,6 @@ public interface IGetOwnerByIdEndpoint
     /// </summary>
     Task<GetOwnerByIdEndpointResult> ExecuteAsync(
         GetOwnerByIdParameters parameters,
-        string httpClientName = "VersioningHeader-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

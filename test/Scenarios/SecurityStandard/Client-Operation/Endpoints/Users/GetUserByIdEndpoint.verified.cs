@@ -38,7 +38,7 @@ public sealed class GetUserByIdEndpoint : IGetUserByIdEndpoint
 
     public async Task<GetUserByIdEndpointResult> ExecuteAsync(
         GetUserByIdParameters parameters,
-        string httpClientName = "SecurityStandard-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

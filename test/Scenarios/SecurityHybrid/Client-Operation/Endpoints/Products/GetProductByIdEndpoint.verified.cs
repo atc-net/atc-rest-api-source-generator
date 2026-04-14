@@ -38,7 +38,7 @@ public sealed class GetProductByIdEndpoint : IGetProductByIdEndpoint
 
     public async Task<GetProductByIdEndpointResult> ExecuteAsync(
         GetProductByIdParameters parameters,
-        string httpClientName = "SecurityHybrid-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

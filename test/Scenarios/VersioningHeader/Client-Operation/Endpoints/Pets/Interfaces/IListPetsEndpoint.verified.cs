@@ -22,6 +22,6 @@ public interface IListPetsEndpoint
     /// </summary>
     Task<ListPetsEndpointResult> ExecuteAsync(
         ListPetsParameters parameters,
-        string httpClientName = "VersioningHeader-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

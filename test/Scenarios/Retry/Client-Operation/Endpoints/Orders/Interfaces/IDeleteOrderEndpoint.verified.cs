@@ -22,6 +22,6 @@ public interface IDeleteOrderEndpoint
     /// </summary>
     Task<DeleteOrderEndpointResult> ExecuteAsync(
         DeleteOrderParameters parameters,
-        string httpClientName = "Retry-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

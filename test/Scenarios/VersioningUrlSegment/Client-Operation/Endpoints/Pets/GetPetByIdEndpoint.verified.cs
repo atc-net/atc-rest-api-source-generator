@@ -38,7 +38,7 @@ public sealed class GetPetByIdEndpoint : IGetPetByIdEndpoint
 
     public async Task<GetPetByIdEndpointResult> ExecuteAsync(
         GetPetByIdParameters parameters,
-        string httpClientName = "VersioningUrlSegment-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

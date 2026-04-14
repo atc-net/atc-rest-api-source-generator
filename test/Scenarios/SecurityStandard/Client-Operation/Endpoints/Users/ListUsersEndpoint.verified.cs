@@ -36,7 +36,7 @@ public sealed class ListUsersEndpoint : IListUsersEndpoint
     }
 
     public async Task<ListUsersEndpointResult> ExecuteAsync(
-        string httpClientName = "SecurityStandard-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

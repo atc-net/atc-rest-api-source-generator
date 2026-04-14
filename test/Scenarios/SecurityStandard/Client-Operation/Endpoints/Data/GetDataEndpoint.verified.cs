@@ -36,7 +36,7 @@ public sealed class GetDataEndpoint : IGetDataEndpoint
     }
 
     public async Task<GetDataEndpointResult> ExecuteAsync(
-        string httpClientName = "SecurityStandard-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

@@ -20,6 +20,6 @@ public interface IListResourcesEndpoint
     /// Execute method.
     /// </summary>
     Task<ListResourcesEndpointResult> ExecuteAsync(
-        string httpClientName = "SecurityOpenIdConnect-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

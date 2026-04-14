@@ -38,7 +38,7 @@ public sealed class GenerateReportEndpoint : IGenerateReportEndpoint
 
     public async Task<GenerateReportEndpointResult> ExecuteAsync(
         GenerateReportParameters parameters,
-        string httpClientName = "Retry-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

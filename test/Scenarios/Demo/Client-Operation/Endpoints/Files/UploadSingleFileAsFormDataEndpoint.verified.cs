@@ -38,7 +38,7 @@ public sealed class UploadSingleFileAsFormDataEndpoint : IUploadSingleFileAsForm
 
     public async Task<UploadSingleFileAsFormDataEndpointResult> ExecuteAsync(
         UploadSingleFileAsFormDataParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

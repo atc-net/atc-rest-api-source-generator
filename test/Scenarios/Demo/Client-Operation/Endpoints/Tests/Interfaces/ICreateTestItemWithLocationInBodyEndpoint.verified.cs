@@ -22,6 +22,6 @@ public interface ICreateTestItemWithLocationInBodyEndpoint
     /// </summary>
     Task<CreateTestItemWithLocationInBodyEndpointResult> ExecuteAsync(
         CreateTestItemWithLocationInBodyParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

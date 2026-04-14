@@ -20,6 +20,6 @@ public interface IListNotificationsEndpoint
     /// Execute method.
     /// </summary>
     Task<ListNotificationsEndpointResult> ExecuteAsync(
-        string httpClientName = "Polymorphism-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

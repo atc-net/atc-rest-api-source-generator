@@ -22,6 +22,6 @@ public interface IShowPetByIdEndpoint
     /// </summary>
     Task<ShowPetByIdEndpointResult> ExecuteAsync(
         ShowPetByIdParameters parameters,
-        string httpClientName = "PetStoreSimple-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

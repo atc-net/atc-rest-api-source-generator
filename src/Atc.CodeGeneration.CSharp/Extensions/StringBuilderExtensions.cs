@@ -88,7 +88,8 @@ public static class StringBuilderExtensions
 
             if (string.IsNullOrEmpty(genericTypeName) &&
                 typeName.Equals("string", StringComparison.Ordinal) &&
-                !defaultValue.Equals("null", StringComparison.Ordinal))
+                !defaultValue.Equals("null", StringComparison.Ordinal) &&
+                !IsQualifiedIdentifier(defaultValue))
             {
                 sb.Append($" = \"{defaultValue}\"");
             }
@@ -312,5 +313,28 @@ public static class StringBuilderExtensions
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Checks if a value is a qualified C# identifier (e.g., "Constants.HttpClientName").
+    /// Used to distinguish code references from literal string values.
+    /// </summary>
+    private static bool IsQualifiedIdentifier(string value)
+    {
+        if (string.IsNullOrEmpty(value) || !value.Contains('.'))
+        {
+            return false;
+        }
+
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (!char.IsLetterOrDigit(c) && c != '_' && c != '.')
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

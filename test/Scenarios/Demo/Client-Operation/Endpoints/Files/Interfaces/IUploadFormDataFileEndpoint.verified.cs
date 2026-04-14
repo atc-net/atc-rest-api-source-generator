@@ -22,6 +22,6 @@ public interface IUploadFormDataFileEndpoint
     /// </summary>
     Task<UploadFormDataFileEndpointResult> ExecuteAsync(
         UploadFormDataFileParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

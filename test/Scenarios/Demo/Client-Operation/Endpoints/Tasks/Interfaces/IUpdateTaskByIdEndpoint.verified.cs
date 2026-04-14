@@ -22,6 +22,6 @@ public interface IUpdateTaskByIdEndpoint
     /// </summary>
     Task<UpdateTaskByIdEndpointResult> ExecuteAsync(
         UpdateTaskByIdParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

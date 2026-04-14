@@ -38,7 +38,7 @@ public sealed class CreateOwnerEndpoint : ICreateOwnerEndpoint
 
     public async Task<CreateOwnerEndpointResult> ExecuteAsync(
         CreateOwnerParameters parameters,
-        string httpClientName = "VersioningUrlSegment-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

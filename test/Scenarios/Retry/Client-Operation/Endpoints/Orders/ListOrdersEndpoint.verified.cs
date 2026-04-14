@@ -36,7 +36,7 @@ public sealed class ListOrdersEndpoint : IListOrdersEndpoint
     }
 
     public async Task<ListOrdersEndpointResult> ExecuteAsync(
-        string httpClientName = "Retry-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

@@ -22,6 +22,6 @@ public interface IListItemsEndpoint
     /// </summary>
     Task<ListItemsEndpointResult> ExecuteAsync(
         ListItemsParameters parameters,
-        string httpClientName = "HeaderParameters-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

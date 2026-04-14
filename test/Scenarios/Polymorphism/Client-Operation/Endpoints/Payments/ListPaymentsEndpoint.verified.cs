@@ -36,7 +36,7 @@ public sealed class ListPaymentsEndpoint : IListPaymentsEndpoint
     }
 
     public async Task<ListPaymentsEndpointResult> ExecuteAsync(
-        string httpClientName = "Polymorphism-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

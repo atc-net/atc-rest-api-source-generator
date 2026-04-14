@@ -38,7 +38,7 @@ public sealed class UploadMultiFilesAsFormDataEndpoint : IUploadMultiFilesAsForm
 
     public async Task<UploadMultiFilesAsFormDataEndpointResult> ExecuteAsync(
         UploadMultiFilesAsFormDataParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

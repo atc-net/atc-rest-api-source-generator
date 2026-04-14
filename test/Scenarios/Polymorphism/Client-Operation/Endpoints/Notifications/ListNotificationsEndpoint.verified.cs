@@ -36,7 +36,7 @@ public sealed class ListNotificationsEndpoint : IListNotificationsEndpoint
     }
 
     public async Task<ListNotificationsEndpointResult> ExecuteAsync(
-        string httpClientName = "Polymorphism-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

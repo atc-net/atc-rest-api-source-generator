@@ -20,6 +20,6 @@ public interface IListProductsEndpoint
     /// Execute method.
     /// </summary>
     Task<ListProductsEndpointResult> ExecuteAsync(
-        string httpClientName = "SecurityHybrid-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

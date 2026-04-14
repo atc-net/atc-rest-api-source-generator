@@ -22,6 +22,6 @@ public interface IPlaceOrderEndpoint
     /// </summary>
     Task<PlaceOrderEndpointResult> ExecuteAsync(
         PlaceOrderParameters parameters,
-        string httpClientName = "PetStoreFull-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

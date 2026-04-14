@@ -22,6 +22,6 @@ public interface ICreateOwnerEndpoint
     /// </summary>
     Task<CreateOwnerEndpointResult> ExecuteAsync(
         CreateOwnerParameters parameters,
-        string httpClientName = "VersioningQueryString-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

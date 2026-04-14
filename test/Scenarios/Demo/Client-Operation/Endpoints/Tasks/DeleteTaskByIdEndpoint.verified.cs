@@ -38,7 +38,7 @@ public sealed class DeleteTaskByIdEndpoint : IDeleteTaskByIdEndpoint
 
     public async Task<DeleteTaskByIdEndpointResult> ExecuteAsync(
         DeleteTaskByIdParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

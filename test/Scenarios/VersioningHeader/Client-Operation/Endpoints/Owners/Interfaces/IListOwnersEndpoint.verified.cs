@@ -20,6 +20,6 @@ public interface IListOwnersEndpoint
     /// Execute method.
     /// </summary>
     Task<ListOwnersEndpointResult> ExecuteAsync(
-        string httpClientName = "VersioningHeader-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

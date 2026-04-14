@@ -20,6 +20,6 @@ public interface IListPaymentsEndpoint
     /// Execute method.
     /// </summary>
     Task<ListPaymentsEndpointResult> ExecuteAsync(
-        string httpClientName = "Polymorphism-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

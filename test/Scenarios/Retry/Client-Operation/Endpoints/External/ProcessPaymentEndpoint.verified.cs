@@ -38,7 +38,7 @@ public sealed class ProcessPaymentEndpoint : IProcessPaymentEndpoint
 
     public async Task<ProcessPaymentEndpointResult> ExecuteAsync(
         ProcessPaymentParameters parameters,
-        string httpClientName = "Retry-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

@@ -22,6 +22,6 @@ public interface ICreatePetEndpoint
     /// </summary>
     Task<CreatePetEndpointResult> ExecuteAsync(
         CreatePetParameters parameters,
-        string httpClientName = "VersioningUrlSegment-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

@@ -38,7 +38,7 @@ public sealed class ListTasksEndpoint : IListTasksEndpoint
 
     public async Task<ListTasksEndpointResult> ExecuteAsync(
         ListTasksParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

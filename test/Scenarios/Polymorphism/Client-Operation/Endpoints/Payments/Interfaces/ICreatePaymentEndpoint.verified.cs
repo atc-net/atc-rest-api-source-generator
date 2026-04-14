@@ -22,6 +22,6 @@ public interface ICreatePaymentEndpoint
     /// </summary>
     Task<CreatePaymentEndpointResult> ExecuteAsync(
         CreatePaymentParameters parameters,
-        string httpClientName = "Polymorphism-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

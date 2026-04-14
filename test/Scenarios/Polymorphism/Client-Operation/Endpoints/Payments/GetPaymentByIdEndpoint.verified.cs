@@ -38,7 +38,7 @@ public sealed class GetPaymentByIdEndpoint : IGetPaymentByIdEndpoint
 
     public async Task<GetPaymentByIdEndpointResult> ExecuteAsync(
         GetPaymentByIdParameters parameters,
-        string httpClientName = "Polymorphism-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

@@ -36,7 +36,7 @@ public sealed class ListOwnersEndpoint : IListOwnersEndpoint
     }
 
     public async Task<ListOwnersEndpointResult> ExecuteAsync(
-        string httpClientName = "VersioningUrlSegment-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

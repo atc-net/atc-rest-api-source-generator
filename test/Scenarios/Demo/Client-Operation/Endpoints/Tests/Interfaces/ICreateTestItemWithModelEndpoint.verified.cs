@@ -22,6 +22,6 @@ public interface ICreateTestItemWithModelEndpoint
     /// </summary>
     Task<CreateTestItemWithModelEndpointResult> ExecuteAsync(
         CreateTestItemWithModelParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

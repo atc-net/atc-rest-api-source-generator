@@ -36,7 +36,7 @@ public sealed class GetAdminSettingsEndpoint : IGetAdminSettingsEndpoint
     }
 
     public async Task<GetAdminSettingsEndpointResult> ExecuteAsync(
-        string httpClientName = "SecurityHybrid-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);
