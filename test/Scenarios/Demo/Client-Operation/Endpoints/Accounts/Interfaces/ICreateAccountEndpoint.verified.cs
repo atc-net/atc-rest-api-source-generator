@@ -22,6 +22,6 @@ public interface ICreateAccountEndpoint
     /// </summary>
     Task<CreateAccountEndpointResult> ExecuteAsync(
         CreateAccountParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

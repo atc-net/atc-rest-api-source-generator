@@ -38,7 +38,7 @@ public sealed class GetOwnerByIdEndpoint : IGetOwnerByIdEndpoint
 
     public async Task<GetOwnerByIdEndpointResult> ExecuteAsync(
         GetOwnerByIdParameters parameters,
-        string httpClientName = "VersioningHeader-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

@@ -22,6 +22,6 @@ public interface IUpdatePetWithFormEndpoint
     /// </summary>
     Task<UpdatePetWithFormEndpointResult> ExecuteAsync(
         UpdatePetWithFormParameters parameters,
-        string httpClientName = "PetStoreFull-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

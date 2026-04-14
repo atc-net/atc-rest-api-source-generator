@@ -20,6 +20,6 @@ public interface ICreatePetsEndpoint
     /// Execute method.
     /// </summary>
     Task<CreatePetsEndpointResult> ExecuteAsync(
-        string httpClientName = "PetStoreSimple-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

@@ -38,7 +38,7 @@ public sealed class GetTaskByIdEndpoint : IGetTaskByIdEndpoint
 
     public async Task<GetTaskByIdEndpointResult> ExecuteAsync(
         GetTaskByIdParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

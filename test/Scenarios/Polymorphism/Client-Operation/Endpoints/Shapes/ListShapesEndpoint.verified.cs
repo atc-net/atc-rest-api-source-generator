@@ -36,7 +36,7 @@ public sealed class ListShapesEndpoint : IListShapesEndpoint
     }
 
     public async Task<ListShapesEndpointResult> ExecuteAsync(
-        string httpClientName = "Polymorphism-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

@@ -22,6 +22,6 @@ public interface ICreateResourceEndpoint
     /// </summary>
     Task<CreateResourceEndpointResult> ExecuteAsync(
         CreateResourceParameters parameters,
-        string httpClientName = "SecurityOpenIdConnect-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

@@ -244,6 +244,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             GenerateProblemDetails(context, projectName);
             GenerateProblemDetailsFactory(context, projectName);
+            GenerateConstants(context, projectName, config.HttpClientName);
 
             // Generate custom error response model if configured
             if (config.CustomErrorResponseModel != null)
@@ -1114,6 +1115,26 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         context.AddSource(
             $"{projectName}.ProblemDetailsFactory.g.cs",
+            SourceText.From(normalizedContent, Encoding.UTF8));
+    }
+
+    /// <summary>
+    /// Generates a Constants class with the HttpClientName for DI wireup.
+    /// </summary>
+    private static void GenerateConstants(
+        SourceProductionContext context,
+        string projectName,
+        string? configuredHttpClientName)
+    {
+        var effectiveHttpClientName = EndpointPerOperationExtractor.GetEffectiveHttpClientName(
+            projectName, configuredHttpClientName);
+
+        var content = ConstantsExtractor.Generate(projectName, effectiveHttpClientName);
+
+        var normalizedContent = content.NormalizeForSourceOutput();
+
+        context.AddSource(
+            $"{projectName}.Constants.g.cs",
             SourceText.From(normalizedContent, Encoding.UTF8));
     }
 

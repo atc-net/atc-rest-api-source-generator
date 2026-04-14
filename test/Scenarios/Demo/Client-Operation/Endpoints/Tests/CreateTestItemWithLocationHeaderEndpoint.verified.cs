@@ -38,7 +38,7 @@ public sealed class CreateTestItemWithLocationHeaderEndpoint : ICreateTestItemWi
 
     public async Task<CreateTestItemWithLocationHeaderEndpointResult> ExecuteAsync(
         CreateTestItemWithLocationHeaderParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

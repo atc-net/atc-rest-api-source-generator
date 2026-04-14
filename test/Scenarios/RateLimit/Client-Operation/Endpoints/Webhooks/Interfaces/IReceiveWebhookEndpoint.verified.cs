@@ -22,6 +22,6 @@ public interface IReceiveWebhookEndpoint
     /// </summary>
     Task<ReceiveWebhookEndpointResult> ExecuteAsync(
         ReceiveWebhookParameters parameters,
-        string httpClientName = "RateLimit-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

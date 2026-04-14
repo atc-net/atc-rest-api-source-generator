@@ -37,7 +37,7 @@ public sealed class GetFileByIdEndpoint : IGetFileByIdEndpoint
 
     public async Task<BinaryEndpointResponse> ExecuteAsync(
         GetFileByIdParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

@@ -20,6 +20,6 @@ public interface IListShapesEndpoint
     /// Execute method.
     /// </summary>
     Task<ListShapesEndpointResult> ExecuteAsync(
-        string httpClientName = "Polymorphism-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

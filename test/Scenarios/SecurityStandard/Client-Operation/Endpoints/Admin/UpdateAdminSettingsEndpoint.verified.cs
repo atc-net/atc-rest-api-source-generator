@@ -38,7 +38,7 @@ public sealed class UpdateAdminSettingsEndpoint : IUpdateAdminSettingsEndpoint
 
     public async Task<UpdateAdminSettingsEndpointResult> ExecuteAsync(
         UpdateAdminSettingsParameters parameters,
-        string httpClientName = "SecurityStandard-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

@@ -38,7 +38,7 @@ public sealed class UploadFileEndpoint : IUploadFileEndpoint
 
     public async Task<UploadFileEndpointResult> ExecuteAsync(
         UploadFileParameters parameters,
-        string httpClientName = "PetStoreFull-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

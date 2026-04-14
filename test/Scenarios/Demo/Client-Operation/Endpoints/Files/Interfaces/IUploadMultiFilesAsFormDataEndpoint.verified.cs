@@ -22,6 +22,6 @@ public interface IUploadMultiFilesAsFormDataEndpoint
     /// </summary>
     Task<UploadMultiFilesAsFormDataEndpointResult> ExecuteAsync(
         UploadMultiFilesAsFormDataParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

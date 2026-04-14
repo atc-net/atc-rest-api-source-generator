@@ -38,7 +38,7 @@ public sealed class CreateAccountEndpoint : ICreateAccountEndpoint
 
     public async Task<CreateAccountEndpointResult> ExecuteAsync(
         CreateAccountParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

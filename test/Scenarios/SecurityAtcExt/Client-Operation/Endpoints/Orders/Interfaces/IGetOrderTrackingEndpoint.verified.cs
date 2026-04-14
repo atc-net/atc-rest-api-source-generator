@@ -22,6 +22,6 @@ public interface IGetOrderTrackingEndpoint
     /// </summary>
     Task<GetOrderTrackingEndpointResult> ExecuteAsync(
         GetOrderTrackingParameters parameters,
-        string httpClientName = "SecurityAtcExt-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

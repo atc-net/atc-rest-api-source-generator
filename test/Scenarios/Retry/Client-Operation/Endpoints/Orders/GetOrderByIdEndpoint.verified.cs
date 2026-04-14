@@ -38,7 +38,7 @@ public sealed class GetOrderByIdEndpoint : IGetOrderByIdEndpoint
 
     public async Task<GetOrderByIdEndpointResult> ExecuteAsync(
         GetOrderByIdParameters parameters,
-        string httpClientName = "Retry-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

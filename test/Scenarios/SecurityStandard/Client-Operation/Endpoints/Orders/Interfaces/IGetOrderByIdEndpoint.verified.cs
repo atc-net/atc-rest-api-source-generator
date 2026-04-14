@@ -22,6 +22,6 @@ public interface IGetOrderByIdEndpoint
     /// </summary>
     Task<GetOrderByIdEndpointResult> ExecuteAsync(
         GetOrderByIdParameters parameters,
-        string httpClientName = "SecurityStandard-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

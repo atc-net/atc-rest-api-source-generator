@@ -22,6 +22,6 @@ public interface IDeleteResourceEndpoint
     /// </summary>
     Task<DeleteResourceEndpointResult> ExecuteAsync(
         DeleteResourceParameters parameters,
-        string httpClientName = "SecurityOpenIdConnect-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

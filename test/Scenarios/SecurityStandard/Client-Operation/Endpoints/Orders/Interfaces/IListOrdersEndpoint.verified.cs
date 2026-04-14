@@ -20,6 +20,6 @@ public interface IListOrdersEndpoint
     /// Execute method.
     /// </summary>
     Task<ListOrdersEndpointResult> ExecuteAsync(
-        string httpClientName = "SecurityStandard-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

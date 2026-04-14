@@ -36,7 +36,7 @@ public sealed class GetCurrentUserEndpoint : IGetCurrentUserEndpoint
     }
 
     public async Task<GetCurrentUserEndpointResult> ExecuteAsync(
-        string httpClientName = "SecurityOpenIdConnect-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

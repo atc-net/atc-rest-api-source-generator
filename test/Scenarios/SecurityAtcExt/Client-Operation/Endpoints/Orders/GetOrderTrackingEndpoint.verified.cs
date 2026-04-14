@@ -38,7 +38,7 @@ public sealed class GetOrderTrackingEndpoint : IGetOrderTrackingEndpoint
 
     public async Task<GetOrderTrackingEndpointResult> ExecuteAsync(
         GetOrderTrackingParameters parameters,
-        string httpClientName = "SecurityAtcExt-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

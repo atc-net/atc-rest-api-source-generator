@@ -36,7 +36,7 @@ public sealed class GetHealthEndpoint : IGetHealthEndpoint
     }
 
     public async Task<GetHealthEndpointResult> ExecuteAsync(
-        string httpClientName = "RateLimit-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

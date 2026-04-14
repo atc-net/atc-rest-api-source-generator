@@ -38,7 +38,7 @@ public sealed class GetReportEndpoint : IGetReportEndpoint
 
     public async Task<GetReportEndpointResult> ExecuteAsync(
         GetReportParameters parameters,
-        string httpClientName = "InlineSchemas-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

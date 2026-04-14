@@ -22,6 +22,6 @@ public interface IUpdatePetEndpoint
     /// </summary>
     Task<UpdatePetEndpointResult> ExecuteAsync(
         UpdatePetParameters parameters,
-        string httpClientName = "VersioningHeader-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

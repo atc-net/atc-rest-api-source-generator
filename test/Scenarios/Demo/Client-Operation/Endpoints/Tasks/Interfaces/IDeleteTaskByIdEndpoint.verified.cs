@@ -22,6 +22,6 @@ public interface IDeleteTaskByIdEndpoint
     /// </summary>
     Task<DeleteTaskByIdEndpointResult> ExecuteAsync(
         DeleteTaskByIdParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

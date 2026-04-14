@@ -38,7 +38,7 @@ public sealed class DeleteOrderEndpoint : IDeleteOrderEndpoint
 
     public async Task<DeleteOrderEndpointResult> ExecuteAsync(
         DeleteOrderParameters parameters,
-        string httpClientName = "SecurityHybrid-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

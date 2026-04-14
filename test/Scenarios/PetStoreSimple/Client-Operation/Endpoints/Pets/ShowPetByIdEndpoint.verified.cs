@@ -38,7 +38,7 @@ public sealed class ShowPetByIdEndpoint : IShowPetByIdEndpoint
 
     public async Task<ShowPetByIdEndpointResult> ExecuteAsync(
         ShowPetByIdParameters parameters,
-        string httpClientName = "PetStoreSimple-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

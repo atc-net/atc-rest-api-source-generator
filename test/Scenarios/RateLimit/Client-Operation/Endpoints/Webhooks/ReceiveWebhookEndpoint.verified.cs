@@ -38,7 +38,7 @@ public sealed class ReceiveWebhookEndpoint : IReceiveWebhookEndpoint
 
     public async Task<ReceiveWebhookEndpointResult> ExecuteAsync(
         ReceiveWebhookParameters parameters,
-        string httpClientName = "RateLimit-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

@@ -22,6 +22,6 @@ public interface IGetReportEndpoint
     /// </summary>
     Task<GetReportEndpointResult> ExecuteAsync(
         GetReportParameters parameters,
-        string httpClientName = "InlineSchemas-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

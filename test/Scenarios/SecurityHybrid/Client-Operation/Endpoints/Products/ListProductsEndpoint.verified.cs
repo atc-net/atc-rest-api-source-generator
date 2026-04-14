@@ -36,7 +36,7 @@ public sealed class ListProductsEndpoint : IListProductsEndpoint
     }
 
     public async Task<ListProductsEndpointResult> ExecuteAsync(
-        string httpClientName = "SecurityHybrid-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

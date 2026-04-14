@@ -22,6 +22,6 @@ public interface IListAccountsEndpoint
     /// </summary>
     Task<ListAccountsEndpointResult> ExecuteAsync(
         ListAccountsParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

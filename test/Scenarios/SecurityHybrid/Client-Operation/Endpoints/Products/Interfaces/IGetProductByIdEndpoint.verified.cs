@@ -22,6 +22,6 @@ public interface IGetProductByIdEndpoint
     /// </summary>
     Task<GetProductByIdEndpointResult> ExecuteAsync(
         GetProductByIdParameters parameters,
-        string httpClientName = "SecurityHybrid-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

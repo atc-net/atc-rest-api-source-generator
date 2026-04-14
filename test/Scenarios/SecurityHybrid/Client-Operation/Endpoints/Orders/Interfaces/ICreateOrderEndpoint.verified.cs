@@ -22,6 +22,6 @@ public interface ICreateOrderEndpoint
     /// </summary>
     Task<CreateOrderEndpointResult> ExecuteAsync(
         CreateOrderParameters parameters,
-        string httpClientName = "SecurityHybrid-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

@@ -38,7 +38,7 @@ public sealed class AddPetEndpoint : IAddPetEndpoint
 
     public async Task<AddPetEndpointResult> ExecuteAsync(
         AddPetParameters parameters,
-        string httpClientName = "PetStoreFull-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

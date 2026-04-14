@@ -20,6 +20,6 @@ public interface IGetCurrentUserProfileEndpoint
     /// Execute method.
     /// </summary>
     Task<GetCurrentUserProfileEndpointResult> ExecuteAsync(
-        string httpClientName = "SecurityOpenIdConnect-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

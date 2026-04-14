@@ -22,6 +22,6 @@ public interface IGetItemByIdEndpoint
     /// </summary>
     Task<GetItemByIdEndpointResult> ExecuteAsync(
         GetItemByIdParameters parameters,
-        string httpClientName = "HeaderParameters-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

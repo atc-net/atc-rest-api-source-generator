@@ -36,7 +36,7 @@ public sealed class GetInventoryEndpoint : IGetInventoryEndpoint
     }
 
     public async Task<GetInventoryEndpointResult> ExecuteAsync(
-        string httpClientName = "PetStoreFull-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

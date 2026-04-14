@@ -20,6 +20,6 @@ public interface IGetAnalyticsSummaryEndpoint
     /// Execute method.
     /// </summary>
     Task<GetAnalyticsSummaryEndpointResult> ExecuteAsync(
-        string httpClientName = "InlineSchemas-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

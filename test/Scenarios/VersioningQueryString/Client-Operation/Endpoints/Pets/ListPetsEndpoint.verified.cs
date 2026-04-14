@@ -38,7 +38,7 @@ public sealed class ListPetsEndpoint : IListPetsEndpoint
 
     public async Task<ListPetsEndpointResult> ExecuteAsync(
         ListPetsParameters parameters,
-        string httpClientName = "VersioningQueryString-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

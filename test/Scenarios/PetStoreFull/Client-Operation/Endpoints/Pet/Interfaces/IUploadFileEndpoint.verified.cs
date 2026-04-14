@@ -22,6 +22,6 @@ public interface IUploadFileEndpoint
     /// </summary>
     Task<UploadFileEndpointResult> ExecuteAsync(
         UploadFileParameters parameters,
-        string httpClientName = "PetStoreFull-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

@@ -20,6 +20,6 @@ public interface IGetAdminSettingsEndpoint
     /// Execute method.
     /// </summary>
     Task<GetAdminSettingsEndpointResult> ExecuteAsync(
-        string httpClientName = "SecurityHybrid-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

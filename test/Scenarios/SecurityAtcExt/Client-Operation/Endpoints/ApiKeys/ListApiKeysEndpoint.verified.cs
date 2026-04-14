@@ -36,7 +36,7 @@ public sealed class ListApiKeysEndpoint : IListApiKeysEndpoint
     }
 
     public async Task<ListApiKeysEndpointResult> ExecuteAsync(
-        string httpClientName = "SecurityAtcExt-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

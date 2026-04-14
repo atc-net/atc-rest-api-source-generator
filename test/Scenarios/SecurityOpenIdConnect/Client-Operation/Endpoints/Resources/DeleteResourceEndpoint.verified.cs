@@ -38,7 +38,7 @@ public sealed class DeleteResourceEndpoint : IDeleteResourceEndpoint
 
     public async Task<DeleteResourceEndpointResult> ExecuteAsync(
         DeleteResourceParameters parameters,
-        string httpClientName = "SecurityOpenIdConnect-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

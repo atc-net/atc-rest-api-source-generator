@@ -22,6 +22,6 @@ public interface IGetFileByIdEndpoint
     /// </summary>
     Task<BinaryEndpointResponse> ExecuteAsync(
         GetFileByIdParameters parameters,
-        string httpClientName = "Demo-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

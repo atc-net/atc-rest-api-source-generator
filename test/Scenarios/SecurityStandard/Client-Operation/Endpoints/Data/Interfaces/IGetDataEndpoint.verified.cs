@@ -20,6 +20,6 @@ public interface IGetDataEndpoint
     /// Execute method.
     /// </summary>
     Task<GetDataEndpointResult> ExecuteAsync(
-        string httpClientName = "SecurityStandard-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

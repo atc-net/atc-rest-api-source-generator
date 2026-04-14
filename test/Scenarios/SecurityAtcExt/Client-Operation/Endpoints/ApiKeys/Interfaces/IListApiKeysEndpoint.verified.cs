@@ -20,6 +20,6 @@ public interface IListApiKeysEndpoint
     /// Execute method.
     /// </summary>
     Task<ListApiKeysEndpointResult> ExecuteAsync(
-        string httpClientName = "SecurityAtcExt-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

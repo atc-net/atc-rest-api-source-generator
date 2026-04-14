@@ -20,6 +20,6 @@ public interface IListUsersEndpoint
     /// Execute method.
     /// </summary>
     Task<ListUsersEndpointResult> ExecuteAsync(
-        string httpClientName = "SecurityStandard-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

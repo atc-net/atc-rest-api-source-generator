@@ -38,7 +38,7 @@ public sealed class FindPetsByTagsEndpoint : IFindPetsByTagsEndpoint
 
     public async Task<FindPetsByTagsEndpointResult> ExecuteAsync(
         FindPetsByTagsParameters parameters,
-        string httpClientName = "PetStoreFull-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);

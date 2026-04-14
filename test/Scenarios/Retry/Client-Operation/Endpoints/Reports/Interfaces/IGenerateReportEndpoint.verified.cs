@@ -22,6 +22,6 @@ public interface IGenerateReportEndpoint
     /// </summary>
     Task<GenerateReportEndpointResult> ExecuteAsync(
         GenerateReportParameters parameters,
-        string httpClientName = "Retry-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);
 }

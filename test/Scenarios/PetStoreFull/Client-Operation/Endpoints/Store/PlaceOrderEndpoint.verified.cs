@@ -38,7 +38,7 @@ public sealed class PlaceOrderEndpoint : IPlaceOrderEndpoint
 
     public async Task<PlaceOrderEndpointResult> ExecuteAsync(
         PlaceOrderParameters parameters,
-        string httpClientName = "PetStoreFull-ApiClient",
+        string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
     {
         var client = factory.CreateClient(httpClientName);
