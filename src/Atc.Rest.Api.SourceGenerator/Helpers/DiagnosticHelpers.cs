@@ -1642,6 +1642,162 @@ internal static class DiagnosticHelpers
             Location.None,
             message);
 
+    // ========== Unsupported Feature Diagnostics ==========
+
+    /// <summary>
+    /// ATCAPI_FEAT001: OpenAPI spec uses readOnly/writeOnly properties which are silently ignored.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ReadOnlyWriteOnlyIgnored = new(
+        "ATCAPI_FEAT001",
+        "readOnly/writeOnly Properties Ignored",
+        "OpenAPI specification uses readOnly or writeOnly properties which are not yet differentiated in generated code",
+        "Atc.Rest.Api.SourceGenerator",
+        DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// ATCAPI_FEAT002: OpenAPI spec uses callbacks which are not supported.
+    /// </summary>
+    public static readonly DiagnosticDescriptor CallbacksNotSupported = new(
+        "ATCAPI_FEAT002",
+        "Callbacks Not Supported",
+        "OpenAPI specification contains callbacks which are not supported by the generator",
+        "Atc.Rest.Api.SourceGenerator",
+        DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// ATCAPI_FEAT003: OpenAPI spec uses links which are not supported.
+    /// </summary>
+    public static readonly DiagnosticDescriptor LinksNotSupported = new(
+        "ATCAPI_FEAT003",
+        "Response Links Not Supported",
+        "OpenAPI specification contains response links which are not included in generated code",
+        "Atc.Rest.Api.SourceGenerator",
+        DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// ATCAPI_FEAT004: OpenAPI spec defines multiple servers entries.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MultipleServersIgnored = new(
+        "ATCAPI_FEAT004",
+        "Multiple Servers Entries",
+        "OpenAPI specification defines {0} server entries but only the first is used for base path resolution",
+        "Atc.Rest.Api.SourceGenerator",
+        DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// Reports unsupported OpenAPI feature diagnostics based on spec analysis.
+    /// </summary>
+    public static List<Diagnostic> DetectUnsupportedFeatures(
+        OpenApiDocument openApiDoc)
+    {
+        var diagnostics = new List<Diagnostic>();
+
+        if (HasReadOnlyOrWriteOnlyProperties(openApiDoc))
+        {
+            diagnostics.Add(Diagnostic.Create(ReadOnlyWriteOnlyIgnored, Location.None));
+        }
+
+        if (HasCallbacks(openApiDoc))
+        {
+            diagnostics.Add(Diagnostic.Create(CallbacksNotSupported, Location.None));
+        }
+
+        if (HasResponseLinks(openApiDoc))
+        {
+            diagnostics.Add(Diagnostic.Create(LinksNotSupported, Location.None));
+        }
+
+        if (openApiDoc.Servers != null && openApiDoc.Servers.Count > 1)
+        {
+            diagnostics.Add(Diagnostic.Create(
+                MultipleServersIgnored,
+                Location.None,
+                openApiDoc.Servers.Count));
+        }
+
+        return diagnostics;
+    }
+
+    private static bool HasReadOnlyOrWriteOnlyProperties(
+        OpenApiDocument openApiDoc)
+    {
+        if (openApiDoc.Components?.Schemas == null)
+        {
+            return false;
+        }
+
+        foreach (var schema in openApiDoc.Components.Schemas.Values)
+        {
+            if (schema is OpenApiSchema { Properties: not null } actualSchema)
+            {
+                foreach (var prop in actualSchema.Properties.Values)
+                {
+                    if (prop is OpenApiSchema propSchema &&
+                        (propSchema.ReadOnly || propSchema.WriteOnly))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasCallbacks(OpenApiDocument openApiDoc)
+    {
+        foreach (var path in openApiDoc.Paths)
+        {
+            if (path.Value?.Operations == null)
+            {
+                continue;
+            }
+
+            foreach (var operation in path.Value.Operations.Values)
+            {
+                if (operation.Callbacks is { Count: > 0 })
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasResponseLinks(OpenApiDocument openApiDoc)
+    {
+        foreach (var path in openApiDoc.Paths)
+        {
+            if (path.Value?.Operations == null)
+            {
+                continue;
+            }
+
+            foreach (var operation in path.Value.Operations.Values)
+            {
+                if (operation.Responses == null)
+                {
+                    continue;
+                }
+
+                foreach (var response in operation.Responses.Values)
+                {
+                    if (response is OpenApiResponse { Links.Count: > 0 })
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     // ========== DiagnosticMessage Conversion ==========
 
     /// <summary>
