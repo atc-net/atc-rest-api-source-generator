@@ -10,6 +10,10 @@ namespace Atc.Rest.Api.Generator.Helpers;
 /// </summary>
 public static class PathSegmentHelper
 {
+    // Cache for GetSchemasUsedBySegment results per document+segment.
+    // Uses ConditionalWeakTable so entries are GC'd when the document is collected.
+    private static readonly ConditionalWeakTable<OpenApiDocument, Dictionary<string, HashSet<string>>> SchemasPerSegmentCache = new();
+
     /// <summary>
     /// Common API prefixes to skip when extracting path segments.
     /// </summary>
@@ -172,6 +176,19 @@ public static class PathSegmentHelper
         OpenApiDocument openApiDoc,
         string pathSegment)
     {
+        // Return cached result if available (avoids redundant traversal across multiple extractors)
+        if (!SchemasPerSegmentCache.TryGetValue(openApiDoc, out var segmentCache))
+        {
+            segmentCache = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            SchemasPerSegmentCache.Add(openApiDoc, segmentCache);
+        }
+
+        if (segmentCache.TryGetValue(pathSegment, out var cached))
+        {
+            // Return a copy so callers can modify without corrupting the cache
+            return new HashSet<string>(cached, StringComparer.Ordinal);
+        }
+
         var schemaNames = new HashSet<string>(StringComparer.Ordinal);
         var operations = GetOperationsForSegment(openApiDoc, pathSegment);
 
@@ -244,7 +261,11 @@ public static class PathSegmentHelper
             }
         }
 
-        return schemaNames;
+        // Cache the computed result for subsequent calls from other extractors
+        segmentCache[pathSegment] = schemaNames;
+
+        // Return a copy so callers can modify without corrupting the cache
+        return new HashSet<string>(schemaNames, StringComparer.Ordinal);
     }
 
     /// <summary>
