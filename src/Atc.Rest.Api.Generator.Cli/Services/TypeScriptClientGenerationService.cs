@@ -43,15 +43,34 @@ public static class TypeScriptClientGenerationService
         // Step 5: Generate client classes
         var clientCount = WriteClients(openApiDoc, outputPath, headerContent, enumNameSet, config.HttpClient, config.NamingStrategy, config.ConvertDates, dryRun);
 
-        // Step 5b: Generate pagination helper if spec has pagination schemas
-        if (clientCount > 0 && HasPaginationSchemas(openApiDoc))
+        // Step 5b: Generate helpers (pagination, retry)
+        var hasRetry = clientCount > 0 && openApiDoc.HasRetryConfiguration();
+        var hasPagination = clientCount > 0 && HasPaginationSchemas(openApiDoc);
+        if (hasPagination || hasRetry)
         {
             var helpersDir = Path.Combine(outputPath, "helpers");
-            var paginationContent = TypeScriptPaginationHelperExtractor.Generate(headerContent);
-            WriteTsFile(Path.Combine(helpersDir, "paginate.ts"), paginationContent, dryRun);
+            var helperModules = new List<string>();
+
+            if (hasPagination)
+            {
+                var paginationContent = TypeScriptPaginationHelperExtractor.Generate(headerContent);
+                WriteTsFile(Path.Combine(helpersDir, "paginate.ts"), paginationContent, dryRun);
+                helperModules.Add("paginate");
+            }
+
+            if (hasRetry)
+            {
+                var retryConfigContent = TypeScriptRetryConfigExtractor.Generate(openApiDoc, headerContent);
+                WriteTsFile(Path.Combine(helpersDir, "retryConfig.ts"), retryConfigContent, dryRun);
+                helperModules.Add("retryConfig");
+
+                var retryInterceptorContent = TypeScriptRetryInterceptorExtractor.Generate(headerContent);
+                WriteTsFile(Path.Combine(helpersDir, "retryInterceptor.ts"), retryInterceptorContent, dryRun);
+                helperModules.Add("retryInterceptor");
+            }
 
             // Generate barrel export for helpers
-            var helperBarrel = TypeScriptBarrelExportExtractor.Create(headerContent, ["paginate"], isTypeOnly: false);
+            var helperBarrel = TypeScriptBarrelExportExtractor.Create(headerContent, helperModules, isTypeOnly: false);
             WriteTsFile(Path.Combine(helpersDir, "index.ts"), new GenerateContentForBarrelExport(helperBarrel).Generate(), dryRun);
         }
 
@@ -114,7 +133,7 @@ public static class TypeScriptClientGenerationService
             subdirectories.Add("client");
         }
 
-        if (clientCount > 0 && HasPaginationSchemas(openApiDoc))
+        if (hasPagination || hasRetry)
         {
             subdirectories.Add("helpers");
         }
