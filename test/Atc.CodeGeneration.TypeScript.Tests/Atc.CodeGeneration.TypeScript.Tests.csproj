@@ -10,4 +10,4 @@
     <ProjectReference Include="..\..\src\Atc.CodeGeneration.TypeScript\Atc.CodeGeneration.TypeScript.csproj" />
   </ItemGroup>
 
-</Project>
+</Project>

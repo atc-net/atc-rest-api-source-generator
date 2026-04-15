@@ -72,4 +72,4 @@ public class ServerUrlHelperTests
         var result = ServerUrlHelper.GetServersBasePath(doc);
         Assert.Equal("/api/v1", result);
     }
-}
+}

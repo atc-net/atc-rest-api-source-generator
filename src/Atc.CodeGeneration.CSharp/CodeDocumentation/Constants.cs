@@ -10,4 +10,3 @@ public static class Constants
     /// </summary>
     public const string UndefinedDescription = "Undefined description.";
 }
-
