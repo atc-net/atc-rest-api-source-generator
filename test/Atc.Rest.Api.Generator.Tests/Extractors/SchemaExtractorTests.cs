@@ -557,4 +557,252 @@ public class SchemaExtractorTests
         var tagParam = record.Parameters.First(p => p.Name == "Tag");
         Assert.True(tagParam.IsNullableType);
     }
+
+    // ========== Format Mapping Tests ==========
+    [Theory]
+    [InlineData("integer", "int32", "int")]
+    [InlineData("integer", "int64", "long")]
+    [InlineData("number", "float", "float")]
+    [InlineData("number", "double", "double")]
+    [InlineData("string", "uuid", "Guid")]
+    [InlineData("string", "date-time", "DateTimeOffset")]
+    [InlineData("string", "date", "DateTimeOffset")]
+    [InlineData("string", "uri", "Uri")]
+    [InlineData("boolean", null, "bool")]
+    public void ExtractForSchemas_FormatMapping_ProducesCorrectCSharpType(
+        string openApiType,
+        string? format,
+        string expectedCSharpType)
+    {
+        var formatLine = format != null ? $"\n          format: {format}" : string.Empty;
+        var yaml = "openapi: 3.0.0\n" +
+                   "info:\n  title: Test\n  version: 1.0.0\n" +
+                   "paths: {}\n" +
+                   "components:\n  schemas:\n    TestModel:\n      type: object\n      required:\n        - value\n" +
+                   "      properties:\n        value:\n" +
+                   $"          type: {openApiType}{formatLine}\n";
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "TestModel" };
+
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        Assert.NotNull(result);
+        var valueParam = result.Parameters[0].Parameters!.First(p => p.Name == "Value");
+        Assert.Equal(expectedCSharpType, valueParam.TypeName);
+    }
+
+    // ========== allOf Composition Tests ==========
+    [Fact]
+    public void ExtractForSchemas_AllOfComposition_MergesProperties()
+    {
+        var yaml = """
+                   openapi: 3.0.0
+                   info:
+                     title: Test
+                     version: 1.0.0
+                   paths: {}
+                   components:
+                     schemas:
+                       Base:
+                         type: object
+                         properties:
+                           id:
+                             type: integer
+                             format: int64
+                       Extended:
+                         allOf:
+                           - $ref: '#/components/schemas/Base'
+                           - type: object
+                             properties:
+                               name:
+                                 type: string
+                   """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Extended" };
+
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        Assert.NotNull(result);
+        var record = result.Parameters[0];
+        Assert.NotNull(record.Parameters);
+
+        // Should have both id from Base and name from inline
+        Assert.Contains(record.Parameters, p => p.Name == "Id");
+        Assert.Contains(record.Parameters, p => p.Name == "Name");
+    }
+
+    // ========== Required/Optional Ordering Tests ==========
+    [Fact]
+    public void ExtractForSchemas_RequiredBeforeOptional_CorrectParameterOrder()
+    {
+        var yaml = """
+                   openapi: 3.0.0
+                   info:
+                     title: Test
+                     version: 1.0.0
+                   paths: {}
+                   components:
+                     schemas:
+                       Pet:
+                         type: object
+                         required:
+                           - name
+                         properties:
+                           tag:
+                             type: string
+                           name:
+                             type: string
+                           age:
+                             type: integer
+                             default: 0
+                   """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
+
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        Assert.NotNull(result);
+        var parameters = result.Parameters[0].Parameters!;
+
+        // Required without defaults first, then optional/defaults last
+        // "name" is required (no default) -> first
+        // "tag" is optional (no default) -> middle
+        // "age" has default -> last
+        var nameIndex = parameters.ToList().FindIndex(p => p.Name == "Name");
+        var ageIndex = parameters.ToList().FindIndex(p => p.Name == "Age");
+        Assert.True(nameIndex < ageIndex, "Required parameter 'Name' should come before defaulted 'Age'");
+    }
+
+    // ========== Default Value Tests ==========
+    [Fact]
+    public void ExtractForSchemas_WithDefaultValue_SetsDefaultOnParameter()
+    {
+        var yaml = """
+                   openapi: 3.0.0
+                   info:
+                     title: Test
+                     version: 1.0.0
+                   paths: {}
+                   components:
+                     schemas:
+                       Settings:
+                         type: object
+                         properties:
+                           isActive:
+                             type: boolean
+                             default: true
+                           maxRetries:
+                             type: integer
+                             default: 3
+                   """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Settings" };
+
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        Assert.NotNull(result);
+        var parameters = result.Parameters[0].Parameters!;
+
+        var isActiveParam = parameters.First(p => p.Name == "IsActive");
+        Assert.Equal("true", isActiveParam.DefaultValue);
+
+        var maxRetriesParam = parameters.First(p => p.Name == "MaxRetries");
+        Assert.Equal("3", maxRetriesParam.DefaultValue);
+    }
+
+    // ========== Enum Schema Skipping ==========
+    [Fact]
+    public void ExtractForSchemas_EnumSchema_IsSkipped()
+    {
+        var yaml = """
+                   openapi: 3.0.0
+                   info:
+                     title: Test
+                     version: 1.0.0
+                   paths: {}
+                   components:
+                     schemas:
+                       Color:
+                         type: string
+                         enum:
+                           - Red
+                           - Green
+                           - Blue
+                       Pet:
+                         type: object
+                         properties:
+                           name:
+                             type: string
+                   """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Color", "Pet" };
+
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        Assert.NotNull(result);
+        Assert.Single(result.Parameters);
+        Assert.Equal("Pet", result.Parameters[0].Name);
+    }
+
+    // ========== Array Property Tests ==========
+    [Fact]
+    public void ExtractForSchemas_ArrayProperty_ProducesListType()
+    {
+        var yaml = """
+                   openapi: 3.0.0
+                   info:
+                     title: Test
+                     version: 1.0.0
+                   paths: {}
+                   components:
+                     schemas:
+                       Order:
+                         type: object
+                         required:
+                           - items
+                         properties:
+                           items:
+                             type: array
+                             items:
+                               type: string
+                   """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Order" };
+
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        Assert.NotNull(result);
+        var itemsParam = result.Parameters[0].Parameters!.First(p => p.Name == "Items");
+        Assert.Equal("List<string>", itemsParam.TypeName);
+    }
 }
