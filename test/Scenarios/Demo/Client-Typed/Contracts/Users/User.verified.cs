@@ -15,11 +15,11 @@ public sealed record User(
     [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone,
     Uri? Website,
     [property: Required] DateTimeOffset DateOfBirth,
-    [property: Range(0, 150)] int Age,
     [property: MaxLength(1000)] string? Bio,
     Uri? AvatarUrl,
     [property: Required] UserRole Role,
     [property: Required] Address Address,
-    DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt,
-    bool IsActive = true);
+    [property: Range(0, 150)] int? Age = null,
+    bool IsActive = true,
+    DateTimeOffset? CreatedAt = null,
+    DateTimeOffset? UpdatedAt = null);
