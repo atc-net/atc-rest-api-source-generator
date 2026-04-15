@@ -56,6 +56,11 @@ public class TypeScriptClientConfig
     public bool GenerateZodSchemas { get; set; }
 
     /// <summary>
+    /// Generate Mock Service Worker (MSW) handlers for frontend testing. Default: false.
+    /// </summary>
+    public bool GenerateMswHandlers { get; set; }
+
+    /// <summary>
     /// Preview what would be generated without writing any files. Default: false.
     /// </summary>
     public bool DryRun { get; set; }

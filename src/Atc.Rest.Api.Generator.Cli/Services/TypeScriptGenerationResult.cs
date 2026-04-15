@@ -11,4 +11,5 @@ public record TypeScriptGenerationResult(
     int ClientCount = 0,
     int HookCount = 0,
     int ZodSchemaCount = 0,
+    int MswHandlerCount = 0,
     bool ScaffoldGenerated = false);

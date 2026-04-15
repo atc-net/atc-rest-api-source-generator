@@ -57,6 +57,13 @@ public static class TypeScriptClientGenerationService
             zodSchemaCount = WriteZodSchemas(openApiDoc, outputPath, headerContent, config, enumNameSet, dryRun);
         }
 
+        // Step 6c: Generate MSW handlers (if configured)
+        var mswHandlerCount = 0;
+        if (config.GenerateMswHandlers)
+        {
+            mswHandlerCount = WriteMswHandlers(openApiDoc, outputPath, headerContent, config, dryRun);
+        }
+
         // Step 7: Generate package scaffold (if configured)
         var scaffoldGenerated = false;
         if (config.Scaffold)
@@ -96,6 +103,11 @@ public static class TypeScriptClientGenerationService
             subdirectories.Add("hooks");
         }
 
+        if (mswHandlerCount > 0)
+        {
+            subdirectories.Add("mocks");
+        }
+
         if (subdirectories.Count > 0)
         {
             WriteRootBarrelExport(outputPath, headerContent, subdirectories, dryRun);
@@ -109,6 +121,7 @@ public static class TypeScriptClientGenerationService
             ClientCount: clientCount,
             HookCount: hookCount,
             ZodSchemaCount: zodSchemaCount,
+            MswHandlerCount: mswHandlerCount,
             ScaffoldGenerated: scaffoldGenerated);
     }
 
@@ -490,5 +503,39 @@ public static class TypeScriptClientGenerationService
         }
 
         File.WriteAllText(filePath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+    }
+
+    private static int WriteMswHandlers(
+        OpenApiDocument openApiDoc,
+        string outputPath,
+        string? headerContent,
+        TypeScriptClientConfig config,
+        bool dryRun)
+    {
+        var baseUrl = string.Empty;
+
+        var handlers = TypeScriptMswHandlerExtractor.Extract(
+            openApiDoc,
+            headerContent,
+            baseUrl,
+            config.NamingStrategy);
+
+        if (handlers.Count == 0)
+        {
+            return 0;
+        }
+
+        var mocksDir = Path.Combine(outputPath, "mocks");
+        foreach (var (segmentName, content) in handlers)
+        {
+            var fileName = segmentName == "handlers"
+                ? "handlers.ts"
+                : $"{segmentName.EnsureFirstCharacterToLower()}.ts";
+            var filePath = Path.Combine(mocksDir, fileName);
+            WriteTsFile(filePath, content, dryRun);
+        }
+
+        // Exclude the combined "handlers" index from count
+        return handlers.Count - 1;
     }
 }
