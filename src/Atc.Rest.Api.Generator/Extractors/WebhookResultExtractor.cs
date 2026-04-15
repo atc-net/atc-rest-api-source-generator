@@ -108,7 +108,7 @@ public static class WebhookResultExtractor
                 sb.AppendLine(4, $"/// {statusCode} - {description}");
                 sb.AppendLine(4, "/// </summary>");
                 sb.AppendLine(4, $"public static {className} {methodName}()");
-                sb.AppendLine(8, $"=> new(TypedResults.StatusCode({GetStatusCodeInt(statusCode)}));");
+                sb.AppendLine(8, $"=> new({GetTypedResultExpression(statusCode)});");
             }
         }
         else
@@ -147,20 +147,21 @@ public static class WebhookResultExtractor
             _ => "StatusCode",
         };
 
-    private static string GetStatusCodeInt(string statusCode)
+    private static string GetTypedResultExpression(string statusCode)
         => statusCode switch
         {
-            "200" => "200",
-            "201" => "201",
-            "202" => "202",
-            "204" => "204",
-            "400" => "400",
-            "401" => "401",
-            "403" => "403",
-            "404" => "404",
-            "500" => "500",
-            "default" => "500",
-            _ when int.TryParse(statusCode, out var code) => code.ToString(CultureInfo.InvariantCulture),
-            _ => "200",
+            "200" => "TypedResults.Ok()",
+            "201" => "TypedResults.Created()",
+            "202" => "TypedResults.Accepted((string?)null)",
+            "204" => "TypedResults.NoContent()",
+            "400" => "TypedResults.BadRequest()",
+            "401" => "TypedResults.Unauthorized()",
+            "403" => "TypedResults.Forbid()",
+            "404" => "TypedResults.NotFound()",
+            "409" => "TypedResults.Conflict()",
+            "500" => "TypedResults.StatusCode(500)",
+            "default" => "TypedResults.StatusCode(500)",
+            _ when int.TryParse(statusCode, out var code) => $"TypedResults.StatusCode({code.ToString(CultureInfo.InvariantCulture)})",
+            _ => "TypedResults.Ok()",
         };
 }
