@@ -198,11 +198,19 @@ public static class TypeScriptModelExtractor
             }
         }
 
+        // Detect generic pagination pattern: array property with empty items (items: {})
+        var genericArrayPropName = DetectGenericArrayProperty(properties);
+        var isGeneric = genericArrayPropName != null;
+
         foreach (var prop in properties)
         {
             var propName = prop.Key.ApplyNamingStrategy(namingStrategy);
             var isRequired = required.Contains(prop.Key, StringComparer.Ordinal);
-            var tsType = prop.Value.ToTypeScriptTypeForModel(isRequired, convertDates);
+
+            // Replace empty array type with generic T[] for pagination base schemas
+            var tsType = isGeneric && prop.Key == genericArrayPropName
+                ? "T[]"
+                : prop.Value.ToTypeScriptTypeForModel(isRequired, convertDates);
 
             // Track referenced types for imports
             CollectReferencedTypes(prop.Value, importTypes);
@@ -237,11 +245,35 @@ public static class TypeScriptModelExtractor
             HeaderContent: headerContent,
             DocumentationTags: interfaceDocTags,
             Modifiers: TypeScriptModifiers.Export,
-            TypeName: schemaName,
+            TypeName: isGeneric ? $"{schemaName}<T>" : schemaName,
             ExtendsTypeName: extendsTypeName,
             ImportStatements: importStatements.Count > 0 ? importStatements : null,
             Properties: tsProperties.Count > 0 ? tsProperties : null,
             Methods: null);
+    }
+
+    /// <summary>
+    /// Detects if a schema has a generic array property (type: array with empty items).
+    /// This pattern is used by pagination base types (PaginatedResult, PagedResult, etc.).
+    /// Returns the property name if found, null otherwise.
+    /// </summary>
+    private static string? DetectGenericArrayProperty(
+        List<KeyValuePair<string, IOpenApiSchema>> properties)
+    {
+        foreach (var prop in properties)
+        {
+            // Empty items ({}) or null items means this is a generic array placeholder
+            if (prop.Value is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema &&
+                (arraySchema.Items == null ||
+                 (arraySchema.Items is OpenApiSchema itemSchema &&
+                  itemSchema.Type == null &&
+                  itemSchema.Properties?.Count is null or 0)))
+            {
+                return prop.Key;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

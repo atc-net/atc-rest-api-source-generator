@@ -38,8 +38,8 @@ export class AccountsClient {
     });
   }
 
-  async listPaginatedAccounts(query?: { pageSize?: number; pageIndex?: number; queryString?: string; continuation?: string }): Promise<ApiResult<PaginatedResult>> {
-    return this.api.request<PaginatedResult>('GET', '/accounts/paginated', {
+  async listPaginatedAccounts(query?: { pageSize?: number; pageIndex?: number; queryString?: string; continuation?: string }): Promise<ApiResult<PaginatedResult<Accounts>>> {
+    return this.api.request<PaginatedResult<Accounts>>('GET', '/accounts/paginated', {
       query: {
         pageSize: query?.pageSize,
         pageIndex: query?.pageIndex,
