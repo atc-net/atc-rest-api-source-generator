@@ -304,6 +304,12 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool useValidationFilter,
         bool useGlobalErrorHandler)
     {
+        // Report diagnostics for unsupported OpenAPI features
+        foreach (var diagnostic in DiagnosticHelpers.DetectUnsupportedFeatures(openApiDoc))
+        {
+            context.ReportDiagnostic(diagnostic);
+        }
+
         // Get unique path segments for grouping generated files
         var pathSegments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
 
