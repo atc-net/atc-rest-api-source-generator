@@ -158,13 +158,35 @@ public static class TypeScriptTypeMapper
             // Handle allOf (pagination pattern: allOf with $ref to PaginatedResult + inline results)
             if (actualSchema.AllOf is { Count: > 0 })
             {
+                string? refTypeName = null;
+                string? arrayItemType = null;
+
                 foreach (var subSchema in actualSchema.AllOf)
                 {
                     if (subSchema is OpenApiSchemaReference allOfRef)
                     {
-                        return allOfRef.Reference.Id ?? allOfRef.Id ?? "unknown";
+                        refTypeName = allOfRef.Reference.Id ?? allOfRef.Id;
+                    }
+                    else if (subSchema is OpenApiSchema inlineSchema && inlineSchema.Properties is { Count: > 0 })
+                    {
+                        // Look for an array property with $ref items (e.g., results: Account[])
+                        foreach (var prop in inlineSchema.Properties.Values)
+                        {
+                            if (prop is OpenApiSchema { Type: JsonSchemaType.Array } arrayProp &&
+                                arrayProp.Items is OpenApiSchemaReference itemRef)
+                            {
+                                arrayItemType = itemRef.Reference.Id ?? itemRef.Id;
+                            }
+                        }
                     }
                 }
+
+                if (refTypeName != null && arrayItemType != null)
+                {
+                    return $"{refTypeName}<{arrayItemType}>";
+                }
+
+                return refTypeName ?? "unknown";
             }
 
             // Handle array types
