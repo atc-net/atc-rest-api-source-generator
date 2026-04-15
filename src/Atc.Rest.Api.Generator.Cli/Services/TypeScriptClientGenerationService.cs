@@ -41,10 +41,11 @@ public static class TypeScriptClientGenerationService
         var typeCount = WriteApiResultType(outputPath, headerContent, config.HttpClient, dryRun);
 
         // Step 5: Generate client classes
-        var clientCount = WriteClients(openApiDoc, outputPath, headerContent, enumNameSet, config.HttpClient, config.NamingStrategy, config.ConvertDates, dryRun);
+        var specHasRetry = openApiDoc.HasRetryConfiguration();
+        var clientCount = WriteClients(openApiDoc, outputPath, headerContent, enumNameSet, config.HttpClient, config.NamingStrategy, config.ConvertDates, specHasRetry, dryRun);
 
         // Step 5b: Generate helpers (pagination, retry)
-        var hasRetry = clientCount > 0 && openApiDoc.HasRetryConfiguration();
+        var hasRetry = clientCount > 0 && specHasRetry;
         var hasPagination = clientCount > 0 && HasPaginationSchemas(openApiDoc);
         if (hasPagination || hasRetry)
         {
@@ -312,6 +313,7 @@ public static class TypeScriptClientGenerationService
         TypeScriptHttpClient httpClient,
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
+        bool hasRetry,
         bool dryRun)
     {
         var clients = TypeScriptClientExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy);
@@ -324,8 +326,8 @@ public static class TypeScriptClientGenerationService
 
         // Write base ApiClient (fetch or axios)
         var apiClientContent = httpClient == TypeScriptHttpClient.Axios
-            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, convertDates)
-            : TypeScriptFetchApiClientExtractor.Generate(headerContent, convertDates);
+            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, convertDates, hasRetry)
+            : TypeScriptFetchApiClientExtractor.Generate(headerContent, convertDates, hasRetry);
         WriteTsFile(Path.Combine(clientDir, "ApiClient.ts"), apiClientContent, dryRun);
 
         // Write per-segment client files

@@ -13,7 +13,8 @@ public static class TypeScriptAxiosApiClientExtractor
     /// <returns>The TypeScript file content.</returns>
     public static string Generate(
         string? headerContent,
-        bool convertDates = false)
+        bool convertDates = false,
+        bool hasRetry = false)
     {
         var sb = new StringBuilder();
 
@@ -22,31 +23,43 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.Append(headerContent);
         }
 
-        AppendImports(sb);
+        AppendImports(sb, hasRetry);
 
         if (convertDates)
         {
             AppendDateReviverReplacer(sb);
         }
 
-        AppendApiClientOptionsInterface(sb);
+        AppendApiClientOptionsInterface(sb, hasRetry);
         AppendRequestOptionsInterface(sb);
-        AppendApiClientClass(sb, convertDates);
+        AppendApiClientClass(sb, convertDates, hasRetry);
 
         return sb.ToString();
     }
 
-    private static void AppendImports(StringBuilder sb)
+    private static void AppendImports(
+        StringBuilder sb,
+        bool hasRetry)
     {
         sb.AppendLine("import axios from 'axios';");
         sb.AppendLine("import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';");
         sb.AppendLine("import { ApiError } from '../errors/ApiError';");
         sb.AppendLine("import { ValidationError } from '../errors/ValidationError';");
         sb.AppendLine("import type { ApiResult } from '../types/ApiResult';");
+
+        if (hasRetry)
+        {
+            sb.AppendLine("import { retryWithBackoff } from '../helpers/retryInterceptor';");
+            sb.AppendLine("import { defaultRetryPolicy } from '../helpers/retryConfig';");
+            sb.AppendLine("import type { RetryPolicy } from '../helpers/retryConfig';");
+        }
+
         sb.AppendLine();
     }
 
-    private static void AppendApiClientOptionsInterface(StringBuilder sb)
+    private static void AppendApiClientOptionsInterface(
+        StringBuilder sb,
+        bool hasRetry)
     {
         sb.AppendLine("export type AxiosRequestInterceptor = (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig | Promise<InternalAxiosRequestConfig>;");
         sb.AppendLine("export type AxiosResponseInterceptor = (response: AxiosResponse) => AxiosResponse | Promise<AxiosResponse>;");
@@ -56,6 +69,13 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("  defaultHeaders?: Record<string, string>;");
         sb.AppendLine("  requestInterceptors?: AxiosRequestInterceptor[];");
         sb.AppendLine("  responseInterceptors?: AxiosResponseInterceptor[];");
+
+        if (hasRetry)
+        {
+            sb.AppendLine("  /** Retry policy for failed requests. Set to false to disable retry. Defaults to the spec-defined policy. */");
+            sb.AppendLine("  retryPolicy?: RetryPolicy | false;");
+        }
+
         sb.AppendLine("}");
         sb.AppendLine();
     }
@@ -94,16 +114,23 @@ public static class TypeScriptAxiosApiClientExtractor
 
     private static void AppendApiClientClass(
         StringBuilder sb,
-        bool convertDates)
+        bool convertDates,
+        bool hasRetry)
     {
         sb.AppendLine("export class ApiClient {");
         sb.AppendLine("  private readonly baseUrl: string;");
         sb.AppendLine("  private readonly client: AxiosInstance;");
         sb.AppendLine("  private readonly options: ApiClientOptions;");
+
+        if (hasRetry)
+        {
+            sb.AppendLine("  private readonly retryPolicy: RetryPolicy | false;");
+        }
+
         sb.AppendLine();
 
-        AppendConstructor(sb, convertDates);
-        AppendRequestMethod(sb, convertDates);
+        AppendConstructor(sb, convertDates, hasRetry);
+        AppendRequestMethod(sb, convertDates, hasRetry);
         AppendRequestStreamMethod(sb, convertDates);
         AppendBuildUrlMethod(sb);
         AppendHandleResponseMethod(sb);
@@ -113,11 +140,18 @@ public static class TypeScriptAxiosApiClientExtractor
 
     private static void AppendConstructor(
         StringBuilder sb,
-        bool convertDates)
+        bool convertDates,
+        bool hasRetry)
     {
         sb.AppendLine("  constructor(baseUrl: string, options?: ApiClientOptions) {");
         sb.AppendLine("    this.baseUrl = baseUrl.replace(/\\/+$/, '');");
         sb.AppendLine("    this.options = options ?? {};");
+
+        if (hasRetry)
+        {
+            sb.AppendLine("    this.retryPolicy = this.options.retryPolicy !== undefined ? this.options.retryPolicy : defaultRetryPolicy;");
+        }
+
         sb.AppendLine("    this.client = axios.create({");
         sb.AppendLine("      baseURL: this.baseUrl,");
         sb.AppendLine("      validateStatus: () => true,");
@@ -165,7 +199,8 @@ public static class TypeScriptAxiosApiClientExtractor
 
     private static void AppendRequestMethod(
         StringBuilder sb,
-        bool convertDates)
+        bool convertDates,
+        bool hasRetry)
     {
         sb.AppendLine("  async request<T>(method: string, path: string, options?: RequestOptions): Promise<ApiResult<T>> {");
         sb.AppendLine("    let data: unknown;");
@@ -198,15 +233,44 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      Object.assign(headers, options.headers);");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const response = await this.client.request<T>({");
-        sb.AppendLine("      method,");
-        sb.AppendLine("      url: path,");
-        sb.AppendLine("      data,");
-        sb.AppendLine("      params: options?.query,");
-        sb.AppendLine("      headers,");
-        sb.AppendLine("      signal: options?.signal,");
-        sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'blob' : 'json',");
-        sb.AppendLine("    });");
+
+        if (hasRetry)
+        {
+            sb.AppendLine("    const doRequest = () => this.client.request<T>({");
+            sb.AppendLine("      method,");
+            sb.AppendLine("      url: path,");
+            sb.AppendLine("      data,");
+            sb.AppendLine("      params: options?.query,");
+            sb.AppendLine("      headers,");
+            sb.AppendLine("      signal: options?.signal,");
+            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'blob' : 'json',");
+            sb.AppendLine("    });");
+            sb.AppendLine();
+            sb.AppendLine("    let response: AxiosResponse<T>;");
+            sb.AppendLine("    if (this.retryPolicy) {");
+            sb.AppendLine("      // Use retryWithBackoff with a fetch-compatible wrapper");
+            sb.AppendLine("      const fetchWrapper = async (): Promise<Response> => {");
+            sb.AppendLine("        response = await doRequest();");
+            sb.AppendLine("        return new Response(null, { status: response.status });");
+            sb.AppendLine("      };");
+            sb.AppendLine("      await retryWithBackoff(fetchWrapper, this.retryPolicy, options?.signal);");
+            sb.AppendLine("    } else {");
+            sb.AppendLine("      response = await doRequest();");
+            sb.AppendLine("    }");
+        }
+        else
+        {
+            sb.AppendLine("    const response = await this.client.request<T>({");
+            sb.AppendLine("      method,");
+            sb.AppendLine("      url: path,");
+            sb.AppendLine("      data,");
+            sb.AppendLine("      params: options?.query,");
+            sb.AppendLine("      headers,");
+            sb.AppendLine("      signal: options?.signal,");
+            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'blob' : 'json',");
+            sb.AppendLine("    });");
+        }
+
         sb.AppendLine();
         sb.AppendLine("    return this.handleResponse<T>(response);");
         sb.AppendLine("  }");
