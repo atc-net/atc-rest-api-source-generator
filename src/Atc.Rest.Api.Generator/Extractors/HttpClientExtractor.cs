@@ -367,6 +367,11 @@ public static class HttpClientExtractor
             // Binary content (application/octet-stream, image/*, etc.) returns byte[]
             returnType = "byte[]";
         }
+        else if (response?.Content != null && IsTextResponseContent(response.Content))
+        {
+            // Plain text content returns string
+            returnType = "string";
+        }
         else if (response is OpenApiResponse openApiResp &&
                  openApiResp.Headers != null &&
                  openApiResp.Headers.TryGetValue("Location", out var locationHeader) &&
@@ -707,6 +712,13 @@ public static class HttpClientExtractor
             builder.AppendLine("var response = await httpClient.GetAsync(url, cancellationToken);");
             builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
             builder.Append("return await response.Content.ReadAsByteArrayAsync(cancellationToken);");
+        }
+        else if (hasReturnType && returnType == "string")
+        {
+            // Text content - use ReadAsStringAsync
+            builder.AppendLine("var response = await httpClient.GetAsync(url, cancellationToken);");
+            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
+            builder.Append("return await response.Content.ReadAsStringAsync(cancellationToken);");
         }
         else if (hasReturnType)
         {
@@ -1432,6 +1444,23 @@ public static class HttpClientExtractor
                 key.StartsWith("image/", StringComparison.OrdinalIgnoreCase) ||
                 key.Equals("application/pdf", StringComparison.OrdinalIgnoreCase) ||
                 key.Equals("application/zip", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if any of the response content types are text-based (text/plain, text/html, etc.).
+    /// </summary>
+    private static bool IsTextResponseContent(
+        IDictionary<string, IOpenApiMediaType> content)
+    {
+        foreach (var key in content.Keys)
+        {
+            if (key.StartsWith("text/", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
