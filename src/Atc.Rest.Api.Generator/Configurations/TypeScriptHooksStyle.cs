@@ -15,4 +15,10 @@ public enum TypeScriptHooksStyle
     /// GET operations become useQuery hooks; POST/PUT/PATCH/DELETE become useMutation hooks.
     /// </summary>
     ReactQuery,
+
+    /// <summary>
+    /// Generate SWR hooks wrapping each client method.
+    /// GET operations become useSWR hooks; POST/PUT/PATCH/DELETE become useSWRMutation hooks.
+    /// </summary>
+    Swr,
 }

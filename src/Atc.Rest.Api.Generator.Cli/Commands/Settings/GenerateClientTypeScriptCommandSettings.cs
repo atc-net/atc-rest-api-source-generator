@@ -131,7 +131,7 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
         if (!string.IsNullOrWhiteSpace(HooksStyle) &&
             !Enum.TryParse<TypeScriptHooksStyle>(HooksStyle, ignoreCase: true, out _))
         {
-            return ValidationResult.Error($"Invalid hooks style: '{HooksStyle}'. Valid values: None, ReactQuery.");
+            return ValidationResult.Error($"Invalid hooks style: '{HooksStyle}'. Valid values: None, ReactQuery, Swr.");
         }
 
         // Validate client type if provided
