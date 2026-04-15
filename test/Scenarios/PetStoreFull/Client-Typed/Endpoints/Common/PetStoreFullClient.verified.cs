@@ -233,7 +233,9 @@ public sealed class PetStoreFullClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<string>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
     public async Task LogoutUserAsync(CancellationToken cancellationToken = default)
