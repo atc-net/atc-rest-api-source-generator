@@ -13,7 +13,7 @@ public static class OpenApiDocumentHelper
     /// Uses <see cref="ConcurrentDictionary{TKey,TValue}"/>
     /// for thread safety.
     /// </summary>
-    private static readonly ConcurrentDictionary<string, (int ContentHash, OpenApiDocument? Document, OpenApiDiagnostic? Diagnostic)> ParseCache = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string, (int ContentHash, int ContentLength, OpenApiDocument? Document, OpenApiDiagnostic? Diagnostic)> ParseCache = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Clears the in-process parse cache.
@@ -100,10 +100,13 @@ public static class OpenApiDocumentHelper
         }
 
         // Return cached result if the same path+content was already parsed.
-        // Uses content hash (one cache slot per path) to prevent unbounded growth.
+        // Uses content hash + length (one cache slot per path) to prevent unbounded growth.
+        // Combining hash with length virtually eliminates collision risk vs hash alone.
         var contentHash = StringComparer.Ordinal.GetHashCode(yamlContent);
+        var contentLength = yamlContent.Length;
         if (ParseCache.TryGetValue(yamlPath, out var cached) &&
-            cached.ContentHash == contentHash)
+            cached.ContentHash == contentHash &&
+            cached.ContentLength == contentLength)
         {
             return (cached.Document, cached.Diagnostic);
         }
@@ -114,7 +117,7 @@ public static class OpenApiDocumentHelper
         var baseUri = new Uri("file://" + yamlPath.Replace("\\", "/"));
         var readResult = reader.Read(memoryStream, baseUri, settings);
 
-        ParseCache[yamlPath] = (contentHash, readResult.Document, readResult.Diagnostic);
+        ParseCache[yamlPath] = (contentHash, contentLength, readResult.Document, readResult.Diagnostic);
 
         return (readResult.Document, readResult.Diagnostic);
     }
