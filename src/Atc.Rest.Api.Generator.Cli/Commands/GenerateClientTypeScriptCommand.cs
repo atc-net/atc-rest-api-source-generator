@@ -275,6 +275,11 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
             config.GenerateZodSchemas = true;
         }
 
+        if (settings.GenerateMswHandlers)
+        {
+            config.GenerateMswHandlers = true;
+        }
+
         if (settings.Scaffold)
         {
             config.Scaffold = true;

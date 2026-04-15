@@ -60,6 +60,11 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
     [DefaultValue(false)]
     public bool GenerateZodSchemas { get; init; }
 
+    [CommandOption("--msw")]
+    [Description("Generate Mock Service Worker (MSW) handlers for frontend testing.")]
+    [DefaultValue(false)]
+    public bool GenerateMswHandlers { get; init; }
+
     [CommandOption("--dry-run")]
     [Description("Preview what would be generated without writing any files.")]
     [DefaultValue(false)]
