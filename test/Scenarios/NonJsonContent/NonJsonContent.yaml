@@ -1,0 +1,76 @@
+openapi: 3.0.3
+info:
+  title: Non-JSON Content Test API
+  version: 1.0.0
+  description: Tests non-JSON response content types
+
+paths:
+  /reports/text:
+    get:
+      operationId: getTextReport
+      summary: Get a plain text report
+      responses:
+        '200':
+          description: Plain text report
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /files/{fileId}:
+    get:
+      operationId: downloadFile
+      summary: Download a binary file
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Binary file content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File not found
+
+  /exports/csv:
+    get:
+      operationId: exportCsv
+      summary: Export data as CSV
+      responses:
+        '200':
+          description: CSV export
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /items:
+    get:
+      operationId: listItems
+      summary: List items as JSON
+      responses:
+        '200':
+          description: Items list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Item'
+
+components:
+  schemas:
+    Item:
+      title: Item
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string

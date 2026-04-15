@@ -1,0 +1,61 @@
+openapi: 3.0.3
+info:
+  title: Enum Naming Conflicts Test API
+  version: 1.0.0
+  description: Tests enum values that conflict with C# keywords and built-in type members
+
+paths:
+  /settings:
+    get:
+      operationId: getSettings
+      summary: Get settings with various enum types
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+
+components:
+  schemas:
+    BooleanLike:
+      title: BooleanLike
+      type: string
+      description: Enum with values matching C# boolean keywords
+      enum:
+        - 'True'
+        - 'False'
+        - Unknown
+
+    Visibility:
+      title: Visibility
+      type: string
+      description: Enum with a value matching Object method names
+      enum:
+        - Public
+        - Private
+        - Internal
+        - Protected
+
+    Priority:
+      title: Priority
+      type: string
+      description: Enum with a value matching C# keyword
+      enum:
+        - Default
+        - Low
+        - Medium
+        - High
+        - Critical
+
+    Settings:
+      title: Settings
+      type: object
+      properties:
+        booleanLike:
+          $ref: '#/components/schemas/BooleanLike'
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+        priority:
+          $ref: '#/components/schemas/Priority'

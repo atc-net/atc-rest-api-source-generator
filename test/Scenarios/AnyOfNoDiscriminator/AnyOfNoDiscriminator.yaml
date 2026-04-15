@@ -1,0 +1,132 @@
+openapi: 3.0.3
+info:
+  title: AnyOf Without Discriminator Test API
+  version: 1.0.0
+  description: Tests anyOf/oneOf schemas without discriminator blocks
+
+paths:
+  /shapes:
+    get:
+      operationId: listShapes
+      summary: List all shapes
+      responses:
+        '200':
+          description: List of shapes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Shape'
+    post:
+      operationId: createShape
+      summary: Create a shape
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Shape'
+      responses:
+        '201':
+          description: Shape created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shape'
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      summary: List notifications of mixed types
+      responses:
+        '200':
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+
+components:
+  schemas:
+    Circle:
+      title: Circle
+      type: object
+      required:
+        - radius
+      properties:
+        radius:
+          type: number
+          format: double
+        color:
+          type: string
+
+    Square:
+      title: Square
+      type: object
+      required:
+        - sideLength
+      properties:
+        sideLength:
+          type: number
+          format: double
+        color:
+          type: string
+
+    Triangle:
+      title: Triangle
+      type: object
+      required:
+        - base
+        - height
+      properties:
+        base:
+          type: number
+          format: double
+        height:
+          type: number
+          format: double
+        color:
+          type: string
+
+    Shape:
+      title: Shape
+      anyOf:
+        - $ref: '#/components/schemas/Circle'
+        - $ref: '#/components/schemas/Square'
+        - $ref: '#/components/schemas/Triangle'
+
+    EmailNotification:
+      title: EmailNotification
+      type: object
+      required:
+        - to
+        - subject
+      properties:
+        to:
+          type: string
+          format: email
+        subject:
+          type: string
+        body:
+          type: string
+
+    SmsNotification:
+      title: SmsNotification
+      type: object
+      required:
+        - phoneNumber
+        - message
+      properties:
+        phoneNumber:
+          type: string
+        message:
+          type: string
+
+    Notification:
+      title: Notification
+      oneOf:
+        - $ref: '#/components/schemas/EmailNotification'
+        - $ref: '#/components/schemas/SmsNotification'
