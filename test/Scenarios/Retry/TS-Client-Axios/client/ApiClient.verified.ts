@@ -4,6 +4,9 @@ import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'a
 import { ApiError } from '../errors/ApiError';
 import { ValidationError } from '../errors/ValidationError';
 import type { ApiResult } from '../types/ApiResult';
+import { retryWithBackoff } from '../helpers/retryInterceptor';
+import { defaultRetryPolicy } from '../helpers/retryConfig';
+import type { RetryPolicy } from '../helpers/retryConfig';
 
 export type AxiosRequestInterceptor = (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig | Promise<InternalAxiosRequestConfig>;
 export type AxiosResponseInterceptor = (response: AxiosResponse) => AxiosResponse | Promise<AxiosResponse>;
@@ -13,6 +16,8 @@ export interface ApiClientOptions {
   defaultHeaders?: Record<string, string>;
   requestInterceptors?: AxiosRequestInterceptor[];
   responseInterceptors?: AxiosResponseInterceptor[];
+  /** Retry policy for failed requests. Set to false to disable retry. Defaults to the spec-defined policy. */
+  retryPolicy?: RetryPolicy | false;
 }
 
 export interface RequestOptions {
@@ -27,10 +32,12 @@ export class ApiClient {
   private readonly baseUrl: string;
   private readonly client: AxiosInstance;
   private readonly options: ApiClientOptions;
+  private readonly retryPolicy: RetryPolicy | false;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.options = options ?? {};
+    this.retryPolicy = this.options.retryPolicy !== undefined ? this.options.retryPolicy : defaultRetryPolicy;
     this.client = axios.create({
       baseURL: this.baseUrl,
       validateStatus: () => true,
@@ -80,7 +87,7 @@ export class ApiClient {
       Object.assign(headers, options.headers);
     }
 
-    const response = await this.client.request<T>({
+    const doRequest = () => this.client.request<T>({
       method,
       url: path,
       data,
@@ -89,6 +96,18 @@ export class ApiClient {
       signal: options?.signal,
       responseType: options?.responseType === 'blob' ? 'blob' : 'json',
     });
+
+    let response: AxiosResponse<T>;
+    if (this.retryPolicy) {
+      // Use retryWithBackoff with a fetch-compatible wrapper
+      const fetchWrapper = async (): Promise<Response> => {
+        response = await doRequest();
+        return new Response(null, { status: response.status });
+      };
+      await retryWithBackoff(fetchWrapper, this.retryPolicy, options?.signal);
+    } else {
+      response = await doRequest();
+    }
 
     return this.handleResponse<T>(response);
   }

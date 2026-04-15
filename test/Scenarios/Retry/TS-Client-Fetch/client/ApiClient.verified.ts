@@ -2,6 +2,9 @@
 import { ApiError } from '../errors/ApiError';
 import { ValidationError } from '../errors/ValidationError';
 import type { ApiResult } from '../types/ApiResult';
+import { retryWithBackoff } from '../helpers/retryInterceptor';
+import { defaultRetryPolicy } from '../helpers/retryConfig';
+import type { RetryPolicy } from '../helpers/retryConfig';
 
 export type FetchRequestInterceptor = (url: string, init: RequestInit) => RequestInit | Promise<RequestInit>;
 export type FetchResponseInterceptor = (response: Response) => Response | Promise<Response>;
@@ -11,6 +14,8 @@ export interface ApiClientOptions {
   defaultHeaders?: Record<string, string>;
   requestInterceptors?: FetchRequestInterceptor[];
   responseInterceptors?: FetchResponseInterceptor[];
+  /** Retry policy for failed requests. Set to false to disable retry. Defaults to the spec-defined policy. */
+  retryPolicy?: RetryPolicy | false;
 }
 
 export interface RequestOptions {
@@ -24,10 +29,12 @@ export interface RequestOptions {
 export class ApiClient {
   private readonly baseUrl: string;
   private readonly options: ApiClientOptions;
+  private readonly retryPolicy: RetryPolicy | false;
 
   constructor(baseUrl: string, options?: ApiClientOptions) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.options = options ?? {};
+    this.retryPolicy = this.options.retryPolicy !== undefined ? this.options.retryPolicy : defaultRetryPolicy;
   }
 
   async request<T>(method: string, path: string, options?: RequestOptions): Promise<ApiResult<T>> {
@@ -58,7 +65,12 @@ export class ApiClient {
       init = await interceptor(url, init);
     }
 
-    let response = await fetch(url, init);
+    let response: Response;
+    if (this.retryPolicy) {
+      response = await retryWithBackoff(() => fetch(url, init), this.retryPolicy, options?.signal);
+    } else {
+      response = await fetch(url, init);
+    }
 
     for (const interceptor of this.options.responseInterceptors ?? []) {
       response = await interceptor(response);

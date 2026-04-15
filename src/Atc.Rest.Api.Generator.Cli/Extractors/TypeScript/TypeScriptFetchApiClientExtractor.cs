@@ -13,7 +13,8 @@ public static class TypeScriptFetchApiClientExtractor
     /// <returns>The TypeScript file content.</returns>
     public static string Generate(
         string? headerContent,
-        bool convertDates = false)
+        bool convertDates = false,
+        bool hasRetry = false)
     {
         var sb = new StringBuilder();
 
@@ -22,29 +23,41 @@ public static class TypeScriptFetchApiClientExtractor
             sb.Append(headerContent);
         }
 
-        AppendImports(sb);
+        AppendImports(sb, hasRetry);
 
         if (convertDates)
         {
             AppendDateReviverReplacer(sb);
         }
 
-        AppendApiClientOptionsInterface(sb);
+        AppendApiClientOptionsInterface(sb, hasRetry);
         AppendRequestOptionsInterface(sb);
-        AppendApiClientClass(sb, convertDates);
+        AppendApiClientClass(sb, convertDates, hasRetry);
 
         return sb.ToString();
     }
 
-    private static void AppendImports(StringBuilder sb)
+    private static void AppendImports(
+        StringBuilder sb,
+        bool hasRetry)
     {
         sb.AppendLine("import { ApiError } from '../errors/ApiError';");
         sb.AppendLine("import { ValidationError } from '../errors/ValidationError';");
         sb.AppendLine("import type { ApiResult } from '../types/ApiResult';");
+
+        if (hasRetry)
+        {
+            sb.AppendLine("import { retryWithBackoff } from '../helpers/retryInterceptor';");
+            sb.AppendLine("import { defaultRetryPolicy } from '../helpers/retryConfig';");
+            sb.AppendLine("import type { RetryPolicy } from '../helpers/retryConfig';");
+        }
+
         sb.AppendLine();
     }
 
-    private static void AppendApiClientOptionsInterface(StringBuilder sb)
+    private static void AppendApiClientOptionsInterface(
+        StringBuilder sb,
+        bool hasRetry)
     {
         sb.AppendLine("export type FetchRequestInterceptor = (url: string, init: RequestInit) => RequestInit | Promise<RequestInit>;");
         sb.AppendLine("export type FetchResponseInterceptor = (response: Response) => Response | Promise<Response>;");
@@ -54,6 +67,13 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("  defaultHeaders?: Record<string, string>;");
         sb.AppendLine("  requestInterceptors?: FetchRequestInterceptor[];");
         sb.AppendLine("  responseInterceptors?: FetchResponseInterceptor[];");
+
+        if (hasRetry)
+        {
+            sb.AppendLine("  /** Retry policy for failed requests. Set to false to disable retry. Defaults to the spec-defined policy. */");
+            sb.AppendLine("  retryPolicy?: RetryPolicy | false;");
+        }
+
         sb.AppendLine("}");
         sb.AppendLine();
     }
@@ -92,15 +112,22 @@ public static class TypeScriptFetchApiClientExtractor
 
     private static void AppendApiClientClass(
         StringBuilder sb,
-        bool convertDates)
+        bool convertDates,
+        bool hasRetry)
     {
         sb.AppendLine("export class ApiClient {");
         sb.AppendLine("  private readonly baseUrl: string;");
         sb.AppendLine("  private readonly options: ApiClientOptions;");
+
+        if (hasRetry)
+        {
+            sb.AppendLine("  private readonly retryPolicy: RetryPolicy | false;");
+        }
+
         sb.AppendLine();
 
-        AppendConstructor(sb);
-        AppendRequestMethod(sb, convertDates);
+        AppendConstructor(sb, hasRetry);
+        AppendRequestMethod(sb, convertDates, hasRetry);
         AppendRequestStreamMethod(sb, convertDates);
         AppendBuildUrlMethod(sb);
         AppendGetHeadersMethod(sb);
@@ -109,18 +136,27 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("}");
     }
 
-    private static void AppendConstructor(StringBuilder sb)
+    private static void AppendConstructor(
+        StringBuilder sb,
+        bool hasRetry)
     {
         sb.AppendLine("  constructor(baseUrl: string, options?: ApiClientOptions) {");
         sb.AppendLine("    this.baseUrl = baseUrl.replace(/\\/+$/, '');");
         sb.AppendLine("    this.options = options ?? {};");
+
+        if (hasRetry)
+        {
+            sb.AppendLine("    this.retryPolicy = this.options.retryPolicy !== undefined ? this.options.retryPolicy : defaultRetryPolicy;");
+        }
+
         sb.AppendLine("  }");
         sb.AppendLine();
     }
 
     private static void AppendRequestMethod(
         StringBuilder sb,
-        bool convertDates)
+        bool convertDates,
+        bool hasRetry)
     {
         var stringify = convertDates ? "JSON.stringify(options.body, dateReplacer)" : "JSON.stringify(options.body)";
 
@@ -152,7 +188,21 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("      init = await interceptor(url, init);");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    let response = await fetch(url, init);");
+
+        if (hasRetry)
+        {
+            sb.AppendLine("    let response: Response;");
+            sb.AppendLine("    if (this.retryPolicy) {");
+            sb.AppendLine("      response = await retryWithBackoff(() => fetch(url, init), this.retryPolicy, options?.signal);");
+            sb.AppendLine("    } else {");
+            sb.AppendLine("      response = await fetch(url, init);");
+            sb.AppendLine("    }");
+        }
+        else
+        {
+            sb.AppendLine("    let response = await fetch(url, init);");
+        }
+
         sb.AppendLine();
         sb.AppendLine("    for (const interceptor of this.options.responseInterceptors ?? []) {");
         sb.AppendLine("      response = await interceptor(response);");
