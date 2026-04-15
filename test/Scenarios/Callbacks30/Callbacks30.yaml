@@ -1,0 +1,103 @@
+openapi: 3.0.3
+info:
+  title: Callbacks Test API (OpenAPI 3.0)
+  version: 1.0.0
+  description: Tests OpenAPI 3.0 callbacks handling
+
+paths:
+  /subscriptions:
+    post:
+      operationId: createSubscription
+      summary: Create a webhook subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionRequest'
+      callbacks:
+        onEvent:
+          '{$request.body#/callbackUrl}':
+            post:
+              summary: Receive event notification
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/EventPayload'
+              responses:
+                '200':
+                  description: Callback processed
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+  /subscriptions/{subscriptionId}:
+    delete:
+      operationId: deleteSubscription
+      summary: Delete a subscription
+      parameters:
+        - name: subscriptionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Subscription deleted
+        '404':
+          description: Subscription not found
+
+components:
+  schemas:
+    SubscriptionRequest:
+      title: SubscriptionRequest
+      type: object
+      required:
+        - callbackUrl
+        - events
+      properties:
+        callbackUrl:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+
+    Subscription:
+      title: Subscription
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        callbackUrl:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    EventPayload:
+      title: EventPayload
+      type: object
+      properties:
+        eventType:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        data:
+          type: string
+          description: JSON-encoded event data

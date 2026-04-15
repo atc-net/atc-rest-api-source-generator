@@ -1,0 +1,130 @@
+openapi: 3.0.3
+info:
+  title: Circular Schemas Test API
+  version: 1.0.0
+  description: Tests circular and recursive schema references
+
+paths:
+  /tree:
+    get:
+      operationId: getTree
+      summary: Get tree structure
+      responses:
+        '200':
+          description: Tree node
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TreeNode'
+
+  /categories:
+    get:
+      operationId: listCategories
+      summary: List categories with mutual references
+      responses:
+        '200':
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+
+  /deep:
+    get:
+      operationId: getDeepChain
+      summary: Get deeply nested structure
+      responses:
+        '200':
+          description: Deep chain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Level1'
+
+components:
+  schemas:
+    TreeNode:
+      title: TreeNode
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/TreeNode'
+
+    Category:
+      title: Category
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        parent:
+          $ref: '#/components/schemas/Category'
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+
+    Tag:
+      title: Tag
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        category:
+          $ref: '#/components/schemas/Category'
+
+    Level1:
+      title: Level1
+      type: object
+      properties:
+        name:
+          type: string
+        child:
+          $ref: '#/components/schemas/Level2'
+
+    Level2:
+      title: Level2
+      type: object
+      properties:
+        name:
+          type: string
+        child:
+          $ref: '#/components/schemas/Level3'
+
+    Level3:
+      title: Level3
+      type: object
+      properties:
+        name:
+          type: string
+        child:
+          $ref: '#/components/schemas/Level4'
+
+    Level4:
+      title: Level4
+      type: object
+      properties:
+        name:
+          type: string
+        child:
+          $ref: '#/components/schemas/Level5'
+
+    Level5:
+      title: Level5
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: integer

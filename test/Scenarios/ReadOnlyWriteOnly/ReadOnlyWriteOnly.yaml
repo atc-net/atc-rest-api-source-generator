@@ -1,0 +1,79 @@
+openapi: 3.0.3
+info:
+  title: ReadOnly WriteOnly Test API
+  version: 1.0.0
+  description: Tests readOnly and writeOnly property handling
+
+paths:
+  /users:
+    post:
+      operationId: createUser
+      summary: Create a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /users/{userId}:
+    get:
+      operationId: getUserById
+      summary: Get user by ID
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+
+components:
+  schemas:
+    User:
+      title: User
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+          description: Auto-generated unique identifier
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+          description: Only accepted on create/update, never returned
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Server-assigned creation timestamp
+        secret:
+          type: string
+          writeOnly: true
+          description: Internal secret, never exposed in responses
+        displayName:
+          type: string
+          description: Regular read-write property

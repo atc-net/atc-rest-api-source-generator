@@ -1,0 +1,110 @@
+openapi: 3.0.3
+info:
+  title: AllOf Multi-Level Inheritance Test API
+  version: 1.0.0
+  description: Tests multi-level allOf inheritance chains
+
+paths:
+  /people:
+    get:
+      operationId: listPeople
+      summary: List people
+      responses:
+        '200':
+          description: List of people
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Person'
+    post:
+      operationId: createPerson
+      summary: Create a person
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Person'
+      responses:
+        '201':
+          description: Person created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+
+  /employees:
+    get:
+      operationId: listEmployees
+      summary: List employees
+      responses:
+        '200':
+          description: List of employees
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Employee'
+
+components:
+  schemas:
+    Entity:
+      title: Entity
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    NamedEntity:
+      title: NamedEntity
+      allOf:
+        - $ref: '#/components/schemas/Entity'
+        - type: object
+          required:
+            - name
+          properties:
+            name:
+              type: string
+            description:
+              type: string
+
+    Person:
+      title: Person
+      allOf:
+        - $ref: '#/components/schemas/NamedEntity'
+        - type: object
+          required:
+            - email
+          properties:
+            email:
+              type: string
+              format: email
+            age:
+              type: integer
+              minimum: 0
+              maximum: 150
+
+    Employee:
+      title: Employee
+      allOf:
+        - $ref: '#/components/schemas/Person'
+        - type: object
+          required:
+            - department
+          properties:
+            department:
+              type: string
+            title:
+              type: string
+            hireDate:
+              type: string
+              format: date
