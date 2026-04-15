@@ -22,7 +22,17 @@ public class GenerateContentWriter
         IList<AttributeParameters>? attributes)
     {
         var sb = new StringBuilder();
+        AppendTopOfType(sb, headerContent, @namespace, documentationTags, attributes);
+        return sb.ToString();
+    }
 
+    public void AppendTopOfType(
+        StringBuilder sb,
+        string? headerContent,
+        string @namespace,
+        CodeDocumentationTags? documentationTags,
+        IList<AttributeParameters>? attributes)
+    {
         if (!string.IsNullOrEmpty(headerContent))
         {
             sb.Append(headerContent);
@@ -43,8 +53,6 @@ public class GenerateContentWriter
                 sb.AppendLine();
             }
         }
-
-        return sb.ToString();
     }
 
     public string GenerateConstructor(
@@ -56,7 +64,14 @@ public class GenerateContentWriter
         }
 
         var sb = new StringBuilder();
+        AppendConstructor(sb, parameters);
+        return sb.ToString();
+    }
 
+    public void AppendConstructor(
+        StringBuilder sb,
+        ConstructorParameters parameters)
+    {
         sb.AppendDeclarationModifier(4, parameters.DeclarationModifier);
 
         if (string.IsNullOrEmpty(parameters.GenericTypeName))
@@ -142,8 +157,6 @@ public class GenerateContentWriter
                 // TODO Handle this.
             }
         }
-
-        return sb.ToString();
     }
 
     public string GeneratePrivateReadonlyMembersToConstructor(
@@ -155,7 +168,14 @@ public class GenerateContentWriter
         }
 
         var sb = new StringBuilder();
+        AppendPrivateReadonlyMembersToConstructor(sb, parameters);
+        return sb.ToString();
+    }
 
+    public void AppendPrivateReadonlyMembersToConstructor(
+        StringBuilder sb,
+        IList<ConstructorParameters> parameters)
+    {
         foreach (var parametersConstructor in parameters)
         {
             if (parametersConstructor.Parameters is not null)
@@ -169,8 +189,6 @@ public class GenerateContentWriter
                 }
             }
         }
-
-        return sb.ToString();
     }
 
     public string GenerateProperty(
@@ -182,7 +200,14 @@ public class GenerateContentWriter
         }
 
         var sb = new StringBuilder();
+        AppendProperty(sb, parameters);
+        return sb.ToString();
+    }
 
+    public void AppendProperty(
+        StringBuilder sb,
+        PropertyParameters parameters)
+    {
         if (parameters.DocumentationTags is not null)
         {
             sb.Append(codeDocumentationTagsGenerator.GenerateTags(4, parameters.DocumentationTags));
@@ -262,8 +287,6 @@ public class GenerateContentWriter
         {
             throw new ArgumentException("Content is missing or use UseAutoProperty", nameof(parameters));
         }
-
-        return sb.ToString();
     }
 
     public string GenerateMethod(MethodParameters parameters)
@@ -274,7 +297,14 @@ public class GenerateContentWriter
         }
 
         var sb = new StringBuilder();
+        AppendMethod(sb, parameters);
+        return sb.ToString();
+    }
 
+    public void AppendMethod(
+        StringBuilder sb,
+        MethodParameters parameters)
+    {
         if (parameters.DocumentationTags is not null)
         {
             sb.Append(codeDocumentationTagsGenerator.GenerateTags(4, parameters.DocumentationTags));
@@ -384,8 +414,6 @@ public class GenerateContentWriter
                 }
             }
         }
-
-        return sb.ToString();
     }
 
     public string GenerateMethodToString(
@@ -397,7 +425,14 @@ public class GenerateContentWriter
         }
 
         var sb = new StringBuilder();
+        AppendMethodToString(sb, parameters);
+        return sb.ToString();
+    }
 
+    public void AppendMethodToString(
+        StringBuilder sb,
+        IList<PropertyParameters> parameters)
+    {
         sb.AppendLine(4, "/// <inheritdoc />");
         sb.AppendLine(4, "public override string ToString()");
         sb.Append(8, "=> $\"");
@@ -432,7 +467,5 @@ public class GenerateContentWriter
         }
 
         sb.Append("\";");
-
-        return sb.ToString();
     }
 }
