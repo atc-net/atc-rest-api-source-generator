@@ -760,6 +760,19 @@ public static class SchemaExtractor
 
             var isRequired = required.Contains(prop.Key, StringComparer.Ordinal);
 
+            // readOnly/writeOnly properties should be optional in the shared record type.
+            // readOnly = only in responses (server sets, client reads), writeOnly = only in requests (client sends).
+            // Making them optional allows omission in the context where they don't apply.
+            if (isRequired)
+            {
+                var resolvedPropSchema = prop.Value is OpenApiSchemaReference propRef ? propRef.Target : prop.Value;
+                if (resolvedPropSchema is OpenApiSchema actualPropSchema &&
+                    (actualPropSchema.ReadOnly || actualPropSchema.WriteOnly))
+                {
+                    isRequired = false;
+                }
+            }
+
             // Check for additionalProperties (Dictionary types) first
             // Use extension method for model type mapping
             // Note: ToCSharpTypeForModel() handles nullability based on schema's nullable property,
@@ -792,6 +805,16 @@ public static class SchemaExtractor
 
             // Extract default value from schema
             var defaultValue = ExtractSchemaDefault(prop.Value, cleanTypeName);
+
+            // readOnly/writeOnly properties get a null default so they can be omitted in requests/responses
+            var resolvedPropForRw = prop.Value is OpenApiSchemaReference propRefRw ? propRefRw.Target : prop.Value;
+            if (resolvedPropForRw is OpenApiSchema actualPropForRw &&
+                (actualPropForRw.ReadOnly || actualPropForRw.WriteOnly) &&
+                string.IsNullOrEmpty(defaultValue))
+            {
+                isNullableType = true;
+                defaultValue = "null";
+            }
 
             parametersList.Add(new ParameterBaseParameters(
                 Attributes: attributes,
@@ -887,6 +910,14 @@ public static class SchemaExtractor
             }
 
             var isRequired = required.Contains(prop.Key, StringComparer.Ordinal);
+
+            // readOnly/writeOnly properties should be optional
+            if (isRequired && prop.Value is OpenApiSchema propSchemaForRw2 &&
+                (propSchemaForRw2.ReadOnly || propSchemaForRw2.WriteOnly))
+            {
+                isRequired = false;
+            }
+
             string csharpType;
 
             // Check for inline enum before standard type resolution
@@ -956,6 +987,16 @@ public static class SchemaExtractor
 
             // Extract default value from schema
             var defaultValue = ExtractSchemaDefault(prop.Value, cleanTypeName);
+
+            // readOnly/writeOnly properties get a null default so they can be omitted in requests/responses
+            var resolvedPropForRw = prop.Value is OpenApiSchemaReference propRefRw ? propRefRw.Target : prop.Value;
+            if (resolvedPropForRw is OpenApiSchema actualPropForRw &&
+                (actualPropForRw.ReadOnly || actualPropForRw.WriteOnly) &&
+                string.IsNullOrEmpty(defaultValue))
+            {
+                isNullableType = true;
+                defaultValue = "null";
+            }
 
             parametersList.Add(new ParameterBaseParameters(
                 Attributes: attributes,

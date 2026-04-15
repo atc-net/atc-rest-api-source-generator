@@ -377,6 +377,145 @@ public class SchemaExtractorTests
         Assert.Equal("Pet", result.Parameters[0].Name);
     }
 
+    // ========== readOnly / writeOnly Tests ==========
+    [Fact]
+    public void OpenApiParser_ReadOnlyProperty_IsParsed()
+    {
+        // Verify that Microsoft.OpenApi parses readOnly correctly
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: integer
+                                      readOnly: true
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var pet = document.Components.Schemas["Pet"];
+        var idProp = pet.Properties["id"];
+
+        // Check if ReadOnly is accessible
+        if (idProp is OpenApiSchema directSchema)
+        {
+            Assert.True(directSchema.ReadOnly, $"Direct OpenApiSchema.ReadOnly should be true (type: {idProp.GetType().Name})");
+        }
+        else if (idProp is OpenApiSchemaReference schemaRef && schemaRef.Target is OpenApiSchema targetSchema)
+        {
+            Assert.True(targetSchema.ReadOnly, $"Target OpenApiSchema.ReadOnly should be true");
+        }
+        else
+        {
+            Assert.Fail($"Property type is {idProp.GetType().Name}, cannot check ReadOnly");
+        }
+    }
+
+    [Fact]
+    public void ExtractForSchemas_ReadOnlyProperty_IsOptionalEvenIfRequired()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  required:
+                                    - id
+                                    - name
+                                  properties:
+                                    id:
+                                      type: integer
+                                      format: int64
+                                      readOnly: true
+                                    name:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
+
+        // Act
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        // Assert
+        Assert.NotNull(result);
+        var record = result.Parameters[0];
+        Assert.NotNull(record.Parameters);
+
+        // 'id' is readOnly + required -> should be treated as optional (nullable)
+        var idParam = record.Parameters.First(p => p.Name == "Id");
+        Assert.True(idParam.IsNullableType, "readOnly property should be nullable (optional) even when required");
+
+        // 'name' is required and NOT readOnly -> should stay required (non-nullable)
+        var nameParam = record.Parameters.First(p => p.Name == "Name");
+        Assert.False(nameParam.IsNullableType, "Non-readOnly required property should remain required");
+    }
+
+    [Fact]
+    public void ExtractForSchemas_WriteOnlyProperty_IsOptionalEvenIfRequired()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                User:
+                                  type: object
+                                  required:
+                                    - email
+                                    - password
+                                  properties:
+                                    email:
+                                      type: string
+                                    password:
+                                      type: string
+                                      writeOnly: true
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "User" };
+
+        // Act
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        // Assert
+        Assert.NotNull(result);
+        var record = result.Parameters[0];
+        Assert.NotNull(record.Parameters);
+
+        // 'password' is writeOnly + required -> should be treated as optional (nullable)
+        var passwordParam = record.Parameters.First(p => p.Name == "Password");
+        Assert.True(passwordParam.IsNullableType, "writeOnly property should be nullable (optional) even when required");
+
+        // 'email' is required and NOT writeOnly -> should stay required
+        var emailParam = record.Parameters.First(p => p.Name == "Email");
+        Assert.False(emailParam.IsNullableType, "Non-writeOnly required property should remain required");
+    }
+
     // ========== Nullable Property Tests ==========
     [Fact]
     public void ExtractForSchemas_WithNullableProperty_SetsNullableFlag()
