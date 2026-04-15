@@ -29,6 +29,7 @@ global using Atc.Helpers;
 
 global using Atc.OpenApi.Extensions;
 global using Atc.OpenApi.Helpers;
+global using Atc.OpenApi.Models;
 global using Atc.Rest.Api.Generator.Cli.Commands;
 global using Atc.Rest.Api.Generator.Cli.Commands.Settings;
 global using Atc.Rest.Api.Generator.Cli.Defaults;
