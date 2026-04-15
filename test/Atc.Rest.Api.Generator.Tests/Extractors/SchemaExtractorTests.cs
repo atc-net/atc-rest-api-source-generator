@@ -262,4 +262,160 @@ public class SchemaExtractorTests
         Assert.DoesNotContain("using System;", result.HeaderContent, StringComparison.Ordinal);
         Assert.DoesNotContain("using System.Collections.Generic;", result.HeaderContent, StringComparison.Ordinal);
     }
+
+    // ========== x-implements Extension Tests ==========
+    [Fact]
+    public void ExtractForSchemas_WithXImplements_IncludesInterfaceInRecordName()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  x-implements:
+                                    - IAnimal
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
+
+        // Act
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Single(result.Parameters);
+        Assert.Contains(" : IAnimal", result.Parameters[0].Name, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExtractForSchemas_WithMultipleXImplements_IncludesAllInterfaces()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  x-implements:
+                                    - IAnimal
+                                    - ISerializable
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
+
+        // Act
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Single(result.Parameters);
+        Assert.Contains(" : IAnimal, ISerializable", result.Parameters[0].Name, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExtractForSchemas_WithoutXImplements_DoesNotIncludeInterface()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
+
+        // Act
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Single(result.Parameters);
+        Assert.Equal("Pet", result.Parameters[0].Name);
+    }
+
+    // ========== Nullable Property Tests ==========
+    [Fact]
+    public void ExtractForSchemas_WithNullableProperty_SetsNullableFlag()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                    tag:
+                                      type: string
+                                      nullable: true
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
+
+        // Act
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        // Assert
+        Assert.NotNull(result);
+        var record = result.Parameters[0];
+        Assert.NotNull(record.Parameters);
+        var tagParam = record.Parameters.First(p => p.Name == "Tag");
+        Assert.True(tagParam.IsNullableType);
+    }
 }
