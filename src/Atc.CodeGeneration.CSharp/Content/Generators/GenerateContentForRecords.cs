@@ -19,12 +19,12 @@ public class GenerateContentForRecords : IContentGenerator
         var contentWriter = new GenerateContentWriter(codeDocumentationTagsGenerator);
 
         var sb = new StringBuilder();
-        sb.Append(
-            contentWriter.GenerateTopOfType(
-                parameters.HeaderContent,
-                parameters.Namespace,
-                parameters.DocumentationTags,
-                parameters.Attributes));
+        contentWriter.AppendTopOfType(
+            sb,
+            parameters.HeaderContent,
+            parameters.Namespace,
+            parameters.DocumentationTags,
+            parameters.Attributes);
 
         for (var i = 0; i < parameters.Parameters.Count; i++)
         {

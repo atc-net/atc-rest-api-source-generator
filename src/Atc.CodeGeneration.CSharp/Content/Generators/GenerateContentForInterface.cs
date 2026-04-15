@@ -19,12 +19,12 @@ public class GenerateContentForInterface : IContentGenerator
         var contentWriter = new GenerateContentWriter(codeDocumentationTagsGenerator);
 
         var sb = new StringBuilder();
-        sb.Append(
-            contentWriter.GenerateTopOfType(
-                parameters.HeaderContent,
-                parameters.Namespace,
-                parameters.DocumentationTags,
-                parameters.Attributes));
+        contentWriter.AppendTopOfType(
+            sb,
+            parameters.HeaderContent,
+            parameters.Namespace,
+            parameters.DocumentationTags,
+            parameters.Attributes);
 
         sb.Append($"{EnumDescriptionHelper.GetDescription(parameters.DeclarationModifier)} ");
         if (string.IsNullOrEmpty(parameters.InheritedInterfaceTypeName))
@@ -48,7 +48,8 @@ public class GenerateContentForInterface : IContentGenerator
                     sb.AppendLine();
                 }
 
-                sb.AppendLine(contentWriter.GenerateProperty(propertyParameters));
+                contentWriter.AppendProperty(sb, propertyParameters);
+                sb.AppendLine();
 
                 isFirstEntry = false;
             }
@@ -63,7 +64,8 @@ public class GenerateContentForInterface : IContentGenerator
                     sb.AppendLine();
                 }
 
-                sb.AppendLine(contentWriter.GenerateMethod(methodParameters));
+                contentWriter.AppendMethod(sb, methodParameters);
+                sb.AppendLine();
 
                 isFirstEntry = false;
             }

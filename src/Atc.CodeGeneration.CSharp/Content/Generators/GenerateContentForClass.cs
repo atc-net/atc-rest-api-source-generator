@@ -20,12 +20,12 @@ public class GenerateContentForClass : IContentGenerator
         var contentWriter = new GenerateContentWriter(codeDocumentationTagsGenerator);
 
         var sb = new StringBuilder();
-        sb.Append(
-            contentWriter.GenerateTopOfType(
-                parameters.HeaderContent,
-                parameters.Namespace,
-                parameters.DocumentationTags,
-                parameters.Attributes));
+        contentWriter.AppendTopOfType(
+            sb,
+            parameters.HeaderContent,
+            parameters.Namespace,
+            parameters.DocumentationTags,
+            parameters.Attributes);
 
         sb.Append($"{EnumDescriptionHelper.GetDescription(parameters.DeclarationModifier)} {parameters.ClassTypeName}");
         if (!string.IsNullOrEmpty(parameters.GenericTypeName))
@@ -86,15 +86,16 @@ public class GenerateContentForClass : IContentGenerator
 
         if (parameters.Constructors is not null)
         {
-            var content = contentWriter.GeneratePrivateReadonlyMembersToConstructor(parameters.Constructors);
-            if (!string.IsNullOrEmpty(content))
+            var lengthBefore = sb.Length;
+            contentWriter.AppendPrivateReadonlyMembersToConstructor(sb, parameters.Constructors);
+            if (sb.Length > lengthBefore)
             {
                 if (!isFirstEntry)
                 {
-                    sb.AppendLine();
+                    // Readonly members were appended — insert blank line before them
+                    sb.Insert(lengthBefore, Environment.NewLine);
                 }
 
-                sb.Append(content);
                 isFirstEntry = false;
             }
 
@@ -105,7 +106,8 @@ public class GenerateContentForClass : IContentGenerator
                     sb.AppendLine();
                 }
 
-                sb.AppendLine(contentWriter.GenerateConstructor(constructorParameters));
+                contentWriter.AppendConstructor(sb, constructorParameters);
+                sb.AppendLine();
 
                 isFirstEntry = false;
             }
@@ -120,7 +122,8 @@ public class GenerateContentForClass : IContentGenerator
                     sb.AppendLine();
                 }
 
-                sb.AppendLine(contentWriter.GenerateProperty(propertyParameters));
+                contentWriter.AppendProperty(sb, propertyParameters);
+                sb.AppendLine();
 
                 isFirstEntry = false;
             }
@@ -135,7 +138,8 @@ public class GenerateContentForClass : IContentGenerator
                     sb.AppendLine();
                 }
 
-                sb.AppendLine(contentWriter.GenerateMethod(methodParameters));
+                contentWriter.AppendMethod(sb, methodParameters);
+                sb.AppendLine();
 
                 isFirstEntry = false;
             }
@@ -149,7 +153,8 @@ public class GenerateContentForClass : IContentGenerator
                 sb.AppendLine();
             }
 
-            sb.AppendLine(contentWriter.GenerateMethodToString(parameters.Properties));
+            contentWriter.AppendMethodToString(sb, parameters.Properties);
+            sb.AppendLine();
         }
 
         sb.Append('}');
