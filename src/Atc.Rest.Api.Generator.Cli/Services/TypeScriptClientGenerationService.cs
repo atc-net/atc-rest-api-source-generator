@@ -43,6 +43,18 @@ public static class TypeScriptClientGenerationService
         // Step 5: Generate client classes
         var clientCount = WriteClients(openApiDoc, outputPath, headerContent, enumNameSet, config.HttpClient, config.NamingStrategy, config.ConvertDates, dryRun);
 
+        // Step 5b: Generate pagination helper if spec has pagination schemas
+        if (clientCount > 0 && HasPaginationSchemas(openApiDoc))
+        {
+            var helpersDir = Path.Combine(outputPath, "helpers");
+            var paginationContent = TypeScriptPaginationHelperExtractor.Generate(headerContent);
+            WriteTsFile(Path.Combine(helpersDir, "paginate.ts"), paginationContent, dryRun);
+
+            // Generate barrel export for helpers
+            var helperBarrel = TypeScriptBarrelExportExtractor.Create(headerContent, ["paginate"], isTypeOnly: false);
+            WriteTsFile(Path.Combine(helpersDir, "index.ts"), new GenerateContentForBarrelExport(helperBarrel).Generate(), dryRun);
+        }
+
         // Step 6: Generate React Query hooks (if configured)
         var hookCount = 0;
         if (config.HooksStyle == TypeScriptHooksStyle.ReactQuery && clientCount > 0)
@@ -100,6 +112,11 @@ public static class TypeScriptClientGenerationService
         if (clientCount > 0)
         {
             subdirectories.Add("client");
+        }
+
+        if (clientCount > 0 && HasPaginationSchemas(openApiDoc))
+        {
+            subdirectories.Add("helpers");
         }
 
         if (hookCount > 0)
@@ -550,6 +567,26 @@ public static class TypeScriptClientGenerationService
         }
 
         File.WriteAllText(filePath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+    }
+
+    private static bool HasPaginationSchemas(OpenApiDocument openApiDoc)
+    {
+        if (openApiDoc.Components?.Schemas == null)
+        {
+            return false;
+        }
+
+        foreach (var schemaName in openApiDoc.Components.Schemas.Keys)
+        {
+            if (schemaName.StartsWith("PaginationResult", StringComparison.Ordinal) ||
+                schemaName.StartsWith("PaginatedResult", StringComparison.Ordinal) ||
+                schemaName.StartsWith("PagedResult", StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static int WriteMswHandlers(
