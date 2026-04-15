@@ -815,6 +815,16 @@ public static class SchemaExtractor
             ? schemaName
             : $"{schemaName} : {baseTypeName}";
 
+        // Append x-implements interfaces (e.g., "Pet : IAnimal, ISerializable")
+        var implementedInterfaces = schema.GetImplementedInterfaces();
+        if (implementedInterfaces.Count > 0)
+        {
+            var interfaceList = string.Join(", ", implementedInterfaces);
+            recordName = recordName.Contains(" : ", StringComparison.Ordinal)
+                ? $"{recordName}, {interfaceList}"
+                : $"{recordName} : {interfaceList}";
+        }
+
         var declarationModifier = declarationModifierOverride
             ?? (generatePartialModels
                 ? DeclarationModifiers.PublicPartialRecord
@@ -963,6 +973,14 @@ public static class SchemaExtractor
             .OrderBy(p => p.DefaultValue != null ? 1 : 0)
             .ToList();
 
+        // Append x-implements interfaces
+        var recordName = schemaName;
+        var implementedInterfaces = schema.GetImplementedInterfaces();
+        if (implementedInterfaces.Count > 0)
+        {
+            recordName = $"{schemaName} : {string.Join(", ", implementedInterfaces)}";
+        }
+
         var declarationModifier = declarationModifierOverride
             ?? (generatePartialModels
                 ? DeclarationModifiers.PublicPartialRecord
@@ -971,7 +989,7 @@ public static class SchemaExtractor
         return new RecordParameters(
             DocumentationTags: null,
             DeclarationModifier: declarationModifier,
-            Name: schemaName,
+            Name: recordName,
             Parameters: sortedParameters,
             Attributes: new List<AttributeParameters>
             {
