@@ -22,12 +22,12 @@ public class GenerateContentForEnum : IContentGenerator
         var useJsonStringEnumConverter = UseJsonStringEnumConverter(parameters.Values);
 
         var sb = new StringBuilder();
-        sb.Append(
-            contentWriter.GenerateTopOfType(
-                parameters.HeaderContent,
-                parameters.Namespace,
-                parameters.DocumentationTags,
-                GetAttributeParametersList()));
+        contentWriter.AppendTopOfType(
+            sb,
+            parameters.HeaderContent,
+            parameters.Namespace,
+            parameters.DocumentationTags,
+            GetAttributeParametersList());
 
         if (useJsonStringEnumConverter)
         {
