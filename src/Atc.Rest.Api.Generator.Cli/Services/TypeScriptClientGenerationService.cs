@@ -49,6 +49,10 @@ public static class TypeScriptClientGenerationService
         {
             hookCount = WriteReactQueryHooks(openApiDoc, outputPath, headerContent, enumNameSet, config.NamingStrategy, dryRun);
         }
+        else if (config.HooksStyle == TypeScriptHooksStyle.Swr && clientCount > 0)
+        {
+            hookCount = WriteSwrHooks(openApiDoc, outputPath, headerContent, enumNameSet, config.NamingStrategy, dryRun);
+        }
 
         // Step 6b: Generate Zod schemas (if configured)
         var zodSchemaCount = 0;
@@ -363,6 +367,49 @@ public static class TypeScriptClientGenerationService
             Path.Combine(hooksDir, "index.ts"),
             barrelContent,
             dryRun);
+
+        return hooks.Count;
+    }
+
+    /// <summary>
+    /// Writes SWR hook files (ApiProvider, useApiService, per-segment hooks) and their barrel export.
+    /// </summary>
+    private static int WriteSwrHooks(
+        OpenApiDocument openApiDoc,
+        string outputPath,
+        string? headerContent,
+        HashSet<string> enumNameSet,
+        TypeScriptNamingStrategy namingStrategy,
+        bool dryRun)
+    {
+        var hooks = TypeScriptSwrHookExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy);
+        if (hooks.Count == 0)
+        {
+            return 0;
+        }
+
+        var hooksDir = Path.Combine(outputPath, "hooks");
+
+        // Reuse ApiProvider and useApiService from React Query (same context pattern)
+        var providerContent = TypeScriptApiProviderExtractor.GenerateApiProvider(headerContent);
+        WriteTsFile(Path.Combine(hooksDir, "ApiProvider.ts"), providerContent, dryRun);
+
+        var useApiServiceContent = TypeScriptApiProviderExtractor.GenerateUseApiService(headerContent);
+        WriteTsFile(Path.Combine(hooksDir, "useApiService.ts"), useApiServiceContent, dryRun);
+
+        // Write per-segment hook files
+        var hookFileNames = new List<string> { "ApiProvider", "useApiService" };
+        foreach (var (fileName, content) in hooks)
+        {
+            var filePath = Path.Combine(hooksDir, fileName + ".ts");
+            WriteTsFile(filePath, content, dryRun);
+            hookFileNames.Add(fileName);
+        }
+
+        // Generate barrel export
+        var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, hookFileNames, isTypeOnly: false);
+        var barrelGenerator = new GenerateContentForBarrelExport(barrelParams);
+        WriteTsFile(Path.Combine(hooksDir, "index.ts"), barrelGenerator.Generate(), dryRun);
 
         return hooks.Count;
     }
