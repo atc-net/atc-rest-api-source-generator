@@ -19,7 +19,7 @@ public static class TypeScriptApiProviderExtractor
             sb.Append(headerContent);
         }
 
-        sb.AppendLine("import { createContext, useMemo, createElement } from 'react';");
+        sb.AppendLine("import { createContext, useRef, createElement } from 'react';");
         sb.AppendLine("import type { ReactNode } from 'react';");
         sb.AppendLine("import { ApiService } from '../client/ApiService';");
         sb.AppendLine("import type { ApiClientOptions } from '../client/ApiClient';");
@@ -37,10 +37,14 @@ public static class TypeScriptApiProviderExtractor
         sb.AppendLine("export const ApiServiceContext = createContext<ApiService | null>(null);");
         sb.AppendLine();
 
-        // Provider component
+        // Provider component — uses useRef for stable identity across re-renders.
+        // Only recreates the service when baseUrl changes.
         sb.AppendLine("export function ApiProvider({ baseUrl, options, children }: ApiProviderProps) {");
-        sb.AppendLine("  const service = useMemo(() => new ApiService(baseUrl, options), [baseUrl, options]);");
-        sb.AppendLine("  return createElement(ApiServiceContext.Provider, { value: service }, children);");
+        sb.AppendLine("  const serviceRef = useRef<{ service: ApiService; baseUrl: string } | null>(null);");
+        sb.AppendLine("  if (!serviceRef.current || serviceRef.current.baseUrl !== baseUrl) {");
+        sb.AppendLine("    serviceRef.current = { service: new ApiService(baseUrl, options), baseUrl };");
+        sb.AppendLine("  }");
+        sb.AppendLine("  return createElement(ApiServiceContext.Provider, { value: serviceRef.current.service }, children);");
         sb.AppendLine("}");
 
         return sb.ToString();
