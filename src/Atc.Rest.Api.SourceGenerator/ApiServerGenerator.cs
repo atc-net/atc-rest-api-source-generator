@@ -310,6 +310,24 @@ public class ApiServerGenerator : IIncrementalGenerator
             context.ReportDiagnostic(diagnostic);
         }
 
+        // Filter paths based on include/exclude patterns before segmentation
+        if (config.IncludePaths is { Count: > 0 } || config.ExcludePaths is { Count: > 0 })
+        {
+            var allowedPaths = PathFilterHelper.FilterPaths(
+                openApiDoc.Paths.Keys,
+                config.IncludePaths,
+                config.ExcludePaths);
+
+            // Remove excluded paths from document (modifies in-place for downstream extractors)
+            var pathsToRemove = openApiDoc.Paths.Keys
+                .Where(k => !allowedPaths.Contains(k))
+                .ToList();
+            foreach (var path in pathsToRemove)
+            {
+                openApiDoc.Paths.Remove(path);
+            }
+        }
+
         // Get unique path segments for grouping generated files
         var pathSegments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
 

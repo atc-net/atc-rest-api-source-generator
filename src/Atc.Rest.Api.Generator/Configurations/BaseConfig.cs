@@ -71,4 +71,18 @@ public abstract class BaseConfig
     /// Default: false (blank lines are preserved between groups).
     /// </summary>
     public bool RemoveNamespaceGroupSeparatorInGlobalUsings { get; set; }
+
+    /// <summary>
+    /// Glob patterns for paths to include in generation. Default: null (include all).
+    /// When specified, only operations matching at least one pattern are generated.
+    /// Example: ["/pets/**", "/users/**"] generates only pets and users endpoints.
+    /// </summary>
+    public List<string>? IncludePaths { get; set; }
+
+    /// <summary>
+    /// Glob patterns for paths to exclude from generation. Default: null (exclude none).
+    /// Applied after includePaths. Operations matching any pattern are excluded.
+    /// Example: ["/internal/**"] excludes all internal endpoints.
+    /// </summary>
+    public List<string>? ExcludePaths { get; set; }
 }
