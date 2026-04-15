@@ -128,4 +128,3 @@ public class CodeDocumentationTagsGenerator : ICodeDocumentationTagsGenerator
         return sb.ToString();
     }
 }
-

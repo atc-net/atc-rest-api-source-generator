@@ -97,4 +97,4 @@ public class SystemTypeConflictResolverTests
         var result = resolver.EnsureFullNamespaceIfNeeded("task");
         Assert.Equal("task", result); // no conflict since "task" != "Task"
     }
-}
+}

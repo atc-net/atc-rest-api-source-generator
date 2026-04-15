@@ -133,4 +133,4 @@ public class NamespaceBuilderTests
     {
         Assert.Equal("MyApi.Generated.Webhooks.Endpoints", NamespaceBuilder.ForWebhookEndpoints("MyApi"));
     }
-}
+}

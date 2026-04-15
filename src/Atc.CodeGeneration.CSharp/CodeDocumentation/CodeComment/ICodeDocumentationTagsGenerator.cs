@@ -22,4 +22,3 @@ public interface ICodeDocumentationTagsGenerator
         ushort indentSpaces,
         CodeDocumentationTags codeDocumentationTags);
 }
-
