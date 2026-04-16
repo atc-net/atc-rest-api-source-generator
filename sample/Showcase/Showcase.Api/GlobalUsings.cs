@@ -15,5 +15,6 @@ global using Showcase.Api.Domain.WebhookHandlers;
 global using Showcase.Api.Hubs;
 global using Showcase.Api.Services;
 global using Showcase.Generated.Extensions;
+global using Showcase.Generated.Health;
 global using Showcase.Generated.Notifications.Models;
 global using Showcase.Generated.Webhooks.Endpoints;

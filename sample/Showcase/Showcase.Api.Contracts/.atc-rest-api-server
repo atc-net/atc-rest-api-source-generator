@@ -4,5 +4,13 @@
     "useMinimalApiPackage": "enabled",
     "useValidationFilter": "enabled",
     "useGlobalErrorHandler": "enabled",
-    "generateWebhooks": true
+    "generateWebhooks": true,
+    "healthChecks": {
+        "enabled": true,
+        "includeLiveness": true,
+        "includeReadiness": true,
+        "security": "apiKey",
+        "apiKeyQueryParameterName": "api-key",
+        "apiKeyHeaderName": "X-Health-Api-Key"
+    }
 }

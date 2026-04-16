@@ -205,6 +205,28 @@ internal static class DiagnosticHelpers
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
+    /// <summary>
+    /// ATC_API_DEP009: Health check config conflicts with health paths defined in OpenAPI spec.
+    /// </summary>
+    public static readonly DiagnosticDescriptor HealthCheckPathConflict = new(
+        RuleIdentifiers.HealthCheckPathConflict,
+        "Health Check Path Conflict",
+        "The marker file has healthChecks.enabled but the OpenAPI spec also defines paths under '{0}'. This will produce duplicate endpoint registrations. Remove the health paths from the spec or disable healthChecks in the marker file.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// ATC_API_DEP010: Atc.Rest.HealthChecks package recommended for structured JSON health responses.
+    /// </summary>
+    public static readonly DiagnosticDescriptor HealthChecksPackageRecommended = new(
+        RuleIdentifiers.HealthChecksPackageRecommended,
+        "Atc.Rest.HealthChecks Package Recommended",
+        "Health checks are enabled but Atc.Rest.HealthChecks package is not referenced. Add a PackageReference to Atc.Rest.HealthChecks for structured JSON health responses with per-check details.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
     // ========== OpenAPI Validation Diagnostics ==========
 
     /// <summary>
@@ -532,6 +554,30 @@ internal static class DiagnosticHelpers
         context.ReportDiagnostic(Diagnostic.Create(
             MinimalApiPackageRequired,
             Location.None));
+    }
+
+    /// <summary>
+    /// Reports that Atc.Rest.HealthChecks package is recommended for structured health responses.
+    /// </summary>
+    public static void ReportHealthChecksPackageRecommended(
+        SourceProductionContext context)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            HealthChecksPackageRecommended,
+            Location.None));
+    }
+
+    /// <summary>
+    /// Reports that healthChecks config conflicts with health paths in the OpenAPI spec.
+    /// </summary>
+    public static void ReportHealthCheckPathConflict(
+        SourceProductionContext context,
+        string healthPath)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            HealthCheckPathConflict,
+            Location.None,
+            healthPath));
     }
 
     /// <summary>

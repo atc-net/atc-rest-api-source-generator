@@ -110,6 +110,16 @@ public static class RuleIdentifiers
     /// </summary>
     public const string LoggingRequiresPackage = "ATC_API_DEP008";
 
+    /// <summary>
+    /// ATC_API_DEP009: HealthChecks config conflicts with health paths in OpenAPI spec.
+    /// </summary>
+    public const string HealthCheckPathConflict = "ATC_API_DEP009";
+
+    /// <summary>
+    /// ATC_API_DEP010: HealthChecks enabled — Atc.Rest.HealthChecks package recommended for structured JSON responses.
+    /// </summary>
+    public const string HealthChecksPackageRecommended = "ATC_API_DEP010";
+
     // ========== OpenAPI Validation Rules (VAL) ==========
 
     /// <summary>

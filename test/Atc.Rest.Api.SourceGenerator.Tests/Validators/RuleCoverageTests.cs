@@ -34,6 +34,8 @@ public class RuleCoverageTests
         ["ATC_API_DEP006"] = "JwtBearerRequiresPackage - Requires project with missing package reference",
         ["ATC_API_DEP007"] = "MinimalApiPackageRequired - Requires project with missing package reference",
         ["ATC_API_DEP008"] = "LoggingRequiresPackage - Requires project with injectLogger but no logging reference",
+        ["ATC_API_DEP009"] = "HealthCheckPathConflict - Requires both healthChecks config and matching spec paths",
+        ["ATC_API_DEP010"] = "HealthChecksPackageRecommended - Info diagnostic when Atc.Rest.HealthChecks not referenced",
 
         // ========== OpenAPI Validation Rules (VAL) - Parsing errors ==========
         ["ATC_API_VAL001"] = "OpenApiCoreError - Reported by Microsoft.OpenApi parser, requires malformed YAML",
