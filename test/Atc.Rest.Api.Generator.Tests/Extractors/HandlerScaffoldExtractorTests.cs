@@ -304,4 +304,125 @@ public class HandlerScaffoldExtractorTests
         Assert.NotNull(result.Methods);
         Assert.True(result.Methods[0].AlwaysBreakDownParameters);
     }
+
+    // ========== InjectTracing Tests ==========
+    [Fact]
+    public void Extract_InjectTracingTrue_GeneratesActivitySourceField()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var pathItem = document.Paths["/pets"];
+        var operation = pathItem.Operations.Values.First();
+        var resolver = new SystemTypeConflictResolver([]);
+
+        // Act
+        var result = HandlerScaffoldExtractor.Extract(
+            "ListPetsHandler",
+            "TestApi.Handlers.Pets",
+            operation,
+            (OpenApiPathItem)pathItem,
+            "listPets",
+            "Handler",
+            "throw-not-implemented",
+            resolver,
+            injectTracing: true);
+
+        // Assert
+        Assert.NotNull(result.AdditionalFieldDeclarations);
+        Assert.Single(result.AdditionalFieldDeclarations);
+        Assert.Contains("ActivitySource", result.AdditionalFieldDeclarations[0], StringComparison.Ordinal);
+        Assert.Contains("TestApi.Handlers.Pets.ListPets", result.AdditionalFieldDeclarations[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_InjectTracingTrue_StubContainsStartActivity()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var pathItem = document.Paths["/pets"];
+        var operation = pathItem.Operations.Values.First();
+        var resolver = new SystemTypeConflictResolver([]);
+
+        // Act
+        var result = HandlerScaffoldExtractor.Extract(
+            "ListPetsHandler",
+            "TestApi.Handlers.Pets",
+            operation,
+            (OpenApiPathItem)pathItem,
+            "listPets",
+            "Handler",
+            "throw-not-implemented",
+            resolver,
+            injectTracing: true);
+
+        // Assert
+        Assert.NotNull(result.Methods);
+        Assert.Contains("StartActivity", result.Methods[0].Content!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_InjectTracingFalse_NoActivitySource()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var pathItem = document.Paths["/pets"];
+        var operation = pathItem.Operations.Values.First();
+        var resolver = new SystemTypeConflictResolver([]);
+
+        // Act
+        var result = HandlerScaffoldExtractor.Extract(
+            "ListPetsHandler",
+            "TestApi.Handlers.Pets",
+            operation,
+            (OpenApiPathItem)pathItem,
+            "listPets",
+            "Handler",
+            "throw-not-implemented",
+            resolver);
+
+        // Assert
+        Assert.Null(result.AdditionalFieldDeclarations);
+    }
 }

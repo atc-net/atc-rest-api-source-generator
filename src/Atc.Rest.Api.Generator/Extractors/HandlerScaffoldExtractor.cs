@@ -18,6 +18,7 @@ public static class HandlerScaffoldExtractor
     /// <param name="systemTypeResolver">Resolver for system type conflicts.</param>
     /// <param name="injectLogger">Whether to inject ILogger&lt;T&gt; via constructor. Default: false.</param>
     /// <param name="maxLineLength">Maximum line length for ATC201 formatting. Default: 80.</param>
+    /// <param name="injectTracing">Whether to inject ActivitySource for distributed tracing. Default: false.</param>
     /// <returns>ClassParameters for the handler scaffold class.</returns>
     public static ClassParameters Extract(
         string handlerName,
@@ -29,7 +30,8 @@ public static class HandlerScaffoldExtractor
         string stubImplementation,
         SystemTypeConflictResolver systemTypeResolver,
         bool injectLogger = false,
-        int maxLineLength = 80)
+        int maxLineLength = 80,
+        bool injectTracing = false)
     {
         var operationIdPascal = operationId.ToPascalCaseForDotNet();
         var interfaceName = $"I{operationIdPascal}{handlerSuffix}";
@@ -72,7 +74,7 @@ public static class HandlerScaffoldExtractor
 
         // Generate method body content based on stub type
         var taskTypeName = systemTypeResolver.EnsureFullNamespaceIfNeeded(nameof(Task));
-        var methodContent = GenerateStubContent(resultTypeName, operationId, stubImplementation, taskTypeName, injectLogger);
+        var methodContent = GenerateStubContent(resultTypeName, operationId, stubImplementation, taskTypeName, injectLogger, injectTracing);
 
         // Calculate whether method signature fits on one line (ATC201 threshold = 80 chars)
         // Format: "    public Task<ResultType> ExecuteAsync(ParamType paramName = default)"
@@ -133,7 +135,10 @@ public static class HandlerScaffoldExtractor
             Constructors: constructors,
             Properties: null,
             Methods: new List<MethodParameters> { method },
-            GenerateToStringMethod: false);
+            GenerateToStringMethod: false,
+            AdditionalFieldDeclarations: injectTracing
+                ? [$"private static readonly ActivitySource ActivitySource = new(\"{handlerNamespace}.{operationIdPascal}\");"]
+                : null);
     }
 
     private static string GenerateStubContent(
@@ -141,9 +146,17 @@ public static class HandlerScaffoldExtractor
         string operationId,
         string stubImplementation,
         string taskTypeName,
-        bool injectLogger)
+        bool injectLogger,
+        bool injectTracing)
     {
         var builder = new StringBuilder();
+
+        // Add distributed tracing activity span
+        if (injectTracing)
+        {
+            builder.AppendLine($"using var activity = ActivitySource.StartActivity(\"{operationId.ToPascalCaseForDotNet()}\");");
+        }
+
         builder.AppendLine($"// TODO: Implement {operationId} logic");
 
         // Add logger.LogTrace to use the injected logger (avoids S4487 "unread field" warning)

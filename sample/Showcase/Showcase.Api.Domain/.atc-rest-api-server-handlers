@@ -5,5 +5,6 @@
     "generateHandlersOutput": "ApiHandlers",
     "subFolderStrategy": "first-path-segment",
     "handlerSuffix": "Handler",
-    "stubImplementation": "throw-not-implemented"
+    "stubImplementation": "throw-not-implemented",
+    "injectTracing": true
 }

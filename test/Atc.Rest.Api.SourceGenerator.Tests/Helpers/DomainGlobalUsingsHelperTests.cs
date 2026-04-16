@@ -216,4 +216,41 @@ public class DomainGlobalUsingsHelperTests
         // Assert
         Assert.DoesNotContain("global using Microsoft.Extensions.Logging;", result);
     }
+
+    // ========== InjectTracing Tests ==========
+    [Fact]
+    public void BuildRequiredUsings_InjectTracingTrue_IncludesDiagnosticsUsing()
+    {
+        // Arrange
+        var doc = CreateOpenApiDocumentWithPaths("Pets");
+
+        // Act
+        var result = DomainGlobalUsingsHelper.BuildRequiredUsings(
+            [],
+            "TestApi",
+            ["Pets"],
+            doc,
+            injectTracing: true);
+
+        // Assert
+        Assert.Contains("global using System.Diagnostics;", result);
+    }
+
+    [Fact]
+    public void BuildRequiredUsings_InjectTracingFalse_ExcludesDiagnosticsUsing()
+    {
+        // Arrange
+        var doc = CreateOpenApiDocumentWithPaths("Pets");
+
+        // Act
+        var result = DomainGlobalUsingsHelper.BuildRequiredUsings(
+            [],
+            "TestApi",
+            ["Pets"],
+            doc,
+            injectTracing: false);
+
+        // Assert
+        Assert.DoesNotContain("global using System.Diagnostics;", result);
+    }
 }
