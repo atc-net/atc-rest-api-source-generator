@@ -15,8 +15,19 @@ var apiBaseUrl = Environment.GetEnvironmentVariable("services__api__http__0")
 Console.WriteLine($"Connecting to API at: {apiBaseUrl}");
 Console.WriteLine();
 
-// Create HTTP client with base address
-using var httpClient = new HttpClient { BaseAddress = new Uri(apiBaseUrl) };
+// Configure DI container with resilient HttpClient via IHttpClientFactory
+const string httpClientName = "PetStoreFull-ApiClient";
+var services = new ServiceCollection();
+services
+    .AddHttpClient(httpClientName, client =>
+    {
+        client.BaseAddress = new Uri(apiBaseUrl);
+    })
+    .AddStandardResilienceHandler();
+
+await using var serviceProvider = services.BuildServiceProvider();
+var factory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+using var httpClient = factory.CreateClient(httpClientName);
 
 // Create typed clients for each API path segment
 var petsClient = new PetsClient(httpClient);
