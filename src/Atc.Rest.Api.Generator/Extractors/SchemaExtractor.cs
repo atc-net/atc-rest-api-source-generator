@@ -853,8 +853,11 @@ public static class SchemaExtractor
                 ? DeclarationModifiers.PublicPartialRecord
                 : DeclarationModifiers.PublicSealedRecord);
 
+        // Build documentation tags from schema description and examples
+        var docTags = BuildDocumentationTags(schema);
+
         return new RecordParameters(
-            DocumentationTags: null,
+            DocumentationTags: docTags,
             DeclarationModifier: declarationModifier,
             Name: recordName,
             Parameters: sortedParameters,
@@ -862,6 +865,52 @@ public static class SchemaExtractor
             {
                 new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
             });
+    }
+
+    /// <summary>
+    /// Builds CodeDocumentationTags from an OpenAPI schema's description and example values.
+    /// </summary>
+    private static CodeDocumentationTags? BuildDocumentationTags(
+        OpenApiSchema schema)
+    {
+        var hasDescription = !string.IsNullOrWhiteSpace(schema.Description);
+        var example = ExtractExampleString(schema);
+
+        if (!hasDescription && example == null)
+        {
+            return null;
+        }
+
+        var summary = hasDescription
+            ? schema.Description!.Trim()
+            : $"Represents a {schema.Title ?? "model"}.";
+
+        return new CodeDocumentationTags(
+            summary: summary,
+            parameters: null,
+            remark: null,
+            code: null,
+            example: example,
+            exceptions: null,
+            @return: null);
+    }
+
+    /// <summary>
+    /// Extracts a string representation of the example value from an OpenAPI schema.
+    /// </summary>
+    private static string? ExtractExampleString(OpenApiSchema schema)
+    {
+        if (schema.Example != null)
+        {
+            return schema.Example.ToJsonString();
+        }
+
+        if (schema.Examples != null && schema.Examples.Count > 0)
+        {
+            return schema.Examples[0].ToJsonString();
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -1027,8 +1076,10 @@ public static class SchemaExtractor
                 ? DeclarationModifiers.PublicPartialRecord
                 : DeclarationModifiers.PublicSealedRecord);
 
+        var docTags = BuildDocumentationTags(schema);
+
         return new RecordParameters(
-            DocumentationTags: null,
+            DocumentationTags: docTags,
             DeclarationModifier: declarationModifier,
             Name: recordName,
             Parameters: sortedParameters,
