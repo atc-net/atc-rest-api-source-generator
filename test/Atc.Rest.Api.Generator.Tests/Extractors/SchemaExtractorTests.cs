@@ -805,4 +805,111 @@ public class SchemaExtractorTests
         var itemsParam = result.Parameters[0].Parameters!.First(p => p.Name == "Items");
         Assert.Equal("List<string>", itemsParam.TypeName);
     }
+
+    // ========== Schema Description & Example Tests ==========
+    [Fact]
+    public void ExtractForSchemas_WithSchemaDescription_GeneratesDocumentationTags()
+    {
+        var yaml = """
+            openapi: 3.0.0
+            info:
+              title: Test API
+              version: 1.0.0
+            paths: {}
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  description: A pet in the store.
+                  properties:
+                    name:
+                      type: string
+            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
+
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        Assert.NotNull(result);
+        var record = result.Parameters[0];
+        Assert.NotNull(record.DocumentationTags);
+        Assert.Equal("A pet in the store.", record.DocumentationTags.Summary);
+    }
+
+    [Fact]
+    public void ExtractForSchemas_WithSchemaExample_GeneratesExampleTag()
+    {
+        var yaml = """
+            openapi: 3.0.0
+            info:
+              title: Test API
+              version: 1.0.0
+            paths: {}
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  description: A pet in the store.
+                  example:
+                    name: Buddy
+                    tag: Dog
+                  properties:
+                    name:
+                      type: string
+                    tag:
+                      type: string
+            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
+
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        Assert.NotNull(result);
+        var record = result.Parameters[0];
+        Assert.NotNull(record.DocumentationTags);
+        Assert.NotNull(record.DocumentationTags.Example);
+        Assert.Contains("Buddy", record.DocumentationTags.Example, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExtractForSchemas_WithoutDescriptionOrExample_NullDocumentationTags()
+    {
+        var yaml = """
+            openapi: 3.0.0
+            info:
+              title: Test API
+              version: 1.0.0
+            paths: {}
+            components:
+              schemas:
+                Simple:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Simple" };
+
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        Assert.NotNull(result);
+        var record = result.Parameters[0];
+        Assert.Null(record.DocumentationTags);
+    }
 }
