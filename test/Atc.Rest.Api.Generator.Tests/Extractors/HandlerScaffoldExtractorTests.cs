@@ -6,25 +6,25 @@ public class HandlerScaffoldExtractorTests
     public void Extract_InjectLoggerFalse_NoConstructorOrField()
     {
         // Arrange
-        var yaml = """
-                   openapi: 3.0.0
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   paths:
-                     /pets/{petId}:
-                       get:
-                         operationId: getPetById
-                         parameters:
-                           - name: petId
-                             in: path
-                             required: true
-                             schema:
-                               type: string
-                         responses:
-                           '200':
-                             description: OK
-                   """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets/{petId}:
+                                get:
+                                  operationId: getPetById
+                                  parameters:
+                                    - name: petId
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var pathItem = document.Paths["/pets/{petId}"];
@@ -52,25 +52,25 @@ public class HandlerScaffoldExtractorTests
     public void Extract_InjectLoggerTrue_GeneratesConstructorWithLogger()
     {
         // Arrange
-        var yaml = """
-                   openapi: 3.0.0
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   paths:
-                     /pets/{petId}:
-                       get:
-                         operationId: getPetById
-                         parameters:
-                           - name: petId
-                             in: path
-                             required: true
-                             schema:
-                               type: string
-                         responses:
-                           '200':
-                             description: OK
-                   """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets/{petId}:
+                                get:
+                                  operationId: getPetById
+                                  parameters:
+                                    - name: petId
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var pathItem = document.Paths["/pets/{petId}"];
@@ -102,22 +102,22 @@ public class HandlerScaffoldExtractorTests
     }
 
     [Fact]
-    public void Extract_InjectLoggerTrue_IncludesLoggingUsing()
+    public void Extract_InjectLoggerTrue_NoHeaderContent_UsingsInGlobalUsings()
     {
         // Arrange
-        var yaml = """
-                   openapi: 3.0.0
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   paths:
-                     /health:
-                       get:
-                         operationId: getHealth
-                         responses:
-                           '200':
-                             description: OK
-                   """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /health:
+                                get:
+                                  operationId: getHealth
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var pathItem = document.Paths["/health"];
@@ -136,28 +136,28 @@ public class HandlerScaffoldExtractorTests
             resolver,
             injectLogger: true);
 
-        // Assert
-        Assert.NotNull(result.HeaderContent);
-        Assert.Contains("Microsoft.Extensions.Logging", result.HeaderContent, StringComparison.Ordinal);
+        // Assert — using goes in GlobalUsings.cs, not per-file HeaderContent
+        Assert.Null(result.HeaderContent);
+        Assert.NotNull(result.Constructors);
     }
 
     [Fact]
     public void Extract_DefaultParameter_IsFalse()
     {
         // Arrange
-        var yaml = """
-                   openapi: 3.0.0
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   paths:
-                     /health:
-                       get:
-                         operationId: getHealth
-                         responses:
-                           '200':
-                             description: OK
-                   """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /health:
+                                get:
+                                  operationId: getHealth
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var pathItem = document.Paths["/health"];
