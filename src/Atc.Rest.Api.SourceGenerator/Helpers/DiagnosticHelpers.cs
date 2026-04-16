@@ -194,6 +194,17 @@ internal static class DiagnosticHelpers
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    /// <summary>
+    /// ATC_API_DEP008: InjectLogger enabled but logging abstractions not available.
+    /// </summary>
+    public static readonly DiagnosticDescriptor LoggingRequiresPackage = new(
+        RuleIdentifiers.LoggingRequiresPackage,
+        "Microsoft.Extensions.Logging Package Required",
+        "The marker file specifies injectLogger: true but Microsoft.Extensions.Logging.Abstractions is not available. Add a FrameworkReference to Microsoft.AspNetCore.App or a PackageReference to Microsoft.Extensions.Logging.Abstractions.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
     // ========== OpenAPI Validation Diagnostics ==========
 
     /// <summary>
@@ -520,6 +531,17 @@ internal static class DiagnosticHelpers
     {
         context.ReportDiagnostic(Diagnostic.Create(
             MinimalApiPackageRequired,
+            Location.None));
+    }
+
+    /// <summary>
+    /// Reports that injectLogger is enabled but Microsoft.Extensions.Logging is not available.
+    /// </summary>
+    public static void ReportLoggingRequiresPackage(
+        SourceProductionContext context)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            LoggingRequiresPackage,
             Location.None));
     }
 
