@@ -717,7 +717,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             config.HandlerSuffix,
             config.StubImplementation,
             systemTypeResolver,
-            config.InjectLogger);
+            config.InjectLogger,
+            config.MaxLineLength);
 
         // Use GenerateContentForClass to generate the code
         var codeDocGenerator = new CodeDocumentationTagsGenerator();

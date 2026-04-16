@@ -45,4 +45,12 @@ public class ServerDomainConfig : BaseConfig
     /// and a private readonly field for structured logging. Default: false.
     /// </summary>
     public bool InjectLogger { get; set; }
+
+    /// <summary>
+    /// Maximum line length for generated handler code formatting.
+    /// Method signatures exceeding this length will break parameters onto separate lines.
+    /// Should match dotnet_diagnostic.ATC201.max_line_length in your .editorconfig.
+    /// Default: 80 (ATC201 default).
+    /// </summary>
+    public int MaxLineLength { get; set; } = 80;
 }
