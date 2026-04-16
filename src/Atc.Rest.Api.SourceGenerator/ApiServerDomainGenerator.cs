@@ -156,6 +156,9 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         var hasAspNetCore = compilation.ReferencedAssemblyNames
             .Any(a => a.Name.StartsWith("Microsoft.AspNetCore", StringComparison.OrdinalIgnoreCase));
 
+        var hasLogging = hasAspNetCore || compilation.ReferencedAssemblyNames
+            .Any(a => a.Name.Equals("Microsoft.Extensions.Logging.Abstractions", StringComparison.OrdinalIgnoreCase));
+
         var assemblyName = compilation.AssemblyName;
 
         // Sort all collections to ensure deterministic equality comparison
@@ -175,6 +178,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         return new DomainCompilationSummary(
             hasAspNetCore,
+            hasLogging,
             assemblyName,
             new EquatableArray<HandlerInfo>(implementedHandlers),
             new EquatableArray<string>(interfaceNamespaces),
@@ -261,6 +265,12 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         // Convert summary interface namespaces to HashSet
         var interfaceNamespaces = new HashSet<string>(summary.InterfaceNamespaces.Values, StringComparer.Ordinal);
+
+        // Report diagnostic if injectLogger is enabled but logging is not available
+        if (config.InjectLogger && !summary.HasLogging)
+        {
+            DiagnosticHelpers.ReportLoggingRequiresPackage(context);
+        }
 
         // Ensure GlobalUsings.cs is updated at project root (markerDirectory) before generating handlers
         if (!string.IsNullOrEmpty(markerDirectory))

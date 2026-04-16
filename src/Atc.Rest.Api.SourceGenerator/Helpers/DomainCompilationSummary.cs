@@ -19,6 +19,7 @@ internal readonly record struct ValidatorInfo(string Name, string Namespace, str
 /// </summary>
 internal sealed record DomainCompilationSummary(
     bool HasAspNetCore,
+    bool HasLogging,
     string? AssemblyName,
     EquatableArray<HandlerInfo> ImplementedHandlers,
     EquatableArray<string> InterfaceNamespaces,

@@ -105,6 +105,11 @@ public static class RuleIdentifiers
     /// </summary>
     public const string MinimalApiPackageRequired = "ATC_API_DEP007";
 
+    /// <summary>
+    /// ATC_API_DEP008: InjectLogger enabled but Microsoft.Extensions.Logging.Abstractions not available.
+    /// </summary>
+    public const string LoggingRequiresPackage = "ATC_API_DEP008";
+
     // ========== OpenAPI Validation Rules (VAL) ==========
 
     /// <summary>
