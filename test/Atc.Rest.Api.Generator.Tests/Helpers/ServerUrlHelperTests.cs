@@ -72,4 +72,90 @@ public class ServerUrlHelperTests
         var result = ServerUrlHelper.GetServersBasePath(doc);
         Assert.Equal("/api/v1", result);
     }
+
+    // ========== ResolveServerVariables Tests ==========
+    [Fact]
+    public void ResolveServerVariables_NullVariables_ReturnsOriginal()
+    {
+        var result = ServerUrlHelper.ResolveServerVariables("https://api.example.com/{basePath}", null);
+        Assert.Equal("https://api.example.com/{basePath}", result);
+    }
+
+    [Fact]
+    public void ResolveServerVariables_EmptyVariables_ReturnsOriginal()
+    {
+        var result = ServerUrlHelper.ResolveServerVariables(
+            "https://api.example.com/{basePath}",
+            new Dictionary<string, OpenApiServerVariable>(StringComparer.Ordinal));
+        Assert.Equal("https://api.example.com/{basePath}", result);
+    }
+
+    [Fact]
+    public void ResolveServerVariables_WithBasePath_ResolvesToDefault()
+    {
+        var variables = new Dictionary<string, OpenApiServerVariable>(StringComparer.Ordinal)
+        {
+            ["basePath"] = new() { Default = "v1" },
+        };
+
+        var result = ServerUrlHelper.ResolveServerVariables(
+            "https://api.example.com/{basePath}",
+            variables);
+
+        Assert.Equal("https://api.example.com/v1", result);
+    }
+
+    [Fact]
+    public void ResolveServerVariables_MultipleVariables_ResolvesAll()
+    {
+        var variables = new Dictionary<string, OpenApiServerVariable>(StringComparer.Ordinal)
+        {
+            ["protocol"] = new() { Default = "https" },
+            ["host"] = new() { Default = "api.example.com" },
+            ["basePath"] = new() { Default = "v2" },
+        };
+
+        var result = ServerUrlHelper.ResolveServerVariables(
+            "{protocol}://{host}/{basePath}",
+            variables);
+
+        Assert.Equal("https://api.example.com/v2", result);
+    }
+
+    [Fact]
+    public void ResolveServerVariables_VariableNotInUrl_Unchanged()
+    {
+        var variables = new Dictionary<string, OpenApiServerVariable>(StringComparer.Ordinal)
+        {
+            ["unused"] = new() { Default = "value" },
+        };
+
+        var result = ServerUrlHelper.ResolveServerVariables(
+            "https://api.example.com/v1",
+            variables);
+
+        Assert.Equal("https://api.example.com/v1", result);
+    }
+
+    [Fact]
+    public void GetServersBasePath_WithVariables_ResolvesBeforeExtractingPath()
+    {
+        var doc = new OpenApiDocument
+        {
+            Servers =
+            [
+                new OpenApiServer
+                {
+                    Url = "https://api.example.com/{basePath}",
+                    Variables = new Dictionary<string, OpenApiServerVariable>(StringComparer.Ordinal)
+                    {
+                        ["basePath"] = new() { Default = "api/v1" },
+                    },
+                },
+            ],
+        };
+
+        var result = ServerUrlHelper.GetServersBasePath(doc);
+        Assert.Equal("/api/v1", result);
+    }
 }
