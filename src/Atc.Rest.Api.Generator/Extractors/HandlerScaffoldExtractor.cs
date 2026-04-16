@@ -108,7 +108,7 @@ public static class HandlerScaffoldExtractor
                             DefaultValue: null,
                             PassToInheritedClass: false,
                             CreateAsPrivateReadonlyMember: true,
-                            CreateAaOneLiner: false),
+                            CreateAaOneLiner: true),
                     ]),
             ];
         }

@@ -97,6 +97,27 @@ public class GenerateContentWriter
                     sb.AppendLine($"{firstParameterParameters.TypeName} {firstParameterParameters.Name})");
                 }
             }
+            else if (parameters.Parameters.Count == 1 &&
+                     parameters.Parameters[0].CreateAaOneLiner &&
+                     parameters.Parameters[0].CreateAsPrivateReadonlyMember &&
+                     string.IsNullOrEmpty(parameters.InheritedClassTypeName))
+            {
+                // Expression-body constructor with single parameter assigned to a private readonly member
+                var item = parameters.Parameters[0];
+                sb.AppendLine();
+                sb.AppendInputParameter(
+                    8,
+                    usePropertyPrefix: false,
+                    attributes: null,
+                    item.GenericTypeName,
+                    item.TypeName,
+                    item.IsNullableType,
+                    item.Name,
+                    item.DefaultValue,
+                    useCommaForEndChar: false);
+                sb.AppendLine(" =>");
+                sb.Append(8, $"this.{item.Name} = {item.Name};");
+            }
             else
             {
                 sb.AppendLine();
