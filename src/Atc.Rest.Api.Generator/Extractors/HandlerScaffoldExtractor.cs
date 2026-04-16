@@ -86,12 +86,9 @@ public static class HandlerScaffoldExtractor
 
         // Build constructor with ILogger<T> injection if configured
         IList<ConstructorParameters>? constructors = null;
-        string? headerContent = null;
 
         if (injectLogger)
         {
-            headerContent = "using Microsoft.Extensions.Logging;\n";
-
             var loggerTypeName = $"ILogger<{handlerName}>";
             constructors =
             [
@@ -117,7 +114,7 @@ public static class HandlerScaffoldExtractor
         }
 
         return new ClassParameters(
-            HeaderContent: headerContent,
+            HeaderContent: null, // Usings are in GlobalUsings.cs (including Microsoft.Extensions.Logging when injectLogger is true)
             Namespace: handlerNamespace,
             DocumentationTags: new CodeDocumentationTags($"Handler business logic for the {operationIdPascal} operation."),
             Attributes: null,
