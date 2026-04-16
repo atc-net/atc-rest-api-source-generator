@@ -5,6 +5,7 @@ namespace Showcase.Api.Domain.ApiHandlers.Users;
 /// </summary>
 public sealed class CreateUserHandler : ICreateUserHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Users.CreateUser");
     private readonly UserInMemoryRepository repository;
 
     public CreateUserHandler(UserInMemoryRepository repository)
@@ -14,6 +15,7 @@ public sealed class CreateUserHandler : ICreateUserHandler
         CreateUserParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("CreateUser");
         ArgumentNullException.ThrowIfNull(parameters);
 
         var request = parameters.Request;

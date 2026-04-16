@@ -5,6 +5,7 @@ namespace Showcase.Api.Domain.ApiHandlers.Users;
 /// </summary>
 public sealed class DeleteUserByIdHandler : IDeleteUserByIdHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Users.DeleteUserById");
     private readonly UserInMemoryRepository repository;
 
     public DeleteUserByIdHandler(UserInMemoryRepository repository)
@@ -14,6 +15,7 @@ public sealed class DeleteUserByIdHandler : IDeleteUserByIdHandler
         DeleteUserByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("DeleteUserById");
         ArgumentNullException.ThrowIfNull(parameters);
 
         var user = await repository.Delete(parameters.UserId);

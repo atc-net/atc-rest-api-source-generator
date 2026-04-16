@@ -6,6 +6,7 @@ namespace Showcase.Api.Domain.ApiHandlers.Files;
 /// </summary>
 public sealed class UploadMultiFilesAsFormDataHandler : IUploadMultiFilesAsFormDataHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Files.UploadMultiFilesAsFormData");
     private readonly FileInMemoryRepository repository;
 
     public UploadMultiFilesAsFormDataHandler(FileInMemoryRepository repository)
@@ -17,6 +18,7 @@ public sealed class UploadMultiFilesAsFormDataHandler : IUploadMultiFilesAsFormD
         UploadMultiFilesAsFormDataParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("UploadMultiFilesAsFormData");
         if (parameters.File is null || parameters.File.Count == 0)
         {
             return UploadMultiFilesAsFormDataResult.Ok();

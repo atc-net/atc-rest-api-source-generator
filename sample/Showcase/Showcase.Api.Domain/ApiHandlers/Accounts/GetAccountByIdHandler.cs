@@ -5,6 +5,7 @@
 /// </summary>
 public sealed class GetAccountByIdHandler : IGetAccountByIdHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Accounts.GetAccountById");
     private readonly AccountInMemoryRepository repository;
 
     public GetAccountByIdHandler(AccountInMemoryRepository repository)
@@ -14,6 +15,7 @@ public sealed class GetAccountByIdHandler : IGetAccountByIdHandler
         GetAccountByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("GetAccountById");
         var account = await repository.GetById(parameters.AccountId);
 
         return account is null

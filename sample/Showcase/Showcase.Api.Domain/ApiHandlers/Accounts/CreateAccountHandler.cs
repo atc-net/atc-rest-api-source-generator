@@ -5,6 +5,7 @@
 /// </summary>
 public sealed class CreateAccountHandler : ICreateAccountHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Accounts.CreateAccount");
     private readonly AccountInMemoryRepository repository;
 
     public CreateAccountHandler(AccountInMemoryRepository repository)
@@ -14,6 +15,7 @@ public sealed class CreateAccountHandler : ICreateAccountHandler
         CreateAccountParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("CreateAccount");
         ArgumentNullException.ThrowIfNull(parameters);
 
         var account = await repository.Create(

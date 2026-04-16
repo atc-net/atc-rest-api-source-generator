@@ -36,6 +36,15 @@ builder.Services.AddHostedService<NotificationBackgroundService>();
 builder.Services.AddOpenApi();
 
 // ============================================
+// OPENTELEMETRY - Distributed Tracing
+// ============================================
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing
+        .AddSource("Showcase.Handlers.*")
+        .AddAspNetCoreInstrumentation()
+        .AddOtlpExporter());
+
+// ============================================
 // AUTHENTICATION - JWT Bearer (Demo Mode)
 // ============================================
 // WARNING: This accepts ANY bearer token - for demo purposes only!

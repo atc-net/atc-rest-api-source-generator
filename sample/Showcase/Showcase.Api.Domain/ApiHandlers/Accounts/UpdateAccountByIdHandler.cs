@@ -5,6 +5,7 @@
 /// </summary>
 public sealed class UpdateAccountByIdHandler : IUpdateAccountByIdHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Accounts.UpdateAccountById");
     private readonly AccountInMemoryRepository repository;
 
     public UpdateAccountByIdHandler(AccountInMemoryRepository repository)
@@ -14,6 +15,7 @@ public sealed class UpdateAccountByIdHandler : IUpdateAccountByIdHandler
         UpdateAccountByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("UpdateAccountById");
         ArgumentNullException.ThrowIfNull(parameters);
 
         var account = await repository.Update(

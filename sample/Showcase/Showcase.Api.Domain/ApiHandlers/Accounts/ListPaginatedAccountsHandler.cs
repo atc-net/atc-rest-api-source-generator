@@ -5,6 +5,7 @@
 /// </summary>
 public sealed class ListPaginatedAccountsHandler : IListPaginatedAccountsHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Accounts.ListPaginatedAccounts");
     private readonly AccountInMemoryRepository repository;
 
     public ListPaginatedAccountsHandler(AccountInMemoryRepository repository)
@@ -14,6 +15,7 @@ public sealed class ListPaginatedAccountsHandler : IListPaginatedAccountsHandler
         ListPaginatedAccountsParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("ListPaginatedAccounts");
         ArgumentNullException.ThrowIfNull(parameters);
 
         var pageSize = parameters.PageSize ?? 10;

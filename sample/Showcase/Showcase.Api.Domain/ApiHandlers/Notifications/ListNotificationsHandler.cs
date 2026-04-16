@@ -6,12 +6,14 @@ namespace Showcase.Api.Domain.ApiHandlers.Notifications;
 /// </summary>
 public sealed class ListNotificationsHandler : IListNotificationsHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Notifications.ListNotifications");
     private readonly Random random = new();
 
     public Task<ListNotificationsResult> ExecuteAsync(
         ListNotificationsParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("ListNotifications");
         var topics = ParseTopics(parameters.Topics);
         var stream = StreamNotificationsAsync(topics, cancellationToken);
         return Task.FromResult(ListNotificationsResult.Ok(stream));
