@@ -3,7 +3,8 @@ var builder = DistributedApplication.CreateBuilder(args);
 // Add the Showcase API project
 // Let Aspire manage endpoints dynamically
 var api = builder
-    .AddProject<Projects.Showcase_Api>("api");
+    .AddProject<Projects.Showcase_Api>("api")
+    .WithHttpHealthCheck("/health/live?api-key=showcase-health-probe-key");
 
 // Add the Showcase Client application (console)
 // WaitFor ensures the API is running before the client starts

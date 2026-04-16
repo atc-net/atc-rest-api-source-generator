@@ -84,4 +84,10 @@ public class ServerConfig : BaseConfig
     /// When null, uses MultiPartConfiguration.Default with auto-discovery and ErrorOnDuplicate strategy.
     /// </summary>
     public MultiPartConfiguration? MultiPartConfiguration { get; set; }
+
+    /// <summary>
+    /// Configuration for auto-generated health check endpoints.
+    /// When enabled, generates /health, /health/live, and /health/ready with optional API key security.
+    /// </summary>
+    public HealthCheckConfig? HealthChecks { get; set; }
 }

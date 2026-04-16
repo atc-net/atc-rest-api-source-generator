@@ -37,11 +37,17 @@ public class ApiServerGenerator : IIncrementalGenerator
             .Select(static (compilation, _) => compilation.ReferencedAssemblyNames
                 .Any(a => a.Name.Equals("Atc.Rest.MinimalApi", StringComparison.OrdinalIgnoreCase)));
 
+        // Check for Atc.Rest.HealthChecks package reference (for structured JSON health responses)
+        var hasHealthChecksProvider = context.CompilationProvider
+            .Select(static (compilation, _) => compilation.ReferencedAssemblyNames
+                .Any(a => a.Name.Equals("Atc.Rest.HealthChecks", StringComparison.OrdinalIgnoreCase)));
+
         // Combine ALL YAML files (as collection) with marker files and compilation info
         var combined = yamlFiles
             .Combine(markerFiles)
             .Combine(hasAspNetCoreProvider)
-            .Combine(hasMinimalApiProvider);
+            .Combine(hasMinimalApiProvider)
+            .Combine(hasHealthChecksProvider);
 
         // Register source output - processes all YAML files together for multi-parts support
         context.RegisterSourceOutput(combined, RegisterSourceOutputAction);
@@ -49,12 +55,13 @@ public class ApiServerGenerator : IIncrementalGenerator
 
     private static void RegisterSourceOutputAction(
         SourceProductionContext productionContext,
-        (((EquatableArray<YamlFileInfo> Left,
+        ((((EquatableArray<YamlFileInfo> Left,
             EquatableArray<MarkerFileInfo> Right) Left,
+            bool Right) Left,
             bool Right) Left,
             bool Right) combinedData)
     {
-        var (((yamlFiles, markers), hasAspNetCore), hasMinimalApi) = combinedData;
+        var ((((yamlFiles, markers), hasAspNetCore), hasMinimalApi), hasHealthChecksPackage) = combinedData;
 
         // Skip if no marker file found - marker file presence IS the trigger
         if (markers.IsEmpty)
@@ -166,7 +173,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                     config,
                     useMinimalApiPackage,
                     useValidationFilter,
-                    useGlobalErrorHandler);
+                    useGlobalErrorHandler,
+                    hasHealthChecksPackage);
             }
             else
             {
@@ -178,7 +186,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                     config,
                     useMinimalApiPackage,
                     useValidationFilter,
-                    useGlobalErrorHandler);
+                    useGlobalErrorHandler,
+                    hasHealthChecksPackage);
             }
         }
         catch (Exception ex)
@@ -198,7 +207,8 @@ public class ApiServerGenerator : IIncrementalGenerator
         ServerConfig config,
         bool useMinimalApiPackage,
         bool useValidationFilter,
-        bool useGlobalErrorHandler)
+        bool useGlobalErrorHandler,
+        bool hasHealthChecksPackage)
     {
         // Convert to SpecificationFile objects
         var baseName = Path.GetFileNameWithoutExtension(baseFile.Path);
@@ -235,7 +245,8 @@ public class ApiServerGenerator : IIncrementalGenerator
             projectName,
             useMinimalApiPackage,
             useValidationFilter,
-            useGlobalErrorHandler);
+            useGlobalErrorHandler,
+            hasHealthChecksPackage);
     }
 
     private static void GenerateApiServer(
@@ -245,7 +256,8 @@ public class ApiServerGenerator : IIncrementalGenerator
         ServerConfig config,
         bool useMinimalApiPackage,
         bool useValidationFilter,
-        bool useGlobalErrorHandler)
+        bool useGlobalErrorHandler,
+        bool hasHealthChecksPackage)
     {
         // Parse the OpenAPI YAML content
         var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
@@ -287,7 +299,8 @@ public class ApiServerGenerator : IIncrementalGenerator
             projectName,
             useMinimalApiPackage,
             useValidationFilter,
-            useGlobalErrorHandler);
+            useGlobalErrorHandler,
+            hasHealthChecksPackage);
     }
 
     /// <summary>
@@ -302,7 +315,8 @@ public class ApiServerGenerator : IIncrementalGenerator
         string projectName,
         bool useMinimalApiPackage,
         bool useValidationFilter,
-        bool useGlobalErrorHandler)
+        bool useGlobalErrorHandler,
+        bool hasHealthChecksPackage)
     {
         // Report diagnostics for unsupported OpenAPI features
         foreach (var diagnostic in DiagnosticHelpers.DetectUnsupportedFeatures(openApiDoc))
@@ -532,6 +546,26 @@ public class ApiServerGenerator : IIncrementalGenerator
             GenerateWebhookResultClasses(context, openApiDoc, projectName, config.IncludeDeprecated);
             GenerateWebhookEndpoints(context, openApiDoc, projectName, config);
             GenerateWebhookDependencyInjection(context, openApiDoc, projectName, config.IncludeDeprecated);
+        }
+
+        // Generate health check endpoints (if configured in marker file)
+        if (config.HealthChecks is { Enabled: true })
+        {
+            // Check for conflict: health paths in both config and OpenAPI spec
+            var healthPath = config.HealthChecks.Path.TrimEnd('/');
+            if (openApiDoc.Paths != null &&
+                openApiDoc.Paths.Keys.Any(p => p.StartsWith(healthPath, StringComparison.OrdinalIgnoreCase)))
+            {
+                DiagnosticHelpers.ReportHealthCheckPathConflict(context, healthPath);
+            }
+
+            if (!hasHealthChecksPackage)
+            {
+                DiagnosticHelpers.ReportHealthChecksPackageRecommended(context);
+            }
+
+            GenerateHealthCheckEndpoints(context, projectName, config.HealthChecks, hasHealthChecksPackage);
+            GenerateHealthCheckServiceExtensions(context, projectName);
         }
 
         // Generate WebApplication extensions (GlobalErrorHandler middleware setup)
@@ -1666,5 +1700,29 @@ public class ApiServerGenerator : IIncrementalGenerator
         context.AddSource(
             $"{projectName}.IEndpointDefinition.g.cs",
             SourceText.From(sb.ToString().NormalizeForSourceOutput(), Encoding.UTF8));
+    }
+
+    private static void GenerateHealthCheckEndpoints(
+        SourceProductionContext context,
+        string projectName,
+        HealthCheckConfig config,
+        bool hasHealthChecksPackage)
+    {
+        var content = HealthCheckExtractor.GenerateEndpoints(projectName, config, hasHealthChecksPackage);
+
+        context.AddSource(
+            $"{projectName}.Health.HealthCheckEndpoints.g.cs",
+            SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
+    }
+
+    private static void GenerateHealthCheckServiceExtensions(
+        SourceProductionContext context,
+        string projectName)
+    {
+        var content = HealthCheckExtractor.GenerateServiceExtensions(projectName);
+
+        context.AddSource(
+            $"{projectName}.Health.HealthCheckServiceExtensions.g.cs",
+            SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
     }
 }

@@ -53,6 +53,11 @@ builder.Services.AddApiHandlersFromDomain();
 builder.Services.AddApiValidatorsFromDomain();
 builder.Services.AddWebhookHandlersFromDomain();
 
+// ============================================
+// HEALTH CHECKS - Generated from marker file
+// ============================================
+builder.Services.AddApiHealthChecks();
+
 // Register Showcase dependencies (repositories)
 builder.Services.AddSingleton<AccountInMemoryRepository>();
 builder.Services.AddSingleton<TaskInMemoryRepository>();
@@ -76,6 +81,9 @@ app.MapShowcaseApi();
 
 // Map webhook endpoints (receives external webhook calls)
 app.MapShowcaseWebhooks();
+
+// Map health check endpoints (secured via api-key query/header)
+app.MapHealthCheckEndpoints();
 
 if (app.Environment.IsDevelopment())
 {
