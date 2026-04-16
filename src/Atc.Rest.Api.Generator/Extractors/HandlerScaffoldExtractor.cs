@@ -17,6 +17,7 @@ public static class HandlerScaffoldExtractor
     /// <param name="stubImplementation">The stub implementation type.</param>
     /// <param name="systemTypeResolver">Resolver for system type conflicts.</param>
     /// <param name="injectLogger">Whether to inject ILogger&lt;T&gt; via constructor. Default: false.</param>
+    /// <param name="maxLineLength">Maximum line length for ATC201 formatting. Default: 80.</param>
     /// <returns>ClassParameters for the handler scaffold class.</returns>
     public static ClassParameters Extract(
         string handlerName,
@@ -27,7 +28,8 @@ public static class HandlerScaffoldExtractor
         string handlerSuffix,
         string stubImplementation,
         SystemTypeConflictResolver systemTypeResolver,
-        bool injectLogger = false)
+        bool injectLogger = false,
+        int maxLineLength = 80)
     {
         var operationIdPascal = operationId.ToPascalCaseForDotNet();
         var interfaceName = $"I{operationIdPascal}{handlerSuffix}";
@@ -74,7 +76,7 @@ public static class HandlerScaffoldExtractor
 
         // Calculate whether method signature fits on one line (ATC201 threshold = 80 chars)
         // Format: "    public Task<ResultType> ExecuteAsync(ParamType paramName = default)"
-        var shouldBreakDownParams = methodParams.Count > 1 || ExceedsLineLength(taskTypeName, resultTypeName, methodParams);
+        var shouldBreakDownParams = methodParams.Count > 1 || ExceedsLineLength(taskTypeName, resultTypeName, methodParams, maxLineLength);
 
         var method = new MethodParameters(
             DocumentationTags: null,
@@ -180,9 +182,9 @@ public static class HandlerScaffoldExtractor
     private static bool ExceedsLineLength(
         string taskTypeName,
         string resultTypeName,
-        List<ParameterBaseParameters> methodParams)
+        List<ParameterBaseParameters> methodParams,
+        int maxLineLength)
     {
-        const int maxLineLength = 80;
         const int indentLength = 4; // 4 spaces indent
 
         if (methodParams.Count != 1)

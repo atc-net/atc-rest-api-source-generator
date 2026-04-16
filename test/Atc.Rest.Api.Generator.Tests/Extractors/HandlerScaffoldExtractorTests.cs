@@ -221,6 +221,46 @@ public class HandlerScaffoldExtractorTests
     }
 
     [Fact]
+    public void Extract_ExceedsDefault80ButFitsUnder120_KeepsOnSameLineWith120()
+    {
+        // Arrange — "getHealth" signature is ~92 chars, exceeds 80 but fits under 120
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /health:
+                                get:
+                                  operationId: getHealth
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var pathItem = document.Paths["/health"];
+        var operation = pathItem.Operations.Values.First();
+        var resolver = new SystemTypeConflictResolver([]);
+
+        // Act — with maxLineLength=120
+        var result = HandlerScaffoldExtractor.Extract(
+            "GetHealthHandler",
+            "TestApi.Handlers",
+            operation,
+            (OpenApiPathItem)pathItem,
+            "getHealth",
+            "Handler",
+            "throw-not-implemented",
+            resolver,
+            maxLineLength: 120);
+
+        // Assert — fits under 120 so keeps on same line
+        Assert.NotNull(result.Methods);
+        Assert.False(result.Methods[0].AlwaysBreakDownParameters);
+    }
+
+    [Fact]
     public void Extract_LongSignature_BreaksDownParams()
     {
         // Arrange — long operation name produces a signature > 80 chars
