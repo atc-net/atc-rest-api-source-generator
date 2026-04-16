@@ -21,7 +21,7 @@ internal static class DomainGlobalUsingsHelper
         var globalUsingsPath = Path.Combine(projectRootDirectory, "GlobalUsings.cs");
 
         // Build required usings set
-        var requiredUsings = BuildRequiredUsings(discoveredInterfaceNamespaces, rootNamespace, pathSegments, openApiDoc, config.InjectLogger);
+        var requiredUsings = BuildRequiredUsings(discoveredInterfaceNamespaces, rootNamespace, pathSegments, openApiDoc, config.InjectLogger, config.InjectTracing);
 
         // Read existing content
         var existingContent = File.Exists(globalUsingsPath)
@@ -87,7 +87,8 @@ internal static class DomainGlobalUsingsHelper
         string rootNamespace,
         List<string> pathSegments,
         OpenApiDocument openApiDoc,
-        bool injectLogger = false)
+        bool injectLogger = false,
+        bool injectTracing = false)
     {
         var requiredUsings = new HashSet<string>(StringComparer.Ordinal)
         {
@@ -95,6 +96,11 @@ internal static class DomainGlobalUsingsHelper
             "global using System.Threading;",
             "global using System.Threading.Tasks;",
         };
+
+        if (injectTracing)
+        {
+            requiredUsings.Add("global using System.Diagnostics;");
+        }
 
         if (injectLogger)
         {

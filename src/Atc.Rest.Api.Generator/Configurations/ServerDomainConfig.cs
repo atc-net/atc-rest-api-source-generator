@@ -53,4 +53,11 @@ public class ServerDomainConfig : BaseConfig
     /// Default: 80 (ATC201 default).
     /// </summary>
     public int MaxLineLength { get; set; } = 80;
+
+    /// <summary>
+    /// Whether to inject ActivitySource for distributed tracing into generated handler scaffolds.
+    /// When true, handlers get a static ActivitySource field and each ExecuteAsync call
+    /// starts an Activity for OpenTelemetry-compatible tracing. Default: false.
+    /// </summary>
+    public bool InjectTracing { get; set; }
 }

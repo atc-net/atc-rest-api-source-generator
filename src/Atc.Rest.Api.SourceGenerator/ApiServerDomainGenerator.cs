@@ -281,7 +281,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // Also emit global usings as in-memory source so the current compilation can resolve types
         // (on first build, the physical GlobalUsings.cs isn't part of the compilation yet)
         var requiredUsings = DomainGlobalUsingsHelper.BuildRequiredUsings(
-            interfaceNamespaces, rootNamespace, pathSegments, openApiDoc, config.InjectLogger);
+            interfaceNamespaces, rootNamespace, pathSegments, openApiDoc, config.InjectLogger, config.InjectTracing);
         var globalUsingsContent = string.Join("\n", requiredUsings.OrderBy(u => u, StringComparer.Ordinal));
         context.AddSource("DomainGlobalUsings.g.cs", SourceText.From(globalUsingsContent, Encoding.UTF8));
 
@@ -728,7 +728,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             config.StubImplementation,
             systemTypeResolver,
             config.InjectLogger,
-            config.MaxLineLength);
+            config.MaxLineLength,
+            config.InjectTracing);
 
         // Use GenerateContentForClass to generate the code
         var codeDocGenerator = new CodeDocumentationTagsGenerator();
