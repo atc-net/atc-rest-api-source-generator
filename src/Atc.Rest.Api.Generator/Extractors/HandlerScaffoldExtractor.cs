@@ -70,7 +70,7 @@ public static class HandlerScaffoldExtractor
 
         // Generate method body content based on stub type
         var taskTypeName = systemTypeResolver.EnsureFullNamespaceIfNeeded(nameof(Task));
-        var methodContent = GenerateStubContent(resultTypeName, operationId, stubImplementation, taskTypeName);
+        var methodContent = GenerateStubContent(resultTypeName, operationId, stubImplementation, taskTypeName, injectLogger);
 
         var method = new MethodParameters(
             DocumentationTags: null,
@@ -134,10 +134,17 @@ public static class HandlerScaffoldExtractor
         string resultTypeName,
         string operationId,
         string stubImplementation,
-        string taskTypeName)
+        string taskTypeName,
+        bool injectLogger)
     {
         var builder = new StringBuilder();
         builder.AppendLine($"// TODO: Implement {operationId} logic");
+
+        // Add logger.LogTrace to use the injected logger (avoids S4487 "unread field" warning)
+        if (injectLogger)
+        {
+            builder.AppendLine($"logger.LogTrace(\"{operationId} not implemented\");");
+        }
 
         switch (stubImplementation.ToLowerInvariant())
         {
