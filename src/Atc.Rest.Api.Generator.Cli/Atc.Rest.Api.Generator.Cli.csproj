@@ -13,8 +13,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Atc" Version="3.0.45" />
-    <PackageReference Include="Atc.Console.Spectre" Version="3.0.45" />
+    <PackageReference Include="Atc" Version="3.0.46" />
+    <PackageReference Include="Atc.Console.Spectre" Version="3.0.46" />
     <PackageReference Include="Microsoft.OpenApi" Version="3.5.2" />
     <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.5.2" />
   </ItemGroup>
