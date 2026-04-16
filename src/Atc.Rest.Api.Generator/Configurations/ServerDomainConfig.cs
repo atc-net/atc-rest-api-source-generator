@@ -38,4 +38,11 @@ public class ServerDomainConfig : BaseConfig
     /// Options: "throw-not-implemented", "error-501", "default-value".
     /// </summary>
     public string StubImplementation { get; set; } = "throw-not-implemented";
+
+    /// <summary>
+    /// Whether to inject ILogger&lt;T&gt; into generated handler scaffolds.
+    /// When true, handlers get a constructor with an ILogger&lt;T&gt; parameter
+    /// and a private readonly field for structured logging. Default: false.
+    /// </summary>
+    public bool InjectLogger { get; set; }
 }

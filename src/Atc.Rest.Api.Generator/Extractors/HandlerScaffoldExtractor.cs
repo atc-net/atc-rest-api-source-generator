@@ -16,6 +16,7 @@ public static class HandlerScaffoldExtractor
     /// <param name="handlerSuffix">The handler suffix (e.g., "Handler").</param>
     /// <param name="stubImplementation">The stub implementation type.</param>
     /// <param name="systemTypeResolver">Resolver for system type conflicts.</param>
+    /// <param name="injectLogger">Whether to inject ILogger&lt;T&gt; via constructor. Default: false.</param>
     /// <returns>ClassParameters for the handler scaffold class.</returns>
     public static ClassParameters Extract(
         string handlerName,
@@ -25,7 +26,8 @@ public static class HandlerScaffoldExtractor
         string operationId,
         string handlerSuffix,
         string stubImplementation,
-        SystemTypeConflictResolver systemTypeResolver)
+        SystemTypeConflictResolver systemTypeResolver,
+        bool injectLogger = false)
     {
         var operationIdPascal = operationId.ToPascalCaseForDotNet();
         var interfaceName = $"I{operationIdPascal}{handlerSuffix}";
@@ -82,8 +84,40 @@ public static class HandlerScaffoldExtractor
             UseExpressionBody: false,
             Content: methodContent);
 
+        // Build constructor with ILogger<T> injection if configured
+        IList<ConstructorParameters>? constructors = null;
+        string? headerContent = null;
+
+        if (injectLogger)
+        {
+            headerContent = "using Microsoft.Extensions.Logging;\n";
+
+            var loggerTypeName = $"ILogger<{handlerName}>";
+            constructors =
+            [
+                new ConstructorParameters(
+                    DocumentationTags: null,
+                    DeclarationModifier: DeclarationModifiers.Public,
+                    GenericTypeName: null,
+                    TypeName: handlerName,
+                    InheritedClassTypeName: null,
+                    Parameters:
+                    [
+                        new ConstructorParameterBaseParameters(
+                            GenericTypeName: null,
+                            TypeName: loggerTypeName,
+                            IsNullableType: false,
+                            Name: "logger",
+                            DefaultValue: null,
+                            PassToInheritedClass: false,
+                            CreateAsPrivateReadonlyMember: true,
+                            CreateAaOneLiner: false),
+                    ]),
+            ];
+        }
+
         return new ClassParameters(
-            HeaderContent: null, // Usings are in GlobalUsings.cs
+            HeaderContent: headerContent,
             Namespace: handlerNamespace,
             DocumentationTags: new CodeDocumentationTags($"Handler business logic for the {operationIdPascal} operation."),
             Attributes: null,
@@ -93,7 +127,7 @@ public static class HandlerScaffoldExtractor
             InheritedClassTypeName: null,
             InheritedGenericClassTypeName: null,
             InheritedInterfaceTypeName: interfaceName,
-            Constructors: null, // No constructors - commented example only
+            Constructors: constructors,
             Properties: null,
             Methods: new List<MethodParameters> { method },
             GenerateToStringMethod: false);
