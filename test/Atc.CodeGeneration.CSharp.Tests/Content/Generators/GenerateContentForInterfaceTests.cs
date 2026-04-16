@@ -5,6 +5,7 @@ public class GenerateContentForInterfaceTests
     [Fact]
     public void Generate_SimpleInterface_ProducesInterfaceDeclaration()
     {
+        // Arrange
         var parameters = new InterfaceParameters(
             HeaderContent: null,
             Namespace: "MyApp.Contracts",
@@ -16,12 +17,14 @@ public class GenerateContentForInterfaceTests
             Properties: null,
             Methods: null);
 
+        // Act
         var generator = new GenerateContentForInterface(
             new CodeDocumentationTagsGenerator(),
             parameters);
 
         var result = generator.Generate();
 
+        // Assert
         Assert.Contains("public IPetService", result, StringComparison.Ordinal);
         Assert.Contains("namespace MyApp.Contracts;", result, StringComparison.Ordinal);
     }
@@ -29,6 +32,7 @@ public class GenerateContentForInterfaceTests
     [Fact]
     public void Generate_WithInheritedInterface_IncludesBase()
     {
+        // Arrange
         var parameters = new InterfaceParameters(
             HeaderContent: null,
             Namespace: "MyApp",
@@ -40,18 +44,21 @@ public class GenerateContentForInterfaceTests
             Properties: null,
             Methods: null);
 
+        // Act
         var generator = new GenerateContentForInterface(
             new CodeDocumentationTagsGenerator(),
             parameters);
 
         var result = generator.Generate();
 
+        // Assert
         Assert.Contains("IPetService : IService", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Generate_WithMethod_IncludesMethodSignature()
     {
+        // Arrange
         var parameters = new InterfaceParameters(
             HeaderContent: null,
             Namespace: "MyApp",
@@ -76,18 +83,21 @@ public class GenerateContentForInterfaceTests
                     Content: null),
             ]);
 
+        // Act
         var generator = new GenerateContentForInterface(
             new CodeDocumentationTagsGenerator(),
             parameters);
 
         var result = generator.Generate();
 
+        // Assert
         Assert.Contains("GetPetAsync", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Generate_WithDocumentation_IncludesXmlDocs()
     {
+        // Arrange
         var parameters = new InterfaceParameters(
             HeaderContent: null,
             Namespace: "MyApp",
@@ -99,12 +109,14 @@ public class GenerateContentForInterfaceTests
             Properties: null,
             Methods: null);
 
+        // Act
         var generator = new GenerateContentForInterface(
             new CodeDocumentationTagsGenerator(),
             parameters);
 
         var result = generator.Generate();
 
+        // Assert
         Assert.Contains("/// <summary>", result, StringComparison.Ordinal);
         Assert.Contains("Defines pet operations.", result, StringComparison.Ordinal);
     }

@@ -50,11 +50,14 @@ public class WebhookExtractorTests
     [Fact]
     public void WebhookHandlerExtractor_Extract_ProducesHandlerInterfaces()
     {
+        // Arrange
         var document = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
         var resolver = new SystemTypeConflictResolver([]);
 
+        // Act
         var result = WebhookHandlerExtractor.Extract(document, "TestApi", resolver);
 
+        // Assert
         Assert.NotNull(result);
         Assert.Equal(2, result.Count);
 
@@ -68,11 +71,14 @@ public class WebhookExtractorTests
     [Fact]
     public void WebhookHandlerExtractor_Extract_HeartbeatHasNoParameters()
     {
+        // Arrange
         var document = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
         var resolver = new SystemTypeConflictResolver([]);
 
+        // Act
         var result = WebhookHandlerExtractor.Extract(document, "TestApi", resolver);
 
+        // Assert
         Assert.NotNull(result);
         var heartbeatHandler = result.First(h => h.InterfaceTypeName == "IOnSystemHeartbeatWebhookHandler");
         var method = heartbeatHandler.Methods![0];
@@ -87,10 +93,13 @@ public class WebhookExtractorTests
     [Fact]
     public void WebhookResultExtractor_Extract_ProducesResultClasses()
     {
+        // Arrange
         var document = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
 
+        // Act
         var result = WebhookResultExtractor.Extract(document, "TestApi");
 
+        // Assert
         Assert.NotNull(result);
         Assert.Equal(2, result.Count);
 
@@ -102,10 +111,13 @@ public class WebhookExtractorTests
     [Fact]
     public void WebhookResultExtractor_Extract_UsesTypedResultFactories()
     {
+        // Arrange
         var document = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
 
+        // Act
         var result = WebhookResultExtractor.Extract(document, "TestApi");
 
+        // Assert
         Assert.NotNull(result);
         var (_, content) = result.First(r => r.ClassName == "OnNewPetWebhookResult");
 
@@ -117,11 +129,14 @@ public class WebhookExtractorTests
     [Fact]
     public void WebhookParameterExtractor_Extract_ProducesParameterClasses()
     {
+        // Arrange
         var document = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
         var resolver = new SystemTypeConflictResolver([]);
 
+        // Act
         var result = WebhookParameterExtractor.Extract(document, "TestApi", resolver);
 
+        // Assert
         Assert.NotNull(result);
         Assert.Single(result);
         var (className, content) = result[0];
@@ -132,11 +147,14 @@ public class WebhookExtractorTests
     [Fact]
     public void WebhookParameterExtractor_Extract_NoBodyWebhook_NoParameters()
     {
+        // Arrange
         var document = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
         var resolver = new SystemTypeConflictResolver([]);
 
+        // Act
         var result = WebhookParameterExtractor.Extract(document, "TestApi", resolver);
 
+        // Assert
         Assert.NotNull(result);
         Assert.DoesNotContain(result, r => r.ClassName.Contains("Heartbeat", StringComparison.Ordinal));
     }
@@ -145,11 +163,14 @@ public class WebhookExtractorTests
     [Fact]
     public void WebhookEndpointExtractor_Extract_ProducesEndpointClass()
     {
+        // Arrange
         var document = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
         var config = new ServerConfig();
 
+        // Act
         var result = WebhookEndpointExtractor.Extract(document, "TestApi", config);
 
+        // Assert
         Assert.NotNull(result);
 
         // Verify the class has the expected structure
@@ -161,10 +182,13 @@ public class WebhookExtractorTests
     [Fact]
     public void WebhookDependencyInjectionExtractor_Extract_ProducesDIClass()
     {
+        // Arrange
         var document = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
 
+        // Act
         var result = WebhookDependencyInjectionExtractor.Extract(document, "TestApi");
 
+        // Assert
         Assert.NotNull(result);
         Assert.NotNull(result.Methods);
         Assert.True(result.Methods.Count > 0);
@@ -174,24 +198,26 @@ public class WebhookExtractorTests
     [Fact]
     public void AllWebhookExtractors_NoWebhooks_ReturnNull()
     {
-        var yaml = """
-                   openapi: 3.0.0
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   paths:
-                     /pets:
-                       get:
-                         operationId: listPets
-                         responses:
-                           '200':
-                             description: OK
-                   """;
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var resolver = new SystemTypeConflictResolver([]);
         var config = new ServerConfig();
 
+        // Act & Assert
         Assert.Null(WebhookHandlerExtractor.Extract(document, "TestApi", resolver));
         Assert.Null(WebhookResultExtractor.Extract(document, "TestApi"));
         Assert.Null(WebhookParameterExtractor.Extract(document, "TestApi", resolver));

@@ -5,6 +5,7 @@ public class GenerateContentForRecordsTests
     [Fact]
     public void Generate_SimpleRecord_ProducesRecordDeclaration()
     {
+        // Arrange
         var parameters = new RecordsParameters(
             HeaderContent: null,
             Namespace: "MyApp.Models",
@@ -31,12 +32,14 @@ public class GenerateContentForRecordsTests
                     ]),
             ]);
 
+        // Act
         var generator = new GenerateContentForRecords(
             new CodeDocumentationTagsGenerator(),
             parameters);
 
         var result = generator.Generate();
 
+        // Assert
         Assert.Contains("public record Pet", result, StringComparison.Ordinal);
         Assert.Contains("string Name", result, StringComparison.Ordinal);
     }
@@ -44,6 +47,7 @@ public class GenerateContentForRecordsTests
     [Fact]
     public void Generate_EmptyRecord_ProducesEmptyParens()
     {
+        // Arrange
         var parameters = new RecordsParameters(
             HeaderContent: null,
             Namespace: "MyApp",
@@ -59,18 +63,21 @@ public class GenerateContentForRecordsTests
                     Parameters: null),
             ]);
 
+        // Act
         var generator = new GenerateContentForRecords(
             new CodeDocumentationTagsGenerator(),
             parameters);
 
         var result = generator.Generate();
 
+        // Assert
         Assert.Contains("public record Empty();", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Generate_WithBaseType_IncludesInheritance()
     {
+        // Arrange
         var parameters = new RecordsParameters(
             HeaderContent: null,
             Namespace: "MyApp",
@@ -99,18 +106,21 @@ public class GenerateContentForRecordsTests
                     BaseConstructorArguments: ["Name"]),
             ]);
 
+        // Act
         var generator = new GenerateContentForRecords(
             new CodeDocumentationTagsGenerator(),
             parameters);
 
         var result = generator.Generate();
 
+        // Assert
         Assert.Contains(": Animal(Name)", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Generate_MultipleRecords_ProducesAll()
     {
+        // Arrange
         var parameters = new RecordsParameters(
             HeaderContent: null,
             Namespace: "MyApp",
@@ -131,12 +141,14 @@ public class GenerateContentForRecordsTests
                     Parameters: null),
             ]);
 
+        // Act
         var generator = new GenerateContentForRecords(
             new CodeDocumentationTagsGenerator(),
             parameters);
 
         var result = generator.Generate();
 
+        // Assert
         Assert.Contains("public record First();", result, StringComparison.Ordinal);
         Assert.Contains("public record Second();", result, StringComparison.Ordinal);
     }
@@ -144,6 +156,7 @@ public class GenerateContentForRecordsTests
     [Fact]
     public void Generate_WithNullableParameter_IncludesQuestionMark()
     {
+        // Arrange
         var parameters = new RecordsParameters(
             HeaderContent: null,
             Namespace: "MyApp",
@@ -170,12 +183,14 @@ public class GenerateContentForRecordsTests
                     ]),
             ]);
 
+        // Act
         var generator = new GenerateContentForRecords(
             new CodeDocumentationTagsGenerator(),
             parameters);
 
         var result = generator.Generate();
 
+        // Assert
         Assert.Contains("string?", result, StringComparison.Ordinal);
         Assert.Contains("Nickname", result, StringComparison.Ordinal);
     }

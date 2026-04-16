@@ -19,7 +19,10 @@ public class DefaultValueHelperTests
         string csharpTypeName,
         string? expected)
     {
+        // Act
         var result = DefaultValueHelper.FormatDefaultValue(rawValue!, csharpTypeName);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -35,7 +38,10 @@ public class DefaultValueHelperTests
         string csharpTypeName,
         string expected)
     {
+        // Act
         var result = DefaultValueHelper.FormatForAttribute(defaultValue, csharpTypeName);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -43,7 +49,10 @@ public class DefaultValueHelperTests
     [Fact]
     public void ExtractSchemaDefault_NullSchema_ReturnsNull()
     {
+        // Act
         var result = DefaultValueHelper.ExtractSchemaDefault(null, "string");
+
+        // Assert
         Assert.Null(result);
     }
 }

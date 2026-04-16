@@ -6,65 +6,105 @@ public class TypeScriptTypeMapperTests
     [Fact]
     public void ToTypeScriptTypeName_Null_ReturnsUnknown()
     {
+        // Arrange
         JsonSchemaType? schemaType = null;
 
-        Assert.Equal("unknown", schemaType.ToTypeScriptTypeName());
+        // Act
+        var result = schemaType.ToTypeScriptTypeName();
+
+        // Assert
+        Assert.Equal("unknown", result);
     }
 
     [Fact]
     public void ToTypeScriptTypeName_Integer_ReturnsNumber()
     {
+        // Arrange
         JsonSchemaType? schemaType = JsonSchemaType.Integer;
 
-        Assert.Equal("number", schemaType.ToTypeScriptTypeName());
+        // Act
+        var result = schemaType.ToTypeScriptTypeName();
+
+        // Assert
+        Assert.Equal("number", result);
     }
 
     [Fact]
     public void ToTypeScriptTypeName_Number_ReturnsNumber()
     {
+        // Arrange
         JsonSchemaType? schemaType = JsonSchemaType.Number;
 
-        Assert.Equal("number", schemaType.ToTypeScriptTypeName());
+        // Act
+        var result = schemaType.ToTypeScriptTypeName();
+
+        // Assert
+        Assert.Equal("number", result);
     }
 
     [Fact]
     public void ToTypeScriptTypeName_String_ReturnsString()
     {
+        // Arrange
         JsonSchemaType? schemaType = JsonSchemaType.String;
 
-        Assert.Equal("string", schemaType.ToTypeScriptTypeName());
+        // Act
+        var result = schemaType.ToTypeScriptTypeName();
+
+        // Assert
+        Assert.Equal("string", result);
     }
 
     [Fact]
     public void ToTypeScriptTypeName_Boolean_ReturnsBoolean()
     {
+        // Arrange
         JsonSchemaType? schemaType = JsonSchemaType.Boolean;
 
-        Assert.Equal("boolean", schemaType.ToTypeScriptTypeName());
+        // Act
+        var result = schemaType.ToTypeScriptTypeName();
+
+        // Assert
+        Assert.Equal("boolean", result);
     }
 
     [Fact]
     public void ToTypeScriptTypeName_Array_ReturnsUnknownArray()
     {
+        // Arrange
         JsonSchemaType? schemaType = JsonSchemaType.Array;
 
-        Assert.Equal("unknown[]", schemaType.ToTypeScriptTypeName());
+        // Act
+        var result = schemaType.ToTypeScriptTypeName();
+
+        // Assert
+        Assert.Equal("unknown[]", result);
     }
 
     [Fact]
     public void ToTypeScriptTypeName_NullableInteger_ReturnsNumber()
     {
+        // Arrange
         JsonSchemaType? schemaType = JsonSchemaType.Integer | JsonSchemaType.Null;
 
-        Assert.Equal("number", schemaType.ToTypeScriptTypeName());
+        // Act
+        var result = schemaType.ToTypeScriptTypeName();
+
+        // Assert
+        Assert.Equal("number", result);
     }
 
     [Fact]
     public void ToTypeScriptTypeName_NullableString_ReturnsString()
     {
+        // Arrange
         JsonSchemaType? schemaType = JsonSchemaType.String | JsonSchemaType.Null;
 
-        Assert.Equal("string", schemaType.ToTypeScriptTypeName());
+        // Act
+        var result = schemaType.ToTypeScriptTypeName();
+
+        // Assert
+        Assert.Equal("string", result);
     }
 
     // ========== String Format Tests ==========
@@ -79,123 +119,155 @@ public class TypeScriptTypeMapperTests
         string? format,
         string expected)
     {
+        // Arrange
         JsonSchemaType? schemaType = JsonSchemaType.String;
 
-        Assert.Equal(expected, schemaType.ToTypeScriptTypeName(format));
+        // Act
+        var result = schemaType.ToTypeScriptTypeName(format);
+
+        // Assert
+        Assert.Equal(expected, result);
     }
 
     [Fact]
     public void ToTypeScriptTypeName_DateTimeWithConvertDates_ReturnsDate()
     {
+        // Arrange
         JsonSchemaType? schemaType = JsonSchemaType.String;
 
-        Assert.Equal(
-            "Date",
-            schemaType.ToTypeScriptTypeName("date-time", convertDates: true));
+        // Act
+        var result = schemaType.ToTypeScriptTypeName("date-time", convertDates: true);
+
+        // Assert
+        Assert.Equal("Date", result);
     }
 
     [Fact]
     public void ToTypeScriptTypeName_DateTimeWithoutConvertDates_ReturnsString()
     {
+        // Arrange
         JsonSchemaType? schemaType = JsonSchemaType.String;
 
-        Assert.Equal(
-            "string",
-            schemaType.ToTypeScriptTypeName("date-time", convertDates: false));
+        // Act
+        var result = schemaType.ToTypeScriptTypeName("date-time", convertDates: false);
+
+        // Assert
+        Assert.Equal("string", result);
     }
 
     [Fact]
     public void ToTypeScriptTypeName_DateWithConvertDates_ReturnsDate()
     {
+        // Arrange
         JsonSchemaType? schemaType = JsonSchemaType.String;
 
-        Assert.Equal(
-            "Date",
-            schemaType.ToTypeScriptTypeName("date", convertDates: true));
+        // Act
+        var result = schemaType.ToTypeScriptTypeName("date", convertDates: true);
+
+        // Assert
+        Assert.Equal("Date", result);
     }
 
     // ========== ToTypeScriptTypeForModel Tests ==========
     [Fact]
     public void ToTypeScriptTypeForModel_PrimitiveString_ReturnsString()
     {
+        // Arrange
         var doc = ParseYaml(YamlWithStringProperty);
         Assert.NotNull(doc);
 
         var schema = GetSchemaProperty(doc!, "TestModel", "name");
         Assert.NotNull(schema);
 
+        // Act
         var result = schema!.ToTypeScriptTypeForModel(isRequired: true);
 
+        // Assert
         Assert.Equal("string", result);
     }
 
     [Fact]
     public void ToTypeScriptTypeForModel_NullablePrimitive_ReturnsTypeOrNull()
     {
+        // Arrange
         var doc = ParseYaml(YamlWithNullableProperty);
         Assert.NotNull(doc);
 
         var schema = GetSchemaProperty(doc!, "TestModel", "description");
         Assert.NotNull(schema);
 
+        // Act
         var result = schema!.ToTypeScriptTypeForModel(isRequired: false);
 
+        // Assert
         Assert.Equal("string | null", result);
     }
 
     [Fact]
     public void ToTypeScriptTypeForModel_DirectRef_ReturnsTypeName()
     {
+        // Arrange
         var doc = ParseYaml(YamlWithRefProperty);
         Assert.NotNull(doc);
 
         var schema = GetSchemaProperty(doc!, "Device", "owner");
         Assert.NotNull(schema);
 
+        // Act
         var result = schema!.ToTypeScriptTypeForModel(isRequired: true);
 
+        // Assert
         Assert.Equal("User", result);
     }
 
     [Fact]
     public void ToTypeScriptTypeForModel_ArrayOfPrimitives_ReturnsArrayType()
     {
+        // Arrange
         var doc = ParseYaml(YamlWithArrayProperty);
         Assert.NotNull(doc);
 
         var schema = GetSchemaProperty(doc!, "TestModel", "tags");
         Assert.NotNull(schema);
 
+        // Act
         var result = schema!.ToTypeScriptTypeForModel(isRequired: true);
 
+        // Assert
         Assert.Equal("string[]", result);
     }
 
     [Fact]
     public void ToTypeScriptTypeForModel_OneOfSingleRef_ReturnsRefType()
     {
+        // Arrange
         var doc = ParseYaml(YamlWithOneOfProperty);
         Assert.NotNull(doc);
 
         var schema = GetSchemaProperty(doc!, "Device", "customer");
         Assert.NotNull(schema);
 
+        // Act
         var result = schema!.ToTypeScriptTypeForModel(isRequired: false);
 
+        // Assert
         Assert.Equal("IdValue | null", result);
     }
 
     [Fact]
     public void ToTypeScriptTypeForModel_AllOfSingleRef_ReturnsRefType()
     {
+        // Arrange
         var doc = ParseYaml(YamlWithAllOfProperty);
         Assert.NotNull(doc);
 
         var schema = GetSchemaProperty(doc!, "Device", "settings");
         Assert.NotNull(schema);
 
+        // Act
         var result = schema!.ToTypeScriptTypeForModel(isRequired: false);
 
+        // Assert
         Assert.Equal("DeviceSettings | null", result);
     }
 
@@ -203,28 +275,34 @@ public class TypeScriptTypeMapperTests
     [Fact]
     public void ToTypeScriptReturnType_PrimitiveString_ReturnsString()
     {
+        // Arrange
         var doc = ParseYaml(YamlWithStringProperty);
         Assert.NotNull(doc);
 
         var schema = GetSchemaProperty(doc!, "TestModel", "name");
         Assert.NotNull(schema);
 
+        // Act
         var result = schema!.ToTypeScriptReturnType();
 
+        // Assert
         Assert.Equal("string", result);
     }
 
     [Fact]
     public void ToTypeScriptReturnType_RefSchema_ReturnsTypeName()
     {
+        // Arrange
         var doc = ParseYaml(YamlWithRefProperty);
         Assert.NotNull(doc);
 
         var schema = GetSchemaProperty(doc!, "Device", "owner");
         Assert.NotNull(schema);
 
+        // Act
         var result = schema!.ToTypeScriptReturnType();
 
+        // Assert
         Assert.Equal("User", result);
     }
 

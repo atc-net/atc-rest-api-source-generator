@@ -9,22 +9,22 @@ public class SchemaExtractorTests
     public void ExtractForSchemas_WithListProperty_IncludesCollectionsUsing()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                TestResponse:
-                  type: object
-                  properties:
-                    items:
-                      type: array
-                      items:
-                        type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                TestResponse:
+                                  type: object
+                                  properties:
+                                    items:
+                                      type: array
+                                      items:
+                                        type: string
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "TestResponse" };
@@ -45,21 +45,21 @@ public class SchemaExtractorTests
     public void ExtractForSchemas_WithGuidProperty_IncludesSystemUsing()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                TestResponse:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                      format: uuid
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                TestResponse:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                      format: uuid
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "TestResponse" };
@@ -80,21 +80,21 @@ public class SchemaExtractorTests
     public void ExtractForSchemas_WithDateTimeOffsetProperty_IncludesSystemUsing()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                TestResponse:
-                  type: object
-                  properties:
-                    createdAt:
-                      type: string
-                      format: date-time
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                TestResponse:
+                                  type: object
+                                  properties:
+                                    createdAt:
+                                      type: string
+                                      format: date-time
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "TestResponse" };
@@ -115,29 +115,29 @@ public class SchemaExtractorTests
     public void ExtractForSchemas_WithListOfGuids_IncludesBothUsings()
     {
         // Arrange - This is the D365TestClient case: List<Guid> Ids
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                ResendEventsResponse:
-                  type: object
-                  properties:
-                    resourceType:
-                      type: string
-                    processedCount:
-                      type: integer
-                    message:
-                      type: string
-                    ids:
-                      type: array
-                      items:
-                        type: string
-                        format: uuid
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                ResendEventsResponse:
+                                  type: object
+                                  properties:
+                                    resourceType:
+                                      type: string
+                                    processedCount:
+                                      type: integer
+                                    message:
+                                      type: string
+                                    ids:
+                                      type: array
+                                      items:
+                                        type: string
+                                        format: uuid
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "ResendEventsResponse" };
@@ -159,21 +159,21 @@ public class SchemaExtractorTests
     public void ExtractForSchemas_WithUriProperty_IncludesSystemUsing()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                TestResponse:
-                  type: object
-                  properties:
-                    callbackUrl:
-                      type: string
-                      format: uri
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                TestResponse:
+                                  type: object
+                                  properties:
+                                    callbackUrl:
+                                      type: string
+                                      format: uri
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "TestResponse" };
@@ -194,22 +194,22 @@ public class SchemaExtractorTests
     public void ExtractForSchemas_WithDictionaryProperty_IncludesCollectionsUsing()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                TestResponse:
-                  type: object
-                  properties:
-                    metadata:
-                      type: object
-                      additionalProperties:
-                        type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                TestResponse:
+                                  type: object
+                                  properties:
+                                    metadata:
+                                      type: object
+                                      additionalProperties:
+                                        type: string
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "TestResponse" };
@@ -230,22 +230,22 @@ public class SchemaExtractorTests
     public void ExtractForSchemas_WithSimpleStringProperty_DoesNotIncludeSystemUsing()
     {
         // Arrange
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                TestResponse:
-                  type: object
-                  properties:
-                    name:
-                      type: string
-                    count:
-                      type: integer
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                TestResponse:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                    count:
+                                      type: integer
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "TestResponse" };
@@ -600,28 +600,28 @@ public class SchemaExtractorTests
     [Fact]
     public void ExtractForSchemas_AllOfComposition_MergesProperties()
     {
-        var yaml = """
-                   openapi: 3.0.0
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   paths: {}
-                   components:
-                     schemas:
-                       Base:
-                         type: object
-                         properties:
-                           id:
-                             type: integer
-                             format: int64
-                       Extended:
-                         allOf:
-                           - $ref: '#/components/schemas/Base'
-                           - type: object
-                             properties:
-                               name:
-                                 type: string
-                   """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Base:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: integer
+                                      format: int64
+                                Extended:
+                                  allOf:
+                                    - $ref: '#/components/schemas/Base'
+                                    - type: object
+                                      properties:
+                                        name:
+                                          type: string
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Extended" };
@@ -645,27 +645,27 @@ public class SchemaExtractorTests
     [Fact]
     public void ExtractForSchemas_RequiredBeforeOptional_CorrectParameterOrder()
     {
-        var yaml = """
-                   openapi: 3.0.0
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   paths: {}
-                   components:
-                     schemas:
-                       Pet:
-                         type: object
-                         required:
-                           - name
-                         properties:
-                           tag:
-                             type: string
-                           name:
-                             type: string
-                           age:
-                             type: integer
-                             default: 0
-                   """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  required:
+                                    - name
+                                  properties:
+                                    tag:
+                                      type: string
+                                    name:
+                                      type: string
+                                    age:
+                                      type: integer
+                                      default: 0
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
@@ -692,24 +692,24 @@ public class SchemaExtractorTests
     [Fact]
     public void ExtractForSchemas_WithDefaultValue_SetsDefaultOnParameter()
     {
-        var yaml = """
-                   openapi: 3.0.0
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   paths: {}
-                   components:
-                     schemas:
-                       Settings:
-                         type: object
-                         properties:
-                           isActive:
-                             type: boolean
-                             default: true
-                           maxRetries:
-                             type: integer
-                             default: 3
-                   """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Settings:
+                                  type: object
+                                  properties:
+                                    isActive:
+                                      type: boolean
+                                      default: true
+                                    maxRetries:
+                                      type: integer
+                                      default: 3
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Settings" };
@@ -734,26 +734,26 @@ public class SchemaExtractorTests
     [Fact]
     public void ExtractForSchemas_EnumSchema_IsSkipped()
     {
-        var yaml = """
-                   openapi: 3.0.0
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   paths: {}
-                   components:
-                     schemas:
-                       Color:
-                         type: string
-                         enum:
-                           - Red
-                           - Green
-                           - Blue
-                       Pet:
-                         type: object
-                         properties:
-                           name:
-                             type: string
-                   """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Color:
+                                  type: string
+                                  enum:
+                                    - Red
+                                    - Green
+                                    - Blue
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Color", "Pet" };
@@ -773,24 +773,24 @@ public class SchemaExtractorTests
     [Fact]
     public void ExtractForSchemas_ArrayProperty_ProducesListType()
     {
-        var yaml = """
-                   openapi: 3.0.0
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   paths: {}
-                   components:
-                     schemas:
-                       Order:
-                         type: object
-                         required:
-                           - items
-                         properties:
-                           items:
-                             type: array
-                             items:
-                               type: string
-                   """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Order:
+                                  type: object
+                                  required:
+                                    - items
+                                  properties:
+                                    items:
+                                      type: array
+                                      items:
+                                        type: string
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Order" };
@@ -810,21 +810,21 @@ public class SchemaExtractorTests
     [Fact]
     public void ExtractForSchemas_WithSchemaDescription_GeneratesDocumentationTags()
     {
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                Pet:
-                  type: object
-                  description: A pet in the store.
-                  properties:
-                    name:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  description: A pet in the store.
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
@@ -844,26 +844,26 @@ public class SchemaExtractorTests
     [Fact]
     public void ExtractForSchemas_WithSchemaExample_GeneratesExampleTag()
     {
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                Pet:
-                  type: object
-                  description: A pet in the store.
-                  example:
-                    name: Buddy
-                    tag: Dog
-                  properties:
-                    name:
-                      type: string
-                    tag:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  description: A pet in the store.
+                                  example:
+                                    name: Buddy
+                                    tag: Dog
+                                  properties:
+                                    name:
+                                      type: string
+                                    tag:
+                                      type: string
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
@@ -884,20 +884,20 @@ public class SchemaExtractorTests
     [Fact]
     public void ExtractForSchemas_WithoutDescriptionOrExample_NullDocumentationTags()
     {
-        var yaml = """
-            openapi: 3.0.0
-            info:
-              title: Test API
-              version: 1.0.0
-            paths: {}
-            components:
-              schemas:
-                Simple:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-            """;
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Simple:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Simple" };
