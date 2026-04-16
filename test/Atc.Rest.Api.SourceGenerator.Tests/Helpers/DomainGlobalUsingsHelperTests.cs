@@ -8,12 +8,15 @@ public class DomainGlobalUsingsHelperTests
     [Fact]
     public void BuildRequiredUsings_AlwaysIncludesSystemUsings()
     {
+        // Arrange
         var emptyNamespaces = new HashSet<string>(StringComparer.Ordinal);
         var emptySegments = new List<string>();
         var doc = CreateEmptyOpenApiDocument();
 
+        // Act
         var result = DomainGlobalUsingsHelper.BuildRequiredUsings(emptyNamespaces, "MyApp", emptySegments, doc);
 
+        // Assert
         Assert.Contains("global using System;", result);
         Assert.Contains("global using System.Threading;", result);
         Assert.Contains("global using System.Threading.Tasks;", result);
@@ -22,6 +25,7 @@ public class DomainGlobalUsingsHelperTests
     [Fact]
     public void BuildRequiredUsings_WithDiscoveredNamespaces_AddsHandlerUsings()
     {
+        // Arrange
         var discoveredNamespaces = new HashSet<string>(StringComparer.Ordinal)
         {
             "MyApp.Generated.Pets.Handlers",
@@ -29,15 +33,17 @@ public class DomainGlobalUsingsHelperTests
 
         var doc = CreateOpenApiDocumentWithPaths("/pets");
 
+        // Act
         var result = DomainGlobalUsingsHelper.BuildRequiredUsings(discoveredNamespaces, "MyApp", [], doc);
 
+        // Assert
         Assert.Contains("global using MyApp.Generated.Pets.Handlers;", result);
     }
 
     [Fact]
     public void BuildRequiredUsings_HandlerNamespace_AddsParametersAndResults()
     {
-        // Create a doc with /pets path that has operations with parameters
+        // Arrange - Create a doc with /pets path that has operations with parameters
         var doc = CreateOpenApiDocumentWithParameters("/pets");
 
         var discoveredNamespaces = new HashSet<string>(StringComparer.Ordinal)
@@ -45,9 +51,10 @@ public class DomainGlobalUsingsHelperTests
             "MyApp.Generated.Pets.Handlers",
         };
 
+        // Act
         var result = DomainGlobalUsingsHelper.BuildRequiredUsings(discoveredNamespaces, "MyApp", [], doc);
 
-        // Should include handler namespace
+        // Assert - Should include handler namespace
         Assert.Contains("global using MyApp.Generated.Pets.Handlers;", result);
 
         // Should include results namespace (operations exist)
@@ -60,13 +67,15 @@ public class DomainGlobalUsingsHelperTests
     [Fact]
     public void BuildRequiredUsings_NoDiscoveredNamespaces_FallsBackToPathSegments()
     {
+        // Arrange
         var emptyNamespaces = new HashSet<string>(StringComparer.Ordinal);
         var segments = new List<string> { "Pets" };
         var doc = CreateOpenApiDocumentWithPaths("/pets");
 
+        // Act
         var result = DomainGlobalUsingsHelper.BuildRequiredUsings(emptyNamespaces, "MyApp", segments, doc);
 
-        // Should include system usings
+        // Assert - Should include system usings
         Assert.Contains("global using System;", result);
 
         // With path segments fallback, should produce segment-based usings via PathSegmentHelper
@@ -77,12 +86,15 @@ public class DomainGlobalUsingsHelperTests
     [Fact]
     public void BuildRequiredUsings_EmptyDoc_ReturnsBaseUsingsOnly()
     {
+        // Arrange
         var emptyNamespaces = new HashSet<string>(StringComparer.Ordinal);
         var emptySegments = new List<string>();
         var doc = CreateEmptyOpenApiDocument();
 
+        // Act
         var result = DomainGlobalUsingsHelper.BuildRequiredUsings(emptyNamespaces, "MyApp", emptySegments, doc);
 
+        // Assert
         Assert.Equal(3, result.Count);
         Assert.Contains("global using System;", result);
         Assert.Contains("global using System.Threading;", result);

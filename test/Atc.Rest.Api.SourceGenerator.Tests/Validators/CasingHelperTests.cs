@@ -21,7 +21,10 @@ public class CasingHelperTests
         string? value,
         bool expected)
     {
+        // Act
         var result = CasingHelper.IsCamelCase(value);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -43,7 +46,10 @@ public class CasingHelperTests
         string? value,
         bool expected)
     {
+        // Act
         var result = CasingHelper.IsPascalCase(value);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -68,7 +74,10 @@ public class CasingHelperTests
         string? value,
         bool expected)
     {
+        // Act
         var result = CasingHelper.IsKebabCase(value);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -93,7 +102,10 @@ public class CasingHelperTests
         string? value,
         bool expected)
     {
+        // Act
         var result = CasingHelper.IsSnakeCase(value);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -118,7 +130,10 @@ public class CasingHelperTests
         string? value,
         bool expected)
     {
+        // Act
         var result = CasingHelper.IsUpperSnakeCase(value);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -136,7 +151,10 @@ public class CasingHelperTests
         string? value,
         bool expected)
     {
+        // Act
         var result = CasingHelper.IsValidOperationIdCasing(value);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -154,7 +172,10 @@ public class CasingHelperTests
         string? value,
         string expected)
     {
+        // Act
         var result = CasingHelper.GetDetectedCasingStyle(value);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -171,7 +192,10 @@ public class CasingHelperTests
         string? value,
         string? expected)
     {
+        // Act
         var result = CasingHelper.SuggestCamelCase(value!);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -187,7 +211,10 @@ public class CasingHelperTests
         string? value,
         string? expected)
     {
+        // Act
         var result = CasingHelper.SuggestPascalCase(value!);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -204,7 +231,10 @@ public class CasingHelperTests
         string? value,
         string? expected)
     {
+        // Act
         var result = CasingHelper.SuggestKebabCase(value!);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -232,7 +262,10 @@ public class CasingHelperTests
         string? value,
         string? expected)
     {
+        // Act
         var result = CasingHelper.ToPascalCase(value!);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 }

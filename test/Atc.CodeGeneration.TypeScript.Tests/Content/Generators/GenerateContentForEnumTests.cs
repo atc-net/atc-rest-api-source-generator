@@ -5,6 +5,7 @@ public class GenerateContentForEnumTests
     [Fact]
     public void Generate_SimpleEnum_ProducesCorrectOutput()
     {
+        // Arrange
         var parameters = new TypeScriptEnumParameters(
             HeaderContent: null,
             DocumentationTags: null,
@@ -22,8 +23,10 @@ public class GenerateContentForEnumTests
             new JsDocCommentGenerator(),
             parameters);
 
+        // Act
         var result = generator.Generate();
 
+        // Assert
         Assert.Contains("export enum Color {", result, StringComparison.Ordinal);
         Assert.Contains("Red = 'red'", result, StringComparison.Ordinal);
         Assert.Contains("Green = 'green'", result, StringComparison.Ordinal);
@@ -33,6 +36,7 @@ public class GenerateContentForEnumTests
     [Fact]
     public void Generate_ConstEnum_IncludesConstKeyword()
     {
+        // Arrange
         var parameters = new TypeScriptEnumParameters(
             HeaderContent: null,
             DocumentationTags: null,
@@ -48,14 +52,17 @@ public class GenerateContentForEnumTests
             new JsDocCommentGenerator(),
             parameters);
 
+        // Act
         var result = generator.Generate();
 
+        // Assert
         Assert.Contains("export const enum Direction {", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Generate_WithDocumentation_IncludesJsDoc()
     {
+        // Arrange
         var parameters = new TypeScriptEnumParameters(
             HeaderContent: null,
             DocumentationTags: new JsDocComment("Represents a color."),
@@ -71,14 +78,17 @@ public class GenerateContentForEnumTests
             new JsDocCommentGenerator(),
             parameters);
 
+        // Act
         var result = generator.Generate();
 
+        // Assert
         Assert.Contains("/** Represents a color. */", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Generate_WithHeaderContent_IncludesHeader()
     {
+        // Arrange
         var header = "// Auto-generated\n";
         var parameters = new TypeScriptEnumParameters(
             HeaderContent: header,
@@ -95,14 +105,17 @@ public class GenerateContentForEnumTests
             new JsDocCommentGenerator(),
             parameters);
 
+        // Act
         var result = generator.Generate();
 
+        // Assert
         Assert.StartsWith("// Auto-generated", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void Generate_ValuesWithoutExplicitValue_OmitsAssignment()
     {
+        // Arrange
         var parameters = new TypeScriptEnumParameters(
             HeaderContent: null,
             DocumentationTags: null,
@@ -119,8 +132,10 @@ public class GenerateContentForEnumTests
             new JsDocCommentGenerator(),
             parameters);
 
+        // Act
         var result = generator.Generate();
 
+        // Assert
         Assert.Contains("Up,", result, StringComparison.Ordinal);
         Assert.DoesNotContain("Up =", result, StringComparison.Ordinal);
     }

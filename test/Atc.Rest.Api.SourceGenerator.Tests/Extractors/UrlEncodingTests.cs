@@ -19,7 +19,10 @@ public class UrlEncodingTests
         string csharpType,
         bool expected)
     {
+        // Act
         var result = HttpClientExtractor.NeedsUrlEncoding(csharpType);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -43,7 +46,10 @@ public class UrlEncodingTests
         string csharpType,
         bool expected)
     {
+        // Act
         var result = HttpClientExtractor.NeedsUrlEncoding(csharpType);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -57,9 +63,13 @@ public class UrlEncodingTests
         string csharpType,
         bool expected)
     {
-        // Arrays are excluded from simple encoding because they require
+        // Arrange - Arrays are excluded from simple encoding because they require
         // per-element encoding which needs different handling
+
+        // Act
         var result = HttpClientExtractor.NeedsUrlEncoding(csharpType);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -77,7 +87,10 @@ public class UrlEncodingTests
         string csharpType,
         bool expected)
     {
+        // Act
         var result = HttpClientExtractor.NeedsUrlEncoding(csharpType);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -97,8 +110,10 @@ public class UrlEncodingTests
         string input,
         string expected)
     {
-        // This test verifies the encoding behavior we rely on
+        // Act - This test verifies the encoding behavior we rely on
         var result = Uri.EscapeDataString(input);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
@@ -111,28 +126,36 @@ public class UrlEncodingTests
         string csharpType,
         bool expected)
     {
-        // Type comparison is case-sensitive
+        // Act - Type comparison is case-sensitive
         var result = HttpClientExtractor.NeedsUrlEncoding(csharpType);
+
+        // Assert
         Assert.Equal(expected, result);
     }
 
     [Fact]
     public void UriEscapeDataString_PreservesUrlSafeCharacters()
     {
-        // These characters are URL-safe and should not be encoded
+        // Arrange - These characters are URL-safe and should not be encoded
         const string urlSafe = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~";
+
+        // Act
         var result = Uri.EscapeDataString(urlSafe);
+
+        // Assert
         Assert.Equal(urlSafe, result);
     }
 
     [Fact]
     public void UriEscapeDataString_HandlesUnicodeCharacters()
     {
-        // Unicode characters should be percent-encoded
+        // Arrange - Unicode characters should be percent-encoded
         const string unicode = "émoji";
+
+        // Act
         var result = Uri.EscapeDataString(unicode);
 
-        // Should be percent-encoded (UTF-8 bytes)
+        // Assert - Should be percent-encoded (UTF-8 bytes)
         Assert.Contains("%", result, StringComparison.Ordinal);
         Assert.NotEqual(unicode, result);
     }

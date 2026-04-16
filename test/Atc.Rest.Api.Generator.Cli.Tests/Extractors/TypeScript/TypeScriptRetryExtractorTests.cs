@@ -5,30 +5,33 @@ public class TypeScriptRetryExtractorTests
     [Fact]
     public void RetryConfig_WithDocumentLevelRetry_GeneratesNamedPolicy()
     {
-        var yaml = """
-                   openapi: 3.1.1
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   x-retry-policy: standard
-                   x-retry-max-attempts: 3
-                   x-retry-delay-seconds: 1
-                   x-retry-backoff: exponential
-                   x-retry-use-jitter: true
-                   x-retry-handle-429: true
-                   paths:
-                     /health:
-                       get:
-                         operationId: getHealth
-                         responses:
-                           '200':
-                             description: OK
-                   """;
+        // Arrange
+        const string yaml = """
+                            openapi: 3.1.1
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            x-retry-policy: standard
+                            x-retry-max-attempts: 3
+                            x-retry-delay-seconds: 1
+                            x-retry-backoff: exponential
+                            x-retry-use-jitter: true
+                            x-retry-handle-429: true
+                            paths:
+                              /health:
+                                get:
+                                  operationId: getHealth
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
 
+        // Act
         var result = TypeScriptRetryConfigExtractor.Generate(document, null);
 
+        // Assert
         Assert.Contains("RetryPolicy", result, StringComparison.Ordinal);
         Assert.Contains("retryPolicies", result, StringComparison.Ordinal);
         Assert.Contains("standard", result, StringComparison.Ordinal);
@@ -40,29 +43,32 @@ public class TypeScriptRetryExtractorTests
     [Fact]
     public void RetryConfig_WithPathLevelOverride_GeneratesMultiplePolicies()
     {
-        var yaml = """
-                   openapi: 3.1.1
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   x-retry-policy: standard
-                   x-retry-max-attempts: 3
-                   paths:
-                     /fast:
-                       x-retry-policy: fast
-                       x-retry-max-attempts: 1
-                       x-retry-delay-seconds: 0.5
-                       get:
-                         operationId: getFast
-                         responses:
-                           '200':
-                             description: OK
-                   """;
+        // Arrange
+        const string yaml = """
+                            openapi: 3.1.1
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            x-retry-policy: standard
+                            x-retry-max-attempts: 3
+                            paths:
+                              /fast:
+                                x-retry-policy: fast
+                                x-retry-max-attempts: 1
+                                x-retry-delay-seconds: 0.5
+                                get:
+                                  operationId: getFast
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
 
+        // Act
         var result = TypeScriptRetryConfigExtractor.Generate(document, null);
 
+        // Assert
         Assert.Contains("standard", result, StringComparison.Ordinal);
         Assert.Contains("fast", result, StringComparison.Ordinal);
         Assert.Contains("retryPolicies", result, StringComparison.Ordinal);
@@ -71,24 +77,27 @@ public class TypeScriptRetryExtractorTests
     [Fact]
     public void RetryConfig_WithoutRetryExtensions_GeneratesDefaultPolicy()
     {
-        var yaml = """
-                   openapi: 3.0.0
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   paths:
-                     /health:
-                       get:
-                         operationId: getHealth
-                         responses:
-                           '200':
-                             description: OK
-                   """;
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /health:
+                                get:
+                                  operationId: getHealth
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
 
+        // Act
         var result = TypeScriptRetryConfigExtractor.Generate(document, null);
 
+        // Assert
         Assert.Contains("defaultRetryPolicy", result, StringComparison.Ordinal);
         Assert.Contains("maxAttempts: 3", result, StringComparison.Ordinal);
         Assert.DoesNotContain("retryPolicies", result, StringComparison.Ordinal);
@@ -97,32 +106,37 @@ public class TypeScriptRetryExtractorTests
     [Fact]
     public void RetryConfig_WithHeader_IncludesAutoGeneratedComment()
     {
-        var yaml = """
-                   openapi: 3.0.0
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   paths:
-                     /health:
-                       get:
-                         operationId: getHealth
-                         responses:
-                           '200':
-                             description: OK
-                   """;
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /health:
+                                get:
+                                  operationId: getHealth
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
 
+        // Act
         var result = TypeScriptRetryConfigExtractor.Generate(document, "// <auto-generated />\n");
 
+        // Assert
         Assert.StartsWith("// <auto-generated />", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void RetryInterceptor_GeneratesRetryWithBackoff()
     {
+        // Act
         var result = TypeScriptRetryInterceptorExtractor.Generate(null);
 
+        // Assert
         Assert.Contains("retryWithBackoff", result, StringComparison.Ordinal);
         Assert.Contains("computeDelay", result, StringComparison.Ordinal);
         Assert.Contains("parseRetryAfter", result, StringComparison.Ordinal);
@@ -132,24 +146,30 @@ public class TypeScriptRetryExtractorTests
     [Fact]
     public void RetryInterceptor_SupportsExponentialBackoff()
     {
+        // Act
         var result = TypeScriptRetryInterceptorExtractor.Generate(null);
 
+        // Assert
         Assert.Contains("Math.pow(2, attempt)", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void RetryInterceptor_SupportsJitter()
     {
+        // Act
         var result = TypeScriptRetryInterceptorExtractor.Generate(null);
 
+        // Assert
         Assert.Contains("Math.random()", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void RetryInterceptor_Handles429WithRetryAfterHeader()
     {
+        // Act
         var result = TypeScriptRetryInterceptorExtractor.Generate(null);
 
+        // Assert
         Assert.Contains("Retry-After", result, StringComparison.Ordinal);
         Assert.Contains("429", result, StringComparison.Ordinal);
     }
@@ -157,8 +177,10 @@ public class TypeScriptRetryExtractorTests
     [Fact]
     public void RetryInterceptor_SupportsAbortSignal()
     {
+        // Act
         var result = TypeScriptRetryInterceptorExtractor.Generate(null);
 
+        // Assert
         Assert.Contains("AbortSignal", result, StringComparison.Ordinal);
         Assert.Contains("throwIfAborted", result, StringComparison.Ordinal);
     }
@@ -166,70 +188,80 @@ public class TypeScriptRetryExtractorTests
     [Fact]
     public void RetryInterceptor_ImportsRetryPolicy()
     {
+        // Act
         var result = TypeScriptRetryInterceptorExtractor.Generate(null);
 
+        // Assert
         Assert.Contains("import type { RetryPolicy } from './retryConfig'", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void RetryInterceptor_WithHeader_IncludesAutoGeneratedComment()
     {
+        // Act
         var result = TypeScriptRetryInterceptorExtractor.Generate("// <auto-generated />\n");
 
+        // Assert
         Assert.StartsWith("// <auto-generated />", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void RetryConfig_WithKebabCasePolicy_ConvertsToCamelCase()
     {
-        var yaml = """
-                   openapi: 3.1.1
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   x-retry-policy: accounts-fast
-                   x-retry-max-attempts: 2
-                   paths:
-                     /health:
-                       get:
-                         operationId: getHealth
-                         responses:
-                           '200':
-                             description: OK
-                   """;
+        // Arrange
+        const string yaml = """
+                            openapi: 3.1.1
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            x-retry-policy: accounts-fast
+                            x-retry-max-attempts: 2
+                            paths:
+                              /health:
+                                get:
+                                  operationId: getHealth
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
 
+        // Act
         var result = TypeScriptRetryConfigExtractor.Generate(document, null);
 
+        // Assert
         Assert.Contains("accountsFast", result, StringComparison.Ordinal);
     }
 
     [Fact]
     public void RetryConfig_WithConstantBackoff_GeneratesCorrectStrategy()
     {
-        var yaml = """
-                   openapi: 3.1.1
-                   info:
-                     title: Test
-                     version: 1.0.0
-                   x-retry-policy: fixed-rate
-                   x-retry-max-attempts: 5
-                   x-retry-backoff: constant
-                   x-retry-delay-seconds: 2
-                   paths:
-                     /health:
-                       get:
-                         operationId: getHealth
-                         responses:
-                           '200':
-                             description: OK
-                   """;
+        // Arrange
+        const string yaml = """
+                            openapi: 3.1.1
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            x-retry-policy: fixed-rate
+                            x-retry-max-attempts: 5
+                            x-retry-backoff: constant
+                            x-retry-delay-seconds: 2
+                            paths:
+                              /health:
+                                get:
+                                  operationId: getHealth
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
 
+        // Act
         var result = TypeScriptRetryConfigExtractor.Generate(document, null);
 
+        // Assert
         Assert.Contains("fixedRate", result, StringComparison.Ordinal);
         Assert.Contains("retryPolicies", result, StringComparison.Ordinal);
         Assert.Contains("defaultRetryPolicy", result, StringComparison.Ordinal);

@@ -15,30 +15,55 @@ public class TypeScriptStringExtensionsTests
         string input,
         string expected)
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal(expected, input.ToPascalCase());
     }
 
     [Fact]
     public void ToPascalCase_SingleChar_ReturnsUpperCase()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal("A", "a".ToPascalCase());
     }
 
     [Fact]
     public void ToPascalCase_MultipleHyphens_SplitsAllWords()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal("OneTwoThree", "one-two-three".ToPascalCase());
     }
 
     [Fact]
     public void ToPascalCase_MixedSeparators_HandlesAll()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal("OneTwoThree", "one-two_three".ToPascalCase());
     }
 
     [Fact]
     public void ToPascalCase_CamelCaseInput_SplitsOnUpperCase()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         // "helloWorld" -> splits at W -> "Hello" + "World" -> "HelloWorld"
         Assert.Equal("HelloWorld", "helloWorld".ToPascalCase());
     }
@@ -55,25 +80,45 @@ public class TypeScriptStringExtensionsTests
         string input,
         string expected)
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal(expected, input.ToCamelCase());
     }
 
     [Fact]
     public void ToCamelCase_SingleChar_ReturnsLowerCase()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal("a", "A".ToCamelCase());
     }
 
     [Fact]
     public void ToCamelCase_AlreadyCamelCase_PreservesFirstLower()
     {
+        // Arrange
+
+        // Act
         var result = "helloWorld".ToCamelCase();
+
+        // Assert
         Assert.Equal('h', result[0]);
     }
 
     [Fact]
     public void ToCamelCase_MultipleHyphens_SplitsAllWords()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal("oneTwoThree", "one-two-three".ToCamelCase());
     }
 
@@ -81,14 +126,23 @@ public class TypeScriptStringExtensionsTests
     [Fact]
     public void SplitIntoLines_Empty_ReturnsEmptyArray()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Empty("".SplitIntoLines());
     }
 
     [Fact]
     public void SplitIntoLines_SingleLine_ReturnsSingleElement()
     {
+        // Arrange
+
+        // Act
         var result = "hello".SplitIntoLines();
 
+        // Assert
         Assert.Single(result);
         Assert.Equal("hello", result[0]);
     }
@@ -96,8 +150,12 @@ public class TypeScriptStringExtensionsTests
     [Fact]
     public void SplitIntoLines_MultipleLines_SplitsCorrectly()
     {
+        // Arrange
+
+        // Act
         var result = "line1\nline2\nline3".SplitIntoLines();
 
+        // Assert
         Assert.Equal(3, result.Length);
         Assert.Equal("line1", result[0]);
         Assert.Equal("line2", result[1]);
@@ -107,8 +165,12 @@ public class TypeScriptStringExtensionsTests
     [Fact]
     public void SplitIntoLines_SkipsWhitespaceOnlyLines()
     {
+        // Arrange
+
+        // Act
         var result = "line1\n  \nline3".SplitIntoLines();
 
+        // Assert
         Assert.Equal(2, result.Length);
         Assert.Equal("line1", result[0]);
         Assert.Equal("line3", result[1]);
@@ -117,8 +179,12 @@ public class TypeScriptStringExtensionsTests
     [Fact]
     public void SplitIntoLines_CrLf_SplitsCorrectly()
     {
+        // Arrange
+
+        // Act
         var result = "line1\r\nline2".SplitIntoLines();
 
+        // Assert
         Assert.Equal(2, result.Length);
     }
 
@@ -126,14 +192,23 @@ public class TypeScriptStringExtensionsTests
     [Fact]
     public void SplitIntoLinesPreserveEmpty_Empty_ReturnsEmptyArray()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Empty("".SplitIntoLinesPreserveEmpty());
     }
 
     [Fact]
     public void SplitIntoLinesPreserveEmpty_PreservesEmptyLines()
     {
+        // Arrange
+
+        // Act
         var result = "line1\n\nline3".SplitIntoLinesPreserveEmpty();
 
+        // Assert
         Assert.Equal(3, result.Length);
         Assert.Equal("", result[1]);
     }
@@ -142,18 +217,33 @@ public class TypeScriptStringExtensionsTests
     [Fact]
     public void NormalizeForSourceOutput_TrimsTrailingWhitespace()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal("hello", "hello   ".NormalizeForSourceOutput());
     }
 
     [Fact]
     public void NormalizeForSourceOutput_Empty_ReturnsEmpty()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal("", "".NormalizeForSourceOutput());
     }
 
     [Fact]
     public void NormalizeForSourceOutput_PreservesLeadingWhitespace()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal("  hello", "  hello  ".NormalizeForSourceOutput());
     }
 
@@ -161,8 +251,12 @@ public class TypeScriptStringExtensionsTests
     [Fact]
     public void EnsureEnvironmentNewLines_NormalizesLineEndings()
     {
+        // Arrange
+
+        // Act
         var result = "a\r\nb\nc\rd".EnsureEnvironmentNewLines();
 
+        // Assert
         var lines = result.Split(Environment.NewLine);
         Assert.Equal(4, lines.Length);
     }
@@ -170,6 +264,11 @@ public class TypeScriptStringExtensionsTests
     [Fact]
     public void EnsureEnvironmentNewLines_Empty_ReturnsEmpty()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal("", "".EnsureEnvironmentNewLines());
     }
 
@@ -177,36 +276,66 @@ public class TypeScriptStringExtensionsTests
     [Fact]
     public void ReplaceAt_ValidIndex_ReplacesCharacter()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal("hXllo", "hello".ReplaceAt(1, 'X'));
     }
 
     [Fact]
     public void ReplaceAt_FirstIndex_ReplacesFirst()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal("Xello", "hello".ReplaceAt(0, 'X'));
     }
 
     [Fact]
     public void ReplaceAt_LastIndex_ReplacesLast()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal("hellX", "hello".ReplaceAt(4, 'X'));
     }
 
     [Fact]
     public void ReplaceAt_NegativeIndex_Throws()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Throws<IndexOutOfRangeException>(() => "hello".ReplaceAt(-1, 'X'));
     }
 
     [Fact]
     public void ReplaceAt_IndexBeyondLength_Throws()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Throws<IndexOutOfRangeException>(() => "hello".ReplaceAt(10, 'X'));
     }
 
     [Fact]
     public void ReplaceAt_Empty_Throws()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Throws<IndexOutOfRangeException>(() => "".ReplaceAt(0, 'X'));
     }
 
@@ -214,18 +343,33 @@ public class TypeScriptStringExtensionsTests
     [Fact]
     public void EnsureEndsWithDot_NoDot_AppendsDot()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal("hello.", "hello".EnsureEndsWithDot());
     }
 
     [Fact]
     public void EnsureEndsWithDot_AlreadyHasDot_ReturnsSame()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal("hello.", "hello.".EnsureEndsWithDot());
     }
 
     [Fact]
     public void EnsureEndsWithDot_Empty_ReturnsDot()
     {
+        // Arrange
+
+        // Act
+
+        // Assert
         Assert.Equal(".", "".EnsureEndsWithDot());
     }
 }

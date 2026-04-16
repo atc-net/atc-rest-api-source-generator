@@ -35,6 +35,7 @@ public class CompilationVerificationTests
     [Fact]
     public void ClientGenerator_PetStoreSimple_ProducesExpectedFileCount()
     {
+        // Arrange & Act
         var (_, generatedSources) = RunGenerator(
             new ApiClientGenerator(),
             "PetStoreSimple",
@@ -42,7 +43,7 @@ public class CompilationVerificationTests
             ".atc-rest-api-client",
             "Client-Typed");
 
-        // PetStoreSimple should generate: models, parameters, client, DI, enums, global usings, etc.
+        // Assert - PetStoreSimple should generate: models, parameters, client, DI, enums, global usings, etc.
         Assert.True(
             generatedSources.Count >= 3,
             $"Expected at least 3 generated files, got {generatedSources.Count}");
@@ -68,6 +69,7 @@ public class CompilationVerificationTests
             .Create(new ApiClientGenerator())
             .AddAdditionalTexts(additionalTexts);
 
+        // Act
         driver = (CSharpGeneratorDriver)driver.RunGeneratorsAndUpdateCompilation(
             compilation, out _, out _, TestContext.Current.CancellationToken);
 
@@ -93,6 +95,7 @@ public class CompilationVerificationTests
             .Create(new ApiClientGenerator())
             .AddAdditionalTexts(additionalTexts);
 
+        // Act
         driver = (CSharpGeneratorDriver)driver.RunGeneratorsAndUpdateCompilation(
             compilation, out _, out _, TestContext.Current.CancellationToken);
 
