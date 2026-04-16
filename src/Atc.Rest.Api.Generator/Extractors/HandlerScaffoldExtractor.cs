@@ -72,6 +72,10 @@ public static class HandlerScaffoldExtractor
         var taskTypeName = systemTypeResolver.EnsureFullNamespaceIfNeeded(nameof(Task));
         var methodContent = GenerateStubContent(resultTypeName, operationId, stubImplementation, taskTypeName, injectLogger);
 
+        // Calculate whether method signature fits on one line (ATC201 threshold = 80 chars)
+        // Format: "    public Task<ResultType> ExecuteAsync(ParamType paramName = default)"
+        var shouldBreakDownParams = methodParams.Count > 1 || ExceedsLineLength(taskTypeName, resultTypeName, methodParams);
+
         var method = new MethodParameters(
             DocumentationTags: null,
             Attributes: null,
@@ -80,7 +84,7 @@ public static class HandlerScaffoldExtractor
             ReturnTypeName: resultTypeName,
             Name: "ExecuteAsync",
             Parameters: methodParams,
-            AlwaysBreakDownParameters: methodParams.Count > 1,
+            AlwaysBreakDownParameters: shouldBreakDownParams,
             UseExpressionBody: false,
             Content: methodContent);
 
@@ -167,5 +171,37 @@ public static class HandlerScaffoldExtractor
         }
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// Checks whether a single-parameter method signature exceeds the ATC201 line length threshold (80 chars).
+    /// Simulates: "    public Task&lt;ResultType&gt; ExecuteAsync(ParamType paramName = default)"
+    /// </summary>
+    private static bool ExceedsLineLength(
+        string taskTypeName,
+        string resultTypeName,
+        List<ParameterBaseParameters> methodParams)
+    {
+        const int maxLineLength = 80;
+        const int indentLength = 4; // 4 spaces indent
+
+        if (methodParams.Count != 1)
+        {
+            return false;
+        }
+
+        var param = methodParams[0];
+        var defaultSuffix = param.DefaultValue != null ? $" = {param.DefaultValue}" : string.Empty;
+
+        // "public Task<Result> ExecuteAsync(Type name = default)"
+        var lineLength = indentLength
+            + "public ".Length
+            + taskTypeName.Length + 1 + resultTypeName.Length + 2 // "Task<Result> "
+            + "ExecuteAsync(".Length
+            + param.TypeName.Length + 1 + param.Name.Length // "Type name"
+            + defaultSuffix.Length
+            + ")".Length;
+
+        return lineLength > maxLineLength;
     }
 }
