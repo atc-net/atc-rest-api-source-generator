@@ -1112,6 +1112,100 @@ public class OpenApiSchemaExtensionsTests
         Assert.Same(schema, resolved);
     }
 
+    // ========== GetPaginationAnnotation Tests ==========
+    [Fact]
+    public void GetPaginationAnnotation_WithXPaginationTrue_ReturnsTrue()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                PagedResponse:
+                                  type: object
+                                  x-pagination: true
+                                  properties:
+                                    entries:
+                                      type: array
+                                      items:
+                                        type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schema = document.Components.Schemas["PagedResponse"];
+
+        // Act
+        var result = schema.GetPaginationAnnotation();
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void GetPaginationAnnotation_WithXPaginationFalse_ReturnsFalse()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                SearchResults:
+                                  type: object
+                                  x-pagination: false
+                                  properties:
+                                    results:
+                                      type: array
+                                      items:
+                                        type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schema = document.Components.Schemas["SearchResults"];
+
+        // Act
+        var result = schema.GetPaginationAnnotation();
+
+        // Assert
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void GetPaginationAnnotation_WithoutAnnotation_ReturnsNull()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                SimpleModel:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schema = document.Components.Schemas["SimpleModel"];
+
+        // Act
+        var result = schema.GetPaginationAnnotation();
+
+        // Assert
+        Assert.Null(result);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

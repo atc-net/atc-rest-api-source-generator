@@ -2156,12 +2156,26 @@ public static class OpenApiDocumentValidator
         IOpenApiSchema schema,
         OpenApiDocument document)
     {
+        // Check explicit x-pagination annotation first (authoritative when present)
+        var annotation = schema.GetPaginationAnnotation();
+        if (annotation.HasValue)
+        {
+            return annotation.Value;
+        }
+
         var actualSchema = schema;
 
         // Resolve reference
         if (schema is OpenApiSchemaReference schemaRef)
         {
             actualSchema = schemaRef.Target ?? schema;
+
+            // Also check annotation on the resolved target
+            var targetAnnotation = actualSchema.GetPaginationAnnotation();
+            if (targetAnnotation.HasValue)
+            {
+                return targetAnnotation.Value;
+            }
         }
 
         if (actualSchema is not OpenApiSchema openApiSchema)
@@ -2169,7 +2183,7 @@ public static class OpenApiDocumentValidator
             return false;
         }
 
-        // Check direct properties if it's an object type
+        // Heuristic fallback: check direct properties if it's an object type
         if (openApiSchema.Type.HasValue &&
             openApiSchema.Type.Value.HasFlag(JsonSchemaType.Object) &&
             openApiSchema.Properties != null)

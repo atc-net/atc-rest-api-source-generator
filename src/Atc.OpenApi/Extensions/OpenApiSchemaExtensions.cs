@@ -1700,6 +1700,41 @@ public static class OpenApiSchemaExtensions
 
             return result;
         }
+
+        /// <summary>
+        /// Gets the explicit x-pagination annotation from the schema.
+        /// Returns true if marked as pagination, false if explicitly not, null if not annotated.
+        /// </summary>
+        /// <returns>True/false if explicitly annotated, null if not present (use heuristic fallback).</returns>
+        public bool? GetPaginationAnnotation()
+        {
+            if (schema is not OpenApiSchema actualSchema)
+            {
+                return null;
+            }
+
+            if (actualSchema.Extensions == null ||
+                !actualSchema.Extensions.TryGetValue("x-pagination", out var extension) ||
+                extension is null)
+            {
+                return null;
+            }
+
+            var extensionType = extension.GetType();
+            var nodeProperty = extensionType.GetProperty("Node");
+            if (nodeProperty == null)
+            {
+                return null;
+            }
+
+            var node = nodeProperty.GetValue(extension);
+            if (node is JsonValue jsonValue && jsonValue.TryGetValue<bool>(out var boolValue))
+            {
+                return boolValue;
+            }
+
+            return null;
+        }
     }
 
     /// <param name="schema">The OpenAPI schema representing an array.</param>
