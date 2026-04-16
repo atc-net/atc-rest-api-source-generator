@@ -18,9 +18,8 @@ Console.WriteLine();
 // Configure DI container with HttpClient and endpoints
 var services = new ServiceCollection();
 
-// Register Atc.Rest.Client services (HttpClient + IHttpMessageFactory)
-const string httpClientName = "PetStoreSimple-ApiClient";
-services.AddAtcRestClient(httpClientName, new Uri(apiBaseUrl), TimeSpan.FromSeconds(30));
+// Register Atc.Rest.Client services using the generated constant for type-safe DI wiring
+services.AddAtcRestClient(Constants.HttpClientName, new Uri(apiBaseUrl), TimeSpan.FromSeconds(30));
 
 // Register all Pets API endpoints
 services.AddPetsEndpoints();
@@ -33,7 +32,7 @@ try
     Console.WriteLine("1. Creating a new pet...");
     var createPetsEndpoint = serviceProvider.GetRequiredService<ICreatePetsEndpoint>();
     var createResult = await createPetsEndpoint
-        .ExecuteAsync(httpClientName: httpClientName, cancellationToken: CancellationToken.None)
+        .ExecuteAsync(httpClientName: Constants.HttpClientName, cancellationToken: CancellationToken.None)
         .ConfigureAwait(false);
 
     Console.WriteLine(createResult.IsCreated
@@ -48,7 +47,7 @@ try
     var listResult = await listPetsEndpoint
         .ExecuteAsync(
             new ListPetsParameters(Limit: null),
-            httpClientName,
+            Constants.HttpClientName,
             CancellationToken.None)
         .ConfigureAwait(false);
 
@@ -74,7 +73,7 @@ try
     var showResult = await showPetByIdEndpoint
         .ExecuteAsync(
             new ShowPetByIdParameters(PetId: "1"),
-            httpClientName,
+            Constants.HttpClientName,
             CancellationToken.None)
         .ConfigureAwait(false);
 

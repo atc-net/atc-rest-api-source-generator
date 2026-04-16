@@ -6,6 +6,9 @@ builder.Services.AddOpenApi();
 // Register Nexus dependencies
 builder.Services.AddApiHandlersFromDomain();
 
+// Register health check endpoints (generated from marker file)
+builder.Services.AddApiHealthChecks();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -21,6 +24,9 @@ app
 
 // Map Nexus endpoints using generated extension method
 app.MapEndpoints();
+
+// Map health check endpoints (/health, /health/live, /health/ready)
+app.MapHealthCheckEndpoints();
 
 await app
     .RunAsync()

@@ -2,5 +2,6 @@
     "generate": true,
     "validateSpecificationStrategy": "Standard",
     "includeDeprecated": false,
-    "clientSuffix": "Client"
+    "clientSuffix": "Client",
+    "httpClientName": "PetStoreFull-ApiClient"
 }
