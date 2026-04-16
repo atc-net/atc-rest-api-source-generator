@@ -41,7 +41,7 @@ public static class ScenarioDiscovery
     /// <summary>
     /// Known master folders for different generator configurations.
     /// </summary>
-    public static readonly string[] MasterFolders = ["Server", "Client-Typed", "Client-Operation", "ServerDomain", "TS-Client-Fetch", "TS-Client-Axios"];
+    public static readonly string[] MasterFolders = ["Server", "Client-Typed", "Client-Operation", "ServerDomain", "TS-Client-Fetch", "TS-Client-Axios", "TS-Hooks-ReactQuery"];
 
     /// <summary>
     /// Valid generator types for comparison.

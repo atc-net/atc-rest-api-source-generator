@@ -336,9 +336,16 @@ public static class GeneratorTestHelper
             ? TypeScriptHttpClient.Axios
             : TypeScriptHttpClient.Fetch;
 
+        var hooksStyle = string.Equals(markerConfig?.HooksStyle, "ReactQuery", StringComparison.OrdinalIgnoreCase)
+            ? TypeScriptHooksStyle.ReactQuery
+            : string.Equals(markerConfig?.HooksStyle, "Swr", StringComparison.OrdinalIgnoreCase)
+                ? TypeScriptHooksStyle.Swr
+                : TypeScriptHooksStyle.None;
+
         var config = new TypeScriptClientConfig
         {
             HttpClient = httpClient,
+            HooksStyle = hooksStyle,
             DryRun = false,
             GenerateFileHeaders = true,
         };
@@ -546,5 +553,7 @@ public sealed class {handlerName} : {interfaceName}
     private sealed record TypeScriptMarkerConfig
     {
         public string HttpClient { get; init; } = "Fetch";
+
+        public string? HooksStyle { get; init; }
     }
 }
