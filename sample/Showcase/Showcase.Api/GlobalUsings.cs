@@ -5,6 +5,8 @@ global using System.Text.Json.Serialization;
 
 global using Microsoft.AspNetCore.SignalR;
 
+global using OpenTelemetry.Trace;
+
 global using Scalar.AspNetCore;
 
 global using Showcase;

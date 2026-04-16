@@ -5,6 +5,7 @@ namespace Showcase.Api.Domain.ApiHandlers.Users;
 /// </summary>
 public sealed class ListUsersHandler : IListUsersHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Users.ListUsers");
     private readonly UserInMemoryRepository repository;
 
     public ListUsersHandler(UserInMemoryRepository repository)
@@ -14,6 +15,7 @@ public sealed class ListUsersHandler : IListUsersHandler
         ListUsersParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("ListUsers");
         ArgumentNullException.ThrowIfNull(parameters);
 
         // Parse role if provided

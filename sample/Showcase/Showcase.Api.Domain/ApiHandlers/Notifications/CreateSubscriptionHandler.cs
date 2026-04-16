@@ -5,6 +5,7 @@ namespace Showcase.Api.Domain.ApiHandlers.Notifications;
 /// </summary>
 public sealed class CreateSubscriptionHandler : ICreateSubscriptionHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Notifications.CreateSubscription");
     private readonly SubscriptionInMemoryRepository repository;
 
     public CreateSubscriptionHandler(SubscriptionInMemoryRepository repository)
@@ -16,6 +17,7 @@ public sealed class CreateSubscriptionHandler : ICreateSubscriptionHandler
         CreateSubscriptionParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("CreateSubscription");
         var subscription = repository.Create(parameters.Request);
         return Task.FromResult(CreateSubscriptionResult.Created(subscription));
     }

@@ -5,6 +5,7 @@
 /// </summary>
 public sealed class ListTasksHandler : IListTasksHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Tasks.ListTasks");
     private readonly TaskInMemoryRepository repository;
 
     public ListTasksHandler(TaskInMemoryRepository repository)
@@ -14,6 +15,7 @@ public sealed class ListTasksHandler : IListTasksHandler
         ListTasksParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("ListTasks");
         var tasks = await repository.GetAll(parameters.Limit);
         return ListTasksResult.Ok(tasks);
     }

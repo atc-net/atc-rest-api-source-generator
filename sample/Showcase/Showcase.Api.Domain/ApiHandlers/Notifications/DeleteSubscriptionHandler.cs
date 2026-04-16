@@ -5,6 +5,7 @@ namespace Showcase.Api.Domain.ApiHandlers.Notifications;
 /// </summary>
 public sealed class DeleteSubscriptionHandler : IDeleteSubscriptionHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Notifications.DeleteSubscription");
     private readonly SubscriptionInMemoryRepository repository;
 
     public DeleteSubscriptionHandler(SubscriptionInMemoryRepository repository)
@@ -16,6 +17,7 @@ public sealed class DeleteSubscriptionHandler : IDeleteSubscriptionHandler
         DeleteSubscriptionParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("DeleteSubscription");
         var deleted = repository.Delete(parameters.SubscriptionId);
 
         if (!deleted)

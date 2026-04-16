@@ -5,6 +5,7 @@ namespace Showcase.Api.Domain.ApiHandlers.Notifications;
 /// </summary>
 public sealed class ListSubscriptionsHandler : IListSubscriptionsHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Notifications.ListSubscriptions");
     private readonly SubscriptionInMemoryRepository repository;
 
     public ListSubscriptionsHandler(SubscriptionInMemoryRepository repository)
@@ -15,6 +16,7 @@ public sealed class ListSubscriptionsHandler : IListSubscriptionsHandler
     public Task<ListSubscriptionsResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("ListSubscriptions");
         var subscriptions = repository.GetAll();
         return Task.FromResult(ListSubscriptionsResult.Ok(subscriptions));
     }

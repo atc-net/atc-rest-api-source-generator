@@ -5,6 +5,7 @@ namespace Showcase.Api.Domain.ApiHandlers.Users;
 /// </summary>
 public sealed class GetUserByIdHandler : IGetUserByIdHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Users.GetUserById");
     private readonly UserInMemoryRepository repository;
 
     public GetUserByIdHandler(UserInMemoryRepository repository)
@@ -14,6 +15,7 @@ public sealed class GetUserByIdHandler : IGetUserByIdHandler
         GetUserByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("GetUserById");
         ArgumentNullException.ThrowIfNull(parameters);
 
         var user = await repository.GetById(parameters.UserId);

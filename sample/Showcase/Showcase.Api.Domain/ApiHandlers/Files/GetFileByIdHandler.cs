@@ -6,6 +6,7 @@ namespace Showcase.Api.Domain.ApiHandlers.Files;
 /// </summary>
 public sealed class GetFileByIdHandler : IGetFileByIdHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Files.GetFileById");
     private readonly FileInMemoryRepository repository;
 
     public GetFileByIdHandler(FileInMemoryRepository repository)
@@ -17,6 +18,7 @@ public sealed class GetFileByIdHandler : IGetFileByIdHandler
         GetFileByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("GetFileById");
         var file = await repository
             .GetByIdAsync(parameters.Id, cancellationToken)
             .ConfigureAwait(false);

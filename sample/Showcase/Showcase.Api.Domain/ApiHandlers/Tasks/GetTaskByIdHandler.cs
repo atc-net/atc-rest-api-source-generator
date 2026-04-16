@@ -5,6 +5,7 @@
 /// </summary>
 public sealed class GetTaskByIdHandler : IGetTaskByIdHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Tasks.GetTaskById");
     private readonly TaskInMemoryRepository repository;
 
     public GetTaskByIdHandler(TaskInMemoryRepository repository)
@@ -14,6 +15,7 @@ public sealed class GetTaskByIdHandler : IGetTaskByIdHandler
         GetTaskByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("GetTaskById");
         var task = await repository.GetById(parameters.TaskId);
 
         return task is null

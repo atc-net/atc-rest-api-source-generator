@@ -6,6 +6,7 @@ namespace Showcase.Api.Domain.ApiHandlers.Files;
 /// </summary>
 public sealed class UploadSingleObjectWithFileAsFormDataHandler : IUploadSingleObjectWithFileAsFormDataHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Files.UploadSingleObjectWithFileAsFormData");
     private readonly FileInMemoryRepository repository;
 
     public UploadSingleObjectWithFileAsFormDataHandler(
@@ -18,6 +19,7 @@ public sealed class UploadSingleObjectWithFileAsFormDataHandler : IUploadSingleO
         UploadSingleObjectWithFileAsFormDataParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("UploadSingleObjectWithFileAsFormData");
         if (parameters.Request is null)
         {
             return UploadSingleObjectWithFileAsFormDataResult.Ok();

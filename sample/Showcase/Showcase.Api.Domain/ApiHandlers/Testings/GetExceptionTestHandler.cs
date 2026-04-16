@@ -5,6 +5,7 @@
 #pragma warning disable MA0015 // Specify the parameter name
 #pragma warning disable MA0012 // Do not raise reserved exception type
 #pragma warning disable CA1848 // Use LoggerMessage delegates
+#pragma warning disable MA0100 // Await task before disposing of resources
 
 namespace Showcase.Api.Domain.ApiHandlers.Testings;
 
@@ -14,6 +15,7 @@ namespace Showcase.Api.Domain.ApiHandlers.Testings;
 /// </summary>
 public sealed class GetExceptionTestHandler : IGetExceptionTestHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Testings.GetExceptionTest");
     private readonly ILogger<GetExceptionTestHandler> logger;
 
     public GetExceptionTestHandler(ILogger<GetExceptionTestHandler> logger)
@@ -23,6 +25,7 @@ public sealed class GetExceptionTestHandler : IGetExceptionTestHandler
         GetExceptionTestParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("GetExceptionTest");
         logger.LogInformation("Testing exception handling with code: {Code}", parameters.Code);
 
         return parameters.Code switch

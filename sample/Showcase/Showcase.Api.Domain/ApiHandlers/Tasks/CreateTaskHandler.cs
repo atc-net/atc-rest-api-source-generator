@@ -5,6 +5,7 @@
 /// </summary>
 public sealed class CreateTaskHandler : ICreateTaskHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Tasks.CreateTask");
     private readonly TaskInMemoryRepository repository;
 
     public CreateTaskHandler(TaskInMemoryRepository repository)
@@ -14,6 +15,7 @@ public sealed class CreateTaskHandler : ICreateTaskHandler
         CreateTaskParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("CreateTask");
         ArgumentNullException.ThrowIfNull(parameters);
 
         var task = await repository.Create(

@@ -6,6 +6,7 @@
 /// </summary>
 public sealed class ListAsyncEnumerableAccountsHandler : IListAsyncEnumerableAccountsHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Accounts.ListAsyncEnumerableAccounts");
     private readonly AccountInMemoryRepository repository;
 
     public ListAsyncEnumerableAccountsHandler(
@@ -15,6 +16,8 @@ public sealed class ListAsyncEnumerableAccountsHandler : IListAsyncEnumerableAcc
     public Task<ListAsyncEnumerableAccountsResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("ListAsyncEnumerableAccounts");
+
         // Get streaming accounts from repository
         var streamingAccounts = repository.GetAllStreaming(cancellationToken: cancellationToken);
 

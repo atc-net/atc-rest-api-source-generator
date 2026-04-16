@@ -5,6 +5,7 @@ namespace Showcase.Api.Domain.ApiHandlers.Users;
 /// </summary>
 public sealed class UpdateUserByIdHandler : IUpdateUserByIdHandler
 {
+    private static readonly ActivitySource ActivitySource = new("Showcase.Handlers.Users.UpdateUserById");
     private readonly UserInMemoryRepository repository;
 
     public UpdateUserByIdHandler(UserInMemoryRepository repository)
@@ -14,6 +15,7 @@ public sealed class UpdateUserByIdHandler : IUpdateUserByIdHandler
         UpdateUserByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ActivitySource.StartActivity("UpdateUserById");
         ArgumentNullException.ThrowIfNull(parameters);
 
         var request = parameters.Request;
