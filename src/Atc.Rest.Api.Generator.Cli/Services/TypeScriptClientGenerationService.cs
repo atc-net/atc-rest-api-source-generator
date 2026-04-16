@@ -597,11 +597,20 @@ public static class TypeScriptClientGenerationService
             return false;
         }
 
-        foreach (var schemaName in openApiDoc.Components.Schemas.Keys)
+        foreach (var schemaPair in openApiDoc.Components.Schemas)
         {
-            if (schemaName.StartsWith("PaginationResult", StringComparison.Ordinal) ||
-                schemaName.StartsWith("PaginatedResult", StringComparison.Ordinal) ||
-                schemaName.StartsWith("PagedResult", StringComparison.Ordinal))
+            // Check explicit x-pagination annotation first (authoritative)
+            var annotation = schemaPair.Value.GetPaginationAnnotation();
+            if (annotation == true)
+            {
+                return true;
+            }
+
+            // Heuristic fallback: check schema name convention
+            if (annotation == null &&
+                (schemaPair.Key.StartsWith("PaginationResult", StringComparison.Ordinal) ||
+                 schemaPair.Key.StartsWith("PaginatedResult", StringComparison.Ordinal) ||
+                 schemaPair.Key.StartsWith("PagedResult", StringComparison.Ordinal)))
             {
                 return true;
             }
