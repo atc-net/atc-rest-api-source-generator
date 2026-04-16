@@ -550,6 +550,8 @@ public sealed class {handlerName} : {interfaceName}
     /// <summary>
     /// Configuration from the .atc-rest-api-ts-client marker file.
     /// </summary>
+    [SuppressMessage("", "S1144", Justification = "Properties populated by JSON deserialization")]
+    [SuppressMessage("", "S3459", Justification = "Properties populated by JSON deserialization")]
     private sealed record TypeScriptMarkerConfig
     {
         public string HttpClient { get; init; } = "Fetch";
