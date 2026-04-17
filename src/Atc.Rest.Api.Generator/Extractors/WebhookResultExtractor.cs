@@ -147,16 +147,48 @@ public static class WebhookResultExtractor
             _ => "StatusCode",
         };
 
+    /// <summary>
+    /// Maps a webhook response status code to the C# expression used to build the inner
+    /// <c>IResult</c> that the generated <c>*WebhookResult</c> class wraps.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Webhooks are fire-and-forget acknowledgements from the subscriber back to the publisher.
+    /// They do NOT have:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item><description>A location URI to return (so no <c>Created(uri)</c> or <c>Accepted(uri, value)</c>).</description></item>
+    ///   <item><description>A response body / payload to serialize (so no <c>Ok(value)</c> / <c>Created(uri, value)</c>).</description></item>
+    ///   <item><description>An authentication context on the result (so <c>Forbid()</c>, which is auth-scheme driven, is wrong for "403 Forbidden" as a webhook ack).</description></item>
+    /// </list>
+    /// <para>
+    /// That means for most non-trivial status codes there is no idiomatic parameter-only
+    /// <c>TypedResults.X()</c> overload whose semantics match a webhook ack. We deliberately
+    /// emit <c>TypedResults.StatusCode(code)</c> in those cases, which mirrors the safe-fallback
+    /// pattern in <c>ResultClassExtractor.cs</c> (see its <c>Created</c> handler: <c>uri != null
+    /// ? TypedResults.Created(uri) : TypedResults.StatusCode(201)</c>).
+    /// </para>
+    /// <para>
+    /// Per-code rationale:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item><description><c>200/204/400/401/404/409</c>: the parameterless <c>Ok()</c>/<c>NoContent()</c>/<c>BadRequest()</c>/<c>Unauthorized()</c>/<c>NotFound()</c>/<c>Conflict()</c> factories have exactly the "empty body, status X" semantics we want, so we use them.</description></item>
+    ///   <item><description><c>201 Created</c>: <c>TypedResults.Created()</c> parameterless IS valid in .NET 10, but it implies "resource created" and callers often visually expect a location URI. We emit <c>StatusCode(201)</c> so the intent ("ack only, no Location header") is unambiguous.</description></item>
+    ///   <item><description><c>202 Accepted</c>: all <c>TypedResults.Accepted</c> overloads expect either a location or a value; we have neither, so <c>StatusCode(202)</c> is the cleanest expression of "accepted, nothing to return".</description></item>
+    ///   <item><description><c>403 Forbidden</c>: <c>TypedResults.Forbid()</c> is an auth-challenge result tied to authentication schemes, not a plain HTTP 403. For webhooks we just want the status code, so we use <c>StatusCode(403)</c>.</description></item>
+    ///   <item><description><c>500</c>, <c>default</c>, and unknown codes: no dedicated <c>TypedResults.InternalServerError()</c> exists (and we don't want to tie default to auth or body semantics), so <c>StatusCode(code)</c> is used uniformly.</description></item>
+    /// </list>
+    /// </remarks>
     private static string GetTypedResultExpression(string statusCode)
         => statusCode switch
         {
             "200" => "TypedResults.Ok()",
-            "201" => "TypedResults.Created()",
-            "202" => "TypedResults.Accepted((string?)null)",
+            "201" => "TypedResults.StatusCode(201)",
+            "202" => "TypedResults.StatusCode(202)",
             "204" => "TypedResults.NoContent()",
             "400" => "TypedResults.BadRequest()",
             "401" => "TypedResults.Unauthorized()",
-            "403" => "TypedResults.Forbid()",
+            "403" => "TypedResults.StatusCode(403)",
             "404" => "TypedResults.NotFound()",
             "409" => "TypedResults.Conflict()",
             "500" => "TypedResults.StatusCode(500)",

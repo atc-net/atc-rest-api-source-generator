@@ -84,57 +84,46 @@ public static class PathFilterHelper
         var pathSegments = path.Split('/');
         var patternSegments = pattern.Split('/');
 
-        return MatchSegments(pathSegments, 0, patternSegments, 0);
+        return MatchSegments(pathSegments, patternSegments);
     }
 
+    // Dynamic programming match: dp[i, j] is true iff pathSegments[i..] matches patternSegments[j..].
+    // Each state is evaluated once, giving O(pathLen * patternLen) worst case — avoids the
+    // exponential backtracking the recursive version could incur on inputs like "/**/a/**/b/**/c".
+    [SuppressMessage("Performance", "CA1814:Prefer jagged arrays over multidimensional", Justification = "Dense DP lookup with bounded small dimensions; rectangular bool[,] is clearer and avoids per-row allocation.")]
     private static bool MatchSegments(
         string[] pathSegments,
-        int pathIndex,
-        string[] patternSegments,
-        int patternIndex)
+        string[] patternSegments)
     {
-        while (patternIndex < patternSegments.Length)
+        var p = pathSegments.Length;
+        var q = patternSegments.Length;
+
+        var dp = new bool[p + 1, q + 1];
+        dp[p, q] = true;
+
+        for (var j = q - 1; j >= 0; j--)
         {
-            var patternSeg = patternSegments[patternIndex];
+            var patternSeg = patternSegments[j];
 
             if (patternSeg == "**")
             {
-                // ** matches zero or more segments
-                // Try matching the rest of the pattern against every suffix of the path
-                for (var i = pathIndex; i <= pathSegments.Length; i++)
+                // ** matches zero or more path segments.
+                for (var i = p; i >= 0; i--)
                 {
-                    if (MatchSegments(pathSegments, i, patternSegments, patternIndex + 1))
-                    {
-                        return true;
-                    }
+                    dp[i, j] = dp[i, j + 1] || (i < p && dp[i + 1, j]);
                 }
-
-                return false;
             }
-
-            if (pathIndex >= pathSegments.Length)
+            else
             {
-                return false;
+                for (var i = p - 1; i >= 0; i--)
+                {
+                    var literalMatch = patternSeg == "*"
+                        || string.Equals(pathSegments[i], patternSeg, StringComparison.OrdinalIgnoreCase);
+                    dp[i, j] = literalMatch && dp[i + 1, j + 1];
+                }
             }
-
-            if (patternSeg == "*")
-            {
-                // * matches exactly one segment
-                pathIndex++;
-                patternIndex++;
-                continue;
-            }
-
-            // Literal match (case-insensitive)
-            if (!string.Equals(pathSegments[pathIndex], patternSeg, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            pathIndex++;
-            patternIndex++;
         }
 
-        return pathIndex >= pathSegments.Length;
+        return dp[0, 0];
     }
 }

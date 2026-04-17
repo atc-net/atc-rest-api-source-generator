@@ -577,42 +577,12 @@ public static class OpenApiSchemaExtensions
         /// </summary>
         private static bool IsExtensionValueFalse(IOpenApiExtension? extension)
         {
-            if (extension == null)
+            if (extension is not JsonNodeExtension jsonNodeExt)
             {
                 return false;
             }
 
-            // Try to get the value using reflection (OpenApiAny wraps JsonNode)
-            var extensionType = extension.GetType();
-
-            // Check for OpenApiBoolean or similar
-            var valueProperty = extensionType.GetProperty("Value");
-            if (valueProperty != null)
-            {
-                var value = valueProperty.GetValue(extension);
-                if (value is bool boolValue)
-                {
-                    return !boolValue;
-                }
-
-                if (value is JsonNode jsonNode && jsonNode.GetValueKind() == JsonValueKind.False)
-                {
-                    return true;
-                }
-            }
-
-            // Check Node property (for OpenApiAny)
-            var nodeProperty = extensionType.GetProperty("Node");
-            if (nodeProperty != null)
-            {
-                var node = nodeProperty.GetValue(extension);
-                if (node is JsonNode jsonNode && jsonNode.GetValueKind() == JsonValueKind.False)
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return jsonNodeExt.Node is { } node && node.GetValueKind() == JsonValueKind.False;
         }
 
         /// <summary>
@@ -625,16 +595,8 @@ public static class OpenApiSchemaExtensions
         {
             var result = new List<TupleItemInfo>();
 
-            // Try to get the underlying JsonArray from the extension
-            var extensionType = extension.GetType();
-            var nodeProperty = extensionType.GetProperty("Node");
-            if (nodeProperty == null)
-            {
-                return result;
-            }
-
-            var node = nodeProperty.GetValue(extension);
-            if (node is not JsonArray jsonArray)
+            if (extension is not JsonNodeExtension jsonNodeExt ||
+                jsonNodeExt.Node is not JsonArray jsonArray)
             {
                 return result;
             }
@@ -1715,20 +1677,12 @@ public static class OpenApiSchemaExtensions
 
             if (actualSchema.Extensions == null ||
                 !actualSchema.Extensions.TryGetValue("x-pagination", out var extension) ||
-                extension is null)
+                extension is not JsonNodeExtension jsonNodeExt)
             {
                 return null;
             }
 
-            var extensionType = extension.GetType();
-            var nodeProperty = extensionType.GetProperty("Node");
-            if (nodeProperty == null)
-            {
-                return null;
-            }
-
-            var node = nodeProperty.GetValue(extension);
-            if (node is JsonValue jsonValue && jsonValue.TryGetValue<bool>(out var boolValue))
+            if (jsonNodeExt.Node is JsonValue jsonValue && jsonValue.TryGetValue<bool>(out var boolValue))
             {
                 return boolValue;
             }
