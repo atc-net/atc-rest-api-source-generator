@@ -1,0 +1,15 @@
+{
+  "name": "showcase-e2e-tests",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:blazor": "npx playwright test --project=blazor",
+    "test:react": "npx playwright test --project=react",
+    "test:ui": "npx playwright test --ui",
+    "report": "npx playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0"
+  }
+}
