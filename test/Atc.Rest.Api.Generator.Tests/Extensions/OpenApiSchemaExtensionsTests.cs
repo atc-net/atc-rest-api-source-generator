@@ -1206,6 +1206,36 @@ public class OpenApiSchemaExtensionsTests
         Assert.Null(result);
     }
 
+    [Fact]
+    public void GetPaginationAnnotation_WithNonBooleanValue_ReturnsNull()
+    {
+        // Arrange - guards the non-reflection path against unexpected extension payloads.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                StringAnnotated:
+                                  type: object
+                                  x-pagination: "yes"
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schema = document.Components.Schemas["StringAnnotated"];
+
+        // Act
+        var result = schema.GetPaginationAnnotation();
+
+        // Assert
+        Assert.Null(result);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

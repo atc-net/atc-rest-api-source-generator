@@ -87,6 +87,12 @@ public class PathFilterHelperTests
     [InlineData("/a/b/c/d", "/**", true)]       // deep path matches **
     [InlineData("/pets", "/*", true)]           // * matches single segment
     [InlineData("/pets/{id}", "/*", false)]     // * does NOT match two segments
+    [InlineData("/", "/**", true)]              // ** matches the root (zero trailing segments)
+    [InlineData("/a/b/c", "/**/c", true)]       // trailing literal after **
+    [InlineData("/a/b", "/**/c", false)]        // trailing literal requires the last segment
+    [InlineData("/a/b/c", "/**/**/c", true)]    // adjacent ** collapses
+    [InlineData("/x/a/y/b/z/c", "/**/a/**/b/**/c", true)]
+    [InlineData("/x/a/y/b/z", "/**/a/**/b/**/c", false)]
     public void MatchesPattern_WildcardEdgeCases(
         string path,
         string pattern,
@@ -94,5 +100,24 @@ public class PathFilterHelperTests
     {
         var result = PathFilterHelper.MatchesPattern(path, pattern);
         Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void MatchesPattern_PathologicalDoubleStars_TerminatesQuickly()
+    {
+        // Regression guard for Copilot review item: the recursive backtracking matcher
+        // was worst-case exponential on patterns with many ** against paths missing the
+        // literal anchors. The DP matcher should evaluate each (i, j) state once.
+        const string pattern = "/**/a/**/b/**/c/**/d/**/e";
+        var path = "/" + string.Join("/", Enumerable.Repeat("x", 30));
+
+        var sw = Stopwatch.StartNew();
+        var result = PathFilterHelper.MatchesPattern(path, pattern);
+        sw.Stop();
+
+        Assert.False(result);
+        Assert.True(
+            sw.ElapsedMilliseconds < 500,
+            $"Matcher took {sw.ElapsedMilliseconds}ms — suggests backtracking regression.");
     }
 }

@@ -38,11 +38,15 @@ public static class TypeScriptApiProviderExtractor
         sb.AppendLine();
 
         // Provider component — uses useRef for stable identity across re-renders.
-        // Only recreates the service when baseUrl changes.
+        // Recreates the service when baseUrl or the options reference changes.
         sb.AppendLine("export function ApiProvider({ baseUrl, options, children }: ApiProviderProps) {");
-        sb.AppendLine("  const serviceRef = useRef<{ service: ApiService; baseUrl: string } | null>(null);");
-        sb.AppendLine("  if (!serviceRef.current || serviceRef.current.baseUrl !== baseUrl) {");
-        sb.AppendLine("    serviceRef.current = { service: new ApiService(baseUrl, options), baseUrl };");
+        sb.AppendLine("  const serviceRef = useRef<{ service: ApiService; baseUrl: string; options: ApiClientOptions | undefined } | null>(null);");
+        sb.AppendLine("  if (");
+        sb.AppendLine("    !serviceRef.current ||");
+        sb.AppendLine("    serviceRef.current.baseUrl !== baseUrl ||");
+        sb.AppendLine("    serviceRef.current.options !== options");
+        sb.AppendLine("  ) {");
+        sb.AppendLine("    serviceRef.current = { service: new ApiService(baseUrl, options), baseUrl, options };");
         sb.AppendLine("  }");
         sb.AppendLine("  return createElement(ApiServiceContext.Provider, { value: serviceRef.current.service }, children);");
         sb.AppendLine("}");

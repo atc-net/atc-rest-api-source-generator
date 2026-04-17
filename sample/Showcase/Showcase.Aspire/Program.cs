@@ -3,8 +3,21 @@ var builder = DistributedApplication.CreateBuilder(args);
 // Add the Showcase API project
 // Let Aspire manage endpoints dynamically
 var api = builder
-    .AddProject<Projects.Showcase_Api>("api")
-    .WithHttpHealthCheck("/health/live?api-key=showcase-health-probe-key");
+    .AddProject<Projects.Showcase_Api>("api");
+
+// Probe the secured /health/live endpoint using the api-key in the X-Health-Api-Key header
+// instead of a query string, so the key is not leaked into dashboards, HTTP logs or traces.
+var healthApiKey = builder.Configuration["HealthChecks:ApiKey"]
+    ?? "showcase-health-probe-key";
+
+builder.Services
+    .AddHealthChecks()
+    .AddCheck(
+        name: "api-live",
+        instance: new ApiKeyHealthCheck(api.GetEndpoint("http"), healthApiKey, "X-Health-Api-Key"),
+        failureStatus: HealthStatus.Unhealthy);
+
+api.WithHealthCheck("api-live");
 
 // Add the Showcase Client application (console)
 // WaitFor ensures the API is running before the client starts

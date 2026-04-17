@@ -202,26 +202,14 @@ public static class OpenApiOperationExtensions
         {
             if (operation.Extensions == null ||
                 !operation.Extensions.TryGetValue("x-return-async-enumerable", out var extension) ||
-                extension == null)
+                extension is not JsonNodeExtension jsonNodeExt)
             {
                 return false;
             }
 
-            // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-            var extensionType = extension.GetType();
-            var nodeProperty = extensionType.GetProperty("Node");
-            if (nodeProperty == null)
-            {
-                return false;
-            }
-
-            var node = nodeProperty.GetValue(extension);
-            if (node is JsonValue jsonValue && jsonValue.TryGetValue<bool>(out var boolValue))
-            {
-                return boolValue;
-            }
-
-            return false;
+            return jsonNodeExt.Node is JsonValue jsonValue
+                && jsonValue.TryGetValue<bool>(out var boolValue)
+                && boolValue;
         }
 
         /// <summary>
