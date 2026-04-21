@@ -727,20 +727,183 @@ public class OperationValidationTests
         Assert.Null(opr009);
     }
 
-    [Fact]
-    public void Validate_SingularOperationIdReturnsWrapperObjectWithArray_NoOPR009()
+    [Theory]
+    [InlineData("topics")]
+    [InlineData("items")]
+    [InlineData("results")]
+    [InlineData("data")]
+    [InlineData("records")]
+    [InlineData("values")]
+    public void Validate_SingularOperationIdReturnsWrapperObjectWithArray_NoOPR009(
+        string arrayPropertyName)
     {
-        // Arrange - singular operationId (createSubscription) returns object with array property
-        // This should NOT trigger OPR009 because the response is an object, not an array
+        // Arrange - singular operationId (createSubscription) returns object with array property.
+        // Covers every PaginationPropertyNames entry so the pagination heuristic activates, plus
+        // a non-pagination name ("topics") to prove the guard holds in both code paths.
+        var yaml = $"""
+                     openapi: 3.0.0
+                     info:
+                       title: Test API
+                       version: 1.0.0
+                     paths:
+                       /subscriptions:
+                         post:
+                           operationId: createSubscription
+                           responses:
+                             '200':
+                               description: Success
+                               content:
+                                 application/json:
+                                   schema:
+                                     type: object
+                                     properties:
+                                       id:
+                                         type: string
+                                       {arrayPropertyName}:
+                                         type: array
+                                         items:
+                                           type: string
+                     """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert - Should NOT trigger OPR009 because response is an object wrapper
+        var opr009 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdSingularMismatch);
+        Assert.Null(opr009);
+    }
+
+    [Theory]
+    [InlineData("listPetsByOwner")]
+    [InlineData("searchPetsByOwner")]
+    [InlineData("findPetsByOwner")]
+    [InlineData("listPathsByRepositoryName")]
+    [InlineData("listIssuesByRepositoryNameAndState")]
+    [InlineData("listLatestNugetPackageVersionsUsed")]
+    public void Validate_CollectionIntentPrefixOperationIdReturnsArray_NoOPR009(
+        string operationId)
+    {
+        // Arrange - list/search/find prefixes explicitly signal a collection regardless of the
+        // trailing qualifier word (e.g. `listPathsByRepositoryName` — `Name` looks singular).
+        var document = ParseYaml(CreateOperationWithArrayResponseYaml(operationId));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr009 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdSingularMismatch);
+        Assert.Null(opr009);
+    }
+
+    [Theory]
+    [InlineData("getJobsForDevice")]
+    [InlineData("getUsersByTenant")]
+    [InlineData("getItemsByCategoryName")]
+    [InlineData("getPetsByOwner")]
+    [InlineData("fetchIssuesByState")]
+    [InlineData("retrieveOrdersForCustomer")]
+    public void Validate_GetPrefixSubjectNounPluralReturnsArray_NoOPR009(
+        string operationId)
+    {
+        // Arrange - plural subject noun after a query verb prefix (get/fetch/retrieve) signals a
+        // collection, even when the trailing qualifier is singular. Covers the `getJobsForDevice`
+        // shape from consumer APIs where `For`/`By` connect a plural subject to a singular filter.
+        var document = ParseYaml(CreateOperationWithArrayResponseYaml(operationId));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr009 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdSingularMismatch);
+        Assert.Null(opr009);
+    }
+
+    [Fact]
+    public void Validate_CollectionIntentPrefixOperationIdReturnsSingleObject_ReportsOPR008()
+    {
+        // Arrange - `listUser` (collection prefix but response is a plain object, no array).
+        // Critical safeguard: the collection-intent shortcut must not silence real plural/single
+        // mismatches. If this fires, the shortcut is too broad.
+        var document = ParseYaml(CreateOperationWithObjectResponseYaml("listUser"));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.NotNull(opr008);
+        Assert.Contains("listUser", opr008.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("scanOpcUaConfigurationsByProviderDeviceId")]
+    [InlineData("createSubscription")]
+    public void Validate_NonQueryVerbPrefixWithSingleObjectResponse_NoOPR008(
+        string operationId)
+    {
+        // Arrange - operationIds whose verb isn't one of get/list/find/search/fetch/retrieve must
+        // fall back to the original trailing-noun heuristic, so action verbs like `scan`/`create`
+        // aren't flagged just because a plural word appears mid-name. Regression guard for the
+        // NexusSample `scanOpcUaConfigurationsByProviderDeviceId` case.
+        var document = ParseYaml(CreateOperationWithObjectResponseYaml(operationId));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.Null(opr008);
+    }
+
+    // ========== x-operation-response-cardinality annotation (overrides OPR008/OPR009) ==========
+
+    [Fact]
+    public void Validate_CardinalityAnnotationSingleOverridesPluralNameWithSingleResponse_NoOPR008()
+    {
+        // Arrange - plural-looking name `getTotalDownloads` with scalar summary response. Author
+        // asserts intent via `x-operation-response-cardinality: single` — heuristic is bypassed.
         const string yaml = """
                             openapi: 3.0.0
                             info:
                               title: Test API
                               version: 1.0.0
                             paths:
-                              /subscriptions:
-                                post:
-                                  operationId: createSubscription
+                              /total-downloads:
+                                get:
+                                  operationId: getTotalDownloads
+                                  x-operation-response-cardinality: single
                                   responses:
                                     '200':
                                       description: Success
@@ -749,12 +912,8 @@ public class OperationValidationTests
                                           schema:
                                             type: object
                                             properties:
-                                              id:
-                                                type: string
-                                              topics:
-                                                type: array
-                                                items:
-                                                  type: string
+                                              totalDownloads:
+                                                type: integer
                             """;
 
         var document = ParseYaml(yaml);
@@ -767,10 +926,269 @@ public class OperationValidationTests
             [],
             TestFilePath);
 
-        // Assert - Should NOT trigger OPR009 because response is an object (not a direct array)
+        // Assert
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.Null(opr008);
+    }
+
+    [Fact]
+    public void Validate_CardinalityAnnotationArrayOverridesSingularNameWithArrayResponse_NoOPR009()
+    {
+        // Arrange - singular-looking name with array response. Author asserts `array` intent.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /collection:
+                                get:
+                                  operationId: getCollection
+                                  x-operation-response-cardinality: array
+                                  responses:
+                                    '200':
+                                      description: Success
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
         var opr009 = diagnostics.FirstOrDefault(d =>
             d.RuleId == Generator.RuleIdentifiers.OperationIdSingularMismatch);
         Assert.Null(opr009);
+    }
+
+    [Fact]
+    public void Validate_CardinalityAnnotationSingleWithArrayResponse_StillReportsOPR009()
+    {
+        // Arrange - annotation claims `single` but response is actually an array. The annotation
+        // overrides name-based inference but response-shape cross-check still runs, so a genuine
+        // author/response mismatch is surfaced.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: getItems
+                                  x-operation-response-cardinality: single
+                                  responses:
+                                    '200':
+                                      description: Success
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert - annotation says `single` but response is array → OPR009 still fires
+        var opr009 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdSingularMismatch);
+        Assert.NotNull(opr009);
+    }
+
+    [Fact]
+    public void Validate_CardinalityAnnotationArrayWithSingleResponse_StillReportsOPR008()
+    {
+        // Arrange - annotation claims `array` but response is a scalar object. Mismatch surfaces.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /item:
+                                get:
+                                  operationId: getItem
+                                  x-operation-response-cardinality: array
+                                  responses:
+                                    '200':
+                                      description: Success
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: object
+                                            properties:
+                                              id:
+                                                type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert - annotation says `array` but response is object → OPR008 fires
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.NotNull(opr008);
+    }
+
+    [Theory]
+    [InlineData("single")]
+    [InlineData("Single")]
+    [InlineData("SINGLE")]
+    public void Validate_CardinalityAnnotationSingleIsCaseInsensitive_NoOPR008(
+        string annotationValue)
+    {
+        // Arrange - case-insensitive annotation match; plural name + single response should pass.
+        var yaml = $$"""
+                     openapi: 3.0.0
+                     info:
+                       title: Test API
+                       version: 1.0.0
+                     paths:
+                       /things:
+                         get:
+                           operationId: getThings
+                           x-operation-response-cardinality: {{annotationValue}}
+                           responses:
+                             '200':
+                               description: Success
+                               content:
+                                 application/json:
+                                   schema:
+                                     type: object
+                                     properties:
+                                       id:
+                                         type: string
+                     """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.Null(opr008);
+    }
+
+    [Theory]
+    [InlineData("array")]
+    [InlineData("Array")]
+    [InlineData("ARRAY")]
+    public void Validate_CardinalityAnnotationArrayIsCaseInsensitive_NoOPR009(
+        string annotationValue)
+    {
+        // Arrange - case-insensitive annotation match; singular name + array response should pass.
+        var yaml = $$"""
+                     openapi: 3.0.0
+                     info:
+                       title: Test API
+                       version: 1.0.0
+                     paths:
+                       /thing:
+                         get:
+                           operationId: getThing
+                           x-operation-response-cardinality: {{annotationValue}}
+                           responses:
+                             '200':
+                               description: Success
+                               content:
+                                 application/json:
+                                   schema:
+                                     type: array
+                                     items:
+                                       type: string
+                     """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr009 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdSingularMismatch);
+        Assert.Null(opr009);
+    }
+
+    [Fact]
+    public void Validate_CardinalityAnnotationWithInvalidValue_FallsBackToHeuristic()
+    {
+        // Arrange - unrecognized value for the annotation should not silently suppress — fall
+        // back to the heuristic so typos don't mask real mismatches.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pet:
+                                get:
+                                  operationId: getPet
+                                  x-operation-response-cardinality: maybe
+                                  responses:
+                                    '200':
+                                      description: Success
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert - `getPet` + array response + invalid annotation → OPR009 still fires
+        var opr009 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdSingularMismatch);
+        Assert.NotNull(opr009);
     }
 
     // ========== OPR010: BadRequest without parameters ==========

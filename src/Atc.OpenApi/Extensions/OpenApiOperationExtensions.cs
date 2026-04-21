@@ -194,6 +194,36 @@ public static class OpenApiOperationExtensions
         }
 
         /// <summary>
+        /// Gets the explicit <c>x-operation-response-cardinality</c> annotation from the operation.
+        /// Recognized values are <c>single</c> and <c>array</c> (case-insensitive); any other value
+        /// (including missing) returns <c>null</c> so the caller falls back to heuristic inference.
+        /// </summary>
+        /// <returns>"single", "array", or null when the annotation is absent or invalid.</returns>
+        public string? GetResponseCardinalityAnnotation()
+        {
+            if (operation.Extensions == null ||
+                !operation.Extensions.TryGetValue("x-operation-response-cardinality", out var extension) ||
+                extension is not JsonNodeExtension jsonNodeExt ||
+                jsonNodeExt.Node is not JsonValue jsonValue ||
+                !jsonValue.TryGetValue<string>(out var value))
+            {
+                return null;
+            }
+
+            if (string.Equals(value, "single", StringComparison.OrdinalIgnoreCase))
+            {
+                return "single";
+            }
+
+            if (string.Equals(value, "array", StringComparison.OrdinalIgnoreCase))
+            {
+                return "array";
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Checks if the operation has x-return-async-enumerable: true extension.
         /// When true, the result class Ok method should accept IAsyncEnumerable&lt;T&gt; for streaming.
         /// </summary>

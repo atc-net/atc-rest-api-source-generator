@@ -12,6 +12,23 @@ public static class OpenApiDocumentValidator
 {
     private static readonly string[] PaginationPropertyNames = ["items", "results", "data", "records", "values"];
 
+    private static readonly string[] CollectionIntentPrefixes = ["list", "search", "find"];
+
+    private static readonly string[] QueryVerbPrefixes = ["get", "list", "find", "search", "fetch", "retrieve"];
+
+    // Suffixes that end in 's' but describe single-item responses (properties of one entity).
+    private static readonly string[] SingleItemSuffixes =
+    [
+        "Details",    // getDeviceDetails - details about ONE device
+        "Status",     // getStatus - status of ONE item (also covered by 'us' check)
+        "Settings",   // getSettings - settings for ONE user/account
+        "Statistics", // getStatistics - statistics for ONE entity
+        "Contents",   // getContents - contents of ONE container
+        "Metrics",    // getMetrics - metrics for ONE service
+        "News",       // getNews - news is uncountable
+        "Progress",   // getProgress - progress of ONE operation (doesn't end in 's' but for completeness)
+    ];
+
     /// <summary>
     /// Validates an OpenAPI document according to the specified strategy.
     /// </summary>
@@ -1221,10 +1238,11 @@ public static class OpenApiDocumentValidator
             return false;
         }
 
-        return type == "string" ||
-               type == "integer" ||
-               type == "number" ||
-               type == "boolean";
+        return type is
+            "string" or
+            "integer" or
+            "number" or
+            "boolean";
     }
 
     /// <summary>
@@ -1673,7 +1691,16 @@ public static class OpenApiDocumentValidator
             return;
         }
 
-        var isPluralized = IsOperationIdPluralized(operationId);
+        // Author assertion via `x-operation-response-cardinality: single|array` trumps the
+        // name-based heuristic. The response-shape cross-check still runs, so an annotation that
+        // disagrees with the actual response still surfaces a warning.
+        var cardinalityAnnotation = operation.GetResponseCardinalityAnnotation();
+        var isPluralized = cardinalityAnnotation switch
+        {
+            "single" => false,
+            "array" => true,
+            _ => IsOperationIdPluralized(operationId),
+        };
 
         // Direct array or paginated response (applies to both OPR008 and OPR009)
         var isDirectArrayResponse = IsArraySchema(responseSchema, document) ||
@@ -1696,7 +1723,7 @@ public static class OpenApiDocumentValidator
 
         // ATCAPI_OPR009: Singular operationId but response is array
         // Only trigger for direct arrays or paginated responses, NOT for wrappers with arrays
-        if (!isPluralized && isDirectArrayResponse)
+        if (!isPluralized && isDirectArrayResponse && !isWrapperWithArray)
         {
             diagnostics.Add(new DiagnosticMessage(
                 RuleIdentifiers.OperationIdSingularMismatch,
@@ -1983,9 +2010,7 @@ public static class OpenApiDocumentValidator
 
             // ATCAPI_OPR017: RequestBody with inline model not supported
             if (schema is not OpenApiSchemaReference &&
-                schema is OpenApiSchema inlineSchema &&
-                inlineSchema.Properties != null &&
-                inlineSchema.Properties.Count > 0)
+                schema is OpenApiSchema { Properties.Count: > 0 })
             {
                 diagnostics.Add(new DiagnosticMessage(
                     RuleIdentifiers.RequestBodyInlineModel,
@@ -2074,44 +2099,78 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
-    /// Checks if an operationId is pluralized (ends with 's' after typical verb prefixes).
+    /// Checks if an operationId signals a collection (plural) response. Considers all PascalCase
+    /// words after the verb prefix, so connector patterns like `getJobsForDevice` or
+    /// `listPathsByRepositoryName` are recognized as plural via the subject noun (`Jobs` / `Paths`),
+    /// not the trailing qualifier (`Device` / `Name`).
     /// </summary>
     private static bool IsOperationIdPluralized(string operationId)
     {
-        // Remove common prefixes
-        var prefixes = new[] { "get", "list", "find", "search", "fetch", "retrieve" };
-        var name = operationId;
+        // Collection-intent prefixes (list/search/find) signal a collection response regardless of
+        // the trailing noun — aligning with OPR003 which blesses `List` as the "GET array" prefix.
+        // Also ensures `listUser` (collection prefix, singular body) is still caught by OPR008.
+        foreach (var prefix in CollectionIntentPrefixes)
+        {
+            if (operationId.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
 
-        foreach (var prefix in prefixes)
+        // Remove common verb prefixes
+        var name = operationId;
+        var prefixStripped = false;
+
+        foreach (var prefix in QueryVerbPrefixes)
         {
             if (operationId.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             {
                 name = operationId.Substring(prefix.Length);
+                prefixStripped = true;
                 break;
             }
         }
 
-        // Common plural endings
         if (string.IsNullOrEmpty(name))
         {
             return false;
         }
 
-        // Suffixes that end in 's' but represent single-item responses
-        // These are inherently plural words that describe a single entity's properties
-        var singleItemSuffixes = new[]
+        if (prefixStripped)
         {
-            "Details",    // getDeviceDetails - details about ONE device
-            "Status",     // getStatus - status of ONE item (also covered by 'us' check)
-            "Settings",   // getSettings - settings for ONE user/account
-            "Statistics", // getStatistics - statistics for ONE entity
-            "Contents",   // getContents - contents of ONE container
-            "Metrics",    // getMetrics - metrics for ONE service
-            "News",       // getNews - news is uncountable
-            "Progress",   // getProgress - progress of ONE operation (doesn't end in 's' but for completeness)
-        };
+            // Query-intent prefix stripped — analyse subject noun(s) to catch connector shapes
+            // like `getJobsForDevice` (subject `Jobs`) or `getDeviceDetailsHistory` (suffix `Details`).
+            var words = SplitPascalCaseWords(name);
 
-        foreach (var suffix in singleItemSuffixes)
+            foreach (var word in words)
+            {
+                foreach (var suffix in SingleItemSuffixes)
+                {
+                    if (word.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            foreach (var word in words)
+            {
+                if (word.EndsWith("s", StringComparison.OrdinalIgnoreCase) &&
+                    !word.EndsWith("ss", StringComparison.OrdinalIgnoreCase) &&
+                    !word.EndsWith("us", StringComparison.OrdinalIgnoreCase) &&
+                    !word.EndsWith("is", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // No query-intent prefix recognized (e.g. `scanConfigurationsByDevice`, `createFoo`).
+        // Keep the original trailing-noun heuristic to avoid flagging action operations whose
+        // body contains an object noun in plural form.
+        foreach (var suffix in SingleItemSuffixes)
         {
             if (name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
             {
@@ -2119,11 +2178,36 @@ public static class OpenApiDocumentValidator
             }
         }
 
-        // Check if name ends with 's' but not 'ss' (like 'address')
         return name.EndsWith("s", StringComparison.OrdinalIgnoreCase) &&
                !name.EndsWith("ss", StringComparison.OrdinalIgnoreCase) &&
                !name.EndsWith("us", StringComparison.OrdinalIgnoreCase) &&
                !name.EndsWith("is", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Splits a PascalCase identifier into its component words. Each uppercase letter starts a new
+    /// word; leading lowercase characters form the first word.
+    /// </summary>
+    private static List<string> SplitPascalCaseWords(string input)
+    {
+        var words = new List<string>();
+        if (string.IsNullOrEmpty(input))
+        {
+            return words;
+        }
+
+        var start = 0;
+        for (var i = 1; i < input.Length; i++)
+        {
+            if (char.IsUpper(input[i]))
+            {
+                words.Add(input.Substring(start, i - start));
+                start = i;
+            }
+        }
+
+        words.Add(input.Substring(start));
+        return words;
     }
 
     /// <summary>
