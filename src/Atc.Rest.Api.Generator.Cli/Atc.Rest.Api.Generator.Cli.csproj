@@ -28,4 +28,8 @@
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Atc.Rest.Api.Generator.Cli.Tests" />
+  </ItemGroup>
+
 </Project>

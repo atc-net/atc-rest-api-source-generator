@@ -85,7 +85,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("  query?: Record<string, string | number | boolean | undefined>;");
         sb.AppendLine("  headers?: Record<string, string>;");
         sb.AppendLine("  signal?: AbortSignal;");
-        sb.AppendLine("  responseType?: 'json' | 'blob';");
+        sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
         sb.AppendLine("}");
         sb.AppendLine();
     }
@@ -338,16 +338,17 @@ public static class TypeScriptFetchApiClientExtractor
             ? "JSON.parse(await response.text(), dateReviver)"
             : "await response.json()";
 
-        sb.AppendLine("  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob'): Promise<ApiResult<T>> {");
+        sb.AppendLine("  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text'): Promise<ApiResult<T>> {");
         sb.AppendLine("    if (response.status === 204) {");
         sb.AppendLine("      return { status: 'noContent', response };");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    const contentType = response.headers.get('Content-Type') ?? '';");
-        sb.AppendLine("    const isJson = responseType ? responseType === 'json' : contentType.includes('application/json');");
+        sb.AppendLine("    const isText = responseType === 'text' || (!responseType && (contentType.startsWith('text/') || contentType.includes('application/xml')));");
+        sb.AppendLine("    const isJson = responseType ? responseType === 'json' : (!isText && contentType.includes('application/json'));");
         sb.AppendLine();
         sb.AppendLine("    if (response.ok) {");
-        sb.Append("      const data = isJson ? ").Append(parseJson).AppendLine(" : await response.blob();");
+        sb.Append("      const data = isText ? await response.text() : isJson ? ").Append(parseJson).AppendLine(" : await response.blob();");
         sb.AppendLine("      const status = response.status === 201 ? 'created' as const : 'ok' as const;");
         sb.AppendLine("      return { status, data: data as T, response };");
         sb.AppendLine("    }");

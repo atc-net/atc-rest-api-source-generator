@@ -42,7 +42,7 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
             .MapGet("text", GetTextReport)
             .WithName("GetTextReport")
             .WithSummary("Get a plain text report")
-            .Produces(StatusCodes.Status200OK)
+            .Produces<string>(StatusCodes.Status200OK, contentType: "text/plain")
             .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 

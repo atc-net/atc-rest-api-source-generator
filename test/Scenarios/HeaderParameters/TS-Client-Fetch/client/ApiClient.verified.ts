@@ -18,7 +18,7 @@ export interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined>;
   headers?: Record<string, string>;
   signal?: AbortSignal;
-  responseType?: 'json' | 'blob';
+  responseType?: 'json' | 'blob' | 'text';
 }
 
 export class ApiClient {
@@ -166,16 +166,17 @@ export class ApiClient {
     return headers;
   }
 
-  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob'): Promise<ApiResult<T>> {
+  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text'): Promise<ApiResult<T>> {
     if (response.status === 204) {
       return { status: 'noContent', response };
     }
 
     const contentType = response.headers.get('Content-Type') ?? '';
-    const isJson = responseType ? responseType === 'json' : contentType.includes('application/json');
+    const isText = responseType === 'text' || (!responseType && (contentType.startsWith('text/') || contentType.includes('application/xml')));
+    const isJson = responseType ? responseType === 'json' : (!isText && contentType.includes('application/json'));
 
     if (response.ok) {
-      const data = isJson ? await response.json() : await response.blob();
+      const data = isText ? await response.text() : isJson ? await response.json() : await response.blob();
       const status = response.status === 201 ? 'created' as const : 'ok' as const;
       return { status, data: data as T, response };
     }

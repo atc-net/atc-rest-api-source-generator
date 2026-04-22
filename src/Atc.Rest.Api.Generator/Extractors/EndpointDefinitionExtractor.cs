@@ -1359,9 +1359,16 @@ using Microsoft.AspNetCore.Builder;
 
                 // Get response content type - handle inline schemas properly
                 string? contentType = null;
+                string? textResponseMediaType = null;
                 if (openApiResponse.Content != null && openApiResponse.Content.TryGetValue("application/json", out var mediaType))
                 {
                     contentType = GetResponseContentType(mediaType.Schema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry);
+                }
+                else if (openApiResponse.TryGetTextResponseMediaType(out var matchedTextMediaType, out _))
+                {
+                    // text/plain, text/csv, application/xml, ... — surface as a raw string body.
+                    contentType = "string";
+                    textResponseMediaType = matchedTextMediaType;
                 }
 
                 // Parse the status code to determine the category
@@ -1385,15 +1392,27 @@ using Microsoft.AspNetCore.Builder;
                         break;
                     case >= 200 and < 300 when statusCodeInt == 200:
                     {
-                        // 200 is the default status code for Produces<T>()
-                        builder.Append(string.IsNullOrEmpty(contentType)
-                            ? $"    .Produces(StatusCodes.{statusCodeConstant})"
-                            : $"    .Produces<{contentType}>()");
+                        // Text responses: must explicitly pass contentType because Produces<T>()
+                        // defaults to "application/json".
+                        if (textResponseMediaType is not null)
+                        {
+                            builder.Append($"    .Produces<{contentType}>(StatusCodes.{statusCodeConstant}, contentType: \"{textResponseMediaType}\")");
+                        }
+                        else
+                        {
+                            // 200 is the default status code for Produces<T>()
+                            builder.Append(string.IsNullOrEmpty(contentType)
+                                ? $"    .Produces(StatusCodes.{statusCodeConstant})"
+                                : $"    .Produces<{contentType}>()");
+                        }
 
                         break;
                     }
 
                     // Other 2xx codes need explicit status code
+                    case >= 200 and < 300 when textResponseMediaType is not null:
+                        builder.Append($"    .Produces<{contentType}>(StatusCodes.{statusCodeConstant}, contentType: \"{textResponseMediaType}\")");
+                        break;
                     case >= 200 and < 300 when !string.IsNullOrEmpty(contentType):
                         builder.Append($"    .Produces<{contentType}>(StatusCodes.{statusCodeConstant})");
                         break;

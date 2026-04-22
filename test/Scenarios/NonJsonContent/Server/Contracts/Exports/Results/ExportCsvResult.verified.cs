@@ -28,8 +28,11 @@ public sealed class ExportCsvResult : IResult
     /// <summary>
     /// 200 OK - CSV export.
     /// </summary>
-    public static ExportCsvResult Ok()
-        => new(TypedResults.Ok());
+    public static ExportCsvResult Ok(string response)
+        => new(TypedResults.Text(response, "text/csv"));
+
+    public static implicit operator ExportCsvResult(string response)
+        => Ok(response);
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

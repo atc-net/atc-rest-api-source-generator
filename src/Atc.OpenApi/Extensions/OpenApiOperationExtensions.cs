@@ -5,6 +5,7 @@ namespace Atc.OpenApi.Extensions;
 /// Extension methods for OpenApiOperation to handle operation queries and analysis.
 /// </summary>
 [SuppressMessage("", "CA1034:Do not nest type", Justification = "OK - CLang14 - extension")]
+[SuppressMessage("", "CA1708:Names should differ by more than case", Justification = "OK - CLang14 - multiple extension(...) blocks")]
 [SuppressMessage("", "CA2208:Method ReplaceAt passes 'name' as the paramName argument to a ArgumentNullException constructor", Justification = "OK - CLang14 - extension")]
 [SuppressMessage("", "S1144:Remove the unused private method", Justification = "OK - CLang14 - extension")]
 [SuppressMessage("", "S3928:The parameter name 'schema'", Justification = "OK - CLang14 - extension")]
@@ -293,6 +294,28 @@ public static class OpenApiOperationExtensions
         }
 
         /// <summary>
+        /// Checks if the operation's 200 response is a textual body (e.g. <c>text/plain</c>,
+        /// <c>text/csv</c>, <c>application/xml</c>) with a <c>type: string</c> schema.
+        /// </summary>
+        /// <returns>True when the success response should be surfaced as a raw <see cref="string"/>.</returns>
+        public bool HasTextResponse()
+            => operation.Responses != null &&
+               operation.Responses.TryGetValue("200", out var response) &&
+               response.TryGetTextResponseMediaType(out _, out _);
+
+        /// <summary>
+        /// Gets the textual response media type for the 200 response if present
+        /// (e.g. <c>"text/plain"</c>, <c>"text/csv"</c>, <c>"application/xml"</c>).
+        /// </summary>
+        /// <returns>The textual response media type or null when none matches.</returns>
+        public string? GetTextResponseMediaType()
+            => operation.Responses != null &&
+               operation.Responses.TryGetValue("200", out var response) &&
+               response.TryGetTextResponseMediaType(out var mediaType, out _)
+                ? mediaType
+                : null;
+
+        /// <summary>
         /// Gets the file download content type from the response if present.
         /// </summary>
         /// <returns>The file download content type or null if not found.</returns>
@@ -429,4 +452,70 @@ public static class OpenApiOperationExtensions
            contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase) ||
            contentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase) ||
            contentType.Equals("application/zip", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Determines if a content type represents a textual response body that the generator
+    /// can surface as a raw <see cref="string"/> (e.g. <c>text/plain</c>, <c>text/csv</c>,
+    /// <c>text/html</c>, <c>application/xml</c>).
+    /// </summary>
+    /// <param name="contentType">The content type to check.</param>
+    /// <returns>True if the content type represents a textual response.</returns>
+    public static bool IsTextResponseMediaType(string contentType)
+        => !string.IsNullOrEmpty(contentType) &&
+           (contentType.StartsWith("text/", StringComparison.OrdinalIgnoreCase) ||
+            contentType.Equals("application/xml", StringComparison.OrdinalIgnoreCase));
+
+    /// <param name="response">The OpenAPI response.</param>
+    extension(IOpenApiResponse response)
+    {
+        /// <summary>
+        /// Tries to find the first textual response media type (e.g. <c>text/plain</c>) declared
+        /// on the response with a <c>type: string</c> schema (excluding <c>format: binary</c>,
+        /// which is a file download). When multiple textual media types are present, <c>text/plain</c>
+        /// is preferred so consumers using <c>HttpClient.GetStringAsync</c> get the canonical body.
+        /// </summary>
+        /// <param name="mediaType">The matched media type (e.g. <c>"text/plain"</c>) when true.</param>
+        /// <param name="media">The matched <see cref="IOpenApiMediaType"/> when true.</param>
+        /// <returns>True when a textual string-typed media type is found.</returns>
+        public bool TryGetTextResponseMediaType(
+            out string? mediaType,
+            out IOpenApiMediaType? media)
+        {
+            mediaType = null;
+            media = null;
+
+            if (response?.Content == null || response.Content.Count == 0)
+            {
+                return false;
+            }
+
+            // Prefer text/plain over other text/* and application/xml when several are declared.
+            var orderedKeys = response.Content.Keys
+                .Where(IsTextResponseMediaType)
+                .OrderBy(k => k.Equals("text/plain", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(k => k, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var key in orderedKeys)
+            {
+                var candidate = response.Content[key];
+                var schema = candidate?.Schema;
+                if (schema == null)
+                {
+                    continue;
+                }
+
+                // Must be type: string (skip type: object / array / etc.) and not the
+                // file-download convention type: string + format: binary.
+                if (schema.Type?.HasFlag(JsonSchemaType.String) == true &&
+                    !string.Equals(schema.Format, "binary", StringComparison.OrdinalIgnoreCase))
+                {
+                    mediaType = key;
+                    media = candidate;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
 }

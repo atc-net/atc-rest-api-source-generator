@@ -416,7 +416,7 @@ public static class EndpointPerOperationExtractor
     /// <param name="PropertyName">The property-friendly name (e.g., "Ok", "NotFound") - used for Is{value}, {value}Content.</param>
     /// <param name="ContentType">The content type returned by this response.</param>
     /// <param name="IsSuccess">Whether this is a success (2xx) response.</param>
-    private sealed record ResponseInfo(string StatusCode, string StatusEnumName, string PropertyName, string? ContentType, bool IsSuccess);
+    private sealed record ResponseInfo(string StatusCode, string StatusEnumName, string PropertyName, string? ContentType, bool IsSuccess, string? TextMediaType = null);
 
     private static List<ResponseInfo> ExtractResponses(
         OpenApiOperation operation,
@@ -450,6 +450,7 @@ public static class EndpointPerOperationExtractor
 
             // Determine content type from response body (headers like Location are metadata, not content)
             string? contentType = null;
+            string? textMediaType = null;
 
             // Check for JSON content
             // Note: Binary/octet-stream endpoints are handled by IsBinaryEndpoint() and skip result class generation
@@ -468,6 +469,14 @@ public static class EndpointPerOperationExtractor
                     inlineSchemas,
                     isAsyncEnumerable && isSuccess);
             }
+            else if (response.Value is not null &&
+                     response.Value.TryGetTextResponseMediaType(out var matchedTextMediaType, out _))
+            {
+                // text/plain, text/csv, application/xml, ... — surface as a raw string body
+                // and route through Atc.Rest.Client's AddSuccess/ErrorTextResponse (no JSON parse).
+                contentType = "string";
+                textMediaType = matchedTextMediaType;
+            }
 
             // Determine error content type based on ErrorResponseFormatType
             if (!isSuccess && contentType == null)
@@ -475,7 +484,7 @@ public static class EndpointPerOperationExtractor
                 contentType = GetErrorContentType(errorResponseFormat, customErrorTypeName, statusCodeStr);
             }
 
-            responses.Add(new ResponseInfo(statusCodeStr, statusEnumName, propertyName, contentType, isSuccess));
+            responses.Add(new ResponseInfo(statusCodeStr, statusEnumName, propertyName, contentType, isSuccess, textMediaType));
         }
 
         return responses;
@@ -1080,7 +1089,12 @@ public static class EndpointPerOperationExtractor
             {
                 if (responseInfo.IsSuccess)
                 {
-                    if (responseInfo.ContentType == null)
+                    if (responseInfo.TextMediaType is not null)
+                    {
+                        // Raw text body (text/plain, text/csv, ...) — bypass the JSON contract serializer.
+                        sb.AppendLine($"responseBuilder.AddSuccessTextResponse(HttpStatusCode.{responseInfo.StatusEnumName});");
+                    }
+                    else if (responseInfo.ContentType == null)
                     {
                         // Empty response - use non-generic AddSuccessResponse
                         sb.AppendLine($"responseBuilder.AddSuccessResponse(HttpStatusCode.{responseInfo.StatusEnumName});");
@@ -1089,6 +1103,11 @@ public static class EndpointPerOperationExtractor
                     {
                         sb.AppendLine($"responseBuilder.AddSuccessResponse<{responseInfo.ContentType}>(HttpStatusCode.{responseInfo.StatusEnumName});");
                     }
+                }
+                else if (responseInfo.TextMediaType is not null)
+                {
+                    // Raw text error body — same bypass for the error path.
+                    sb.AppendLine($"responseBuilder.AddErrorTextResponse(HttpStatusCode.{responseInfo.StatusEnumName});");
                 }
                 else
                 {

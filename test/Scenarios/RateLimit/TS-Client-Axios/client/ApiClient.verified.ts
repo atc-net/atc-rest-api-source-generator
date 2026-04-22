@@ -20,7 +20,7 @@ export interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined>;
   headers?: Record<string, string>;
   signal?: AbortSignal;
-  responseType?: 'json' | 'blob';
+  responseType?: 'json' | 'blob' | 'text';
 }
 
 export class ApiClient {
@@ -87,7 +87,7 @@ export class ApiClient {
       params: options?.query,
       headers,
       signal: options?.signal,
-      responseType: options?.responseType === 'blob' ? 'blob' : 'json',
+      responseType: options?.responseType === 'blob' ? 'blob' : options?.responseType === 'text' ? 'text' : 'json',
     });
 
     return this.handleResponse<T>(response);

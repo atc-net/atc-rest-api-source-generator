@@ -333,11 +333,24 @@ public static class ResultClassExtractor
             contentType = GetSchemaTypeName(mediaType.Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
         }
 
+        // If no JSON or binary match, check for a textual response (text/plain, text/csv,
+        // application/xml, ...) with a type: string schema. We surface it as a raw string body
+        // via TypedResults.Text(content, mediaType).
+        var isTextResponse = false;
+        string? textResponseMediaType = null;
+        if (!isFileDownload && contentType is null &&
+            responseValue.TryGetTextResponseMediaType(out var matchedMediaType, out _))
+        {
+            isTextResponse = true;
+            textResponseMediaType = matchedMediaType;
+            contentType = "string";
+        }
+
         switch (statusCode)
         {
             // Generate factory method based on status code
             case "200":
-                methods.AddRange(GenerateOkMethods(className, description, contentType, isAsyncEnumerable, isFileDownload, fileDownloadContentType));
+                methods.AddRange(GenerateOkMethods(className, description, contentType, isAsyncEnumerable, isFileDownload, fileDownloadContentType, isTextResponse, textResponseMediaType));
                 break;
             case "201":
                 methods.AddRange(GenerateCreatedMethods(className, description, contentType));
@@ -400,7 +413,9 @@ public static class ResultClassExtractor
         string? contentType,
         bool isAsyncEnumerable,
         bool isFileDownload = false,
-        string? fileDownloadContentType = null)
+        string? fileDownloadContentType = null,
+        bool isTextResponse = false,
+        string? textResponseMediaType = null)
     {
         var methods = new List<MethodParameters>();
         var doc = new CodeDocumentationTags($"200 OK - {description}");
@@ -471,8 +486,17 @@ public static class ResultClassExtractor
                 }
             }
 
-            // Use "message" for string types, "response" for complex types
-            var paramName = parameterType == "string" ? "message" : "response";
+            // For textual responses (text/plain, text/csv, application/xml, ...) the body must
+            // be returned verbatim (no JSON quoting). Use TypedResults.Text(content, mediaType)
+            // and name the parameter "response" for consistency with implicit-operator generation
+            // below — text responses always carry a string payload.
+            var paramName = isTextResponse
+                ? "response"
+                : parameterType == "string" ? "message" : "response";
+
+            var content = isTextResponse
+                ? $"new(TypedResults.Text({paramName}, \"{textResponseMediaType}\"))"
+                : $"new(TypedResults.Ok({paramName}))";
 
             // Factory method with parameter
             var okMethod = new MethodParameters(
@@ -496,7 +520,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: $"new(TypedResults.Ok({paramName}))");
+                Content: content);
             methods.Add(okMethod);
 
             // Add implicit conversion if content type is List<T> or single object (but not 'object' base type)
