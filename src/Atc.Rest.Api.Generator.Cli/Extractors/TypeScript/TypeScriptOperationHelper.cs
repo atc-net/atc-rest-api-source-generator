@@ -86,8 +86,20 @@ public static class TypeScriptOperationHelper
             return "Blob";
         }
 
-        // Try to get 200 response schema, then 201
+        // Try to get 200 response schema, then 201 (both default to application/json)
         var schema = operation.GetResponseSchema("200") ?? operation.GetResponseSchema("201");
+
+        // Fall back to a textual response schema (text/plain, text/csv, application/xml, ...)
+        // — the body is delivered as a raw string.
+        if (schema == null &&
+            operation.Responses != null &&
+            operation.Responses.TryGetValue("200", out var response) &&
+            response.TryGetTextResponseMediaType(out _, out var textMedia) &&
+            textMedia is not null)
+        {
+            schema = textMedia.Schema;
+        }
+
         if (schema == null)
         {
             return isStreaming ? "unknown" : "void";

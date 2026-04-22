@@ -87,7 +87,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("  query?: Record<string, string | number | boolean | undefined>;");
         sb.AppendLine("  headers?: Record<string, string>;");
         sb.AppendLine("  signal?: AbortSignal;");
-        sb.AppendLine("  responseType?: 'json' | 'blob';");
+        sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
         sb.AppendLine("}");
         sb.AppendLine();
     }
@@ -243,7 +243,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      params: options?.query,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: options?.signal,");
-            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'blob' : 'json',");
+            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'blob' : options?.responseType === 'text' ? 'text' : 'json',");
             sb.AppendLine("    });");
             sb.AppendLine();
             sb.AppendLine("    let response: AxiosResponse<T>;");
@@ -267,7 +267,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      params: options?.query,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: options?.signal,");
-            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'blob' : 'json',");
+            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'blob' : options?.responseType === 'text' ? 'text' : 'json',");
             sb.AppendLine("    });");
         }
 

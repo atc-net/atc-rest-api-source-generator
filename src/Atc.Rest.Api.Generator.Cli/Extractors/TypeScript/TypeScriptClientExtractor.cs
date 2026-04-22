@@ -196,6 +196,7 @@ public static class TypeScriptClientExtractor
         var isStreaming = operation.IsAsyncEnumerableOperation();
         var isFileDownload = operation.HasFileDownload();
         var isFileUpload = operation.HasFileUpload();
+        var isTextDownload = !isFileDownload && operation.HasTextResponse();
         var operationId = operation.GetOperationId(path, httpMethod);
         var methodName = operationId.ToCamelCase();
 
@@ -215,7 +216,7 @@ public static class TypeScriptClientExtractor
         }
         else
         {
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, returnType, namingStrategy);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy);
         }
     }
 
@@ -230,6 +231,7 @@ public static class TypeScriptClientExtractor
         string bodyContentType,
         bool isFileUpload,
         bool isFileDownload,
+        bool isTextDownload,
         string returnType,
         TypeScriptNamingStrategy namingStrategy)
     {
@@ -244,7 +246,7 @@ public static class TypeScriptClientExtractor
         var hasQuery = queryParams.Count > 0;
         var hasBody = bodySchema != null;
 
-        if (hasQuery || hasBody || isFileUpload || isFileDownload)
+        if (hasQuery || hasBody || isFileUpload || isFileDownload || isTextDownload)
         {
             sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(interpolatedPath).AppendLine(", {");
 
@@ -265,6 +267,10 @@ public static class TypeScriptClientExtractor
             if (isFileDownload)
             {
                 sb.AppendLine("      responseType: 'blob',");
+            }
+            else if (isTextDownload)
+            {
+                sb.AppendLine("      responseType: 'text',");
             }
 
             sb.AppendLine("    });");

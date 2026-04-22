@@ -28,6 +28,7 @@ export class UserClient {
         username: query?.username,
         password: query?.password,
       },
+      responseType: 'text',
     });
   }
 

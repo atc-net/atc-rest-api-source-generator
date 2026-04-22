@@ -28,8 +28,11 @@ public sealed class GetTextReportResult : IResult
     /// <summary>
     /// 200 OK - Plain text report.
     /// </summary>
-    public static GetTextReportResult Ok()
-        => new(TypedResults.Ok());
+    public static GetTextReportResult Ok(string response)
+        => new(TypedResults.Text(response, "text/plain"));
+
+    public static implicit operator GetTextReportResult(string response)
+        => Ok(response);
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

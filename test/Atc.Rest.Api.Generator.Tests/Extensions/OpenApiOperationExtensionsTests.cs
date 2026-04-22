@@ -288,6 +288,203 @@ public class OpenApiOperationExtensionsTests
         Assert.Equal(expected, OpenApiOperationExtensions.IsFileDownloadContentType(contentType));
     }
 
+    // ========== HasTextResponse Tests ==========
+    [Fact]
+    public void HasTextResponse_TextPlainStringResponse_ReturnsTrue()
+    {
+        var op = new OpenApiOperation
+        {
+            Responses = new OpenApiResponses
+            {
+                ["200"] = new OpenApiResponse
+                {
+                    Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["text/plain"] = new OpenApiMediaType { Schema = new OpenApiSchema { Type = JsonSchemaType.String } },
+                    },
+                },
+            },
+        };
+
+        Assert.True(op.HasTextResponse());
+    }
+
+    [Fact]
+    public void HasTextResponse_JsonResponse_ReturnsFalse()
+    {
+        var op = CreateOperationWithResponse("200");
+
+        Assert.False(op.HasTextResponse());
+    }
+
+    [Fact]
+    public void HasTextResponse_BinaryResponse_ReturnsFalse()
+    {
+        var op = CreateOperationWithResponseContentType("200", "application/octet-stream");
+
+        Assert.False(op.HasTextResponse());
+    }
+
+    [Fact]
+    public void HasTextResponse_NoResponse_ReturnsFalse()
+    {
+        var op = new OpenApiOperation();
+
+        Assert.False(op.HasTextResponse());
+    }
+
+    // ========== IsTextResponseMediaType (static) ==========
+    [Theory]
+    [InlineData("text/plain", true)]
+    [InlineData("text/csv", true)]
+    [InlineData("text/html", true)]
+    [InlineData("text/markdown", true)]
+    [InlineData("application/xml", true)]
+    [InlineData("text/xml", true)]
+    [InlineData("application/json", false)]
+    [InlineData("application/octet-stream", false)]
+    [InlineData("image/png", false)]
+    [InlineData("multipart/form-data", false)]
+    [InlineData("", false)]
+    public void IsTextResponseMediaType_ReturnsExpected(
+        string contentType,
+        bool expected)
+    {
+        Assert.Equal(expected, OpenApiOperationExtensions.IsTextResponseMediaType(contentType));
+    }
+
+    // ========== TryGetTextResponseMediaType ==========
+    [Fact]
+    public void TryGetTextResponseMediaType_TextPlainTypeString_ReturnsTrue()
+    {
+        var response = new OpenApiResponse
+        {
+            Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["text/plain"] = new OpenApiMediaType { Schema = new OpenApiSchema { Type = JsonSchemaType.String } },
+            },
+        };
+
+        var result = response.TryGetTextResponseMediaType(out var mediaType, out var media);
+
+        Assert.True(result);
+        Assert.Equal("text/plain", mediaType);
+        Assert.NotNull(media);
+    }
+
+    [Fact]
+    public void TryGetTextResponseMediaType_TextCsvTypeString_ReturnsTrue()
+    {
+        var response = new OpenApiResponse
+        {
+            Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["text/csv"] = new OpenApiMediaType { Schema = new OpenApiSchema { Type = JsonSchemaType.String } },
+            },
+        };
+
+        var result = response.TryGetTextResponseMediaType(out var mediaType, out var media);
+
+        Assert.True(result);
+        Assert.Equal("text/csv", mediaType);
+        Assert.NotNull(media);
+    }
+
+    [Fact]
+    public void TryGetTextResponseMediaType_OnlyJson_ReturnsFalse()
+    {
+        var response = new OpenApiResponse
+        {
+            Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["application/json"] = new OpenApiMediaType { Schema = new OpenApiSchema { Type = JsonSchemaType.Object } },
+            },
+        };
+
+        var result = response.TryGetTextResponseMediaType(out var mediaType, out var media);
+
+        Assert.False(result);
+        Assert.Null(mediaType);
+        Assert.Null(media);
+    }
+
+    [Fact]
+    public void TryGetTextResponseMediaType_BinaryStringFormat_ReturnsFalse()
+    {
+        // type: string + format: binary is the OpenAPI convention for file downloads,
+        // not a text response. Must NOT match.
+        var response = new OpenApiResponse
+        {
+            Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["application/octet-stream"] = new OpenApiMediaType
+                {
+                    Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "binary" },
+                },
+            },
+        };
+
+        var result = response.TryGetTextResponseMediaType(out var mediaType, out var media);
+
+        Assert.False(result);
+        Assert.Null(mediaType);
+        Assert.Null(media);
+    }
+
+    [Fact]
+    public void TryGetTextResponseMediaType_TextPlainNonStringSchema_ReturnsFalse()
+    {
+        // Spec edge case: text/plain declared with type: object would be malformed.
+        // The helper should only match type: string.
+        var response = new OpenApiResponse
+        {
+            Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["text/plain"] = new OpenApiMediaType { Schema = new OpenApiSchema { Type = JsonSchemaType.Object } },
+            },
+        };
+
+        var result = response.TryGetTextResponseMediaType(out var mediaType, out var media);
+
+        Assert.False(result);
+        Assert.Null(mediaType);
+        Assert.Null(media);
+    }
+
+    [Fact]
+    public void TryGetTextResponseMediaType_NoContent_ReturnsFalse()
+    {
+        var response = new OpenApiResponse();
+
+        var result = response.TryGetTextResponseMediaType(out var mediaType, out var media);
+
+        Assert.False(result);
+        Assert.Null(mediaType);
+        Assert.Null(media);
+    }
+
+    [Fact]
+    public void TryGetTextResponseMediaType_PrefersTextPlainOverOtherTextMediaTypes()
+    {
+        // When a response declares multiple text media types (rare but legal),
+        // prefer text/plain because that is the canonical case and matches what
+        // consumers using HttpClient.GetStringAsync expect.
+        var response = new OpenApiResponse
+        {
+            Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["text/csv"] = new OpenApiMediaType { Schema = new OpenApiSchema { Type = JsonSchemaType.String } },
+                ["text/plain"] = new OpenApiMediaType { Schema = new OpenApiSchema { Type = JsonSchemaType.String } },
+            },
+        };
+
+        var result = response.TryGetTextResponseMediaType(out var mediaType, out var media);
+
+        Assert.True(result);
+        Assert.Equal("text/plain", mediaType);
+        Assert.NotNull(media);
+    }
+
     // ========== Helper Methods ==========
     private static OpenApiOperation CreateOperationWithJsonBody()
         => new()

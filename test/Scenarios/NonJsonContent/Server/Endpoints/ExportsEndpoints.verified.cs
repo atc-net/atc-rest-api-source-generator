@@ -42,7 +42,7 @@ public sealed class ExportsEndpointDefinition : IEndpointDefinition
             .MapGet("csv", ExportCsv)
             .WithName("ExportCsv")
             .WithSummary("Export data as CSV")
-            .Produces(StatusCodes.Status200OK)
+            .Produces<string>(StatusCodes.Status200OK, contentType: "text/csv")
             .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 
