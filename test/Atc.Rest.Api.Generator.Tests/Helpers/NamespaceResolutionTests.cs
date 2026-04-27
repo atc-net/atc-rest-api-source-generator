@@ -391,8 +391,9 @@ public sealed class NamespaceResolutionTests : IDisposable
     }
 
     /// <summary>
-    /// Mimics the TryGetServerNamespace logic from ApiServerDomainGenerator.
-    /// This allows testing the namespace resolution without needing the full generator.
+    /// Mimics the TryGetServerNamespace logic from <c>MarkerFileHelper</c> (the real
+    /// implementation lives in the source-generator project). Kept in sync so these tests
+    /// validate behavior, not the legacy alphabetical-first-match shape.
     /// </summary>
     private static string? TryGetServerNamespace(string? markerDirectory)
     {
@@ -408,32 +409,63 @@ public sealed class NamespaceResolutionTests : IDisposable
         var markerPath = File.Exists(serverMarkerPath) ? serverMarkerPath :
                          File.Exists(serverMarkerJsonPath) ? serverMarkerJsonPath : null;
 
-        // If not in same directory, search sibling directories
         if (markerPath == null)
         {
             var parentDirectory = Path.GetDirectoryName(markerDirectory);
             if (!string.IsNullOrEmpty(parentDirectory) && Directory.Exists(parentDirectory))
             {
-                foreach (var siblingDir in Directory.GetDirectories(parentDirectory))
+                // Prefer convention-matching sibling: <X>.Domain ↔ <X>.Contracts.
+                var markerDirName = Path.GetFileName(markerDirectory) ?? string.Empty;
+                if (markerDirName.EndsWith(".Domain", StringComparison.Ordinal))
                 {
-                    if (siblingDir == markerDirectory)
+                    var preferredSiblingName = string.Concat(
+                        markerDirName.AsSpan(0, markerDirName.Length - ".Domain".Length),
+                        ".Contracts");
+                    var preferredSiblingDir = Path.Combine(parentDirectory, preferredSiblingName);
+
+                    if (Directory.Exists(preferredSiblingDir))
                     {
-                        continue;
+                        var preferredMarkerPath = Path.Combine(preferredSiblingDir, ".atc-rest-api-server");
+                        var preferredMarkerJsonPath = Path.Combine(preferredSiblingDir, ".atc-rest-api-server.json");
+
+                        if (File.Exists(preferredMarkerPath))
+                        {
+                            markerPath = preferredMarkerPath;
+                        }
+                        else if (File.Exists(preferredMarkerJsonPath))
+                        {
+                            markerPath = preferredMarkerJsonPath;
+                        }
+                    }
+                }
+
+                // Strict fallback: succeed only when exactly one sibling has a marker.
+                if (markerPath == null)
+                {
+                    var siblingMarkers = new List<string>();
+                    foreach (var siblingDir in Directory.GetDirectories(parentDirectory))
+                    {
+                        if (siblingDir == markerDirectory)
+                        {
+                            continue;
+                        }
+
+                        var siblingMarkerPath = Path.Combine(siblingDir, ".atc-rest-api-server");
+                        var siblingMarkerJsonPath = Path.Combine(siblingDir, ".atc-rest-api-server.json");
+
+                        if (File.Exists(siblingMarkerPath))
+                        {
+                            siblingMarkers.Add(siblingMarkerPath);
+                        }
+                        else if (File.Exists(siblingMarkerJsonPath))
+                        {
+                            siblingMarkers.Add(siblingMarkerJsonPath);
+                        }
                     }
 
-                    var siblingMarkerPath = Path.Combine(siblingDir, ".atc-rest-api-server");
-                    var siblingMarkerJsonPath = Path.Combine(siblingDir, ".atc-rest-api-server.json");
-
-                    if (File.Exists(siblingMarkerPath))
+                    if (siblingMarkers.Count == 1)
                     {
-                        markerPath = siblingMarkerPath;
-                        break;
-                    }
-
-                    if (File.Exists(siblingMarkerJsonPath))
-                    {
-                        markerPath = siblingMarkerJsonPath;
-                        break;
+                        markerPath = siblingMarkers[0];
                     }
                 }
             }

@@ -68,6 +68,13 @@ public static class RuleIdentifiers
     /// </summary>
     public const string GenerationSummary = "ATC_API_GEN010";
 
+    /// <summary>
+    /// ATC_API_GEN011: Contracts namespace cannot be auto-detected — multiple sibling
+    /// .atc-rest-api-server markers exist and none match the Domain project's
+    /// directory-name convention (&lt;X&gt;.Domain ↔ &lt;X&gt;.Contracts).
+    /// </summary>
+    public const string ContractsNamespaceAmbiguous = "ATC_API_GEN011";
+
     // ========== Dependency Rules (DEP) ==========
 
     /// <summary>

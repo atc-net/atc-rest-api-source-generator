@@ -10,7 +10,11 @@ public class ServerDomainConfig : BaseConfig
     /// Explicit namespace of the contracts project that contains generated handlers, parameters, and results.
     /// When specified, GlobalUsings will import from this namespace instead of auto-discovering.
     /// Example: "Contoso.IoT.Nexus.Api.Contracts" generates "global using Contoso.IoT.Nexus.Api.Contracts.Generated.*.Handlers".
-    /// Default: null (auto-detect from sibling project's .atc-rest-api-server marker).
+    /// Default: null (auto-detect by matching the Domain project's directory name to its
+    /// &lt;Name&gt;.Contracts sibling — e.g. <c>Foo.Api.Domain</c> pairs with <c>Foo.Api.Contracts</c>).
+    /// In monorepos with multiple Api.Contracts siblings, set this explicitly when the
+    /// directory-name convention isn't followed; otherwise the generator emits ATC_API_GEN011
+    /// and refuses to generate rather than silently picking the wrong sibling.
     /// </summary>
     public string? ContractsNamespace { get; set; }
 
