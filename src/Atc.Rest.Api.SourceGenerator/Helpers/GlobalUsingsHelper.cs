@@ -28,12 +28,23 @@ internal static class DomainGlobalUsingsHelper
             ? File.ReadAllText(globalUsingsPath)
             : string.Empty;
 
-        // Parse existing global usings
+        // Parse existing global usings, separating stale generator-owned entries from
+        // anything else (hand-written usings stay untouched).
         var existingUsings = new HashSet<string>(StringComparer.Ordinal);
+        var staleGeneratedUsings = new HashSet<string>(StringComparer.Ordinal);
         foreach (var line in existingContent.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
         {
             var trimmed = line.Trim();
-            if (trimmed.StartsWith("global using ", StringComparison.Ordinal))
+            if (!trimmed.StartsWith("global using ", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (IsStaleGeneratedUsing(trimmed, rootNamespace))
+            {
+                staleGeneratedUsings.Add(trimmed);
+            }
+            else
             {
                 existingUsings.Add(trimmed);
             }
@@ -49,20 +60,20 @@ internal static class DomainGlobalUsingsHelper
             (existingContent.EndsWith("\n", StringComparison.Ordinal) ||
              existingContent.EndsWith("\r", StringComparison.Ordinal));
 
-        // If nothing to add and file ends with newline, skip
-        if (missingUsings.Count == 0 && endsWithNewline)
+        // If nothing to add, no stale entries to remove, and file ends with newline, skip
+        if (missingUsings.Count == 0 && staleGeneratedUsings.Count == 0 && endsWithNewline)
         {
             return;
         }
 
-        // If nothing to add but file doesn't end with newline, fix it
-        if (missingUsings.Count == 0)
+        // If nothing to add and no stale entries, just fix newline
+        if (missingUsings.Count == 0 && staleGeneratedUsings.Count == 0)
         {
             FileHelper.WriteCsFile(globalUsingsPath, existingContent);
             return;
         }
 
-        // Merge all usings (existing + required) and re-sort the entire file
+        // Merge all usings (existing + required, excluding stale) and re-sort the entire file
         var allUsings = new HashSet<string>(existingUsings, StringComparer.Ordinal);
         foreach (var required in requiredUsings)
         {
@@ -76,6 +87,54 @@ internal static class DomainGlobalUsingsHelper
 
         // Write file using helper (ensures proper newline handling)
         FileHelper.WriteCsFile(globalUsingsPath, sortedContent);
+    }
+
+    /// <summary>
+    /// Returns true for `global using {someRoot}.Generated.{...};` lines whose `{someRoot}`
+    /// differs from the current <paramref name="rootNamespace"/>. Such entries originated
+    /// from a previous (buggy or reconfigured) generator run and now point at a namespace
+    /// that no longer exists in the contracts assembly. Hand-written usings, alias usings
+    /// (`global using X = Y;`), and `static` usings are not pruned.
+    /// </summary>
+    private static bool IsStaleGeneratedUsing(
+        string globalUsingLine,
+        string rootNamespace)
+    {
+        if (string.IsNullOrEmpty(rootNamespace))
+        {
+            return false;
+        }
+
+        const string prefix = "global using ";
+        if (!globalUsingLine.StartsWith(prefix, StringComparison.Ordinal) ||
+            !globalUsingLine.EndsWith(";", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var ns = globalUsingLine
+            .Substring(prefix.Length, globalUsingLine.Length - prefix.Length - 1)
+            .Trim();
+
+        // Skip alias usings (`X = Y.Z`) and static usings (`static Y.Z`) — those are
+        // intentional user constructs. Only plain namespace imports are candidates.
+        if (ns.IndexOf('=') >= 0 ||
+            ns.StartsWith("static ", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        // Only consider entries shaped like `{someRoot}.Generated.{...}` — that's the
+        // shape this helper owns. Anything else (hand-written usings, third-party
+        // namespaces) is left alone.
+        var generatedIndex = ns.IndexOf(".Generated.", StringComparison.Ordinal);
+        if (generatedIndex < 0)
+        {
+            return false;
+        }
+
+        var existingRoot = ns.Substring(0, generatedIndex);
+        return !string.Equals(existingRoot, rootNamespace, StringComparison.Ordinal);
     }
 
     /// <summary>

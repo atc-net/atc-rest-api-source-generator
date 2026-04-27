@@ -237,6 +237,20 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         var serverNamespace = MarkerFileHelper.TryGetServerNamespace(markerDirectory);
         var contractsNamespace = config.ContractsNamespace ?? serverNamespace;
 
+        // If we couldn't auto-detect the contracts namespace AND multiple sibling markers
+        // exist, the configuration is ambiguous — emit a diagnostic and abort. Falling
+        // through to the legacy derivation path here would silently emit wrong global
+        // usings (the symptom that GEN011 is meant to catch).
+        if (contractsNamespace is null &&
+            !string.IsNullOrEmpty(markerDirectory) &&
+            MarkerFileHelper.HasMultipleSiblingServerMarkers(markerDirectory))
+        {
+            DiagnosticHelpers.ReportContractsNamespaceAmbiguous(
+                context,
+                Path.GetFileName(markerDirectory) ?? string.Empty);
+            return;
+        }
+
         // Determine the root namespace for GlobalUsings (contracts namespace)
         var rootNamespace = contractsNamespace is not null
             ? contractsNamespace

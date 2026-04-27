@@ -140,6 +140,17 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
+    /// ATC_API_GEN011: Contracts namespace cannot be auto-detected.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ContractsNamespaceAmbiguous = new(
+        RuleIdentifiers.ContractsNamespaceAmbiguous,
+        "Contracts Namespace Cannot Be Auto-Detected",
+        "Cannot auto-detect contracts namespace for Domain project '{0}'. Multiple sibling .atc-rest-api-server markers exist and none match the directory-name convention (<X>.Domain ↔ <X>.Contracts). Set 'contractsNamespace' explicitly in .atc-rest-api-server-handlers.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// ATCAPI012: Client EndpointPerOperation mode requires Atc.Rest.Client reference.
     /// </summary>
     public static readonly DiagnosticDescriptor ClientRequiresAtcRestClient = new(
@@ -443,6 +454,20 @@ internal static class DiagnosticHelpers
         context.ReportDiagnostic(Diagnostic.Create(
             DomainRequiresAspNetCore,
             Location.None));
+    }
+
+    /// <summary>
+    /// Reports that the contracts namespace cannot be auto-detected because multiple
+    /// sibling .atc-rest-api-server markers exist and none match the directory-name convention.
+    /// </summary>
+    public static void ReportContractsNamespaceAmbiguous(
+        SourceProductionContext context,
+        string domainProjectName)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            ContractsNamespaceAmbiguous,
+            Location.None,
+            domainProjectName));
     }
 
     /// <summary>

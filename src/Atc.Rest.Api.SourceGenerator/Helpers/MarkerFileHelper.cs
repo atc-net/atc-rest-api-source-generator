@@ -32,26 +32,60 @@ internal static class MarkerFileHelper
             var parentDirectory = Path.GetDirectoryName(markerDirectory);
             if (!string.IsNullOrEmpty(parentDirectory) && Directory.Exists(parentDirectory))
             {
-                foreach (var siblingDir in Directory.GetDirectories(parentDirectory))
+                // Prefer sibling matching the convention: <X>.Domain pairs with <X>.Contracts.
+                // This is critical when multiple Contracts projects exist as siblings (multi-API repos),
+                // where the alphabetical fallback would otherwise pick the wrong Contracts namespace.
+                var markerDirName = Path.GetFileName(markerDirectory) ?? string.Empty;
+                if (markerDirName.EndsWith(".Domain", StringComparison.Ordinal))
                 {
-                    if (siblingDir == markerDirectory)
+                    var preferredSiblingName = markerDirName.Substring(0, markerDirName.Length - ".Domain".Length) + ".Contracts";
+                    var preferredSiblingDir = Path.Combine(parentDirectory, preferredSiblingName);
+
+                    if (Directory.Exists(preferredSiblingDir))
                     {
-                        continue;
+                        var preferredMarkerPath = Path.Combine(preferredSiblingDir, Constants.MarkerFile.Server);
+                        var preferredMarkerJsonPath = Path.Combine(preferredSiblingDir, Constants.MarkerFile.ServerJson);
+
+                        if (File.Exists(preferredMarkerPath))
+                        {
+                            markerPath = preferredMarkerPath;
+                        }
+                        else if (File.Exists(preferredMarkerJsonPath))
+                        {
+                            markerPath = preferredMarkerJsonPath;
+                        }
+                    }
+                }
+
+                // Fall back to scanning siblings for a marker file. Succeed only when
+                // exactly ONE sibling has a marker — anything else is ambiguous and the
+                // caller is expected to require explicit `contractsNamespace` configuration.
+                if (markerPath == null)
+                {
+                    var siblingMarkers = new List<string>();
+                    foreach (var siblingDir in Directory.GetDirectories(parentDirectory))
+                    {
+                        if (siblingDir == markerDirectory)
+                        {
+                            continue;
+                        }
+
+                        var siblingMarkerPath = Path.Combine(siblingDir, Constants.MarkerFile.Server);
+                        var siblingMarkerJsonPath = Path.Combine(siblingDir, Constants.MarkerFile.ServerJson);
+
+                        if (File.Exists(siblingMarkerPath))
+                        {
+                            siblingMarkers.Add(siblingMarkerPath);
+                        }
+                        else if (File.Exists(siblingMarkerJsonPath))
+                        {
+                            siblingMarkers.Add(siblingMarkerJsonPath);
+                        }
                     }
 
-                    var siblingMarkerPath = Path.Combine(siblingDir, Constants.MarkerFile.Server);
-                    var siblingMarkerJsonPath = Path.Combine(siblingDir, Constants.MarkerFile.ServerJson);
-
-                    if (File.Exists(siblingMarkerPath))
+                    if (siblingMarkers.Count == 1)
                     {
-                        markerPath = siblingMarkerPath;
-                        break;
-                    }
-
-                    if (File.Exists(siblingMarkerJsonPath))
-                    {
-                        markerPath = siblingMarkerJsonPath;
-                        break;
+                        markerPath = siblingMarkers[0];
                     }
                 }
             }
@@ -72,5 +106,45 @@ internal static class MarkerFileHelper
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Returns true when the parent of <paramref name="markerDirectory"/> contains more than one
+    /// sibling directory with an .atc-rest-api-server marker. Used by callers to detect ambiguous
+    /// auto-detection scenarios in monorepos with multiple Api.Contracts projects.
+    /// </summary>
+    public static bool HasMultipleSiblingServerMarkers(string markerDirectory)
+    {
+        if (string.IsNullOrEmpty(markerDirectory))
+        {
+            return false;
+        }
+
+        var parentDirectory = Path.GetDirectoryName(markerDirectory);
+        if (string.IsNullOrEmpty(parentDirectory) || !Directory.Exists(parentDirectory))
+        {
+            return false;
+        }
+
+        var count = 0;
+        foreach (var siblingDir in Directory.GetDirectories(parentDirectory))
+        {
+            if (siblingDir == markerDirectory)
+            {
+                continue;
+            }
+
+            if (File.Exists(Path.Combine(siblingDir, Constants.MarkerFile.Server)) ||
+                File.Exists(Path.Combine(siblingDir, Constants.MarkerFile.ServerJson)))
+            {
+                count++;
+                if (count > 1)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

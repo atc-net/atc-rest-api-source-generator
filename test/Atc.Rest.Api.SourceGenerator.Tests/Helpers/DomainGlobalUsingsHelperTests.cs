@@ -101,6 +101,101 @@ public class DomainGlobalUsingsHelperTests
         Assert.Contains("global using System.Threading.Tasks;", result);
     }
 
+    // ========== EnsureUpdated Tests ==========
+
+    [Fact]
+    public void EnsureUpdated_RemovesStaleGeneratedUsingsFromOtherRoot()
+    {
+        // Arrange — file has stale `OldRoot.Generated.*` entries from a previous (buggy)
+        // generator run, plus a hand-written using that must be preserved.
+        var tempDir = Path.Combine(Path.GetTempPath(), "EnsureUpdatedStale_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var globalUsingsPath = Path.Combine(tempDir, "GlobalUsings.cs");
+            var initialContent =
+                "global using System;\n" +
+                "global using OldRoot.Generated.Pets.Handlers;\n" +
+                "global using OldRoot.Generated.Pets.Results;\n" +
+                "global using NewRoot.Generated.Pets.Handlers;\n" +
+                "global using MyCompany.HandWritten.Helpers;\n";
+            File.WriteAllText(globalUsingsPath, initialContent);
+
+            var discoveredNamespaces = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "NewRoot.Generated.Pets.Handlers",
+            };
+            var doc = CreateOpenApiDocumentWithPaths("/pets");
+            var config = new ServerDomainConfig { Namespace = "MyApp.Api.Domain" };
+
+            // Act
+            DomainGlobalUsingsHelper.EnsureUpdated(
+                tempDir,
+                discoveredNamespaces,
+                "NewRoot",
+                ["Pets"],
+                doc,
+                config);
+
+            // Assert — stale OldRoot.Generated.* entries are pruned; hand-written usings preserved.
+            var rewritten = File.ReadAllText(globalUsingsPath);
+            Assert.DoesNotContain("OldRoot.Generated.Pets.Handlers", rewritten, StringComparison.Ordinal);
+            Assert.DoesNotContain("OldRoot.Generated.Pets.Results", rewritten, StringComparison.Ordinal);
+            Assert.Contains("NewRoot.Generated.Pets.Handlers", rewritten, StringComparison.Ordinal);
+            Assert.Contains("MyCompany.HandWritten.Helpers", rewritten, StringComparison.Ordinal);
+            Assert.Contains("global using System;", rewritten, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void EnsureUpdated_PreservesAliasAndStaticUsings()
+    {
+        // Arrange — alias and static usings reference {rootNamespace}.Generated.* but
+        // are intentional user constructs and must NEVER be pruned.
+        var tempDir = Path.Combine(Path.GetTempPath(), "EnsureUpdatedAlias_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var globalUsingsPath = Path.Combine(tempDir, "GlobalUsings.cs");
+            var initialContent =
+                "global using System;\n" +
+                "global using TaskModel = MultipartDemo.Generated.Tasks.Models.Task;\n" +
+                "global using static MultipartDemo.Generated.Constants;\n";
+            File.WriteAllText(globalUsingsPath, initialContent);
+
+            var doc = CreateOpenApiDocumentWithPaths("/pets");
+            var config = new ServerDomainConfig { Namespace = "MultipartDemo.Api.Domain" };
+
+            // Act — rootNamespace differs from the alias's RHS root, but aliases must survive.
+            DomainGlobalUsingsHelper.EnsureUpdated(
+                tempDir,
+                [],
+                "OtherRoot",
+                ["Pets"],
+                doc,
+                config);
+
+            // Assert — both alias and static usings preserved
+            var rewritten = File.ReadAllText(globalUsingsPath);
+            Assert.Contains("TaskModel = MultipartDemo.Generated.Tasks.Models.Task", rewritten, StringComparison.Ordinal);
+            Assert.Contains("static MultipartDemo.Generated.Constants", rewritten, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
     // ========== Helper Methods ==========
 
     private static OpenApiDocument CreateEmptyOpenApiDocument()
