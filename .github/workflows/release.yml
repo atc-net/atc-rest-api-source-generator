@@ -80,5 +80,5 @@ jobs:
       - name: 🌩️ ATC-API invalidate cache for CLI-Tool
         uses: satak/webrequest-action@master
         with:
-          url: https://atc-api.azurewebsites.net/nuget-search/package?packageId=atc-rest-api-gen&invalidateCache=true
+          url: https://atcnet-api-prod-api-ca-01.greenhill-862ffb7c.swedencentral.azurecontainerapps.io/nuget-search/package?packageId=atc-rest-api-gen&invalidateCache=true
           method: GET
