@@ -44,7 +44,8 @@ public sealed class AddressesEndpointDefinition : IEndpointDefinition
             .WithName("ListAddresses")
             .WithSummary("List addresses")
             .Produces<List<Address>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         addresses
             .MapPost("/", CreateAddress)
@@ -53,7 +54,8 @@ public sealed class AddressesEndpointDefinition : IEndpointDefinition
             .Produces<Address>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListAddresses(

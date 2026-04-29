@@ -24,9 +24,13 @@ public interface IDeleteOrderEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     ProblemDetails NotFoundContent { get; }
 
     ProblemDetails TooManyRequestsContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

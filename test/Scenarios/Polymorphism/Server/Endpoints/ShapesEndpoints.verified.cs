@@ -44,7 +44,8 @@ public sealed class ShapesEndpointDefinition : IEndpointDefinition
             .WithName("ListShapes")
             .WithSummary("List all shapes")
             .Produces<List<Shape>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListShapes(

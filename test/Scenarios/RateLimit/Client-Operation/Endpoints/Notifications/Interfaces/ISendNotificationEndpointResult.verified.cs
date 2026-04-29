@@ -26,6 +26,8 @@ public interface ISendNotificationEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails ConflictContent { get; }
@@ -33,4 +35,6 @@ public interface ISendNotificationEndpointResult : IEndpointResponse
     ProblemDetails TooManyRequestsContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

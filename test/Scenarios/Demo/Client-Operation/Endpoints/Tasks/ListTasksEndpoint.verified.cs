@@ -56,6 +56,7 @@ public sealed class ListTasksEndpoint : IListTasksEndpoint
         responseBuilder.AddSuccessResponse<IEnumerable<Task>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new ListTasksEndpointResult(x), cancellationToken);
     }
 }

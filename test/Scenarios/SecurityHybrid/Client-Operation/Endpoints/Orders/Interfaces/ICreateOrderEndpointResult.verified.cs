@@ -28,6 +28,8 @@ public interface ICreateOrderEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     Order CreatedContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
@@ -39,4 +41,6 @@ public interface ICreateOrderEndpointResult : IEndpointResponse
     ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

@@ -44,7 +44,8 @@ public sealed class SessionsEndpointDefinition : IEndpointDefinition
             .WithName("ListSessions")
             .WithSummary("List sessions with distributed cache")
             .Produces<List<Session>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListSessions(

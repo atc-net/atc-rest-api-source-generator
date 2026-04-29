@@ -49,6 +49,7 @@ public sealed class GetHealthEndpoint : IGetHealthEndpoint
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessResponse<HealthStatus>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new GetHealthEndpointResult(x), cancellationToken);
     }
 }

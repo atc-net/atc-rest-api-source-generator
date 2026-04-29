@@ -48,6 +48,7 @@ public sealed class MeEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("oidc")
                 .RequireAuthenticatedUser());
@@ -60,6 +61,7 @@ public sealed class MeEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("oidc")
                 .RequireAuthenticatedUser());

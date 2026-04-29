@@ -46,7 +46,8 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .WithSummary("List all pets")
             .Produces<List<Pet>>()
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         pets
             .MapPost("/", CreatePet)
@@ -55,7 +56,8 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .Produces<Pet>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         pets
             .MapGet("{petId}", GetPetById)
@@ -63,7 +65,8 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .WithSummary("Get a pet by ID")
             .Produces<Pet>()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         pets
             .MapPut("{petId}", UpdatePet)
@@ -73,7 +76,8 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         pets
             .MapDelete("{petId}", DeletePet)
@@ -81,7 +85,8 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .WithSummary("Delete a pet")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListPets(

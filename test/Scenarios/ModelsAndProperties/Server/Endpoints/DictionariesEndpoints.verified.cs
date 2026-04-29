@@ -44,7 +44,8 @@ public sealed class DictionariesEndpointDefinition : IEndpointDefinition
             .WithName("GetDictionaryTypes")
             .WithSummary("Get dictionary types model")
             .Produces<DictionaryTypes>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetDictionaryTypes(

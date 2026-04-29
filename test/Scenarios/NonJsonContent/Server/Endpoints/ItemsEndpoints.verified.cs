@@ -44,7 +44,8 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .WithName("ListItems")
             .WithSummary("List items as JSON")
             .Produces<List<Item>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListItems(

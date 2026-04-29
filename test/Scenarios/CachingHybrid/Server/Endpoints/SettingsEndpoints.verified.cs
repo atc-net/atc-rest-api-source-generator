@@ -44,7 +44,8 @@ public sealed class SettingsEndpointDefinition : IEndpointDefinition
             .WithName("GetSettings")
             .WithSummary("Get settings with in-memory cache only")
             .Produces<Settings>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetSettings(

@@ -47,7 +47,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .Produces<User>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         users
             .MapGet("{userId}", GetUserById)
@@ -56,7 +57,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .Produces<User>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> CreateUser(

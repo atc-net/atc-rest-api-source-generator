@@ -56,6 +56,7 @@ public sealed class ListAccountsEndpoint : IListAccountsEndpoint
         responseBuilder.AddSuccessResponse<IEnumerable<Account>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new ListAccountsEndpointResult(x), cancellationToken);
     }
 }

@@ -61,6 +61,7 @@ public sealed class UploadFormDataFilesEndpoint : IUploadFormDataFilesEndpoint
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new UploadFormDataFilesEndpointResult(x), cancellationToken);
     }
 }

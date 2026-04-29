@@ -43,7 +43,8 @@ public sealed class CountriesEndpointDefinition : IEndpointDefinition
             .WithName("ListCountries")
             .WithSummary("List countries")
             .Produces<List<Country>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListCountries(

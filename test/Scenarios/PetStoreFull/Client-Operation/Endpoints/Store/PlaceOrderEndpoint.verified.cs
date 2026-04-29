@@ -55,6 +55,7 @@ public sealed class PlaceOrderEndpoint : IPlaceOrderEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.UnprocessableEntity);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new PlaceOrderEndpointResult(x), cancellationToken);
     }
 }

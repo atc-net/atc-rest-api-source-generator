@@ -24,6 +24,8 @@ public interface ICreateOwnerEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     Owner CreatedContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
@@ -31,4 +33,6 @@ public interface ICreateOwnerEndpointResult : IEndpointResponse
     ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

@@ -44,7 +44,8 @@ public sealed class NullablesEndpointDefinition : IEndpointDefinition
             .WithName("GetNullables")
             .WithSummary("Get nullable types model")
             .Produces<NullableTypes>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetNullables(

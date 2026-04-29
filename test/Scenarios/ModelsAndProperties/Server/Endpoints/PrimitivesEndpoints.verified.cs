@@ -44,7 +44,8 @@ public sealed class PrimitivesEndpointDefinition : IEndpointDefinition
             .WithName("GetPrimitiveTypes")
             .WithSummary("Get primitive types model")
             .Produces<PrimitiveTypes>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetPrimitiveTypes(

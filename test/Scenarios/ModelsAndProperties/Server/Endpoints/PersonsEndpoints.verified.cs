@@ -46,7 +46,8 @@ public sealed class PersonsEndpointDefinition : IEndpointDefinition
             .WithSummary("List persons")
             .Produces<List<Person>>()
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListPersons(

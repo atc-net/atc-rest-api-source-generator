@@ -24,6 +24,8 @@ public interface IGenerateReportEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     ReportJob AcceptedContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
@@ -31,4 +33,6 @@ public interface IGenerateReportEndpointResult : IEndpointResponse
     ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

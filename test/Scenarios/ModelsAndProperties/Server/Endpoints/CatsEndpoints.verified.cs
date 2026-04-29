@@ -44,7 +44,8 @@ public sealed class CatsEndpointDefinition : IEndpointDefinition
             .WithName("ListCats")
             .WithSummary("List cats")
             .Produces<List<Cat>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListCats(

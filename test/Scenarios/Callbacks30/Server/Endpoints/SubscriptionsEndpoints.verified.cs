@@ -47,7 +47,8 @@ public sealed class SubscriptionsEndpointDefinition : IEndpointDefinition
             .Produces<Subscription>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         subscriptions
             .MapDelete("{subscriptionId}", DeleteSubscription)
@@ -56,7 +57,8 @@ public sealed class SubscriptionsEndpointDefinition : IEndpointDefinition
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> CreateSubscription(

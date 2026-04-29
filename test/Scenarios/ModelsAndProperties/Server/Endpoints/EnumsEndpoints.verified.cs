@@ -44,7 +44,8 @@ public sealed class EnumsEndpointDefinition : IEndpointDefinition
             .WithName("GetEnumTypes")
             .WithSummary("Get enum types model")
             .Produces<EnumTypes>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetEnumTypes(

@@ -50,6 +50,7 @@ public sealed class ListProductsEndpoint : IListProductsEndpoint
         responseBuilder.AddSuccessResponse<IEnumerable<Product>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Unauthorized);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new ListProductsEndpointResult(x), cancellationToken);
     }
 }

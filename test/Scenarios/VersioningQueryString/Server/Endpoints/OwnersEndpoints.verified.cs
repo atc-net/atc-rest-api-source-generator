@@ -45,7 +45,8 @@ public sealed class OwnersEndpointDefinition : IEndpointDefinition
             .WithName("ListOwners")
             .WithSummary("List all owners")
             .Produces<List<Owner>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         owners
             .MapPost("/", CreateOwner)
@@ -54,7 +55,8 @@ public sealed class OwnersEndpointDefinition : IEndpointDefinition
             .Produces<Owner>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         owners
             .MapGet("{ownerId}", GetOwnerById)
@@ -62,7 +64,8 @@ public sealed class OwnersEndpointDefinition : IEndpointDefinition
             .WithSummary("Get an owner by ID")
             .Produces<Owner>()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListOwners(

@@ -44,7 +44,8 @@ public sealed class EmployeesEndpointDefinition : IEndpointDefinition
             .WithName("ListEmployees")
             .WithSummary("List employees")
             .Produces<List<Employee>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListEmployees(

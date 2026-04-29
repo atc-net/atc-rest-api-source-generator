@@ -50,6 +50,7 @@ public sealed class GetInventoryEndpoint : IGetInventoryEndpoint
         responseBuilder.AddSuccessResponse<object>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Unauthorized);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new GetInventoryEndpointResult(x), cancellationToken);
     }
 }

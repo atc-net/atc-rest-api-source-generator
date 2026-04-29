@@ -49,6 +49,7 @@ public sealed class AdminEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .RequireRole("admin")
                 .AddAuthenticationSchemes("Bearer"));
@@ -63,6 +64,7 @@ public sealed class AdminEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .RequireRole("admin")
                 .AddAuthenticationSchemes("Bearer"));

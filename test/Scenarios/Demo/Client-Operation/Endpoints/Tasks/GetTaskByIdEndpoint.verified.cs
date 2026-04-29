@@ -54,6 +54,7 @@ public sealed class GetTaskByIdEndpoint : IGetTaskByIdEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new GetTaskByIdEndpointResult(x), cancellationToken);
     }
 }

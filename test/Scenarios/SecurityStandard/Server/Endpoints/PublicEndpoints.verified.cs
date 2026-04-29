@@ -45,6 +45,7 @@ public sealed class PublicEndpointDefinition : IEndpointDefinition
             .WithSummary("Health check (public)")
             .Produces<HealthStatus>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .AllowAnonymous();
     }
 

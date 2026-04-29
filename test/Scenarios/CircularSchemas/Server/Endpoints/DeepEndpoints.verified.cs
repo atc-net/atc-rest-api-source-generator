@@ -44,7 +44,8 @@ public sealed class DeepEndpointDefinition : IEndpointDefinition
             .WithName("GetDeepChain")
             .WithSummary("Get deeply nested structure")
             .Produces<Level1>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetDeepChain(

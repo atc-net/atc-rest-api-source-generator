@@ -28,6 +28,8 @@ public interface IDeleteResourceEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     ProblemDetails UnauthorizedContent { get; }
 
     ProblemDetails ForbiddenContent { get; }
@@ -37,4 +39,6 @@ public interface IDeleteResourceEndpointResult : IEndpointResponse
     ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

@@ -47,7 +47,8 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
             .Produces<ReportJob>(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GenerateReport(

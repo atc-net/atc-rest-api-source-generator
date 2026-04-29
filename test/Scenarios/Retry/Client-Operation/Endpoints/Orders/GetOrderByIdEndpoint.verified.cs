@@ -53,6 +53,7 @@ public sealed class GetOrderByIdEndpoint : IGetOrderByIdEndpoint
         responseBuilder.AddSuccessResponse<Order>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new GetOrderByIdEndpointResult(x), cancellationToken);
     }
 }

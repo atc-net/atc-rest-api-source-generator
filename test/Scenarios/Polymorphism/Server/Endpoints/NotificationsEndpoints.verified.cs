@@ -47,14 +47,16 @@ public sealed class NotificationsEndpointDefinition : IEndpointDefinition
             .Produces(StatusCodes.Status202Accepted)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         notifications
             .MapGet("/", ListNotifications)
             .WithName("ListNotifications")
             .WithSummary("List all notifications")
             .Produces<List<Notification>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> SendNotification(

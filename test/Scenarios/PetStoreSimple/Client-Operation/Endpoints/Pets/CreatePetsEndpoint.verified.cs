@@ -50,6 +50,7 @@ public sealed class CreatePetsEndpoint : ICreatePetsEndpoint
         responseBuilder.AddSuccessResponse(HttpStatusCode.Created);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new CreatePetsEndpointResult(x), cancellationToken);
     }
 }

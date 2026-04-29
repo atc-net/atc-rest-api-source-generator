@@ -24,6 +24,8 @@ public interface ICreatePaymentEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     PaymentMethod CreatedContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
@@ -31,4 +33,6 @@ public interface ICreatePaymentEndpointResult : IEndpointResponse
     ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

@@ -47,6 +47,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .Produces<List<Order>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization();
 
         orders
@@ -58,6 +59,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization();
 
         orders
@@ -69,6 +71,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy.RequireRole("manager"));
 
         orders
@@ -80,6 +83,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy.RequireRole("admin"));
 
         orders
@@ -89,6 +93,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .Produces<TrackingInfo>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .AllowAnonymous();
     }
 

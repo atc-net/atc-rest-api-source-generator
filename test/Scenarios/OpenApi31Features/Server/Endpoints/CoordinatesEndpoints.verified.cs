@@ -44,14 +44,16 @@ public sealed class CoordinatesEndpointDefinition : IEndpointDefinition
             .WithName("GetCoordinates")
             .WithSummary("Get coordinates")
             .Produces<Coordinate>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         coordinates
             .MapGet("list", ListCoordinates)
             .WithName("ListCoordinates")
             .WithSummary("List all coordinates")
             .Produces<List<Coordinate>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetCoordinates(

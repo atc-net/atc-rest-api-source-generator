@@ -48,6 +48,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .Produces<List<User>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("bearer_auth")
                 .RequireAuthenticatedUser());
@@ -61,6 +62,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("bearer_auth")
                 .RequireAuthenticatedUser());

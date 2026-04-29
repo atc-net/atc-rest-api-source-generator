@@ -49,6 +49,7 @@ public sealed class ListPaymentsEndpoint : IListPaymentsEndpoint
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessResponse<IEnumerable<PaymentMethod>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new ListPaymentsEndpointResult(x), cancellationToken);
     }
 }

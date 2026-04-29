@@ -388,6 +388,9 @@ public static class ResultClassExtractor
             case "500":
                 methods.Add(GenerateInternalServerErrorMethod(className, description, contentType));
                 break;
+            case "504":
+                methods.Add(GenerateGatewayTimeoutMethod(className, description, contentType));
+                break;
             default:
             {
                 if (statusCode.Equals("default", StringComparison.OrdinalIgnoreCase))
@@ -1089,6 +1092,38 @@ public static class ResultClassExtractor
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
             Content: $"new(\n        error is null\n            ? TypedResults.StatusCode(500)\n            : TypedResults.Json(error, statusCode: 500))");
+    }
+
+    private static MethodParameters GenerateGatewayTimeoutMethod(
+        string className,
+        string description,
+        string? contentType)
+    {
+        var doc = new CodeDocumentationTags($"504 Gateway Timeout - {description}");
+        var errorTypeName = !string.IsNullOrEmpty(contentType) ? contentType : "ProblemDetails";
+
+        return new MethodParameters(
+            DocumentationTags: doc,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.PublicStatic,
+            ReturnGenericTypeName: null,
+            ReturnTypeName: className,
+            Name: "GatewayTimeout",
+            Parameters: new List<ParameterBaseParameters>
+            {
+                new(
+                    Attributes: null,
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: errorTypeName!,
+                    IsNullableType: true,
+                    IsReferenceType: true,
+                    Name: "error",
+                    DefaultValue: "null"),
+            },
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: true,
+            Content: $"new(\n        error is null\n            ? TypedResults.StatusCode(504)\n            : TypedResults.Json(error, statusCode: 504))");
     }
 
     private static MethodParameters GenerateGenericStatusCodeMethod(

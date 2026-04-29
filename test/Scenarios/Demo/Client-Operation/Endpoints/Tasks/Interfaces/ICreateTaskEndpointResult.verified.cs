@@ -24,6 +24,8 @@ public interface ICreateTaskEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     Task CreatedContent { get; }
 
     ProblemDetails ConflictContent { get; }
@@ -31,4 +33,6 @@ public interface ICreateTaskEndpointResult : IEndpointResponse
     ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

@@ -24,9 +24,13 @@ public interface ICreateTestItemWithLocationHeaderEndpointResult : IEndpointResp
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

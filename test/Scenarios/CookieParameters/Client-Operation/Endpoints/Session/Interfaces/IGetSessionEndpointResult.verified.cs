@@ -24,6 +24,8 @@ public interface IGetSessionEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     Session OkContent { get; }
 
     ProblemDetails UnauthorizedContent { get; }
@@ -31,4 +33,6 @@ public interface IGetSessionEndpointResult : IEndpointResponse
     ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

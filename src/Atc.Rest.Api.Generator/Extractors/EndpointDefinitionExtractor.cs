@@ -1481,6 +1481,14 @@ using Microsoft.AspNetCore.Builder;
             builder.AppendLine();
             builder.Append("    .ProducesProblem(StatusCodes.Status500InternalServerError)");
         }
+
+        // 504 - Always add if not defined (GlobalErrorHandler maps TimeoutException
+        // and OperationCanceledException to 504 Gateway Timeout)
+        if (!definedCodes.Contains("504") && !definedCodes.Contains("default"))
+        {
+            builder.AppendLine();
+            builder.Append("    .ProducesProblem(StatusCodes.Status504GatewayTimeout)");
+        }
     }
 
     private static MethodParameters GenerateEndpointMethod(

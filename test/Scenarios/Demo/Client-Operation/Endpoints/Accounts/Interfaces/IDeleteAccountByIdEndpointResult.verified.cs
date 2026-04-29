@@ -24,9 +24,13 @@ public interface IDeleteAccountByIdEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     ProblemDetails NotFoundContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

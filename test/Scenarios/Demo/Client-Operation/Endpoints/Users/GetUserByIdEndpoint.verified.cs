@@ -53,6 +53,7 @@ public sealed class GetUserByIdEndpoint : IGetUserByIdEndpoint
         responseBuilder.AddSuccessResponse<User>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new GetUserByIdEndpointResult(x), cancellationToken);
     }
 }

@@ -47,7 +47,8 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .WithSummary("List products")
             .Produces<List<Product>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         products
             .MapGet("{productId}", GetProductById)
@@ -58,6 +59,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy.RequireRole("manager", "admin"));
     }
 

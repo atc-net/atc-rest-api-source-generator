@@ -24,6 +24,8 @@ public interface ICreatePetEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     Pet CreatedContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
@@ -31,4 +33,6 @@ public interface ICreatePetEndpointResult : IEndpointResponse
     ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

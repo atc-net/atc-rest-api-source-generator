@@ -44,7 +44,8 @@ public sealed class PeopleEndpointDefinition : IEndpointDefinition
             .WithName("ListPeople")
             .WithSummary("List people")
             .Produces<List<Person>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         people
             .MapPost("/", CreatePerson)
@@ -53,7 +54,8 @@ public sealed class PeopleEndpointDefinition : IEndpointDefinition
             .Produces<Person>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListPeople(

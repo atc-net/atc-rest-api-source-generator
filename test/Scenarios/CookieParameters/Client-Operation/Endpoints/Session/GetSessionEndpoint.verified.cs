@@ -53,6 +53,7 @@ public sealed class GetSessionEndpoint : IGetSessionEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Unauthorized);
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new GetSessionEndpointResult(x), cancellationToken);
     }
 }

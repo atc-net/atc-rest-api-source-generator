@@ -45,7 +45,8 @@ public sealed class ShapesEndpointDefinition : IEndpointDefinition
             .WithName("ListShapes")
             .WithSummary("List all shapes")
             .Produces<List<Shape>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         shapes
             .MapPost("/", CreateShape)
@@ -54,7 +55,8 @@ public sealed class ShapesEndpointDefinition : IEndpointDefinition
             .Produces<Shape>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListShapes(
