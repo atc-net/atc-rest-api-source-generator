@@ -15,6 +15,7 @@ public partial class ExceptionTesting
         new(8, "ValidationException", "ValidationException - 400 Bad Request", 400),
         new(9, "KeyNotFoundException", "KeyNotFoundException - 500 Internal Server Error (default)", 500),
         new(10, "NullReferenceException", "NullReferenceException - 500 Internal Server Error", 500),
+        new(11, "TaskCanceledException", "TaskCanceledException - 504 Gateway Timeout", 504),
     ];
 
     private readonly List<TestResult> testResults = [];
