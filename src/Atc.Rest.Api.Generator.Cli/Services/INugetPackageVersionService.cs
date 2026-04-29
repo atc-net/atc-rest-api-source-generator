@@ -3,7 +3,7 @@ namespace Atc.Rest.Api.Generator.Cli.Services;
 /// <summary>
 /// Service for looking up the latest NuGet package versions from the ATC API.
 /// </summary>
-internal interface INugetPackageVersionService
+public interface INugetPackageVersionService
 {
     /// <summary>
     /// Gets the latest version of a NuGet package.

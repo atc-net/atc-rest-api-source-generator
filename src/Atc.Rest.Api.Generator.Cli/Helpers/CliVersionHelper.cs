@@ -11,15 +11,24 @@ public static class CliVersionHelper
     /// Gets the latest available version from NuGet.
     /// </summary>
     /// <returns>The latest version, or null if unavailable.</returns>
-    public static Version? GetLatestVersion()
-        => NugetApiClientHelper.GetLatestVersionForPackageId(PackageId);
+    public static Task<Version?> GetLatestVersionAsync(
+        INugetPackageVersionService nugetService,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(nugetService);
+        return nugetService.GetLatestVersionAsync(PackageId, cancellationToken);
+    }
 
     /// <summary>
     /// Checks if the current version is the latest available.
     /// </summary>
     /// <returns>True if current version is latest or if check fails.</returns>
-    public static bool IsLatestVersion()
+    public static async Task<bool> IsLatestVersionAsync(
+        INugetPackageVersionService nugetService,
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(nugetService);
+
         var currentVersion = CliHelper.GetCurrentVersion();
 
         // Skip check for development versions
@@ -28,7 +37,7 @@ public static class CliVersionHelper
             return true;
         }
 
-        var latestVersion = GetLatestVersion();
+        var latestVersion = await nugetService.GetLatestVersionAsync(PackageId, cancellationToken);
         return latestVersion is null ||
                !latestVersion.GreaterThan(currentVersion);
     }

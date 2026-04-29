@@ -7,6 +7,12 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 public sealed class GenerateServerCommand : Command<GenerateServerCommandSettings>
 {
     private readonly ProjectScaffoldingService scaffoldingService = new();
+    private readonly INugetPackageVersionService nugetService;
+
+    public GenerateServerCommand(INugetPackageVersionService nugetService)
+    {
+        this.nugetService = nugetService;
+    }
 
     protected override int Execute(
         CommandContext context,
@@ -126,8 +132,10 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             {
                 // Step 0: Resolve package version from NuGet (with fallback)
                 ctx.Status("Resolving package versions...");
-                var sourceGeneratorVersion = NugetApiClientHelper.GetLatestVersionForPackageId(
-                    PackageVersionDefaults.SourceGeneratorPackageId) ?? PackageVersionDefaults.SourceGeneratorFallback;
+                var sourceGeneratorVersion = TaskHelper.RunSync(() => nugetService.GetLatestVersionOrFallbackAsync(
+                    PackageVersionDefaults.SourceGeneratorPackageId,
+                    PackageVersionDefaults.SourceGeneratorFallback,
+                    cancellationToken));
 
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");

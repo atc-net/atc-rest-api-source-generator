@@ -6,6 +6,13 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
 public sealed class GenerateClientCommand : Command<GenerateClientCommandSettings>
 {
+    private readonly INugetPackageVersionService nugetService;
+
+    public GenerateClientCommand(INugetPackageVersionService nugetService)
+    {
+        this.nugetService = nugetService;
+    }
+
     protected override int Execute(
         CommandContext context,
         GenerateClientCommandSettings settings,
@@ -59,10 +66,14 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             {
                 // Step 0: Resolve package versions from NuGet (with fallback)
                 ctx.Status("Resolving package versions...");
-                var sourceGeneratorVersion = NugetApiClientHelper.GetLatestVersionForPackageId(
-                    PackageVersionDefaults.SourceGeneratorPackageId) ?? PackageVersionDefaults.SourceGeneratorFallback;
-                var restClientVersion = NugetApiClientHelper.GetLatestVersionForPackageId(
-                    PackageVersionDefaults.RestClientPackageId) ?? PackageVersionDefaults.RestClientMinFallback;
+                var sourceGeneratorVersion = TaskHelper.RunSync(() => nugetService.GetLatestVersionOrFallbackAsync(
+                    PackageVersionDefaults.SourceGeneratorPackageId,
+                    PackageVersionDefaults.SourceGeneratorFallback,
+                    cancellationToken));
+                var restClientVersion = TaskHelper.RunSync(() => nugetService.GetLatestVersionOrFallbackAsync(
+                    PackageVersionDefaults.RestClientPackageId,
+                    PackageVersionDefaults.RestClientMinFallback,
+                    cancellationToken));
 
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");
@@ -79,8 +90,10 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 Version? resilienceVersion = null;
                 if (parsedDocument is not null && parsedDocument.HasRetryConfiguration())
                 {
-                    resilienceVersion = NugetApiClientHelper.GetLatestVersionForPackageId(
-                        PackageVersionDefaults.ResiliencePackageId) ?? PackageVersionDefaults.ResilienceMinFallback;
+                    resilienceVersion = TaskHelper.RunSync(() => nugetService.GetLatestVersionOrFallbackAsync(
+                        PackageVersionDefaults.ResiliencePackageId,
+                        PackageVersionDefaults.ResilienceMinFallback,
+                        cancellationToken));
                 }
 
                 // Step 2: Check for conflicting project files in output directory
