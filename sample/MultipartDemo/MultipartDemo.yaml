@@ -805,6 +805,7 @@ paths:
         - 8: ValidationException (DataAnnotations) → 400 Bad Request
         - 9: KeyNotFoundException → 500 Internal Server Error (default)
         - 10: NullReferenceException → 500 Internal Server Error
+        - 11: TaskCanceledException → 504 Gateway Timeout
       operationId: getExceptionTest
       tags:
         - testing
@@ -815,13 +816,13 @@ paths:
           in: path
           required: true
           description: |
-            The exception code to throw (0-10).
+            The exception code to throw (0-11).
             Code 0 returns success, other codes throw specific exceptions.
           schema:
             type: integer
             format: int32
             minimum: 0
-            maximum: 10
+            maximum: 11
       responses:
         '200':
           description: Success response (when code is 0)

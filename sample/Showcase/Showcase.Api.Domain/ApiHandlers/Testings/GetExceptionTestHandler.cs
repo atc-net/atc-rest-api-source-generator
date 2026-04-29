@@ -41,6 +41,7 @@ public sealed class GetExceptionTestHandler : IGetExceptionTestHandler
             8 => ThrowValidationException(),
             9 => ThrowKeyNotFoundException(),
             10 => ThrowNullReferenceException(),
+            11 => ThrowTaskCanceledException(),
             _ => Task.FromResult(GetExceptionTestResult.NotFound()),
         };
     }
@@ -84,4 +85,7 @@ public sealed class GetExceptionTestHandler : IGetExceptionTestHandler
 
     private static Task<GetExceptionTestResult> ThrowNullReferenceException()
         => throw new NullReferenceException("Null Reference Exception (code 10) - This maps to 500 Internal Server Error");
+
+    private static Task<GetExceptionTestResult> ThrowTaskCanceledException()
+        => throw new TaskCanceledException("Task Canceled Exception (code 11) - This maps to 504 Gateway Timeout");
 }
