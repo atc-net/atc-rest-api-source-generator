@@ -110,6 +110,7 @@ public class DomainGlobalUsingsHelperTests
         // generator run, plus a hand-written using that must be preserved.
         var tempDir = Path.Combine(Path.GetTempPath(), "EnsureUpdatedStale_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
+
         try
         {
             var globalUsingsPath = Path.Combine(tempDir, "GlobalUsings.cs");
@@ -119,6 +120,7 @@ public class DomainGlobalUsingsHelperTests
                 "global using OldRoot.Generated.Pets.Results;\n" +
                 "global using NewRoot.Generated.Pets.Handlers;\n" +
                 "global using MyCompany.HandWritten.Helpers;\n";
+
             File.WriteAllText(globalUsingsPath, initialContent);
 
             var discoveredNamespaces = new HashSet<string>(StringComparer.Ordinal)
@@ -144,6 +146,66 @@ public class DomainGlobalUsingsHelperTests
             Assert.Contains("NewRoot.Generated.Pets.Handlers", rewritten, StringComparison.Ordinal);
             Assert.Contains("MyCompany.HandWritten.Helpers", rewritten, StringComparison.Ordinal);
             Assert.Contains("global using System;", rewritten, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void EnsureUpdated_PreservesThirdPartyGeneratedNamespaces()
+    {
+        // Arrange — file has hand-written global usings that point into third-party API
+        // client packages whose namespaces contain `.Generated.` (e.g. NSwag/Refit-style
+        // generated clients). These differ from the project's `rootNamespace` but are not
+        // stale generator output and must be preserved. Regression for the case where
+        // `KL.IoT.Insights.ApiClient.Generated.Endpoints.Accounts` was being pruned even
+        // though it never originated from this generator.
+        var tempDir = Path.Combine(Path.GetTempPath(), "EnsureUpdatedThirdParty_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var globalUsingsPath = Path.Combine(tempDir, "GlobalUsings.cs");
+            var initialContent =
+                "global using System;\n" +
+                "global using ThirdParty.Client.Generated.Endpoints.Accounts;\n" +
+                "global using ThirdParty.Client.Generated.Endpoints.Accounts.Interfaces;\n" +
+                "global using ThirdParty.Client.Generated.Devices.Endpoints.Interfaces;\n" +
+                "global using ThirdParty.Client.Generated;\n" +
+
+                // Deeper third-party namespaces whose terminal segment matches one of the
+                // suffixes this helper owns. Without the single-segment constraint between
+                // `.Generated.` and the suffix, these would be incorrectly pruned.
+                "global using Vendor.Pkg.Generated.Foo.Bar.Handlers;\n" +
+                "global using Vendor.Pkg.Generated.Foo.Bar.Models;\n";
+            File.WriteAllText(globalUsingsPath, initialContent);
+
+            var doc = CreateOpenApiDocumentWithPaths("/pets");
+            var config = new ServerDomainConfig { Namespace = "MyApp.Api.Domain" };
+
+            // Act — rootNamespace differs from `ThirdParty.Client`, but none of these
+            // entries match the {root}.Generated.{Segment}.{Handlers|Parameters|Results|Models}
+            // shape the generator owns, so they must survive.
+            DomainGlobalUsingsHelper.EnsureUpdated(
+                tempDir,
+                [],
+                "MyApp",
+                ["Pets"],
+                doc,
+                config);
+
+            // Assert — every third-party using preserved
+            var rewritten = File.ReadAllText(globalUsingsPath);
+            Assert.Contains("ThirdParty.Client.Generated.Endpoints.Accounts;", rewritten, StringComparison.Ordinal);
+            Assert.Contains("ThirdParty.Client.Generated.Endpoints.Accounts.Interfaces;", rewritten, StringComparison.Ordinal);
+            Assert.Contains("ThirdParty.Client.Generated.Devices.Endpoints.Interfaces;", rewritten, StringComparison.Ordinal);
+            Assert.Contains("ThirdParty.Client.Generated;", rewritten, StringComparison.Ordinal);
+            Assert.Contains("Vendor.Pkg.Generated.Foo.Bar.Handlers;", rewritten, StringComparison.Ordinal);
+            Assert.Contains("Vendor.Pkg.Generated.Foo.Bar.Models;", rewritten, StringComparison.Ordinal);
         }
         finally
         {

@@ -90,11 +90,27 @@ internal static class DomainGlobalUsingsHelper
     }
 
     /// <summary>
-    /// Returns true for `global using {someRoot}.Generated.{...};` lines whose `{someRoot}`
-    /// differs from the current <paramref name="rootNamespace"/>. Such entries originated
-    /// from a previous (buggy or reconfigured) generator run and now point at a namespace
-    /// that no longer exists in the contracts assembly. Hand-written usings, alias usings
-    /// (`global using X = Y;`), and `static` usings are not pruned.
+    /// Suffixes this helper emits via <see cref="PathSegmentHelper.GetSegmentUsings"/>.
+    /// Stale-detection is restricted to entries that match one of these shapes; any other
+    /// `.Generated.*` namespace (e.g. third-party API client packages whose namespace
+    /// contains `.Generated.` — `KL.IoT.Insights.ApiClient.Generated.Endpoints.Accounts`)
+    /// is treated as hand-written and left alone.
+    /// </summary>
+    private static readonly string[] GeneratedSuffixes =
+    [
+        ".Handlers",
+        ".Parameters",
+        ".Results",
+        ".Models",
+    ];
+
+    /// <summary>
+    /// Returns true for `global using {someRoot}.Generated.{Segment}.{Handlers|Parameters|Results|Models};`
+    /// lines whose `{someRoot}` differs from the current <paramref name="rootNamespace"/>.
+    /// Such entries originated from a previous (buggy or reconfigured) generator run and now
+    /// point at a namespace that no longer exists in the contracts assembly. Hand-written
+    /// usings, alias usings (`global using X = Y;`), `static` usings, and third-party
+    /// namespaces that merely contain `.Generated.` in their path are not pruned.
     /// </summary>
     private static bool IsStaleGeneratedUsing(
         string globalUsingLine,
@@ -124,11 +140,42 @@ internal static class DomainGlobalUsingsHelper
             return false;
         }
 
-        // Only consider entries shaped like `{someRoot}.Generated.{...}` — that's the
-        // shape this helper owns. Anything else (hand-written usings, third-party
-        // namespaces) is left alone.
-        var generatedIndex = ns.IndexOf(".Generated.", StringComparison.Ordinal);
+        // Only consider entries shaped *exactly* like `{someRoot}.Generated.{Segment}.{Suffix}`
+        // — that is the shape `PathSegmentHelper.GetSegmentUsings` emits. Both the `.Generated.`
+        // infix AND a known terminal suffix must match, AND the part between them must be a
+        // single dot-free segment. Anything deeper (e.g. `Vendor.Pkg.Generated.Foo.Bar.Handlers`)
+        // is third-party and must survive even if the suffix happens to match.
+        const string generatedInfix = ".Generated.";
+        var generatedIndex = ns.IndexOf(generatedInfix, StringComparison.Ordinal);
         if (generatedIndex < 0)
+        {
+            return false;
+        }
+
+        string? matchedSuffix = null;
+        foreach (var suffix in GeneratedSuffixes)
+        {
+            if (ns.EndsWith(suffix, StringComparison.Ordinal))
+            {
+                matchedSuffix = suffix;
+                break;
+            }
+        }
+
+        if (matchedSuffix is null)
+        {
+            return false;
+        }
+
+        var middleStart = generatedIndex + generatedInfix.Length;
+        var middleLength = ns.Length - middleStart - matchedSuffix.Length;
+        if (middleLength <= 0)
+        {
+            return false;
+        }
+
+        var middle = ns.Substring(middleStart, middleLength);
+        if (middle.IndexOf('.') >= 0)
         {
             return false;
         }
