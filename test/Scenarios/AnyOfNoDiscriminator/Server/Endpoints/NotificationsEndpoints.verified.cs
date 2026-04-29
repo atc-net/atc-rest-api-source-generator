@@ -44,7 +44,8 @@ public sealed class NotificationsEndpointDefinition : IEndpointDefinition
             .WithName("ListNotifications")
             .WithSummary("List notifications of mixed types")
             .Produces<List<Notification>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListNotifications(

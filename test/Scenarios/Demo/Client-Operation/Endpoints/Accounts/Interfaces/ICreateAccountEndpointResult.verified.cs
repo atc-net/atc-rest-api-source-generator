@@ -24,6 +24,8 @@ public interface ICreateAccountEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     Account CreatedContent { get; }
 
     ProblemDetails ConflictContent { get; }
@@ -31,4 +33,6 @@ public interface ICreateAccountEndpointResult : IEndpointResponse
     ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

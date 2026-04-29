@@ -50,6 +50,7 @@ public sealed class ListUsersEndpoint : IListUsersEndpoint
         responseBuilder.AddSuccessResponse<IEnumerable<User>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Unauthorized);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new ListUsersEndpointResult(x), cancellationToken);
     }
 }

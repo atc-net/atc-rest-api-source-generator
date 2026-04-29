@@ -45,7 +45,8 @@ public sealed class PaymentsEndpointDefinition : IEndpointDefinition
             .WithName("ListPayments")
             .WithSummary("List all payments")
             .Produces<List<PaymentMethod>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         payments
             .MapPost("/", CreatePayment)
@@ -54,7 +55,8 @@ public sealed class PaymentsEndpointDefinition : IEndpointDefinition
             .Produces<PaymentMethod>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         payments
             .MapGet("{paymentId}", GetPaymentById)
@@ -62,7 +64,8 @@ public sealed class PaymentsEndpointDefinition : IEndpointDefinition
             .WithSummary("Get a specific payment")
             .Produces<PaymentMethod>()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListPayments(

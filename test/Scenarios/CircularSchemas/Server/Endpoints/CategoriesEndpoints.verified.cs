@@ -44,7 +44,8 @@ public sealed class CategoriesEndpointDefinition : IEndpointDefinition
             .WithName("ListCategories")
             .WithSummary("List categories with mutual references")
             .Produces<List<Category>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListCategories(

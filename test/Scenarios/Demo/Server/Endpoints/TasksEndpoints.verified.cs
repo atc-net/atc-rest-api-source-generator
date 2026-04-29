@@ -46,7 +46,8 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .WithSummary("List all tasks")
             .Produces<List<Demo.Generated.Tasks.Models.Task>>()
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         tasks
             .MapPost("/", CreateTask)
@@ -55,7 +56,8 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .Produces<Demo.Generated.Tasks.Models.Task>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         tasks
             .MapGet("{taskId}", GetTaskById)
@@ -64,7 +66,8 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .Produces<Demo.Generated.Tasks.Models.Task>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         tasks
             .MapDelete("{taskId}", DeleteTaskById)
@@ -73,7 +76,8 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         tasks
             .MapPut("{taskId}", UpdateTaskById)
@@ -83,7 +87,8 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async System.Threading.Tasks.Task<IResult> ListTasks(

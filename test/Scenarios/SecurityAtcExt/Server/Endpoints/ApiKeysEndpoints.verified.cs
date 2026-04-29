@@ -47,6 +47,7 @@ public sealed class ApiKeysEndpointDefinition : IEndpointDefinition
             .Produces<List<ApiKey>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("Bearer", "ApiKey")
                 .RequireAuthenticatedUser());

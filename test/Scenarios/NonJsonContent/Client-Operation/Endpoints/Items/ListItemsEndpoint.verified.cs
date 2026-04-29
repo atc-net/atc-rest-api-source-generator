@@ -49,6 +49,7 @@ public sealed class ListItemsEndpoint : IListItemsEndpoint
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessResponse<IEnumerable<Item>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new ListItemsEndpointResult(x), cancellationToken);
     }
 }

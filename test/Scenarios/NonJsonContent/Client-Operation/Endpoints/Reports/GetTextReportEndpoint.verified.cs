@@ -49,6 +49,7 @@ public sealed class GetTextReportEndpoint : IGetTextReportEndpoint
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessTextResponse(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new GetTextReportEndpointResult(x), cancellationToken);
     }
 }

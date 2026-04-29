@@ -24,6 +24,8 @@ public interface ICreateTestItemWithModelEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     TestItem CreatedContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
@@ -31,4 +33,6 @@ public interface ICreateTestItemWithModelEndpointResult : IEndpointResponse
     ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

@@ -44,7 +44,8 @@ public sealed class DefaultsEndpointDefinition : IEndpointDefinition
             .WithName("GetDefaults")
             .WithSummary("Get default values model")
             .Produces<DefaultValues>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetDefaults(

@@ -44,7 +44,8 @@ public sealed class PublicEndpointDefinition : IEndpointDefinition
             .WithName("GetHealth")
             .WithSummary("Health check (public)")
             .Produces<HealthStatus>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetHealth(

@@ -44,7 +44,8 @@ public sealed class TreeEndpointDefinition : IEndpointDefinition
             .WithName("GetTree")
             .WithSummary("Get tree structure")
             .Produces<TreeNode>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetTree(

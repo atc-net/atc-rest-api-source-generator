@@ -47,6 +47,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .Produces<List<Product>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .CacheOutput(OutputCachePolicies.Products);
 
         products
@@ -56,7 +57,8 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .Produces<Product>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         products
             .MapGet("{productId}", GetProductById)
@@ -65,6 +67,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .Produces<Product>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .CacheOutput(OutputCachePolicies.ProductDetail);
 
         products
@@ -73,7 +76,8 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .WithSummary("Delete product (no caching)")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListProducts(

@@ -53,6 +53,7 @@ public sealed class DeleteUserByIdEndpoint : IDeleteUserByIdEndpoint
         responseBuilder.AddSuccessResponse(HttpStatusCode.NoContent);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new DeleteUserByIdEndpointResult(x), cancellationToken);
     }
 }

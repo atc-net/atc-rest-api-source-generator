@@ -46,7 +46,8 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
             .WithSummary("List reports (sliding window)")
             .Produces<List<Report>>()
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListReports(

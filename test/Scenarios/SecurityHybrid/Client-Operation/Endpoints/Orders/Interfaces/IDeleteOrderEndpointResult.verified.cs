@@ -26,6 +26,8 @@ public interface IDeleteOrderEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     ProblemDetails NotFoundContent { get; }
 
     ProblemDetails UnauthorizedContent { get; }
@@ -33,4 +35,6 @@ public interface IDeleteOrderEndpointResult : IEndpointResponse
     ProblemDetails ForbiddenContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

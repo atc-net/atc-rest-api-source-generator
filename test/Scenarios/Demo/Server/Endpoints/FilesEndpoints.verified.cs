@@ -46,7 +46,8 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .WithSummary("Get File By Id")
             .Produces(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         files
             .MapPost("form-data/singleObject", UploadFormDataFile)
@@ -56,6 +57,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .Accepts<IFormFile>("multipart/form-data")
             .DisableAntiforgery();
 
@@ -67,6 +69,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .Accepts<IFormFile>("multipart/form-data")
             .DisableAntiforgery();
 
@@ -78,6 +81,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .Accepts<Stream>("application/octet-stream")
             .DisableAntiforgery();
 
@@ -89,6 +93,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .Accepts<IFormFile>("multipart/form-data")
             .DisableAntiforgery();
     }

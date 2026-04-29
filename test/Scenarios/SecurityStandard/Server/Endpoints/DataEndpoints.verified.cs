@@ -47,6 +47,7 @@ public sealed class DataEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("api_key", "bearer_auth", "oauth2")
                 .RequireAuthenticatedUser());

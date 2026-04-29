@@ -28,6 +28,8 @@ public interface ICreateResourceEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     Resource CreatedContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
@@ -39,4 +41,6 @@ public interface ICreateResourceEndpointResult : IEndpointResponse
     ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

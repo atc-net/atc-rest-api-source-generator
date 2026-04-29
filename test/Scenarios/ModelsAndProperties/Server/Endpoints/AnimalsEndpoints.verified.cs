@@ -43,7 +43,8 @@ public sealed class AnimalsEndpointDefinition : IEndpointDefinition
             .WithName("ListAnimals")
             .WithSummary("List animals")
             .Produces<List<Animal>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListAnimals(

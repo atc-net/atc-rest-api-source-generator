@@ -56,6 +56,7 @@ public sealed class GetOrderByIdEndpoint : IGetOrderByIdEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Unauthorized);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Forbidden);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new GetOrderByIdEndpointResult(x), cancellationToken);
     }
 }

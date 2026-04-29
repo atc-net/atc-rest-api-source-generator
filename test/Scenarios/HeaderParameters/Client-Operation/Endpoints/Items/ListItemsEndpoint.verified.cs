@@ -61,6 +61,7 @@ public sealed class ListItemsEndpoint : IListItemsEndpoint
         responseBuilder.AddSuccessResponse<IEnumerable<Item>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new ListItemsEndpointResult(x), cancellationToken);
     }
 }

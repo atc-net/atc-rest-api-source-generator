@@ -58,6 +58,7 @@ public sealed class GetItemByIdEndpoint : IGetItemByIdEndpoint
         responseBuilder.AddErrorResponse<Error>(HttpStatusCode.NotFound);
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new GetItemByIdEndpointResult(x), cancellationToken);
     }
 }

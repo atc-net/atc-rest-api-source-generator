@@ -45,7 +45,8 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .WithName("ListOrders")
             .WithSummary("List orders (fast retry policy)")
             .Produces<List<Order>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         orders
             .MapPost("/", CreateOrder)
@@ -54,7 +55,8 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .Produces<Order>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         orders
             .MapGet("{orderId}", GetOrderById)
@@ -62,7 +64,8 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .WithSummary("Get order (inherits orders-fast)")
             .Produces<Order>()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         orders
             .MapDelete("{orderId}", DeleteOrder)
@@ -70,7 +73,8 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .WithSummary("Delete order (idempotent - can retry)")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListOrders(

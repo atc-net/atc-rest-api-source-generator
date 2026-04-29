@@ -50,6 +50,7 @@ public sealed class ListReportsEndpoint : IListReportsEndpoint
         responseBuilder.AddSuccessResponse<IEnumerable<ListReportsResponseItem>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new ListReportsEndpointResult(x), cancellationToken);
     }
 }

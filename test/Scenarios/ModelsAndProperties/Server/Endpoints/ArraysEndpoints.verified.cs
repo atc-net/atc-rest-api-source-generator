@@ -44,7 +44,8 @@ public sealed class ArraysEndpointDefinition : IEndpointDefinition
             .WithName("GetArrayTypes")
             .WithSummary("Get array types model")
             .Produces<ArrayTypes>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetArrayTypes(

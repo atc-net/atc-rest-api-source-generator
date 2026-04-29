@@ -56,6 +56,7 @@ public sealed class CreateResourceEndpoint : ICreateResourceEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Forbidden);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
         return await responseBuilder.BuildResponseAsync(x => new CreateResourceEndpointResult(x), cancellationToken);
     }
 }

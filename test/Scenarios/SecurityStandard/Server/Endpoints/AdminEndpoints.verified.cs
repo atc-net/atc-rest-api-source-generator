@@ -48,6 +48,7 @@ public sealed class AdminEndpointDefinition : IEndpointDefinition
             .Produces<AdminSettings>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("api_key")
                 .RequireAuthenticatedUser());
@@ -61,6 +62,7 @@ public sealed class AdminEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("api_key")
                 .RequireAuthenticatedUser());

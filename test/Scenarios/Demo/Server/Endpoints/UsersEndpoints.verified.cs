@@ -46,7 +46,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .WithSummary("List all users")
             .Produces<List<User>>()
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         users
             .MapPost("/", CreateUser)
@@ -55,7 +56,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .Produces<User>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         users
             .MapGet("{userId}", GetUserById)
@@ -63,7 +65,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .WithSummary("Get a specific user")
             .Produces<User>()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         users
             .MapPut("{userId}", UpdateUserById)
@@ -73,7 +76,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         users
             .MapDelete("{userId}", DeleteUserById)
@@ -81,7 +85,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .WithSummary("Delete a specific user")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async System.Threading.Tasks.Task<IResult> ListUsers(

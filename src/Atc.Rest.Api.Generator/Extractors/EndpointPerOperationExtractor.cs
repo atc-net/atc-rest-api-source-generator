@@ -320,6 +320,13 @@ public static class EndpointPerOperationExtractor
             responses.Add(new ResponseInfo("500", "InternalServerError", "InternalServerError", errorContentType, false));
         }
 
+        // 504 - Always add if not defined (GlobalErrorHandler maps TimeoutException
+        // and OperationCanceledException to 504 Gateway Timeout)
+        if (!definedCodes.Contains("504") && !definedCodes.Contains("default"))
+        {
+            responses.Add(new ResponseInfo("504", "GatewayTimeout", "GatewayTimeout", errorContentType, false));
+        }
+
         // Check if operation has parameters
         var hasQueryRouteParams = operation.Parameters is { Count: > 0 } || pathLevelParameters is { Count: > 0 };
         var hasRequestBody = operation.RequestBody is { Content: not null };

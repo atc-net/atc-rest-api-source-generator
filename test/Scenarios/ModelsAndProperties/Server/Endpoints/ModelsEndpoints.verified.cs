@@ -45,7 +45,8 @@ public sealed class ModelsEndpointDefinition : IEndpointDefinition
             .WithName("ListModels")
             .WithSummary("List all models")
             .Produces<List<ComprehensiveModel>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         models
             .MapPost("/", CreateModel)
@@ -54,7 +55,8 @@ public sealed class ModelsEndpointDefinition : IEndpointDefinition
             .Produces<ComprehensiveModel>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         models
             .MapGet("{modelId}", GetModelById)
@@ -62,7 +64,8 @@ public sealed class ModelsEndpointDefinition : IEndpointDefinition
             .WithSummary("Get a specific model")
             .Produces<ComprehensiveModel>()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListModels(

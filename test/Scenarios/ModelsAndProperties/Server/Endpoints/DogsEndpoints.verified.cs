@@ -44,7 +44,8 @@ public sealed class DogsEndpointDefinition : IEndpointDefinition
             .WithName("ListDogs")
             .WithSummary("List dogs")
             .Produces<List<Dog>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListDogs(

@@ -44,7 +44,8 @@ public sealed class ColorsEndpointDefinition : IEndpointDefinition
             .WithName("GetColors")
             .WithSummary("Get RGB colors")
             .Produces<RgbColor>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetColors(

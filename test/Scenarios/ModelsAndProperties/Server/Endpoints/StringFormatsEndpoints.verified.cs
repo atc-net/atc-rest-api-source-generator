@@ -44,7 +44,8 @@ public sealed class StringFormatsEndpointDefinition : IEndpointDefinition
             .WithName("GetStringFormats")
             .WithSummary("Get string format types")
             .Produces<StringFormats>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetStringFormats(

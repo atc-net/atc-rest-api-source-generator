@@ -36,6 +36,9 @@ public sealed class CreateTestItemWithModelEndpointResult : EndpointResponse, IC
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
 
+    public bool IsGatewayTimeout
+        => StatusCode == HttpStatusCode.GatewayTimeout;
+
     public TestItem CreatedContent
         => IsCreated && ContentObject is TestItem result
             ? result
@@ -63,4 +66,13 @@ public sealed class CreateTestItemWithModelEndpointResult : EndpointResponse, IC
                 : IsInternalServerError && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError)
                     : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
+
+    public ProblemDetails GatewayTimeoutContent
+        => IsGatewayTimeout && ContentObject is ProblemDetails result
+            ? result
+            : IsGatewayTimeout && ContentObject is string message
+                ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout, message)
+                : IsGatewayTimeout && ContentObject is null
+                    ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout)
+                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
 }

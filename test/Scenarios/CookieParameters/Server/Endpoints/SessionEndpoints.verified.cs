@@ -47,7 +47,8 @@ public sealed class SessionEndpointDefinition : IEndpointDefinition
             .Produces<Session>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetSession(

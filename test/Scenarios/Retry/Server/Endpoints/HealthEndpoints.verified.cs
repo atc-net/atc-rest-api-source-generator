@@ -44,7 +44,8 @@ public sealed class HealthEndpointDefinition : IEndpointDefinition
             .WithName("GetHealth")
             .WithSummary("Health check (global retry policy)")
             .Produces<HealthStatus>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetHealth(

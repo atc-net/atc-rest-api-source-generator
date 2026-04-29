@@ -24,6 +24,8 @@ public interface ICreateTestItemWithLocationInBodyEndpointResult : IEndpointResp
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     Uri CreatedContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
@@ -31,4 +33,6 @@ public interface ICreateTestItemWithLocationInBodyEndpointResult : IEndpointResp
     ProblemDetails ConflictContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

@@ -44,7 +44,8 @@ public sealed class ValidationsEndpointDefinition : IEndpointDefinition
             .WithName("GetValidations")
             .WithSummary("Get validation constraints model")
             .Produces<ValidationConstraints>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetValidations(

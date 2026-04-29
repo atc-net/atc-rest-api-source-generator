@@ -43,7 +43,8 @@ public sealed class ExportsEndpointDefinition : IEndpointDefinition
             .WithName("ExportCsv")
             .WithSummary("Export data as CSV")
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/csv")
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ExportCsv(

@@ -46,7 +46,8 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .WithSummary("List items")
             .Produces<List<Item>>()
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         items
             .MapGet("{itemId}", GetItemById)
@@ -55,7 +56,8 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .Produces<Item>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListItems(

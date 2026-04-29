@@ -26,6 +26,8 @@ public interface ICreateExportEndpointResult : IEndpointResponse
 
     bool IsInternalServerError { get; }
 
+    bool IsGatewayTimeout { get; }
+
     ExportJob AcceptedContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
@@ -35,4 +37,6 @@ public interface ICreateExportEndpointResult : IEndpointResponse
     ProblemDetails TooManyRequestsContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
+
+    ProblemDetails GatewayTimeoutContent { get; }
 }

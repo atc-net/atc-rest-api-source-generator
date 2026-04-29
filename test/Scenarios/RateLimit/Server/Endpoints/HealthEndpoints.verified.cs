@@ -46,7 +46,8 @@ public sealed class HealthEndpointDefinition : IEndpointDefinition
             .WithSummary("Health check (global rate limit)")
             .Produces<HealthStatus>()
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetHealth(

@@ -46,7 +46,8 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .WithSummary("List all accounts")
             .Produces<List<Account>>()
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         accounts
             .MapPost("/", CreateAccount)
@@ -55,7 +56,8 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .Produces<Account>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         accounts
             .MapGet("{accountId}", GetAccountById)
@@ -64,7 +66,8 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .Produces<Account>()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         accounts
             .MapDelete("{accountId}", DeleteAccountById)
@@ -73,7 +76,8 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         accounts
             .MapPut("{accountId}", UpdateAccountById)
@@ -83,7 +87,8 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         accounts
             .MapGet("paginated", ListPaginatedAccounts)
@@ -91,14 +96,16 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .WithSummary("List all accounts paginated")
             .Produces<PaginatedResult<Account>>()
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         accounts
             .MapGet("async-enumerable", ListAsyncEnumerableAccounts)
             .WithName("ListAsyncEnumerableAccounts")
             .WithSummary("List all accounts async-enumerable")
             .Produces<List<Account>>()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async System.Threading.Tasks.Task<IResult> ListAccounts(

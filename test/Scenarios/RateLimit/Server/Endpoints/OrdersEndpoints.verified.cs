@@ -47,6 +47,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .Produces<List<Order>>()
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireRateLimiting("orders-standard");
 
         orders
@@ -58,6 +59,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireRateLimiting("orders-standard");
 
         orders
@@ -68,6 +70,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireRateLimiting("orders-standard");
 
         orders
@@ -78,6 +81,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireRateLimiting("orders-strict");
     }
 

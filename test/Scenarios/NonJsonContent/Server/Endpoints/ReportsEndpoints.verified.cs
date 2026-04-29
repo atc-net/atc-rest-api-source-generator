@@ -43,7 +43,8 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
             .WithName("GetTextReport")
             .WithSummary("Get a plain text report")
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/plain")
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> GetTextReport(

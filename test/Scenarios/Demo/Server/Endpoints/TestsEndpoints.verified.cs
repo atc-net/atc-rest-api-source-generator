@@ -47,7 +47,8 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
             .Produces<TestItem>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         tests
             .MapPost("create-location-header", CreateTestItemWithLocationHeader)
@@ -56,7 +57,8 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
             .Produces(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         tests
             .MapPost("create-location-body", CreateTestItemWithLocationInBody)
@@ -65,7 +67,8 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
             .Produces<Uri>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         tests
             .MapPost("create-empty", CreateTestItemEmpty)
@@ -74,7 +77,8 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
             .Produces(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async System.Threading.Tasks.Task<IResult> CreateTestItemWithModel(

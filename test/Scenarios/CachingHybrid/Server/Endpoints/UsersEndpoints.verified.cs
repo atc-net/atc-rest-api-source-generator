@@ -46,7 +46,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .WithSummary("List users with HybridCache")
             .Produces<List<User>>()
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         users
             .MapPost("/", CreateUser)
@@ -55,7 +56,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .Produces<User>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         users
             .MapGet("{userId}", GetUserById)
@@ -63,7 +65,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .WithSummary("Get user by ID with HybridCache and sliding expiration")
             .Produces<User>()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         users
             .MapPut("{userId}", UpdateUser)
@@ -73,7 +76,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         users
             .MapDelete("{userId}", DeleteUser)
@@ -81,7 +85,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .WithSummary("Delete user (no caching)")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListUsers(
