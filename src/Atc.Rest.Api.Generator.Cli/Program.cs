@@ -3,7 +3,7 @@ namespace Atc.Rest.Api.Generator.Cli;
 [ExcludeFromCodeCoverage]
 public static class Program
 {
-    public static Task<int> Main(string[] args)
+    public static async Task<int> Main(string[] args)
     {
         ArgumentNullException.ThrowIfNull(args);
 
@@ -15,15 +15,19 @@ public static class Program
         var serviceCollection = ServiceCollectionFactory.Create(consoleLoggerConfiguration);
         ConfigureServices(serviceCollection);
 
+        await using (var startupProvider = serviceCollection.BuildServiceProvider())
+        {
+            await CheckForUpdatesAsync(startupProvider.GetRequiredService<INugetPackageVersionService>());
+        }
+
         var app = CommandAppFactory.Create(serviceCollection);
         app.ConfigureCommands();
 
-        CheckForUpdates();
-
-        return app.RunAsync(args);
+        return await app.RunAsync(args);
     }
 
-    private static void CheckForUpdates()
+    private static async Task CheckForUpdatesAsync(
+        INugetPackageVersionService nugetService)
     {
         if (!NetworkInformationHelper.HasHttpConnection())
         {
@@ -32,12 +36,12 @@ public static class Program
             return;
         }
 
-        if (CliVersionHelper.IsLatestVersion())
+        if (await CliVersionHelper.IsLatestVersionAsync(nugetService))
         {
             return;
         }
 
-        var latestVersion = CliVersionHelper.GetLatestVersion();
+        var latestVersion = await CliVersionHelper.GetLatestVersionAsync(nugetService);
         if (latestVersion is null)
         {
             return;
@@ -59,7 +63,11 @@ public static class Program
 
     private static void ConfigureServices(IServiceCollection services)
     {
-        // Add services here if needed
+        services.AddHttpClient<INugetPackageVersionService, NugetPackageVersionService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("atc-rest-api-gen");
+        });
     }
 
     private static string[] SetHelpArgumentIfNeeded(string[] args)

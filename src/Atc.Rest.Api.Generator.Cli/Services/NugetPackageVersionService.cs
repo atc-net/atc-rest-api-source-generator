@@ -3,7 +3,7 @@ namespace Atc.Rest.Api.Generator.Cli.Services;
 /// <summary>
 /// Implementation that fetches package versions from the NuGet.org flat container API.
 /// </summary>
-internal sealed class NugetPackageVersionService : INugetPackageVersionService
+public sealed class NugetPackageVersionService : INugetPackageVersionService
 {
     [SuppressMessage("", "S1075:Refactor your code not to use hardcoded absolute paths or URIs.", Justification = "OK")]
     private const string NugetFlatContainerBaseUrl = "https://api.nuget.org/v3-flatcontainer";

@@ -6,6 +6,13 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
 public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSettings>
 {
+    private readonly INugetPackageVersionService nugetService;
+
+    public MigrateExecuteCommand(INugetPackageVersionService nugetService)
+    {
+        this.nugetService = nugetService;
+    }
+
     protected override int Execute(
         CommandContext context,
         MigrateExecuteCommandSettings settings,
@@ -69,7 +76,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             }
 
             // Execute migration
-            return ExecuteMigration(settings, report, rootDirectory, specPath);
+            return ExecuteMigration(settings, report, rootDirectory, specPath, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -78,11 +85,12 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         }
     }
 
-    private static int ExecuteMigration(
+    private int ExecuteMigration(
         MigrateExecuteCommandSettings settings,
         MigrationValidationReport report,
         string rootDirectory,
-        string specPath)
+        string specPath,
+        CancellationToken cancellationToken)
     {
         var projectName = report.DetectedProjectName ?? "Unknown";
         var dryRun = settings.DryRun;
@@ -106,10 +114,14 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
                 // Step 6: Resolve package versions from NuGet (with fallback)
                 ctx.Status("Resolving package versions...");
-                var sourceGeneratorVersion = NugetApiClientHelper.GetLatestVersionForPackageId(
-                    PackageVersionDefaults.SourceGeneratorPackageId) ?? PackageVersionDefaults.SourceGeneratorFallback;
-                var restClientVersion = NugetApiClientHelper.GetLatestVersionForPackageId(
-                    PackageVersionDefaults.RestClientPackageId) ?? PackageVersionDefaults.RestClientMinFallback;
+                var sourceGeneratorVersion = TaskHelper.RunSync(() => nugetService.GetLatestVersionOrFallbackAsync(
+                    PackageVersionDefaults.SourceGeneratorPackageId,
+                    PackageVersionDefaults.SourceGeneratorFallback,
+                    cancellationToken));
+                var restClientVersion = TaskHelper.RunSync(() => nugetService.GetLatestVersionOrFallbackAsync(
+                    PackageVersionDefaults.RestClientPackageId,
+                    PackageVersionDefaults.RestClientMinFallback,
+                    cancellationToken));
 
                 // Step 7: Modify project files
                 ctx.Status(dryRun ? "Analyzing project modifications..." : "Modifying project files...");
