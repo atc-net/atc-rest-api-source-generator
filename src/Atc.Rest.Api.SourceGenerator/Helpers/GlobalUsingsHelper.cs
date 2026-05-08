@@ -29,7 +29,10 @@ internal static class DomainGlobalUsingsHelper
             : string.Empty;
 
         // Parse existing global usings, separating stale generator-owned entries from
-        // anything else (hand-written usings stay untouched).
+        // anything else (hand-written usings stay untouched). Stale-detection is keyed
+        // to the current OpenAPI path segments — a namespace whose middle segment isn't
+        // in this project's spec cannot be stale output from this project's generator.
+        var currentPathSegments = new HashSet<string>(pathSegments, StringComparer.OrdinalIgnoreCase);
         var existingUsings = new HashSet<string>(StringComparer.Ordinal);
         var staleGeneratedUsings = new HashSet<string>(StringComparer.Ordinal);
         foreach (var line in existingContent.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
@@ -40,7 +43,7 @@ internal static class DomainGlobalUsingsHelper
                 continue;
             }
 
-            if (IsStaleGeneratedUsing(trimmed, rootNamespace))
+            if (IsStaleGeneratedUsing(trimmed, rootNamespace, currentPathSegments))
             {
                 staleGeneratedUsings.Add(trimmed);
             }
@@ -106,15 +109,18 @@ internal static class DomainGlobalUsingsHelper
 
     /// <summary>
     /// Returns true for `global using {someRoot}.Generated.{Segment}.{Handlers|Parameters|Results|Models};`
-    /// lines whose `{someRoot}` differs from the current <paramref name="rootNamespace"/>.
+    /// lines whose `{someRoot}` differs from the current <paramref name="rootNamespace"/>
+    /// AND whose `{Segment}` matches a path segment in the current OpenAPI spec.
     /// Such entries originated from a previous (buggy or reconfigured) generator run and now
     /// point at a namespace that no longer exists in the contracts assembly. Hand-written
-    /// usings, alias usings (`global using X = Y;`), `static` usings, and third-party
-    /// namespaces that merely contain `.Generated.` in their path are not pruned.
+    /// usings, alias usings (`global using X = Y;`), `static` usings, third-party
+    /// namespaces that merely contain `.Generated.` in their path, and entries whose
+    /// middle segment is not owned by this project's spec are not pruned.
     /// </summary>
     private static bool IsStaleGeneratedUsing(
         string globalUsingLine,
-        string rootNamespace)
+        string rootNamespace,
+        HashSet<string> currentPathSegments)
     {
         if (string.IsNullOrEmpty(rootNamespace))
         {
@@ -176,6 +182,18 @@ internal static class DomainGlobalUsingsHelper
 
         var middle = ns.Substring(middleStart, middleLength);
         if (middle.IndexOf('.') >= 0)
+        {
+            return false;
+        }
+
+        // Only prune when {Segment} corresponds to a path segment in this project's
+        // current OpenAPI spec. Without this check, third-party API clients (themselves
+        // produced by this same generator and consumed via NuGet) — e.g.
+        // `Vendor.ApiClient.Generated.Foo.Models` — would be incorrectly pruned because
+        // they share the exact `{root}.Generated.{Single}.{Suffix}` shape.
+        // The realistic stale scenario (user renamed their contracts namespace) keeps
+        // the same OpenAPI segments, so this narrowing preserves the intended behavior.
+        if (!currentPathSegments.Contains(middle))
         {
             return false;
         }

@@ -114,12 +114,11 @@ public class DomainGlobalUsingsHelperTests
         try
         {
             var globalUsingsPath = Path.Combine(tempDir, "GlobalUsings.cs");
-            var initialContent =
-                "global using System;\n" +
-                "global using OldRoot.Generated.Pets.Handlers;\n" +
-                "global using OldRoot.Generated.Pets.Results;\n" +
-                "global using NewRoot.Generated.Pets.Handlers;\n" +
-                "global using MyCompany.HandWritten.Helpers;\n";
+            const string initialContent = "global using System;\n" +
+                                          "global using OldRoot.Generated.Pets.Handlers;\n" +
+                                          "global using OldRoot.Generated.Pets.Results;\n" +
+                                          "global using NewRoot.Generated.Pets.Handlers;\n" +
+                                          "global using MyCompany.HandWritten.Helpers;\n";
 
             File.WriteAllText(globalUsingsPath, initialContent);
 
@@ -170,18 +169,17 @@ public class DomainGlobalUsingsHelperTests
         try
         {
             var globalUsingsPath = Path.Combine(tempDir, "GlobalUsings.cs");
-            var initialContent =
-                "global using System;\n" +
-                "global using ThirdParty.Client.Generated.Endpoints.Accounts;\n" +
-                "global using ThirdParty.Client.Generated.Endpoints.Accounts.Interfaces;\n" +
-                "global using ThirdParty.Client.Generated.Devices.Endpoints.Interfaces;\n" +
-                "global using ThirdParty.Client.Generated;\n" +
+            const string initialContent = "global using System;\n" +
+                                          "global using ThirdParty.Client.Generated.Endpoints.Accounts;\n" +
+                                          "global using ThirdParty.Client.Generated.Endpoints.Accounts.Interfaces;\n" +
+                                          "global using ThirdParty.Client.Generated.Devices.Endpoints.Interfaces;\n" +
+                                          "global using ThirdParty.Client.Generated;\n" +
 
-                // Deeper third-party namespaces whose terminal segment matches one of the
-                // suffixes this helper owns. Without the single-segment constraint between
-                // `.Generated.` and the suffix, these would be incorrectly pruned.
-                "global using Vendor.Pkg.Generated.Foo.Bar.Handlers;\n" +
-                "global using Vendor.Pkg.Generated.Foo.Bar.Models;\n";
+                                          // Deeper third-party namespaces whose terminal segment matches one of the
+                                          // suffixes this helper owns. Without the single-segment constraint between
+                                          // `.Generated.` and the suffix, these would be incorrectly pruned.
+                                          "global using Vendor.Pkg.Generated.Foo.Bar.Handlers;\n" +
+                                          "global using Vendor.Pkg.Generated.Foo.Bar.Models;\n";
             File.WriteAllText(globalUsingsPath, initialContent);
 
             var doc = CreateOpenApiDocumentWithPaths("/pets");
@@ -248,6 +246,153 @@ public class DomainGlobalUsingsHelperTests
             var rewritten = File.ReadAllText(globalUsingsPath);
             Assert.Contains("TaskModel = MultipartDemo.Generated.Tasks.Models.Task", rewritten, StringComparison.Ordinal);
             Assert.Contains("static MultipartDemo.Generated.Constants", rewritten, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void EnsureUpdated_PreservesThirdPartyGeneratedNamespace_WithSingleSegmentMiddle()
+    {
+        // Arrange — third-party API client (itself produced by `atc-rest-api-source-generator`
+        // and consumed via NuGet) emits namespaces shaped identically to this generator's
+        // output: `{ThirdPartyRoot}.Generated.{SingleSegment}.{Models|Handlers|Parameters|Results}`.
+        // Regression for `My.Api.Insights.Api.Client.Generated.Monta.Models` — the
+        // single-segment middle (`Monta`) does NOT appear in this project's spec, so it
+        // cannot be stale generator output for this project.
+        var tempDir = Path.Combine(Path.GetTempPath(), "EnsureUpdatedThirdPartySingleSeg_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var globalUsingsPath = Path.Combine(tempDir, "GlobalUsings.cs");
+            var initialContent =
+                "global using System;\n" +
+                "global using My.Api.Insights.Api.Client.Generated.Monta.Client;\n" +
+                "global using My.Api.Insights.Api.Client.Generated.Monta.Endpoints;\n" +
+                "global using My.Api.Insights.Api.Client.Generated.Monta.Endpoints.Interfaces;\n" +
+                "global using My.Api.Insights.Api.Client.Generated.Monta.Models;\n";
+            File.WriteAllText(globalUsingsPath, initialContent);
+
+            var doc = CreateOpenApiDocumentWithPaths("/accounts", "/command");
+            var config = new ServerDomainConfig { Namespace = "My.Api.D365.Api.Domain" };
+
+            // Act — rootNamespace differs from `My.Api.Insights.Api.Client`, but `Monta`
+            // is not a path segment in this project's spec (Accounts/Command), so the
+            // entry must not be pruned regardless of suffix.
+            DomainGlobalUsingsHelper.EnsureUpdated(
+                tempDir,
+                [],
+                "My.Api.D365.Api.Contracts",
+                ["Accounts", "Command"],
+                doc,
+                config);
+
+            // Assert — every Insights API client using preserved
+            var rewritten = File.ReadAllText(globalUsingsPath);
+            Assert.Contains("My.Api.Insights.Api.Client.Generated.Monta.Client;", rewritten, StringComparison.Ordinal);
+            Assert.Contains("My.Api.Insights.Api.Client.Generated.Monta.Endpoints;", rewritten, StringComparison.Ordinal);
+            Assert.Contains("My.Api.Insights.Api.Client.Generated.Monta.Endpoints.Interfaces;", rewritten, StringComparison.Ordinal);
+            Assert.Contains("My.Api.Insights.Api.Client.Generated.Monta.Models;", rewritten, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void EnsureUpdated_PreservesEntry_WhenMiddleSegmentNotInCurrentPathSegments()
+    {
+        // Arrange — entries shaped like `{OtherRoot}.Generated.{X}.{Suffix}` where `{X}`
+        // doesn't exist in the current OpenAPI spec. These cannot be stale output from
+        // this project's generator — the spec doesn't have `{X}` to begin with — so they
+        // must survive even though the root differs from `rootNamespace`.
+        var tempDir = Path.Combine(Path.GetTempPath(), "EnsureUpdatedAlienSegment_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var globalUsingsPath = Path.Combine(tempDir, "GlobalUsings.cs");
+            var initialContent =
+                "global using System;\n" +
+                "global using SomeOther.Project.Generated.Widgets.Models;\n" +
+                "global using SomeOther.Project.Generated.Widgets.Handlers;\n";
+            File.WriteAllText(globalUsingsPath, initialContent);
+
+            var doc = CreateOpenApiDocumentWithPaths("/pets");
+            var config = new ServerDomainConfig { Namespace = "MyApp.Api.Domain" };
+
+            // Act — `Widgets` is not a path segment in this spec, so neither line can be
+            // stale generator output for this project.
+            DomainGlobalUsingsHelper.EnsureUpdated(
+                tempDir,
+                [],
+                "MyApp",
+                ["Pets"],
+                doc,
+                config);
+
+            // Assert — both third-party usings preserved
+            var rewritten = File.ReadAllText(globalUsingsPath);
+            Assert.Contains("SomeOther.Project.Generated.Widgets.Models;", rewritten, StringComparison.Ordinal);
+            Assert.Contains("SomeOther.Project.Generated.Widgets.Handlers;", rewritten, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void EnsureUpdated_StillPrunesStaleEntry_WhenMiddleSegmentIsInCurrentPathSegments()
+    {
+        // Arrange — the legitimate stale-rename scenario: the project previously generated
+        // `OldRoot.Generated.Pets.Handlers`, the user renamed the contracts namespace to
+        // `NewRoot`, but the OpenAPI spec still has `/pets`. The old entry now points at
+        // a non-existent namespace and SHOULD be pruned.
+        var tempDir = Path.Combine(Path.GetTempPath(), "EnsureUpdatedStaleSingleSeg_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var globalUsingsPath = Path.Combine(tempDir, "GlobalUsings.cs");
+            var initialContent =
+                "global using System;\n" +
+                "global using OldRoot.Generated.Pets.Handlers;\n" +
+                "global using OldRoot.Generated.Pets.Models;\n" +
+                "global using NewRoot.Generated.Pets.Handlers;\n";
+            File.WriteAllText(globalUsingsPath, initialContent);
+
+            var discoveredNamespaces = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "NewRoot.Generated.Pets.Handlers",
+            };
+            var doc = CreateOpenApiDocumentWithPaths("/pets");
+            var config = new ServerDomainConfig { Namespace = "MyApp.Api.Domain" };
+
+            // Act
+            DomainGlobalUsingsHelper.EnsureUpdated(
+                tempDir,
+                discoveredNamespaces,
+                "NewRoot",
+                ["Pets"],
+                doc,
+                config);
+
+            // Assert — old root pruned, new root kept
+            var rewritten = File.ReadAllText(globalUsingsPath);
+            Assert.DoesNotContain("OldRoot.Generated.Pets.Handlers", rewritten, StringComparison.Ordinal);
+            Assert.DoesNotContain("OldRoot.Generated.Pets.Models", rewritten, StringComparison.Ordinal);
+            Assert.Contains("NewRoot.Generated.Pets.Handlers", rewritten, StringComparison.Ordinal);
         }
         finally
         {
