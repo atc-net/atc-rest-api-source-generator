@@ -83,7 +83,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("export interface RequestOptions {");
         sb.AppendLine("  body?: unknown;");
         sb.AppendLine("  query?: Record<string, string | number | boolean | undefined>;");
-        sb.AppendLine("  headers?: Record<string, string>;");
+        sb.AppendLine("  headers?: Record<string, string | number | boolean | undefined>;");
         sb.AppendLine("  signal?: AbortSignal;");
         sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
         sb.AppendLine("}");
@@ -311,7 +311,11 @@ public static class TypeScriptFetchApiClientExtractor
 
     private static void AppendGetHeadersMethod(StringBuilder sb)
     {
-        sb.AppendLine("  async getHeaders(extra?: Record<string, string>): Promise<Headers> {");
+        // `extra` values may be undefined (the generated client passes through optional
+        // header params verbatim), so skip those entries — Headers.set rejects undefined.
+        // Non-string scalars (number / boolean) are coerced to string to match how
+        // headers travel on the wire.
+        sb.AppendLine("  async getHeaders(extra?: Record<string, string | number | boolean | undefined>): Promise<Headers> {");
         sb.AppendLine("    const headers = new Headers(this.options.defaultHeaders);");
         sb.AppendLine();
         sb.AppendLine("    if (this.options.getAccessToken) {");
@@ -321,7 +325,9 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine();
         sb.AppendLine("    if (extra) {");
         sb.AppendLine("      for (const [key, value] of Object.entries(extra)) {");
-        sb.AppendLine("        headers.set(key, value);");
+        sb.AppendLine("        if (value !== undefined) {");
+        sb.AppendLine("          headers.set(key, String(value));");
+        sb.AppendLine("        }");
         sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine();

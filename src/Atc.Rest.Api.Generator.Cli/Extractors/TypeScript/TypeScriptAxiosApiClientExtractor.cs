@@ -85,7 +85,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("export interface RequestOptions {");
         sb.AppendLine("  body?: unknown;");
         sb.AppendLine("  query?: Record<string, string | number | boolean | undefined>;");
-        sb.AppendLine("  headers?: Record<string, string>;");
+        sb.AppendLine("  headers?: Record<string, string | number | boolean | undefined>;");
         sb.AppendLine("  signal?: AbortSignal;");
         sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
         sb.AppendLine("}");
@@ -229,8 +229,15 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine();
+
+        // Skip undefined values — the generated client method passes optional header
+        // params verbatim, and axios should not see literal undefined in the headers map.
         sb.AppendLine("    if (options?.headers) {");
-        sb.AppendLine("      Object.assign(headers, options.headers);");
+        sb.AppendLine("      for (const [key, value] of Object.entries(options.headers)) {");
+        sb.AppendLine("        if (value !== undefined) {");
+        sb.AppendLine("          headers[key] = String(value);");
+        sb.AppendLine("        }");
+        sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine();
 

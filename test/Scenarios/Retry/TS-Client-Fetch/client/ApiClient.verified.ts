@@ -21,7 +21,7 @@ export interface ApiClientOptions {
 export interface RequestOptions {
   body?: unknown;
   query?: Record<string, string | number | boolean | undefined>;
-  headers?: Record<string, string>;
+  headers?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
   responseType?: 'json' | 'blob' | 'text';
 }
@@ -161,7 +161,7 @@ export class ApiClient {
     return url.toString();
   }
 
-  async getHeaders(extra?: Record<string, string>): Promise<Headers> {
+  async getHeaders(extra?: Record<string, string | number | boolean | undefined>): Promise<Headers> {
     const headers = new Headers(this.options.defaultHeaders);
 
     if (this.options.getAccessToken) {
@@ -171,7 +171,9 @@ export class ApiClient {
 
     if (extra) {
       for (const [key, value] of Object.entries(extra)) {
-        headers.set(key, value);
+        if (value !== undefined) {
+          headers.set(key, String(value));
+        }
       }
     }
 

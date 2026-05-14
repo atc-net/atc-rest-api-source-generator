@@ -120,6 +120,18 @@ public static class TypeScriptOperationHelper
             return "string";
         }
 
+        // Inline enum (no $ref): render as a TS literal union so callers get compile-time
+        // checking of the allowed values. The $ref case is handled by ToTypeScriptTypeForModel
+        // (it returns the type name and the import-collector adds the matching import).
+        if (param.Schema is OpenApiSchema { Enum.Count: > 0 } enumSchema)
+        {
+            var union = BuildLiteralUnion(enumSchema);
+            if (union != null)
+            {
+                return union;
+            }
+        }
+
         var tsType = param.Schema.ToTypeScriptTypeForModel(isRequired: true);
 
         // Strip "| null" from query/path parameter types — URL parameters are either
@@ -132,16 +144,97 @@ public static class TypeScriptOperationHelper
         return tsType;
     }
 
+    private static string? BuildLiteralUnion(OpenApiSchema schema)
+    {
+        var isStringEnum = schema.Type?.HasFlag(JsonSchemaType.String) == true;
+        var isNumericEnum =
+            schema.Type?.HasFlag(JsonSchemaType.Integer) == true ||
+            schema.Type?.HasFlag(JsonSchemaType.Number) == true;
+
+        if (!isStringEnum && !isNumericEnum)
+        {
+            return null;
+        }
+
+        var parts = new List<string>(schema.Enum!.Count);
+        foreach (var value in schema.Enum)
+        {
+            if (value is not JsonValue jsonValue)
+            {
+                return null;
+            }
+
+            if (isStringEnum)
+            {
+                if (!jsonValue.TryGetValue<string>(out var s))
+                {
+                    return null;
+                }
+
+                parts.Add("'" + s.Replace("'", "\\'", StringComparison.Ordinal) + "'");
+            }
+            else
+            {
+                parts.Add(jsonValue.ToJsonString());
+            }
+        }
+
+        return parts.Count == 0 ? null : string.Join(" | ", parts);
+    }
+
     /// <summary>
-    /// Collects all import types needed by an operation (from response schemas and request body).
+    /// Collects all import types needed by an operation (from response schemas, request body,
+    /// and parameter schemas).
     /// </summary>
+    /// <param name="operation">The OpenAPI operation.</param>
+    /// <param name="importTypes">The set to accumulate referenced type names into.</param>
+    /// <param name="openApiDoc">Optional document. When supplied alongside <paramref name="path"/>,
+    /// path-item-level parameters (shared by every operation under that path) are visited too.</param>
+    /// <param name="path">Optional path key matching <paramref name="openApiDoc"/>.</param>
     public static void CollectImportTypes(
         OpenApiOperation operation,
-        HashSet<string> importTypes)
+        HashSet<string> importTypes,
+        OpenApiDocument? openApiDoc = null,
+        string? path = null)
     {
         // From response schemas (200, 201)
         CollectSchemaRefTypes(operation.GetResponseSchema("200"), importTypes);
         CollectSchemaRefTypes(operation.GetResponseSchema("201"), importTypes);
+
+        // From operation-level parameter schemas. We visit query, path, and header
+        // params — all three are surfaced in the generated TS signatures. Cookie
+        // params are deliberately excluded: cookies are browser-managed (document.cookie
+        // and the credentials fetch option), so SDK methods do not accept a cookies arg
+        // and any type they referenced would be a dead import.
+        if (operation.Parameters != null)
+        {
+            foreach (var paramInterface in operation.Parameters)
+            {
+                var resolved = paramInterface.Resolve();
+                if (resolved.Parameter is { In: ParameterLocation.Query or ParameterLocation.Path or ParameterLocation.Header } p)
+                {
+                    CollectSchemaRefTypes(p.Schema, importTypes);
+                }
+            }
+        }
+
+        // From path-item-level parameters (shared by every operation under that path).
+        // Same location filter applies: query / path / header (no cookies).
+        if (openApiDoc?.Paths != null &&
+            path != null &&
+            openApiDoc.Paths.TryGetValue(path, out var pathItemValue) &&
+            pathItemValue is OpenApiPathItem pathItem &&
+            pathItem.Parameters != null)
+        {
+            foreach (var paramInterface in pathItem.Parameters)
+            {
+                var resolved = paramInterface.Resolve();
+                if (resolved.Parameter is { In: ParameterLocation.Query or ParameterLocation.Path or ParameterLocation.Header } p)
+                {
+                    CollectSchemaRefTypes(p.Schema, importTypes);
+                }
+            }
+        }
 
         // From request body
         var (bodySchema, _) = operation.GetRequestBodySchemaWithContentType();
@@ -258,6 +351,28 @@ public static class TypeScriptOperationHelper
 
         // Not an array — use standard mapping
         return schema.ToTypeScriptReturnType();
+    }
+
+    /// <summary>
+    /// Builds a TypeScript inline type for header parameters
+    /// (e.g., { 'X-Correlation-Id': string; 'X-Continuation'?: string }).
+    /// Header names typically contain dashes, so every key is emitted quoted to keep
+    /// the output uniform and to avoid invalid identifier errors. The `?` after the key
+    /// reflects the parameter's `required` flag from the OpenAPI spec.
+    /// </summary>
+    public static string BuildHeaderTypeInline(
+        List<OpenApiParameter> headerParams)
+    {
+        var parts = new List<string>(headerParams.Count);
+        foreach (var param in headerParams)
+        {
+            var rawName = param.Name ?? string.Empty;
+            var paramType = GetParameterType(param);
+            var optional = param.Required ? string.Empty : "?";
+            parts.Add("'" + rawName + "'" + optional + ": " + paramType);
+        }
+
+        return "{ " + string.Join("; ", parts) + " }";
     }
 
     /// <summary>

@@ -10,15 +10,23 @@ export class ItemsClient {
     this.api = api;
   }
 
-  async listItems(query?: { limit?: number }): Promise<ApiResult<Items>> {
+  async listItems(query?: { limit?: number }, headers?: { 'x-continuation'?: string; 'x-correlation-id': string }): Promise<ApiResult<Items>> {
     return this.api.request<Items>('GET', '/items', {
       query: {
         limit: query?.limit,
       },
+      headers: {
+        'x-continuation': headers?.['x-continuation'],
+        'x-correlation-id': headers?.['x-correlation-id'],
+      },
     });
   }
 
-  async getItemById(itemId: string): Promise<ApiResult<Item>> {
-    return this.api.request<Item>('GET', `/items/${itemId}`);
+  async getItemById(itemId: string, headers?: { 'X-Request-Id'?: string }): Promise<ApiResult<Item>> {
+    return this.api.request<Item>('GET', `/items/${itemId}`, {
+      headers: {
+        'X-Request-Id': headers?.['X-Request-Id'],
+      },
+    });
   }
 }
