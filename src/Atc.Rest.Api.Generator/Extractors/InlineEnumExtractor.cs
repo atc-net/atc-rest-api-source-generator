@@ -25,9 +25,46 @@ public static class InlineEnumExtractor
             return false;
         }
 
-        // Must be a string type with enum values
+        if (actualSchema.Enum is not { Count: > 0 })
+        {
+            return false;
+        }
+
+        // String or integer enum values are both supported. Integer enums carry their
+        // explicit numeric values into the generated C# enum so each member reads
+        // `Member = N` rather than relying on positional ordering.
         return actualSchema.Type?.HasFlag(JsonSchemaType.String) == true
-            && actualSchema.Enum is { Count: > 0 };
+            || actualSchema.Type?.HasFlag(JsonSchemaType.Integer) == true;
+    }
+
+    /// <summary>
+    /// Recognises the array-of-inline-enum pattern: <c>type: array, items: { type: string, enum: [...] }</c>.
+    /// Returns the items schema so the caller can generate a single inline enum type and
+    /// wrap it as <c>List&lt;...&gt;</c>. Returns false (and a null itemSchema) for any other
+    /// shape — scalar inline enums must still go through <see cref="IsInlineEnumSchema"/>.
+    /// </summary>
+    public static bool TryGetInlineEnumArrayItems(
+        IOpenApiSchema? schema,
+        out OpenApiSchema? itemSchema)
+    {
+        itemSchema = null;
+        if (schema is not OpenApiSchema actualSchema)
+        {
+            return false;
+        }
+
+        if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) != true)
+        {
+            return false;
+        }
+
+        if (actualSchema.Items is not OpenApiSchema items || !IsInlineEnumSchema(items))
+        {
+            return false;
+        }
+
+        itemSchema = items;
+        return true;
     }
 
     /// <summary>

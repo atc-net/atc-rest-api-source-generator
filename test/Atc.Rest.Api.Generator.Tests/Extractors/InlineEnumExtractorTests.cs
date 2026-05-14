@@ -687,6 +687,118 @@ public class InlineEnumExtractorTests
         Assert.False(statusProp.IsNullableType);
     }
 
+    [Fact]
+    public void IsArrayOfInlineEnumSchema_ArrayItemsAreInlineEnum_ReturnsTrue()
+    {
+        // `prop: { type: array, items: { type: string, enum: [...] } }` — the array-of-
+        // inline-enum pattern. The existing IsInlineEnumSchema is scalar-only; this
+        // sibling helper recognises the array shape and exposes the items schema so the
+        // caller can generate a single inline-enum type and wrap as List<T>.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                User:
+                                  type: object
+                                  properties:
+                                    roles:
+                                      type: array
+                                      items:
+                                        type: string
+                                        enum: [Admin, Manager, Guest]
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+        var userSchema = (OpenApiSchema)document!.Components!.Schemas!["User"];
+        var rolesProp = userSchema.Properties!["roles"];
+
+        var result = InlineEnumExtractor.TryGetInlineEnumArrayItems(rolesProp, out var itemSchema);
+
+        Assert.True(result);
+        Assert.NotNull(itemSchema);
+        Assert.True(InlineEnumExtractor.IsInlineEnumSchema(itemSchema));
+    }
+
+    [Fact]
+    public void IsArrayOfInlineEnumSchema_ScalarInlineEnum_ReturnsFalse()
+    {
+        // A scalar inline enum (the existing case) must not match the array-of variant.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                User:
+                                  type: object
+                                  properties:
+                                    role:
+                                      type: string
+                                      enum: [Admin, Manager]
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+        var userSchema = (OpenApiSchema)document!.Components!.Schemas!["User"];
+        var roleProp = userSchema.Properties!["role"];
+
+        Assert.False(InlineEnumExtractor.TryGetInlineEnumArrayItems(roleProp, out _));
+    }
+
+    [Fact]
+    public void IsInlineEnumSchema_IntegerWithEnumValues_ReturnsTrue()
+    {
+        // Integer enums (e.g., a numeric severity 1-5) are a valid OpenAPI pattern but
+        // were previously rejected because the schema-type check required `string`.
+        // We now accept Integer too, with explicit numeric values carried into
+        // EnumValueParameters so the generated C# enum reads `Member = 1, Other = 2`.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Severity:
+                                  type: integer
+                                  enum: [1, 2, 3, 4, 5]
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+        var schema = document!.Components!.Schemas!["Severity"];
+
+        Assert.True(InlineEnumExtractor.IsInlineEnumSchema(schema));
+    }
+
+    [Fact]
+    public void ExtractEnumFromInlineSchema_IntegerEnum_CarriesExplicitValues()
+    {
+        // Each generated enum value must carry the explicit integer value, so the
+        // generator emits `Value1 = 1` etc. (with a synthesized identifier prefix
+        // because raw integers aren't valid C# identifiers).
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Severity:
+                                  type: integer
+                                  enum: [1, 2, 5]
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+        var schema = (OpenApiSchema)document!.Components!.Schemas!["Severity"];
+
+        var enumParams = InlineEnumExtractor.ExtractEnumFromInlineSchema(schema, "Severity", "Demo.Models");
+
+        Assert.NotNull(enumParams);
+        Assert.Equal(3, enumParams!.Values.Count);
+        Assert.Contains(enumParams.Values, v => v.Value == 1);
+        Assert.Contains(enumParams.Values, v => v.Value == 2);
+        Assert.Contains(enumParams.Values, v => v.Value == 5);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

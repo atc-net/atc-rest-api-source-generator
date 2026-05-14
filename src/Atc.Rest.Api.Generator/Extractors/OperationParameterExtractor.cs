@@ -102,6 +102,65 @@ public static class OperationParameterExtractor
     }
 
     /// <summary>
+    /// Inline-enum-aware variant of <see cref="Extract(OpenApiDocument, string, string?, TypeConflictRegistry?, bool, bool, bool)"/>.
+    /// Returns both the wrapped <see cref="RecordsParameters"/> AND any inline enums discovered
+    /// on parameter schemas. Callers (typically the Roslyn source generator) are expected to
+    /// emit each <see cref="InlineEnumInfo"/> as a separate <c>.g.cs</c> file alongside the
+    /// parameter records.
+    /// </summary>
+    public static (RecordsParameters? Records, List<InlineEnumInfo> InlineEnums) ExtractWithInlineEnums(
+        OpenApiDocument openApiDoc,
+        string projectName,
+        string? pathSegment,
+        TypeConflictRegistry? registry = null,
+        bool includeDeprecated = false,
+        bool includeSharedModelsUsing = false,
+        bool includeSegmentModelsUsing = true)
+    {
+        var inlineEnumsByValuesKey = new Dictionary<string, InlineEnumInfo>(StringComparer.Ordinal);
+        var recordsList = ExtractIndividual(
+            openApiDoc,
+            projectName,
+            pathSegment,
+            registry: registry,
+            includeBindingAttributes: true,
+            namespaceSubFolder: "Parameters",
+            includeDeprecated: includeDeprecated,
+            inlineEnumsByValuesKey: inlineEnumsByValuesKey);
+
+        if (recordsList == null || recordsList.Count == 0)
+        {
+            return (null, [.. inlineEnumsByValuesKey.Values]);
+        }
+
+        var namespaceValue = NamespaceBuilder.ForParameters(projectName, pathSegment);
+
+        var segmentModelsNamespace = includeSegmentModelsUsing && !string.IsNullOrEmpty(pathSegment)
+            ? NamespaceBuilder.ForModels(projectName, pathSegment)
+            : null;
+
+        var sharedModelsNamespace = includeSharedModelsUsing && !string.IsNullOrEmpty(pathSegment)
+            ? NamespaceBuilder.ForModels(projectName)
+            : null;
+
+        var headerContent = BuildHeaderContent(
+            includeBindingAttributes: true,
+            segmentModelsNamespace,
+            sharedModelsNamespace,
+            records: recordsList);
+
+        var records = new RecordsParameters(
+            HeaderContent: headerContent,
+            Namespace: namespaceValue,
+            DocumentationTags: null,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.Public,
+            Parameters: recordsList);
+
+        return (records, [.. inlineEnumsByValuesKey.Values]);
+    }
+
+    /// <summary>
     /// Extracts individual parameter records from OpenAPI document paths and operations.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document containing path and operation definitions.</param>
@@ -143,6 +202,7 @@ public static class OperationParameterExtractor
     /// <param name="includeBindingAttributes">If true, includes ASP.NET Core binding attributes ([FromQuery], [FromRoute], etc.). Set to false for client DTOs.</param>
     /// <param name="namespaceSubFolder">The namespace subfolder (e.g., "Parameters" for server, "Client" for client).</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
+    /// <param name="inlineEnumsByValuesKey">Optional accumulator for inline enums discovered on parameter schemas. When supplied, inline-enum params produce a generated type name instead of <c>string</c>; the discovered enum is recorded here for the caller to emit as a separate file.</param>
     /// <returns>List of RecordParameters for each operation that has parameters in the path segment.</returns>
     public static List<RecordParameters>? ExtractIndividual(
         OpenApiDocument openApiDoc,
@@ -151,7 +211,8 @@ public static class OperationParameterExtractor
         TypeConflictRegistry? registry,
         bool includeBindingAttributes,
         string namespaceSubFolder,
-        bool includeDeprecated = false)
+        bool includeDeprecated = false,
+        Dictionary<string, InlineEnumInfo>? inlineEnumsByValuesKey = null)
     {
         if (openApiDoc == null)
         {
@@ -221,7 +282,10 @@ public static class OperationParameterExtractor
                     pathParameters,
                     operationId!,
                     registry,
-                    includeBindingAttributes);
+                    includeBindingAttributes,
+                    projectName,
+                    pathSegment,
+                    inlineEnumsByValuesKey);
 
                 if (recordParams != null)
                 {
@@ -231,6 +295,38 @@ public static class OperationParameterExtractor
         }
 
         return recordsList.Count > 0 ? recordsList : null;
+    }
+
+    /// <summary>
+    /// Inline-enum-aware variant of the public <c>ExtractIndividual</c> overloads.
+    /// Detects inline enums (string + enum values, no $ref) on parameter schemas and emits
+    /// them as a side-output so the caller can generate dedicated enum files. The matching
+    /// parameter property's TypeName is set to the generated enum name (e.g.
+    /// <c>FindPetsByStatusParametersStatus</c>) rather than the lossy fallback <c>string</c>.
+    /// Inline enums are deduplicated by sorted value set: two params with the same value
+    /// list share one generated type.
+    /// </summary>
+    public static (List<RecordParameters>? Records, List<InlineEnumInfo> InlineEnums) ExtractIndividualWithInlineEnums(
+        OpenApiDocument openApiDoc,
+        string projectName,
+        string? pathSegment,
+        TypeConflictRegistry? registry,
+        bool includeBindingAttributes,
+        string namespaceSubFolder,
+        bool includeDeprecated = false)
+    {
+        var inlineEnumsByValuesKey = new Dictionary<string, InlineEnumInfo>(StringComparer.Ordinal);
+        var records = ExtractIndividual(
+            openApiDoc,
+            projectName,
+            pathSegment,
+            registry,
+            includeBindingAttributes,
+            namespaceSubFolder,
+            includeDeprecated,
+            inlineEnumsByValuesKey);
+
+        return (records, [.. inlineEnumsByValuesKey.Values]);
     }
 
     /// <summary>
@@ -310,7 +406,10 @@ public static class OperationParameterExtractor
         IList<IOpenApiParameter>? pathParameters,
         string operationId,
         TypeConflictRegistry? registry,
-        bool includeBindingAttributes)
+        bool includeBindingAttributes,
+        string projectName,
+        string? pathSegment,
+        Dictionary<string, InlineEnumInfo>? inlineEnumsByValuesKey)
     {
         var recordName = $"{operationId.ToPascalCaseForDotNet()}Parameters";
 
@@ -386,7 +485,30 @@ public static class OperationParameterExtractor
                     continue;
                 }
 
-                var paramType = MapOpenApiTypeToCSharp(parameter.Schema!, parameter.Required, registry);
+                // Inline-enum detection: when the parameter schema is an inline enum
+                // (string + enum values, no $ref) — or an array whose items are an
+                // inline enum — AND the caller supplied an accumulator, generate a named
+                // C# enum type and record it as a side-output. Dedup by sorted value set
+                // so two params with the same value list share one type. Falls through
+                // to plain primitive mapping when no accumulator is supplied.
+                string paramType;
+                var inlineEnumTypeName = TryRegisterInlineEnumOnParameter(
+                    parameter.Schema,
+                    recordName,
+                    propName,
+                    projectName,
+                    pathSegment,
+                    inlineEnumsByValuesKey,
+                    out var isArrayOfInlineEnum);
+                if (inlineEnumTypeName != null)
+                {
+                    var rendered = isArrayOfInlineEnum ? $"List<{inlineEnumTypeName}>" : inlineEnumTypeName;
+                    paramType = parameter.Required ? rendered : rendered + "?";
+                }
+                else
+                {
+                    paramType = MapOpenApiTypeToCSharp(parameter.Schema!, parameter.Required, registry);
+                }
 
                 // Extract nullability from the type name - the code generation library handles adding "?"
                 var isNullableType = paramType.EndsWith("?", StringComparison.Ordinal);
@@ -657,6 +779,65 @@ public static class OperationParameterExtractor
     /// <summary>
     /// Maps array type from OpenAPI schema.
     /// </summary>
+    /// <summary>
+    /// Detects an inline enum on a parameter schema and registers it for code emission.
+    /// Returns the generated C# enum type name, or null if the schema is not an inline enum
+    /// (or the caller didn't supply an accumulator — backwards-compatible path).
+    /// Dedup is by sorted value set, so the same enum values across params share one type.
+    /// </summary>
+    private static string? TryRegisterInlineEnumOnParameter(
+        IOpenApiSchema? schema,
+        string parameterRecordName,
+        string propertyName,
+        string projectName,
+        string? pathSegment,
+        Dictionary<string, InlineEnumInfo>? inlineEnumsByValuesKey,
+        out bool isArrayOfInlineEnum)
+    {
+        isArrayOfInlineEnum = false;
+        if (inlineEnumsByValuesKey is null || schema is not OpenApiSchema actualSchema)
+        {
+            return null;
+        }
+
+        // Resolve to the actual enum schema — either the param itself (scalar inline
+        // enum) or the array items. The generated type name is the same in both
+        // cases; only the wrapping differs (List&lt;T&gt; vs T).
+        OpenApiSchema? enumSchema = null;
+        if (InlineEnumExtractor.IsInlineEnumSchema(actualSchema))
+        {
+            enumSchema = actualSchema;
+        }
+        else if (InlineEnumExtractor.TryGetInlineEnumArrayItems(actualSchema, out var itemSchema))
+        {
+            enumSchema = itemSchema;
+            isArrayOfInlineEnum = true;
+        }
+
+        if (enumSchema is null)
+        {
+            return null;
+        }
+
+        var valuesKey = InlineEnumExtractor.GetEnumValuesKey(enumSchema);
+        if (inlineEnumsByValuesKey.TryGetValue(valuesKey, out var existing))
+        {
+            return existing.TypeName;
+        }
+
+        var typeName = InlineEnumExtractor.GenerateInlineEnumTypeName(parameterRecordName, propertyName);
+        var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
+        var enumParameters = InlineEnumExtractor.ExtractEnumFromInlineSchema(enumSchema, typeName, ns);
+        if (enumParameters is null)
+        {
+            return null;
+        }
+
+        var info = new InlineEnumInfo(typeName, pathSegment ?? string.Empty, enumParameters, valuesKey);
+        inlineEnumsByValuesKey[valuesKey] = info;
+        return typeName;
+    }
+
     private static string MapArrayType(
         OpenApiSchema schema,
         TypeConflictRegistry? registry = null)

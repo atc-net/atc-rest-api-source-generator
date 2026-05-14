@@ -109,14 +109,16 @@ public static class EnumExtractor
     /// </summary>
     private static bool IsEnumSchema(OpenApiSchema schema)
     {
-        // Check if it's a string type with enum values
-        if (schema.Type != JsonSchemaType.String)
+        if (schema.Enum is not { Count: > 0 })
         {
             return false;
         }
 
-        // Must have enum values defined
-        return schema.Enum is { Count: > 0 };
+        // String and integer enums are both supported. For integers, ExtractEnumValues
+        // synthesises identifiers (`Value{n}`) and carries the explicit numeric value so
+        // the generated C# enum reads `Value1 = 1, Value5 = 5` instead of relying on
+        // positional ordering.
+        return schema.Type == JsonSchemaType.String || schema.Type == JsonSchemaType.Integer;
     }
 
     /// <summary>
@@ -218,7 +220,32 @@ public static class EnumExtractor
 
         foreach (var enumValue in enumValues)
         {
-            // OpenAPI enum values are stored as JsonNode
+            // Integer enum values: synthesise a `Value{n}` identifier (or `ValueNegN`
+            // for negatives) and carry the explicit numeric value so the generated
+            // member reads `Value1 = 1`. JsonValue's underlying number may be parsed
+            // as long / int / decimal depending on YAML loader settings, so try the
+            // raw JsonElement kind first.
+            if (enumValue is JsonValue jsonValue &&
+                jsonValue.GetValueKind() == JsonValueKind.Number &&
+                long.TryParse(
+                    jsonValue.ToJsonString(),
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var intValue))
+            {
+                var identifier = intValue >= 0
+                    ? $"Value{intValue}"
+                    : $"ValueNeg{-intValue}";
+                result.Add(new EnumValueParameters(
+                    DocumentationTags: null,
+                    DescriptionAttribute: null,
+                    Name: identifier,
+                    EnumMemberValue: null,
+                    Value: (int)intValue));
+                continue;
+            }
+
+            // OpenAPI string enum values are stored as JsonNode
             var valueStr = enumValue?.ToString();
             if (string.IsNullOrEmpty(valueStr))
             {

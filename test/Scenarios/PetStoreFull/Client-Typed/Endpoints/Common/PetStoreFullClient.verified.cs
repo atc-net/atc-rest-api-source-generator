@@ -62,7 +62,7 @@ public sealed class PetStoreFullClient
     {
         var url = "/pet/findByStatus";
         var queryParams = new List<string>();
-        queryParams.Add($"status={Uri.EscapeDataString(parameters.Status)}");
+        queryParams.Add($"status={Uri.EscapeDataString($"{parameters.Status}")}");
 
         if (queryParams.Count > 0)
         {

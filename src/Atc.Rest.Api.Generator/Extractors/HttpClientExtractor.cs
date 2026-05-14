@@ -307,6 +307,26 @@ public static class HttpClientExtractor
             namespaceSubFolder: "Client",
             includeDeprecated: includeDeprecated);
 
+    /// <summary>
+    /// Inline-enum-aware variant of <see cref="ExtractParameters"/>. Returns both the
+    /// parameter records and any inline enums discovered on parameter schemas, so the
+    /// Roslyn client generator can emit them as separate <c>.g.cs</c> files.
+    /// </summary>
+    public static (List<RecordParameters>? Records, List<InlineEnumInfo> InlineEnums) ExtractParametersWithInlineEnums(
+        OpenApiDocument openApiDoc,
+        string projectName,
+        string? pathSegment,
+        TypeConflictRegistry? registry = null,
+        bool includeDeprecated = false)
+        => OperationParameterExtractor.ExtractIndividualWithInlineEnums(
+            openApiDoc,
+            projectName,
+            pathSegment,
+            registry,
+            includeBindingAttributes: false,
+            namespaceSubFolder: "Client",
+            includeDeprecated: includeDeprecated);
+
     private static MethodParameters? ExtractMethod(
         string path,
         string httpMethod,
@@ -422,7 +442,7 @@ public static class HttpClientExtractor
 
         // Generate method body content
         var hasReturnType = returnType != nameof(Task);
-        var methodContent = GenerateMethodBody(path, httpMethod, operation, pathLevelParameters, openApiDoc, returnType, hasParameters, isAsyncEnumerable, streamingItemType, hasReturnType, hasLocationHeader, useServersBasePath);
+        var methodContent = GenerateMethodBody(path, httpMethod, operation, pathLevelParameters, openApiDoc, returnType, hasParameters, isAsyncEnumerable, streamingItemType, hasReturnType, hasLocationHeader, useServersBasePath, parametersClassName);
 
         // For async enumerable methods, return IAsyncEnumerable<T> directly
         if (isAsyncEnumerable && streamingItemType != null)
@@ -480,7 +500,8 @@ public static class HttpClientExtractor
         string? streamingItemType,
         bool hasReturnType,
         bool hasLocationHeader,
-        bool useServersBasePath = true)
+        bool useServersBasePath = true,
+        string parametersClassName = "")
     {
         var builder = new StringBuilder();
 
@@ -505,7 +526,7 @@ public static class HttpClientExtractor
                 if (param.In == ParameterLocation.Path)
                 {
                     var propName = param.Name!.ToPascalCaseForDotNet();
-                    var paramType = GetParameterType(param, openApiDoc);
+                    var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName);
                     var replacement = BuildPathParameterReplacement(propName, paramType);
                     urlBuilder = urlBuilder.Replace($"{{{param.Name}}}", replacement);
                 }
@@ -528,7 +549,7 @@ public static class HttpClientExtractor
                 if (param.In == ParameterLocation.Path)
                 {
                     var propName = param.Name!.ToPascalCaseForDotNet();
-                    var paramType = GetParameterType(param, openApiDoc);
+                    var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName);
                     var replacement = BuildPathParameterReplacement(propName, paramType);
                     urlBuilder = urlBuilder.Replace($"{{{param.Name}}}", replacement);
                 }
@@ -568,7 +589,7 @@ public static class HttpClientExtractor
             {
                 var propName = param.Name!.ToPascalCaseForDotNet();
                 var paramAccess = $"parameters.{propName}";
-                var paramType = GetParameterType(param, openApiDoc);
+                var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName);
                 var isRequired = param.Required;
                 var needsEncoding = NeedsUrlEncoding(paramType);
 
@@ -902,6 +923,33 @@ public static class HttpClientExtractor
         }
 
         return GetSchemaTypeName(param.Schema, openApiDoc);
+    }
+
+    /// <summary>
+    /// Returns the C# type name for a parameter, accounting for inline enums.
+    /// When the schema is an inline enum (string + enum values, no $ref), the type is
+    /// the generated enum name (<c>{parametersClassName}{PropertyName}</c>) — matches what
+    /// <see cref="OperationParameterExtractor"/> writes on the corresponding record property.
+    /// The URL-builder then takes the non-string branch in <see cref="BuildEncodedExpression"/>,
+    /// which produces <c>Uri.EscapeDataString($"{...}")</c> — interpolation handles the
+    /// enum-to-string conversion safely.
+    /// </summary>
+    private static string GetParameterTypeWithInlineEnumAwareness(
+        OpenApiParameter param,
+        OpenApiDocument openApiDoc,
+        string parametersClassName)
+    {
+        if (param.Schema is OpenApiSchema actualSchema &&
+            InlineEnumExtractor.IsInlineEnumSchema(actualSchema) &&
+            !string.IsNullOrEmpty(param.Name))
+        {
+            var propName = param.In == ParameterLocation.Header
+                ? param.Name!.ToHeaderPropertyName()
+                : param.Name!.ToPascalCaseForDotNet();
+            return InlineEnumExtractor.GenerateInlineEnumTypeName(parametersClassName, propName);
+        }
+
+        return GetParameterType(param, openApiDoc);
     }
 
     private static string GetSchemaTypeName(
