@@ -22,7 +22,7 @@ export class PetClient {
     });
   }
 
-  async findPetsByStatus(query?: { status?: string }): Promise<ApiResult<Pet[]>> {
+  async findPetsByStatus(query?: { status?: 'available' | 'pending' | 'sold' }): Promise<ApiResult<Pet[]>> {
     return this.api.request<Pet[]>('GET', '/pet/findByStatus', {
       query: {
         status: query?.status,
@@ -51,8 +51,12 @@ export class PetClient {
     });
   }
 
-  async deletePet(petId: number): Promise<ApiResult<void>> {
-    return this.api.request<void>('DELETE', `/pet/${petId}`);
+  async deletePet(petId: number, headers?: { 'api_key'?: string }): Promise<ApiResult<void>> {
+    return this.api.request<void>('DELETE', `/pet/${petId}`, {
+      headers: {
+        'api_key': headers?.['api_key'],
+      },
+    });
   }
 
   async uploadFile(petId: number, file: Blob | File, query?: { additionalMetadata?: string }): Promise<ApiResult<ApiResponse>> {

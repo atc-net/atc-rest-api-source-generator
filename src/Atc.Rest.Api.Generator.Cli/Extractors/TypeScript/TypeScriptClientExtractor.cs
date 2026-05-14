@@ -52,9 +52,9 @@ public static class TypeScriptClientExtractor
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
 
         // First pass: collect all import types
-        foreach (var (_, _, operation) in operations)
+        foreach (var (operationPath, _, operation) in operations)
         {
-            TypeScriptOperationHelper.CollectImportTypes(operation, importTypes);
+            TypeScriptOperationHelper.CollectImportTypes(operation, importTypes, openApiDoc, operationPath);
         }
 
         // Second pass: fix imports for streaming operations whose response schema
@@ -81,7 +81,7 @@ public static class TypeScriptClientExtractor
                     var usedByNonStreaming = false;
                     if (wrapperName != null)
                     {
-                        foreach (var (_, _, otherOp) in operations)
+                        foreach (var (otherPath, _, otherOp) in operations)
                         {
                             if (otherOp == operation || otherOp.IsAsyncEnumerableOperation())
                             {
@@ -89,7 +89,7 @@ public static class TypeScriptClientExtractor
                             }
 
                             var otherImports = new HashSet<string>(StringComparer.Ordinal);
-                            TypeScriptOperationHelper.CollectImportTypes(otherOp, otherImports);
+                            TypeScriptOperationHelper.CollectImportTypes(otherOp, otherImports, openApiDoc, otherPath);
                             if (otherImports.Contains(wrapperName))
                             {
                                 usedByNonStreaming = true;
@@ -203,6 +203,7 @@ public static class TypeScriptClientExtractor
         // Get parameters (merge path-level and operation-level)
         var pathParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Path);
         var queryParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Query);
+        var headerParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Header);
 
         // Get request body
         var (bodySchema, bodyContentType) = operation.GetRequestBodySchemaWithContentType();
@@ -212,11 +213,11 @@ public static class TypeScriptClientExtractor
 
         if (isStreaming)
         {
-            AppendStreamingMethod(sb, methodName, path, pathParams, queryParams, returnType, namingStrategy);
+            AppendStreamingMethod(sb, methodName, path, pathParams, queryParams, headerParams, returnType, namingStrategy);
         }
         else
         {
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy);
         }
     }
 
@@ -227,6 +228,7 @@ public static class TypeScriptClientExtractor
         string httpMethod,
         List<OpenApiParameter> pathParams,
         List<OpenApiParameter> queryParams,
+        List<OpenApiParameter> headerParams,
         IOpenApiSchema? bodySchema,
         string bodyContentType,
         bool isFileUpload,
@@ -236,7 +238,7 @@ public static class TypeScriptClientExtractor
         TypeScriptNamingStrategy namingStrategy)
     {
         // Build parameter list
-        var paramList = BuildParameterList(pathParams, queryParams, bodySchema, bodyContentType, isFileUpload, namingStrategy);
+        var paramList = BuildParameterList(pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, namingStrategy);
         sb.Append("  async ").Append(methodName).Append('(').Append(paramList).Append("): Promise<ApiResult<").Append(returnType).AppendLine(">> {");
 
         // Build path with interpolation
@@ -244,9 +246,10 @@ public static class TypeScriptClientExtractor
 
         // Build request options
         var hasQuery = queryParams.Count > 0;
+        var hasHeaders = headerParams.Count > 0;
         var hasBody = bodySchema != null;
 
-        if (hasQuery || hasBody || isFileUpload || isFileDownload || isTextDownload)
+        if (hasQuery || hasHeaders || hasBody || isFileUpload || isFileDownload || isTextDownload)
         {
             sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(interpolatedPath).AppendLine(", {");
 
@@ -262,6 +265,11 @@ public static class TypeScriptClientExtractor
             if (hasQuery)
             {
                 AppendQueryObject(sb, queryParams, namingStrategy);
+            }
+
+            if (hasHeaders)
+            {
+                AppendHeadersObject(sb, headerParams);
             }
 
             if (isFileDownload)
@@ -289,10 +297,11 @@ public static class TypeScriptClientExtractor
         string path,
         List<OpenApiParameter> pathParams,
         List<OpenApiParameter> queryParams,
+        List<OpenApiParameter> headerParams,
         string itemType,
         TypeScriptNamingStrategy namingStrategy)
     {
-        // Build parameter list (streaming methods may have query params + signal)
+        // Build parameter list (streaming methods may have query / header params + signal)
         var paramParts = new List<string>();
 
         foreach (var param in pathParams)
@@ -308,6 +317,12 @@ public static class TypeScriptClientExtractor
             paramParts.Add("query?: " + queryType);
         }
 
+        if (headerParams.Count > 0)
+        {
+            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(headerParams);
+            paramParts.Add("headers?: " + headerType);
+        }
+
         paramParts.Add("signal?: AbortSignal");
 
         var paramList = string.Join(", ", paramParts);
@@ -316,11 +331,21 @@ public static class TypeScriptClientExtractor
 
         var interpolatedPath = TypeScriptOperationHelper.BuildInterpolatedPath(path, pathParams, namingStrategy);
         var hasQuery = queryParams.Count > 0;
+        var hasHeaders = headerParams.Count > 0;
 
-        if (hasQuery)
+        if (hasQuery || hasHeaders)
         {
             sb.Append("    yield* this.api.requestStream<").Append(itemType).Append(">('GET', ").Append(interpolatedPath).AppendLine(", {");
-            AppendQueryObject(sb, queryParams, namingStrategy);
+            if (hasQuery)
+            {
+                AppendQueryObject(sb, queryParams, namingStrategy);
+            }
+
+            if (hasHeaders)
+            {
+                AppendHeadersObject(sb, headerParams);
+            }
+
             sb.AppendLine("      signal,");
             sb.AppendLine("    });");
         }
@@ -335,6 +360,7 @@ public static class TypeScriptClientExtractor
     private static string BuildParameterList(
         List<OpenApiParameter> pathParams,
         List<OpenApiParameter> queryParams,
+        List<OpenApiParameter> headerParams,
         IOpenApiSchema? bodySchema,
         string bodyContentType,
         bool isFileUpload,
@@ -369,6 +395,13 @@ public static class TypeScriptClientExtractor
         {
             var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, namingStrategy);
             parts.Add("query?: " + queryType);
+        }
+
+        // Header parameters (optional object)
+        if (headerParams.Count > 0)
+        {
+            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(headerParams);
+            parts.Add("headers?: " + headerType);
         }
 
         return string.Join(", ", parts);
@@ -541,6 +574,24 @@ public static class TypeScriptClientExtractor
             {
                 sb.Append("        ").Append(propName).Append(": query?.").Append(propName).AppendLine(",");
             }
+        }
+
+        sb.AppendLine("      },");
+    }
+
+    private static void AppendHeadersObject(
+        StringBuilder sb,
+        List<OpenApiParameter> headerParams)
+    {
+        // Header names are emitted verbatim (no naming-strategy transform). HTTP header
+        // names commonly contain dashes — both the key on the wire and the inline-type
+        // key must match the OpenAPI name exactly. Access uses bracket + optional-chaining
+        // because the outer `headers?:` is optional.
+        sb.AppendLine("      headers: {");
+        foreach (var param in headerParams)
+        {
+            var rawName = param.Name ?? string.Empty;
+            sb.Append("        '").Append(rawName).Append("': headers?.['").Append(rawName).AppendLine("'],");
         }
 
         sb.AppendLine("      },");

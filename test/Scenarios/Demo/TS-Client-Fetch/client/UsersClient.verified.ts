@@ -11,7 +11,7 @@ export class UsersClient {
     this.api = api;
   }
 
-  async listUsers(query?: { search?: string; country?: string; role?: string; isActive?: boolean; limit?: number }): Promise<ApiResult<Users>> {
+  async listUsers(query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number }): Promise<ApiResult<Users>> {
     return this.api.request<Users>('GET', '/users', {
       query: {
         search: query?.search,

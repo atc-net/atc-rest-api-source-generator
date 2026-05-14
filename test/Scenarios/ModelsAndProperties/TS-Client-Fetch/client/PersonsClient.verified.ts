@@ -2,6 +2,7 @@
 import { ApiClient } from './ApiClient';
 import type { ApiResult } from '../types/ApiResult';
 import type { Person } from '../models';
+import type { GenderType } from '../enums';
 
 export class PersonsClient {
   private readonly api: ApiClient;

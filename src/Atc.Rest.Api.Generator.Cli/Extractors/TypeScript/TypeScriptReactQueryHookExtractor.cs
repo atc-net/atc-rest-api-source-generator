@@ -76,7 +76,7 @@ public static class TypeScriptReactQueryHookExtractor
                 continue;
             }
 
-            TypeScriptOperationHelper.CollectImportTypes(operation, importTypes);
+            TypeScriptOperationHelper.CollectImportTypes(operation, importTypes, openApiDoc, path);
 
             if (info.IsQuery)
             {
@@ -264,9 +264,16 @@ public static class TypeScriptReactQueryHookExtractor
             hookParams.Add("query?: " + queryType);
         }
 
+        if (info.HeaderParams.Count > 0)
+        {
+            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams);
+            hookParams.Add("headers?: " + headerType);
+        }
+
         var hookParamStr = string.Join(", ", hookParams);
 
-        // Build key args
+        // Build key args — headers are intentionally excluded so the React Query cache
+        // does NOT fragment on per-request headers (correlation IDs, etc).
         string keyCallArgs;
         if (info.PathParams.Count > 0)
         {
@@ -283,8 +290,8 @@ public static class TypeScriptReactQueryHookExtractor
             keyCallArgs = string.Empty;
         }
 
-        // Build client call args
-        var clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, hasBody: false, namingStrategy: namingStrategy);
+        // Build client call args (headers ARE forwarded to the client method)
+        var clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, hasBody: false, namingStrategy: namingStrategy);
 
         sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
@@ -336,13 +343,13 @@ public static class TypeScriptReactQueryHookExtractor
             }
 
             mutationArg = "(body: " + info.BodyType + ")";
-            clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, hasBody: true, namingStrategy: namingStrategy);
+            clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, hasBody: true, namingStrategy: namingStrategy);
         }
         else if (info.HasBody)
         {
             // Body only as mutation arg
             mutationArg = "(body: " + info.BodyType + ")";
-            clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, hasBody: true, namingStrategy: namingStrategy);
+            clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, hasBody: true, namingStrategy: namingStrategy);
         }
         else if (info.HasFileUploadArg && info.PathParams.Count > 0)
         {
@@ -421,6 +428,16 @@ public static class TypeScriptReactQueryHookExtractor
             clientCallArgs = string.Empty;
         }
 
+        // Header params are hook-scoped (set once per useXxx() call) for mutations,
+        // matching how query params behave for the same operation. The order at the
+        // call site is path-params..., body, query, headers — see BuildClientCallArgs.
+        if (info.HeaderParams.Count > 0)
+        {
+            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams);
+            hookParams.Add("headers?: " + headerType);
+            clientCallArgs = clientCallArgs.Length == 0 ? "headers" : clientCallArgs + ", headers";
+        }
+
         var hookParamStr = string.Join(", ", hookParams);
 
         sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
@@ -471,9 +488,13 @@ public static class TypeScriptReactQueryHookExtractor
     private static string BuildClientCallArgs(
         List<OpenApiParameter> pathParams,
         List<OpenApiParameter> queryParams,
+        List<OpenApiParameter> headerParams,
         bool hasBody,
         TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase)
     {
+        // Argument order must mirror the client method's parameter list:
+        //   pathParams..., body, query, headers
+        // See TypeScriptClientExtractor.BuildParameterList.
         var args = new List<string>();
 
         foreach (var param in pathParams)
@@ -489,6 +510,11 @@ public static class TypeScriptReactQueryHookExtractor
         if (queryParams.Count > 0)
         {
             args.Add("query");
+        }
+
+        if (headerParams.Count > 0)
+        {
+            args.Add("headers");
         }
 
         return string.Join(", ", args);
@@ -551,6 +577,8 @@ public static class TypeScriptReactQueryHookExtractor
             operation, openApiDoc, path, ParameterLocation.Path);
         var queryParams = TypeScriptOperationHelper.GetMergedParameters(
             operation, openApiDoc, path, ParameterLocation.Query);
+        var headerParams = TypeScriptOperationHelper.GetMergedParameters(
+            operation, openApiDoc, path, ParameterLocation.Header);
 
         var returnType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming, isFileDownload);
 
@@ -582,6 +610,7 @@ public static class TypeScriptReactQueryHookExtractor
             IsSkipped: isStreaming,
             PathParams: pathParams,
             QueryParams: queryParams,
+            HeaderParams: headerParams,
             ReturnType: returnType,
             HasBody: hasBody,
             BodyType: bodyType,
@@ -660,6 +689,7 @@ public static class TypeScriptReactQueryHookExtractor
         bool IsSkipped,
         List<OpenApiParameter> PathParams,
         List<OpenApiParameter> QueryParams,
+        List<OpenApiParameter> HeaderParams,
         string ReturnType,
         bool HasBody,
         string BodyType,

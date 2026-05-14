@@ -18,7 +18,7 @@ export interface ApiClientOptions {
 export interface RequestOptions {
   body?: unknown;
   query?: Record<string, string | number | boolean | undefined>;
-  headers?: Record<string, string>;
+  headers?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
   responseType?: 'json' | 'blob' | 'text';
 }
@@ -77,7 +77,11 @@ export class ApiClient {
     }
 
     if (options?.headers) {
-      Object.assign(headers, options.headers);
+      for (const [key, value] of Object.entries(options.headers)) {
+        if (value !== undefined) {
+          headers[key] = String(value);
+        }
+      }
     }
 
     const response = await this.client.request<T>({
