@@ -1107,8 +1107,25 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool includeSharedModelsUsing = false,
         bool includeSegmentModelsUsing = true)
     {
-        // Use OperationParameterExtractor to extract operation parameters into RecordsParameters filtered by path segment
-        var recordsParams = OperationParameterExtractor.Extract(openApiDoc, projectName, pathSegment, registry, includeDeprecated, includeSharedModelsUsing, includeSegmentModelsUsing);
+        // Use OperationParameterExtractor inline-enum-aware variant so inline enums on
+        // parameter schemas produce dedicated enum files alongside the parameter record.
+        var (recordsParams, inlineEnums) = OperationParameterExtractor.ExtractWithInlineEnums(
+            openApiDoc,
+            projectName,
+            pathSegment,
+            registry,
+            includeDeprecated,
+            includeSharedModelsUsing,
+            includeSegmentModelsUsing);
+
+        // Emit inline enum files first so the parameter record's type references resolve.
+        foreach (var inlineEnum in inlineEnums)
+        {
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
+            context.AddSource(
+                $"{projectName}.{pathSegment}.Parameters.{inlineEnum.TypeName}.g.cs",
+                SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
+        }
 
         if (recordsParams == null || recordsParams.Parameters.Count == 0)
         {

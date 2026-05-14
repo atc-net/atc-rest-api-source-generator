@@ -38,7 +38,7 @@ public partial class Users
             users = await Gateway.ListUsersAsync(
                 search: searchQuery,
                 country: selectedCountry,
-                role: selectedRole,
+                role: string.IsNullOrEmpty(selectedRole) ? null : Enum.Parse<Showcase.Generated.Users.Models.ListUsersParametersRole>(selectedRole),
                 isActive: selectedActiveStatus) ?? [];
 
             Snackbar.Add($"Found {users.Length} users", Severity.Success);

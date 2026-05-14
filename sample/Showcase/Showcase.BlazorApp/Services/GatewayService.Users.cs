@@ -11,7 +11,7 @@ public sealed partial class GatewayService
     public async Task<User[]?> ListUsersAsync(
         string? search = null,
         string? country = null,
-        string? role = null,
+        ListUsersParametersRole? role = null,
         bool? isActive = null,
         int? limit = null,
         CancellationToken cancellationToken = default)

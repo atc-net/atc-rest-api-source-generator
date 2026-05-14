@@ -733,7 +733,18 @@ public class ApiClientGenerator : IIncrementalGenerator
     {
         // Generate client parameters using shared OperationParameterExtractor (without binding attributes)
         // Each parameter record is generated as a separate file to avoid multiple file-scoped namespace declarations
-        var parameterRecords = HttpClientExtractor.ExtractParameters(openApiDoc, projectName, pathSegment, registry, includeDeprecated);
+        var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated);
+
+        // Emit inline enum files for any inline enums on parameter schemas — these must
+        // appear before the parameter records that reference them.
+        foreach (var inlineEnum in parameterInlineEnums)
+        {
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
+            context.AddSource(
+                $"{projectName}.{pathSegment}.Client.{inlineEnum.TypeName}.g.cs",
+                SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
         if (parameterRecords is { Count: > 0 })
         {
             var codeDocGenerator = new CodeDocumentationTagsGenerator();
@@ -812,7 +823,17 @@ public class ApiClientGenerator : IIncrementalGenerator
     {
         // Generate client parameters using shared OperationParameterExtractor (without binding attributes)
         // Parameters are shared between TypedClient and EndpointPerOperation modes
-        var parameterRecords = HttpClientExtractor.ExtractParameters(openApiDoc, projectName, pathSegment, registry, includeDeprecated);
+        var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated);
+
+        // Emit inline enum files for any inline enums on parameter schemas.
+        foreach (var inlineEnum in parameterInlineEnums)
+        {
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
+            context.AddSource(
+                $"{projectName}.{pathSegment}.Client.{inlineEnum.TypeName}.g.cs",
+                SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
         if (parameterRecords is { Count: > 0 })
         {
             var codeDocGenerator = new CodeDocumentationTagsGenerator();

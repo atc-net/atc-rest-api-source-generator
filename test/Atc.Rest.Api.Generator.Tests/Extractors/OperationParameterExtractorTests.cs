@@ -924,6 +924,156 @@ public class OperationParameterExtractorTests
         Assert.False(param.IsNullableType);
     }
 
+    [Fact]
+    public void ExtractIndividualWithInlineEnums_InlineEnumQueryParam_GeneratesEnumType()
+    {
+        // An inline enum on a query parameter (no $ref) should generate a named C# enum
+        // type (deterministic name {ParameterRecordName}{PropertyName}), and the
+        // parameter property's type should be that enum, not the lossy fallback `string`.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pet/findByStatus:
+                                get:
+                                  operationId: findPetsByStatus
+                                  parameters:
+                                    - name: status
+                                      in: query
+                                      required: true
+                                      schema:
+                                        type: string
+                                        default: available
+                                        enum:
+                                          - available
+                                          - pending
+                                          - sold
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (recordsParams, inlineEnums) = OperationParameterExtractor.ExtractIndividualWithInlineEnums(
+            document!,
+            projectName: "Demo",
+            pathSegment: "Pet",
+            registry: null,
+            includeBindingAttributes: true,
+            namespaceSubFolder: "Parameters");
+
+        Assert.NotNull(recordsParams);
+        var record = Assert.Single(recordsParams);
+        var param = Assert.Single(record.Parameters!);
+
+        // Parameter type is the generated enum, not "string".
+        Assert.Equal("FindPetsByStatusParametersStatus", param.TypeName);
+
+        // The inline enum is reported back to the caller for separate file emission.
+        var inlineEnum = Assert.Single(inlineEnums);
+        Assert.Equal("FindPetsByStatusParametersStatus", inlineEnum.TypeName);
+    }
+
+    [Fact]
+    public void ExtractIndividualWithInlineEnums_InlineEnumPathParam_GeneratesEnumType()
+    {
+        // Same rule applies for path / header params — any URL parameter location
+        // (query, path, header, cookie) with an inline enum produces a generated type.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /things/{tier}:
+                                get:
+                                  operationId: getThing
+                                  parameters:
+                                    - name: tier
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                        enum: [free, pro, enterprise]
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (recordsParams, inlineEnums) = OperationParameterExtractor.ExtractIndividualWithInlineEnums(
+            document!,
+            projectName: "Demo",
+            pathSegment: "Things",
+            registry: null,
+            includeBindingAttributes: true,
+            namespaceSubFolder: "Parameters");
+
+        Assert.NotNull(recordsParams);
+        var param = recordsParams.Single().Parameters![0];
+
+        Assert.Equal("GetThingParametersTier", param.TypeName);
+        var inlineEnum = Assert.Single(inlineEnums);
+        Assert.Equal("GetThingParametersTier", inlineEnum.TypeName);
+    }
+
+    [Fact]
+    public void ExtractIndividualWithInlineEnums_InlineEnumArrayQueryParam_GeneratesListOfEnumType()
+    {
+        // A query parameter typed as `type: array, items: { type: string, enum: [...] }`
+        // (inline-enum array) should surface as `List<{ParameterRecord}{Property}>` (or
+        // `?` only when not required), and the generated enum type should be reported
+        // back in the side-output.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: T
+                              version: 1.0.0
+                            paths:
+                              /users:
+                                get:
+                                  operationId: listUsers
+                                  parameters:
+                                    - name: roles
+                                      in: query
+                                      schema:
+                                        type: array
+                                        items:
+                                          type: string
+                                          enum: [Admin, Manager, Guest]
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (recordsParams, inlineEnums) = OperationParameterExtractor.ExtractIndividualWithInlineEnums(
+            document!,
+            projectName: "Demo",
+            pathSegment: "Users",
+            registry: null,
+            includeBindingAttributes: true,
+            namespaceSubFolder: "Parameters");
+
+        Assert.NotNull(recordsParams);
+        var param = recordsParams.Single().Parameters![0];
+
+        // Server-side query arrays are wrapped with ParsableList<T> so [AsParameters]
+        // binding gets a TryParse — that's pre-existing behavior; the new bit is that
+        // the inner T is the generated enum, not `string`.
+        Assert.Equal("ParsableList<ListUsersParametersRoles>", param.TypeName);
+        var inlineEnum = Assert.Single(inlineEnums);
+        Assert.Equal("ListUsersParametersRoles", inlineEnum.TypeName);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

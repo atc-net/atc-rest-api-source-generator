@@ -218,9 +218,9 @@ public sealed class DemoClient
             queryParams.Add($"country={Uri.EscapeDataString(parameters.Country)}");
         }
 
-        if (!string.IsNullOrEmpty(parameters.Role))
+        if (parameters.Role != null)
         {
-            queryParams.Add($"role={Uri.EscapeDataString(parameters.Role)}");
+            queryParams.Add($"role={Uri.EscapeDataString($"{parameters.Role}")}");
         }
 
         if (parameters.IsActive.HasValue)
