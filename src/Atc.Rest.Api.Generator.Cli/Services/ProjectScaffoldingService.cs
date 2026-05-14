@@ -721,7 +721,7 @@ public sealed class ProjectScaffoldingService
         string targetFramework)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("<Project Sdk=\"Aspire.AppHost.Sdk/13.0.0\">");
+        sb.AppendLine("<Project Sdk=\"Aspire.AppHost.Sdk/13.3.2\">");
         sb.AppendLine();
         sb.AppendLine(2, "<PropertyGroup>");
         sb.AppendLine(4, "<OutputType>Exe</OutputType>");
