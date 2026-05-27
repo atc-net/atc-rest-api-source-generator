@@ -346,6 +346,7 @@ public static class GeneratorTestHelper
         {
             HttpClient = httpClient,
             HooksStyle = hooksStyle,
+            ConvertDates = markerConfig?.ConvertDates ?? false,
             DryRun = false,
             GenerateFileHeaders = true,
         };
@@ -557,5 +558,7 @@ public sealed class {handlerName} : {interfaceName}
         public string HttpClient { get; init; } = "Fetch";
 
         public string? HooksStyle { get; init; }
+
+        public bool ConvertDates { get; init; }
     }
 }

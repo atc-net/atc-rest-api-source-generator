@@ -1,0 +1,156 @@
+openapi: 3.0.1
+info:
+  title: AsyncEnumerableHooks
+  description: |
+    Repro spec for issue 001: every fix has at least one operation that exercises it.
+    - listItems: minimal async-enumerable (Option A useXxxStream emission — §1)
+    - listItemPages: async-enumerable with PaginationResult<Item> wrapper (§4.1 imports)
+    - getItemLogs: GET with path + query params (§4.3 query in queryKey)
+    - searchItems: GET with date-time query param + convertDates=true (§4.4)
+  version: v1
+servers:
+  - url: /api/v1
+paths:
+  /items:
+    get:
+      summary: Stream all items (async-enumerable)
+      operationId: listItems
+      x-return-async-enumerable: true
+      tags:
+        - items
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items'
+  /items/pages:
+    get:
+      summary: Stream paginated items (async-enumerable with PaginationResult)
+      operationId: listItemPages
+      x-return-async-enumerable: true
+      tags:
+        - items
+      parameters:
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationResult'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Item'
+  /items/{itemId}/logs:
+    get:
+      summary: Get logs for an item with filters (path + query, no streaming)
+      operationId: getItemLogs
+      tags:
+        - items
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: logLevel
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [debug, info, warn, error]
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemLogs'
+  /items/search:
+    get:
+      summary: Search items by date-time range (date-time query params)
+      operationId: searchItems
+      tags:
+        - items
+      parameters:
+        - name: createdAfter
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: createdBefore
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Items'
+components:
+  schemas:
+    Item:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    Items:
+      type: array
+      items:
+        $ref: '#/components/schemas/Item'
+    ItemLog:
+      type: object
+      required: [timestamp, message]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        message:
+          type: string
+        level:
+          type: string
+    ItemLogs:
+      type: array
+      items:
+        $ref: '#/components/schemas/ItemLog'
+    PaginationResult:
+      type: object
+      properties:
+        continuationToken:
+          type: string
+          nullable: true
+        totalCount:
+          type: integer

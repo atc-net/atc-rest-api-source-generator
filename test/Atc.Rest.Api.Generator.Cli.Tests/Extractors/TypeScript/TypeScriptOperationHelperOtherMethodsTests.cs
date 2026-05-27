@@ -487,6 +487,391 @@ public class TypeScriptOperationHelperOtherMethodsTests
         Assert.Equal("string", result);
     }
 
+    [Fact]
+    public void IsDateParam_DateTimeFormat_ReturnsTrue()
+    {
+        var param = new OpenApiParameter
+        {
+            Name = "createdAt",
+            In = ParameterLocation.Query,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
+        };
+
+        Assert.True(TypeScriptOperationHelper.IsDateParam(param));
+    }
+
+    [Fact]
+    public void IsDateParam_DateFormat_ReturnsTrue()
+    {
+        var param = new OpenApiParameter
+        {
+            Name = "birthday",
+            In = ParameterLocation.Query,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date" },
+        };
+
+        Assert.True(TypeScriptOperationHelper.IsDateParam(param));
+    }
+
+    [Fact]
+    public void IsDateParam_StringWithoutFormat_ReturnsFalse()
+    {
+        // A plain string param is not a date — must not trigger the Date branch in
+        // GetParameterType nor get .toISOString() coercion in body emission.
+        var param = new OpenApiParameter
+        {
+            Name = "name",
+            In = ParameterLocation.Query,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String },
+        };
+
+        Assert.False(TypeScriptOperationHelper.IsDateParam(param));
+    }
+
+    [Fact]
+    public void IsDateParam_StringWithUuidFormat_ReturnsFalse()
+    {
+        // Format is set but it's "uuid", not "date" or "date-time". Must not be a date.
+        var param = new OpenApiParameter
+        {
+            Name = "id",
+            In = ParameterLocation.Path,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "uuid" },
+        };
+
+        Assert.False(TypeScriptOperationHelper.IsDateParam(param));
+    }
+
+    [Fact]
+    public void IsDateParam_IntegerSchema_ReturnsFalse()
+    {
+        var param = new OpenApiParameter
+        {
+            Name = "count",
+            In = ParameterLocation.Query,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.Integer },
+        };
+
+        Assert.False(TypeScriptOperationHelper.IsDateParam(param));
+    }
+
+    [Fact]
+    public void IsDateParam_NullSchema_ReturnsFalse()
+    {
+        var param = new OpenApiParameter { Name = "q", In = ParameterLocation.Query };
+
+        Assert.False(TypeScriptOperationHelper.IsDateParam(param));
+    }
+
+    [Fact]
+    public void GetDateSerializationSuffix_DateTimeFormat_ReturnsFullIsoString()
+    {
+        var param = new OpenApiParameter
+        {
+            Name = "from",
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
+        };
+
+        Assert.Equal(".toISOString()", TypeScriptOperationHelper.GetDateSerializationSuffix(param));
+    }
+
+    [Fact]
+    public void GetDateSerializationSuffix_DateFormat_TruncatesToDateOnly()
+    {
+        // OpenAPI `format: date` is YYYY-MM-DD on the wire. ISO datetime's substring(0, 10)
+        // matches that contract; emitting full toISOString() would send the time portion too.
+        var param = new OpenApiParameter
+        {
+            Name = "birthday",
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date" },
+        };
+
+        Assert.Equal(".toISOString().substring(0, 10)", TypeScriptOperationHelper.GetDateSerializationSuffix(param));
+    }
+
+    [Fact]
+    public void GetParameterType_ConvertDatesTrue_DateTimeParam_ReturnsDate()
+    {
+        var param = new OpenApiParameter
+        {
+            Name = "from",
+            In = ParameterLocation.Query,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
+        };
+
+        Assert.Equal("Date", TypeScriptOperationHelper.GetParameterType(param, convertDates: true));
+    }
+
+    [Fact]
+    public void GetParameterType_ConvertDatesTrue_DateParam_ReturnsDate()
+    {
+        var param = new OpenApiParameter
+        {
+            Name = "birthday",
+            In = ParameterLocation.Query,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date" },
+        };
+
+        Assert.Equal("Date", TypeScriptOperationHelper.GetParameterType(param, convertDates: true));
+    }
+
+    [Fact]
+    public void GetParameterType_ConvertDatesFalse_DateTimeParam_StillReturnsString()
+    {
+        // Default behavior must be preserved when --convert-dates is off, otherwise every
+        // spec without that flag would silently start typing date params as Date.
+        var param = new OpenApiParameter
+        {
+            Name = "from",
+            In = ParameterLocation.Query,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
+        };
+
+        Assert.Equal("string", TypeScriptOperationHelper.GetParameterType(param, convertDates: false));
+    }
+
+    [Fact]
+    public void GetParameterType_ConvertDatesTrue_NonDateParam_FallsThroughToOriginalType()
+    {
+        // Only date params get the Date treatment — plain string params stay string.
+        var param = new OpenApiParameter
+        {
+            Name = "name",
+            In = ParameterLocation.Query,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String },
+        };
+
+        Assert.Equal("string", TypeScriptOperationHelper.GetParameterType(param, convertDates: true));
+    }
+
+    [Fact]
+    public void BuildQueryTypeInline_ConvertDatesTrue_TypesDateParamAsDate()
+    {
+        var queryParams = new List<OpenApiParameter>
+        {
+            new()
+            {
+                Name = "from",
+                In = ParameterLocation.Query,
+                Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
+            },
+        };
+
+        var result = TypeScriptOperationHelper.BuildQueryTypeInline(
+            queryParams,
+            TypeScriptNamingStrategy.CamelCase,
+            convertDates: true);
+
+        Assert.Contains("from?: Date", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildQueryTypeInline_ConvertDatesFalse_LeavesDateParamAsString()
+    {
+        var queryParams = new List<OpenApiParameter>
+        {
+            new()
+            {
+                Name = "from",
+                In = ParameterLocation.Query,
+                Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
+            },
+        };
+
+        var result = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, TypeScriptNamingStrategy.CamelCase);
+
+        Assert.Contains("from?: string", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("Date", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildHeaderTypeInline_ConvertDatesTrue_TypesDateHeaderAsDate()
+    {
+        var headerParams = new List<OpenApiParameter>
+        {
+            new()
+            {
+                Name = "X-Since",
+                In = ParameterLocation.Header,
+                Required = false,
+                Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
+            },
+        };
+
+        var result = TypeScriptOperationHelper.BuildHeaderTypeInline(headerParams, convertDates: true);
+
+        // Header keys stay quoted to keep dashes valid, the value type becomes Date.
+        Assert.Contains("'X-Since'?: Date", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildInterpolatedPath_ConvertDatesTrue_DateTimePathParamEmitsToISOString()
+    {
+        // A date-time path param under convertDates=true must explicitly call toISOString()
+        // in the template literal — JavaScript's implicit Date.toString() would send the
+        // human-readable form ("Sat Jan 01 2026...") to the wire.
+        var pathParams = new List<OpenApiParameter>
+        {
+            new()
+            {
+                Name = "snapshotAt",
+                In = ParameterLocation.Path,
+                Required = true,
+                Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
+            },
+        };
+
+        var result = TypeScriptOperationHelper.BuildInterpolatedPath(
+            "/items/{snapshotAt}",
+            pathParams,
+            TypeScriptNamingStrategy.CamelCase,
+            convertDates: true);
+
+        Assert.Contains("${snapshotAt.toISOString()}", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildInterpolatedPath_ConvertDatesTrue_DatePathParamTruncatesToDateOnly()
+    {
+        // `format: date` path params should not include the time portion.
+        var pathParams = new List<OpenApiParameter>
+        {
+            new()
+            {
+                Name = "day",
+                In = ParameterLocation.Path,
+                Required = true,
+                Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date" },
+            },
+        };
+
+        var result = TypeScriptOperationHelper.BuildInterpolatedPath(
+            "/days/{day}",
+            pathParams,
+            TypeScriptNamingStrategy.CamelCase,
+            convertDates: true);
+
+        Assert.Contains("${day.toISOString().substring(0, 10)}", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildInterpolatedPath_ConvertDatesFalse_DateParamDoesNotEmitToISOString()
+    {
+        // With convertDates off the param is still typed as `string`, no coercion needed.
+        var pathParams = new List<OpenApiParameter>
+        {
+            new()
+            {
+                Name = "snapshotAt",
+                In = ParameterLocation.Path,
+                Required = true,
+                Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
+            },
+        };
+
+        var result = TypeScriptOperationHelper.BuildInterpolatedPath(
+            "/items/{snapshotAt}",
+            pathParams,
+            TypeScriptNamingStrategy.CamelCase);
+
+        Assert.Contains("${snapshotAt}", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("toISOString", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CollectSchemaRefTypes_StreamingResponseArrayAlias_AddsBothAliasAndItemType()
+    {
+        // §4.1 repro: a streaming op responds with a $ref to `Items`, where `Items = Item[]`.
+        // The generated streaming hook yields the item type, so both `Items` (used by the
+        // client method) AND `Item` (the yielded element) need to land in importTypes.
+        // Without the chain-follow, the stream hook references `Item` with no matching import
+        // → TS2552 "Cannot find name 'Item'".
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  x-return-async-enumerable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Items'
+                            components:
+                              schemas:
+                                Item:
+                                  type: object
+                                  properties:
+                                    id: { type: string }
+                                Items:
+                                  type: array
+                                  items:
+                                    $ref: '#/components/schemas/Item'
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+        var op = doc!.Paths!.Values.First().Operations![HttpMethod.Get];
+
+        var imports = new HashSet<string>(StringComparer.Ordinal);
+        TypeScriptOperationHelper.CollectImportTypes(op, imports);
+
+        Assert.Contains("Items", imports);
+        Assert.Contains("Item", imports);
+    }
+
+    [Fact]
+    public void CollectSchemaRefTypes_NonArrayAliasRef_DoesNotOverImport()
+    {
+        // The chain-follow logic must only fire for array aliases — chasing into a regular
+        // object's properties used to drag every transitively-reachable model into every
+        // client file. Defensive test: a $ref to a plain object adds only the named ref.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/ArrayTypes'
+                            components:
+                              schemas:
+                                ArrayTypes:
+                                  type: object
+                                  properties:
+                                    addresses:
+                                      type: array
+                                      items:
+                                        $ref: '#/components/schemas/Address'
+                                Address:
+                                  type: object
+                                  properties:
+                                    street: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+        var op = doc!.Paths!.Values.First().Operations![HttpMethod.Get];
+
+        var imports = new HashSet<string>(StringComparer.Ordinal);
+        TypeScriptOperationHelper.CollectImportTypes(op, imports);
+
+        Assert.Contains("ArrayTypes", imports);
+
+        // The property-level Address ref must NOT be transitively pulled in — this is the
+        // regression that ModelsAndProperties/ArraysClient hit when the property recursion
+        // was overly broad.
+        Assert.DoesNotContain("Address", imports);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

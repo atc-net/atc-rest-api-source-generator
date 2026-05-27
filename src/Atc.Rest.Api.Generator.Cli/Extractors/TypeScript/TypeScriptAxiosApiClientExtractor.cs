@@ -253,9 +253,10 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'blob' : options?.responseType === 'text' ? 'text' : 'json',");
             sb.AppendLine("    });");
             sb.AppendLine();
-            sb.AppendLine("    let response: AxiosResponse<T>;");
+            sb.AppendLine("    let response: AxiosResponse<T> | undefined;");
             sb.AppendLine("    if (this.retryPolicy) {");
-            sb.AppendLine("      // Use retryWithBackoff with a fetch-compatible wrapper");
+            sb.AppendLine("      // Use retryWithBackoff with a fetch-compatible wrapper.");
+            sb.AppendLine("      // The wrapper captures the AxiosResponse so it can be handed to handleResponse below.");
             sb.AppendLine("      const fetchWrapper = async (): Promise<Response> => {");
             sb.AppendLine("        response = await doRequest();");
             sb.AppendLine("        return new Response(null, { status: response.status });");
@@ -263,6 +264,10 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      await retryWithBackoff(fetchWrapper, this.retryPolicy, options?.signal);");
             sb.AppendLine("    } else {");
             sb.AppendLine("      response = await doRequest();");
+            sb.AppendLine("    }");
+            sb.AppendLine();
+            sb.AppendLine("    if (!response) {");
+            sb.AppendLine("      throw new Error('retryWithBackoff resolved without executing the request');");
             sb.AppendLine("    }");
         }
         else
@@ -305,7 +310,9 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine();
         sb.AppendLine("    if (options?.headers) {");
         sb.AppendLine("      for (const [key, value] of Object.entries(options.headers)) {");
-        sb.AppendLine("        headers.set(key, value);");
+        sb.AppendLine("        if (value !== undefined) {");
+        sb.AppendLine("          headers.set(key, String(value));");
+        sb.AppendLine("        }");
         sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine();

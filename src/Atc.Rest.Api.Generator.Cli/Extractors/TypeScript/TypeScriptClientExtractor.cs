@@ -17,7 +17,8 @@ public static class TypeScriptClientExtractor
         OpenApiDocument openApiDoc,
         string? headerContent,
         HashSet<string>? enumNames = null,
-        TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase)
+        TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase,
+        bool convertDates = false)
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
@@ -33,7 +34,7 @@ public static class TypeScriptClientExtractor
             }
 
             var className = segment + "Client";
-            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy);
+            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy, convertDates);
             results.Add((className, content));
         }
 
@@ -46,7 +47,8 @@ public static class TypeScriptClientExtractor
         OpenApiDocument openApiDoc,
         string? headerContent,
         HashSet<string>? enumNames,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates)
     {
         var sb = new StringBuilder();
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
@@ -137,7 +139,7 @@ public static class TypeScriptClientExtractor
         foreach (var (path, method, operation) in operations)
         {
             sb.AppendLine();
-            AppendMethod(sb, path, method, operation, openApiDoc, namingStrategy);
+            AppendMethod(sb, path, method, operation, openApiDoc, namingStrategy, convertDates);
         }
 
         sb.AppendLine("}");
@@ -191,7 +193,8 @@ public static class TypeScriptClientExtractor
         string httpMethod,
         OpenApiOperation operation,
         OpenApiDocument openApiDoc,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates)
     {
         var isStreaming = operation.IsAsyncEnumerableOperation();
         var isFileDownload = operation.HasFileDownload();
@@ -213,11 +216,11 @@ public static class TypeScriptClientExtractor
 
         if (isStreaming)
         {
-            AppendStreamingMethod(sb, methodName, path, pathParams, queryParams, headerParams, returnType, namingStrategy);
+            AppendStreamingMethod(sb, methodName, path, pathParams, queryParams, headerParams, returnType, namingStrategy, convertDates);
         }
         else
         {
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates);
         }
     }
 
@@ -235,14 +238,15 @@ public static class TypeScriptClientExtractor
         bool isFileDownload,
         bool isTextDownload,
         string returnType,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates)
     {
         // Build parameter list
-        var paramList = BuildParameterList(pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, namingStrategy);
+        var paramList = BuildParameterList(pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates);
         sb.Append("  async ").Append(methodName).Append('(').Append(paramList).Append("): Promise<ApiResult<").Append(returnType).AppendLine(">> {");
 
         // Build path with interpolation
-        var interpolatedPath = TypeScriptOperationHelper.BuildInterpolatedPath(path, pathParams, namingStrategy);
+        var interpolatedPath = TypeScriptOperationHelper.BuildInterpolatedPath(path, pathParams, namingStrategy, convertDates);
 
         // Build request options
         var hasQuery = queryParams.Count > 0;
@@ -264,12 +268,12 @@ public static class TypeScriptClientExtractor
 
             if (hasQuery)
             {
-                AppendQueryObject(sb, queryParams, namingStrategy);
+                AppendQueryObject(sb, queryParams, namingStrategy, convertDates);
             }
 
             if (hasHeaders)
             {
-                AppendHeadersObject(sb, headerParams);
+                AppendHeadersObject(sb, headerParams, convertDates);
             }
 
             if (isFileDownload)
@@ -299,7 +303,8 @@ public static class TypeScriptClientExtractor
         List<OpenApiParameter> queryParams,
         List<OpenApiParameter> headerParams,
         string itemType,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates)
     {
         // Build parameter list (streaming methods may have query / header params + signal)
         var paramParts = new List<string>();
@@ -307,19 +312,19 @@ public static class TypeScriptClientExtractor
         foreach (var param in pathParams)
         {
             var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var paramType = TypeScriptOperationHelper.GetParameterType(param);
+            var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates);
             paramParts.Add(paramName + ": " + paramType);
         }
 
         if (queryParams.Count > 0)
         {
-            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, namingStrategy);
+            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, namingStrategy, convertDates);
             paramParts.Add("query?: " + queryType);
         }
 
         if (headerParams.Count > 0)
         {
-            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(headerParams);
+            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(headerParams, convertDates);
             paramParts.Add("headers?: " + headerType);
         }
 
@@ -329,7 +334,7 @@ public static class TypeScriptClientExtractor
 
         sb.Append("  async *").Append(methodName).Append('(').Append(paramList).Append("): AsyncGenerator<").Append(itemType).AppendLine("> {");
 
-        var interpolatedPath = TypeScriptOperationHelper.BuildInterpolatedPath(path, pathParams, namingStrategy);
+        var interpolatedPath = TypeScriptOperationHelper.BuildInterpolatedPath(path, pathParams, namingStrategy, convertDates);
         var hasQuery = queryParams.Count > 0;
         var hasHeaders = headerParams.Count > 0;
 
@@ -338,12 +343,12 @@ public static class TypeScriptClientExtractor
             sb.Append("    yield* this.api.requestStream<").Append(itemType).Append(">('GET', ").Append(interpolatedPath).AppendLine(", {");
             if (hasQuery)
             {
-                AppendQueryObject(sb, queryParams, namingStrategy);
+                AppendQueryObject(sb, queryParams, namingStrategy, convertDates);
             }
 
             if (hasHeaders)
             {
-                AppendHeadersObject(sb, headerParams);
+                AppendHeadersObject(sb, headerParams, convertDates);
             }
 
             sb.AppendLine("      signal,");
@@ -364,7 +369,8 @@ public static class TypeScriptClientExtractor
         IOpenApiSchema? bodySchema,
         string bodyContentType,
         bool isFileUpload,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates)
     {
         var parts = new List<string>();
 
@@ -372,7 +378,7 @@ public static class TypeScriptClientExtractor
         foreach (var param in pathParams)
         {
             var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var paramType = TypeScriptOperationHelper.GetParameterType(param);
+            var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates);
             parts.Add(paramName + ": " + paramType);
         }
 
@@ -393,14 +399,14 @@ public static class TypeScriptClientExtractor
         // Query parameters (optional object)
         if (queryParams.Count > 0)
         {
-            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, namingStrategy);
+            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, namingStrategy, convertDates);
             parts.Add("query?: " + queryType);
         }
 
         // Header parameters (optional object)
         if (headerParams.Count > 0)
         {
-            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(headerParams);
+            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(headerParams, convertDates);
             parts.Add("headers?: " + headerType);
         }
 
@@ -558,21 +564,25 @@ public static class TypeScriptClientExtractor
     private static void AppendQueryObject(
         StringBuilder sb,
         List<OpenApiParameter> queryParams,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates)
     {
         sb.AppendLine("      query: {");
         foreach (var param in queryParams)
         {
             var propName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var coercion = convertDates && TypeScriptOperationHelper.IsDateParam(param)
+                ? "?" + TypeScriptOperationHelper.GetDateSerializationSuffix(param)
+                : string.Empty;
 
             // Use original name as key if different from the transformed name
             if (!(param.Name ?? string.Empty).Equals(propName, StringComparison.Ordinal))
             {
-                sb.Append("        '").Append(param.Name).Append("': query?.").Append(propName).AppendLine(",");
+                sb.Append("        '").Append(param.Name).Append("': query?.").Append(propName).Append(coercion).AppendLine(",");
             }
             else
             {
-                sb.Append("        ").Append(propName).Append(": query?.").Append(propName).AppendLine(",");
+                sb.Append("        ").Append(propName).Append(": query?.").Append(propName).Append(coercion).AppendLine(",");
             }
         }
 
@@ -581,7 +591,8 @@ public static class TypeScriptClientExtractor
 
     private static void AppendHeadersObject(
         StringBuilder sb,
-        List<OpenApiParameter> headerParams)
+        List<OpenApiParameter> headerParams,
+        bool convertDates)
     {
         // Header names are emitted verbatim (no naming-strategy transform). HTTP header
         // names commonly contain dashes — both the key on the wire and the inline-type
@@ -591,7 +602,10 @@ public static class TypeScriptClientExtractor
         foreach (var param in headerParams)
         {
             var rawName = param.Name ?? string.Empty;
-            sb.Append("        '").Append(rawName).Append("': headers?.['").Append(rawName).AppendLine("'],");
+            var coercion = convertDates && TypeScriptOperationHelper.IsDateParam(param)
+                ? "?" + TypeScriptOperationHelper.GetDateSerializationSuffix(param)
+                : string.Empty;
+            sb.Append("        '").Append(rawName).Append("': headers?.['").Append(rawName).Append("']").Append(coercion).AppendLine(",");
         }
 
         sb.AppendLine("      },");
