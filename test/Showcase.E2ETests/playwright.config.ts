@@ -2,7 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 const API_PORT = 15046;
 const BLAZOR_PORT = 5048;
-const REACT_PORT = 5173;
+const REACT_FETCH_PORT = 5173;
+const REACT_AXIOS_PORT = 5174;
 
 export default defineConfig({
   testDir: './specs',
@@ -29,14 +30,24 @@ export default defineConfig({
       metadata: { appType: 'blazor' },
     },
     {
-      name: 'react',
+      name: 'react-fetch',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: `http://localhost:${REACT_PORT}`,
+        baseURL: `http://localhost:${REACT_FETCH_PORT}`,
         navigationTimeout: 10_000,
         actionTimeout: 10_000,
       },
-      metadata: { appType: 'react' },
+      metadata: { appType: 'react', appVariant: 'fetch' },
+    },
+    {
+      name: 'react-axios',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: `http://localhost:${REACT_AXIOS_PORT}`,
+        navigationTimeout: 10_000,
+        actionTimeout: 10_000,
+      },
+      metadata: { appType: 'react', appVariant: 'axios' },
     },
   ],
 
@@ -54,10 +65,18 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: 'npm run dev --prefix ../../sample/Showcase/Showcase.ReactApp',
-      port: REACT_PORT,
+      command: 'npm run dev --prefix ../../sample/Showcase/Showcase.ReactApp.Fetch',
+      port: REACT_FETCH_PORT,
       reuseExistingServer: true,
       timeout: 30_000,
+      env: { PORT: String(REACT_FETCH_PORT) },
+    },
+    {
+      command: 'npm run dev --prefix ../../sample/Showcase/Showcase.ReactApp.Axios',
+      port: REACT_AXIOS_PORT,
+      reuseExistingServer: true,
+      timeout: 30_000,
+      env: { PORT: String(REACT_AXIOS_PORT) },
     },
   ],
 });
