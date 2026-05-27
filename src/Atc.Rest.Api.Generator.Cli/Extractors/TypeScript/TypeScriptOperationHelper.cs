@@ -113,7 +113,14 @@ public static class TypeScriptOperationHelper
     /// <summary>
     /// Gets the TypeScript type string for a parameter.
     /// </summary>
-    public static string GetParameterType(OpenApiParameter param)
+    /// <param name="param">The OpenAPI parameter.</param>
+    /// <param name="convertDates">When true, parameters with <c>format: date</c> or
+    /// <c>format: date-time</c> are typed as <see cref="DateTime"/> in the emitted
+    /// TypeScript ("Date") instead of "string". Body emission elsewhere must coerce
+    /// such values with <c>.toISOString()</c> before they reach the wire.</param>
+    public static string GetParameterType(
+        OpenApiParameter param,
+        bool convertDates = false)
     {
         if (param.Schema == null)
         {
@@ -132,6 +139,11 @@ public static class TypeScriptOperationHelper
             }
         }
 
+        if (convertDates && IsDateParam(param))
+        {
+            return "Date";
+        }
+
         var tsType = param.Schema.ToTypeScriptTypeForModel(isRequired: true);
 
         // Strip "| null" from query/path parameter types — URL parameters are either
@@ -142,6 +154,45 @@ public static class TypeScriptOperationHelper
         }
 
         return tsType;
+    }
+
+    /// <summary>
+    /// Returns true when the parameter's schema declares <c>format: date</c> or
+    /// <c>format: date-time</c>. Used by date-conversion-aware emission paths to decide
+    /// whether to type the parameter as <c>Date</c> and coerce with <c>.toISOString()</c>.
+    /// </summary>
+    public static bool IsDateParam(OpenApiParameter param)
+    {
+        if (param.Schema is not OpenApiSchema schema)
+        {
+            return false;
+        }
+
+        if (schema.Type?.HasFlag(JsonSchemaType.String) != true)
+        {
+            return false;
+        }
+
+        return string.Equals(schema.Format, "date-time", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(schema.Format, "date", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Returns the conversion expression to use when a Date-typed parameter must be
+    /// serialized to a string for the URL/header. <c>date-time</c> -> ISO 8601 datetime;
+    /// <c>date</c> -> ISO date (truncated). Result is the suffix appended to the
+    /// parameter access expression, including the leading dot.
+    /// </summary>
+    public static string GetDateSerializationSuffix(OpenApiParameter param)
+    {
+        if (param.Schema is OpenApiSchema schema &&
+            string.Equals(schema.Format, "date", StringComparison.OrdinalIgnoreCase))
+        {
+            // YYYY-MM-DD slice of an ISO datetime keeps date-only format on the wire.
+            return ".toISOString().substring(0, 10)";
+        }
+
+        return ".toISOString()";
     }
 
     private static string? BuildLiteralUnion(OpenApiSchema schema)
@@ -267,7 +318,13 @@ public static class TypeScriptOperationHelper
     }
 
     /// <summary>
-    /// Collects $ref type names from a schema recursively (one level).
+    /// Collects $ref type names from a schema. For a direct $ref, follows one level
+    /// further <em>only</em> when the target is an array alias (e.g. <c>Accounts =
+    /// Account[]</c>) and adds the item's ref name — streaming hooks reference the item
+    /// type directly and would otherwise hit TS2552 "Cannot find name". Inline composite
+    /// schemas (allOf, arrays) are visited as before, but property recursion is
+    /// intentionally bounded so we don't drag every transitively-reachable model into
+    /// every client file.
     /// </summary>
     public static void CollectSchemaRefTypes(
         IOpenApiSchema? schema,
@@ -281,9 +338,24 @@ public static class TypeScriptOperationHelper
         if (schema is OpenApiSchemaReference schemaRef)
         {
             var refName = schemaRef.Reference.Id ?? schemaRef.Id;
-            if (refName != null)
+            if (refName == null)
             {
-                importTypes.Add(refName);
+                return;
+            }
+
+            importTypes.Add(refName);
+
+            // If the named schema is an array alias, also surface its element type so
+            // streaming hooks (which yield the element type, not the alias) can name it.
+            if (schemaRef.Target is OpenApiSchema target &&
+                target.Type?.HasFlag(JsonSchemaType.Array) == true &&
+                target.Items is OpenApiSchemaReference itemRef)
+            {
+                var itemName = itemRef.Reference.Id ?? itemRef.Id;
+                if (itemName != null)
+                {
+                    importTypes.Add(itemName);
+                }
             }
 
             return;
@@ -294,7 +366,7 @@ public static class TypeScriptOperationHelper
             return;
         }
 
-        // Handle allOf references
+        // Handle allOf references — flat list, refs only.
         if (actualSchema.AllOf is { Count: > 0 })
         {
             foreach (var subSchema in actualSchema.AllOf)
@@ -310,10 +382,10 @@ public static class TypeScriptOperationHelper
             }
         }
 
-        // Handle array item references
-        if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true && actualSchema.Items is OpenApiSchemaReference itemRef)
+        // Handle array item references.
+        if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true && actualSchema.Items is OpenApiSchemaReference inlineItemRef)
         {
-            var refName = itemRef.Reference.Id ?? itemRef.Id;
+            var refName = inlineItemRef.Reference.Id ?? inlineItemRef.Id;
             if (refName != null)
             {
                 importTypes.Add(refName);
@@ -361,13 +433,14 @@ public static class TypeScriptOperationHelper
     /// reflects the parameter's `required` flag from the OpenAPI spec.
     /// </summary>
     public static string BuildHeaderTypeInline(
-        List<OpenApiParameter> headerParams)
+        List<OpenApiParameter> headerParams,
+        bool convertDates = false)
     {
         var parts = new List<string>(headerParams.Count);
         foreach (var param in headerParams)
         {
             var rawName = param.Name ?? string.Empty;
-            var paramType = GetParameterType(param);
+            var paramType = GetParameterType(param, convertDates);
             var optional = param.Required ? string.Empty : "?";
             parts.Add("'" + rawName + "'" + optional + ": " + paramType);
         }
@@ -380,13 +453,14 @@ public static class TypeScriptOperationHelper
     /// </summary>
     public static string BuildQueryTypeInline(
         List<OpenApiParameter> queryParams,
-        TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase)
+        TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase,
+        bool convertDates = false)
     {
         var parts = new List<string>();
         foreach (var param in queryParams)
         {
             var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var paramType = GetParameterType(param);
+            var paramType = GetParameterType(param, convertDates);
             parts.Add(paramName + "?: " + paramType);
         }
 
@@ -395,11 +469,16 @@ public static class TypeScriptOperationHelper
 
     /// <summary>
     /// Builds a path string with template literal interpolation for path parameters.
+    /// When <paramref name="convertDates"/> is true and a path parameter has
+    /// <c>format: date</c> or <c>format: date-time</c>, the interpolation includes
+    /// an explicit <c>.toISOString()</c> coercion so the wire format stays ISO 8601
+    /// instead of falling through to JavaScript's default <c>Date.toString()</c>.
     /// </summary>
     public static string BuildInterpolatedPath(
         string path,
         List<OpenApiParameter> pathParams,
-        TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase)
+        TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase,
+        bool convertDates = false)
     {
         if (pathParams.Count == 0)
         {
@@ -411,9 +490,13 @@ public static class TypeScriptOperationHelper
         foreach (var param in pathParams)
         {
             var tsName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var replacement = convertDates && IsDateParam(param)
+                ? "${" + tsName + GetDateSerializationSuffix(param) + "}"
+                : "${" + tsName + "}";
+
             interpolated = interpolated.Replace(
                 "{" + param.Name + "}",
-                "${" + tsName + "}",
+                replacement,
                 StringComparison.Ordinal);
         }
 

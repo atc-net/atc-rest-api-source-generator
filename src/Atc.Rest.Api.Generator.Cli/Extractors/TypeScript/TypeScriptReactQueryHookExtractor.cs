@@ -5,7 +5,8 @@ namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 /// <summary>
 /// Generates per-segment TanStack Query (React Query) hook files from OpenAPI operations.
 /// GET operations become useQuery hooks; POST/PUT/PATCH/DELETE become useMutation hooks.
-/// Streaming operations (x-return-async-enumerable) are skipped with a comment.
+/// Streaming operations (x-return-async-enumerable) become useXxxStream hooks backed by
+/// useState + useEffect + AbortController. Hook contract: see issues/001-feedback.md.
 /// </summary>
 [SuppressMessage("Design", "MA0051:Method is too long", Justification = "Code generation methods require sequential StringBuilder operations.")]
 public static class TypeScriptReactQueryHookExtractor
@@ -21,7 +22,8 @@ public static class TypeScriptReactQueryHookExtractor
         OpenApiDocument openApiDoc,
         string? headerContent,
         HashSet<string>? enumNames = null,
-        TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase)
+        TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase,
+        bool convertDates = false)
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
@@ -43,7 +45,8 @@ public static class TypeScriptReactQueryHookExtractor
                 openApiDoc,
                 headerContent,
                 enumNames,
-                namingStrategy);
+                namingStrategy,
+                convertDates);
             results.Add((fileName, content));
         }
 
@@ -56,13 +59,16 @@ public static class TypeScriptReactQueryHookExtractor
         OpenApiDocument openApiDoc,
         string? headerContent,
         HashSet<string>? enumNames,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates)
     {
         var sb = new StringBuilder();
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
         var needsUseQuery = false;
         var needsUseMutation = false;
         var needsUseQueryClient = false;
+        var needsReactHooks = false;
+        var needsApiError = false;
 
         // Classify operations first to determine imports
         var hookInfos = new List<HookInfo>();
@@ -71,21 +77,23 @@ public static class TypeScriptReactQueryHookExtractor
             var info = ClassifyOperation(path, method, operation, openApiDoc, namingStrategy);
             hookInfos.Add(info);
 
-            if (info.IsSkipped)
-            {
-                continue;
-            }
-
+            // Streaming ops still need their item type imported.
             TypeScriptOperationHelper.CollectImportTypes(operation, importTypes, openApiDoc, path);
 
-            if (info.IsQuery)
+            if (info.IsStreaming)
+            {
+                needsReactHooks = true;
+            }
+            else if (info.IsQuery)
             {
                 needsUseQuery = true;
+                needsApiError = true;
             }
             else
             {
                 needsUseMutation = true;
                 needsUseQueryClient = true;
+                needsApiError = true;
             }
         }
 
@@ -102,27 +110,29 @@ public static class TypeScriptReactQueryHookExtractor
             enumNames,
             needsUseQuery,
             needsUseMutation,
-            needsUseQueryClient);
+            needsUseQueryClient,
+            needsReactHooks,
+            needsApiError);
 
         // Write query key factory
         var segmentCamel = segment.ToCamelCase();
-        AppendQueryKeyFactory(sb, segmentCamel, hookInfos, namingStrategy);
+        AppendQueryKeyFactory(sb, segmentCamel, hookInfos, namingStrategy, convertDates);
 
         // Write hook functions
         foreach (var info in hookInfos)
         {
             sb.AppendLine();
-            if (info.IsSkipped)
+            if (info.IsStreaming)
             {
-                sb.Append("// Streaming operation ").Append(info.MethodName).AppendLine(" is skipped.");
+                AppendStreamHook(sb, info, segmentCamel, namingStrategy, convertDates);
             }
             else if (info.IsQuery)
             {
-                AppendQueryHook(sb, info, segmentCamel, namingStrategy);
+                AppendQueryHook(sb, info, segmentCamel, namingStrategy, convertDates);
             }
             else
             {
-                AppendMutationHook(sb, info, segmentCamel, namingStrategy);
+                AppendMutationHook(sb, info, segmentCamel, namingStrategy, convertDates);
             }
         }
 
@@ -135,8 +145,16 @@ public static class TypeScriptReactQueryHookExtractor
         HashSet<string>? enumNames,
         bool needsUseQuery,
         bool needsUseMutation,
-        bool needsUseQueryClient)
+        bool needsUseQueryClient,
+        bool needsReactHooks,
+        bool needsApiError)
     {
+        // React primitive hooks (only required by stream hooks)
+        if (needsReactHooks)
+        {
+            sb.AppendLine("import { useCallback, useEffect, useRef, useState } from 'react';");
+        }
+
         // TanStack Query imports
         var queryImports = new List<string>();
         if (needsUseQuery)
@@ -160,7 +178,14 @@ public static class TypeScriptReactQueryHookExtractor
         }
 
         sb.AppendLine("import { useApiService } from './useApiService';");
-        sb.AppendLine("import { ApiError } from '../errors/ApiError';");
+
+        // ApiError is only used by the result-unwrap path of useQuery/useMutation hooks.
+        // Stream hooks surface errors as plain Error instances, so omit the import when
+        // no non-stream hooks exist on this segment (otherwise tsconfig noUnusedLocals trips).
+        if (needsApiError)
+        {
+            sb.AppendLine("import { ApiError } from '../errors/ApiError';");
+        }
 
         // Model and enum imports
         var modelImports = new SortedSet<string>(StringComparer.Ordinal);
@@ -195,36 +220,54 @@ public static class TypeScriptReactQueryHookExtractor
         StringBuilder sb,
         string segmentCamel,
         List<HookInfo> hookInfos,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates)
     {
         sb.Append("const ").Append(segmentCamel).AppendLine("Keys = {");
         sb.Append("  all: ['").Append(segmentCamel).AppendLine("'] as const,");
 
         foreach (var info in hookInfos)
         {
-            if (info.IsSkipped || !info.IsQuery)
+            // Stream hooks manage their own state and don't go through useQuery — no key needed.
+            if (info.IsStreaming || !info.IsQuery)
             {
                 continue;
             }
 
             var keyName = DeriveKeyName(info.MethodName, segmentCamel);
+            var hasPath = info.PathParams.Count > 0;
+            var hasQuery = info.QueryParams.Count > 0;
 
-            if (info.PathParams.Count > 0)
+            if (hasPath && hasQuery)
+            {
+                // Detail/list hybrid — path params + query bag. Both must be in the key so
+                // React Query refetches when either changes.
+                var pathParamList = string.Join(
+                    ", ",
+                    info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy) + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates)));
+                var pathArgs = string.Join(
+                    ", ",
+                    info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy)));
+                var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
+
+                sb.Append("  ").Append(keyName).Append(": (").Append(pathParamList).Append(", query?: ").Append(queryType).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).Append("', ").Append(pathArgs).AppendLine(", query] as const,");
+            }
+            else if (hasPath)
             {
                 // Detail-style key with path params
                 var paramList = string.Join(
                     ", ",
-                    info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy) + ": " + TypeScriptOperationHelper.GetParameterType(p)));
+                    info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy) + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates)));
                 var keyArgs = string.Join(
                     ", ",
                     info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy)));
 
                 sb.Append("  ").Append(keyName).Append(": (").Append(paramList).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).Append("', ").Append(keyArgs).AppendLine("] as const,");
             }
-            else if (info.QueryParams.Count > 0)
+            else if (hasQuery)
             {
                 // List-style key with query params
-                var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy);
+                var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
                 sb.Append("  ").Append(keyName).Append(": (query?: ").Append(queryType).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).Append("', query").AppendLine("] as const,");
             }
             else
@@ -243,7 +286,8 @@ public static class TypeScriptReactQueryHookExtractor
         StringBuilder sb,
         HookInfo info,
         string segmentCamel,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates)
     {
         var hookName = "use" + info.MethodName.ToPascalCaseForDotNet();
         var keyName = DeriveKeyName(info.MethodName, segmentCamel);
@@ -254,41 +298,39 @@ public static class TypeScriptReactQueryHookExtractor
         foreach (var param in info.PathParams)
         {
             var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var paramType = TypeScriptOperationHelper.GetParameterType(param);
+            var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates);
             hookParams.Add(paramName + ": " + paramType);
         }
 
         if (info.QueryParams.Count > 0)
         {
-            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy);
+            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
             hookParams.Add("query?: " + queryType);
         }
 
         if (info.HeaderParams.Count > 0)
         {
-            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams);
+            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams, convertDates);
             hookParams.Add("headers?: " + headerType);
         }
 
         var hookParamStr = string.Join(", ", hookParams);
 
         // Build key args — headers are intentionally excluded so the React Query cache
-        // does NOT fragment on per-request headers (correlation IDs, etc).
-        string keyCallArgs;
-        if (info.PathParams.Count > 0)
+        // does NOT fragment on per-request headers (correlation IDs, etc). Query params
+        // ARE included alongside path params so the cache correctly partitions per filter.
+        var keyArgsParts = new List<string>();
+        foreach (var p in info.PathParams)
         {
-            keyCallArgs = string.Join(
-                ", ",
-                info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy)));
+            keyArgsParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
         }
-        else if (info.QueryParams.Count > 0)
+
+        if (info.QueryParams.Count > 0)
         {
-            keyCallArgs = "query";
+            keyArgsParts.Add("query");
         }
-        else
-        {
-            keyCallArgs = string.Empty;
-        }
+
+        var keyCallArgs = string.Join(", ", keyArgsParts);
 
         // Build client call args (headers ARE forwarded to the client method)
         var clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, hasBody: false, namingStrategy: namingStrategy);
@@ -315,11 +357,164 @@ public static class TypeScriptReactQueryHookExtractor
         sb.AppendLine("}");
     }
 
+    /// <summary>
+    /// Emits Option A from issues/001-feedback.md: a useState/useEffect/useRef-backed hook
+    /// that consumes the AsyncGenerator-style client method and accumulates items into local
+    /// state. Aborts on unmount or param change, swallows AbortError, exposes a 4-state
+    /// status machine plus cancel/reset controls.
+    /// </summary>
+    private static void AppendStreamHook(
+        StringBuilder sb,
+        HookInfo info,
+        string segmentCamel,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates)
+    {
+        var hookName = "use" + info.MethodName.ToPascalCaseForDotNet() + "Stream";
+        var segmentProperty = segmentCamel;
+        var itemType = string.IsNullOrEmpty(info.ReturnType) ? "unknown" : info.ReturnType;
+
+        // Hook signature: pathParams..., query?, headers?, options?: { enabled?: boolean }
+        var hookParams = new List<string>();
+        foreach (var param in info.PathParams)
+        {
+            var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates);
+            hookParams.Add(paramName + ": " + paramType);
+        }
+
+        if (info.QueryParams.Count > 0)
+        {
+            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
+            hookParams.Add("query?: " + queryType);
+        }
+
+        if (info.HeaderParams.Count > 0)
+        {
+            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams, convertDates);
+            hookParams.Add("headers?: " + headerType);
+        }
+
+        hookParams.Add("options?: { enabled?: boolean }");
+
+        var hookParamStr = string.Join(", ", hookParams);
+
+        // Client call args mirror the streaming client method:
+        //   pathParams..., query, headers, controller.signal
+        var clientCallParts = new List<string>();
+        foreach (var p in info.PathParams)
+        {
+            clientCallParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+        }
+
+        if (info.QueryParams.Count > 0)
+        {
+            clientCallParts.Add("query");
+        }
+
+        if (info.HeaderParams.Count > 0)
+        {
+            clientCallParts.Add("headers");
+        }
+
+        clientCallParts.Add("controller.signal");
+        var clientCallArgs = string.Join(", ", clientCallParts);
+
+        // useEffect dependency list. Path params and the enabled flag are direct deps.
+        // Query + headers are non-primitive bags, so we serialize them to a string for a
+        // stable dependency value (avoid re-running the effect on every parent re-render).
+        var depParts = new List<string> { "enabled" };
+        foreach (var p in info.PathParams)
+        {
+            depParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+        }
+
+        var needsKeyDep = info.QueryParams.Count > 0 || info.HeaderParams.Count > 0;
+        if (needsKeyDep)
+        {
+            depParts.Add("keyDep");
+        }
+
+        var depList = string.Join(", ", depParts);
+
+        sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
+        sb.AppendLine("  const api = useApiService();");
+        sb.Append("  const [items, setItems] = useState<readonly ").Append(itemType).AppendLine("[]>([]);");
+        sb.AppendLine("  const [status, setStatus] = useState<'idle' | 'streaming' | 'success' | 'error'>('idle');");
+        sb.AppendLine("  const [error, setError] = useState<Error | null>(null);");
+        sb.AppendLine("  const controllerRef = useRef<AbortController | null>(null);");
+        sb.AppendLine();
+        sb.AppendLine("  const cancel = useCallback(() => {");
+        sb.AppendLine("    controllerRef.current?.abort();");
+        sb.AppendLine("    controllerRef.current = null;");
+        sb.AppendLine("    setStatus('idle');");
+        sb.AppendLine("  }, []);");
+        sb.AppendLine();
+        sb.AppendLine("  const reset = useCallback(() => {");
+        sb.AppendLine("    cancel();");
+        sb.AppendLine("    setItems([]);");
+        sb.AppendLine("    setError(null);");
+        sb.AppendLine("  }, [cancel]);");
+        sb.AppendLine();
+        sb.AppendLine("  const enabled = options?.enabled !== false;");
+
+        if (needsKeyDep)
+        {
+            sb.Append("  const keyDep = JSON.stringify({");
+            if (info.QueryParams.Count > 0)
+            {
+                sb.Append(" query");
+            }
+
+            if (info.HeaderParams.Count > 0)
+            {
+                sb.Append(info.QueryParams.Count > 0 ? ", headers" : " headers");
+            }
+
+            sb.AppendLine(" });");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("  useEffect(() => {");
+        sb.AppendLine("    if (!enabled) return;");
+        sb.AppendLine();
+        sb.AppendLine("    const controller = new AbortController();");
+        sb.AppendLine("    controllerRef.current = controller;");
+        sb.AppendLine("    setStatus('streaming');");
+        sb.AppendLine("    setItems([]);");
+        sb.AppendLine("    setError(null);");
+        sb.AppendLine();
+        sb.Append("    let buffer: ").Append(itemType).AppendLine("[] = [];");
+        sb.AppendLine("    (async () => {");
+        sb.AppendLine("      try {");
+        sb.Append("        for await (const item of api.").Append(segmentProperty).Append('.').Append(info.MethodName).Append('(').Append(clientCallArgs).AppendLine(")) {");
+        sb.AppendLine("          if (controller.signal.aborted) return;");
+        sb.AppendLine("          buffer = [...buffer, item];");
+        sb.AppendLine("          setItems(buffer);");
+        sb.AppendLine("        }");
+        sb.AppendLine("        if (!controller.signal.aborted) setStatus('success');");
+        sb.AppendLine("      } catch (err) {");
+        sb.AppendLine("        if (controller.signal.aborted) return;");
+        sb.AppendLine("        if (err instanceof DOMException && err.name === 'AbortError') return;");
+        sb.AppendLine("        setError(err as Error);");
+        sb.AppendLine("        setStatus('error');");
+        sb.AppendLine("      }");
+        sb.AppendLine("    })();");
+        sb.AppendLine();
+        sb.AppendLine("    return () => controller.abort();");
+        sb.AppendLine("    // eslint-disable-next-line react-hooks/exhaustive-deps");
+        sb.Append("  }, [").Append(depList).AppendLine("]);");
+        sb.AppendLine();
+        sb.AppendLine("  return { items, status, error, cancel, reset };");
+        sb.AppendLine("}");
+    }
+
     private static void AppendMutationHook(
         StringBuilder sb,
         HookInfo info,
         string segmentCamel,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates)
     {
         var hookName = "use" + info.MethodName.ToPascalCaseForDotNet();
         var segmentProperty = segmentCamel;
@@ -338,7 +533,7 @@ public static class TypeScriptReactQueryHookExtractor
             foreach (var param in info.PathParams)
             {
                 var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                var paramType = TypeScriptOperationHelper.GetParameterType(param);
+                var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates);
                 hookParams.Add(paramName + ": " + paramType);
             }
 
@@ -359,7 +554,7 @@ public static class TypeScriptReactQueryHookExtractor
             foreach (var param in info.PathParams)
             {
                 var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                var paramType = TypeScriptOperationHelper.GetParameterType(param);
+                var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates);
                 pathParamParts.Add(paramName + ": " + paramType);
                 pathParamNames.Add(paramName);
             }
@@ -403,7 +598,7 @@ public static class TypeScriptReactQueryHookExtractor
             {
                 var param = info.PathParams[0];
                 var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                var paramType = TypeScriptOperationHelper.GetParameterType(param);
+                var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates);
                 mutationArg = "(" + paramName + ": " + paramType + ")";
                 clientCallArgs = paramName;
             }
@@ -412,7 +607,7 @@ public static class TypeScriptReactQueryHookExtractor
                 var paramParts = info.PathParams.Select(p =>
                 {
                     var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                    var pType = TypeScriptOperationHelper.GetParameterType(p);
+                    var pType = TypeScriptOperationHelper.GetParameterType(p, convertDates);
                     return pName + ": " + pType;
                 });
                 mutationArg = "(params: { " + string.Join("; ", paramParts) + " })";
@@ -433,7 +628,7 @@ public static class TypeScriptReactQueryHookExtractor
         // call site is path-params..., body, query, headers — see BuildClientCallArgs.
         if (info.HeaderParams.Count > 0)
         {
-            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams);
+            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams, convertDates);
             hookParams.Add("headers?: " + headerType);
             clientCallArgs = clientCallArgs.Length == 0 ? "headers" : clientCallArgs + ", headers";
         }
@@ -607,7 +802,7 @@ public static class TypeScriptReactQueryHookExtractor
             MethodName: methodName,
             HttpMethod: httpMethod,
             IsQuery: isQuery,
-            IsSkipped: isStreaming,
+            IsStreaming: isStreaming,
             PathParams: pathParams,
             QueryParams: queryParams,
             HeaderParams: headerParams,
@@ -686,7 +881,7 @@ public static class TypeScriptReactQueryHookExtractor
         string MethodName,
         string HttpMethod,
         bool IsQuery,
-        bool IsSkipped,
+        bool IsStreaming,
         List<OpenApiParameter> PathParams,
         List<OpenApiParameter> QueryParams,
         List<OpenApiParameter> HeaderParams,

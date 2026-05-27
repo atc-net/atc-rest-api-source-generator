@@ -225,6 +225,266 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.DoesNotContain("X-Correlation-Id", keysFactorySection, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_AsyncEnumerableOperation_EmitsStreamHook()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  x-return-async-enumerable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        // The hook name carries the `Stream` suffix to signal the different return shape
+        // (vs `useListItems` which would be a useQuery wrapping a regular GET).
+        Assert.Contains("export function useListItemsStream(", content, StringComparison.Ordinal);
+
+        // The skip-with-comment behavior is gone — this is the regression-guard against §1.
+        Assert.DoesNotContain("is skipped", content, StringComparison.Ordinal);
+
+        // Hook surface — issue 001 §2 Option A contract.
+        Assert.Contains("AbortController", content, StringComparison.Ordinal);
+        Assert.Contains("'idle' | 'streaming' | 'success' | 'error'", content, StringComparison.Ordinal);
+        Assert.Contains("return { items, status, error, cancel, reset };", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_AsyncEnumerableOperation_ImportsReactPrimitives()
+    {
+        // Stream hooks rely on useState / useEffect / useRef / useCallback — the import
+        // must appear only when at least one stream hook is emitted (otherwise the file
+        // would carry a dead import and trip noUnusedLocals).
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  x-return-async-enumerable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        Assert.Contains(
+            "import { useCallback, useEffect, useRef, useState } from 'react';",
+            content,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_NoStreamingOps_OmitsReactPrimitiveImport()
+    {
+        // The React primitive import must NOT appear when there are no streaming hooks —
+        // every other hook file would otherwise carry a dead import.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200': { description: OK }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        Assert.DoesNotContain("from 'react';", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_AsyncEnumerableWithQuery_StreamHookPassesQueryToClient()
+    {
+        // Stream hook signature must include the query bag; the body must forward it
+        // to the generated client method alongside the AbortSignal.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  x-return-async-enumerable: true
+                                  parameters:
+                                    - name: filter
+                                      in: query
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        Assert.Contains("query?: { filter?: string }", content, StringComparison.Ordinal);
+        Assert.Contains("api.items.listItems(query, controller.signal)", content, StringComparison.Ordinal);
+
+        // Query bag must contribute to the effect dependency list so changing the filter
+        // restarts the stream instead of staying on the previous filter's data.
+        Assert.Contains("const keyDep = JSON.stringify({ query });", content, StringComparison.Ordinal);
+        Assert.Contains("}, [enabled, keyDep]);", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_OnlyStreamingOps_OmitsApiErrorImport()
+    {
+        // Stream hooks surface failures as plain Error instances (no ApiError indirection).
+        // When every op on the segment is streaming, ApiError must not be imported —
+        // tsconfig noUnusedLocals would otherwise reject the generated file.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  x-return-async-enumerable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        Assert.DoesNotContain("import { ApiError }", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_MixedStreamingAndQuery_IncludesApiErrorImport()
+    {
+        // The query hook's result-unwrap path throws an ApiError, so the import must be
+        // present whenever at least one non-stream hook exists on the segment.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  x-return-async-enumerable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                              /items/count:
+                                get:
+                                  operationId: getItemsCount
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: integer
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        Assert.Contains("import { ApiError } from '../errors/ApiError';", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PathAndQueryParams_QueryKeyIncludesBoth()
+    {
+        // Old behavior dropped `query` from the key when path params were present, so
+        // React Query never refetched when filters changed. The key factory must now
+        // carry both the path arg and the query bag, and the hook must pass both to
+        // the factory call.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items/{itemId}/logs:
+                                get:
+                                  operationId: getItemLogs
+                                  parameters:
+                                    - name: itemId
+                                      in: path
+                                      required: true
+                                      schema: { type: string }
+                                    - name: level
+                                      in: query
+                                      schema: { type: string }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        // Key factory signature must accept both path and query bag.
+        Assert.Contains(
+            "getItemLogs: (itemId: string, query?: { level?: string }) => [...itemsKeys.all, 'getItemLogs', itemId, query] as const,",
+            content,
+            StringComparison.Ordinal);
+
+        // Hook must hand both args to the factory at the call site.
+        Assert.Contains("itemsKeys.getItemLogs(itemId, query)", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
