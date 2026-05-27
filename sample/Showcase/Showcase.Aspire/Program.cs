@@ -35,11 +35,19 @@ builder
     .WaitFor(api)
     .WithExternalHttpEndpoints();
 
-// Add the React application (Vite dev server)
+// Add the React applications (Vite dev servers) demonstrating both generated
+// TypeScript client variants. Same OpenAPI spec, same UI — only the HTTP
+// client library differs (native fetch vs axios).
 // AddViteApp handles Vite lifecycle (port injection, dev-server readiness detection)
 // VITE_API_BASE_URL is exposed to client code via import.meta.env
 builder
-    .AddViteApp("react-app", "../Showcase.ReactApp")
+    .AddViteApp("react-app-fetch", "../Showcase.ReactApp.Fetch")
+    .WithEnvironment("VITE_API_BASE_URL", api.GetEndpoint("http"))
+    .WaitFor(api)
+    .WithExternalHttpEndpoints();
+
+builder
+    .AddViteApp("react-app-axios", "../Showcase.ReactApp.Axios")
     .WithEnvironment("VITE_API_BASE_URL", api.GetEndpoint("http"))
     .WaitFor(api)
     .WithExternalHttpEndpoints();
