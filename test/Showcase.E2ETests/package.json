@@ -5,7 +5,9 @@
   "scripts": {
     "test": "npx playwright test",
     "test:blazor": "npx playwright test --project=blazor",
-    "test:react": "npx playwright test --project=react",
+    "test:react": "npx playwright test --project=react-fetch --project=react-axios",
+    "test:react-fetch": "npx playwright test --project=react-fetch",
+    "test:react-axios": "npx playwright test --project=react-axios",
     "test:ui": "npx playwright test --ui",
     "report": "npx playwright show-report"
   },
