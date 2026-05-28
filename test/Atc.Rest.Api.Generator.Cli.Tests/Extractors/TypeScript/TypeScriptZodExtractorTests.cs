@@ -242,6 +242,76 @@ public class TypeScriptZodExtractorTests
         Assert.Contains("export const UserSchema = z.object({", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ZodModel_MutuallyRecursiveSchemas_BothGetLazyAndTypeAnnotation()
+    {
+        // §3.6: Tag and Category reference each other. At module load time one initializer
+        // would see the other's binding as `undefined` and crash on `.optional()`. Both
+        // sides need `: z.ZodType<Name>` plus z.lazy on the cross-cycle property.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Category:
+                                  type: object
+                                  properties:
+                                    id: { type: string }
+                                    tag: { $ref: '#/components/schemas/Tag' }
+                                Tag:
+                                  type: object
+                                  properties:
+                                    label: { type: string }
+                                    category: { $ref: '#/components/schemas/Category' }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var results = TypeScriptZodModelExtractor.Extract(doc!, new TypeScriptClientConfig());
+
+        var (_, categoryContent) = Assert.Single(results, r => r.Name == "Category");
+        Assert.Contains("export const CategorySchema: z.ZodType<Category>", categoryContent, StringComparison.Ordinal);
+        Assert.Contains("import type { Category } from './Category';", categoryContent, StringComparison.Ordinal);
+        Assert.Contains("z.lazy(() => TagSchema", categoryContent, StringComparison.Ordinal);
+
+        var (_, tagContent) = Assert.Single(results, r => r.Name == "Tag");
+        Assert.Contains("export const TagSchema: z.ZodType<Tag>", tagContent, StringComparison.Ordinal);
+        Assert.Contains("import type { Tag } from './Tag';", tagContent, StringComparison.Ordinal);
+        Assert.Contains("z.lazy(() => CategorySchema", tagContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ZodModel_AcyclicCrossSchemaReference_DoesNotEmitLazyOrAnnotation()
+    {
+        // Regression guard for §3.6: when A references B but B does not reference A,
+        // the relationship is acyclic — neither side needs lazy/annotation.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Order:
+                                  type: object
+                                  properties:
+                                    id: { type: string }
+                                    customer: { $ref: '#/components/schemas/Customer' }
+                                Customer:
+                                  type: object
+                                  properties:
+                                    name: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var results = TypeScriptZodModelExtractor.Extract(doc!, new TypeScriptClientConfig());
+
+        var (_, orderContent) = Assert.Single(results, r => r.Name == "Order");
+        Assert.DoesNotContain("z.lazy(", orderContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("z.ZodType<", orderContent, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
