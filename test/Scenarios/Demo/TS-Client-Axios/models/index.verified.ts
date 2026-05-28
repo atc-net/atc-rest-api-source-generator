@@ -11,6 +11,8 @@ export type * from './PaginatedResult';
 export type * from './Task';
 export type * from './Tasks';
 export type * from './TestItem';
+export type * from './TestItemWritable';
 export type * from './UpdateUserRequest';
 export type * from './User';
+export type * from './UserWritable';
 export type * from './Users';

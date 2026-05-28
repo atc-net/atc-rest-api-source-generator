@@ -5,6 +5,11 @@ namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 /// </summary>
 public static class TypeScriptModelExtractor
 {
+    /// <summary>Suffix appended to the writable variant of a schema (e.g.
+    /// <c>UserWritable</c>). Chosen over <c>UserRequest</c> to avoid colliding with
+    /// explicit <c>*Request</c> schemas that real specs commonly declare.</summary>
+    internal const string WritableSuffix = "Writable";
+
     /// <summary>
     /// Extracts all model definitions from OpenAPI document components.
     /// </summary>
@@ -69,14 +74,113 @@ public static class TypeScriptModelExtractor
                 continue;
             }
 
-            var interfaceParams = ExtractInterfaceFromSchema(originalSchemaName, actualSchema, headerContent, enumNames, config.NamingStrategy, config.ConvertDates, config.MutableModels);
-            if (interfaceParams != null)
+            var hasReadOnly = SchemaHasMarker(actualSchema, readOnly: true);
+            var hasWriteOnly = SchemaHasMarker(actualSchema, readOnly: false);
+
+            if (hasReadOnly || hasWriteOnly)
             {
-                results.Add((originalSchemaName, interfaceParams));
+                // Response variant keeps the schema's canonical name; writeOnly props drop.
+                var responseParams = ExtractInterfaceFromSchema(originalSchemaName, actualSchema, headerContent, enumNames, config.NamingStrategy, config.ConvertDates, config.MutableModels, SchemaVariant.Response);
+                if (responseParams != null)
+                {
+                    results.Add((originalSchemaName, responseParams));
+                }
+
+                // Writable sibling gets the WritableSuffix; readOnly props drop. Client
+                // method signatures opt into this name when emitting a request body whose
+                // schema is in the writable set (see TypeScriptClientExtractor).
+                var writableName = originalSchemaName + WritableSuffix;
+                var requestParams = ExtractInterfaceFromSchema(writableName, actualSchema, headerContent, enumNames, config.NamingStrategy, config.ConvertDates, config.MutableModels, SchemaVariant.Request);
+                if (requestParams != null)
+                {
+                    results.Add((writableName, requestParams));
+                }
+            }
+            else
+            {
+                var interfaceParams = ExtractInterfaceFromSchema(originalSchemaName, actualSchema, headerContent, enumNames, config.NamingStrategy, config.ConvertDates, config.MutableModels, SchemaVariant.Combined);
+                if (interfaceParams != null)
+                {
+                    results.Add((originalSchemaName, interfaceParams));
+                }
             }
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Returns the set of schema names whose Writable sibling exists. Client and hook
+    /// extractors consult this set to decide whether to use <c>&lt;Name&gt;Writable</c>
+    /// for a request body's parameter type.
+    /// </summary>
+    public static HashSet<string> CollectSchemasWithWritableVariant(
+        OpenApiDocument openApiDoc)
+    {
+        ArgumentNullException.ThrowIfNull(openApiDoc);
+
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        if (openApiDoc.Components?.Schemas == null)
+        {
+            return result;
+        }
+
+        foreach (var (name, schemaValue) in openApiDoc.Components.Schemas)
+        {
+            if (schemaValue is not OpenApiSchema schema)
+            {
+                continue;
+            }
+
+            if (SchemaHasMarker(schema, readOnly: true) || SchemaHasMarker(schema, readOnly: false))
+            {
+                result.Add(name);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Filters a property against the active variant. The default
+    /// (<see cref="SchemaVariant.Combined"/>) keeps every property; Response drops
+    /// <c>writeOnly</c>; Request drops <c>readOnly</c>.
+    /// </summary>
+    private static bool ShouldIncludeProperty(
+        OpenApiSchema propSchema,
+        SchemaVariant variant)
+        => variant switch
+        {
+            SchemaVariant.Response => !propSchema.WriteOnly,
+            SchemaVariant.Request => !propSchema.ReadOnly,
+            _ => true,
+        };
+
+    /// <summary>
+    /// Returns <c>true</c> when any direct property of <paramref name="schema"/> carries
+    /// the OpenAPI marker selected by <paramref name="readOnly"/> — <c>true</c> checks for
+    /// <c>readOnly: true</c>, <c>false</c> for <c>writeOnly: true</c>. Only direct properties
+    /// are inspected; deeply nested or inherited markers are out of scope for the split.
+    /// </summary>
+    private static bool SchemaHasMarker(
+        OpenApiSchema schema,
+        bool readOnly)
+    {
+        if (schema.Properties == null)
+        {
+            return false;
+        }
+
+        foreach (var (_, propValue) in schema.Properties)
+        {
+            if (propValue is OpenApiSchema propSchema &&
+                (readOnly ? propSchema.ReadOnly : propSchema.WriteOnly))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -284,7 +388,11 @@ public static class TypeScriptModelExtractor
     }
 
     /// <summary>
-    /// Extracts a single TypeScript interface from an OpenAPI schema.
+    /// Extracts a single TypeScript interface from an OpenAPI schema. When
+    /// <paramref name="variant"/> is <see cref="SchemaVariant.Response"/>, properties
+    /// marked <c>writeOnly: true</c> are skipped; for <see cref="SchemaVariant.Request"/>,
+    /// <c>readOnly: true</c> properties are skipped instead. <see cref="SchemaVariant.Combined"/>
+    /// keeps every property and is the only variant used for schemas without markers.
     /// </summary>
     private static TypeScriptInterfaceParameters? ExtractInterfaceFromSchema(
         string schemaName,
@@ -293,9 +401,12 @@ public static class TypeScriptModelExtractor
         HashSet<string>? enumNames,
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
-        bool mutableModels)
+        bool mutableModels,
+        SchemaVariant variant)
     {
-        var properties = schema.Properties?.ToList() ?? [];
+        var properties = schema.Properties?
+            .Where(p => p.Value is not OpenApiSchema propSchema || ShouldIncludeProperty(propSchema, variant))
+            .ToList() ?? [];
         var required = schema.Required ?? new HashSet<string>(StringComparer.Ordinal);
 
         var tsProperties = new List<TypeScriptPropertyParameters>();

@@ -235,4 +235,107 @@ public class TypeScriptModelExtractorTests
 
         Assert.Empty(unions);
     }
+
+    [Fact]
+    public void Extract_SchemaWithReadOnlyAndWriteOnly_EmitsBothVariants()
+    {
+        // Properties marked readOnly belong to responses; writeOnly belongs to requests.
+        // When either marker is present the extractor emits two interfaces — `<Name>` for
+        // the response shape and `<Name>Writable` for the request shape — so client method
+        // signatures can pick the right variant per position.
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                User:
+                  type: object
+                  required: [email, password]
+                  properties:
+                    id: { type: string, readOnly: true }
+                    email: { type: string }
+                    password: { type: string, writeOnly: true }
+                    createdAt: { type: string, readOnly: true }
+                    displayName: { type: string }
+            """);
+        var config = new TypeScriptClientConfig();
+
+        var models = TypeScriptModelExtractor.Extract(document, config);
+
+        // Response variant: readOnly + neutral properties, no writeOnly.
+        var (responseName, responseParams) = Assert.Single(models, m => m.Name == "User");
+        Assert.Equal("User", responseName);
+        var responseProps = responseParams.Properties!.Select(p => p.Name).ToList();
+        Assert.Contains("id", responseProps);
+        Assert.Contains("createdAt", responseProps);
+        Assert.Contains("email", responseProps);
+        Assert.Contains("displayName", responseProps);
+        Assert.DoesNotContain("password", responseProps);
+
+        // Writable variant: writeOnly + neutral properties, no readOnly.
+        var (writableName, writableParams) = Assert.Single(models, m => m.Name == "UserWritable");
+        Assert.Equal("UserWritable", writableName);
+        var writableProps = writableParams.Properties!.Select(p => p.Name).ToList();
+        Assert.Contains("password", writableProps);
+        Assert.Contains("email", writableProps);
+        Assert.Contains("displayName", writableProps);
+        Assert.DoesNotContain("id", writableProps);
+        Assert.DoesNotContain("createdAt", writableProps);
+    }
+
+    [Fact]
+    public void Extract_SchemaWithoutReadOnlyOrWriteOnly_EmitsSingleVariant()
+    {
+        // Regression guard: schemas with no markers must still emit a single interface
+        // under the canonical name — no spurious <Name>Writable sibling.
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Address:
+                  type: object
+                  properties:
+                    street: { type: string }
+                    city: { type: string }
+            """);
+        var config = new TypeScriptClientConfig();
+
+        var models = TypeScriptModelExtractor.Extract(document, config);
+
+        var (name, _) = Assert.Single(models);
+        Assert.Equal("Address", name);
+    }
+
+    [Fact]
+    public void CollectSchemasWithWritableVariant_ReturnsOnlyMarkedSchemas()
+    {
+        // Client/hook extractors consult this set to decide whether a body parameter
+        // should use `<Name>Writable` instead of `<Name>`. Unmarked schemas must not
+        // appear in the set — otherwise unrelated body params would get a non-existent
+        // type name.
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                User:
+                  type: object
+                  properties:
+                    id: { type: string, readOnly: true }
+                    email: { type: string }
+                Address:
+                  type: object
+                  properties:
+                    street: { type: string }
+            """);
+
+        var writable = TypeScriptModelExtractor.CollectSchemasWithWritableVariant(document);
+
+        Assert.Contains("User", writable);
+        Assert.DoesNotContain("Address", writable);
+    }
 }
