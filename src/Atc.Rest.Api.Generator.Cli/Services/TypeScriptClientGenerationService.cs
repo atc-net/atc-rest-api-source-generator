@@ -44,7 +44,7 @@ public static class TypeScriptClientGenerationService
         // Step 5: Generate client classes
         var specHasRetry = openApiDoc.HasRetryConfiguration();
         var writableSchemas = TypeScriptModelExtractor.CollectSchemasWithWritableVariant(openApiDoc);
-        var clientCount = WriteClients(openApiDoc, outputPath, headerContent, enumNameSet, config.HttpClient, config.NamingStrategy, config.ConvertDates, specHasRetry, dryRun, writableSchemas);
+        var (clientCount, segmentClientNames) = WriteClients(openApiDoc, outputPath, headerContent, enumNameSet, config.HttpClient, config.NamingStrategy, config.ConvertDates, specHasRetry, dryRun, writableSchemas);
 
         // Step 5b: Generate helpers (pagination, retry)
         var hasRetry = clientCount > 0 && specHasRetry;
@@ -118,7 +118,7 @@ public static class TypeScriptClientGenerationService
         var scaffoldGenerated = false;
         if (config.Scaffold)
         {
-            scaffoldGenerated = WritePackageScaffold(openApiDoc, outputPath, config, dryRun);
+            scaffoldGenerated = WritePackageScaffold(openApiDoc, outputPath, config, segmentClientNames, dryRun);
         }
 
         // Step 8: Generate root barrel export
@@ -432,7 +432,7 @@ public static class TypeScriptClientGenerationService
     /// <summary>
     /// Writes client class files and their barrel export.
     /// </summary>
-    private static int WriteClients(
+    private static (int Count, IReadOnlyList<string> SegmentNames) WriteClients(
         OpenApiDocument openApiDoc,
         string outputPath,
         string? headerContent,
@@ -447,7 +447,7 @@ public static class TypeScriptClientGenerationService
         var clients = TypeScriptClientExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates, httpClient, writableSchemas);
         if (clients.Count == 0)
         {
-            return 0;
+            return (0, Array.Empty<string>());
         }
 
         var clientDir = Path.Combine(outputPath, "client");
@@ -480,7 +480,7 @@ public static class TypeScriptClientGenerationService
         var barrelContent = barrelGenerator.Generate();
         WriteTsFile(Path.Combine(clientDir, "index.ts"), barrelContent, dryRun);
 
-        return clients.Count;
+        return (clients.Count, segmentClientNames);
     }
 
     /// <summary>
@@ -747,12 +747,13 @@ public static class TypeScriptClientGenerationService
     }
 
     /// <summary>
-    /// Writes package.json and tsconfig.json scaffold files.
+    /// Writes package.json, tsconfig.json, and README.md scaffold files.
     /// </summary>
     private static bool WritePackageScaffold(
         OpenApiDocument openApiDoc,
         string outputPath,
         TypeScriptClientConfig config,
+        IReadOnlyList<string> segmentClientNames,
         bool dryRun)
     {
         var packageName = config.PackageName
@@ -770,7 +771,38 @@ public static class TypeScriptClientGenerationService
         var tsConfigContent = TypeScriptPackageScaffoldExtractor.GenerateTsConfig();
         WriteJsonFile(Path.Combine(outputPath, "tsconfig.json"), tsConfigContent, dryRun);
 
+        var readmeContent = TypeScriptPackageScaffoldExtractor.GenerateReadme(
+            packageName,
+            openApiDoc.Info?.Title,
+            description,
+            segmentClientNames,
+            config);
+        WriteTextFile(Path.Combine(outputPath, "README.md"), readmeContent, dryRun);
+
         return true;
+    }
+
+    /// <summary>
+    /// Writes a UTF-8 text file (no BOM), skipping the actual write when dry-run is active.
+    /// Used for non-TS/non-JSON artifacts like README.md.
+    /// </summary>
+    private static void WriteTextFile(
+        string filePath,
+        string content,
+        bool dryRun)
+    {
+        if (dryRun)
+        {
+            return;
+        }
+
+        var dir = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+        File.WriteAllText(filePath, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
     }
 
     /// <summary>

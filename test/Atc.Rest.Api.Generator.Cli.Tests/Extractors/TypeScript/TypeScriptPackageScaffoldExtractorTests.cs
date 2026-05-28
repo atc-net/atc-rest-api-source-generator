@@ -63,7 +63,7 @@ public class TypeScriptPackageScaffoldExtractorTests
     [Fact]
     public void GenerateTsConfig_EmitsExplicitLibAndExtraStrictness()
     {
-        // §5 DX polish: the scaffolded tsconfig should be belt-and-braces strict so
+        // The scaffolded tsconfig should be belt-and-braces strict so
         // generated code stays type-safe even when the consuming project hasn't dialed
         // in their own strictness. Explicit `lib` is included so the inferred default
         // from `target` doesn't drift if `target` is later bumped.
@@ -84,6 +84,85 @@ public class TypeScriptPackageScaffoldExtractorTests
         var json = TypeScriptPackageScaffoldExtractor.GenerateTsConfig();
 
         Assert.Contains("// skipLibCheck", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateReadme_HookStyle_EmitsApiProviderQuickStart()
+    {
+        // Scaffolded README must show the `ApiProvider` wrap when hooks
+        // are enabled — that was the recurring trip-wire when wiring Showcase by hand.
+        var config = new TypeScriptClientConfig { HooksStyle = TypeScriptHooksStyle.ReactQuery };
+        var segments = new[] { "PetsClient", "OwnersClient" };
+
+        var readme = TypeScriptPackageScaffoldExtractor.GenerateReadme(
+            "pet-store",
+            title: "Pet Store",
+            description: "A demo pet-store API.",
+            segments,
+            config);
+
+        Assert.Contains("# Pet Store", readme, StringComparison.Ordinal);
+        Assert.Contains("A demo pet-store API.", readme, StringComparison.Ordinal);
+        Assert.Contains("npm install pet-store", readme, StringComparison.Ordinal);
+        Assert.Contains("ApiProvider", readme, StringComparison.Ordinal);
+        Assert.Contains("QueryClientProvider", readme, StringComparison.Ordinal);
+        Assert.Contains("- `PetsClient`", readme, StringComparison.Ordinal);
+        Assert.Contains("- `OwnersClient`", readme, StringComparison.Ordinal);
+        Assert.Contains("atc-rest-api-gen generate client-typescript", readme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateReadme_NoHooks_EmitsPlainClientQuickStart()
+    {
+        // Without hooks the README pivots to a plain `new ApiClient + new XxxClient(api)`
+        // example so consumers don't see React/TanStack boilerplate they don't need.
+        var config = new TypeScriptClientConfig { HooksStyle = TypeScriptHooksStyle.None };
+        var segments = new[] { "PetsClient" };
+
+        var readme = TypeScriptPackageScaffoldExtractor.GenerateReadme(
+            "pet-store",
+            title: "Pet Store",
+            description: null,
+            segments,
+            config);
+
+        Assert.Contains("new ApiClient", readme, StringComparison.Ordinal);
+        Assert.Contains("new PetsClient(api)", readme, StringComparison.Ordinal);
+        Assert.DoesNotContain("ApiProvider", readme, StringComparison.Ordinal);
+        Assert.DoesNotContain("QueryClientProvider", readme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateReadme_NoSegments_OmitsClientList()
+    {
+        // Spec with no operations → no client list section, no broken bullet.
+        var config = new TypeScriptClientConfig();
+
+        var readme = TypeScriptPackageScaffoldExtractor.GenerateReadme(
+            "empty-api",
+            title: "Empty",
+            description: null,
+            Array.Empty<string>(),
+            config);
+
+        Assert.DoesNotContain("## Available clients", readme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateReadme_NoTitle_FallsBackToPackageName()
+    {
+        // Spec without info.title → README heading uses the kebab package name so the
+        // file isn't headed with "# " (empty heading).
+        var config = new TypeScriptClientConfig();
+
+        var readme = TypeScriptPackageScaffoldExtractor.GenerateReadme(
+            "my-api-client",
+            title: null,
+            description: null,
+            Array.Empty<string>(),
+            config);
+
+        Assert.Contains("# my-api-client", readme, StringComparison.Ordinal);
     }
 
     [Theory]

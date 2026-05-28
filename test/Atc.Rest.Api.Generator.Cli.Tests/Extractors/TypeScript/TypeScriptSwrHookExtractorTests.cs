@@ -196,7 +196,7 @@ public class TypeScriptSwrHookExtractorTests
     [Fact]
     public void Extract_OperationWithSummaryAndDeprecated_EmitsJsDocAboveSwrHook()
     {
-        // §5 DX polish: SWR hooks must surface the same JSDoc as the React Query
+        // SWR hooks must surface the same JSDoc as the React Query
         // hooks and the client method — keeps the IDE strikethrough consistent
         // regardless of which hook style consumers pick.
         const string yaml = """

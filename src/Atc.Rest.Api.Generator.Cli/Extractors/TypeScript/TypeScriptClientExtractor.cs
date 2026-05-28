@@ -339,7 +339,7 @@ public static class TypeScriptClientExtractor
         // Get response type
         var returnType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming, isFileDownload);
 
-        // §5 DX polish: emit a /** ... */ block when the spec has anything worth saying
+        // Emit a /** ... */ block when the spec has anything worth saying
         // about this operation — summary, description, or deprecated marker. The same
         // block applies to the Page companion below (it shares the operation).
         AppendOperationJsDoc(sb, operation);
