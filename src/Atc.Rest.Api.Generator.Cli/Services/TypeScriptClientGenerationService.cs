@@ -43,7 +43,8 @@ public static class TypeScriptClientGenerationService
 
         // Step 5: Generate client classes
         var specHasRetry = openApiDoc.HasRetryConfiguration();
-        var clientCount = WriteClients(openApiDoc, outputPath, headerContent, enumNameSet, config.HttpClient, config.NamingStrategy, config.ConvertDates, specHasRetry, dryRun);
+        var writableSchemas = TypeScriptModelExtractor.CollectSchemasWithWritableVariant(openApiDoc);
+        var clientCount = WriteClients(openApiDoc, outputPath, headerContent, enumNameSet, config.HttpClient, config.NamingStrategy, config.ConvertDates, specHasRetry, dryRun, writableSchemas);
 
         // Step 5b: Generate helpers (pagination, retry)
         var hasRetry = clientCount > 0 && specHasRetry;
@@ -80,7 +81,7 @@ public static class TypeScriptClientGenerationService
         var hookCount = 0;
         if (config.HooksStyle == TypeScriptHooksStyle.ReactQuery && clientCount > 0)
         {
-            hookCount = WriteReactQueryHooks(openApiDoc, outputPath, headerContent, enumNameSet, config.NamingStrategy, config.ConvertDates, dryRun);
+            hookCount = WriteReactQueryHooks(openApiDoc, outputPath, headerContent, enumNameSet, config.NamingStrategy, config.ConvertDates, dryRun, writableSchemas);
         }
         else if (config.HooksStyle == TypeScriptHooksStyle.Swr && clientCount > 0)
         {
@@ -413,9 +414,10 @@ public static class TypeScriptClientGenerationService
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
         bool hasRetry,
-        bool dryRun)
+        bool dryRun,
+        HashSet<string> writableSchemas)
     {
-        var clients = TypeScriptClientExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates, httpClient);
+        var clients = TypeScriptClientExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates, httpClient, writableSchemas);
         if (clients.Count == 0)
         {
             return 0;
@@ -464,9 +466,10 @@ public static class TypeScriptClientGenerationService
         HashSet<string> enumNameSet,
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
-        bool dryRun)
+        bool dryRun,
+        HashSet<string> writableSchemas)
     {
-        var hooks = TypeScriptReactQueryHookExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates);
+        var hooks = TypeScriptReactQueryHookExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates, writableSchemas);
         if (hooks.Count == 0)
         {
             return 0;

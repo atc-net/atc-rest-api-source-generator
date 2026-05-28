@@ -23,12 +23,14 @@ public static class TypeScriptReactQueryHookExtractor
         string? headerContent,
         HashSet<string>? enumNames = null,
         TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase,
-        bool convertDates = false)
+        bool convertDates = false,
+        HashSet<string>? writableSchemas = null)
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
         var results = new List<(string FileName, string Content)>();
         var segments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
+        writableSchemas ??= new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var segment in segments)
         {
@@ -46,7 +48,8 @@ public static class TypeScriptReactQueryHookExtractor
                 headerContent,
                 enumNames,
                 namingStrategy,
-                convertDates);
+                convertDates,
+                writableSchemas);
             results.Add((fileName, content));
         }
 
@@ -60,7 +63,8 @@ public static class TypeScriptReactQueryHookExtractor
         string? headerContent,
         HashSet<string>? enumNames,
         TypeScriptNamingStrategy namingStrategy,
-        bool convertDates)
+        bool convertDates,
+        HashSet<string> writableSchemas)
     {
         var sb = new StringBuilder();
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
@@ -74,11 +78,23 @@ public static class TypeScriptReactQueryHookExtractor
         var hookInfos = new List<HookInfo>();
         foreach (var (path, method, operation) in operations)
         {
-            var info = ClassifyOperation(path, method, operation, openApiDoc, namingStrategy);
+            var info = ClassifyOperation(path, method, operation, openApiDoc, namingStrategy, writableSchemas);
             hookInfos.Add(info);
 
             // Streaming ops still need their item type imported.
             TypeScriptOperationHelper.CollectImportTypes(operation, importTypes, openApiDoc, path);
+
+            // Match the client extractor: a body that's a $ref to a schema with the
+            // readOnly/writeOnly split needs the <Name>Writable variant imported.
+            var (bodySchema, _) = operation.GetRequestBodySchemaWithContentType();
+            if (bodySchema is OpenApiSchemaReference bodyRef)
+            {
+                var refName = bodyRef.Reference.Id ?? bodyRef.Id;
+                if (refName != null && writableSchemas.Contains(refName))
+                {
+                    importTypes.Add(refName + TypeScriptModelExtractor.WritableSuffix);
+                }
+            }
 
             if (info.IsStreaming)
             {
@@ -781,7 +797,8 @@ public static class TypeScriptReactQueryHookExtractor
         string httpMethod,
         OpenApiOperation operation,
         OpenApiDocument openApiDoc,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        HashSet<string> writableSchemas)
     {
         var isStreaming = operation.IsAsyncEnumerableOperation();
         var isFileDownload = operation.HasFileDownload();
@@ -801,6 +818,18 @@ public static class TypeScriptReactQueryHookExtractor
         var (bodySchema, bodyContentType) = operation.GetRequestBodySchemaWithContentType();
         var hasBody = bodySchema != null && !isFileUpload;
         var bodyType = hasBody ? bodySchema!.ToTypeScriptReturnType() : string.Empty;
+
+        // Mirror the client extractor: a body that's a $ref to a schema with the
+        // readOnly/writeOnly split must use the <Name>Writable variant in the mutation
+        // signature so consumers can't accidentally pass readOnly fields.
+        if (hasBody && bodySchema is OpenApiSchemaReference bodyRef)
+        {
+            var bodyRefName = bodyRef.Reference.Id ?? bodyRef.Id;
+            if (bodyRefName != null && writableSchemas.Contains(bodyRefName))
+            {
+                bodyType = bodyRefName + TypeScriptModelExtractor.WritableSuffix;
+            }
+        }
 
         // Determine file upload parameter info
         var hasFileUploadArg = false;

@@ -19,12 +19,14 @@ public static class TypeScriptClientExtractor
         HashSet<string>? enumNames = null,
         TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase,
         bool convertDates = false,
-        TypeScriptHttpClient httpClient = TypeScriptHttpClient.Fetch)
+        TypeScriptHttpClient httpClient = TypeScriptHttpClient.Fetch,
+        HashSet<string>? writableSchemas = null)
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
         var results = new List<(string ClassName, string Content)>();
         var segments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
+        writableSchemas ??= new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var segment in segments)
         {
@@ -35,7 +37,7 @@ public static class TypeScriptClientExtractor
             }
 
             var className = segment + "Client";
-            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy, convertDates, httpClient);
+            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy, convertDates, httpClient, writableSchemas);
             results.Add((className, content));
         }
 
@@ -50,7 +52,8 @@ public static class TypeScriptClientExtractor
         HashSet<string>? enumNames,
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
-        TypeScriptHttpClient httpClient)
+        TypeScriptHttpClient httpClient,
+        HashSet<string> writableSchemas)
     {
         var sb = new StringBuilder();
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
@@ -59,6 +62,23 @@ public static class TypeScriptClientExtractor
         foreach (var (operationPath, _, operation) in operations)
         {
             TypeScriptOperationHelper.CollectImportTypes(operation, importTypes, openApiDoc, operationPath);
+        }
+
+        // For schemas that have a Writable sibling (readOnly/writeOnly split), an operation
+        // that posts/puts that schema needs the `<Name>Writable` variant imported alongside
+        // — the response-side import keeps the canonical name. Add the suffixed names so
+        // the body-type emission below can name them.
+        foreach (var (_, _, operation) in operations)
+        {
+            var (bodySchema, _) = operation.GetRequestBodySchemaWithContentType();
+            if (bodySchema is OpenApiSchemaReference bodyRef)
+            {
+                var refName = bodyRef.Reference.Id ?? bodyRef.Id;
+                if (refName != null && writableSchemas.Contains(refName))
+                {
+                    importTypes.Add(refName + TypeScriptModelExtractor.WritableSuffix);
+                }
+            }
         }
 
         // Second pass: fix imports for streaming operations whose response schema
@@ -192,7 +212,7 @@ public static class TypeScriptClientExtractor
         {
             sb.AppendLine();
             perOpResultTypes.TryGetValue(operation, out var resultTypeName);
-            AppendMethod(sb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName);
+            AppendMethod(sb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, writableSchemas);
         }
 
         sb.AppendLine("}");
@@ -260,7 +280,8 @@ public static class TypeScriptClientExtractor
         OpenApiDocument openApiDoc,
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
-        string? perOpResultTypeName)
+        string? perOpResultTypeName,
+        HashSet<string> writableSchemas)
     {
         var isStreaming = operation.IsAsyncEnumerableOperation();
         var isFileDownload = operation.HasFileDownload();
@@ -286,7 +307,7 @@ public static class TypeScriptClientExtractor
         }
         else
         {
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas);
         }
     }
 
@@ -306,10 +327,11 @@ public static class TypeScriptClientExtractor
         string returnType,
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
-        string? perOpResultTypeName)
+        string? perOpResultTypeName,
+        HashSet<string> writableSchemas)
     {
         // Build parameter list
-        var paramList = BuildParameterList(pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates);
+        var paramList = BuildParameterList(pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas);
 
         // perOpResultTypeName is supplied for every non-streaming op when called from
         // GenerateClientClass. The generic ApiResult fallback is a safety net for any unit
@@ -448,7 +470,8 @@ public static class TypeScriptClientExtractor
         string bodyContentType,
         bool isFileUpload,
         TypeScriptNamingStrategy namingStrategy,
-        bool convertDates)
+        bool convertDates,
+        HashSet<string> writableSchemas)
     {
         var parts = new List<string>();
 
@@ -469,7 +492,19 @@ public static class TypeScriptClientExtractor
             }
             else
             {
+                // When the body schema is a direct $ref to a schema with the readOnly/writeOnly
+                // split, route the parameter to the Writable variant — that's the type with the
+                // readOnly properties dropped, matching the OpenAPI contract for request bodies.
                 var bodyType = bodySchema.ToTypeScriptReturnType();
+                if (bodySchema is OpenApiSchemaReference bodyRef)
+                {
+                    var refName = bodyRef.Reference.Id ?? bodyRef.Id;
+                    if (refName != null && writableSchemas.Contains(refName))
+                    {
+                        bodyType = refName + TypeScriptModelExtractor.WritableSuffix;
+                    }
+                }
+
                 parts.Add("body: " + bodyType);
             }
         }

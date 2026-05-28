@@ -652,6 +652,100 @@ public class TypeScriptClientExtractorTests
         Assert.Contains("response: AxiosResponse", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_RequestBodyReferencesWritableSchema_UsesWritableSuffixInSignature()
+    {
+        // When the schema has readOnly or writeOnly markers, the body parameter must
+        // route through `<Name>Writable`. The response side of the same schema keeps
+        // the canonical name. Both names need to be imported.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /users:
+                                post:
+                                  operationId: createUser
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/User'
+                                  responses:
+                                    '201':
+                                      description: Created
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/User'
+                            components:
+                              schemas:
+                                User:
+                                  type: object
+                                  properties:
+                                    id: { type: string, readOnly: true }
+                                    email: { type: string }
+                                    password: { type: string, writeOnly: true }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var writableSchemas = TypeScriptModelExtractor.CollectSchemasWithWritableVariant(document!);
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(
+            document!,
+            headerContent: null,
+            writableSchemas: writableSchemas));
+
+        // Method signature carries the Writable variant on the body…
+        Assert.Contains("body: UserWritable", content, StringComparison.Ordinal);
+
+        // …but the per-op result type's `ok`/`created` arms keep the canonical name.
+        Assert.Contains("data: User", content, StringComparison.Ordinal);
+
+        // Both names are imported from the models barrel.
+        Assert.Contains("import type { User, UserWritable } from '../models'", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_RequestBodyReferencesSchemaWithoutMarkers_KeepsCanonicalName()
+    {
+        // Schemas without readOnly / writeOnly markers must NOT have their body params
+        // remapped to a non-existent `<Name>Writable` type.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /addresses:
+                                post:
+                                  operationId: createAddress
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/Address'
+                                  responses:
+                                    '201': { description: Created }
+                            components:
+                              schemas:
+                                Address:
+                                  type: object
+                                  properties:
+                                    street: { type: string }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var writableSchemas = TypeScriptModelExtractor.CollectSchemasWithWritableVariant(document!);
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(
+            document!,
+            headerContent: null,
+            writableSchemas: writableSchemas));
+
+        Assert.Contains("body: Address", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddressWritable", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
