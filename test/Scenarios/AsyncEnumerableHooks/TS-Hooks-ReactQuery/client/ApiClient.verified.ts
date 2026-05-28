@@ -200,7 +200,11 @@ export class ApiClient {
       } catch (parseError) {
         return { status: 'parseError', error: parseError as Error, response };
       }
-      const status = response.status === 201 ? 'created' as const : 'ok' as const;
+      const status = response.status === 201
+        ? 'created' as const
+        : response.status === 202
+          ? 'accepted' as const
+          : 'ok' as const;
       return { status, data: data as T, response };
     }
 

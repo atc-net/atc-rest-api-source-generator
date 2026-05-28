@@ -23,7 +23,7 @@ export function useUploadSingleFile() {
   return useMutation({
     mutationFn: async (file: Blob | File) => {
       const result = await filesClient.uploadSingleFileAsFormData(file);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'ok') {
         return;
       }
       throw new ApiError(
@@ -40,7 +40,7 @@ export function useUploadMultiFiles() {
   return useMutation({
     mutationFn: async (files: (Blob | File)[]) => {
       const result = await filesClient.uploadMultiFilesAsFormData(files);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'ok') {
         return;
       }
       throw new ApiError(
@@ -57,7 +57,7 @@ export function useUploadWithMetadata() {
   return useMutation({
     mutationFn: async (data: { itemName?: string; file?: Blob | File; items?: string[] }) => {
       const result = await filesClient.uploadSingleObjectWithFileAsFormData(data);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'ok') {
         return;
       }
       throw new ApiError(
@@ -74,7 +74,7 @@ export function useUploadMultiWithMetadata() {
   return useMutation({
     mutationFn: async (data: { files?: (Blob | File)[] }) => {
       const result = await filesClient.uploadSingleObjectWithFilesAsFormData(data);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'ok') {
         return;
       }
       throw new ApiError(

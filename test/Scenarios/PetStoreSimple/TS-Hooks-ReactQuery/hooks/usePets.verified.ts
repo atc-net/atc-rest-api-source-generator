@@ -18,7 +18,7 @@ export function useListPets(query?: { limit?: number }) {
     queryKey: petsKeys.list(query),
     queryFn: async () => {
       const result = await api.pets.listPets(query);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(
@@ -37,7 +37,7 @@ export function useCreatePets() {
   return useMutation({
     mutationFn: async () => {
       const result = await api.pets.createPets();
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'created') {
         return;
       }
       throw new ApiError(
@@ -59,7 +59,7 @@ export function useShowPetById(petId: string) {
     queryKey: petsKeys.showPetById(petId),
     queryFn: async () => {
       const result = await api.pets.showPetById(petId);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(

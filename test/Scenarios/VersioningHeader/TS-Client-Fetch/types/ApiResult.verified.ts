@@ -5,6 +5,7 @@ import type { ValidationError } from '../errors/ValidationError';
 export type ApiResult<T> =
   | { status: 'ok'; data: T; response: Response }
   | { status: 'created'; data: T; response: Response }
+  | { status: 'accepted'; data: T; response: Response }
   | { status: 'noContent'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
@@ -22,6 +23,10 @@ export function isOk<T>(result: ApiResult<T>): result is { status: 'ok'; data: T
 
 export function isCreated<T>(result: ApiResult<T>): result is { status: 'created'; data: T; response: Response } {
   return result.status === 'created';
+}
+
+export function isAccepted<T>(result: ApiResult<T>): result is { status: 'accepted'; data: T; response: Response } {
+  return result.status === 'accepted';
 }
 
 export function isNoContent<T>(result: ApiResult<T>): result is { status: 'noContent'; response: Response } {

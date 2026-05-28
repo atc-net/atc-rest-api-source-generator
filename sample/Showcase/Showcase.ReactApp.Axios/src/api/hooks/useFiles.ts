@@ -15,7 +15,7 @@ export function useGetFileById() {
   return useMutation({
     mutationFn: async (id: string) => {
       const result = await api.files.getFileById(id);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(
@@ -37,7 +37,7 @@ export function useUploadSingleObjectWithFileAsFormData() {
   return useMutation({
     mutationFn: async (data: { itemName?: string; file?: Blob | File; items?: string[] }) => {
       const result = await api.files.uploadSingleObjectWithFileAsFormData(data);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'ok') {
         return;
       }
       throw new ApiError(
@@ -59,7 +59,7 @@ export function useUploadSingleObjectWithFilesAsFormData() {
   return useMutation({
     mutationFn: async (data: { files?: (Blob | File)[] }) => {
       const result = await api.files.uploadSingleObjectWithFilesAsFormData(data);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'ok') {
         return;
       }
       throw new ApiError(
@@ -81,7 +81,7 @@ export function useUploadSingleFileAsFormData() {
   return useMutation({
     mutationFn: async (file: Blob | File) => {
       const result = await api.files.uploadSingleFileAsFormData(file);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'ok') {
         return;
       }
       throw new ApiError(
@@ -103,7 +103,7 @@ export function useUploadMultiFilesAsFormData() {
   return useMutation({
     mutationFn: async (files: (Blob | File)[]) => {
       const result = await api.files.uploadMultiFilesAsFormData(files);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'ok') {
         return;
       }
       throw new ApiError(

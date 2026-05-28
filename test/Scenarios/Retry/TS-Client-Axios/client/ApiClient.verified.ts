@@ -228,7 +228,11 @@ export class ApiClient {
           response,
         };
       }
-      const status = response.status === 201 ? 'created' as const : 'ok' as const;
+      const status = response.status === 201
+        ? 'created' as const
+        : response.status === 202
+          ? 'accepted' as const
+          : 'ok' as const;
       return { status, data: response.data, response };
     }
 

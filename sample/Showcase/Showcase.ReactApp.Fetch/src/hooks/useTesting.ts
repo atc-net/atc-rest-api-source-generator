@@ -42,7 +42,7 @@ export function useTesting() {
       timestamp: new Date().toISOString(),
     };
 
-    if (result.status === 'ok' || result.status === 'created') {
+    if ('data' in result) {
       testResult.message = result.data.message;
     } else if ('error' in result) {
       testResult.exceptionType = result.error.name;

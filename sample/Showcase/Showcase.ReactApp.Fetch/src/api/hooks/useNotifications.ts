@@ -20,7 +20,7 @@ export function useListSubscriptions() {
     queryKey: notificationsKeys.listSubscriptions(),
     queryFn: async () => {
       const result = await api.notifications.listSubscriptions();
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(
@@ -39,7 +39,7 @@ export function useCreateSubscription() {
   return useMutation({
     mutationFn: async (body: CreateSubscriptionRequest) => {
       const result = await api.notifications.createSubscription(body);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'created') {
         return result.data;
       }
       throw new ApiError(
@@ -61,7 +61,7 @@ export function useGetSubscriptionById(subscriptionId: string) {
     queryKey: notificationsKeys.detail(subscriptionId),
     queryFn: async () => {
       const result = await api.notifications.getSubscriptionById(subscriptionId);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(
@@ -81,7 +81,7 @@ export function useDeleteSubscription() {
   return useMutation({
     mutationFn: async (subscriptionId: string) => {
       const result = await api.notifications.deleteSubscription(subscriptionId);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'noContent') {
         return;
       }
       throw new ApiError(

@@ -18,7 +18,8 @@ public static class TypeScriptClientExtractor
         string? headerContent,
         HashSet<string>? enumNames = null,
         TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase,
-        bool convertDates = false)
+        bool convertDates = false,
+        TypeScriptHttpClient httpClient = TypeScriptHttpClient.Fetch)
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
@@ -34,7 +35,7 @@ public static class TypeScriptClientExtractor
             }
 
             var className = segment + "Client";
-            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy, convertDates);
+            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy, convertDates, httpClient);
             results.Add((className, content));
         }
 
@@ -48,7 +49,8 @@ public static class TypeScriptClientExtractor
         string? headerContent,
         HashSet<string>? enumNames,
         TypeScriptNamingStrategy namingStrategy,
-        bool convertDates)
+        bool convertDates,
+        TypeScriptHttpClient httpClient)
     {
         var sb = new StringBuilder();
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
@@ -118,6 +120,49 @@ public static class TypeScriptClientExtractor
             }
         }
 
+        // Per-operation result-type aliases: one bespoke discriminated union per non-streaming
+        // method, with arms keyed off the operation's declared response codes. Computed first
+        // so their referenced model/error types get folded into the file-level import set.
+        var perOpResultTypes = new Dictionary<OpenApiOperation, string>(ReferenceEqualityComparer.Instance);
+        var perOpDeclarations = new List<string>();
+        var perOpErrorImports = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var (operationPath, methodVerb, operation) in operations)
+        {
+            if (operation.IsAsyncEnumerableOperation())
+            {
+                continue;
+            }
+
+            var isFileDownload = operation.HasFileDownload();
+            var isTextDownload = !isFileDownload && operation.HasTextResponse();
+            var operationId = operation.GetOperationId(operationPath, methodVerb);
+            var methodName = operationId.ToCamelCase().ToTypeScriptIdentifier();
+            var resultTypeName = methodName.ToPascalCase() + "Result";
+
+            var (declaration, imports) = TypeScriptOperationHelper.BuildPerOperationResultType(
+                operation,
+                resultTypeName,
+                isFileDownload,
+                isTextDownload,
+                httpClient);
+
+            perOpResultTypes[operation] = resultTypeName;
+            perOpDeclarations.Add(declaration);
+
+            foreach (var imp in imports)
+            {
+                if (imp is "ApiError" or "ValidationError")
+                {
+                    perOpErrorImports.Add(imp);
+                }
+                else
+                {
+                    importTypes.Add(imp);
+                }
+            }
+        }
+
         // Write header
         if (headerContent != null)
         {
@@ -125,7 +170,14 @@ public static class TypeScriptClientExtractor
         }
 
         // Write imports
-        AppendImports(sb, importTypes, enumNames);
+        AppendImports(sb, importTypes, enumNames, perOpErrorImports, httpClient);
+
+        // Emit per-operation result-type aliases before the class.
+        foreach (var declaration in perOpDeclarations)
+        {
+            sb.Append(declaration);
+            sb.AppendLine();
+        }
 
         // Class declaration
         sb.Append("export class ").Append(className).AppendLine(" {");
@@ -139,7 +191,8 @@ public static class TypeScriptClientExtractor
         foreach (var (path, method, operation) in operations)
         {
             sb.AppendLine();
-            AppendMethod(sb, path, method, operation, openApiDoc, namingStrategy, convertDates);
+            perOpResultTypes.TryGetValue(operation, out var resultTypeName);
+            AppendMethod(sb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName);
         }
 
         sb.AppendLine("}");
@@ -150,13 +203,19 @@ public static class TypeScriptClientExtractor
     private static void AppendImports(
         StringBuilder sb,
         HashSet<string> importTypes,
-        HashSet<string>? enumNames)
+        HashSet<string>? enumNames,
+        HashSet<string> errorImports,
+        TypeScriptHttpClient httpClient)
     {
+        // The Axios variant references AxiosResponse in per-op result-type arms — the Fetch
+        // variant uses the global Response type, so only the Axios path needs the import.
+        if (httpClient == TypeScriptHttpClient.Axios)
+        {
+            sb.AppendLine("import type { AxiosResponse } from 'axios';");
+        }
+
         // Import ApiClient
         sb.AppendLine("import { ApiClient } from './ApiClient';");
-
-        // Import ApiResult (always needed for non-streaming)
-        sb.AppendLine("import type { ApiResult } from '../types/ApiResult';");
 
         // Build model imports and enum imports separately
         var modelImports = new SortedSet<string>(StringComparer.Ordinal);
@@ -184,6 +243,12 @@ public static class TypeScriptClientExtractor
             sb.Append("import type { ").Append(string.Join(", ", enumImports)).AppendLine(" } from '../enums';");
         }
 
+        if (errorImports.Count > 0)
+        {
+            var sorted = new SortedSet<string>(errorImports, StringComparer.Ordinal);
+            sb.Append("import type { ").Append(string.Join(", ", sorted)).AppendLine(" } from '../errors';");
+        }
+
         sb.AppendLine();
     }
 
@@ -194,7 +259,8 @@ public static class TypeScriptClientExtractor
         OpenApiOperation operation,
         OpenApiDocument openApiDoc,
         TypeScriptNamingStrategy namingStrategy,
-        bool convertDates)
+        bool convertDates,
+        string? perOpResultTypeName)
     {
         var isStreaming = operation.IsAsyncEnumerableOperation();
         var isFileDownload = operation.HasFileDownload();
@@ -220,7 +286,7 @@ public static class TypeScriptClientExtractor
         }
         else
         {
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName);
         }
     }
 
@@ -239,11 +305,17 @@ public static class TypeScriptClientExtractor
         bool isTextDownload,
         string returnType,
         TypeScriptNamingStrategy namingStrategy,
-        bool convertDates)
+        bool convertDates,
+        string? perOpResultTypeName)
     {
         // Build parameter list
         var paramList = BuildParameterList(pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates);
-        sb.Append("  async ").Append(methodName).Append('(').Append(paramList).Append("): Promise<ApiResult<").Append(returnType).AppendLine(">> {");
+
+        // perOpResultTypeName is supplied for every non-streaming op when called from
+        // GenerateClientClass. The generic ApiResult fallback is a safety net for any unit
+        // test that builds a method in isolation without first computing the per-op alias.
+        var resultType = perOpResultTypeName ?? ("ApiResult<" + returnType + ">");
+        sb.Append("  async ").Append(methodName).Append('(').Append(paramList).Append("): Promise<").Append(resultType).AppendLine("> {");
 
         // Build path with interpolation
         var interpolatedPath = TypeScriptOperationHelper.BuildInterpolatedPath(path, pathParams, namingStrategy, convertDates);
@@ -252,6 +324,12 @@ public static class TypeScriptClientExtractor
         var hasQuery = queryParams.Count > 0;
         var hasHeaders = headerParams.Count > 0;
         var hasBody = bodySchema != null;
+
+        // Cast suffix narrows the generic ApiResult<T> returned by ApiClient.request to the
+        // per-op union — sound because handleResponse emits the same discriminator names.
+        var castSuffix = perOpResultTypeName != null
+            ? " as Promise<" + perOpResultTypeName + ">"
+            : string.Empty;
 
         if (hasQuery || hasHeaders || hasBody || isFileUpload || isFileDownload || isTextDownload)
         {
@@ -285,11 +363,11 @@ public static class TypeScriptClientExtractor
                 sb.AppendLine("      responseType: 'text',");
             }
 
-            sb.AppendLine("    });");
+            sb.Append("    })").Append(castSuffix).AppendLine(";");
         }
         else
         {
-            sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(interpolatedPath).AppendLine(");");
+            sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(interpolatedPath).Append(')').Append(castSuffix).AppendLine(";");
         }
 
         sb.AppendLine("  }");

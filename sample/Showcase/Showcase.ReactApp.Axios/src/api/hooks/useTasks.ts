@@ -18,7 +18,7 @@ export function useListTasks(query?: { limit?: number }) {
     queryKey: tasksKeys.list(query),
     queryFn: async () => {
       const result = await api.tasks.listTasks(query);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(
@@ -37,7 +37,7 @@ export function useCreateTask() {
   return useMutation({
     mutationFn: async (body: Task) => {
       const result = await api.tasks.createTask(body);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'created') {
         return result.data;
       }
       throw new ApiError(
@@ -59,7 +59,7 @@ export function useGetTaskById(taskId: string) {
     queryKey: tasksKeys.detail(taskId),
     queryFn: async () => {
       const result = await api.tasks.getTaskById(taskId);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(
@@ -79,7 +79,7 @@ export function useDeleteTaskById() {
   return useMutation({
     mutationFn: async (taskId: string) => {
       const result = await api.tasks.deleteTaskById(taskId);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'noContent') {
         return;
       }
       throw new ApiError(
@@ -101,7 +101,7 @@ export function useUpdateTaskById(taskId: string) {
   return useMutation({
     mutationFn: async (body: Task) => {
       const result = await api.tasks.updateTaskById(taskId, body);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(

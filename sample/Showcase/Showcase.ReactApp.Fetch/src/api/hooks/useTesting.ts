@@ -17,7 +17,7 @@ export function useGetExceptionTest(code: number) {
     queryKey: testingKeys.getExceptionTest(code),
     queryFn: async () => {
       const result = await api.testing.getExceptionTest(code);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(

@@ -32,7 +32,7 @@ export function useCreateSubscription() {
   return useMutation({
     mutationFn: async (body: CreateSubscriptionRequest) => {
       const result = await notificationsClient.createSubscription(body);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'created') {
         return result.data;
       }
       throw new ApiError(
@@ -53,7 +53,7 @@ export function useDeleteSubscription() {
   return useMutation({
     mutationFn: async (subscriptionId: string) => {
       const result = await notificationsClient.deleteSubscription(subscriptionId);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'noContent') {
         return;
       }
       throw new ApiError(

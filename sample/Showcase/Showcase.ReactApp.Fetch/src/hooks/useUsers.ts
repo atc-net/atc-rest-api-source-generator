@@ -62,7 +62,7 @@ export function useCreateUser() {
   return useMutation({
     mutationFn: async (body: CreateUserRequest) => {
       const result = await usersClient.createUser(body);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'created') {
         return result.data;
       }
       throw new ApiError(
@@ -83,7 +83,7 @@ export function useUpdateUser(userId: string) {
   return useMutation({
     mutationFn: async (body: UpdateUserRequest) => {
       const result = await usersClient.updateUserById(userId, body);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(
@@ -104,7 +104,7 @@ export function useDeleteUser() {
   return useMutation({
     mutationFn: async (userId: string) => {
       const result = await usersClient.deleteUserById(userId);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'noContent') {
         return;
       }
       throw new ApiError(

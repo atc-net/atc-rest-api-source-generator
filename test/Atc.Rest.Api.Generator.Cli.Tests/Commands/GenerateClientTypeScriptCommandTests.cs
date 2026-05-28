@@ -388,10 +388,14 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
         var accountsClientContent = await File.ReadAllTextAsync(
             Path.Combine(outputPath, "client", "AccountsClient.ts"), TestContext.Current.CancellationToken);
 
-        // Should have async methods returning ApiResult
+        // Per-op result types replaced the generic ApiResult return type, but the method
+        // bodies still funnel through ApiClient. Spot-check the discriminator names that
+        // the per-op aliases must include — those are the contract for consumers.
         Assert.Contains("async", accountsClientContent, StringComparison.Ordinal);
-        Assert.Contains("ApiResult", accountsClientContent, StringComparison.Ordinal);
         Assert.Contains("ApiClient", accountsClientContent, StringComparison.Ordinal);
+        Assert.Contains("export type ", accountsClientContent, StringComparison.Ordinal);
+        Assert.Contains("status: 'ok'", accountsClientContent, StringComparison.Ordinal);
+        Assert.Contains("status: 'parseError'", accountsClientContent, StringComparison.Ordinal);
     }
 
     [Fact]

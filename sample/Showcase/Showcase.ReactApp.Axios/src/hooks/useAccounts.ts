@@ -32,7 +32,7 @@ export function useCreateAccount() {
   return useMutation({
     mutationFn: async (body: Account) => {
       const result = await accountsClient.createAccount(body);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'created') {
         return result.data;
       }
       throw new ApiError(
@@ -53,7 +53,7 @@ export function useDeleteAccount() {
   return useMutation({
     mutationFn: async (accountId: string) => {
       const result = await accountsClient.deleteAccountById(accountId);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'noContent') {
         return;
       }
       throw new ApiError(

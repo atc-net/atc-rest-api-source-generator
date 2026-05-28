@@ -111,6 +111,253 @@ public static class TypeScriptOperationHelper
     }
 
     /// <summary>
+    /// Builds a per-operation discriminated union result type alias from an operation's
+    /// declared responses. Each declared 2xx/4xx/5xx status produces a narrow arm; a
+    /// synthetic <c>'parseError'</c> arm is always appended because the body parse path
+    /// can fail on any operation that returns a JSON body. <c>default</c> responses
+    /// fan out to the standard error arms so callers can still match common 4xx/5xx
+    /// statuses without the spec listing every code.
+    /// </summary>
+    /// <param name="operation">The OpenAPI operation.</param>
+    /// <param name="typeName">PascalCase name for the emitted alias (e.g. <c>GetUserResult</c>).</param>
+    /// <param name="isFileDownload">When true, the success arm's data type is <c>Blob</c>.</param>
+    /// <param name="isTextDownload">When true, the success arm's data type is <c>string</c>.</param>
+    /// <param name="httpClient">Selects <c>Response</c> (Fetch) vs <c>AxiosResponse</c> for the response field.</param>
+    /// <returns>The type alias declaration plus the set of model/error type names that
+    /// must be imported alongside it.</returns>
+    public static (string Declaration, HashSet<string> Imports) BuildPerOperationResultType(
+        OpenApiOperation operation,
+        string typeName,
+        bool isFileDownload,
+        bool isTextDownload,
+        TypeScriptHttpClient httpClient)
+    {
+        var responseType = httpClient == TypeScriptHttpClient.Axios ? "AxiosResponse" : "Response";
+        var imports = new HashSet<string>(StringComparer.Ordinal);
+        var arms = new List<string>();
+        var seenDiscriminators = new HashSet<string>(StringComparer.Ordinal);
+
+        void AddArm(
+            string discriminator,
+            string armBody)
+        {
+            if (seenDiscriminators.Add(discriminator))
+            {
+                arms.Add(armBody);
+            }
+        }
+
+        var hasDefaultResponse = false;
+
+        if (operation.Responses != null)
+        {
+            foreach (var (statusCode, response) in operation.Responses)
+            {
+                if (string.Equals(statusCode, "default", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasDefaultResponse = true;
+                    continue;
+                }
+
+                var arm = BuildResultArmForStatus(
+                    statusCode,
+                    operation,
+                    isFileDownload,
+                    isTextDownload,
+                    responseType,
+                    imports,
+                    out var discriminator);
+                if (arm != null && discriminator != null)
+                {
+                    AddArm(discriminator, arm);
+                }
+            }
+        }
+
+        // `default:` fans out to the common error arms — without this, a spec that uses
+        // `default` (PetStore style) would emit a per-op type missing every error case.
+        if (hasDefaultResponse)
+        {
+            foreach (var (discriminator, errorType) in DefaultResponseErrorArms)
+            {
+                imports.Add(errorType);
+                AddArm(discriminator, $"  | {{ status: '{discriminator}'; error: {errorType}; response: {responseType} }}");
+            }
+        }
+
+        // Universal synthetic: any 2xx with a JSON body can produce parseError; emit it
+        // as Error rather than ApiError so consumers know it carries the JS SyntaxError.
+        AddArm("parseError", $"  | {{ status: 'parseError'; error: Error; response: {responseType} }}");
+
+        var sb = new StringBuilder();
+        sb.Append("export type ").Append(typeName).AppendLine(" =");
+        for (var i = 0; i < arms.Count; i++)
+        {
+            sb.Append(arms[i]);
+            sb.AppendLine(i == arms.Count - 1 ? ";" : string.Empty);
+        }
+
+        return (sb.ToString(), imports);
+    }
+
+    private static readonly Dictionary<string, (string Discriminator, string ErrorType)> ErrorStatusMapping =
+        new(StringComparer.Ordinal)
+        {
+            ["400"] = ("badRequest", "ValidationError"),
+            ["401"] = ("unauthorized", "ApiError"),
+            ["403"] = ("forbidden", "ApiError"),
+            ["404"] = ("notFound", "ApiError"),
+            ["409"] = ("conflict", "ApiError"),
+            ["422"] = ("unprocessableEntity", "ApiError"),
+            ["429"] = ("tooManyRequests", "ApiError"),
+        };
+
+    private static readonly (string Discriminator, string ErrorType)[] DefaultResponseErrorArms =
+    {
+        ("badRequest", "ValidationError"),
+        ("unauthorized", "ApiError"),
+        ("forbidden", "ApiError"),
+        ("notFound", "ApiError"),
+        ("conflict", "ApiError"),
+        ("unprocessableEntity", "ApiError"),
+        ("tooManyRequests", "ApiError"),
+        ("serverError", "ApiError"),
+    };
+
+    /// <summary>
+    /// Walks <paramref name="operation"/>'s declared responses and returns the discriminator
+    /// names that <c>handleResponse</c> would emit for each 2xx code (<c>ok</c>, <c>created</c>,
+    /// <c>accepted</c>, <c>noContent</c>). Used by hook generators to narrow a per-op result
+    /// to the success arms it actually has — without this, a hook emitting
+    /// <c>result.status === 'created'</c> would type-error against a per-op union that only
+    /// declares 200. When the operation declares no 2xx, returns just <c>['ok']</c> as a
+    /// safe default so generated narrowing still compiles.
+    /// </summary>
+    public static List<string> CollectDeclared2xxDiscriminators(OpenApiOperation operation)
+    {
+        var discriminators = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        if (operation.Responses != null)
+        {
+            foreach (var key in operation.Responses.Keys)
+            {
+                string? discriminator = key switch
+                {
+                    "200" => "ok",
+                    "201" => "created",
+                    "202" => "accepted",
+                    "204" => "noContent",
+                    _ => null,
+                };
+
+                if (discriminator != null && seen.Add(discriminator))
+                {
+                    discriminators.Add(discriminator);
+                }
+            }
+        }
+
+        if (discriminators.Count == 0)
+        {
+            discriminators.Add("ok");
+        }
+
+        return discriminators;
+    }
+
+    private static string? BuildResultArmForStatus(
+        string statusCode,
+        OpenApiOperation operation,
+        bool isFileDownload,
+        bool isTextDownload,
+        string responseType,
+        HashSet<string> imports,
+        out string? discriminator)
+    {
+        discriminator = null;
+
+        switch (statusCode)
+        {
+            case "200":
+            case "201":
+            case "202":
+            {
+                discriminator = statusCode switch
+                {
+                    "201" => "created",
+                    "202" => "accepted",
+                    _ => "ok",
+                };
+
+                var dataType = ResolveSuccessDataType(statusCode, operation, isFileDownload, isTextDownload, imports);
+                return dataType == null
+                    ? $"  | {{ status: '{discriminator}'; response: {responseType} }}"
+                    : $"  | {{ status: '{discriminator}'; data: {dataType}; response: {responseType} }}";
+            }
+
+            case "204":
+                discriminator = "noContent";
+                return $"  | {{ status: 'noContent'; response: {responseType} }}";
+        }
+
+        if (ErrorStatusMapping.TryGetValue(statusCode, out var mapped))
+        {
+            imports.Add(mapped.ErrorType);
+            discriminator = mapped.Discriminator;
+            return $"  | {{ status: '{mapped.Discriminator}'; error: {mapped.ErrorType}; response: {responseType} }}";
+        }
+
+        // Any 5xx (or unmapped 4xx) collapses to 'serverError' to match handleResponse.
+        if (statusCode.Length == 3 && (statusCode[0] == '5' || statusCode[0] == '4'))
+        {
+            imports.Add("ApiError");
+            discriminator = "serverError";
+            return $"  | {{ status: 'serverError'; error: ApiError; response: {responseType} }}";
+        }
+
+        return null;
+    }
+
+    private static string? ResolveSuccessDataType(
+        string statusCode,
+        OpenApiOperation operation,
+        bool isFileDownload,
+        bool isTextDownload,
+        HashSet<string> imports)
+    {
+        if (isFileDownload)
+        {
+            return "Blob";
+        }
+
+        if (isTextDownload)
+        {
+            return "string";
+        }
+
+        var schema = operation.GetResponseSchema(statusCode);
+
+        // Fall back to text/xml on 200/201/202 — handleResponse delivers those as raw strings.
+        if (schema == null &&
+            operation.Responses != null &&
+            operation.Responses.TryGetValue(statusCode, out var response) &&
+            response.TryGetTextResponseMediaType(out _, out var textMedia) &&
+            textMedia is not null)
+        {
+            return "string";
+        }
+
+        if (schema == null)
+        {
+            return null;
+        }
+
+        CollectSchemaRefTypes(schema, imports);
+        return schema.ToTypeScriptReturnType();
+    }
+
+    /// <summary>
     /// Gets the TypeScript type string for a parameter.
     /// </summary>
     /// <param name="param">The OpenAPI parameter.</param>
