@@ -39,7 +39,7 @@ public static class TypeScriptClientGenerationService
         var errorTypeCount = WriteErrorTypes(outputPath, headerContent, config.HttpClient, dryRun);
 
         // Step 4: Generate ApiResult type
-        var typeCount = WriteApiResultType(outputPath, headerContent, config.HttpClient, dryRun);
+        var typeCount = WriteApiResultType(outputPath, headerContent, config.HttpClient, config.ZodRuntimeValidate, dryRun);
 
         // Step 5: Generate client classes
         var specHasRetry = openApiDoc.HasRetryConfiguration();
@@ -424,11 +424,12 @@ public static class TypeScriptClientGenerationService
         string outputPath,
         string? headerContent,
         TypeScriptHttpClient httpClient,
+        bool zodRuntimeValidate,
         bool dryRun)
     {
         var typesDir = Path.Combine(outputPath, "types");
 
-        var apiResultContent = TypeScriptApiResultExtractor.Generate(headerContent, httpClient);
+        var apiResultContent = TypeScriptApiResultExtractor.Generate(headerContent, httpClient, zodRuntimeValidate);
         WriteTsFile(Path.Combine(typesDir, "ApiResult.ts"), apiResultContent, dryRun);
 
         // Generate barrel export for types
