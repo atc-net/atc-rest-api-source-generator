@@ -44,7 +44,7 @@ public static class TypeScriptClientGenerationService
         // Step 5: Generate client classes
         var specHasRetry = openApiDoc.HasRetryConfiguration();
         var writableSchemas = TypeScriptModelExtractor.CollectSchemasWithWritableVariant(openApiDoc);
-        var (clientCount, segmentClientNames) = WriteClients(openApiDoc, outputPath, headerContent, enumNameSet, config.HttpClient, config.NamingStrategy, config.ConvertDates, specHasRetry, dryRun, writableSchemas);
+        var (clientCount, segmentClientNames) = WriteClients(openApiDoc, outputPath, headerContent, enumNameSet, config.HttpClient, config.NamingStrategy, config.ConvertDates, specHasRetry, dryRun, writableSchemas, config.BrandedIds);
 
         // Step 5b: Generate helpers (pagination, retry)
         var hasRetry = clientCount > 0 && specHasRetry;
@@ -454,9 +454,10 @@ public static class TypeScriptClientGenerationService
         bool convertDates,
         bool hasRetry,
         bool dryRun,
-        HashSet<string> writableSchemas)
+        HashSet<string> writableSchemas,
+        bool brandedIds)
     {
-        var clients = TypeScriptClientExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates, httpClient, writableSchemas);
+        var clients = TypeScriptClientExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates, httpClient, writableSchemas, brandedIds);
         if (clients.Count == 0)
         {
             return (0, Array.Empty<string>());
