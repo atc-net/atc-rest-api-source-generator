@@ -771,6 +771,126 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.Contains("return useSuspenseQuery({", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_PaginatedStreamingOperation_EmitsBothStreamAndInfiniteHooks()
+    {
+        // Operations with x-return-async-enumerable + allOf(PaginationResult, ...) get
+        // BOTH the streaming hook (Option A) AND a useInfiniteQuery sibling (Option B)
+        // that consumes a synthesized non-streaming Page companion on the client.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info: { title: t, version: '1' }
+                            paths:
+                              /items/pages:
+                                get:
+                                  operationId: listItemPages
+                                  x-return-async-enumerable: true
+                                  parameters:
+                                    - name: pageSize
+                                      in: query
+                                      schema: { type: integer }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            allOf:
+                                              - $ref: '#/components/schemas/PaginationResult'
+                                              - type: object
+                                                properties:
+                                                  items:
+                                                    type: array
+                                                    items:
+                                                      $ref: '#/components/schemas/Item'
+                            components:
+                              schemas:
+                                Item:
+                                  type: object
+                                  properties:
+                                    id: { type: string }
+                                PaginationResult:
+                                  type: object
+                                  properties:
+                                    continuationToken:
+                                      type: string
+                                      nullable: true
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null));
+
+        // Streaming hook stays (Option A) for the "show everything as it arrives" UX.
+        Assert.Contains("export function useListItemPagesStream(", content, StringComparison.Ordinal);
+
+        // Infinite hook arrives (Option B) for the "paginated with fetchNextPage" UX.
+        Assert.Contains("import { useInfiniteQuery", content, StringComparison.Ordinal);
+        Assert.Contains("export function useListItemPagesInfinite(", content, StringComparison.Ordinal);
+        Assert.Contains("return useInfiniteQuery({", content, StringComparison.Ordinal);
+
+        // Continuation header is threaded through from useInfiniteQuery's pageParam.
+        Assert.Contains("pageParam ? { 'x-continuation': pageParam } : undefined", content, StringComparison.Ordinal);
+
+        // getNextPageParam wires the next continuationToken into the next iteration.
+        Assert.Contains("getNextPageParam: (lastPage) => lastPage.continuationToken", content, StringComparison.Ordinal);
+
+        // The key factory has an entry for the infinite hook so its cache lives under
+        // the segment's `all` prefix.
+        Assert.Contains("listItemPagesInfinite:", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PaginatedStreamingOperation_ClientGainsPageCompanion()
+    {
+        // The client extractor emits a `<methodName>Page` non-streaming companion
+        // alongside the existing async-generator method. The hook above relies on this.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info: { title: t, version: '1' }
+                            paths:
+                              /items/pages:
+                                get:
+                                  operationId: listItemPages
+                                  x-return-async-enumerable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            allOf:
+                                              - $ref: '#/components/schemas/PaginationResult'
+                                              - type: object
+                                                properties:
+                                                  items:
+                                                    type: array
+                                                    items:
+                                                      $ref: '#/components/schemas/Item'
+                            components:
+                              schemas:
+                                Item: { type: object }
+                                PaginationResult:
+                                  type: object
+                                  properties:
+                                    continuationToken: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc!, headerContent: null));
+
+        // Streaming async-generator stays.
+        Assert.Contains("async *listItemPages(", content, StringComparison.Ordinal);
+
+        // Page companion adds the synthesized continuation header and returns the per-op
+        // result type, not the streaming item type.
+        Assert.Contains("async listItemPagesPage(", content, StringComparison.Ordinal);
+        Assert.Contains("'x-continuation'?: string", content, StringComparison.Ordinal);
+        Assert.Contains("Promise<ListItemPagesPageResult>", content, StringComparison.Ordinal);
+        Assert.Contains("data: PaginationResult<Item>", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
