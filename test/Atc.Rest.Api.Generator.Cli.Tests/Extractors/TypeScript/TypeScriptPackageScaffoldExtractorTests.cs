@@ -60,6 +60,32 @@ public class TypeScriptPackageScaffoldExtractorTests
         Assert.Contains("\"moduleResolution\": \"bundler\"", json, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void GenerateTsConfig_EmitsExplicitLibAndExtraStrictness()
+    {
+        // §5 DX polish: the scaffolded tsconfig should be belt-and-braces strict so
+        // generated code stays type-safe even when the consuming project hasn't dialed
+        // in their own strictness. Explicit `lib` is included so the inferred default
+        // from `target` doesn't drift if `target` is later bumped.
+        var json = TypeScriptPackageScaffoldExtractor.GenerateTsConfig();
+
+        Assert.Contains("\"lib\": [\"ES2020\", \"DOM\"]", json, StringComparison.Ordinal);
+        Assert.Contains("\"noImplicitAny\": true", json, StringComparison.Ordinal);
+        Assert.Contains("\"strictNullChecks\": true", json, StringComparison.Ordinal);
+        Assert.Contains("\"noUncheckedIndexedAccess\": true", json, StringComparison.Ordinal);
+        Assert.Contains("\"sourceMap\": true", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateTsConfig_DocumentsSkipLibCheckTradeOff()
+    {
+        // tsconfig.json supports JSONC comments. `skipLibCheck` is a meaningful
+        // trade-off — readers benefit from understanding why it's on by default.
+        var json = TypeScriptPackageScaffoldExtractor.GenerateTsConfig();
+
+        Assert.Contains("// skipLibCheck", json, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("My Demo API - Full", "my-demo-api-full")]
     [InlineData("PetStore", "petstore")]

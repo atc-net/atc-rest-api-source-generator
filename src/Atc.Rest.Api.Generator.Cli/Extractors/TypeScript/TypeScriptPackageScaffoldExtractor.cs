@@ -102,38 +102,39 @@ public static class TypeScriptPackageScaffoldExtractor
 
     /// <summary>
     /// Generates a tsconfig.json string with standard TypeScript library configuration.
+    /// Uses JSONC (JSON-with-comments) — tsconfig.json natively supports comments, and
+    /// `skipLibCheck` benefits from inline documentation since it's a meaningful trade-off.
     /// </summary>
     /// <returns>The formatted tsconfig.json content.</returns>
     public static string GenerateTsConfig()
-    {
-        var root = new JsonObject
-        {
-            ["compilerOptions"] = new JsonObject
-            {
-                ["target"] = "ES2020",
-                ["module"] = "ESNext",
-                ["moduleResolution"] = "bundler",
-                ["strict"] = true,
-                ["declaration"] = true,
-                ["declarationMap"] = true,
-                ["outDir"] = "./dist",
-                ["rootDir"] = ".",
-                ["skipLibCheck"] = true,
-                ["esModuleInterop"] = true,
-                ["forceConsistentCasingInFileNames"] = true,
-                ["isolatedModules"] = true,
-            },
-            ["include"] = new JsonArray("**/*.ts"),
-            ["exclude"] = new JsonArray("dist", "node_modules"),
-        };
-
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-        };
-
-        return JsonSerializer.Serialize(root, options) + "\n";
-    }
+        => """
+           {
+             "compilerOptions": {
+               "target": "ES2020",
+               "lib": ["ES2020", "DOM"],
+               "module": "ESNext",
+               "moduleResolution": "bundler",
+               "strict": true,
+               "noImplicitAny": true,
+               "strictNullChecks": true,
+               "noUncheckedIndexedAccess": true,
+               "declaration": true,
+               "declarationMap": true,
+               "sourceMap": true,
+               "outDir": "./dist",
+               "rootDir": ".",
+               // skipLibCheck speeds up compilation by skipping type-checking inside
+               // @types/* packages we don't own. Generated code is still strictly
+               // typed — disable this if you want to surface upstream type errors.
+               "skipLibCheck": true,
+               "esModuleInterop": true,
+               "forceConsistentCasingInFileNames": true,
+               "isolatedModules": true
+             },
+             "include": ["**/*.ts"],
+             "exclude": ["dist", "node_modules"]
+           }
+           """ + "\n";
 
     /// <summary>
     /// Derives a kebab-case npm package name from an OpenAPI info.title.
