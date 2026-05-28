@@ -34,21 +34,33 @@ public static class TypeScriptPackageScaffoldExtractor
             root["description"] = description;
         }
 
-        root["main"] = "./dist/index.js";
+        // Dual ESM/CJS layout: ESM at dist/, CJS at dist/cjs/. `main` points at CJS
+        // for legacy `require()` consumers; `module` is the bundler hint for ESM;
+        // `types` is the canonical ESM declaration file (CJS types are not duplicated).
+        root["main"] = "./dist/cjs/index.js";
+        root["module"] = "./dist/index.js";
         root["types"] = "./dist/index.d.ts";
 
+        // exports[*] order matters: TypeScript reads `types` first, ES module-aware
+        // loaders read `import`, CJS-aware loaders read `require`, everything else
+        // falls through to `default`. Keeping `default` last avoids it shadowing
+        // more-specific conditions.
         root["exports"] = new JsonObject
         {
             ["."] = new JsonObject
             {
                 ["types"] = "./dist/index.d.ts",
                 ["import"] = "./dist/index.js",
+                ["require"] = "./dist/cjs/index.js",
+                ["default"] = "./dist/index.js",
             },
         };
 
         root["scripts"] = new JsonObject
         {
-            ["build"] = "tsc",
+            ["build"] = "npm run build:esm && npm run build:cjs && node ./scripts/postbuild-cjs.mjs",
+            ["build:esm"] = "tsc -p tsconfig.json",
+            ["build:cjs"] = "tsc -p tsconfig.cjs.json",
             ["clean"] = "rm -rf dist",
         };
 
@@ -95,6 +107,11 @@ public static class TypeScriptPackageScaffoldExtractor
         var options = new JsonSerializerOptions
         {
             WriteIndented = true,
+
+            // The default escaper mangles `&` (in `&&`) into `&`. The output is
+            // JSON consumed by npm/node, not embedded HTML — relax the default so the
+            // emitted scripts read naturally.
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         };
 
         return JsonSerializer.Serialize(root, options) + "\n";
@@ -134,6 +151,49 @@ public static class TypeScriptPackageScaffoldExtractor
              "include": ["**/*.ts"],
              "exclude": ["dist", "node_modules"]
            }
+           """ + "\n";
+
+    /// <summary>
+    /// Generates the CJS tsconfig that the dual-publish build invokes alongside the
+    /// ESM config. Extends the ESM config so the strictness / lib / target choices
+    /// stay in one place; only overrides what CJS needs: module format, output
+    /// folder, and turning off the declaration / source-map duplication (those are
+    /// already emitted from the ESM pass).
+    /// </summary>
+    /// <returns>The formatted tsconfig.cjs.json content.</returns>
+    public static string GenerateTsConfigCjs()
+        => """
+           {
+             "extends": "./tsconfig.json",
+             "compilerOptions": {
+               "module": "CommonJS",
+               "moduleResolution": "node",
+               "outDir": "./dist/cjs",
+               "declaration": false,
+               "declarationMap": false,
+               "sourceMap": false
+             }
+           }
+           """ + "\n";
+
+    /// <summary>
+    /// Generates the post-build script that drops a sub-package.json into dist/cjs/
+    /// with <c>"type": "commonjs"</c>. The root package.json declares <c>"type":
+    /// "module"</c>, so without this override Node would treat the .js files in
+    /// dist/cjs/ as ESM and the dual-publish would not actually work.
+    /// </summary>
+    /// <returns>The formatted scripts/postbuild-cjs.mjs content.</returns>
+    public static string GeneratePostbuildCjsScript()
+        => """
+           import { mkdirSync, writeFileSync } from 'node:fs';
+
+           // Drop a sub-package.json so Node treats dist/cjs/*.js as CommonJS,
+           // overriding the "type": "module" declaration in the root package.json.
+           mkdirSync('dist/cjs', { recursive: true });
+           writeFileSync(
+             'dist/cjs/package.json',
+             JSON.stringify({ type: 'commonjs' }, null, 2) + '\n',
+           );
            """ + "\n";
 
     /// <summary>
@@ -263,6 +323,18 @@ public static class TypeScriptPackageScaffoldExtractor
 
             sb.AppendLine();
         }
+
+        sb.AppendLine("## Building");
+        sb.AppendLine();
+        sb.AppendLine("`npm run build` emits dual ESM + CJS output:");
+        sb.AppendLine();
+        sb.AppendLine("- `dist/index.js` — ESM entry, consumed via `import` and the `module` field");
+        sb.AppendLine("- `dist/cjs/index.js` — CJS entry, consumed via `require` (legacy Node)");
+        sb.AppendLine("- `dist/index.d.ts` — TypeScript declarations (shared between both)");
+        sb.AppendLine();
+        sb.AppendLine("The post-build step drops `dist/cjs/package.json` with `\"type\": \"commonjs\"`");
+        sb.AppendLine("so Node resolves the CJS files correctly even though the root package is ESM.");
+        sb.AppendLine();
 
         sb.AppendLine("## Regenerating");
         sb.AppendLine();

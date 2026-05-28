@@ -21,15 +21,45 @@ public class TypeScriptPackageScaffoldExtractorTests
     }
 
     [Fact]
-    public void GeneratePackageJson_EmitsExportsAndDistEntryPoints()
+    public void GeneratePackageJson_EmitsDualEsmCjsEntryPoints()
     {
-        // ES modules + bundler resolution rely on these exact entry points; missing one
-        // breaks consumers that import from the package root.
+        // Dual-publish layout: `main` resolves to CJS for legacy `require()`, `module`
+        // is the bundler hint pointing at ESM, `types` is the canonical .d.ts. Missing
+        // any of these breaks one consumer flavor.
         var json = TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, new TypeScriptClientConfig());
 
-        Assert.Contains("\"main\": \"./dist/index.js\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"main\": \"./dist/cjs/index.js\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"module\": \"./dist/index.js\"", json, StringComparison.Ordinal);
         Assert.Contains("\"types\": \"./dist/index.d.ts\"", json, StringComparison.Ordinal);
-        Assert.Contains("\"exports\":", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GeneratePackageJson_ExportsMapCoversImportRequireAndDefault()
+    {
+        // The exports map needs `import` (ESM), `require` (CJS), and `default` (anything
+        // else) for the dual-publish to actually resolve under all consumer flavors.
+        // `types` must come first so TypeScript reads it before falling through.
+        var json = TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, new TypeScriptClientConfig());
+
+        Assert.Contains("\"types\": \"./dist/index.d.ts\",", json, StringComparison.Ordinal);
+        Assert.Contains("\"import\": \"./dist/index.js\",", json, StringComparison.Ordinal);
+        Assert.Contains("\"require\": \"./dist/cjs/index.js\",", json, StringComparison.Ordinal);
+        Assert.Contains("\"default\": \"./dist/index.js\"", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GeneratePackageJson_BuildScriptInvokesEsmCjsAndPostbuildInOrder()
+    {
+        // The `&&` chain matters — npm run build:esm has to land before build:cjs so
+        // the ESM .d.ts files exist, and postbuild-cjs has to land last so the sub-
+        // package.json override appears AFTER tsc has written dist/cjs/. The serializer
+        // must not Unicode-escape `&` — that would produce `&&` which npm
+        // can't parse as a logical-and.
+        var json = TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, new TypeScriptClientConfig());
+
+        Assert.Contains("\"build\": \"npm run build:esm && npm run build:cjs && node ./scripts/postbuild-cjs.mjs\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"build:esm\": \"tsc -p tsconfig.json\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"build:cjs\": \"tsc -p tsconfig.cjs.json\"", json, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -84,6 +114,37 @@ public class TypeScriptPackageScaffoldExtractorTests
         var json = TypeScriptPackageScaffoldExtractor.GenerateTsConfig();
 
         Assert.Contains("// skipLibCheck", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateTsConfigCjs_ExtendsBaseConfigAndOverridesCjsKnobs()
+    {
+        // The CJS config keeps the strictness / lib / target from the ESM config via
+        // `extends`. It only overrides the bits that differ for CJS: module format,
+        // output folder, and turning off declaration/sourcemap emission so we don't
+        // duplicate those (the ESM pass already writes them).
+        var json = TypeScriptPackageScaffoldExtractor.GenerateTsConfigCjs();
+
+        Assert.Contains("\"extends\": \"./tsconfig.json\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"module\": \"CommonJS\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"moduleResolution\": \"node\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"outDir\": \"./dist/cjs\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"declaration\": false", json, StringComparison.Ordinal);
+        Assert.Contains("\"sourceMap\": false", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GeneratePostbuildCjsScript_WritesCommonjsSubPackageJson()
+    {
+        // The root package.json declares `"type": "module"`, which Node would apply
+        // to dist/cjs/*.js too without this sub-package.json override. The script must
+        // mkdir the target (in case CJS tsc emitted into a fresh dir) and write the
+        // {"type":"commonjs"} stamp.
+        var script = TypeScriptPackageScaffoldExtractor.GeneratePostbuildCjsScript();
+
+        Assert.Contains("mkdirSync('dist/cjs'", script, StringComparison.Ordinal);
+        Assert.Contains("'dist/cjs/package.json'", script, StringComparison.Ordinal);
+        Assert.Contains("type: 'commonjs'", script, StringComparison.Ordinal);
     }
 
     [Fact]
