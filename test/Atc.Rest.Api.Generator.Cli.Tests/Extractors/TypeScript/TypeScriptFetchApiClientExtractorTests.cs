@@ -56,4 +56,28 @@ public class TypeScriptFetchApiClientExtractorTests
             result,
             StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Generate_WithRetry_PassesPerAttemptSignalToFetch()
+    {
+        // Retry path must hand fetch the per-attempt signal so policy.timeoutMs can
+        // actually cancel an in-flight request. Spreading init then overriding signal
+        // keeps caller-supplied init fields intact.
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, convertDates: false, hasRetry: true);
+
+        Assert.Contains(
+            "(attemptSignal) => fetch(url, { ...init, signal: attemptSignal })",
+            result,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_WithoutRetry_DoesNotUseRetryWrapper()
+    {
+        // Regression guard: don't accidentally emit the retry path for clients that have
+        // no retry policy declared.
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, convertDates: false, hasRetry: false);
+
+        Assert.DoesNotContain("retryWithBackoff", result, StringComparison.Ordinal);
+    }
 }

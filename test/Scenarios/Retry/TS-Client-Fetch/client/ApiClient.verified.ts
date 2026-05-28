@@ -67,7 +67,13 @@ export class ApiClient {
 
     let response: Response;
     if (this.retryPolicy) {
-      response = await retryWithBackoff(() => fetch(url, init), this.retryPolicy, options?.signal);
+      // Wire the per-attempt signal through so policy.timeoutMs actually cancels the
+      // in-flight fetch and parent aborts propagate to every retry attempt.
+      response = await retryWithBackoff(
+        (attemptSignal) => fetch(url, { ...init, signal: attemptSignal }),
+        this.retryPolicy,
+        options?.signal,
+      );
     } else {
       response = await fetch(url, init);
     }

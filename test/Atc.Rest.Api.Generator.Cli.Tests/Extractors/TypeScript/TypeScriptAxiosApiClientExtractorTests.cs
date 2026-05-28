@@ -73,6 +73,19 @@ public class TypeScriptAxiosApiClientExtractorTests
     }
 
     [Fact]
+    public void Generate_WithRetry_DoRequestAcceptsPerAttemptSignal()
+    {
+        // Each retry attempt needs a fresh AbortSignal so policy.timeoutMs actually
+        // cancels axios. doRequest accepts an optional attemptSignal and falls back to
+        // options?.signal for the non-retry call site (which still passes no argument).
+        var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null, hasRetry: true);
+
+        Assert.Contains("const doRequest = (attemptSignal?: AbortSignal)", result, StringComparison.Ordinal);
+        Assert.Contains("signal: attemptSignal ?? options?.signal", result, StringComparison.Ordinal);
+        Assert.Contains("await doRequest(attemptSignal)", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Generate_StreamHeadersLoop_GuardsAgainstUndefinedValue()
     {
         // RequestOptions.headers accepts `string | number | boolean | undefined` (axios

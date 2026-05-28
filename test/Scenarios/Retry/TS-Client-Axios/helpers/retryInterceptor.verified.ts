@@ -67,21 +67,23 @@ function isRetryableStatus(status: number, handle429: boolean): boolean {
 /**
  * Executes a fetch request with automatic retry and backoff.
  *
- * @param fetchFn - A function that performs the fetch and returns a Response.
+ * @param fetchFn - A function that performs the request. It receives a per-attempt
+ *   AbortSignal that aborts when either the parent signal aborts or the per-attempt
+ *   timeout fires; pass it to fetch so the in-flight request is actually cancelled.
  * @param policy - The retry policy to apply.
- * @param signal - Optional AbortSignal for cancellation.
+ * @param signal - Optional parent AbortSignal for caller-initiated cancellation.
  * @returns The Response from the first successful attempt or the last failed attempt.
  *
  * @example
  * ```typescript
  * const response = await retryWithBackoff(
- *   () => fetch('/api/data'),
+ *   (signal) => fetch('/api/data', { signal }),
  *   { maxAttempts: 3, delayMs: 1000, backoff: 'exponential', useJitter: true, handle429: true }
  * );
  * ```
  */
 export async function retryWithBackoff(
-  fetchFn: () => Promise<Response>,
+  fetchFn: (signal: AbortSignal) => Promise<Response>,
   policy: RetryPolicy,
   signal?: AbortSignal,
 ): Promise<Response> {
@@ -89,24 +91,32 @@ export async function retryWithBackoff(
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= policy.maxAttempts; attempt++) {
+    // Per-attempt AbortController: cancels the in-flight fetch when either the
+    // parent signal aborts (user-initiated) or the per-attempt timeout fires.
+    // Without wiring this through to fetchFn, policy.timeoutMs would fire locally
+    // but the network request would run to completion.
+    const controller = new AbortController();
+    const onParentAbort = () => controller.abort(signal?.reason);
+    if (signal?.aborted) {
+      controller.abort(signal.reason);
+    } else {
+      signal?.addEventListener('abort', onParentAbort, { once: true });
+    }
+
+    let timeoutFired = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (policy.timeoutMs) {
+      timer = setTimeout(() => {
+        timeoutFired = true;
+        controller.abort(new DOMException('Per-attempt timeout', 'TimeoutError'));
+      }, policy.timeoutMs);
+    }
+
     try {
       // Check for cancellation before each attempt
       signal?.throwIfAborted();
 
-      // Apply per-attempt timeout if configured
-      let response: Response;
-      if (policy.timeoutMs) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), policy.timeoutMs);
-        signal?.addEventListener('abort', () => controller.abort(), { once: true });
-        try {
-          response = await fetchFn();
-        } finally {
-          clearTimeout(timer);
-        }
-      } else {
-        response = await fetchFn();
-      }
+      const response = await fetchFn(controller.signal);
 
       lastResponse = response;
 
@@ -131,8 +141,8 @@ export async function retryWithBackoff(
 
       await sleep(delay, signal);
     } catch (error) {
-      // Network errors are retryable; abort errors are not
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      // Caller-initiated aborts always propagate; per-attempt timeouts are retryable.
+      if (error instanceof DOMException && error.name === 'AbortError' && !timeoutFired) {
         throw error;
       }
 
@@ -144,6 +154,12 @@ export async function retryWithBackoff(
       }
 
       await sleep(computeDelay(attempt, policy), signal);
+    } finally {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+      }
+
+      signal?.removeEventListener('abort', onParentAbort);
     }
   }
 

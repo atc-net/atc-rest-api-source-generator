@@ -91,13 +91,15 @@ export class ApiClient {
       }
     }
 
-    const doRequest = () => this.client.request<T>({
+    // doRequest accepts an optional override signal so the retry path can hand each
+    // attempt a fresh AbortSignal — that way policy.timeoutMs actually cancels axios.
+    const doRequest = (attemptSignal?: AbortSignal) => this.client.request<T>({
       method,
       url: path,
       data,
       params: options?.query,
       headers,
-      signal: options?.signal,
+      signal: attemptSignal ?? options?.signal,
       responseType: options?.responseType === 'blob' ? 'blob' : options?.responseType === 'text' ? 'text' : 'json',
     });
 
@@ -105,8 +107,8 @@ export class ApiClient {
     if (this.retryPolicy) {
       // Use retryWithBackoff with a fetch-compatible wrapper.
       // The wrapper captures the AxiosResponse so it can be handed to handleResponse below.
-      const fetchWrapper = async (): Promise<Response> => {
-        response = await doRequest();
+      const fetchWrapper = async (attemptSignal: AbortSignal): Promise<Response> => {
+        response = await doRequest(attemptSignal);
         return new Response(null, { status: response.status });
       };
       await retryWithBackoff(fetchWrapper, this.retryPolicy, options?.signal);
