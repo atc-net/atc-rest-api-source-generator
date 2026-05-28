@@ -110,6 +110,10 @@ public static class TypeScriptClientGenerationService
         // callbacks: block whose body resolves to a named component schema.
         var webhooksEmitted = WriteWebhooksFile(openApiDoc, outputPath, headerContent, dryRun);
 
+        // Step 6f: Emit SignalR-style hub hooks when the doc declares an
+        // x-signalr-hubs vendor extension. One hook file per declared hub.
+        var hubsEmitted = WriteSignalRHubFiles(openApiDoc, outputPath, headerContent, dryRun);
+
         // Step 7: Generate package scaffold (if configured)
         var scaffoldGenerated = false;
         if (config.Scaffold)
@@ -167,6 +171,11 @@ public static class TypeScriptClientGenerationService
         if (webhooksEmitted)
         {
             subdirectories.Add("webhooks");
+        }
+
+        if (hubsEmitted)
+        {
+            subdirectories.Add("hubs");
         }
 
         if (subdirectories.Count > 0)
@@ -687,6 +696,40 @@ public static class TypeScriptClientGenerationService
         var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, new[] { "Webhooks" });
         var barrelContent = new GenerateContentForBarrelExport(barrelParams).Generate();
         WriteTsFile(Path.Combine(webhooksDir, "index.ts"), barrelContent, dryRun);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Writes per-hub <c>useXxxHub.ts</c> files plus a <c>hubs/index.ts</c> barrel
+    /// when the document declares an <c>x-signalr-hubs</c> vendor extension. The hooks
+    /// own the SignalR connection lifecycle and forward inbound events to caller-supplied
+    /// optional callbacks. No-op when the extension is missing or declares no hubs.
+    /// </summary>
+    private static bool WriteSignalRHubFiles(
+        OpenApiDocument openApiDoc,
+        string outputPath,
+        string? headerContent,
+        bool dryRun)
+    {
+        var hubs = TypeScriptSignalRHubExtractor.Extract(openApiDoc, headerContent);
+        if (hubs.Count == 0)
+        {
+            return false;
+        }
+
+        var hubsDir = Path.Combine(outputPath, "hubs");
+        var hookFileNames = new List<string>();
+        foreach (var (fileName, content) in hubs)
+        {
+            WriteTsFile(Path.Combine(hubsDir, fileName + ".ts"), content, dryRun);
+            hookFileNames.Add(fileName);
+        }
+
+        // Barrel — exports functions, not type-only.
+        var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, hookFileNames, isTypeOnly: false);
+        var barrelContent = new GenerateContentForBarrelExport(barrelParams).Generate();
+        WriteTsFile(Path.Combine(hubsDir, "index.ts"), barrelContent, dryRun);
 
         return true;
     }

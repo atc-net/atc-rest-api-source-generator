@@ -112,9 +112,9 @@ public class TypeScriptModelExtractorTests
     [Fact]
     public void ExtractUnionTypeAliases_OneOfWithDiscriminator_EmitsUnionTypeAlias()
     {
-        // PaymentMethod from Polymorphism.yaml — oneOf with explicit discriminator + mapping.
-        // Today the generator emits each leaf as its own interface but no parent union, so
-        // consumers can't `if (payment.type === 'credit_card')` with TS narrowing.
+        //// PaymentMethod from Polymorphism.yaml — oneOf with explicit discriminator + mapping.
+        //// Today the generator emits each leaf as its own interface but no parent union, so
+        //// consumers can't `if (payment.type === 'credit_card')` with TS narrowing.
         var document = OpenApiDocumentHelper.ParseYaml("""
             openapi: 3.0.0
             info: { title: T, version: 1.0.0 }
@@ -152,8 +152,8 @@ public class TypeScriptModelExtractorTests
     [Fact]
     public void ExtractUnionTypeAliases_AnyOfWithoutDiscriminator_EmitsUnionTypeAlias()
     {
-        // Notification from Polymorphism.yaml — anyOf with no discriminator. Still a union;
-        // narrowing relies on consumers checking shared properties at runtime.
+        //// Notification from Polymorphism.yaml — anyOf with no discriminator. Still a union;
+        //// narrowing relies on consumers checking shared properties at runtime.
         var document = OpenApiDocumentHelper.ParseYaml("""
             openapi: 3.0.0
             info: { title: T, version: 1.0.0 }
