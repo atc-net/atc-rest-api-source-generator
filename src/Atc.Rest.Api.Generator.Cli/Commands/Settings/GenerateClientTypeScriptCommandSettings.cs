@@ -37,6 +37,10 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
     [Description("Hook generation style: None (default) or ReactQuery (TanStack Query hooks).")]
     public string? HooksStyle { get; init; }
 
+    [CommandOption("--hooks-mode <MODE>")]
+    [Description("React Query hooks variant: Standard (useQuery, default), Suspense (useSuspenseQuery), or Both.")]
+    public string? HooksMode { get; init; }
+
     [CommandOption("--client-type <TYPE>")]
     [Description("HTTP client library: Fetch (native fetch API, default) or Axios.")]
     public string? ClientType { get; init; }
@@ -132,6 +136,13 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
             !Enum.TryParse<TypeScriptHooksStyle>(HooksStyle, ignoreCase: true, out _))
         {
             return ValidationResult.Error($"Invalid hooks style: '{HooksStyle}'. Valid values: None, ReactQuery, Swr.");
+        }
+
+        // Validate hooks mode if provided
+        if (!string.IsNullOrWhiteSpace(HooksMode) &&
+            !Enum.TryParse<TypeScriptHooksMode>(HooksMode, ignoreCase: true, out _))
+        {
+            return ValidationResult.Error($"Invalid hooks mode: '{HooksMode}'. Valid values: Standard, Suspense, Both.");
         }
 
         // Validate client type if provided

@@ -81,7 +81,7 @@ public static class TypeScriptClientGenerationService
         var hookCount = 0;
         if (config.HooksStyle == TypeScriptHooksStyle.ReactQuery && clientCount > 0)
         {
-            hookCount = WriteReactQueryHooks(openApiDoc, outputPath, headerContent, enumNameSet, config.NamingStrategy, config.ConvertDates, dryRun, writableSchemas);
+            hookCount = WriteReactQueryHooks(openApiDoc, outputPath, headerContent, enumNameSet, config.NamingStrategy, config.ConvertDates, dryRun, writableSchemas, config.HooksMode);
         }
         else if (config.HooksStyle == TypeScriptHooksStyle.Swr && clientCount > 0)
         {
@@ -476,9 +476,10 @@ public static class TypeScriptClientGenerationService
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
         bool dryRun,
-        HashSet<string> writableSchemas)
+        HashSet<string> writableSchemas,
+        TypeScriptHooksMode hooksMode)
     {
-        var hooks = TypeScriptReactQueryHookExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates, writableSchemas);
+        var hooks = TypeScriptReactQueryHookExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates, writableSchemas, hooksMode);
         if (hooks.Count == 0)
         {
             return 0;

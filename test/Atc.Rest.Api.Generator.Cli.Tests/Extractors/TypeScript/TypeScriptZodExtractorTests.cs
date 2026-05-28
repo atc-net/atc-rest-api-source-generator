@@ -245,7 +245,7 @@ public class TypeScriptZodExtractorTests
     [Fact]
     public void ZodModel_MutuallyRecursiveSchemas_BothGetLazyAndTypeAnnotation()
     {
-        // §3.6: Tag and Category reference each other. At module load time one initializer
+        // Tag and Category reference each other. At module load time one initializer
         // would see the other's binding as `undefined` and crash on `.optional()`. Both
         // sides need `: z.ZodType<Name>` plus z.lazy on the cross-cycle property.
         const string yaml = """

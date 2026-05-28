@@ -546,7 +546,7 @@ public class TypeScriptReactQueryHookExtractorTests
     [Fact]
     public void Extract_QueryHook_AcceptsOptionsOmittingQueryKeyAndQueryFn()
     {
-        // §4.3 contract: every useQuery hook accepts a final options? arg whose type
+        // Every useQuery hook accepts a final options? arg whose type
         // omits the keys the generator already supplies (queryKey, queryFn). Consumers
         // can override staleTime, gcTime, select, refetchOnWindowFocus, etc. without
         // wrapping. The spread sits LAST so caller options win over defaults like
@@ -592,9 +592,10 @@ public class TypeScriptReactQueryHookExtractorTests
     [Fact]
     public void Extract_MutationHook_AcceptsOptionsOmittingMutationFnAndComposesOnSuccess()
     {
-        // §4.3 contract for mutations: TVariables matches the mutationFn arg type, and
-        // the spread comes BEFORE the composed onSuccess so the generator's segment
-        // cache-invalidation always runs alongside whatever onSuccess the caller passes.
+        // Every mutation hook accepts a final options? arg whose type
+        // omits the keys the generator already supplies (mutationFn). Consumers
+        // can override onSuccess, onError, onSettled, etc. without wrapping. The spread sits LAST so caller options win over defaults like
+        // `onSuccess: (data, variables, context) => { ... }`.
         const string yaml = """
                             openapi: 3.0.0
                             info: { title: t, version: '1' }
@@ -671,6 +672,103 @@ public class TypeScriptReactQueryHookExtractorTests
             "options?: Omit<UseMutationOptions<void, ApiError, string>, 'mutationFn'>",
             content,
             StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_SuspenseMode_EmitsUseSuspenseQueryAndOmitsEnabled()
+    {
+        // Every useQuery hook accepts a final options? arg whose type
+        // follows the underlying hook function. Suspense mode swaps useQuery for useSuspenseQuery
+        // and skips the `enabled: !!petId` guard since suspense throws a promise rather than
+        // conditionally executing.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /pets/{petId}:
+                                get:
+                                  operationId: getPet
+                                  parameters:
+                                    - name: petId
+                                      in: path
+                                      required: true
+                                      schema: { type: string }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/Pet' }
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    id: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(
+            doc!,
+            headerContent: null,
+            hooksMode: TypeScriptHooksMode.Suspense));
+
+        Assert.Contains("import { useSuspenseQuery } from '@tanstack/react-query';", content, StringComparison.Ordinal);
+        Assert.Contains("import type { UseSuspenseQueryOptions } from '@tanstack/react-query';", content, StringComparison.Ordinal);
+        Assert.Contains("return useSuspenseQuery({", content, StringComparison.Ordinal);
+        Assert.Contains(
+            "options?: Omit<UseSuspenseQueryOptions<Pet, ApiError>, 'queryKey' | 'queryFn'>",
+            content,
+            StringComparison.Ordinal);
+
+        // Suspense skips conditional enabling — the boundary catches the in-flight promise.
+        Assert.DoesNotContain("enabled: !!petId", content, StringComparison.Ordinal);
+
+        // Pure Suspense mode keeps the canonical hook name (no suffix).
+        Assert.Contains("export function useGetPet(", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("useGetPetSuspense", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("import { useQuery", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_BothMode_EmitsStandardAndSuspenseSiblings()
+    {
+        // Every useQuery hook accepts a final options? arg whose type
+        // follows the underlying hook function. --hooks-mode Both emits two hooks per query op so apps can mix
+        // suspense-boundary call sites with imperative ones. The suspense variant gets
+        // a "Suspense" suffix to coexist.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/Pets' }
+                            components:
+                              schemas:
+                                Pets:
+                                  type: object
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(
+            doc!,
+            headerContent: null,
+            hooksMode: TypeScriptHooksMode.Both));
+
+        Assert.Contains("import { useQuery, useSuspenseQuery } from '@tanstack/react-query';", content, StringComparison.Ordinal);
+        Assert.Contains("export function useListPets(", content, StringComparison.Ordinal);
+        Assert.Contains("export function useListPetsSuspense(", content, StringComparison.Ordinal);
+        Assert.Contains("return useQuery({", content, StringComparison.Ordinal);
+        Assert.Contains("return useSuspenseQuery({", content, StringComparison.Ordinal);
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)

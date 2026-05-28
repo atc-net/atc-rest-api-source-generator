@@ -31,6 +31,12 @@ public class TypeScriptClientConfig
     public TypeScriptHooksStyle HooksStyle { get; set; } = TypeScriptHooksStyle.None;
 
     /// <summary>
+    /// Which variant of React Query useQuery hooks to emit. Only meaningful when
+    /// <see cref="HooksStyle"/> is <see cref="TypeScriptHooksStyle.ReactQuery"/>. Default: Standard.
+    /// </summary>
+    public TypeScriptHooksMode HooksMode { get; set; } = TypeScriptHooksMode.Standard;
+
+    /// <summary>
     /// HTTP client library to use in the generated TypeScript client. Default: Fetch.
     /// </summary>
     public TypeScriptHttpClient HttpClient { get; set; } = TypeScriptHttpClient.Fetch;
