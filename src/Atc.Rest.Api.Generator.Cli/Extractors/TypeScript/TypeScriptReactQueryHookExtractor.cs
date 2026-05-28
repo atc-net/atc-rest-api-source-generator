@@ -24,7 +24,8 @@ public static class TypeScriptReactQueryHookExtractor
         HashSet<string>? enumNames = null,
         TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase,
         bool convertDates = false,
-        HashSet<string>? writableSchemas = null)
+        HashSet<string>? writableSchemas = null,
+        TypeScriptHooksMode hooksMode = TypeScriptHooksMode.Standard)
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
@@ -49,7 +50,8 @@ public static class TypeScriptReactQueryHookExtractor
                 enumNames,
                 namingStrategy,
                 convertDates,
-                writableSchemas);
+                writableSchemas,
+                hooksMode);
             results.Add((fileName, content));
         }
 
@@ -64,7 +66,8 @@ public static class TypeScriptReactQueryHookExtractor
         HashSet<string>? enumNames,
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
-        HashSet<string> writableSchemas)
+        HashSet<string> writableSchemas,
+        TypeScriptHooksMode hooksMode)
     {
         var sb = new StringBuilder();
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
@@ -102,7 +105,6 @@ public static class TypeScriptReactQueryHookExtractor
             }
             else if (info.IsQuery)
             {
-                needsUseQuery = true;
                 needsApiError = true;
             }
             else
@@ -112,6 +114,15 @@ public static class TypeScriptReactQueryHookExtractor
                 needsApiError = true;
             }
         }
+
+        // Mode gating: Standard / Both emits useQuery hooks; Suspense / Both emits
+        // useSuspenseQuery hooks. needsUseQuery / needsUseSuspenseQuery only flip when
+        // the file actually contains at least one query op, so imports stay minimal.
+        var emitStandardQuery = hooksMode != TypeScriptHooksMode.Suspense;
+        var emitSuspenseQuery = hooksMode != TypeScriptHooksMode.Standard;
+        var hasAnyQuery = hookInfos.Any(h => h.IsQuery);
+        needsUseQuery = emitStandardQuery && hasAnyQuery;
+        var needsUseSuspenseQuery = emitSuspenseQuery && hasAnyQuery;
 
         // Write header
         if (headerContent != null)
@@ -125,6 +136,7 @@ public static class TypeScriptReactQueryHookExtractor
             importTypes,
             enumNames,
             needsUseQuery,
+            needsUseSuspenseQuery,
             needsUseMutation,
             needsUseQueryClient,
             needsReactHooks,
@@ -137,17 +149,31 @@ public static class TypeScriptReactQueryHookExtractor
         // Write hook functions
         foreach (var info in hookInfos)
         {
-            sb.AppendLine();
             if (info.IsStreaming)
             {
+                sb.AppendLine();
                 AppendStreamHook(sb, info, segmentCamel, namingStrategy, convertDates);
             }
             else if (info.IsQuery)
             {
-                AppendQueryHook(sb, info, segmentCamel, namingStrategy, convertDates);
+                // For Both mode, emit standard and suspense as TWO separate hooks. For
+                // single-mode emission the canonical hook name is used; the suffix only
+                // disambiguates when both variants live in the same file.
+                if (emitStandardQuery)
+                {
+                    sb.AppendLine();
+                    AppendQueryHook(sb, info, segmentCamel, namingStrategy, convertDates, isSuspense: false, useSuspenseSuffix: false);
+                }
+
+                if (emitSuspenseQuery)
+                {
+                    sb.AppendLine();
+                    AppendQueryHook(sb, info, segmentCamel, namingStrategy, convertDates, isSuspense: true, useSuspenseSuffix: hooksMode == TypeScriptHooksMode.Both);
+                }
             }
             else
             {
+                sb.AppendLine();
                 AppendMutationHook(sb, info, segmentCamel, namingStrategy, convertDates);
             }
         }
@@ -160,6 +186,7 @@ public static class TypeScriptReactQueryHookExtractor
         HashSet<string> importTypes,
         HashSet<string>? enumNames,
         bool needsUseQuery,
+        bool needsUseSuspenseQuery,
         bool needsUseMutation,
         bool needsUseQueryClient,
         bool needsReactHooks,
@@ -176,6 +203,11 @@ public static class TypeScriptReactQueryHookExtractor
         if (needsUseQuery)
         {
             queryImports.Add("useQuery");
+        }
+
+        if (needsUseSuspenseQuery)
+        {
+            queryImports.Add("useSuspenseQuery");
         }
 
         if (needsUseMutation)
@@ -201,6 +233,11 @@ public static class TypeScriptReactQueryHookExtractor
         if (needsUseQuery)
         {
             optionImports.Add("UseQueryOptions");
+        }
+
+        if (needsUseSuspenseQuery)
+        {
+            optionImports.Add("UseSuspenseQueryOptions");
         }
 
         if (needsUseMutation)
@@ -323,9 +360,18 @@ public static class TypeScriptReactQueryHookExtractor
         HookInfo info,
         string segmentCamel,
         TypeScriptNamingStrategy namingStrategy,
-        bool convertDates)
+        bool convertDates,
+        bool isSuspense,
+        bool useSuspenseSuffix)
     {
-        var hookName = "use" + info.MethodName.ToPascalCaseForDotNet();
+        // For TypeScriptHooksMode.Both the suspense variant gets a "Suspense" suffix so
+        // standard and suspense hooks can coexist in the same file. For pure Suspense
+        // mode the canonical hook name keeps its shape — the consumer just gets the
+        // suspense semantics under the existing name.
+        var baseHookName = "use" + info.MethodName.ToPascalCaseForDotNet();
+        var hookName = useSuspenseSuffix ? baseHookName + "Suspense" : baseHookName;
+        var queryFn = isSuspense ? "useSuspenseQuery" : "useQuery";
+        var optionsType = isSuspense ? "UseSuspenseQueryOptions" : "UseQueryOptions";
         var keyName = DeriveKeyName(info.MethodName, segmentCamel);
         var segmentProperty = segmentCamel;
 
@@ -352,9 +398,12 @@ public static class TypeScriptReactQueryHookExtractor
 
         // Pass-through options: every generated hook accepts a final options? arg whose
         // type omits the keys the hook body already populates. Consumers can override
-        // staleTime, gcTime, select, refetchOnWindowFocus, etc. without wrapping.
+        // staleTime, gcTime, select, refetchOnWindowFocus, etc. without wrapping. The
+        // options type follows the underlying query function — UseQueryOptions for
+        // useQuery, UseSuspenseQueryOptions for useSuspenseQuery (suspense flavor has a
+        // different shape: no 'enabled', stricter on initialData, etc.).
         var queryDataType = info.ReturnType == "void" ? "void" : info.ReturnType;
-        hookParams.Add("options?: Omit<UseQueryOptions<" + queryDataType + ", ApiError>, 'queryKey' | 'queryFn'>");
+        hookParams.Add("options?: Omit<" + optionsType + "<" + queryDataType + ", ApiError>, 'queryKey' | 'queryFn'>");
 
         var hookParamStr = string.Join(", ", hookParams);
 
@@ -379,7 +428,7 @@ public static class TypeScriptReactQueryHookExtractor
 
         sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
-        sb.AppendLine("  return useQuery({");
+        sb.Append("  return ").Append(queryFn).AppendLine("({");
         sb.Append("    queryKey: ").Append(segmentCamel).Append("Keys.").Append(keyName).Append('(').Append(keyCallArgs).AppendLine("),");
         sb.AppendLine("    queryFn: async () => {");
         sb.Append("      const result = await api.").Append(segmentProperty).Append('.').Append(info.MethodName).Append('(').Append(clientCallArgs).AppendLine(");");
@@ -388,8 +437,11 @@ public static class TypeScriptReactQueryHookExtractor
 
         sb.AppendLine("    },");
 
-        // Add enabled guard for detail queries with path params
-        if (info.PathParams.Count > 0)
+        // Add enabled guard for detail queries with path params — but only for the
+        // standard variant. useSuspenseQuery doesn't support conditional execution
+        // (it throws a promise that the boundary catches), so consumers control whether
+        // the hook runs by mounting/unmounting the component, not by toggling enabled.
+        if (!isSuspense && info.PathParams.Count > 0)
         {
             var firstParam = (info.PathParams[0].Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
             sb.Append("    enabled: !!").Append(firstParam).AppendLine(",");

@@ -1,3 +1,4 @@
+// ReSharper disable RedundantArgumentDefaultValue
 namespace Atc.Rest.Api.Generator.Cli.Tests.Extractors.TypeScript;
 
 public class TypeScriptOperationHelperOtherMethodsTests
@@ -781,7 +782,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
     [Fact]
     public void CollectSchemaRefTypes_StreamingResponseArrayAlias_AddsBothAliasAndItemType()
     {
-        // §4.1 repro: a streaming op responds with a $ref to `Items`, where `Items = Item[]`.
+        // A streaming op responds with a $ref to `Items`, where `Items = Item[]`.
         // The generated streaming hook yields the item type, so both `Items` (used by the
         // client method) AND `Item` (the yielded element) need to land in importTypes.
         // Without the chain-follow, the stream hook references `Item` with no matching import

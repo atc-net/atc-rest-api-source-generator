@@ -259,6 +259,12 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
             config.HooksStyle = hooksStyle;
         }
 
+        if (!string.IsNullOrWhiteSpace(settings.HooksMode) &&
+            Enum.TryParse<TypeScriptHooksMode>(settings.HooksMode, ignoreCase: true, out var hooksMode))
+        {
+            config.HooksMode = hooksMode;
+        }
+
         if (!string.IsNullOrWhiteSpace(settings.ClientType) &&
             Enum.TryParse<TypeScriptHttpClient>(settings.ClientType, ignoreCase: true, out var httpClient))
         {
