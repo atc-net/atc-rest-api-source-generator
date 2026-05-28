@@ -138,6 +138,72 @@ public class TypeScriptClientGenerationServiceTests
         Assert.Contains("locale", warning, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Generate_WithMswEnabled_EmitsMocksIndexBarrel()
+    {
+        // Regression for issues/003 §1: the root api/index.ts re-exports './mocks' when
+        // any MSW handler files are written, but the generator never emitted a
+        // mocks/index.ts barrel — strict tsc -b failed with TS2307.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  responses:
+                                    '200': { description: OK }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        using var output = new TempDirectory();
+        var config = new TypeScriptClientConfig
+        {
+            DryRun = false,
+            GenerateMswHandlers = true,
+        };
+
+        TypeScriptClientGenerationService.Generate(document!, output.Path, config);
+
+        var mocksIndex = Path.Combine(output.Path, "mocks", "index.ts");
+        Assert.True(File.Exists(mocksIndex), $"Expected mocks/index.ts to be emitted at {mocksIndex}");
+
+        var content = File.ReadAllText(mocksIndex);
+
+        // The barrel must re-export './handlers' so consumers picking up the root
+        // `export * from './mocks'` still see the combined handlers array.
+        Assert.Contains("from './handlers'", content, StringComparison.Ordinal);
+    }
+
+    private sealed class TempDirectory : IDisposable
+    {
+        public TempDirectory()
+        {
+            Path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                "atc-msw-test-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path);
+        }
+
+        public string Path { get; }
+
+        public void Dispose()
+        {
+            try
+            {
+                if (Directory.Exists(Path))
+                {
+                    Directory.Delete(Path, recursive: true);
+                }
+            }
+            catch (IOException)
+            {
+                // Best effort cleanup.
+            }
+        }
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

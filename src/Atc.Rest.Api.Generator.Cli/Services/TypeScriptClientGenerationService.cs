@@ -740,14 +740,25 @@ public static class TypeScriptClientGenerationService
         }
 
         var mocksDir = Path.Combine(outputPath, "mocks");
+        var moduleNames = new List<string>();
         foreach (var (segmentName, content) in handlers)
         {
-            var fileName = segmentName == "handlers"
-                ? "handlers.ts"
-                : $"{segmentName.EnsureFirstCharacterToLower()}.ts";
-            var filePath = Path.Combine(mocksDir, fileName);
+            // segmentName == "handlers" is the synthetic combined-index module — the
+            // per-segment files are named after their path segment.
+            var moduleName = segmentName == "handlers"
+                ? "handlers"
+                : segmentName.EnsureFirstCharacterToLower();
+            var filePath = Path.Combine(mocksDir, moduleName + ".ts");
             WriteTsFile(filePath, content, dryRun);
+            moduleNames.Add(moduleName);
         }
+
+        // The root barrel (api/index.ts) does `export * from './mocks'` whenever any MSW
+        // handler files exist; that requires a real mocks/index.ts. Without this barrel,
+        // strict tsc -b emits TS2307: Cannot find module './mocks' (issue 003 §1).
+        var mocksBarrel = TypeScriptBarrelExportExtractor.Create(headerContent, moduleNames, isTypeOnly: false);
+        var mocksBarrelContent = new GenerateContentForBarrelExport(mocksBarrel).Generate();
+        WriteTsFile(Path.Combine(mocksDir, "index.ts"), mocksBarrelContent, dryRun);
 
         // Exclude the combined "handlers" index from count
         return handlers.Count - 1;
