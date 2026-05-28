@@ -127,4 +127,48 @@ public class TypeScriptApiResultExtractorTests
             result,
             StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Generate_ZodRuntimeValidate_AddsSchemaMismatchArm()
+    {
+        // When --zod-runtime-validate is on, ApiResult gains a 'schemaMismatch' arm
+        // carrying the parsed ZodIssue[] plus the raw data so consumers can diagnose
+        // spec-drift without losing the payload. The arm sits at the end of the union
+        // so the existing arms keep their byte-identical positions.
+        var result = TypeScriptApiResultExtractor.Generate(
+            headerContent: null,
+            httpClient: TypeScriptHttpClient.Fetch,
+            zodRuntimeValidate: true);
+
+        Assert.Contains("import type { ZodIssue } from 'zod';", result, StringComparison.Ordinal);
+        Assert.Contains("| { status: 'schemaMismatch'; issues: ZodIssue[]; data: unknown; response: Response };", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_ZodRuntimeValidate_EmitsIsSchemaMismatchGuard()
+    {
+        // Mirroring isOk / isParseError / etc — consumers narrow with isSchemaMismatch.
+        var result = TypeScriptApiResultExtractor.Generate(
+            headerContent: null,
+            httpClient: TypeScriptHttpClient.Fetch,
+            zodRuntimeValidate: true);
+
+        Assert.Contains("export function isSchemaMismatch<T>(result: ApiResult<T>)", result, StringComparison.Ordinal);
+        Assert.Contains("return result.status === 'schemaMismatch';", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_ZodRuntimeValidateDisabled_OmitsSchemaMismatchArm()
+    {
+        // Regression guard: flag off means the file is byte-identical to today.
+        // No ZodIssue import, no schemaMismatch arm, no isSchemaMismatch guard.
+        var result = TypeScriptApiResultExtractor.Generate(
+            headerContent: null,
+            httpClient: TypeScriptHttpClient.Fetch,
+            zodRuntimeValidate: false);
+
+        Assert.DoesNotContain("ZodIssue", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("schemaMismatch", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("isSchemaMismatch", result, StringComparison.Ordinal);
+    }
 }

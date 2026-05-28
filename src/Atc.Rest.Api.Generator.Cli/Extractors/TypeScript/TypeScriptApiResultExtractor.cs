@@ -13,7 +13,8 @@ public static class TypeScriptApiResultExtractor
     /// <returns>The TypeScript file content.</returns>
     public static string Generate(
         string? headerContent,
-        TypeScriptHttpClient httpClient = TypeScriptHttpClient.Fetch)
+        TypeScriptHttpClient httpClient = TypeScriptHttpClient.Fetch,
+        bool zodRuntimeValidate = false)
     {
         var sb = new StringBuilder();
 
@@ -32,6 +33,15 @@ public static class TypeScriptApiResultExtractor
 
         sb.AppendLine("import type { ApiError } from '../errors/ApiError';");
         sb.AppendLine("import type { ValidationError } from '../errors/ValidationError';");
+
+        // Zod runtime validation adds a `schemaMismatch` arm that carries the parsed
+        // ZodIssue[] for diagnostics. The import is type-only so consumers that don't
+        // narrow into this arm don't pay any runtime cost.
+        if (zodRuntimeValidate)
+        {
+            sb.AppendLine("import type { ZodIssue } from 'zod';");
+        }
+
         sb.AppendLine();
 
         // Discriminated union type
@@ -48,7 +58,17 @@ public static class TypeScriptApiResultExtractor
         sb.Append("  | { status: 'unprocessableEntity'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'tooManyRequests'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'serverError'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
-        sb.Append("  | { status: 'parseError'; error: Error; response: ").Append(responseType).AppendLine(" };");
+        sb.Append("  | { status: 'parseError'; error: Error; response: ").Append(responseType);
+        if (zodRuntimeValidate)
+        {
+            sb.AppendLine(" }");
+            sb.Append("  | { status: 'schemaMismatch'; issues: ZodIssue[]; data: unknown; response: ").Append(responseType).AppendLine(" };");
+        }
+        else
+        {
+            sb.AppendLine(" };");
+        }
+
         sb.AppendLine();
 
         // Type guard functions
@@ -66,7 +86,27 @@ public static class TypeScriptApiResultExtractor
         AppendErrorTypeGuard(sb, "isServerError", "serverError", "ApiError", responseType);
         AppendErrorTypeGuard(sb, "isParseError", "parseError", "Error", responseType);
 
+        if (zodRuntimeValidate)
+        {
+            AppendSchemaMismatchTypeGuard(sb, responseType);
+        }
+
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Emits the <c>isSchemaMismatch</c> guard. Distinct from the other error guards
+    /// because the arm carries <c>issues</c> + <c>data</c> rather than a single
+    /// <c>error</c> object.
+    /// </summary>
+    private static void AppendSchemaMismatchTypeGuard(
+        StringBuilder sb,
+        string responseType)
+    {
+        sb.Append("export function isSchemaMismatch<T>(result: ApiResult<T>): result is { status: 'schemaMismatch'; issues: import('zod').ZodIssue[]; data: unknown; response: ").Append(responseType).AppendLine(" } {");
+        sb.AppendLine("  return result.status === 'schemaMismatch';");
+        sb.AppendLine("}");
+        sb.AppendLine();
     }
 
     private static void AppendTypeGuard(
