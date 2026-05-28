@@ -2,6 +2,10 @@
 import { ApiClient } from './ApiClient';
 import type { Item, ItemLog, ItemLogs, Items, PaginationResult } from '../models';
 
+export type ListItemPagesPageResult =
+  | { status: 'ok'; data: PaginationResult<Item>; response: Response }
+  | { status: 'parseError'; error: Error; response: Response };
+
 export type GetItemLogsResult =
   | { status: 'ok'; data: ItemLogs; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
@@ -33,6 +37,17 @@ export class ItemsClient {
       },
       signal,
     });
+  }
+
+  async listItemPagesPage(query?: { pageSize?: number }, headers?: { 'x-continuation'?: string }): Promise<ListItemPagesPageResult> {
+    return this.api.request<PaginationResult<Item>>('GET', '/items/pages', {
+      query: {
+        pageSize: query?.pageSize,
+      },
+      headers: {
+        'x-continuation': headers?.['x-continuation'],
+      },
+    }) as Promise<ListItemPagesPageResult>;
   }
 
   async getItemLogs(itemId: string, query?: { logLevel?: 'debug' | 'info' | 'warn' | 'error'; from?: Date }): Promise<GetItemLogsResult> {

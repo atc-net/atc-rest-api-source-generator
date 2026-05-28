@@ -143,14 +143,21 @@ public static class TypeScriptClientExtractor
         // Per-operation result-type aliases: one bespoke discriminated union per non-streaming
         // method, with arms keyed off the operation's declared response codes. Computed first
         // so their referenced model/error types get folded into the file-level import set.
+        // Paginated-streaming ops additionally get a `<MethodName>PageResult` alias for the
+        // non-streaming companion method that feeds useInfiniteQuery (see §4.1).
         var perOpResultTypes = new Dictionary<OpenApiOperation, string>(ReferenceEqualityComparer.Instance);
+        var perOpPageResultTypes = new Dictionary<OpenApiOperation, string>(ReferenceEqualityComparer.Instance);
         var perOpDeclarations = new List<string>();
         var perOpErrorImports = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var (operationPath, methodVerb, operation) in operations)
         {
-            if (operation.IsAsyncEnumerableOperation())
+            var isStreaming = operation.IsAsyncEnumerableOperation();
+            var isPaginatedStreaming = isStreaming && operation.IsPaginatedStreamingOperation();
+
+            if (isStreaming && !isPaginatedStreaming)
             {
+                // Pure streaming ops return AsyncGenerator<Item> directly — no result alias.
                 continue;
             }
 
@@ -158,6 +165,35 @@ public static class TypeScriptClientExtractor
             var isTextDownload = !isFileDownload && operation.HasTextResponse();
             var operationId = operation.GetOperationId(operationPath, methodVerb);
             var methodName = operationId.ToCamelCase().ToTypeScriptIdentifier();
+
+            if (isPaginatedStreaming)
+            {
+                // Only the Page companion needs a per-op result type. The streaming method
+                // itself stays an AsyncGenerator. Name: `<MethodName>PageResult`.
+                var pageResultTypeName = methodName.ToPascalCase() + "PageResult";
+                var (pageDeclaration, pageImports) = TypeScriptOperationHelper.BuildPerOperationResultType(
+                    operation,
+                    pageResultTypeName,
+                    isFileDownload: false,
+                    isTextDownload: false,
+                    httpClient);
+                perOpPageResultTypes[operation] = pageResultTypeName;
+                perOpDeclarations.Add(pageDeclaration);
+                foreach (var imp in pageImports)
+                {
+                    if (imp is "ApiError" or "ValidationError")
+                    {
+                        perOpErrorImports.Add(imp);
+                    }
+                    else
+                    {
+                        importTypes.Add(imp);
+                    }
+                }
+
+                continue;
+            }
+
             var resultTypeName = methodName.ToPascalCase() + "Result";
 
             var (declaration, imports) = TypeScriptOperationHelper.BuildPerOperationResultType(
@@ -212,7 +248,8 @@ public static class TypeScriptClientExtractor
         {
             sb.AppendLine();
             perOpResultTypes.TryGetValue(operation, out var resultTypeName);
-            AppendMethod(sb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, writableSchemas);
+            perOpPageResultTypes.TryGetValue(operation, out var pageResultTypeName);
+            AppendMethod(sb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, writableSchemas, pageResultTypeName);
         }
 
         sb.AppendLine("}");
@@ -281,7 +318,8 @@ public static class TypeScriptClientExtractor
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
         string? perOpResultTypeName,
-        HashSet<string> writableSchemas)
+        HashSet<string> writableSchemas,
+        string? perOpPageResultTypeName)
     {
         var isStreaming = operation.IsAsyncEnumerableOperation();
         var isFileDownload = operation.HasFileDownload();
@@ -304,11 +342,118 @@ public static class TypeScriptClientExtractor
         if (isStreaming)
         {
             AppendStreamingMethod(sb, methodName, path, pathParams, queryParams, headerParams, returnType, namingStrategy, convertDates);
+
+            // Paginated-streaming ops also get a non-streaming Page companion that
+            // returns one page of results for useInfiniteQuery to consume. The page return
+            // type is the full response schema (PaginationResult<Item>), not the streaming
+            // item type, so re-compute via the non-streaming path of GetReturnType.
+            if (perOpPageResultTypeName != null)
+            {
+                var pageDataType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming: false, isFileDownload: false);
+                AppendPageCompanionMethod(sb, methodName, path, pathParams, queryParams, headerParams, pageDataType, perOpPageResultTypeName, namingStrategy, convertDates);
+            }
         }
         else
         {
             AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas);
         }
+    }
+
+    /// <summary>
+    /// Emits the non-streaming Page companion for a paginated-streaming operation: same
+    /// path / query / header params as the streaming sibling PLUS a synthesized
+    /// <c>headers?: { 'x-continuation'?: string }</c> so useInfiniteQuery's
+    /// <c>fetchNextPage</c> can pass the continuation token from the previous page.
+    /// Returns <c>Promise&lt;&lt;MethodName&gt;PageResult&gt;</c> (the per-op result type
+    /// alias computed in GenerateClientClass).
+    /// </summary>
+    private static void AppendPageCompanionMethod(
+        StringBuilder sb,
+        string streamingMethodName,
+        string path,
+        List<OpenApiParameter> pathParams,
+        List<OpenApiParameter> queryParams,
+        List<OpenApiParameter> headerParams,
+        string pageDataType,
+        string pageResultTypeName,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates)
+    {
+        var pageMethodName = streamingMethodName + "Page";
+
+        // Build parameter list. We merge the spec-declared headers with a synthesized
+        // 'x-continuation' header so the consumer can pass the token without the spec
+        // needing to declare it explicitly.
+        var paramParts = new List<string>();
+        foreach (var p in pathParams)
+        {
+            var n = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var t = TypeScriptOperationHelper.GetParameterType(p, convertDates);
+            paramParts.Add(n + ": " + t);
+        }
+
+        if (queryParams.Count > 0)
+        {
+            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, namingStrategy, convertDates);
+            paramParts.Add("query?: " + queryType);
+        }
+
+        // Synthesized continuation header is always present in the signature. If the spec
+        // also declares header params, merge them inline.
+        var headerProps = new List<string>();
+        foreach (var p in headerParams)
+        {
+            var rawName = p.Name ?? string.Empty;
+            var t = TypeScriptOperationHelper.GetParameterType(p, convertDates);
+            var optional = p.Required ? string.Empty : "?";
+            headerProps.Add("'" + rawName + "'" + optional + ": " + t);
+        }
+
+        headerProps.Add("'x-continuation'?: string");
+        paramParts.Add("headers?: { " + string.Join("; ", headerProps) + " }");
+
+        var paramList = string.Join(", ", paramParts);
+        sb.AppendLine();
+        sb.Append("  async ").Append(pageMethodName).Append('(').Append(paramList).Append("): Promise<").Append(pageResultTypeName).AppendLine("> {");
+
+        var interpolatedPath = TypeScriptOperationHelper.BuildInterpolatedPath(path, pathParams, namingStrategy, convertDates);
+        var hasQuery = queryParams.Count > 0;
+
+        sb.Append("    return this.api.request<").Append(pageDataType).Append(">('GET', ").Append(interpolatedPath).AppendLine(", {");
+
+        if (hasQuery)
+        {
+            sb.AppendLine("      query: {");
+            foreach (var p in queryParams)
+            {
+                var propName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+                if (!(p.Name ?? string.Empty).Equals(propName, StringComparison.Ordinal))
+                {
+                    sb.Append("        '").Append(p.Name).Append("': query?.").Append(propName).AppendLine(",");
+                }
+                else
+                {
+                    sb.Append("        ").Append(propName).Append(": query?.").Append(propName).AppendLine(",");
+                }
+            }
+
+            sb.AppendLine("      },");
+        }
+
+        // Always emit the headers bag — the consumer hook always passes the continuation
+        // header when paginating, even if the spec didn't declare any other headers.
+        sb.AppendLine("      headers: {");
+        foreach (var p in headerParams)
+        {
+            var rawName = p.Name ?? string.Empty;
+            sb.Append("        '").Append(rawName).Append("': headers?.['").Append(rawName).AppendLine("'],");
+        }
+
+        sb.AppendLine("        'x-continuation': headers?.['x-continuation'],");
+        sb.AppendLine("      },");
+
+        sb.Append("    })").Append(" as Promise<").Append(pageResultTypeName).AppendLine(">;");
+        sb.AppendLine("  }");
     }
 
     private static void AppendStandardMethod(

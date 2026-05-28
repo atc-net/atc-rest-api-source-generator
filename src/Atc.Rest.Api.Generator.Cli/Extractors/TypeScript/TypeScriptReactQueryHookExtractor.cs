@@ -124,6 +124,17 @@ public static class TypeScriptReactQueryHookExtractor
         needsUseQuery = emitStandardQuery && hasAnyQuery;
         var needsUseSuspenseQuery = emitSuspenseQuery && hasAnyQuery;
 
+        // Paginated-streaming ops get a useInfiniteQuery sibling hook in addition to
+        // the streaming hook. Detection is per-op; if any present, import useInfiniteQuery.
+        var hasInfinite = hookInfos.Any(h => h.IsPaginatedStreaming);
+        var needsUseInfiniteQuery = hasInfinite;
+        if (hasInfinite)
+        {
+            // The infinite hook unwraps result.status === 'ok' the same way other hooks do,
+            // so it needs ApiError available even if the file otherwise had only streams.
+            needsApiError = true;
+        }
+
         // Write header
         if (headerContent != null)
         {
@@ -140,7 +151,8 @@ public static class TypeScriptReactQueryHookExtractor
             needsUseMutation,
             needsUseQueryClient,
             needsReactHooks,
-            needsApiError);
+            needsApiError,
+            needsUseInfiniteQuery);
 
         // Write query key factory
         var segmentCamel = segment.ToCamelCase();
@@ -153,6 +165,14 @@ public static class TypeScriptReactQueryHookExtractor
             {
                 sb.AppendLine();
                 AppendStreamHook(sb, info, segmentCamel, namingStrategy, convertDates);
+
+                // Paginated-streaming ops also get a useInfiniteQuery sibling that
+                // consumes the non-streaming Page companion emitted by the client extractor.
+                if (info.IsPaginatedStreaming)
+                {
+                    sb.AppendLine();
+                    AppendInfiniteHook(sb, info, segmentCamel, namingStrategy, convertDates);
+                }
             }
             else if (info.IsQuery)
             {
@@ -190,7 +210,8 @@ public static class TypeScriptReactQueryHookExtractor
         bool needsUseMutation,
         bool needsUseQueryClient,
         bool needsReactHooks,
-        bool needsApiError)
+        bool needsApiError,
+        bool needsUseInfiniteQuery)
     {
         // React primitive hooks (only required by stream hooks)
         if (needsReactHooks)
@@ -208,6 +229,11 @@ public static class TypeScriptReactQueryHookExtractor
         if (needsUseSuspenseQuery)
         {
             queryImports.Add("useSuspenseQuery");
+        }
+
+        if (needsUseInfiniteQuery)
+        {
+            queryImports.Add("useInfiniteQuery");
         }
 
         if (needsUseMutation)
@@ -301,6 +327,22 @@ public static class TypeScriptReactQueryHookExtractor
 
         foreach (var info in hookInfos)
         {
+            // Paginated-streaming ops get an `<methodName>Infinite` key entry for
+            // the useInfiniteQuery hook. The streaming hook itself still skips a key.
+            if (info.IsPaginatedStreaming)
+            {
+                var infiniteKeyName = info.MethodName.ToCamelCase().ToTypeScriptIdentifier() + "Infinite";
+                if (info.QueryParams.Count > 0)
+                {
+                    var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
+                    sb.Append("  ").Append(infiniteKeyName).Append(": (query?: ").Append(queryType).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(infiniteKeyName).Append("', query").AppendLine("] as const,");
+                }
+                else
+                {
+                    sb.Append("  ").Append(infiniteKeyName).Append(": () => [...").Append(segmentCamel).Append("Keys.all, '").Append(infiniteKeyName).AppendLine("'] as const,");
+                }
+            }
+
             // Stream hooks manage their own state and don't go through useQuery — no key needed.
             if (info.IsStreaming || !info.IsQuery)
             {
@@ -605,6 +647,93 @@ public static class TypeScriptReactQueryHookExtractor
         sb.Append("  }, [").Append(depList).AppendLine("]);");
         sb.AppendLine();
         sb.AppendLine("  return { items, status, error, cancel, reset };");
+        sb.AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits a useInfiniteQuery hook that consumes the <c>&lt;methodName&gt;Page</c>
+    /// companion of a paginated-streaming operation. The hook returns one page at a time
+    /// and surfaces <c>fetchNextPage()</c>; the continuation token from the previous page
+    /// is threaded back via the <c>x-continuation</c> request header that the Page
+    /// companion accepts (see <see cref="TypeScriptClientExtractor"/>).
+    /// </summary>
+    private static void AppendInfiniteHook(
+        StringBuilder sb,
+        HookInfo info,
+        string segmentCamel,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates)
+    {
+        var hookName = "use" + info.MethodName.ToPascalCaseForDotNet() + "Infinite";
+        var pageMethodName = info.MethodName + "Page";
+        var infiniteKeyName = info.MethodName.ToCamelCase().ToTypeScriptIdentifier() + "Infinite";
+
+        // Hook signature: same shape as the streaming sibling minus signal/options —
+        // useInfiniteQuery owns the lifecycle, so the consumer just supplies inputs.
+        var hookParams = new List<string>();
+        foreach (var p in info.PathParams)
+        {
+            var n = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var t = TypeScriptOperationHelper.GetParameterType(p, convertDates);
+            hookParams.Add(n + ": " + t);
+        }
+
+        if (info.QueryParams.Count > 0)
+        {
+            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
+            hookParams.Add("query?: " + queryType);
+        }
+
+        var hookParamStr = string.Join(", ", hookParams);
+
+        // queryKey args mirror the standard query-hook approach: path params + query bag.
+        var keyArgs = new List<string>();
+        foreach (var p in info.PathParams)
+        {
+            keyArgs.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+        }
+
+        if (info.QueryParams.Count > 0)
+        {
+            keyArgs.Add("query");
+        }
+
+        var keyCallArgs = string.Join(", ", keyArgs);
+
+        // Client-side call args for the Page companion: pathParams..., query, headers
+        var callArgs = new List<string>();
+        foreach (var p in info.PathParams)
+        {
+            callArgs.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+        }
+
+        if (info.QueryParams.Count > 0)
+        {
+            callArgs.Add("query");
+        }
+
+        callArgs.Add("pageParam ? { 'x-continuation': pageParam } : undefined");
+        var callArgsStr = string.Join(", ", callArgs);
+
+        sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
+        sb.AppendLine("  const api = useApiService();");
+        sb.AppendLine("  return useInfiniteQuery({");
+        sb.Append("    queryKey: ").Append(segmentCamel).Append("Keys.").Append(infiniteKeyName).Append('(').Append(keyCallArgs).AppendLine("),");
+        sb.AppendLine("    queryFn: async ({ pageParam }: { pageParam: string | undefined }) => {");
+        sb.Append("      const result = await api.").Append(segmentCamel).Append('.').Append(pageMethodName).Append('(').Append(callArgsStr).AppendLine(");");
+        sb.AppendLine("      if (result.status === 'ok') {");
+        sb.AppendLine("        return result.data;");
+        sb.AppendLine("      }");
+        sb.AppendLine("      throw new ApiError(");
+        sb.AppendLine("        result.response.status,");
+        sb.AppendLine("        result.response.statusText,");
+        sb.AppendLine("        'error' in result ? result.error.message : 'Request failed',");
+        sb.AppendLine("        result.response,");
+        sb.AppendLine("      );");
+        sb.AppendLine("    },");
+        sb.AppendLine("    getNextPageParam: (lastPage) => lastPage.continuationToken ?? undefined,");
+        sb.AppendLine("    initialPageParam: undefined as string | undefined,");
+        sb.AppendLine("  });");
         sb.AppendLine("}");
     }
 
@@ -959,6 +1088,14 @@ public static class TypeScriptReactQueryHookExtractor
                       && !isFileDownload
                       && !isStreaming;
 
+        // Paginated-streaming ops get a useInfiniteQuery sibling. PageReturnType is
+        // the full response schema (PaginationResult<Item>) — i.e. the schema treated as
+        // non-streaming — so the queryFn's data type lines up with the Page companion.
+        var isPaginatedStreaming = operation.IsPaginatedStreamingOperation();
+        var pageReturnType = isPaginatedStreaming
+            ? TypeScriptOperationHelper.GetReturnType(operation, isStreaming: false, isFileDownload: false)
+            : string.Empty;
+
         return new HookInfo(
             MethodName: methodName,
             HttpMethod: httpMethod,
@@ -973,7 +1110,9 @@ public static class TypeScriptReactQueryHookExtractor
             HasFileUploadArg: hasFileUploadArg,
             FileUploadParam: fileUploadParam,
             FileUploadArgName: fileUploadArgName,
-            Success2xxDiscriminators: TypeScriptOperationHelper.CollectDeclared2xxDiscriminators(operation));
+            Success2xxDiscriminators: TypeScriptOperationHelper.CollectDeclared2xxDiscriminators(operation),
+            IsPaginatedStreaming: isPaginatedStreaming,
+            PageReturnType: pageReturnType);
     }
 
     private static (bool HasArg, string ParamDecl, string ArgName) GetFileUploadInfo(
@@ -1053,5 +1192,7 @@ public static class TypeScriptReactQueryHookExtractor
         bool HasFileUploadArg,
         string FileUploadParam,
         string FileUploadArgName,
-        List<string> Success2xxDiscriminators);
+        List<string> Success2xxDiscriminators,
+        bool IsPaginatedStreaming,
+        string PageReturnType);
 }

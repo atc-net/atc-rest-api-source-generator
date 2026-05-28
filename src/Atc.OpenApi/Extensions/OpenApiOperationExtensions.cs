@@ -244,6 +244,47 @@ public static class OpenApiOperationExtensions
         }
 
         /// <summary>
+        /// Checks if the operation is a paginated-streaming operation: it has
+        /// <c>x-return-async-enumerable: true</c> AND its 200/201 response is an
+        /// <c>allOf</c> referencing a schema whose name matches a pagination wrapper
+        /// (PaginationResult / PaginatedResult / PagedResult). When true, the TypeScript
+        /// emitter produces both a streaming async-generator method and a non-streaming
+        /// <c>&lt;methodName&gt;Page</c> companion that feeds <c>useInfiniteQuery</c>.
+        /// </summary>
+        public bool IsPaginatedStreamingOperation()
+        {
+            if (!operation.IsAsyncEnumerableOperation())
+            {
+                return false;
+            }
+
+            var schema = operation.GetResponseSchema("200") ?? operation.GetResponseSchema("201");
+            if (schema is not OpenApiSchema actualSchema || actualSchema.AllOf is not { Count: > 0 })
+            {
+                return false;
+            }
+
+            foreach (var part in actualSchema.AllOf)
+            {
+                if (part is OpenApiSchemaReference partRef)
+                {
+                    var name = partRef.Reference.Id ?? partRef.Id;
+                    if (name != null && IsPaginationWrapperName(name))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsPaginationWrapperName(string name)
+            => name.Equals("PaginationResult", StringComparison.Ordinal)
+                || name.Equals("PaginatedResult", StringComparison.Ordinal)
+                || name.Equals("PagedResult", StringComparison.Ordinal);
+
+        /// <summary>
         /// Checks if the operation has a NotFound (404) response.
         /// </summary>
         /// <returns>True if the operation has a 404 response defined.</returns>
