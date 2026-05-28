@@ -2,8 +2,6 @@ namespace Atc.CodeGeneration.TypeScript.Tests.Extensions;
 
 public class TypeScriptStringExtensionsTests
 {
-    // ========== ToTypeScriptIdentifier Tests ==========
-
     [Theory]
     [InlineData("listItems", "listItems")]              // already safe
     [InlineData("getUserById", "getUserById")]          // already safe

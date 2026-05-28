@@ -140,7 +140,9 @@ public class PathHelperTests
     /// strip — tests that need a clean CWD without strippable segments should use
     /// <see cref="WithTempCwd"/> instead.
     /// </summary>
-    private static void WithCwdLayout(string cwdSuffix, Action<string, string> action)
+    private static void WithCwdLayout(
+        string cwdSuffix,
+        Action<string, string> action)
     {
         var originalCwd = Directory.GetCurrentDirectory();
         var tempRoot = Path.Combine(Path.GetTempPath(), "atc-path-helper-" + Guid.NewGuid().ToString("N"));

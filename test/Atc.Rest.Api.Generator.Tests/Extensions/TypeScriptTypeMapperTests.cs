@@ -306,8 +306,6 @@ public class TypeScriptTypeMapperTests
         Assert.Equal("User", result);
     }
 
-    // ========== prefixItems → tuple type tests (OpenAPI 3.1 / JSON Schema 2020-12) ==========
-
     [Fact]
     public void ToTypeScriptReturnType_PrefixItems_TwoNumbers_ReturnsNumberTuple()
     {
@@ -366,8 +364,6 @@ public class TypeScriptTypeMapperTests
 
         Assert.Equal("[number, number, ...string[]]", result);
     }
-
-    // ========== Helper Methods ==========
 
     private static IOpenApiSchema? GetSchema(
         OpenApiDocument doc,

@@ -639,7 +639,10 @@ public class TypeScriptReactQueryHookExtractorTests
         // Spread order: caller options spread FIRST, then the composed onSuccess wins.
         var spreadIdx = content.IndexOf("...options,", StringComparison.Ordinal);
         var onSuccessIdx = content.IndexOf("onSuccess: (data, variables, context)", StringComparison.Ordinal);
-        Assert.True(spreadIdx > 0 && onSuccessIdx > 0 && spreadIdx < onSuccessIdx,
+        Assert.True(
+            spreadIdx > 0 &&
+            onSuccessIdx > 0 &&
+            spreadIdx < onSuccessIdx,
             "Caller options must be spread before the composed onSuccess so the cache invalidation always runs.");
     }
 
