@@ -543,6 +543,136 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.Contains("api.items._1stPage(", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_QueryHook_AcceptsOptionsOmittingQueryKeyAndQueryFn()
+    {
+        // §4.3 contract: every useQuery hook accepts a final options? arg whose type
+        // omits the keys the generator already supplies (queryKey, queryFn). Consumers
+        // can override staleTime, gcTime, select, refetchOnWindowFocus, etc. without
+        // wrapping. The spread sits LAST so caller options win over defaults like
+        // `enabled: !!petId`.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /pets/{petId}:
+                                get:
+                                  operationId: getPet
+                                  parameters:
+                                    - name: petId
+                                      in: path
+                                      required: true
+                                      schema: { type: string }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/Pet' }
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    id: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null));
+
+        Assert.Contains("import type { UseQueryOptions } from '@tanstack/react-query';", content, StringComparison.Ordinal);
+        Assert.Contains(
+            "options?: Omit<UseQueryOptions<Pet, ApiError>, 'queryKey' | 'queryFn'>",
+            content,
+            StringComparison.Ordinal);
+        Assert.Contains("...options,", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_MutationHook_AcceptsOptionsOmittingMutationFnAndComposesOnSuccess()
+    {
+        // §4.3 contract for mutations: TVariables matches the mutationFn arg type, and
+        // the spread comes BEFORE the composed onSuccess so the generator's segment
+        // cache-invalidation always runs alongside whatever onSuccess the caller passes.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /pets:
+                                post:
+                                  operationId: createPet
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema: { $ref: '#/components/schemas/Pet' }
+                                  responses:
+                                    '201':
+                                      description: Created
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/Pet' }
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    id: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null));
+
+        Assert.Contains("import type { UseMutationOptions } from '@tanstack/react-query';", content, StringComparison.Ordinal);
+        Assert.Contains(
+            "options?: Omit<UseMutationOptions<Pet, ApiError, Pet>, 'mutationFn'>",
+            content,
+            StringComparison.Ordinal);
+
+        // onSuccess composition: caller's onSuccess runs after the generator's invalidate,
+        // even when the caller spreads its own onSuccess via ...options.
+        Assert.Contains("options?.onSuccess?.(data, variables, context);", content, StringComparison.Ordinal);
+
+        // Spread order: caller options spread FIRST, then the composed onSuccess wins.
+        var spreadIdx = content.IndexOf("...options,", StringComparison.Ordinal);
+        var onSuccessIdx = content.IndexOf("onSuccess: (data, variables, context)", StringComparison.Ordinal);
+        Assert.True(spreadIdx > 0 && onSuccessIdx > 0 && spreadIdx < onSuccessIdx,
+            "Caller options must be spread before the composed onSuccess so the cache invalidation always runs.");
+    }
+
+    [Fact]
+    public void Extract_DeleteMutationHook_TDataIsVoid_TVariablesMatchesPathParam()
+    {
+        // Delete (or any void/204-only mutation) has TData = void in the options generic.
+        // TVariables comes from the path param when no body is present.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /pets/{petId}:
+                                delete:
+                                  operationId: deletePet
+                                  parameters:
+                                    - name: petId
+                                      in: path
+                                      required: true
+                                      schema: { type: string }
+                                  responses:
+                                    '204': { description: Deleted }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null));
+
+        Assert.Contains(
+            "options?: Omit<UseMutationOptions<void, ApiError, string>, 'mutationFn'>",
+            content,
+            StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
