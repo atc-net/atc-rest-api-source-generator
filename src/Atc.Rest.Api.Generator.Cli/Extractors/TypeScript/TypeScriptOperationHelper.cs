@@ -442,10 +442,50 @@ public static class TypeScriptOperationHelper
             var rawName = param.Name ?? string.Empty;
             var paramType = GetParameterType(param, convertDates);
             var optional = param.Required ? string.Empty : "?";
-            parts.Add("'" + rawName + "'" + optional + ": " + paramType);
+            parts.Add("'" + rawName + "'" + optional + ": " + paramType + FormatDefaultComment(param));
         }
 
         return "{ " + string.Join("; ", parts) + " }";
+    }
+
+    /// <summary>
+    /// Formats a parameter's <c>default:</c> value as an inline TypeScript comment so it
+    /// shows up in IDE hover/autocomplete. Returns empty when the parameter has no
+    /// default — callers append the result verbatim, so empty means "emit nothing extra".
+    /// String defaults are single-quoted, primitives are emitted verbatim, and anything
+    /// else falls through to <see cref="JsonNode.ToJsonString"/>.
+    /// </summary>
+    private static string FormatDefaultComment(OpenApiParameter param)
+    {
+        if (param.Schema is not OpenApiSchema schema || schema.Default == null)
+        {
+            return string.Empty;
+        }
+
+        return " /* default: " + FormatJsonDefault(schema.Default) + " */";
+    }
+
+    private static string FormatJsonDefault(JsonNode node)
+    {
+        if (node is JsonValue jsonValue)
+        {
+            if (jsonValue.TryGetValue<string>(out var s))
+            {
+                return "'" + s.Replace("'", "\\'", StringComparison.Ordinal) + "'";
+            }
+
+            if (jsonValue.TryGetValue<bool>(out var b))
+            {
+                return b ? "true" : "false";
+            }
+
+            // Numbers (int/long/double/decimal) and any other primitives fall back to
+            // their JSON representation, which is the canonical TS literal form.
+            return jsonValue.ToJsonString();
+        }
+
+        // Arrays / objects — uncommon as parameter defaults, but keep them readable.
+        return node.ToJsonString();
     }
 
     /// <summary>
@@ -461,7 +501,7 @@ public static class TypeScriptOperationHelper
         {
             var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
             var paramType = GetParameterType(param, convertDates);
-            parts.Add(paramName + "?: " + paramType);
+            parts.Add(paramName + "?: " + paramType + FormatDefaultComment(param));
         }
 
         return "{ " + string.Join("; ", parts) + " }";

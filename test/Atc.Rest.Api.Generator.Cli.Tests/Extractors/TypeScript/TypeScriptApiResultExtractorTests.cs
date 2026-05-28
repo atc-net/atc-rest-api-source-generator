@@ -73,4 +73,38 @@ public class TypeScriptApiResultExtractorTests
 
         Assert.StartsWith(header, result, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Generate_IncludesParseErrorArm()
+    {
+        // A 2xx response with malformed JSON throws SyntaxError before ApiResult is built.
+        // Surface that case as a discriminated `parseError` arm so consumers don't have to
+        // wrap every typed client call in a generic try/catch.
+        var result = TypeScriptApiResultExtractor.Generate(headerContent: null);
+
+        Assert.Contains(
+            "| { status: 'parseError'; error: Error; response: Response }",
+            result,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_IncludesIsParseErrorGuard()
+    {
+        var result = TypeScriptApiResultExtractor.Generate(headerContent: null);
+
+        Assert.Contains("export function isParseError<T>(result: ApiResult<T>)", result, StringComparison.Ordinal);
+        Assert.Contains("return result.status === 'parseError'", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_AxiosVariant_ParseErrorArmUsesAxiosResponse()
+    {
+        var result = TypeScriptApiResultExtractor.Generate(headerContent: null, httpClient: TypeScriptHttpClient.Axios);
+
+        Assert.Contains(
+            "| { status: 'parseError'; error: Error; response: AxiosResponse }",
+            result,
+            StringComparison.Ordinal);
+    }
 }

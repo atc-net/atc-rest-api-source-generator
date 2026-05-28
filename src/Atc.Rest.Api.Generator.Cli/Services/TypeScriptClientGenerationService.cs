@@ -32,7 +32,8 @@ public static class TypeScriptClientGenerationService
         // Step 2: Extract and generate models (with enum names for correct import paths)
         var models = TypeScriptModelExtractor.Extract(openApiDoc, config, enumNameSet);
         var arrayTypeAliases = TypeScriptModelExtractor.ExtractArrayTypeAliases(openApiDoc, config);
-        var modelCount = WriteModels(models, arrayTypeAliases, outputPath, headerContent, config.GenerateZodSchemas, dryRun);
+        var unionTypeAliases = TypeScriptModelExtractor.ExtractUnionTypeAliases(openApiDoc, config);
+        var modelCount = WriteModels(models, arrayTypeAliases, unionTypeAliases, outputPath, headerContent, config.GenerateZodSchemas, dryRun);
 
         // Step 3: Generate error types
         var errorTypeCount = WriteErrorTypes(outputPath, headerContent, config.HttpClient, dryRun);
@@ -172,12 +173,13 @@ public static class TypeScriptClientGenerationService
     private static int WriteModels(
         List<(string Name, TypeScriptInterfaceParameters Parameters)> models,
         List<(string Name, string Content)> arrayTypeAliases,
+        List<(string Name, string Content)> unionTypeAliases,
         string outputPath,
         string? headerContent,
         bool includeZod,
         bool dryRun)
     {
-        var totalCount = models.Count + arrayTypeAliases.Count;
+        var totalCount = models.Count + arrayTypeAliases.Count + unionTypeAliases.Count;
         if (totalCount == 0)
         {
             return 0;
@@ -202,9 +204,17 @@ public static class TypeScriptClientGenerationService
             WriteTsFile(filePath, content, dryRun);
         }
 
-        // Generate barrel export for all models (interfaces + type aliases)
+        // Write union type alias files (e.g., export type PaymentMethod = CreditCard | BankTransfer;)
+        foreach (var (name, content) in unionTypeAliases)
+        {
+            var filePath = Path.Combine(modelsDir, $"{name}.ts");
+            WriteTsFile(filePath, content, dryRun);
+        }
+
+        // Generate barrel export for all models (interfaces + array aliases + union aliases)
         var allModelNames = models.Select(m => m.Name)
-            .Concat(arrayTypeAliases.Select(a => a.Name));
+            .Concat(arrayTypeAliases.Select(a => a.Name))
+            .Concat(unionTypeAliases.Select(u => u.Name));
 
         var barrelParams = includeZod
             ? TypeScriptBarrelExportExtractor.CreateWithZod(headerContent, allModelNames)

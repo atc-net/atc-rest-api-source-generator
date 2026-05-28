@@ -9,7 +9,7 @@ const accountsKeys = {
   all: ['accounts'] as const,
   list: (query?: { limit?: number }) => [...accountsKeys.all, 'list', query] as const,
   detail: (accountId: string) => [...accountsKeys.all, 'detail', accountId] as const,
-  listPaginated: (query?: { pageSize?: number; pageIndex?: number; queryString?: string; continuation?: string }) => [...accountsKeys.all, 'listPaginated', query] as const,
+  listPaginated: (query?: { pageSize?: number /* default: 10 */; pageIndex?: number /* default: 0 */; queryString?: string; continuation?: string }) => [...accountsKeys.all, 'listPaginated', query] as const,
 };
 
 export { accountsKeys };
@@ -119,7 +119,7 @@ export function useUpdateAccountById(accountId: string) {
   });
 }
 
-export function useListPaginatedAccounts(query?: { pageSize?: number; pageIndex?: number; queryString?: string; continuation?: string }) {
+export function useListPaginatedAccounts(query?: { pageSize?: number /* default: 10 */; pageIndex?: number /* default: 0 */; queryString?: string; continuation?: string }) {
   const api = useApiService();
   return useQuery({
     queryKey: accountsKeys.listPaginated(query),

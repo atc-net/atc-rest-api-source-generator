@@ -7,13 +7,13 @@ import type { UserRole } from '../enums';
 
 const usersKeys = {
   all: ['users'] as const,
-  list: (query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number }) => [...usersKeys.all, 'list', query] as const,
+  list: (query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number /* default: 25 */ }) => [...usersKeys.all, 'list', query] as const,
   detail: (userId: string) => [...usersKeys.all, 'detail', userId] as const,
 };
 
 export { usersKeys };
 
-export function useListUsers(query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number }) {
+export function useListUsers(query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number /* default: 25 */ }) {
   const api = useApiService();
   return useQuery({
     queryKey: usersKeys.list(query),

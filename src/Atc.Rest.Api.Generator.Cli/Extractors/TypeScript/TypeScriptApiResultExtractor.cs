@@ -46,7 +46,8 @@ public static class TypeScriptApiResultExtractor
         sb.Append("  | { status: 'conflict'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'unprocessableEntity'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'tooManyRequests'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
-        sb.Append("  | { status: 'serverError'; error: ApiError; response: ").Append(responseType).AppendLine(" };");
+        sb.Append("  | { status: 'serverError'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
+        sb.Append("  | { status: 'parseError'; error: Error; response: ").Append(responseType).AppendLine(" };");
         sb.AppendLine();
 
         // Type guard functions
@@ -61,6 +62,7 @@ public static class TypeScriptApiResultExtractor
         AppendErrorTypeGuard(sb, "isUnprocessableEntity", "unprocessableEntity", "ApiError", responseType);
         AppendErrorTypeGuard(sb, "isTooManyRequests", "tooManyRequests", "ApiError", responseType);
         AppendErrorTypeGuard(sb, "isServerError", "serverError", "ApiError", responseType);
+        AppendErrorTypeGuard(sb, "isParseError", "parseError", "Error", responseType);
 
         return sb.ToString();
     }

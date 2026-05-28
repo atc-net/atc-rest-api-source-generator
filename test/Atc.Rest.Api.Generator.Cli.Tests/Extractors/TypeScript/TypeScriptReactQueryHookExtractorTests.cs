@@ -485,6 +485,64 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.Contains("itemsKeys.getItemLogs(itemId, query)", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_OperationIdIsReservedWord_HookNameUsesSanitizedMethod()
+    {
+        // operationId "delete" → methodName "_delete" → hookName "use_Delete".
+        // The hook function name must be a valid TS top-level identifier.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items/{id}:
+                                delete:
+                                  operationId: delete
+                                  parameters:
+                                    - name: id
+                                      in: path
+                                      required: true
+                                      schema: { type: string }
+                                  responses:
+                                    '204': { description: No Content }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null));
+
+        // The client call inside the hook body must reference the sanitized method name —
+        // otherwise it would try to call `api.items.delete(...)` which collides with the
+        // global `delete` operator at call sites that destructure the client.
+        Assert.Contains("api.items._delete(", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("api.items.delete(", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_OperationIdStartsWithDigit_HookEmittedWithSanitizedMethod()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: 1stPage
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: object
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null));
+
+        Assert.Contains("api.items._1stPage(", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

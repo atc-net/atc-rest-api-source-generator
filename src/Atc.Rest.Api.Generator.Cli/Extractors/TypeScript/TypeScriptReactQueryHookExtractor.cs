@@ -766,7 +766,7 @@ public static class TypeScriptReactQueryHookExtractor
         var isFileDownload = operation.HasFileDownload();
         var isFileUpload = operation.HasFileUpload();
         var operationId = operation.GetOperationId(path, httpMethod);
-        var methodName = operationId.ToCamelCase();
+        var methodName = operationId.ToCamelCase().ToTypeScriptIdentifier();
 
         var pathParams = TypeScriptOperationHelper.GetMergedParameters(
             operation, openApiDoc, path, ParameterLocation.Path);

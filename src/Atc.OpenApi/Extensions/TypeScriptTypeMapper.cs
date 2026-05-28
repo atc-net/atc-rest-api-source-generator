@@ -117,6 +117,18 @@ public static class TypeScriptTypeMapper
                 return isNullable ? $"Record<string, {valueType}> | null" : $"Record<string, {valueType}>";
             }
 
+            // Handle prefixItems (OpenAPI 3.1 / JSON Schema 2020-12 tuple types).
+            // Must come before the regular array branch — a prefixItems schema also has
+            // type: array, but the tuple shape is the more specific signal.
+            if (actualSchema.HasPrefixItems())
+            {
+                var tupleType = BuildTupleTypeForTypeScript(actualSchema, convertDates);
+                if (tupleType != null)
+                {
+                    return isNullable ? $"{tupleType} | null" : tupleType;
+                }
+            }
+
             // Handle array types
             if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true)
             {
@@ -189,6 +201,17 @@ public static class TypeScriptTypeMapper
                 return refTypeName ?? "unknown";
             }
 
+            // Handle prefixItems (OpenAPI 3.1 / JSON Schema 2020-12 tuple types).
+            // Must come before the regular array branch (same reason as ToTypeScriptTypeForModel).
+            if (actualSchema.HasPrefixItems())
+            {
+                var tupleType = BuildTupleTypeForTypeScript(actualSchema, convertDates: false);
+                if (tupleType != null)
+                {
+                    return tupleType;
+                }
+            }
+
             // Handle array types
             if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true)
             {
@@ -218,6 +241,142 @@ public static class TypeScriptTypeMapper
             "uri" => "string",
             _ => "string",
         };
+
+    /// <summary>
+    /// Builds a TypeScript tuple type from a schema's <c>prefixItems</c> (OpenAPI 3.1 /
+    /// JSON Schema 2020-12). Returns <c>[t1, t2, ...]</c> for strict tuples, or
+    /// <c>[t1, t2, ...rest[]]</c> when <c>items</c> is set and not <c>false</c>.
+    /// Returns <c>null</c> if the prefixItems extension cannot be parsed — callers
+    /// fall through to the regular array path so output stays defined.
+    /// </summary>
+    private static string? BuildTupleTypeForTypeScript(
+        OpenApiSchema schema,
+        bool convertDates)
+    {
+        var jsonArray = GetPrefixItemsArray(schema);
+        if (jsonArray == null)
+        {
+            return null;
+        }
+
+        var prefixTypes = new List<string>(jsonArray.Count);
+        foreach (var item in jsonArray)
+        {
+            if (item is not JsonObject schemaObj)
+            {
+                return null;
+            }
+
+            prefixTypes.Add(MapPrefixItemToTypeScript(schemaObj, convertDates));
+        }
+
+        if (prefixTypes.Count == 0)
+        {
+            return null;
+        }
+
+        // Strict tuple: items is explicitly false, items is absent, or items is the
+        // empty schema the parser materializes when the YAML writer typed `items: false`
+        // (no Type, no $ref, no Items, no Properties — nothing meaningful to map).
+        if (schema.IsStrictTuple() ||
+            schema.Items == null ||
+            IsEffectivelyEmptySchema(schema.Items))
+        {
+            return "[" + string.Join(", ", prefixTypes) + "]";
+        }
+
+        // Open tuple: the regular Items schema describes the rest element type.
+        var restType = GetArrayItemTypeScript(schema);
+        return "[" + string.Join(", ", prefixTypes) + ", ..." + restType + "[]]";
+    }
+
+    /// <summary>
+    /// Microsoft.OpenApi turns <c>items: false</c> into an empty <see cref="OpenApiSchema"/>
+    /// rather than null. Treat such schemas as "no rest element" — anything else would emit
+    /// a meaningless <c>...unknown[]</c> rest type on every strict tuple.
+    /// </summary>
+    private static bool IsEffectivelyEmptySchema(IOpenApiSchema items)
+    {
+        if (items is OpenApiSchemaReference)
+        {
+            return false;
+        }
+
+        if (items is not OpenApiSchema actualItems)
+        {
+            return true;
+        }
+
+        return actualItems.Type == null &&
+               (actualItems.Properties == null || actualItems.Properties.Count == 0) &&
+               actualItems.Items == null &&
+               (actualItems.AllOf == null || actualItems.AllOf.Count == 0) &&
+               (actualItems.OneOf == null || actualItems.OneOf.Count == 0) &&
+               (actualItems.AnyOf == null || actualItems.AnyOf.Count == 0);
+    }
+
+    /// <summary>
+    /// Maps a single prefixItems JSON object to a TypeScript type. Supports <c>$ref</c>,
+    /// nested <c>prefixItems</c> (recursive tuple), and the primitive type+format pair
+    /// the existing mapper already understands.
+    /// </summary>
+    private static string MapPrefixItemToTypeScript(
+        JsonObject schemaObj,
+        bool convertDates)
+    {
+        var refStr = schemaObj["$ref"]?.GetValue<string>();
+        if (refStr != null)
+        {
+            return ExtractRefName(refStr);
+        }
+
+        var typeStr = schemaObj["type"]?.GetValue<string>();
+        var format = schemaObj["format"]?.GetValue<string>();
+
+        return typeStr switch
+        {
+            "string" => GetStringTypeName(format, convertDates),
+            "integer" => "number",
+            "number" => "number",
+            "boolean" => "boolean",
+            "array" => "unknown[]",
+            _ => "unknown",
+        };
+    }
+
+    /// <summary>
+    /// Locates the <c>prefixItems</c> JSON array on a schema. OpenAPI 3.1 specs land it in
+    /// <see cref="Microsoft.OpenApi.OpenApiSchema.UnrecognizedKeywords"/>; older specs that
+    /// jam it through the extension layer land it in <see cref="Microsoft.OpenApi.OpenApiSchema.Extensions"/>.
+    /// </summary>
+    private static JsonArray? GetPrefixItemsArray(OpenApiSchema schema)
+    {
+        if (schema.UnrecognizedKeywords != null &&
+            schema.UnrecognizedKeywords.TryGetValue("prefixItems", out var unrecognizedNode) &&
+            unrecognizedNode is JsonArray unrecognizedArray)
+        {
+            return unrecognizedArray;
+        }
+
+        if (schema.Extensions != null &&
+            schema.Extensions.TryGetValue("prefixItems", out var extension) &&
+            extension is JsonNodeExtension jsonNodeExt &&
+            jsonNodeExt.Node is JsonArray extensionArray)
+        {
+            return extensionArray;
+        }
+
+        return null;
+    }
+
+    private static string ExtractRefName(string refStr)
+    {
+        // "#/components/schemas/Account" -> "Account"
+        var lastSlash = refStr.LastIndexOf('/');
+        return lastSlash >= 0 && lastSlash + 1 < refStr.Length
+            ? refStr.Substring(lastSlash + 1)
+            : refStr;
+    }
 
     /// <summary>
     /// Gets the TypeScript item type for an array schema.

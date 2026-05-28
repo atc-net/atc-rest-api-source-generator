@@ -13,7 +13,8 @@ export type ApiResult<T> =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
-  | { status: 'serverError'; error: ApiError; response: Response };
+  | { status: 'serverError'; error: ApiError; response: Response }
+  | { status: 'parseError'; error: Error; response: Response };
 
 export function isOk<T>(result: ApiResult<T>): result is { status: 'ok'; data: T; response: Response } {
   return result.status === 'ok';
@@ -57,4 +58,8 @@ export function isTooManyRequests<T>(result: ApiResult<T>): result is { status: 
 
 export function isServerError<T>(result: ApiResult<T>): result is { status: 'serverError'; error: ApiError; response: Response } {
   return result.status === 'serverError';
+}
+
+export function isParseError<T>(result: ApiResult<T>): result is { status: 'parseError'; error: Error; response: Response } {
+  return result.status === 'parseError';
 }

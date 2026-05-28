@@ -43,4 +43,17 @@ public class TypeScriptFetchApiClientExtractorTests
         Assert.Contains("await response.json()", result, StringComparison.Ordinal);
         Assert.Contains("await response.blob()", result, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Generate_SuccessPath_WrapsJsonParseInTryCatch()
+    {
+        // A 200 OK response with malformed JSON used to bubble a raw SyntaxError. Wrap
+        // the parse so the discriminated 'parseError' ApiResult arm fires instead.
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
+
+        Assert.Contains(
+            "return { status: 'parseError', error: parseError as Error, response };",
+            result,
+            StringComparison.Ordinal);
+    }
 }
