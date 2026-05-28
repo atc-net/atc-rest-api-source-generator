@@ -338,4 +338,66 @@ public class TypeScriptModelExtractorTests
         Assert.Contains("User", writable);
         Assert.DoesNotContain("Address", writable);
     }
+
+    [Fact]
+    public void Extract_BrandedIdsEnabled_SwapsStringForBrandAndImports()
+    {
+        // When --branded-ids is on, qualifying properties get the brand type instead
+        // of `string` and the interface picks up a single combined import from
+        // ../types/BrandedIds. Other properties stay `string` so the import line
+        // doesn't list anything that isn't used in the interface body.
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  properties:
+                    id: { type: string, format: uuid }
+                    ownerId: { type: string, format: uuid }
+                    name: { type: string }
+            """);
+
+        var config = new TypeScriptClientConfig { BrandedIds = true };
+        var (_, parameters) = Assert.Single(TypeScriptModelExtractor.Extract(document, config));
+
+        var idProp = parameters.Properties!.Single(p => p.Name == "id");
+        var ownerIdProp = parameters.Properties!.Single(p => p.Name == "ownerId");
+        var nameProp = parameters.Properties!.Single(p => p.Name == "name");
+
+        Assert.Equal("PetId", idProp.TypeAnnotation);
+        Assert.Equal("OwnerId", ownerIdProp.TypeAnnotation);
+        Assert.Equal("string", nameProp.TypeAnnotation);
+
+        var brandImport = Assert.Single(parameters.ImportStatements!, s => s.Contains("BrandedIds", StringComparison.Ordinal));
+        Assert.Equal("import type { OwnerId, PetId } from '../types/BrandedIds';", brandImport);
+    }
+
+    [Fact]
+    public void Extract_BrandedIdsDisabled_LeavesPropertiesAsString()
+    {
+        // Regression guard: with the flag off, the model output must be byte-identical
+        // to today's behavior — that's what keeps the existing 150+ snapshots stable.
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  properties:
+                    id: { type: string, format: uuid }
+                    ownerId: { type: string, format: uuid }
+            """);
+
+        var config = new TypeScriptClientConfig { BrandedIds = false };
+        var (_, parameters) = Assert.Single(TypeScriptModelExtractor.Extract(document, config));
+
+        var idProp = parameters.Properties!.Single(p => p.Name == "id");
+        Assert.Equal("string", idProp.TypeAnnotation);
+        Assert.DoesNotContain(parameters.ImportStatements ?? new List<string>(), s => s.Contains("BrandedIds", StringComparison.Ordinal));
+    }
 }
