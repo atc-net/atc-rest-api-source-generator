@@ -347,6 +347,7 @@ public static class GeneratorTestHelper
             HttpClient = httpClient,
             HooksStyle = hooksStyle,
             ConvertDates = markerConfig?.ConvertDates ?? false,
+            BrandedIds = markerConfig?.BrandedIds ?? false,
             DryRun = false,
             GenerateFileHeaders = true,
         };
@@ -560,5 +561,7 @@ public sealed class {handlerName} : {interfaceName}
         public string? HooksStyle { get; init; }
 
         public bool ConvertDates { get; init; }
+
+        public bool BrandedIds { get; init; }
     }
 }

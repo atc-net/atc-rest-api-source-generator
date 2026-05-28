@@ -1,0 +1,74 @@
+openapi: 3.0.3
+info:
+  title: Branded IDs Scenario
+  version: "1.0.0"
+  description: |
+    End-to-end scenario for --branded-ids. Mixes the dominant `{<entity>Id}`
+    path-param convention with the bare `{id}` fallback (Showcase / Demo style),
+    plus a string property without `format: uuid` to verify the format gate.
+paths:
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      tags: [pets]
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+components:
+  schemas:
+    Pet:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+          format: uuid
+    User:
+      type: object
+      required: [id, email]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        favoritePetId:
+          type: string
+          format: uuid
