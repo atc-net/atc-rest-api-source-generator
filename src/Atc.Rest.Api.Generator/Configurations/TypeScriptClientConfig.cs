@@ -85,4 +85,11 @@ public class TypeScriptClientConfig
     /// Package version for the generated package.json. Default: "0.1.0".
     /// </summary>
     public string PackageVersion { get; set; } = "0.1.0";
+
+    /// <summary>
+    /// Emit branded ID types for schema properties and path parameters that look like
+    /// entity identifiers (string + format: uuid, name ending in "Id"). Catches caller
+    /// mistakes like <c>getPet(userId)</c> at compile time. Default: false.
+    /// </summary>
+    public bool BrandedIds { get; set; }
 }

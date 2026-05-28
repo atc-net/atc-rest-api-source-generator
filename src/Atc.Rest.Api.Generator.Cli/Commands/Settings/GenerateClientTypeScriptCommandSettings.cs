@@ -97,6 +97,11 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
     [Description("Package version for generated package.json (default: 0.1.0).")]
     public string? PackageVersion { get; init; }
 
+    [CommandOption("--branded-ids")]
+    [Description("Emit branded ID types for `string + format: uuid` properties whose name ends in 'Id'. Catches caller mistakes like getPet(userId) at compile time.")]
+    [DefaultValue(false)]
+    public bool BrandedIds { get; init; }
+
     public override ValidationResult Validate()
     {
         if (string.IsNullOrWhiteSpace(SpecificationPath))
