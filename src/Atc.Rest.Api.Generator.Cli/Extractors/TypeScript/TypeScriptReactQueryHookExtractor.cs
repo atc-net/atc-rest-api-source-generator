@@ -193,6 +193,26 @@ public static class TypeScriptReactQueryHookExtractor
             sb.Append("import { ").Append(string.Join(", ", queryImports)).AppendLine(" } from '@tanstack/react-query';");
         }
 
+        // Type-only options imports: every generated useQuery / useMutation hook accepts an
+        // `options?` arg whose type omits the keys the generator already populates
+        // (queryKey, queryFn for queries; mutationFn for mutations). Without these, callers
+        // would need to wrap the hook to override staleTime, gcTime, onSuccess, etc.
+        var optionImports = new List<string>();
+        if (needsUseQuery)
+        {
+            optionImports.Add("UseQueryOptions");
+        }
+
+        if (needsUseMutation)
+        {
+            optionImports.Add("UseMutationOptions");
+        }
+
+        if (optionImports.Count > 0)
+        {
+            sb.Append("import type { ").Append(string.Join(", ", optionImports)).AppendLine(" } from '@tanstack/react-query';");
+        }
+
         sb.AppendLine("import { useApiService } from './useApiService';");
 
         // ApiError is only used by the result-unwrap path of useQuery/useMutation hooks.
@@ -330,6 +350,12 @@ public static class TypeScriptReactQueryHookExtractor
             hookParams.Add("headers?: " + headerType);
         }
 
+        // Pass-through options: every generated hook accepts a final options? arg whose
+        // type omits the keys the hook body already populates. Consumers can override
+        // staleTime, gcTime, select, refetchOnWindowFocus, etc. without wrapping.
+        var queryDataType = info.ReturnType == "void" ? "void" : info.ReturnType;
+        hookParams.Add("options?: Omit<UseQueryOptions<" + queryDataType + ", ApiError>, 'queryKey' | 'queryFn'>");
+
         var hookParamStr = string.Join(", ", hookParams);
 
         // Build key args — headers are intentionally excluded so the React Query cache
@@ -368,6 +394,11 @@ public static class TypeScriptReactQueryHookExtractor
             var firstParam = (info.PathParams[0].Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
             sb.Append("    enabled: !!").Append(firstParam).AppendLine(",");
         }
+
+        // Spread caller options LAST so they override the generated defaults (enabled,
+        // queryKey, queryFn). The Omit on the options type still blocks queryKey/queryFn,
+        // so only the safe defaults are overridable.
+        sb.AppendLine("    ...options,");
 
         sb.AppendLine("  });");
         sb.AppendLine("}");
@@ -538,10 +569,12 @@ public static class TypeScriptReactQueryHookExtractor
         var isDelete = info.HttpMethod.Equals("DELETE", StringComparison.OrdinalIgnoreCase);
 
         // Determine hook signature params (path params that are "stable" go as hook params)
-        // and mutation fn arg (body or path params for delete)
+        // and mutation fn arg (body or path params for delete). variablesType tracks the
+        // type of the mutationFn arg so we can wire it into UseMutationOptions<TData, TError, TVariables>.
         var hookParams = new List<string>();
         string mutationArg;
         string clientCallArgs;
+        string variablesType;
 
         if (info.HasBody && info.PathParams.Count > 0)
         {
@@ -555,12 +588,14 @@ public static class TypeScriptReactQueryHookExtractor
 
             mutationArg = "(body: " + info.BodyType + ")";
             clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, hasBody: true, namingStrategy: namingStrategy);
+            variablesType = info.BodyType;
         }
         else if (info.HasBody)
         {
             // Body only as mutation arg
             mutationArg = "(body: " + info.BodyType + ")";
             clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, hasBody: true, namingStrategy: namingStrategy);
+            variablesType = info.BodyType;
         }
         else if (info.HasFileUploadArg && info.PathParams.Count > 0)
         {
@@ -600,12 +635,19 @@ public static class TypeScriptReactQueryHookExtractor
 
             mutationArg = "(" + mutationParamDestructure + ": " + mutationParamType + ")";
             clientCallArgs = string.Join(", ", pathParamNames) + ", " + fileArgName;
+            variablesType = mutationParamType;
         }
         else if (info.HasFileUploadArg)
         {
             // File upload without path params
             mutationArg = "(" + info.FileUploadParam + ")";
             clientCallArgs = info.FileUploadArgName;
+            // info.FileUploadParam is `<name>: <type>` — slice the type out so it can
+            // appear inside the UseMutationOptions generic.
+            var fileColon = info.FileUploadParam.IndexOf(':', StringComparison.Ordinal);
+            variablesType = fileColon >= 0
+                ? info.FileUploadParam[(fileColon + 1)..].Trim()
+                : "unknown";
         }
         else if (info.PathParams.Count > 0)
         {
@@ -617,6 +659,7 @@ public static class TypeScriptReactQueryHookExtractor
                 var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates);
                 mutationArg = "(" + paramName + ": " + paramType + ")";
                 clientCallArgs = paramName;
+                variablesType = paramType;
             }
             else
             {
@@ -625,11 +668,12 @@ public static class TypeScriptReactQueryHookExtractor
                     var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
                     var pType = TypeScriptOperationHelper.GetParameterType(p, convertDates);
                     return pName + ": " + pType;
-                });
+                }).ToList();
                 mutationArg = "(params: { " + string.Join("; ", paramParts) + " })";
                 clientCallArgs = string.Join(
                     ", ",
                     info.PathParams.Select(p => "params." + (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy)));
+                variablesType = "{ " + string.Join("; ", paramParts) + " }";
             }
         }
         else
@@ -637,6 +681,7 @@ public static class TypeScriptReactQueryHookExtractor
             // No args
             mutationArg = "()";
             clientCallArgs = string.Empty;
+            variablesType = "void";
         }
 
         // Header params are hook-scoped (set once per useXxx() call) for mutations,
@@ -648,6 +693,11 @@ public static class TypeScriptReactQueryHookExtractor
             hookParams.Add("headers?: " + headerType);
             clientCallArgs = clientCallArgs.Length == 0 ? "headers" : clientCallArgs + ", headers";
         }
+
+        // Pass-through options for the mutation. TData mirrors the unwrap path: void
+        // for delete / no-body returns, the operation's return type otherwise.
+        var mutationDataType = (isVoidReturn || isDelete) ? "void" : info.ReturnType;
+        hookParams.Add("options?: Omit<UseMutationOptions<" + mutationDataType + ", ApiError, " + variablesType + ">, 'mutationFn'>");
 
         var hookParamStr = string.Join(", ", hookParams);
 
@@ -661,9 +711,17 @@ public static class TypeScriptReactQueryHookExtractor
         AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
 
         sb.AppendLine("    },");
-        sb.AppendLine("    onSuccess: () => {");
+
+        // Spread caller options FIRST so the composed onSuccess below (which forwards to
+        // the caller's onSuccess after invalidating) wins over a bare ...options.onSuccess.
+        // Other handlers (onError, onSettled, retry, …) still pass through via the spread.
+        sb.AppendLine("    ...options,");
+
+        sb.AppendLine("    onSuccess: (data, variables, context) => {");
         sb.Append("      queryClient.invalidateQueries({ queryKey: ").Append(segmentCamel).AppendLine("Keys.all });");
+        sb.AppendLine("      options?.onSuccess?.(data, variables, context);");
         sb.AppendLine("    },");
+
         sb.AppendLine("  });");
         sb.AppendLine("}");
     }
