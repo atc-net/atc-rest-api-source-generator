@@ -114,6 +114,18 @@ public static class TypeScriptClientGenerationService
         // x-signalr-hubs vendor extension. One hook file per declared hub.
         var hubsEmitted = WriteSignalRHubFiles(openApiDoc, outputPath, headerContent, dryRun);
 
+        // Step 6g: Emit branded ID type aliases when --branded-ids is set. The file
+        // lives under types/ so it joins the existing type-only barrel. typeCount is
+        // bumped so the root barrel includes the types/ subdirectory.
+        if (config.BrandedIds)
+        {
+            var brandedEmitted = WriteBrandedIdsFile(openApiDoc, outputPath, headerContent, dryRun);
+            if (brandedEmitted)
+            {
+                typeCount++;
+            }
+        }
+
         // Step 7: Generate package scaffold (if configured)
         var scaffoldGenerated = false;
         if (config.Scaffold)
@@ -650,6 +662,42 @@ public static class TypeScriptClientGenerationService
     /// single-baseUrl ctor pattern; emitting a one-entry Servers const would add noise
     /// without giving the consumer a real choice.
     /// </summary>
+    /// <summary>
+    /// Writes <c>types/BrandedIds.ts</c> when --branded-ids is enabled and the spec
+    /// has at least one qualifying property or path parameter. The <c>types/</c>
+    /// barrel is rewritten to include the new module alongside ApiResult.
+    /// </summary>
+    private static bool WriteBrandedIdsFile(
+        OpenApiDocument openApiDoc,
+        string outputPath,
+        string? headerContent,
+        bool dryRun)
+    {
+        var brands = TypeScriptBrandedIdExtractor.CollectBrandNames(openApiDoc);
+        if (brands.Count == 0)
+        {
+            return false;
+        }
+
+        var content = TypeScriptBrandedIdExtractor.Generate(brands, headerContent);
+        if (content == null)
+        {
+            return false;
+        }
+
+        var typesDir = Path.Combine(outputPath, "types");
+        WriteTsFile(Path.Combine(typesDir, "BrandedIds.ts"), content, dryRun);
+
+        // Rewrite the types/ barrel to include BrandedIds alongside ApiResult.
+        // ApiResult is unconditional (every spec emits it), BrandedIds is new.
+        var typeNames = new[] { "ApiResult", "BrandedIds" };
+        var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, typeNames);
+        var barrelContent = new GenerateContentForBarrelExport(barrelParams).Generate();
+        WriteTsFile(Path.Combine(typesDir, "index.ts"), barrelContent, dryRun);
+
+        return true;
+    }
+
     private static bool WriteServersFile(
         OpenApiDocument openApiDoc,
         string outputPath,
