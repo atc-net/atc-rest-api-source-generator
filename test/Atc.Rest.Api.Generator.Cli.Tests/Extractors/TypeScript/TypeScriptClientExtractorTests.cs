@@ -904,6 +904,128 @@ public class TypeScriptClientExtractorTests
         Assert.DoesNotContain("BrandedIds", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_ZodRuntimeValidate_SingleRefResponse_EmitsParseSchemaWithoutZodImport()
+    {
+        // Single $ref response → use the named schema directly, no `z` wrapping needed.
+        // The file picks up exactly one new import: the `<Name>Schema` from its .zod module.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info: { title: t, version: '1' }
+                            paths:
+                              /pets/{petId}:
+                                get:
+                                  operationId: getPet
+                                  parameters:
+                                    - { name: petId, in: path, required: true, schema: { type: string } }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/Pet' }
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  required: [id]
+                                  properties:
+                                    id: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(
+            doc!,
+            headerContent: null,
+            zodRuntimeValidate: true));
+
+        Assert.Contains("import { PetSchema } from '../models/Pet.zod';", content, StringComparison.Ordinal);
+        Assert.Contains("parseSchema: PetSchema,", content, StringComparison.Ordinal);
+        // No inline-wrap → no `z` runtime import.
+        Assert.DoesNotContain("import { z } from 'zod';", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_ZodRuntimeValidate_ArrayOfRefResponse_WrapsWithZArrayAndImportsZ()
+    {
+        // Array of $ref → wrap inline with z.array(<Name>Schema). The file then needs
+        // both the item schema import AND the runtime `z` import for the wrapper call.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info: { title: t, version: '1' }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { $ref: '#/components/schemas/Pet' }
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  required: [id]
+                                  properties:
+                                    id: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(
+            doc!,
+            headerContent: null,
+            zodRuntimeValidate: true));
+
+        Assert.Contains("import { z } from 'zod';", content, StringComparison.Ordinal);
+        Assert.Contains("import { PetSchema } from '../models/Pet.zod';", content, StringComparison.Ordinal);
+        Assert.Contains("parseSchema: z.array(PetSchema),", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_ZodRuntimeValidateDisabled_OmitsAllZodWiring()
+    {
+        // Regression guard: flag off means no parseSchema option, no zod imports,
+        // existing client output is byte-identical.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info: { title: t, version: '1' }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/Pet' }
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  required: [id]
+                                  properties:
+                                    id: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(
+            doc!,
+            headerContent: null,
+            zodRuntimeValidate: false));
+
+        Assert.DoesNotContain("parseSchema", content, StringComparison.Ordinal);
+        Assert.DoesNotContain(".zod'", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("from 'zod'", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
