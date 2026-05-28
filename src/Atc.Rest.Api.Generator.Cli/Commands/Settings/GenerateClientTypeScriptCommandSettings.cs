@@ -102,6 +102,11 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
     [DefaultValue(false)]
     public bool BrandedIds { get; init; }
 
+    [CommandOption("--zod-runtime-validate")]
+    [Description("Validate response payloads at runtime against the generated Zod schemas. On mismatch the ApiResult surfaces a 'schemaMismatch' arm with the Zod issues. Implies --zod.")]
+    [DefaultValue(false)]
+    public bool ZodRuntimeValidate { get; init; }
+
     public override ValidationResult Validate()
     {
         if (string.IsNullOrWhiteSpace(SpecificationPath))

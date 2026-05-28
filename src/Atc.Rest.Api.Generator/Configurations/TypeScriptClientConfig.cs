@@ -92,4 +92,13 @@ public class TypeScriptClientConfig
     /// mistakes like <c>getPet(userId)</c> at compile time. Default: false.
     /// </summary>
     public bool BrandedIds { get; set; }
+
+    /// <summary>
+    /// Validate response payloads at runtime against the generated Zod schemas. When
+    /// enabled, each generated client method imports its response Zod schema and
+    /// passes it to <c>ApiClient.request</c>; on parse mismatch the result surfaces
+    /// a <c>schemaMismatch</c> arm with the Zod issues for diagnostics. Implies
+    /// <see cref="GenerateZodSchemas"/>. Default: false.
+    /// </summary>
+    public bool ZodRuntimeValidate { get; set; }
 }

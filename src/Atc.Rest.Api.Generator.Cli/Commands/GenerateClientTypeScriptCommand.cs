@@ -35,6 +35,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         AnsiConsole.MarkupLine($"[blue]Convert dates:[/] {config.ConvertDates}");
         AnsiConsole.MarkupLine($"[blue]Mutable models:[/] {config.MutableModels}");
         AnsiConsole.MarkupLine($"[blue]Zod schemas:[/] {config.GenerateZodSchemas}");
+        AnsiConsole.MarkupLine($"[blue]Zod runtime validate:[/] {config.ZodRuntimeValidate}");
         AnsiConsole.MarkupLine($"[blue]Scaffold:[/] {config.Scaffold}");
         AnsiConsole.MarkupLine($"[blue]Branded IDs:[/] {config.BrandedIds}");
         if (config.DryRun)
@@ -316,6 +317,15 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         if (settings.BrandedIds)
         {
             config.BrandedIds = true;
+        }
+
+        if (settings.ZodRuntimeValidate)
+        {
+            // Runtime validation needs the schemas to validate against. Implying --zod
+            // here is friendlier than erroring on a missing flag combo — the user's
+            // intent is clear when they ask for runtime validation.
+            config.ZodRuntimeValidate = true;
+            config.GenerateZodSchemas = true;
         }
 
         if (settings.DryRun)
