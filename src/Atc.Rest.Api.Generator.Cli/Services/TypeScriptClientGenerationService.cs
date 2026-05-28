@@ -102,6 +102,10 @@ public static class TypeScriptClientGenerationService
             mswHandlerCount = WriteMswHandlers(openApiDoc, outputPath, headerContent, config, dryRun);
         }
 
+        // Step 6d: Emit a typed Servers map when the spec declares >1 server entry.
+        // Single-server specs keep the existing baseUrl ctor-arg pattern unchanged.
+        var serversEmitted = WriteServersFile(openApiDoc, outputPath, headerContent, dryRun);
+
         // Step 7: Generate package scaffold (if configured)
         var scaffoldGenerated = false;
         if (config.Scaffold)
@@ -149,6 +153,11 @@ public static class TypeScriptClientGenerationService
         if (mswHandlerCount > 0)
         {
             subdirectories.Add("mocks");
+        }
+
+        if (serversEmitted)
+        {
+            subdirectories.Add("servers");
         }
 
         if (subdirectories.Count > 0)
@@ -616,6 +625,35 @@ public static class TypeScriptClientGenerationService
     /// <summary>
     /// Writes the root barrel export (index.ts) that re-exports from subdirectories.
     /// </summary>
+    /// <summary>
+    /// Writes <c>servers/Servers.ts</c> + <c>servers/index.ts</c> when the spec declares
+    /// more than one <c>servers:</c> entry. Single-server specs keep the existing
+    /// single-baseUrl ctor pattern; emitting a one-entry Servers const would add noise
+    /// without giving the consumer a real choice.
+    /// </summary>
+    private static bool WriteServersFile(
+        OpenApiDocument openApiDoc,
+        string outputPath,
+        string? headerContent,
+        bool dryRun)
+    {
+        var content = TypeScriptServersExtractor.Generate(openApiDoc, headerContent);
+        if (content == null)
+        {
+            return false;
+        }
+
+        var serversDir = Path.Combine(outputPath, "servers");
+        WriteTsFile(Path.Combine(serversDir, "Servers.ts"), content, dryRun);
+
+        // Barrel: re-exports both the Servers const and the ServerName type union.
+        var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, new[] { "Servers" }, isTypeOnly: false);
+        var barrelContent = new GenerateContentForBarrelExport(barrelParams).Generate();
+        WriteTsFile(Path.Combine(serversDir, "index.ts"), barrelContent, dryRun);
+
+        return true;
+    }
+
     private static void WriteRootBarrelExport(
         string outputPath,
         string? headerContent,

@@ -642,6 +642,7 @@ public static class TypeScriptReactQueryHookExtractor
             // File upload without path params
             mutationArg = "(" + info.FileUploadParam + ")";
             clientCallArgs = info.FileUploadArgName;
+
             // info.FileUploadParam is `<name>: <type>` — slice the type out so it can
             // appear inside the UseMutationOptions generic.
             var fileColon = info.FileUploadParam.IndexOf(':', StringComparison.Ordinal);
