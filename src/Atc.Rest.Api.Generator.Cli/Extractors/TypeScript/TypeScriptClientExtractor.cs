@@ -20,7 +20,8 @@ public static class TypeScriptClientExtractor
         TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase,
         bool convertDates = false,
         TypeScriptHttpClient httpClient = TypeScriptHttpClient.Fetch,
-        HashSet<string>? writableSchemas = null)
+        HashSet<string>? writableSchemas = null,
+        bool brandedIds = false)
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
@@ -37,7 +38,7 @@ public static class TypeScriptClientExtractor
             }
 
             var className = segment + "Client";
-            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy, convertDates, httpClient, writableSchemas);
+            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy, convertDates, httpClient, writableSchemas, brandedIds);
             results.Add((className, content));
         }
 
@@ -53,10 +54,12 @@ public static class TypeScriptClientExtractor
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
         TypeScriptHttpClient httpClient,
-        HashSet<string> writableSchemas)
+        HashSet<string> writableSchemas,
+        bool brandedIds)
     {
         var sb = new StringBuilder();
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
+        var brandImports = new SortedSet<string>(StringComparer.Ordinal);
 
         // First pass: collect all import types
         foreach (var (operationPath, _, operation) in operations)
@@ -219,6 +222,16 @@ public static class TypeScriptClientExtractor
             }
         }
 
+        // Pre-scan path parameters for branded ID brands so the import line is
+        // accurate before the class body lands in the StringBuilder.
+        if (brandedIds)
+        {
+            foreach (var brand in CollectBrandImports(operations, openApiDoc))
+            {
+                brandImports.Add(brand);
+            }
+        }
+
         // Write header
         if (headerContent != null)
         {
@@ -226,7 +239,7 @@ public static class TypeScriptClientExtractor
         }
 
         // Write imports
-        AppendImports(sb, importTypes, enumNames, perOpErrorImports, httpClient);
+        AppendImports(sb, importTypes, enumNames, perOpErrorImports, httpClient, brandImports);
 
         // Emit per-operation result-type aliases before the class.
         foreach (var declaration in perOpDeclarations)
@@ -249,7 +262,7 @@ public static class TypeScriptClientExtractor
             sb.AppendLine();
             perOpResultTypes.TryGetValue(operation, out var resultTypeName);
             perOpPageResultTypes.TryGetValue(operation, out var pageResultTypeName);
-            AppendMethod(sb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, writableSchemas, pageResultTypeName);
+            AppendMethod(sb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, writableSchemas, pageResultTypeName, brandedIds);
         }
 
         sb.AppendLine("}");
@@ -257,12 +270,44 @@ public static class TypeScriptClientExtractor
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Pre-scan: every path parameter on every operation in the segment is checked
+    /// for brand qualification. The resulting set drives both the per-class import
+    /// line and what gets substituted in parameter signatures downstream.
+    /// </summary>
+    private static SortedSet<string> CollectBrandImports(
+        List<(string Path, string Method, OpenApiOperation Operation)> operations,
+        OpenApiDocument openApiDoc)
+    {
+        var brands = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var (path, _, operation) in operations)
+        {
+            var pathParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Path);
+            foreach (var param in pathParams)
+            {
+                if (string.IsNullOrEmpty(param.Name))
+                {
+                    continue;
+                }
+
+                var brand = TypeScriptBrandedIdExtractor.ResolveParamBrand(path, param.Name!, param.Schema);
+                if (brand != null)
+                {
+                    brands.Add(brand);
+                }
+            }
+        }
+
+        return brands;
+    }
+
     private static void AppendImports(
         StringBuilder sb,
         HashSet<string> importTypes,
         HashSet<string>? enumNames,
         HashSet<string> errorImports,
-        TypeScriptHttpClient httpClient)
+        TypeScriptHttpClient httpClient,
+        SortedSet<string> brandImports)
     {
         // The Axios variant references AxiosResponse in per-op result-type arms — the Fetch
         // variant uses the global Response type, so only the Axios path needs the import.
@@ -306,6 +351,11 @@ public static class TypeScriptClientExtractor
             sb.Append("import type { ").Append(string.Join(", ", sorted)).AppendLine(" } from '../errors';");
         }
 
+        if (brandImports.Count > 0)
+        {
+            sb.Append("import type { ").Append(string.Join(", ", brandImports)).AppendLine(" } from '../types/BrandedIds';");
+        }
+
         sb.AppendLine();
     }
 
@@ -319,7 +369,8 @@ public static class TypeScriptClientExtractor
         bool convertDates,
         string? perOpResultTypeName,
         HashSet<string> writableSchemas,
-        string? perOpPageResultTypeName)
+        string? perOpPageResultTypeName,
+        bool brandedIds)
     {
         var isStreaming = operation.IsAsyncEnumerableOperation();
         var isFileDownload = operation.HasFileDownload();
@@ -346,7 +397,7 @@ public static class TypeScriptClientExtractor
 
         if (isStreaming)
         {
-            AppendStreamingMethod(sb, methodName, path, pathParams, queryParams, headerParams, returnType, namingStrategy, convertDates);
+            AppendStreamingMethod(sb, methodName, path, pathParams, queryParams, headerParams, returnType, namingStrategy, convertDates, brandedIds);
 
             // Paginated-streaming ops also get a non-streaming Page companion that
             // returns one page of results for useInfiniteQuery to consume. The page return
@@ -356,12 +407,12 @@ public static class TypeScriptClientExtractor
             {
                 var pageDataType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming: false, isFileDownload: false);
                 AppendOperationJsDoc(sb, operation);
-                AppendPageCompanionMethod(sb, methodName, path, pathParams, queryParams, headerParams, pageDataType, perOpPageResultTypeName, namingStrategy, convertDates);
+                AppendPageCompanionMethod(sb, methodName, path, pathParams, queryParams, headerParams, pageDataType, perOpPageResultTypeName, namingStrategy, convertDates, brandedIds);
             }
         }
         else
         {
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds);
         }
     }
 
@@ -417,7 +468,8 @@ public static class TypeScriptClientExtractor
         string pageDataType,
         string pageResultTypeName,
         TypeScriptNamingStrategy namingStrategy,
-        bool convertDates)
+        bool convertDates,
+        bool brandedIds)
     {
         var pageMethodName = streamingMethodName + "Page";
 
@@ -428,7 +480,7 @@ public static class TypeScriptClientExtractor
         foreach (var p in pathParams)
         {
             var n = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var t = TypeScriptOperationHelper.GetParameterType(p, convertDates);
+            var t = TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, path);
             paramParts.Add(n + ": " + t);
         }
 
@@ -513,10 +565,11 @@ public static class TypeScriptClientExtractor
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
         string? perOpResultTypeName,
-        HashSet<string> writableSchemas)
+        HashSet<string> writableSchemas,
+        bool brandedIds)
     {
         // Build parameter list
-        var paramList = BuildParameterList(pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas);
+        var paramList = BuildParameterList(pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path);
 
         // perOpResultTypeName is supplied for every non-streaming op when called from
         // GenerateClientClass. The generic ApiResult fallback is a safety net for any unit
@@ -589,7 +642,8 @@ public static class TypeScriptClientExtractor
         List<OpenApiParameter> headerParams,
         string itemType,
         TypeScriptNamingStrategy namingStrategy,
-        bool convertDates)
+        bool convertDates,
+        bool brandedIds)
     {
         // Build parameter list (streaming methods may have query / header params + signal)
         var paramParts = new List<string>();
@@ -597,7 +651,7 @@ public static class TypeScriptClientExtractor
         foreach (var param in pathParams)
         {
             var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates);
+            var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, path);
             paramParts.Add(paramName + ": " + paramType);
         }
 
@@ -656,7 +710,9 @@ public static class TypeScriptClientExtractor
         bool isFileUpload,
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
-        HashSet<string> writableSchemas)
+        HashSet<string> writableSchemas,
+        bool brandedIds,
+        string path)
     {
         var parts = new List<string>();
 
@@ -664,7 +720,7 @@ public static class TypeScriptClientExtractor
         foreach (var param in pathParams)
         {
             var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates);
+            var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, path);
             parts.Add(paramName + ": " + paramType);
         }
 

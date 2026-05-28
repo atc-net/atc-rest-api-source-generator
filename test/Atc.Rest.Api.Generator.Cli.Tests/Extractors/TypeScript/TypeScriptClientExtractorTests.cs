@@ -835,6 +835,75 @@ public class TypeScriptClientExtractorTests
         Assert.DoesNotContain("/**", lineAbove, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_BrandedIdsEnabled_TypesPathParamsAndImportsBrand()
+    {
+        // A path param `{petId}` typed `string + format: uuid` becomes
+        // `petId: PetId` on the generated method, and the client file picks up a
+        // single combined `import type { ... } from '../types/BrandedIds';` line.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info: { title: t, version: '1' }
+                            paths:
+                              /pets/{petId}:
+                                get:
+                                  operationId: getPet
+                                  parameters:
+                                    - { name: petId, in: path, required: true, schema: { type: string, format: uuid } }
+                                  responses:
+                                    '200': { description: OK }
+                              /users/{id}:
+                                get:
+                                  operationId: getUser
+                                  parameters:
+                                    - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+                                  responses:
+                                    '200': { description: OK }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var results = TypeScriptClientExtractor.Extract(
+            doc!,
+            headerContent: null,
+            brandedIds: true);
+        var contentByClass = results.ToDictionary(r => r.ClassName, r => r.Content, StringComparer.Ordinal);
+
+        // PetsClient: param-name path → PetId.
+        Assert.Contains("getPet(petId: PetId)", contentByClass["PetsClient"], StringComparison.Ordinal);
+        Assert.Contains("import type { PetId } from '../types/BrandedIds';", contentByClass["PetsClient"], StringComparison.Ordinal);
+
+        // UsersClient: bare `{id}` falls back to parent segment `users` → `UserId`.
+        Assert.Contains("getUser(id: UserId)", contentByClass["UsersClient"], StringComparison.Ordinal);
+        Assert.Contains("import type { UserId } from '../types/BrandedIds';", contentByClass["UsersClient"], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_BrandedIdsDisabled_KeepsPathParamsAsString()
+    {
+        // Regression guard: with the flag off, path params stay `string` and no
+        // BrandedIds import appears — that's what preserves the existing snapshots.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info: { title: t, version: '1' }
+                            paths:
+                              /pets/{petId}:
+                                get:
+                                  operationId: getPet
+                                  parameters:
+                                    - { name: petId, in: path, required: true, schema: { type: string, format: uuid } }
+                                  responses:
+                                    '200': { description: OK }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc!, headerContent: null, brandedIds: false));
+
+        Assert.Contains("getPet(petId: string)", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("BrandedIds", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

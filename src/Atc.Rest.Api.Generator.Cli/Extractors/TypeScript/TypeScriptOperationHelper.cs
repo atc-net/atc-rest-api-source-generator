@@ -368,7 +368,9 @@ public static class TypeScriptOperationHelper
     /// such values with <c>.toISOString()</c> before they reach the wire.</param>
     public static string GetParameterType(
         OpenApiParameter param,
-        bool convertDates = false)
+        bool convertDates = false,
+        bool brandedIds = false,
+        string? path = null)
     {
         if (param.Schema == null)
         {
@@ -399,6 +401,20 @@ public static class TypeScriptOperationHelper
         if (tsType.EndsWith(" | null", StringComparison.Ordinal))
         {
             tsType = tsType[..^" | null".Length];
+        }
+
+        // Branded IDs: swap the inferred `string` for the resolved brand. Query params
+        // get the brand too — the underlying URL serialization is unchanged but call
+        // sites refuse to pass a `UserId` where a `PetId` is expected.
+        if (brandedIds && tsType == "string" && !string.IsNullOrEmpty(param.Name))
+        {
+            var brand = param.In == ParameterLocation.Path
+                ? TypeScriptBrandedIdExtractor.ResolveParamBrand(path ?? string.Empty, param.Name!, param.Schema)
+                : TypeScriptBrandedIdExtractor.ResolvePropertyBrand(schemaName: string.Empty, param.Name!, param.Schema);
+            if (brand != null)
+            {
+                tsType = brand;
+            }
         }
 
         return tsType;
