@@ -95,7 +95,8 @@ public static class TypeScriptZodModelExtractor
     /// self-loops are included so the existing direct-self-reference path can stay
     /// untouched (it still handles its case independently).
     /// </summary>
-    private static Dictionary<string, HashSet<string>> BuildCycleMemberMap(OpenApiDocument openApiDoc)
+    private static Dictionary<string, HashSet<string>> BuildCycleMemberMap(
+        OpenApiDocument openApiDoc)
     {
         var graph = BuildSchemaDependencyGraph(openApiDoc);
         var result = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
@@ -133,7 +134,8 @@ public static class TypeScriptZodModelExtractor
         return result;
     }
 
-    private static Dictionary<string, HashSet<string>> BuildSchemaDependencyGraph(OpenApiDocument openApiDoc)
+    private static Dictionary<string, HashSet<string>> BuildSchemaDependencyGraph(
+        OpenApiDocument openApiDoc)
     {
         var graph = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         if (openApiDoc.Components?.Schemas == null)
@@ -160,7 +162,9 @@ public static class TypeScriptZodModelExtractor
     /// names. Mirrors <see cref="CollectSchemaImportTypes"/> but writes into an arbitrary
     /// set so it can be reused for graph building.
     /// </summary>
-    private static void CollectDirectRefs(OpenApiSchema schema, HashSet<string> edges)
+    private static void CollectDirectRefs(
+        OpenApiSchema schema,
+        HashSet<string> edges)
     {
         if (schema.Properties != null)
         {
@@ -195,7 +199,9 @@ public static class TypeScriptZodModelExtractor
         }
     }
 
-    private static void CollectRefsFromSchema(IOpenApiSchema schema, HashSet<string> edges)
+    private static void CollectRefsFromSchema(
+        IOpenApiSchema schema,
+        HashSet<string> edges)
     {
         if (schema is OpenApiSchemaReference schemaRef)
         {
@@ -248,7 +254,8 @@ public static class TypeScriptZodModelExtractor
         }
     }
 
-    private static Dictionary<string, HashSet<string>> ReverseGraph(Dictionary<string, HashSet<string>> graph)
+    private static Dictionary<string, HashSet<string>> ReverseGraph(
+        Dictionary<string, HashSet<string>> graph)
     {
         var reverse = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         foreach (var node in graph.Keys)
@@ -273,7 +280,9 @@ public static class TypeScriptZodModelExtractor
         return reverse;
     }
 
-    private static HashSet<string> ReachableFrom(Dictionary<string, HashSet<string>> graph, string start)
+    private static HashSet<string> ReachableFrom(
+        Dictionary<string, HashSet<string>> graph,
+        string start)
     {
         var visited = new HashSet<string>(StringComparer.Ordinal);
         var queue = new Queue<string>();
