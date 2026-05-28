@@ -106,4 +106,42 @@ public class TypeScriptAxiosApiClientExtractorTests
         // Regression-guard for the original buggy emission shape.
         Assert.DoesNotContain("headers.set(key, value);", result, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Generate_ZodRuntimeValidate_ImportsZodTypeAnyAndValidatesAxiosData()
+    {
+        // Axios already parsed the JSON into response.data; the validation runs on
+        // that directly. We re-wrap parsed.data into the response when validation
+        // succeeds so the typed `data: T` field on the ApiResult arm reflects the
+        // Zod-parsed shape rather than the raw parse.
+        var result = TypeScriptAxiosApiClientExtractor.Generate(
+            headerContent: null,
+            convertDates: false,
+            hasRetry: false,
+            zodRuntimeValidate: true);
+
+        Assert.Contains("import type { ZodTypeAny } from 'zod';", result, StringComparison.Ordinal);
+        Assert.Contains("parseSchema?: ZodTypeAny;", result, StringComparison.Ordinal);
+        Assert.Contains("if (parseSchema && expectsJson) {", result, StringComparison.Ordinal);
+        Assert.Contains("parseSchema.safeParse(response.data);", result, StringComparison.Ordinal);
+        Assert.Contains("return { status: 'schemaMismatch', issues: parsed.error.issues, data: response.data, response };", result, StringComparison.Ordinal);
+        Assert.Contains("setStrictMode(enabled: boolean): void {", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_ZodRuntimeValidateDisabled_AxiosOutputUnchanged()
+    {
+        // Regression guard: flag off means byte-identical Axios output. Lock the
+        // four signature tokens that would change under the flag.
+        var result = TypeScriptAxiosApiClientExtractor.Generate(
+            headerContent: null,
+            convertDates: false,
+            hasRetry: false,
+            zodRuntimeValidate: false);
+
+        Assert.DoesNotContain("ZodTypeAny", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("parseSchema", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("schemaMismatch", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("setStrictMode", result, StringComparison.Ordinal);
+    }
 }

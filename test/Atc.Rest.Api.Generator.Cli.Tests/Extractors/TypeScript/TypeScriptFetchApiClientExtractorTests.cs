@@ -80,4 +80,72 @@ public class TypeScriptFetchApiClientExtractorTests
 
         Assert.DoesNotContain("retryWithBackoff", result, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Generate_ZodRuntimeValidate_ImportsZodTypeAnyAndAddsParseSchemaOption()
+    {
+        // Wires the schema in via RequestOptions.parseSchema. ZodTypeAny is the broad
+        // parent type — any z.object/z.array/primitive schema fits. Type-only import
+        // keeps the bundle clean for consumers that never narrow into schemaMismatch.
+        var result = TypeScriptFetchApiClientExtractor.Generate(
+            headerContent: null,
+            convertDates: false,
+            hasRetry: false,
+            zodRuntimeValidate: true);
+
+        Assert.Contains("import type { ZodTypeAny } from 'zod';", result, StringComparison.Ordinal);
+        Assert.Contains("parseSchema?: ZodTypeAny;", result, StringComparison.Ordinal);
+        Assert.Contains("parseSchema?: ZodTypeAny): Promise<ApiResult<T>>", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_ZodRuntimeValidate_ValidatesJsonAndReturnsSchemaMismatchArm()
+    {
+        // The validation runs only for JSON responses (text/blob have no structured
+        // schema) and surfaces parsed.error.issues + the raw data so consumers can
+        // diagnose spec drift without losing the payload.
+        var result = TypeScriptFetchApiClientExtractor.Generate(
+            headerContent: null,
+            convertDates: false,
+            hasRetry: false,
+            zodRuntimeValidate: true);
+
+        Assert.Contains("if (parseSchema && isJson) {", result, StringComparison.Ordinal);
+        Assert.Contains("const parsed = parseSchema.safeParse(data);", result, StringComparison.Ordinal);
+        Assert.Contains("return { status: 'schemaMismatch', issues: parsed.error.issues, data, response };", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_ZodRuntimeValidate_EmitsSetStrictModeMethod()
+    {
+        // setStrictMode flips between the prod-friendly "return arm" path and the
+        // dev-friendly "throw with issues" path. Default false matches the existing
+        // ApiResult contract of errors-as-values.
+        var result = TypeScriptFetchApiClientExtractor.Generate(
+            headerContent: null,
+            convertDates: false,
+            hasRetry: false,
+            zodRuntimeValidate: true);
+
+        Assert.Contains("private strictMode = false;", result, StringComparison.Ordinal);
+        Assert.Contains("setStrictMode(enabled: boolean): void {", result, StringComparison.Ordinal);
+        Assert.Contains("throw new Error(`Schema mismatch:", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_ZodRuntimeValidateDisabled_OmitsAllValidationCode()
+    {
+        // Regression guard: flag off must produce zero zod-related output so the
+        // existing 150+ client snapshots stay byte-identical.
+        var result = TypeScriptFetchApiClientExtractor.Generate(
+            headerContent: null,
+            convertDates: false,
+            hasRetry: false,
+            zodRuntimeValidate: false);
+
+        Assert.DoesNotContain("ZodTypeAny", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("parseSchema", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("schemaMismatch", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("setStrictMode", result, StringComparison.Ordinal);
+    }
 }

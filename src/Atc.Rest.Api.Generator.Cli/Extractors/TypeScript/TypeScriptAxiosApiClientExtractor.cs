@@ -14,7 +14,8 @@ public static class TypeScriptAxiosApiClientExtractor
     public static string Generate(
         string? headerContent,
         bool convertDates = false,
-        bool hasRetry = false)
+        bool hasRetry = false,
+        bool zodRuntimeValidate = false)
     {
         var sb = new StringBuilder();
 
@@ -23,7 +24,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.Append(headerContent);
         }
 
-        AppendImports(sb, hasRetry);
+        AppendImports(sb, hasRetry, zodRuntimeValidate);
 
         if (convertDates)
         {
@@ -31,15 +32,16 @@ public static class TypeScriptAxiosApiClientExtractor
         }
 
         AppendApiClientOptionsInterface(sb, hasRetry);
-        AppendRequestOptionsInterface(sb);
-        AppendApiClientClass(sb, convertDates, hasRetry);
+        AppendRequestOptionsInterface(sb, zodRuntimeValidate);
+        AppendApiClientClass(sb, convertDates, hasRetry, zodRuntimeValidate);
 
         return sb.ToString();
     }
 
     private static void AppendImports(
         StringBuilder sb,
-        bool hasRetry)
+        bool hasRetry,
+        bool zodRuntimeValidate)
     {
         sb.AppendLine("import axios from 'axios';");
         sb.AppendLine("import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';");
@@ -52,6 +54,11 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("import { retryWithBackoff } from '../helpers/retryInterceptor';");
             sb.AppendLine("import { defaultRetryPolicy } from '../helpers/retryConfig';");
             sb.AppendLine("import type { RetryPolicy } from '../helpers/retryConfig';");
+        }
+
+        if (zodRuntimeValidate)
+        {
+            sb.AppendLine("import type { ZodTypeAny } from 'zod';");
         }
 
         sb.AppendLine();
@@ -80,7 +87,9 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine();
     }
 
-    private static void AppendRequestOptionsInterface(StringBuilder sb)
+    private static void AppendRequestOptionsInterface(
+        StringBuilder sb,
+        bool zodRuntimeValidate)
     {
         sb.AppendLine("export interface RequestOptions {");
         sb.AppendLine("  body?: unknown;");
@@ -88,6 +97,11 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("  headers?: Record<string, string | number | boolean | undefined>;");
         sb.AppendLine("  signal?: AbortSignal;");
         sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
+        if (zodRuntimeValidate)
+        {
+            sb.AppendLine("  parseSchema?: ZodTypeAny;");
+        }
+
         sb.AppendLine("}");
         sb.AppendLine();
     }
@@ -115,7 +129,8 @@ public static class TypeScriptAxiosApiClientExtractor
     private static void AppendApiClientClass(
         StringBuilder sb,
         bool convertDates,
-        bool hasRetry)
+        bool hasRetry,
+        bool zodRuntimeValidate)
     {
         sb.AppendLine("export class ApiClient {");
         sb.AppendLine("  private readonly baseUrl: string;");
@@ -127,15 +142,41 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("  private readonly retryPolicy: RetryPolicy | false;");
         }
 
+        if (zodRuntimeValidate)
+        {
+            sb.AppendLine("  private strictMode = false;");
+        }
+
         sb.AppendLine();
 
         AppendConstructor(sb, convertDates, hasRetry);
-        AppendRequestMethod(sb, convertDates, hasRetry);
+
+        if (zodRuntimeValidate)
+        {
+            AppendSetStrictModeMethod(sb);
+        }
+
+        AppendRequestMethod(sb, convertDates, hasRetry, zodRuntimeValidate);
         AppendRequestStreamMethod(sb, convertDates);
         AppendBuildUrlMethod(sb);
-        AppendHandleResponseMethod(sb);
+        AppendHandleResponseMethod(sb, zodRuntimeValidate);
 
         sb.AppendLine("}");
+    }
+
+    private static void AppendSetStrictModeMethod(
+        StringBuilder sb)
+    {
+        sb.AppendLine("  /**");
+        sb.AppendLine("   * Toggle strict runtime validation. When enabled, schema-mismatch");
+        sb.AppendLine("   * failures throw an Error with the Zod issues instead of returning a");
+        sb.AppendLine("   * 'schemaMismatch' ApiResult arm. Useful in dev/staging to surface");
+        sb.AppendLine("   * spec drift loudly; leave off in prod to keep errors as values.");
+        sb.AppendLine("   */");
+        sb.AppendLine("  setStrictMode(enabled: boolean): void {");
+        sb.AppendLine("    this.strictMode = enabled;");
+        sb.AppendLine("  }");
+        sb.AppendLine();
     }
 
     private static void AppendConstructor(
@@ -200,7 +241,8 @@ public static class TypeScriptAxiosApiClientExtractor
     private static void AppendRequestMethod(
         StringBuilder sb,
         bool convertDates,
-        bool hasRetry)
+        bool hasRetry,
+        bool zodRuntimeValidate)
     {
         sb.AppendLine("  async request<T>(method: string, path: string, options?: RequestOptions): Promise<ApiResult<T>> {");
         sb.AppendLine("    let data: unknown;");
@@ -286,7 +328,16 @@ public static class TypeScriptAxiosApiClientExtractor
         }
 
         sb.AppendLine();
-        sb.AppendLine("    return this.handleResponse<T>(response);");
+
+        if (zodRuntimeValidate)
+        {
+            sb.AppendLine("    return this.handleResponse<T>(response, options?.parseSchema);");
+        }
+        else
+        {
+            sb.AppendLine("    return this.handleResponse<T>(response);");
+        }
+
         sb.AppendLine("  }");
         sb.AppendLine();
     }
@@ -392,9 +443,14 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine();
     }
 
-    private static void AppendHandleResponseMethod(StringBuilder sb)
+    private static void AppendHandleResponseMethod(
+        StringBuilder sb,
+        bool zodRuntimeValidate)
     {
-        sb.AppendLine("  private handleResponse<T>(response: AxiosResponse<T>): ApiResult<T> {");
+        var signature = zodRuntimeValidate
+            ? "  private handleResponse<T>(response: AxiosResponse<T>, parseSchema?: ZodTypeAny): ApiResult<T> {"
+            : "  private handleResponse<T>(response: AxiosResponse<T>): ApiResult<T> {";
+        sb.AppendLine(signature);
         sb.AppendLine("    if (response.status === 204) {");
         sb.AppendLine("      return { status: 'noContent', response };");
         sb.AppendLine("    }");
@@ -412,6 +468,28 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("          response,");
         sb.AppendLine("        };");
         sb.AppendLine("      }");
+
+        if (zodRuntimeValidate)
+        {
+            // Axios already parsed the response (response.data); we validate that against
+            // the schema. JSON-only — text/blob bodies don't have a structured schema.
+            sb.AppendLine();
+            sb.AppendLine("      if (parseSchema && expectsJson) {");
+            sb.AppendLine("        const parsed = parseSchema.safeParse(response.data);");
+            sb.AppendLine("        if (!parsed.success) {");
+            sb.AppendLine("          if (this.strictMode) {");
+            sb.AppendLine("            const issuesSummary = parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ');");
+            sb.AppendLine("            throw new Error(`Schema mismatch: ${issuesSummary}`);");
+            sb.AppendLine("          }");
+            sb.AppendLine();
+            sb.AppendLine("          return { status: 'schemaMismatch', issues: parsed.error.issues, data: response.data, response };");
+            sb.AppendLine("        }");
+            sb.AppendLine();
+            sb.AppendLine("        response = { ...response, data: parsed.data as T };");
+            sb.AppendLine("      }");
+            sb.AppendLine();
+        }
+
         sb.AppendLine("      const status = response.status === 201");
         sb.AppendLine("        ? 'created' as const");
         sb.AppendLine("        : response.status === 202");
