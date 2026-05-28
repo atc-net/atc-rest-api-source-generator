@@ -13,7 +13,8 @@ public static class TypeScriptSwrHookExtractor
         OpenApiDocument openApiDoc,
         string? headerContent,
         HashSet<string>? enumNames = null,
-        TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase)
+        TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase,
+        bool brandedIds = false)
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
@@ -39,7 +40,8 @@ public static class TypeScriptSwrHookExtractor
                 hookInfos,
                 headerContent,
                 enumNames,
-                namingStrategy);
+                namingStrategy,
+                brandedIds);
 
             var fileName = $"use{segment}";
             results.Add((fileName, content));
@@ -110,9 +112,32 @@ public static class TypeScriptSwrHookExtractor
         List<SwrHookInfo> hookInfos,
         string? headerContent,
         HashSet<string>? enumNames,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        bool brandedIds)
     {
         var sb = new StringBuilder();
+        var brandImports = new SortedSet<string>(StringComparer.Ordinal);
+
+        // Pre-scan path params so the BrandedIds import line is accurate.
+        if (brandedIds)
+        {
+            foreach (var info in hookInfos)
+            {
+                foreach (var param in info.PathParams)
+                {
+                    if (string.IsNullOrEmpty(param.Name))
+                    {
+                        continue;
+                    }
+
+                    var brand = TypeScriptBrandedIdExtractor.ResolveParamBrand(info.Path, param.Name!, param.Schema);
+                    if (brand != null)
+                    {
+                        brandImports.Add(brand);
+                    }
+                }
+            }
+        }
 
         if (headerContent != null)
         {
@@ -165,6 +190,11 @@ public static class TypeScriptSwrHookExtractor
             sb.AppendLine("import type { ApiResult } from '../types/ApiResult';");
         }
 
+        if (brandImports.Count > 0)
+        {
+            sb.Append("import type { ").Append(string.Join(", ", brandImports)).AppendLine(" } from '../types/BrandedIds';");
+        }
+
         sb.AppendLine();
 
         // Key factory
@@ -186,7 +216,7 @@ public static class TypeScriptSwrHookExtractor
                 // React Query Option A treatment for SWR consumers — the
                 // streaming hook is plain React + AbortController, no SWR machinery, so
                 // the body is essentially the same shape as the React Query sibling.
-                GenerateStreamHook(sb, info, segmentLower, namingStrategy);
+                GenerateStreamHook(sb, info, segmentLower, namingStrategy, brandedIds);
             }
             else if (info.IsQuery)
             {
@@ -274,7 +304,8 @@ public static class TypeScriptSwrHookExtractor
         StringBuilder sb,
         SwrHookInfo info,
         string segmentLower,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        bool brandedIds)
     {
         var hookName = "use" + info.MethodName.ToPascalCaseForDotNet() + "Stream";
         var itemType = string.IsNullOrEmpty(info.ReturnType) ? "unknown" : info.ReturnType;
@@ -283,7 +314,7 @@ public static class TypeScriptSwrHookExtractor
         foreach (var p in info.PathParams)
         {
             var n = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var t = TypeScriptOperationHelper.GetParameterType(p);
+            var t = TypeScriptOperationHelper.GetParameterType(p, convertDates: false, brandedIds: brandedIds, path: info.Path);
             hookParams.Add(n + ": " + t);
         }
 

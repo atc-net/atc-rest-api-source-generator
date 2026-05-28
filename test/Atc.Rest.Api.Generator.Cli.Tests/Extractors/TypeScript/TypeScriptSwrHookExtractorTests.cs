@@ -224,6 +224,43 @@ public class TypeScriptSwrHookExtractorTests
         Assert.True(deprecatedIdx > 0 && fnIdx > deprecatedIdx, "JSDoc must precede the hook signature.");
     }
 
+    [Fact]
+    public void Extract_BrandedIdsEnabled_TypesStreamHookPathParamAndImportsBrand()
+    {
+        // SWR's streaming hook uses real path-param names; its standard SWR hooks fall
+        // back to a hardcoded `(id: string)` and don't participate in branding.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: '1' }
+                            paths:
+                              /items/{itemId}:
+                                get:
+                                  operationId: streamItem
+                                  x-return-async-enumerable: true
+                                  parameters:
+                                    - { name: itemId, in: path, required: true, schema: { type: string, format: uuid } }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptSwrHookExtractor.Extract(
+            doc!,
+            headerContent: null,
+            brandedIds: true);
+        var (_, content) = Assert.Single(result);
+
+        Assert.Contains("import type { ItemId } from '../types/BrandedIds';", content, StringComparison.Ordinal);
+        Assert.Contains("useStreamItemStream(itemId: ItemId,", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

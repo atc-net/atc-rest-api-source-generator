@@ -954,6 +954,37 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.DoesNotContain("/**", lineAbove, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_BrandedIdsEnabled_TypesPathParamsAndImportsBrand()
+    {
+        // Hooks must type their path-param args with the same brand the client method
+        // uses. The hook file picks up `import type { ... } from '../types/BrandedIds';`.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info: { title: t, version: '1' }
+                            paths:
+                              /pets/{petId}:
+                                get:
+                                  operationId: getPet
+                                  parameters:
+                                    - { name: petId, in: path, required: true, schema: { type: string, format: uuid } }
+                                  responses:
+                                    '200': { description: OK }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptReactQueryHookExtractor.Extract(
+            doc!,
+            headerContent: null,
+            brandedIds: true);
+        var (_, content) = Assert.Single(result);
+
+        Assert.Contains("import type { PetId } from '../types/BrandedIds';", content, StringComparison.Ordinal);
+        Assert.Contains("useGetPet(petId: PetId,", content, StringComparison.Ordinal);
+        Assert.Contains("getPet: (petId: PetId) =>", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

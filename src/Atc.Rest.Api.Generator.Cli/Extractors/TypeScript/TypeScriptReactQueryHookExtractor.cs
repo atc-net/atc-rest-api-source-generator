@@ -25,7 +25,8 @@ public static class TypeScriptReactQueryHookExtractor
         TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase,
         bool convertDates = false,
         HashSet<string>? writableSchemas = null,
-        TypeScriptHooksMode hooksMode = TypeScriptHooksMode.Standard)
+        TypeScriptHooksMode hooksMode = TypeScriptHooksMode.Standard,
+        bool brandedIds = false)
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
@@ -51,7 +52,8 @@ public static class TypeScriptReactQueryHookExtractor
                 namingStrategy,
                 convertDates,
                 writableSchemas,
-                hooksMode);
+                hooksMode,
+                brandedIds);
             results.Add((fileName, content));
         }
 
@@ -67,10 +69,12 @@ public static class TypeScriptReactQueryHookExtractor
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
         HashSet<string> writableSchemas,
-        TypeScriptHooksMode hooksMode)
+        TypeScriptHooksMode hooksMode,
+        bool brandedIds)
     {
         var sb = new StringBuilder();
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
+        var brandImports = new SortedSet<string>(StringComparer.Ordinal);
         var needsUseQuery = false;
         var needsUseMutation = false;
         var needsUseQueryClient = false;
@@ -83,6 +87,25 @@ public static class TypeScriptReactQueryHookExtractor
         {
             var info = ClassifyOperation(path, method, operation, openApiDoc, namingStrategy, writableSchemas);
             hookInfos.Add(info);
+
+            // Pre-scan path params for brand qualification so the BrandedIds import line
+            // is accurate before any hook body is emitted.
+            if (brandedIds)
+            {
+                foreach (var param in info.PathParams)
+                {
+                    if (string.IsNullOrEmpty(param.Name))
+                    {
+                        continue;
+                    }
+
+                    var brand = TypeScriptBrandedIdExtractor.ResolveParamBrand(info.Path, param.Name!, param.Schema);
+                    if (brand != null)
+                    {
+                        brandImports.Add(brand);
+                    }
+                }
+            }
 
             // Streaming ops still need their item type imported.
             TypeScriptOperationHelper.CollectImportTypes(operation, importTypes, openApiDoc, path);
@@ -152,11 +175,12 @@ public static class TypeScriptReactQueryHookExtractor
             needsUseQueryClient,
             needsReactHooks,
             needsApiError,
-            needsUseInfiniteQuery);
+            needsUseInfiniteQuery,
+            brandImports);
 
         // Write query key factory
         var segmentCamel = segment.ToCamelCase();
-        AppendQueryKeyFactory(sb, segmentCamel, hookInfos, namingStrategy, convertDates);
+        AppendQueryKeyFactory(sb, segmentCamel, hookInfos, namingStrategy, convertDates, brandedIds);
 
         // Write hook functions
         foreach (var info in hookInfos)
@@ -164,14 +188,14 @@ public static class TypeScriptReactQueryHookExtractor
             if (info.IsStreaming)
             {
                 sb.AppendLine();
-                AppendStreamHook(sb, info, segmentCamel, namingStrategy, convertDates);
+                AppendStreamHook(sb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
 
                 // Paginated-streaming ops also get a useInfiniteQuery sibling that
                 // consumes the non-streaming Page companion emitted by the client extractor.
                 if (info.IsPaginatedStreaming)
                 {
                     sb.AppendLine();
-                    AppendInfiniteHook(sb, info, segmentCamel, namingStrategy, convertDates);
+                    AppendInfiniteHook(sb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
                 }
             }
             else if (info.IsQuery)
@@ -182,19 +206,19 @@ public static class TypeScriptReactQueryHookExtractor
                 if (emitStandardQuery)
                 {
                     sb.AppendLine();
-                    AppendQueryHook(sb, info, segmentCamel, namingStrategy, convertDates, isSuspense: false, useSuspenseSuffix: false);
+                    AppendQueryHook(sb, info, segmentCamel, namingStrategy, convertDates, isSuspense: false, useSuspenseSuffix: false, brandedIds: brandedIds);
                 }
 
                 if (emitSuspenseQuery)
                 {
                     sb.AppendLine();
-                    AppendQueryHook(sb, info, segmentCamel, namingStrategy, convertDates, isSuspense: true, useSuspenseSuffix: hooksMode == TypeScriptHooksMode.Both);
+                    AppendQueryHook(sb, info, segmentCamel, namingStrategy, convertDates, isSuspense: true, useSuspenseSuffix: hooksMode == TypeScriptHooksMode.Both, brandedIds: brandedIds);
                 }
             }
             else
             {
                 sb.AppendLine();
-                AppendMutationHook(sb, info, segmentCamel, namingStrategy, convertDates);
+                AppendMutationHook(sb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
             }
         }
 
@@ -211,7 +235,8 @@ public static class TypeScriptReactQueryHookExtractor
         bool needsUseQueryClient,
         bool needsReactHooks,
         bool needsApiError,
-        bool needsUseInfiniteQuery)
+        bool needsUseInfiniteQuery,
+        SortedSet<string> brandImports)
     {
         // React primitive hooks (only required by stream hooks)
         if (needsReactHooks)
@@ -312,6 +337,11 @@ public static class TypeScriptReactQueryHookExtractor
             sb.Append("import type { ").Append(string.Join(", ", enumImports)).AppendLine(" } from '../enums';");
         }
 
+        if (brandImports.Count > 0)
+        {
+            sb.Append("import type { ").Append(string.Join(", ", brandImports)).AppendLine(" } from '../types/BrandedIds';");
+        }
+
         sb.AppendLine();
     }
 
@@ -320,7 +350,8 @@ public static class TypeScriptReactQueryHookExtractor
         string segmentCamel,
         List<HookInfo> hookInfos,
         TypeScriptNamingStrategy namingStrategy,
-        bool convertDates)
+        bool convertDates,
+        bool brandedIds)
     {
         sb.Append("const ").Append(segmentCamel).AppendLine("Keys = {");
         sb.Append("  all: ['").Append(segmentCamel).AppendLine("'] as const,");
@@ -359,7 +390,7 @@ public static class TypeScriptReactQueryHookExtractor
                 // React Query refetches when either changes.
                 var pathParamList = string.Join(
                     ", ",
-                    info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy) + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates)));
+                    info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy) + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path)));
                 var pathArgs = string.Join(
                     ", ",
                     info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy)));
@@ -372,7 +403,7 @@ public static class TypeScriptReactQueryHookExtractor
                 // Detail-style key with path params
                 var paramList = string.Join(
                     ", ",
-                    info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy) + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates)));
+                    info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy) + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path)));
                 var keyArgs = string.Join(
                     ", ",
                     info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy)));
@@ -404,7 +435,8 @@ public static class TypeScriptReactQueryHookExtractor
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
         bool isSuspense,
-        bool useSuspenseSuffix)
+        bool useSuspenseSuffix,
+        bool brandedIds)
     {
         // For TypeScriptHooksMode.Both the suspense variant gets a "Suspense" suffix so
         // standard and suspense hooks can coexist in the same file. For pure Suspense
@@ -422,7 +454,7 @@ public static class TypeScriptReactQueryHookExtractor
         foreach (var param in info.PathParams)
         {
             var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates);
+            var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
             hookParams.Add(paramName + ": " + paramType);
         }
 
@@ -510,7 +542,8 @@ public static class TypeScriptReactQueryHookExtractor
         HookInfo info,
         string segmentCamel,
         TypeScriptNamingStrategy namingStrategy,
-        bool convertDates)
+        bool convertDates,
+        bool brandedIds)
     {
         var hookName = "use" + info.MethodName.ToPascalCaseForDotNet() + "Stream";
         var segmentProperty = segmentCamel;
@@ -521,7 +554,7 @@ public static class TypeScriptReactQueryHookExtractor
         foreach (var param in info.PathParams)
         {
             var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates);
+            var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
             hookParams.Add(paramName + ": " + paramType);
         }
 
@@ -664,7 +697,8 @@ public static class TypeScriptReactQueryHookExtractor
         HookInfo info,
         string segmentCamel,
         TypeScriptNamingStrategy namingStrategy,
-        bool convertDates)
+        bool convertDates,
+        bool brandedIds)
     {
         var hookName = "use" + info.MethodName.ToPascalCaseForDotNet() + "Infinite";
         var pageMethodName = info.MethodName + "Page";
@@ -676,7 +710,7 @@ public static class TypeScriptReactQueryHookExtractor
         foreach (var p in info.PathParams)
         {
             var n = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var t = TypeScriptOperationHelper.GetParameterType(p, convertDates);
+            var t = TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path);
             hookParams.Add(n + ": " + t);
         }
 
@@ -745,7 +779,8 @@ public static class TypeScriptReactQueryHookExtractor
         HookInfo info,
         string segmentCamel,
         TypeScriptNamingStrategy namingStrategy,
-        bool convertDates)
+        bool convertDates,
+        bool brandedIds)
     {
         var hookName = "use" + info.MethodName.ToPascalCaseForDotNet();
         var segmentProperty = segmentCamel;
@@ -766,7 +801,7 @@ public static class TypeScriptReactQueryHookExtractor
             foreach (var param in info.PathParams)
             {
                 var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates);
+                var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
                 hookParams.Add(paramName + ": " + paramType);
             }
 
@@ -789,7 +824,7 @@ public static class TypeScriptReactQueryHookExtractor
             foreach (var param in info.PathParams)
             {
                 var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates);
+                var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
                 pathParamParts.Add(paramName + ": " + paramType);
                 pathParamNames.Add(paramName);
             }
@@ -841,7 +876,7 @@ public static class TypeScriptReactQueryHookExtractor
             {
                 var param = info.PathParams[0];
                 var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates);
+                var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
                 mutationArg = "(" + paramName + ": " + paramType + ")";
                 clientCallArgs = paramName;
                 variablesType = paramType;
@@ -851,7 +886,7 @@ public static class TypeScriptReactQueryHookExtractor
                 var paramParts = info.PathParams.Select(p =>
                 {
                     var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                    var pType = TypeScriptOperationHelper.GetParameterType(p, convertDates);
+                    var pType = TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path);
                     return pName + ": " + pType;
                 }).ToList();
                 mutationArg = "(params: { " + string.Join("; ", paramParts) + " })";
@@ -1119,7 +1154,8 @@ public static class TypeScriptReactQueryHookExtractor
             PageReturnType: pageReturnType,
             Summary: operation.Summary,
             Description: operation.Description,
-            Deprecated: operation.Deprecated);
+            Deprecated: operation.Deprecated,
+            Path: path);
     }
 
     /// <summary>
@@ -1235,5 +1271,6 @@ public static class TypeScriptReactQueryHookExtractor
         string PageReturnType,
         string? Summary,
         string? Description,
-        bool Deprecated);
+        bool Deprecated,
+        string Path);
 }
