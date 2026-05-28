@@ -34,6 +34,7 @@ export class TasksClient {
     this.api = api;
   }
 
+  /** List all tasks */
   async listTasks(query?: { limit?: number }): Promise<ListTasksResult> {
     return this.api.request<Tasks>('GET', '/tasks', {
       query: {
@@ -42,20 +43,24 @@ export class TasksClient {
     }) as Promise<ListTasksResult>;
   }
 
+  /** Create task */
   async createTask(body: Task): Promise<CreateTaskResult> {
     return this.api.request<Task>('POST', '/tasks', {
       body,
     }) as Promise<CreateTaskResult>;
   }
 
+  /** Get a specific task */
   async getTaskById(taskId: string): Promise<GetTaskByIdResult> {
     return this.api.request<Task>('GET', `/tasks/${taskId}`) as Promise<GetTaskByIdResult>;
   }
 
+  /** Delete a specific task */
   async deleteTaskById(taskId: string): Promise<DeleteTaskByIdResult> {
     return this.api.request<void>('DELETE', `/tasks/${taskId}`) as Promise<DeleteTaskByIdResult>;
   }
 
+  /** Update a specific task */
   async updateTaskById(taskId: string, body: Task): Promise<UpdateTaskByIdResult> {
     return this.api.request<Task>('PUT', `/tasks/${taskId}`, {
       body,

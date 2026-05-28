@@ -17,10 +17,12 @@ export class AddressesClient {
     this.api = api;
   }
 
+  /** List addresses */
   async listAddresses(): Promise<ListAddressesResult> {
     return this.api.request<Address[]>('GET', '/addresses') as Promise<ListAddressesResult>;
   }
 
+  /** Create address */
   async createAddress(body: Address): Promise<CreateAddressResult> {
     return this.api.request<Address>('POST', '/addresses', {
       body,

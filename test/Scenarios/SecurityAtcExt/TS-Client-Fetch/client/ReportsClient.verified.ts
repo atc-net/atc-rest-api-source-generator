@@ -13,6 +13,7 @@ export class ReportsClient {
     this.api = api;
   }
 
+  /** List reports (admin OR manager) */
   async listReports(): Promise<ListReportsResult> {
     return this.api.request<Report[]>('GET', '/reports') as Promise<ListReportsResult>;
   }

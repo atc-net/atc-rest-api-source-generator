@@ -13,6 +13,7 @@ export class ExportsClient {
     this.api = api;
   }
 
+  /** Export data as CSV */
   async exportCsv(): Promise<ExportCsvResult> {
     return this.api.request<string>('GET', '/exports/csv', {
       responseType: 'text',

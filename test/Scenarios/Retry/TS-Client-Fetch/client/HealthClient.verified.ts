@@ -13,6 +13,7 @@ export class HealthClient {
     this.api = api;
   }
 
+  /** Health check (global retry policy) */
   async getHealth(): Promise<GetHealthResult> {
     return this.api.request<HealthStatus>('GET', '/health') as Promise<GetHealthResult>;
   }

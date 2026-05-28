@@ -34,24 +34,29 @@ export class OrdersClient {
     this.api = api;
   }
 
+  /** List orders (requires auth) */
   async listOrders(): Promise<ListOrdersResult> {
     return this.api.request<Order[]>('GET', '/orders') as Promise<ListOrdersResult>;
   }
 
+  /** Create order (requires auth) */
   async createOrder(body: CreateOrderRequest): Promise<CreateOrderResult> {
     return this.api.request<Order>('POST', '/orders', {
       body,
     }) as Promise<CreateOrderResult>;
   }
 
+  /** Get order (manager role inherited) */
   async getOrderById(orderId: string): Promise<GetOrderByIdResult> {
     return this.api.request<Order>('GET', `/orders/${orderId}`) as Promise<GetOrderByIdResult>;
   }
 
+  /** Delete order (override to admin only) */
   async deleteOrder(orderId: string): Promise<DeleteOrderResult> {
     return this.api.request<void>('DELETE', `/orders/${orderId}`) as Promise<DeleteOrderResult>;
   }
 
+  /** Get tracking (public override) */
   async getOrderTracking(orderId: string): Promise<GetOrderTrackingResult> {
     return this.api.request<TrackingInfo>('GET', `/orders/${orderId}/tracking`) as Promise<GetOrderTrackingResult>;
   }

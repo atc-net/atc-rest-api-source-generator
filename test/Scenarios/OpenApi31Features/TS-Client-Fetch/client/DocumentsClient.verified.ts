@@ -15,6 +15,7 @@ export class DocumentsClient {
     this.api = api;
   }
 
+  /** Create a document with base64 content */
   async createDocument(body: DocumentRequest): Promise<CreateDocumentResult> {
     return this.api.request<DocumentResponse>('POST', '/documents', {
       body,

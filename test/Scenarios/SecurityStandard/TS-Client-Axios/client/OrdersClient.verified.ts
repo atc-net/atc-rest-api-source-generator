@@ -29,20 +29,24 @@ export class OrdersClient {
     this.api = api;
   }
 
+  /** List all orders */
   async listOrders(): Promise<ListOrdersResult> {
     return this.api.request<Order[]>('GET', '/orders') as Promise<ListOrdersResult>;
   }
 
+  /** Create a new order */
   async createOrder(body: CreateOrderRequest): Promise<CreateOrderResult> {
     return this.api.request<Order>('POST', '/orders', {
       body,
     }) as Promise<CreateOrderResult>;
   }
 
+  /** Get order by ID */
   async getOrderById(orderId: string): Promise<GetOrderByIdResult> {
     return this.api.request<Order>('GET', `/orders/${orderId}`) as Promise<GetOrderByIdResult>;
   }
 
+  /** Delete an order */
   async deleteOrder(orderId: string): Promise<DeleteOrderResult> {
     return this.api.request<void>('DELETE', `/orders/${orderId}`) as Promise<DeleteOrderResult>;
   }

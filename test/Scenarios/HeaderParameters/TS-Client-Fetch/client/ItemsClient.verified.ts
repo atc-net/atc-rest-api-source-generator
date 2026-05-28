@@ -34,6 +34,7 @@ export class ItemsClient {
     this.api = api;
   }
 
+  /** List items with pagination via header */
   async listItems(query?: { limit?: number }, headers?: { 'x-continuation'?: string; 'x-correlation-id': string }): Promise<ListItemsResult> {
     return this.api.request<Items>('GET', '/items', {
       query: {
@@ -46,6 +47,7 @@ export class ItemsClient {
     }) as Promise<ListItemsResult>;
   }
 
+  /** Get a specific item */
   async getItemById(itemId: string, headers?: { 'X-Request-Id'?: string }): Promise<GetItemByIdResult> {
     return this.api.request<Item>('GET', `/items/${itemId}`, {
       headers: {

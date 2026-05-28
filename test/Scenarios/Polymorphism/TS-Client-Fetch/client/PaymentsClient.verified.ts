@@ -24,16 +24,19 @@ export class PaymentsClient {
     this.api = api;
   }
 
+  /** List all payments */
   async listPayments(): Promise<ListPaymentsResult> {
     return this.api.request<PaymentMethod[]>('GET', '/payments') as Promise<ListPaymentsResult>;
   }
 
+  /** Create a payment */
   async createPayment(body: PaymentMethod): Promise<CreatePaymentResult> {
     return this.api.request<PaymentMethod>('POST', '/payments', {
       body,
     }) as Promise<CreatePaymentResult>;
   }
 
+  /** Get a specific payment */
   async getPaymentById(paymentId: string): Promise<GetPaymentByIdResult> {
     return this.api.request<PaymentMethod>('GET', `/payments/${paymentId}`) as Promise<GetPaymentByIdResult>;
   }

@@ -38,6 +38,7 @@ export class AccountsClient {
     this.api = api;
   }
 
+  /** List all accounts */
   async listAccounts(query?: { limit?: number }): Promise<ListAccountsResult> {
     return this.api.request<Accounts>('GET', '/accounts', {
       query: {
@@ -46,26 +47,31 @@ export class AccountsClient {
     }) as Promise<ListAccountsResult>;
   }
 
+  /** Create account */
   async createAccount(body: Account): Promise<CreateAccountResult> {
     return this.api.request<Account>('POST', '/accounts', {
       body,
     }) as Promise<CreateAccountResult>;
   }
 
+  /** Get a specific account */
   async getAccountById(accountId: string): Promise<GetAccountByIdResult> {
     return this.api.request<Account>('GET', `/accounts/${accountId}`) as Promise<GetAccountByIdResult>;
   }
 
+  /** Delete a specific account */
   async deleteAccountById(accountId: string): Promise<DeleteAccountByIdResult> {
     return this.api.request<void>('DELETE', `/accounts/${accountId}`) as Promise<DeleteAccountByIdResult>;
   }
 
+  /** Update a specific account */
   async updateAccountById(accountId: string, body: Account): Promise<UpdateAccountByIdResult> {
     return this.api.request<Account>('PUT', `/accounts/${accountId}`, {
       body,
     }) as Promise<UpdateAccountByIdResult>;
   }
 
+  /** List all accounts paginated */
   async listPaginatedAccounts(query?: { pageSize?: number /* default: 10 */; pageIndex?: number /* default: 0 */; queryString?: string; continuation?: string }): Promise<ListPaginatedAccountsResult> {
     return this.api.request<PaginatedResult<Accounts>>('GET', '/accounts/paginated', {
       query: {
@@ -77,6 +83,7 @@ export class AccountsClient {
     }) as Promise<ListPaginatedAccountsResult>;
   }
 
+  /** List all accounts async-enumerable */
   async *listAsyncEnumerableAccounts(signal?: AbortSignal): AsyncGenerator<Account> {
     yield* this.api.requestStream<Account>('GET', '/accounts/async-enumerable', { signal });
   }

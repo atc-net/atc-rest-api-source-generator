@@ -14,6 +14,7 @@ export class ValidationsClient {
     this.api = api;
   }
 
+  /** Get validation constraints model */
   async getValidations(): Promise<GetValidationsResult> {
     return this.api.request<ValidationConstraints>('GET', '/validations') as Promise<GetValidationsResult>;
   }

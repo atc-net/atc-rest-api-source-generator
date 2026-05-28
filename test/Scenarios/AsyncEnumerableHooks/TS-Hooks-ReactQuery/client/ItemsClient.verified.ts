@@ -21,6 +21,7 @@ export class ItemsClient {
     this.api = api;
   }
 
+  /** Stream all items (async-enumerable) */
   async *listItems(query?: { filter?: string }, signal?: AbortSignal): AsyncGenerator<Item> {
     yield* this.api.requestStream<Item>('GET', '/items', {
       query: {
@@ -30,6 +31,7 @@ export class ItemsClient {
     });
   }
 
+  /** Stream paginated items (async-enumerable with PaginationResult) */
   async *listItemPages(query?: { pageSize?: number }, signal?: AbortSignal): AsyncGenerator<PaginationResult<Item>> {
     yield* this.api.requestStream<PaginationResult<Item>>('GET', '/items/pages', {
       query: {
@@ -38,6 +40,7 @@ export class ItemsClient {
       signal,
     });
   }
+  /** Stream paginated items (async-enumerable with PaginationResult) */
 
   async listItemPagesPage(query?: { pageSize?: number }, headers?: { 'x-continuation'?: string }): Promise<ListItemPagesPageResult> {
     return this.api.request<PaginationResult<Item>>('GET', '/items/pages', {
@@ -50,6 +53,7 @@ export class ItemsClient {
     }) as Promise<ListItemPagesPageResult>;
   }
 
+  /** Get logs for an item with filters (path + query, no streaming) */
   async getItemLogs(itemId: string, query?: { logLevel?: 'debug' | 'info' | 'warn' | 'error'; from?: Date }): Promise<GetItemLogsResult> {
     return this.api.request<ItemLogs>('GET', `/items/${itemId}/logs`, {
       query: {
@@ -59,6 +63,7 @@ export class ItemsClient {
     }) as Promise<GetItemLogsResult>;
   }
 
+  /** Search items by date-time range (date-time query params) */
   async searchItems(query?: { createdAfter?: Date; createdBefore?: Date }): Promise<SearchItemsResult> {
     return this.api.request<Items>('GET', '/items/search', {
       query: {

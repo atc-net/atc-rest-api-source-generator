@@ -14,6 +14,7 @@ export class EnumsClient {
     this.api = api;
   }
 
+  /** Get enum types model */
   async getEnumTypes(): Promise<GetEnumTypesResult> {
     return this.api.request<EnumTypes>('GET', '/enums') as Promise<GetEnumTypesResult>;
   }

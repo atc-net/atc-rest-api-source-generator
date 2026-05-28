@@ -24,16 +24,19 @@ export class OwnersClient {
     this.api = api;
   }
 
+  /** List all owners */
   async listOwners(): Promise<ListOwnersResult> {
     return this.api.request<Owner[]>('GET', '/owners') as Promise<ListOwnersResult>;
   }
 
+  /** Create a new owner */
   async createOwner(body: CreateOwnerRequest): Promise<CreateOwnerResult> {
     return this.api.request<Owner>('POST', '/owners', {
       body,
     }) as Promise<CreateOwnerResult>;
   }
 
+  /** Get an owner by ID */
   async getOwnerById(ownerId: string): Promise<GetOwnerByIdResult> {
     return this.api.request<Owner>('GET', `/owners/${ownerId}`) as Promise<GetOwnerByIdResult>;
   }

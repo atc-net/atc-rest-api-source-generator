@@ -13,6 +13,7 @@ export class NotificationsClient {
     this.api = api;
   }
 
+  /** Send notification (constant backoff) */
   async sendNotification(body: Notification): Promise<SendNotificationResult> {
     return this.api.request<void>('POST', '/notifications', {
       body,

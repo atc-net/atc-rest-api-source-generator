@@ -13,6 +13,7 @@ export class PrimitivesClient {
     this.api = api;
   }
 
+  /** Get primitive types model */
   async getPrimitiveTypes(): Promise<GetPrimitiveTypesResult> {
     return this.api.request<PrimitiveTypes>('GET', '/primitives') as Promise<GetPrimitiveTypesResult>;
   }

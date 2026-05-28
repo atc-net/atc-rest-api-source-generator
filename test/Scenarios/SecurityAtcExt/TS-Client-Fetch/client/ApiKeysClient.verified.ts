@@ -13,6 +13,7 @@ export class ApiKeysClient {
     this.api = api;
   }
 
+  /** List API keys (Bearer OR ApiKey scheme) */
   async listApiKeys(): Promise<ListApiKeysResult> {
     return this.api.request<ApiKey[]>('GET', '/api-keys') as Promise<ListApiKeysResult>;
   }

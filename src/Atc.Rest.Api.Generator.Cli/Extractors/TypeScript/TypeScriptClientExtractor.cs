@@ -339,6 +339,11 @@ public static class TypeScriptClientExtractor
         // Get response type
         var returnType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming, isFileDownload);
 
+        // §5 DX polish: emit a /** ... */ block when the spec has anything worth saying
+        // about this operation — summary, description, or deprecated marker. The same
+        // block applies to the Page companion below (it shares the operation).
+        AppendOperationJsDoc(sb, operation);
+
         if (isStreaming)
         {
             AppendStreamingMethod(sb, methodName, path, pathParams, queryParams, headerParams, returnType, namingStrategy, convertDates);
@@ -350,12 +355,47 @@ public static class TypeScriptClientExtractor
             if (perOpPageResultTypeName != null)
             {
                 var pageDataType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming: false, isFileDownload: false);
+                AppendOperationJsDoc(sb, operation);
                 AppendPageCompanionMethod(sb, methodName, path, pathParams, queryParams, headerParams, pageDataType, perOpPageResultTypeName, namingStrategy, convertDates);
             }
         }
         else
         {
             AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas);
+        }
+    }
+
+    /// <summary>
+    /// Emits a 2-space-indented JSDoc block above a client method when the OpenAPI
+    /// operation carries a summary, description, or <c>deprecated: true</c> flag.
+    /// Summary wins over description if both are present — the summary is the canonical
+    /// one-liner that appears in Swagger UI; the description tends to be paragraphs.
+    /// </summary>
+    private static void AppendOperationJsDoc(
+        StringBuilder sb,
+        OpenApiOperation operation)
+    {
+        var description = !string.IsNullOrWhiteSpace(operation.Summary)
+            ? operation.Summary
+            : operation.Description;
+
+        if (string.IsNullOrWhiteSpace(description) && !operation.Deprecated)
+        {
+            return;
+        }
+
+        var jsDoc = new JsDocComment(
+            description: description,
+            parameters: null,
+            returns: null,
+            isDeprecated: operation.Deprecated,
+            deprecatedMessage: null,
+            example: null);
+
+        var rendered = new JsDocCommentGenerator().GenerateTags(indentSpaces: 2, jsDoc);
+        if (!string.IsNullOrEmpty(rendered))
+        {
+            sb.Append(rendered);
         }
     }
 

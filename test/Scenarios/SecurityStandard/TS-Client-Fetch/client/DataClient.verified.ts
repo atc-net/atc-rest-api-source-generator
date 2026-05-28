@@ -12,6 +12,7 @@ export class DataClient {
     this.api = api;
   }
 
+  /** Get data */
   async getData(): Promise<GetDataResult> {
     return this.api.request<unknown>('GET', '/data') as Promise<GetDataResult>;
   }

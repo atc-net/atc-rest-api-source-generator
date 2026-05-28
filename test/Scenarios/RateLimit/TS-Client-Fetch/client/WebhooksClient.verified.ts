@@ -13,6 +13,7 @@ export class WebhooksClient {
     this.api = api;
   }
 
+  /** Receive webhook (rate limiting disabled) */
   async receiveWebhook(body: WebhookPayload): Promise<ReceiveWebhookResult> {
     return this.api.request<void>('POST', '/webhooks', {
       body,

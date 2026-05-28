@@ -14,6 +14,7 @@ export class NullablesClient {
     this.api = api;
   }
 
+  /** Get nullable types model */
   async getNullables(): Promise<GetNullablesResult> {
     return this.api.request<NullableTypes>('GET', '/nullables') as Promise<GetNullablesResult>;
   }

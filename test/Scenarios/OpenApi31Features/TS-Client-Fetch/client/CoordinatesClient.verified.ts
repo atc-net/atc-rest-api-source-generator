@@ -17,10 +17,12 @@ export class CoordinatesClient {
     this.api = api;
   }
 
+  /** Get coordinates */
   async getCoordinates(): Promise<GetCoordinatesResult> {
     return this.api.request<Coordinate>('GET', '/coordinates') as Promise<GetCoordinatesResult>;
   }
 
+  /** List all coordinates */
   async listCoordinates(): Promise<ListCoordinatesResult> {
     return this.api.request<Coordinate[]>('GET', '/coordinates/list') as Promise<ListCoordinatesResult>;
   }

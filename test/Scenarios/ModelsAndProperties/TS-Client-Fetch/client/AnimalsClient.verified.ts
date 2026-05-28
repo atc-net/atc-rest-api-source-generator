@@ -13,6 +13,7 @@ export class AnimalsClient {
     this.api = api;
   }
 
+  /** List animals */
   async listAnimals(): Promise<ListAnimalsResult> {
     return this.api.request<Animal[]>('GET', '/animals') as Promise<ListAnimalsResult>;
   }

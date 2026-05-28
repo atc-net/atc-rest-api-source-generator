@@ -12,6 +12,7 @@ export class AnalyticsClient {
     this.api = api;
   }
 
+  /** Get analytics summary */
   async getAnalyticsSummary(): Promise<GetAnalyticsSummaryResult> {
     return this.api.request<unknown>('GET', '/analytics/summary') as Promise<GetAnalyticsSummaryResult>;
   }

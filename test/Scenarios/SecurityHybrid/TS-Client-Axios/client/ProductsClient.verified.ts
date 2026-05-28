@@ -20,10 +20,12 @@ export class ProductsClient {
     this.api = api;
   }
 
+  /** List products */
   async listProducts(): Promise<ListProductsResult> {
     return this.api.request<Product[]>('GET', '/products') as Promise<ListProductsResult>;
   }
 
+  /** Get product by ID */
   async getProductById(productId: string): Promise<GetProductByIdResult> {
     return this.api.request<Product>('GET', `/products/${productId}`) as Promise<GetProductByIdResult>;
   }

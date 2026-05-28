@@ -14,6 +14,7 @@ export class PersonsClient {
     this.api = api;
   }
 
+  /** List persons */
   async listPersons(query?: { gender?: GenderType }): Promise<ListPersonsResult> {
     return this.api.request<Person[]>('GET', '/persons', {
       query: {

@@ -25,16 +25,19 @@ export class ModelsClient {
     this.api = api;
   }
 
+  /** List all models */
   async listModels(): Promise<ListModelsResult> {
     return this.api.request<ComprehensiveModel[]>('GET', '/models') as Promise<ListModelsResult>;
   }
 
+  /** Create a new model */
   async createModel(body: ComprehensiveModel): Promise<CreateModelResult> {
     return this.api.request<ComprehensiveModel>('POST', '/models', {
       body,
     }) as Promise<CreateModelResult>;
   }
 
+  /** Get a specific model */
   async getModelById(modelId: string): Promise<GetModelByIdResult> {
     return this.api.request<ComprehensiveModel>('GET', `/models/${modelId}`) as Promise<GetModelByIdResult>;
   }

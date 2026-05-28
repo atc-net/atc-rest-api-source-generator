@@ -13,6 +13,7 @@ export class NotificationsClient {
     this.api = api;
   }
 
+  /** Send notification (token bucket with queue) */
   async sendNotification(body: Notification): Promise<SendNotificationResult> {
     return this.api.request<void>('POST', '/notifications', {
       body,
