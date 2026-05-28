@@ -80,7 +80,7 @@ public static class TypeScriptModelExtractor
             if (hasReadOnly || hasWriteOnly)
             {
                 // Response variant keeps the schema's canonical name; writeOnly props drop.
-                var responseParams = ExtractInterfaceFromSchema(originalSchemaName, actualSchema, headerContent, enumNames, config.NamingStrategy, config.ConvertDates, config.MutableModels, SchemaVariant.Response);
+                var responseParams = ExtractInterfaceFromSchema(originalSchemaName, actualSchema, headerContent, enumNames, config.NamingStrategy, config.ConvertDates, config.MutableModels, config.BrandedIds, SchemaVariant.Response);
                 if (responseParams != null)
                 {
                     results.Add((originalSchemaName, responseParams));
@@ -90,7 +90,7 @@ public static class TypeScriptModelExtractor
                 // method signatures opt into this name when emitting a request body whose
                 // schema is in the writable set (see TypeScriptClientExtractor).
                 var writableName = originalSchemaName + WritableSuffix;
-                var requestParams = ExtractInterfaceFromSchema(writableName, actualSchema, headerContent, enumNames, config.NamingStrategy, config.ConvertDates, config.MutableModels, SchemaVariant.Request);
+                var requestParams = ExtractInterfaceFromSchema(writableName, actualSchema, headerContent, enumNames, config.NamingStrategy, config.ConvertDates, config.MutableModels, config.BrandedIds, SchemaVariant.Request);
                 if (requestParams != null)
                 {
                     results.Add((writableName, requestParams));
@@ -98,7 +98,7 @@ public static class TypeScriptModelExtractor
             }
             else
             {
-                var interfaceParams = ExtractInterfaceFromSchema(originalSchemaName, actualSchema, headerContent, enumNames, config.NamingStrategy, config.ConvertDates, config.MutableModels, SchemaVariant.Combined);
+                var interfaceParams = ExtractInterfaceFromSchema(originalSchemaName, actualSchema, headerContent, enumNames, config.NamingStrategy, config.ConvertDates, config.MutableModels, config.BrandedIds, SchemaVariant.Combined);
                 if (interfaceParams != null)
                 {
                     results.Add((originalSchemaName, interfaceParams));
@@ -402,6 +402,7 @@ public static class TypeScriptModelExtractor
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
         bool mutableModels,
+        bool brandedIds,
         SchemaVariant variant)
     {
         var properties = schema.Properties?
@@ -411,6 +412,7 @@ public static class TypeScriptModelExtractor
 
         var tsProperties = new List<TypeScriptPropertyParameters>();
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
+        var brandImports = new SortedSet<string>(StringComparer.Ordinal);
 
         // Detect allOf $ref for extends
         string? extendsTypeName = null;
@@ -445,6 +447,22 @@ public static class TypeScriptModelExtractor
                 ? "T[]"
                 : prop.Value.ToTypeScriptTypeForModel(isRequired, convertDates);
 
+            // Branded IDs: a `string + format: uuid` property whose name suggests an
+            // entity identifier swaps the inferred `string` for the brand. The cast at
+            // the JSON boundary still works because brands ARE strings at runtime —
+            // they just won't accept arbitrary other strings statically.
+            if (brandedIds && tsType.StartsWith("string", StringComparison.Ordinal))
+            {
+                var brand = TypeScriptBrandedIdExtractor.ResolvePropertyBrand(schemaName, prop.Key, prop.Value);
+                if (brand != null)
+                {
+                    // Preserve the original suffix (`""` for required, `" | undefined"` for optional)
+                    // by substring-replacing only the leading `string` token.
+                    tsType = brand + tsType["string".Length..];
+                    brandImports.Add(brand);
+                }
+            }
+
             // Track referenced types for imports
             CollectReferencedTypes(prop.Value, importTypes);
 
@@ -475,6 +493,14 @@ public static class TypeScriptModelExtractor
 
         // Build import statements
         var importStatements = BuildImportStatements(importTypes, schemaName, enumNames);
+
+        // Branded ID imports — one combined import line pointing at types/BrandedIds.
+        // Emitted only when this interface actually uses at least one brand.
+        if (brandImports.Count > 0)
+        {
+            var joined = string.Join(", ", brandImports);
+            importStatements.Add($"import type {{ {joined} }} from '../types/BrandedIds';");
+        }
 
         // Build JSDoc for the interface itself. The whole schema may be deprecated (i.e.
         // the spec author is signaling "stop using this type") — surface that to consumers.
