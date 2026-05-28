@@ -14,6 +14,7 @@ export class FilesClient {
     this.api = api;
   }
 
+  /** Download a binary file */
   async downloadFile(fileId: string): Promise<DownloadFileResult> {
     return this.api.request<Blob>('GET', `/files/${fileId}`, {
       responseType: 'blob',

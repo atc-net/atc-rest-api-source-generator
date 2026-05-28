@@ -28,20 +28,24 @@ export class OrdersClient {
     this.api = api;
   }
 
+  /** List orders (fast retry policy) */
   async listOrders(): Promise<ListOrdersResult> {
     return this.api.request<Order[]>('GET', '/orders') as Promise<ListOrdersResult>;
   }
 
+  /** Create order (retry disabled for non-idempotent) */
   async createOrder(body: CreateOrderRequest): Promise<CreateOrderResult> {
     return this.api.request<Order>('POST', '/orders', {
       body,
     }) as Promise<CreateOrderResult>;
   }
 
+  /** Get order (inherits orders-fast) */
   async getOrderById(orderId: string): Promise<GetOrderByIdResult> {
     return this.api.request<Order>('GET', `/orders/${orderId}`) as Promise<GetOrderByIdResult>;
   }
 
+  /** Delete order (idempotent - can retry) */
   async deleteOrder(orderId: string): Promise<DeleteOrderResult> {
     return this.api.request<void>('DELETE', `/orders/${orderId}`) as Promise<DeleteOrderResult>;
   }

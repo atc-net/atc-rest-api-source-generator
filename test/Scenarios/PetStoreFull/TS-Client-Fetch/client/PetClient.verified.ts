@@ -106,18 +106,21 @@ export class PetClient {
     this.api = api;
   }
 
+  /** Update an existing pet. */
   async updatePet(body: Pet): Promise<UpdatePetResult> {
     return this.api.request<Pet>('PUT', '/pet', {
       body,
     }) as Promise<UpdatePetResult>;
   }
 
+  /** Add a new pet to the store. */
   async addPet(body: Pet): Promise<AddPetResult> {
     return this.api.request<Pet>('POST', '/pet', {
       body,
     }) as Promise<AddPetResult>;
   }
 
+  /** Finds Pets by status. */
   async findPetsByStatus(query?: { status?: 'available' | 'pending' | 'sold' /* default: 'available' */ }): Promise<FindPetsByStatusResult> {
     return this.api.request<Pet[]>('GET', '/pet/findByStatus', {
       query: {
@@ -126,6 +129,7 @@ export class PetClient {
     }) as Promise<FindPetsByStatusResult>;
   }
 
+  /** Finds Pets by tags. */
   async findPetsByTags(query?: { tags?: string[] }): Promise<FindPetsByTagsResult> {
     return this.api.request<Pet[]>('GET', '/pet/findByTags', {
       query: {
@@ -134,10 +138,12 @@ export class PetClient {
     }) as Promise<FindPetsByTagsResult>;
   }
 
+  /** Find pet by ID. */
   async getPetById(petId: number): Promise<GetPetByIdResult> {
     return this.api.request<Pet>('GET', `/pet/${petId}`) as Promise<GetPetByIdResult>;
   }
 
+  /** Updates a pet in the store with form data. */
   async updatePetWithForm(petId: number, query?: { name?: string; status?: string }): Promise<UpdatePetWithFormResult> {
     return this.api.request<Pet>('POST', `/pet/${petId}`, {
       query: {
@@ -147,6 +153,7 @@ export class PetClient {
     }) as Promise<UpdatePetWithFormResult>;
   }
 
+  /** Deletes a pet. */
   async deletePet(petId: number, headers?: { 'api_key'?: string }): Promise<DeletePetResult> {
     return this.api.request<void>('DELETE', `/pet/${petId}`, {
       headers: {
@@ -155,6 +162,7 @@ export class PetClient {
     }) as Promise<DeletePetResult>;
   }
 
+  /** Uploads an image. */
   async uploadFile(petId: number, file: Blob | File, query?: { additionalMetadata?: string }): Promise<UploadFileResult> {
     return this.api.request<ApiResponse>('POST', `/pet/${petId}/uploadImage`, {
       body: file,

@@ -16,6 +16,7 @@ export class ExternalClient {
     this.api = api;
   }
 
+  /** Process payment (circuit breaker enabled) */
   async processPayment(body: PaymentRequest): Promise<ProcessPaymentResult> {
     return this.api.request<PaymentResult>('POST', '/external/payment', {
       body,

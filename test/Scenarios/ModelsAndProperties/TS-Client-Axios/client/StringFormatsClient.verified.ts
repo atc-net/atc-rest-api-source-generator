@@ -14,6 +14,7 @@ export class StringFormatsClient {
     this.api = api;
   }
 
+  /** Get string format types */
   async getStringFormats(): Promise<GetStringFormatsResult> {
     return this.api.request<StringFormats>('GET', '/string-formats') as Promise<GetStringFormatsResult>;
   }

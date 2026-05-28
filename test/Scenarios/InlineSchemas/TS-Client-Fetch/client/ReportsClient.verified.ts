@@ -19,10 +19,12 @@ export class ReportsClient {
     this.api = api;
   }
 
+  /** List all reports */
   async listReports(): Promise<ListReportsResult> {
     return this.api.request<unknown[]>('GET', '/reports') as Promise<ListReportsResult>;
   }
 
+  /** Get a report by ID */
   async getReport(reportId: string): Promise<GetReportResult> {
     return this.api.request<unknown>('GET', `/reports/${reportId}`) as Promise<GetReportResult>;
   }

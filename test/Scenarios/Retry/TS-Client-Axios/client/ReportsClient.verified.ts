@@ -14,6 +14,7 @@ export class ReportsClient {
     this.api = api;
   }
 
+  /** Generate report (no retry, long timeout) */
   async generateReport(body: ReportRequest): Promise<GenerateReportResult> {
     return this.api.request<void>('POST', '/reports/generate', {
       body,

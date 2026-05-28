@@ -14,6 +14,7 @@ export class ReportsClient {
     this.api = api;
   }
 
+  /** List reports (sliding window) */
   async listReports(): Promise<ListReportsResult> {
     return this.api.request<Report[]>('GET', '/reports') as Promise<ListReportsResult>;
   }

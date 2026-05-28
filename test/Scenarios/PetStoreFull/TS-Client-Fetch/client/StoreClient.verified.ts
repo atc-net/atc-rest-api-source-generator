@@ -58,20 +58,24 @@ export class StoreClient {
     this.api = api;
   }
 
+  /** Returns pet inventories by status. */
   async getInventory(): Promise<GetInventoryResult> {
     return this.api.request<unknown>('GET', '/store/inventory') as Promise<GetInventoryResult>;
   }
 
+  /** Place an order for a pet. */
   async placeOrder(body: Order): Promise<PlaceOrderResult> {
     return this.api.request<Order>('POST', '/store/order', {
       body,
     }) as Promise<PlaceOrderResult>;
   }
 
+  /** Find purchase order by ID. */
   async getOrderById(orderId: number): Promise<GetOrderByIdResult> {
     return this.api.request<Order>('GET', `/store/order/${orderId}`) as Promise<GetOrderByIdResult>;
   }
 
+  /** Delete purchase order by identifier. */
   async deleteOrder(orderId: number): Promise<DeleteOrderResult> {
     return this.api.request<void>('DELETE', `/store/order/${orderId}`) as Promise<DeleteOrderResult>;
   }

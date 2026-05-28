@@ -13,6 +13,7 @@ export class ReportsClient {
     this.api = api;
   }
 
+  /** Get a plain text report */
   async getTextReport(): Promise<GetTextReportResult> {
     return this.api.request<string>('GET', '/reports/text', {
       responseType: 'text',

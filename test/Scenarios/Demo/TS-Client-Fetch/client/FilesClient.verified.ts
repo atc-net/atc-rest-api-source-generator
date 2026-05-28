@@ -32,12 +32,14 @@ export class FilesClient {
     this.api = api;
   }
 
+  /** Get File By Id */
   async getFileById(id: string): Promise<GetFileByIdResult> {
     return this.api.request<Blob>('GET', `/files/${id}`, {
       responseType: 'blob',
     }) as Promise<GetFileByIdResult>;
   }
 
+  /** Upload a file as FormData */
   async uploadFormDataFile(data: { itemName?: string; file?: Blob | File; items?: string[] }): Promise<UploadFormDataFileResult> {
     return this.api.request<void>('POST', '/files/form-data/singleObject', {
       body: (() => {
@@ -50,6 +52,7 @@ export class FilesClient {
     }) as Promise<UploadFormDataFileResult>;
   }
 
+  /** Upload files as FormData */
   async uploadFormDataFiles(data: { files?: (Blob | File)[] }): Promise<UploadFormDataFilesResult> {
     return this.api.request<void>('POST', '/files/form-data/singleObjectMultiFile', {
       body: (() => {
@@ -60,12 +63,14 @@ export class FilesClient {
     }) as Promise<UploadFormDataFilesResult>;
   }
 
+  /** Upload a file as OctetStream */
   async uploadSingleFileAsFormData(file: Blob | File): Promise<UploadSingleFileAsFormDataResult> {
     return this.api.request<void>('POST', '/files/form-data/singleFile', {
       body: file,
     }) as Promise<UploadSingleFileAsFormDataResult>;
   }
 
+  /** Upload multi files as form data */
   async uploadMultiFilesAsFormData(files: (Blob | File)[]): Promise<UploadMultiFilesAsFormDataResult> {
     return this.api.request<void>('POST', '/files/form-data/multiFile', {
       body: (() => {

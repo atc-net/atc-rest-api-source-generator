@@ -14,6 +14,7 @@ export class DictionariesClient {
     this.api = api;
   }
 
+  /** Get dictionary types model */
   async getDictionaryTypes(): Promise<GetDictionaryTypesResult> {
     return this.api.request<DictionaryTypes>('GET', '/dictionaries') as Promise<GetDictionaryTypesResult>;
   }

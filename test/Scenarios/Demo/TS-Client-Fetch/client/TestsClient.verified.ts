@@ -30,24 +30,28 @@ export class TestsClient {
     this.api = api;
   }
 
+  /** Create and return the created model */
   async createTestItemWithModel(body: CreateTestItemRequest): Promise<CreateTestItemWithModelResult> {
     return this.api.request<TestItem>('POST', '/tests/create/create-model', {
       body,
     }) as Promise<CreateTestItemWithModelResult>;
   }
 
+  /** Create and return location header */
   async createTestItemWithLocationHeader(body: CreateTestItemRequest): Promise<CreateTestItemWithLocationHeaderResult> {
     return this.api.request<void>('POST', '/tests/create/create-location-header', {
       body,
     }) as Promise<CreateTestItemWithLocationHeaderResult>;
   }
 
+  /** Create and return location in body */
   async createTestItemWithLocationInBody(body: CreateTestItemRequest): Promise<CreateTestItemWithLocationInBodyResult> {
     return this.api.request<string>('POST', '/tests/create/create-location-body', {
       body,
     }) as Promise<CreateTestItemWithLocationInBodyResult>;
   }
 
+  /** Create with empty response */
   async createTestItemEmpty(body: CreateTestItemRequest): Promise<CreateTestItemEmptyResult> {
     return this.api.request<void>('POST', '/tests/create/create-empty', {
       body,

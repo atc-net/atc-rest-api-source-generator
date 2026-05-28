@@ -14,6 +14,7 @@ export class ExportsClient {
     this.api = api;
   }
 
+  /** Create export (concurrency limited) */
   async createExport(body: ExportRequest): Promise<CreateExportResult> {
     return this.api.request<void>('POST', '/exports', {
       body,

@@ -46,6 +46,7 @@ export class PetsClient {
     this.api = api;
   }
 
+  /** List all pets */
   async listPets(query?: { limit?: number }): Promise<ListPetsResult> {
     return this.api.request<Pets>('GET', '/pets', {
       query: {
@@ -54,10 +55,12 @@ export class PetsClient {
     }) as Promise<ListPetsResult>;
   }
 
+  /** Create a pet */
   async createPets(): Promise<CreatePetsResult> {
     return this.api.request<void>('POST', '/pets') as Promise<CreatePetsResult>;
   }
 
+  /** Info for a specific pet */
   async showPetById(petId: string): Promise<ShowPetByIdResult> {
     return this.api.request<Pet>('GET', `/pets/${petId}`) as Promise<ShowPetByIdResult>;
   }

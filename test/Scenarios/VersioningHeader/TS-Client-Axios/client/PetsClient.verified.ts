@@ -35,6 +35,7 @@ export class PetsClient {
     this.api = api;
   }
 
+  /** List all pets */
   async listPets(query?: { limit?: number }): Promise<ListPetsResult> {
     return this.api.request<Pet[]>('GET', '/pets', {
       query: {
@@ -43,22 +44,26 @@ export class PetsClient {
     }) as Promise<ListPetsResult>;
   }
 
+  /** Create a new pet */
   async createPet(body: CreatePetRequest): Promise<CreatePetResult> {
     return this.api.request<Pet>('POST', '/pets', {
       body,
     }) as Promise<CreatePetResult>;
   }
 
+  /** Get a pet by ID */
   async getPetById(petId: string): Promise<GetPetByIdResult> {
     return this.api.request<Pet>('GET', `/pets/${petId}`) as Promise<GetPetByIdResult>;
   }
 
+  /** Update a pet */
   async updatePet(petId: string, body: UpdatePetRequest): Promise<UpdatePetResult> {
     return this.api.request<Pet>('PUT', `/pets/${petId}`, {
       body,
     }) as Promise<UpdatePetResult>;
   }
 
+  /** Delete a pet */
   async deletePet(petId: string): Promise<DeletePetResult> {
     return this.api.request<void>('DELETE', `/pets/${petId}`) as Promise<DeletePetResult>;
   }

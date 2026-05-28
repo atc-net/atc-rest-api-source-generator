@@ -448,11 +448,20 @@ public static class TypeScriptModelExtractor
             // Track referenced types for imports
             CollectReferencedTypes(prop.Value, importTypes);
 
-            // Build description from schema if available
+            // Build description from schema if available. Deprecated properties carry an
+            // @deprecated tag so IDE shows the strikethrough; without it the spec author's
+            // intent is invisible at the call site.
             JsDocComment? docTags = null;
-            if (prop.Value is OpenApiSchema propSchema && !string.IsNullOrEmpty(propSchema.Description))
+            if (prop.Value is OpenApiSchema propSchema &&
+                (!string.IsNullOrEmpty(propSchema.Description) || propSchema.Deprecated))
             {
-                docTags = new JsDocComment(propSchema.Description);
+                docTags = new JsDocComment(
+                    description: propSchema.Description,
+                    parameters: null,
+                    returns: null,
+                    isDeprecated: propSchema.Deprecated,
+                    deprecatedMessage: null,
+                    example: null);
             }
 
             tsProperties.Add(new TypeScriptPropertyParameters(
@@ -467,11 +476,18 @@ public static class TypeScriptModelExtractor
         // Build import statements
         var importStatements = BuildImportStatements(importTypes, schemaName, enumNames);
 
-        // Build JSDoc for the interface itself
+        // Build JSDoc for the interface itself. The whole schema may be deprecated (i.e.
+        // the spec author is signaling "stop using this type") — surface that to consumers.
         JsDocComment? interfaceDocTags = null;
-        if (!string.IsNullOrEmpty(schema.Description))
+        if (!string.IsNullOrEmpty(schema.Description) || schema.Deprecated)
         {
-            interfaceDocTags = new JsDocComment(schema.Description);
+            interfaceDocTags = new JsDocComment(
+                description: schema.Description,
+                parameters: null,
+                returns: null,
+                isDeprecated: schema.Deprecated,
+                deprecatedMessage: null,
+                example: null);
         }
 
         return new TypeScriptInterfaceParameters(

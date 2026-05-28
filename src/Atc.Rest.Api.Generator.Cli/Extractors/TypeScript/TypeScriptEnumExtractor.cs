@@ -61,11 +61,18 @@ public static class TypeScriptEnumExtractor
                 continue;
             }
 
-            // Build JSDoc from schema description
+            // Build JSDoc from schema description plus @deprecated when the spec marks
+            // the enum deprecated (e.g. legacy status values being phased out).
             JsDocComment? docTags = null;
-            if (!string.IsNullOrEmpty(actualSchema.Description))
+            if (!string.IsNullOrEmpty(actualSchema.Description) || actualSchema.Deprecated)
             {
-                docTags = new JsDocComment(actualSchema.Description);
+                docTags = new JsDocComment(
+                    description: actualSchema.Description,
+                    parameters: null,
+                    returns: null,
+                    isDeprecated: actualSchema.Deprecated,
+                    deprecatedMessage: null,
+                    example: null);
             }
 
             string content;

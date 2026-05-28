@@ -13,6 +13,7 @@ export class DefaultsClient {
     this.api = api;
   }
 
+  /** Get default values model */
   async getDefaults(): Promise<GetDefaultsResult> {
     return this.api.request<DefaultValues>('GET', '/defaults') as Promise<GetDefaultsResult>;
   }

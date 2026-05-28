@@ -13,6 +13,7 @@ export class CountriesClient {
     this.api = api;
   }
 
+  /** List countries */
   async listCountries(): Promise<ListCountriesResult> {
     return this.api.request<Country[]>('GET', '/countries') as Promise<ListCountriesResult>;
   }

@@ -94,18 +94,21 @@ export class UserClient {
     this.api = api;
   }
 
+  /** Create user. */
   async createUser(body: User): Promise<CreateUserResult> {
     return this.api.request<User>('POST', '/user', {
       body,
     }) as Promise<CreateUserResult>;
   }
 
+  /** Creates list of users with given input array. */
   async createUsersWithListInput(body: User[]): Promise<CreateUsersWithListInputResult> {
     return this.api.request<User>('POST', '/user/createWithList', {
       body,
     }) as Promise<CreateUsersWithListInputResult>;
   }
 
+  /** Logs user into the system. */
   async loginUser(query?: { username?: string; password?: string }): Promise<LoginUserResult> {
     return this.api.request<string>('GET', '/user/login', {
       query: {
@@ -116,20 +119,24 @@ export class UserClient {
     }) as Promise<LoginUserResult>;
   }
 
+  /** Logs out current logged in user session. */
   async logoutUser(): Promise<LogoutUserResult> {
     return this.api.request<void>('GET', '/user/logout') as Promise<LogoutUserResult>;
   }
 
+  /** Get user by user name. */
   async getUserByName(username: string): Promise<GetUserByNameResult> {
     return this.api.request<User>('GET', `/user/${username}`) as Promise<GetUserByNameResult>;
   }
 
+  /** Update user resource. */
   async updateUser(username: string, body: User): Promise<UpdateUserResult> {
     return this.api.request<void>('PUT', `/user/${username}`, {
       body,
     }) as Promise<UpdateUserResult>;
   }
 
+  /** Delete user resource. */
   async deleteUser(username: string): Promise<DeleteUserResult> {
     return this.api.request<void>('DELETE', `/user/${username}`) as Promise<DeleteUserResult>;
   }

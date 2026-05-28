@@ -20,10 +20,12 @@ export class UsersClient {
     this.api = api;
   }
 
+  /** List all users */
   async listUsers(): Promise<ListUsersResult> {
     return this.api.request<User[]>('GET', '/users') as Promise<ListUsersResult>;
   }
 
+  /** Get user by ID */
   async getUserById(userId: string): Promise<GetUserByIdResult> {
     return this.api.request<User>('GET', `/users/${userId}`) as Promise<GetUserByIdResult>;
   }

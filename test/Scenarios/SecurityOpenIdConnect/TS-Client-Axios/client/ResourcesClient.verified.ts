@@ -35,20 +35,24 @@ export class ResourcesClient {
     this.api = api;
   }
 
+  /** List user resources */
   async listResources(): Promise<ListResourcesResult> {
     return this.api.request<Resource[]>('GET', '/resources') as Promise<ListResourcesResult>;
   }
 
+  /** Create a new resource */
   async createResource(body: CreateResourceRequest): Promise<CreateResourceResult> {
     return this.api.request<Resource>('POST', '/resources', {
       body,
     }) as Promise<CreateResourceResult>;
   }
 
+  /** Get resource by ID */
   async getResourceById(resourceId: string): Promise<GetResourceByIdResult> {
     return this.api.request<Resource>('GET', `/resources/${resourceId}`) as Promise<GetResourceByIdResult>;
   }
 
+  /** Delete a resource */
   async deleteResource(resourceId: string): Promise<DeleteResourceResult> {
     return this.api.request<void>('DELETE', `/resources/${resourceId}`) as Promise<DeleteResourceResult>;
   }

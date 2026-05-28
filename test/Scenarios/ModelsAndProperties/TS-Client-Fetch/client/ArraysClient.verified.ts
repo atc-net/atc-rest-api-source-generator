@@ -13,6 +13,7 @@ export class ArraysClient {
     this.api = api;
   }
 
+  /** Get array types model */
   async getArrayTypes(): Promise<GetArrayTypesResult> {
     return this.api.request<ArrayTypes>('GET', '/arrays') as Promise<GetArrayTypesResult>;
   }

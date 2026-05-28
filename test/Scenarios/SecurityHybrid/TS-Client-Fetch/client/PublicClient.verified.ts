@@ -13,6 +13,7 @@ export class PublicClient {
     this.api = api;
   }
 
+  /** Health check (public) */
   async getHealth(): Promise<GetHealthResult> {
     return this.api.request<HealthStatus>('GET', '/public/health') as Promise<GetHealthResult>;
   }

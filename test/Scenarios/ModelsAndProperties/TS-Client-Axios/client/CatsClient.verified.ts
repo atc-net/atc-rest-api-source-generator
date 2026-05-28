@@ -14,6 +14,7 @@ export class CatsClient {
     this.api = api;
   }
 
+  /** List cats */
   async listCats(): Promise<ListCatsResult> {
     return this.api.request<Cat[]>('GET', '/cats') as Promise<ListCatsResult>;
   }

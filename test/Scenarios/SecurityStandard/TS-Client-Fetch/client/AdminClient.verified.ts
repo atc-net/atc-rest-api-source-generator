@@ -17,10 +17,12 @@ export class AdminClient {
     this.api = api;
   }
 
+  /** Get admin settings */
   async getAdminSettings(): Promise<GetAdminSettingsResult> {
     return this.api.request<AdminSettings>('GET', '/admin/settings') as Promise<GetAdminSettingsResult>;
   }
 
+  /** Update admin settings */
   async updateAdminSettings(body: AdminSettings): Promise<UpdateAdminSettingsResult> {
     return this.api.request<AdminSettings>('PUT', '/admin/settings', {
       body,
