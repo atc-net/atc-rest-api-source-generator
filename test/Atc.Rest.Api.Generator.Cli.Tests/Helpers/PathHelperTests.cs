@@ -34,21 +34,19 @@ public class PathHelperTests
     }
 
     [Fact]
-    public void PathHelper_ResolveRelativePath_StripsBinDebugTfmSegmentFromResolvedPath()
+    public void PathHelper_ResolveRelativePath_StripsBinDebugTfmSegmentFromCwdPrefix()
     {
-        // The helper normalizes paths that land inside a `bin/<Config>/<tfm>/` build
-        // output folder so tooling can report source-relative paths instead of the
-        // ephemeral build output location.
-        WithTempCwd(tempDir =>
+        // Scenario: the CLI is launched via `dotnet run` from inside a project's own
+        // bin/<Config>/<tfm>/ output folder. CWD ends with that pattern; relative
+        // arguments should resolve against the project root, not the bin folder.
+        WithCwdLayout("src/MyProject/bin/Debug/net10.0", (tempRoot, _) =>
         {
-            // Arrange
-            var sep = Path.DirectorySeparatorChar;
-
             // Act
-            var result = PathHelper.ResolveRelativePath($"./bin{sep}Debug{sep}net10.0{sep}specs{sep}api.yaml");
+            var result = PathHelper.ResolveRelativePath("./specs/api.yaml");
 
-            // Assert — the bin/Debug/net10.0/ segment must be gone, leaving specs/api.yaml.
-            Assert.Equal(Path.Combine(tempDir, "specs", "api.yaml"), result);
+            // Assert — both the bin/Debug/net10.0/ and the src/MyProject/ CWD segments
+            // strip away, anchoring the resolution at the synthesized repo root.
+            Assert.Equal(Path.Combine(tempRoot, "specs", "api.yaml"), result);
         });
     }
 
@@ -56,36 +54,50 @@ public class PathHelperTests
     [InlineData("Release", "net9.0")]
     [InlineData("Debug", "net8.0")]
     [InlineData("Release", "net10.0")]
-    public void PathHelper_ResolveRelativePath_StripsBinOutputAcrossConfigurationsAndTfms(
+    public void PathHelper_ResolveRelativePath_StripsBinOutputCwdAcrossConfigurationsAndTfms(
         string configuration,
         string tfm)
     {
-        WithTempCwd(tempDir =>
+        WithCwdLayout($"src/MyProject/bin/{configuration}/{tfm}", (tempRoot, _) =>
         {
-            // Arrange
-            var sep = Path.DirectorySeparatorChar;
-
             // Act
-            var result = PathHelper.ResolveRelativePath($"./bin{sep}{configuration}{sep}{tfm}{sep}out.txt");
+            var result = PathHelper.ResolveRelativePath("./out.txt");
 
             // Assert
-            Assert.Equal(Path.Combine(tempDir, "out.txt"), result);
+            Assert.Equal(Path.Combine(tempRoot, "out.txt"), result);
         });
     }
 
     [Fact]
-    public void PathHelper_ResolveRelativePath_StripsSrcProjectFolderFromResolvedPath()
+    public void PathHelper_ResolveRelativePath_StripsSrcProjectFolderFromCwdPrefix()
     {
-        WithTempCwd(tempDir =>
+        // CWD ends with src/<ProjectName>/ but no bin segment — still strips the src/
+        // hop so paths land at the repo root.
+        WithCwdLayout("src/MyProject", (tempRoot, _) =>
         {
-            // Arrange
-            var sep = Path.DirectorySeparatorChar;
-
             // Act
-            var result = PathHelper.ResolveRelativePath($"./src{sep}MyProject{sep}specs{sep}api.yaml");
+            var result = PathHelper.ResolveRelativePath("./specs/api.yaml");
 
             // Assert
-            Assert.Equal(Path.Combine(tempDir, "specs", "api.yaml"), result);
+            Assert.Equal(Path.Combine(tempRoot, "specs", "api.yaml"), result);
+        });
+    }
+
+    [Fact]
+    public void PathHelper_ResolveRelativePath_DoesNotStripSegmentsTypedInTheArgument_Issue002()
+    {
+        // Regression for issues/002-path-helper-strips-src-segments.md: a relative
+        // argument whose resolved path contains src/<segment>/ must NOT have those
+        // segments stripped just because they look like the CWD strip pattern. The
+        // strip is anchored to the CWD prefix only.
+        WithCwdLayout("src/consumer-app/ClientApp", (tempRoot, _) =>
+        {
+            // Act
+            var result = PathHelper.ResolveRelativePath(Path.Combine("..", "..", "api-spec", "api.yaml"));
+
+            // Assert — the ../.. navigates out of CWD into a sibling under src/, and
+            // that src/api-spec/ segment is the user's intent. It must survive.
+            Assert.Equal(Path.Combine(tempRoot, "src", "api-spec", "api.yaml"), result);
         });
     }
 
@@ -93,18 +105,64 @@ public class PathHelperTests
     public void PathHelper_ResolveRelativePath_DoesNotStripBinFolder_WhenTfmSegmentIsAbsent()
     {
         // The regex requires the full bin/<Config>/<tfm>/ shape, so a plain `bin/` segment
-        // without a `net*` folder must survive unchanged.
-        WithTempCwd(tempDir =>
+        // in CWD without a `net*` folder must survive unchanged.
+        WithCwdLayout("project/bin", (_, cwd) =>
         {
-            // Arrange
-            var sep = Path.DirectorySeparatorChar;
-
             // Act
-            var result = PathHelper.ResolveRelativePath($"./bin{sep}api.yaml");
+            var result = PathHelper.ResolveRelativePath("./api.yaml");
 
             // Assert
-            Assert.Equal(Path.Combine(tempDir, "bin", "api.yaml"), result);
+            Assert.Equal(Path.Combine(cwd, "api.yaml"), result);
         });
+    }
+
+    [Fact]
+    public void PathHelper_ResolveRelativePath_LeavesPathAlone_WhenCwdHasNoStripPattern()
+    {
+        // A clean CWD (no bin/<Config>/<tfm> and no src/<X>) means the helper does no
+        // rewriting — even if the user's typed argument contains shapes that would
+        // otherwise match the strip patterns.
+        WithTempCwd(tempDir =>
+        {
+            // Act
+            var result = PathHelper.ResolveRelativePath(Path.Combine(".", "src", "MyProject", "specs", "api.yaml"));
+
+            // Assert
+            Assert.Equal(Path.Combine(tempDir, "src", "MyProject", "specs", "api.yaml"), result);
+        });
+    }
+
+    /// <summary>
+    /// Runs <paramref name="action"/> with the current working directory set to a temp
+    /// folder whose tail matches <paramref name="cwdSuffix"/> (forward-slash separated).
+    /// Passes back the synthesized repo root (the temp dir itself) and the actual CWD,
+    /// so tests can assert against either anchor. Use this to exercise the CWD-prefix
+    /// strip — tests that need a clean CWD without strippable segments should use
+    /// <see cref="WithTempCwd"/> instead.
+    /// </summary>
+    private static void WithCwdLayout(string cwdSuffix, Action<string, string> action)
+    {
+        var originalCwd = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), "atc-path-helper-" + Guid.NewGuid().ToString("N"));
+        var cwd = Path.Combine(tempRoot, cwdSuffix.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(cwd);
+        try
+        {
+            Directory.SetCurrentDirectory(cwd);
+            action(tempRoot, cwd);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCwd);
+            try
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+            catch (IOException)
+            {
+                // Best effort cleanup — not fatal to the test.
+            }
+        }
     }
 
     /// <summary>
