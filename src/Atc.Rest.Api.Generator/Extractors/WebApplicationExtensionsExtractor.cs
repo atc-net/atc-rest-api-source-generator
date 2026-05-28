@@ -146,7 +146,7 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine(4, "/// - Global error handling middleware");
         builder.AppendLine(4, "/// - All API endpoints");
         builder.AppendLine(4, "/// </remarks>");
-        builder.AppendLine(4, $"public static WebApplication Map{CasingHelper.GetLastNameSegment(projectName)}Api(");
+        builder.AppendLine(4, $"public static WebApplication Map{CasingHelper.GetLastNameSegmentWithoutApiSuffix(projectName)}Api(");
         builder.AppendLine(8, "this WebApplication app,");
         builder.AppendLine(8, "Action<ApiMiddlewareOptions>? configure = null)");
         builder.AppendLine(4, "{");
@@ -267,7 +267,7 @@ public static class WebApplicationExtensionsExtractor
             DeclarationModifier: DeclarationModifiers.PublicStatic,
             ReturnGenericTypeName: null,
             ReturnTypeName: "WebApplication",
-            Name: $"Use{CasingHelper.GetLastNameSegment(projectName)}Api",
+            Name: $"Use{CasingHelper.GetLastNameSegmentWithoutApiSuffix(projectName)}Api",
             Parameters: methodParams,
             AlwaysBreakDownParameters: true,
             UseExpressionBody: false,
