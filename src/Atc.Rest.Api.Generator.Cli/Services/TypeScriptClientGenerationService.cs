@@ -106,6 +106,10 @@ public static class TypeScriptClientGenerationService
         // Single-server specs keep the existing baseUrl ctor-arg pattern unchanged.
         var serversEmitted = WriteServersFile(openApiDoc, outputPath, headerContent, dryRun);
 
+        // Step 6e: Emit typed Webhook payload aliases for any operation with a
+        // callbacks: block whose body resolves to a named component schema.
+        var webhooksEmitted = WriteWebhooksFile(openApiDoc, outputPath, headerContent, dryRun);
+
         // Step 7: Generate package scaffold (if configured)
         var scaffoldGenerated = false;
         if (config.Scaffold)
@@ -158,6 +162,11 @@ public static class TypeScriptClientGenerationService
         if (serversEmitted)
         {
             subdirectories.Add("servers");
+        }
+
+        if (webhooksEmitted)
+        {
+            subdirectories.Add("webhooks");
         }
 
         if (subdirectories.Count > 0)
@@ -651,6 +660,33 @@ public static class TypeScriptClientGenerationService
         var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, new[] { "Servers" }, isTypeOnly: false);
         var barrelContent = new GenerateContentForBarrelExport(barrelParams).Generate();
         WriteTsFile(Path.Combine(serversDir, "index.ts"), barrelContent, dryRun);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Writes <c>webhooks/Webhooks.ts</c> + <c>webhooks/index.ts</c> when at least one
+    /// operation declares a <c>callbacks:</c> block whose body references a named
+    /// component schema. Inline callback bodies are skipped (no canonical name to alias).
+    /// </summary>
+    private static bool WriteWebhooksFile(
+        OpenApiDocument openApiDoc,
+        string outputPath,
+        string? headerContent,
+        bool dryRun)
+    {
+        var content = TypeScriptWebhookExtractor.Generate(openApiDoc, headerContent);
+        if (content == null)
+        {
+            return false;
+        }
+
+        var webhooksDir = Path.Combine(outputPath, "webhooks");
+        WriteTsFile(Path.Combine(webhooksDir, "Webhooks.ts"), content, dryRun);
+
+        var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, new[] { "Webhooks" });
+        var barrelContent = new GenerateContentForBarrelExport(barrelParams).Generate();
+        WriteTsFile(Path.Combine(webhooksDir, "index.ts"), barrelContent, dryRun);
 
         return true;
     }
