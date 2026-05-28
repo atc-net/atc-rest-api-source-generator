@@ -293,4 +293,28 @@ public class CasingHelperTests
         // Assert
         Assert.Equal(expected, result);
     }
+
+    // ========== GetLastNameSegmentWithoutApiSuffix Tests ==========
+    [Theory]
+    [InlineData("KL.IoT.Provider.Cpms.Monta.Api", "")] // segment "Api" stripped to empty
+    [InlineData("MyCompany.Product.Api", "")] // segment "Api" stripped to empty
+    [InlineData("MyCompany.Product.WebApi", "Web")] // trailing "Api" stripped from segment
+    [InlineData("MyCompany.Product.api", "")] // case-insensitive match
+    [InlineData("MyCompany.Product.WEBAPI", "WEB")] // case-insensitive match preserves prefix casing
+    [InlineData("MyCompany.PowerController.HostAgent", "HostAgent")] // unchanged when no Api suffix
+    [InlineData("MyProject", "MyProject")] // unchanged single segment
+    [InlineData("Showcase", "Showcase")] // unchanged sample-style project name
+    [InlineData("Ap", "Ap")] // shorter than "Api" - unchanged
+    [InlineData("", "Assembly")]
+    [InlineData(null, "Assembly")]
+    public void GetLastNameSegmentWithoutApiSuffix_ReturnsExpectedResult(
+        string? value,
+        string expected)
+    {
+        // Act
+        var result = CasingHelper.GetLastNameSegmentWithoutApiSuffix(value);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
 }

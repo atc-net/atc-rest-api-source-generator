@@ -572,4 +572,41 @@ public static class CasingHelper
             ? parts[parts.Length - 1]
             : "Assembly";
     }
+
+    /// <summary>
+    /// Gets the last segment of a dot-separated name with a trailing "Api" suffix stripped
+    /// (case-insensitive). Useful for generating method names that already append "Api"
+    /// (e.g. <c>Map{Segment}Api</c>) to avoid duplicated suffixes such as <c>MapApiApi</c>.
+    /// </summary>
+    /// <param name="name">The dot-separated name (e.g., "Company.Product.Api").</param>
+    /// <returns>
+    /// The last segment with any trailing "Api" removed
+    /// (e.g., <c>""</c> from <c>"Company.Product.Api"</c>, <c>"Web"</c> from <c>"Company.Product.WebApi"</c>),
+    /// or "Assembly" if the name is null or empty.
+    /// </returns>
+    /// <remarks>
+    /// Examples:
+    /// - "MyCompany.Product.Api" → "" (segment "Api" stripped entirely)
+    /// - "MyCompany.Product.WebApi" → "Web"
+    /// - "MyCompany.PowerController.HostAgent" → "HostAgent"
+    /// - "MyProject" → "MyProject"
+    /// - "" → "Assembly"
+    /// </remarks>
+    public static string GetLastNameSegmentWithoutApiSuffix(string? name)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return "Assembly";
+        }
+
+        var segment = GetLastNameSegment(name);
+
+        if (segment.Length >= 3 &&
+            segment.EndsWith("Api", StringComparison.OrdinalIgnoreCase))
+        {
+            return segment.Substring(0, segment.Length - 3);
+        }
+
+        return segment;
+    }
 }
