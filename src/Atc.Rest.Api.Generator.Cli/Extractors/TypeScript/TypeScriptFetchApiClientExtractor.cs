@@ -176,8 +176,7 @@ public static class TypeScriptFetchApiClientExtractor
     /// throw an Error with the Zod issues instead of surfacing the
     /// <c>schemaMismatch</c> arm — useful in dev/CI to fail fast on spec drift.
     /// </summary>
-    private static void AppendSetStrictModeMethod(
-        StringBuilder sb)
+    private static void AppendSetStrictModeMethod(StringBuilder sb)
     {
         sb.AppendLine("  /**");
         sb.AppendLine("   * Toggle strict runtime validation. When enabled, schema-mismatch");

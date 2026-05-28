@@ -1,0 +1,64 @@
+openapi: 3.0.3
+info:
+  title: Zod Runtime Validate Scenario
+  version: "1.0.0"
+  description: |
+    End-to-end scenario for --zod-runtime-validate. Covers:
+    - Single $ref response (uses PetSchema directly, no `z` import)
+    - Array of $ref response (wraps with z.array(PetSchema), needs `z` import)
+    - Primitive number response (uses z.number(), needs `z` import)
+    - Operation with no JSON response (no parseSchema emitted, falls back)
+paths:
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      parameters:
+        - { name: petId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pet"
+  /count:
+    get:
+      operationId: getCount
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: integer
+  /ping:
+    post:
+      operationId: ping
+      responses:
+        "204":
+          description: No Content
+components:
+  schemas:
+    Pet:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        ownerEmail:
+          type: string
+          format: email

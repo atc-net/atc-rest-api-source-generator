@@ -942,6 +942,7 @@ public class TypeScriptClientExtractorTests
 
         Assert.Contains("import { PetSchema } from '../models/Pet.zod';", content, StringComparison.Ordinal);
         Assert.Contains("parseSchema: PetSchema,", content, StringComparison.Ordinal);
+
         // No inline-wrap → no `z` runtime import.
         Assert.DoesNotContain("import { z } from 'zod';", content, StringComparison.Ordinal);
     }

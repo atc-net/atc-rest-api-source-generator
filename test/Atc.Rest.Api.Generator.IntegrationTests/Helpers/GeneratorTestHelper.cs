@@ -348,6 +348,11 @@ public static class GeneratorTestHelper
             HooksStyle = hooksStyle,
             ConvertDates = markerConfig?.ConvertDates ?? false,
             BrandedIds = markerConfig?.BrandedIds ?? false,
+
+            // Runtime validation needs the schemas to validate against — match the
+            // CLI command's auto-imply so the scenario doesn't have to repeat both flags.
+            ZodRuntimeValidate = markerConfig?.ZodRuntimeValidate ?? false,
+            GenerateZodSchemas = (markerConfig?.ZodRuntimeValidate ?? false) || (markerConfig?.GenerateZodSchemas ?? false),
             DryRun = false,
             GenerateFileHeaders = true,
         };
@@ -563,5 +568,9 @@ public sealed class {handlerName} : {interfaceName}
         public bool ConvertDates { get; init; }
 
         public bool BrandedIds { get; init; }
+
+        public bool ZodRuntimeValidate { get; init; }
+
+        public bool GenerateZodSchemas { get; init; }
     }
 }
