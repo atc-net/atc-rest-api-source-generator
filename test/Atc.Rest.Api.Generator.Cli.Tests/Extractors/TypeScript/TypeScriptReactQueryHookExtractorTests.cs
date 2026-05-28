@@ -897,7 +897,7 @@ public class TypeScriptReactQueryHookExtractorTests
     [Fact]
     public void Extract_OperationWithSummaryAndDeprecated_EmitsJsDocAboveHook()
     {
-        // §5 DX polish parity: hooks must surface the same JSDoc as the client method.
+        // Hooks must surface the same JSDoc as the client method.
         const string yaml = """
                             openapi: 3.0.3
                             info: { title: t, version: '1' }

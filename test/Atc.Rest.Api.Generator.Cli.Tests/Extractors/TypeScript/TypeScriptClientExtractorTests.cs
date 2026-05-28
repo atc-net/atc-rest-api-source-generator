@@ -749,7 +749,7 @@ public class TypeScriptClientExtractorTests
     [Fact]
     public void Extract_OperationWithSummaryAndDeprecated_EmitsJsDocAboveMethod()
     {
-        // §5 DX polish: operation-level summary + deprecated flag flow into a /** ... */
+        // Operation-level summary + deprecated flag flow into a /** ... */
         // block above the generated method. Without this, consumers don't see the
         // strikethrough in their IDE and lose the spec author's hint.
         const string yaml = """
