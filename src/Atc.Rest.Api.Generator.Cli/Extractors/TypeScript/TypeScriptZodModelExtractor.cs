@@ -166,6 +166,12 @@ public static class TypeScriptZodModelExtractor
             CollectSchemaImportTypes(prop.Value, importTypes);
         }
 
+        // Detect direct self-reference. A property whose $ref / array.items.$ref /
+        // oneOf|anyOf|allOf member resolves to schemaName itself requires `z.lazy(...)`
+        // around the recursive sub-expression AND an explicit `z.ZodType<Name>` type
+        // annotation on the exported const, or TS 7022/2448 trip on strict tsc.
+        var hasSelfReference = properties.Any(p => SchemaReferencesType(p.Value, schemaName));
+
         var sb = new StringBuilder();
 
         if (headerContent != null)
@@ -174,6 +180,13 @@ public static class TypeScriptZodModelExtractor
         }
 
         sb.AppendLine("import { z } from 'zod';");
+
+        // Self-referencing schemas need a `type` import (not a value) from the sibling
+        // model file so `z.ZodType<Name>` resolves without circular evaluation.
+        if (hasSelfReference)
+        {
+            sb.Append("import type { ").Append(schemaName).Append(" } from './").Append(schemaName).AppendLine("';");
+        }
 
         // Build import statements for referenced schemas
         var imports = BuildZodImportStatements(importTypes, schemaName, enumNames);
@@ -188,14 +201,16 @@ public static class TypeScriptZodModelExtractor
 
         sb.AppendLine();
 
+        var typeAnnotation = hasSelfReference ? ": z.ZodType<" + schemaName + ">" : string.Empty;
+
         if (extendsTypeName != null)
         {
             // Use BaseSchema.extend({...})
-            sb.Append("export const ").Append(schemaName).Append("Schema = ").Append(extendsTypeName).AppendLine("Schema.extend({");
+            sb.Append("export const ").Append(schemaName).Append("Schema").Append(typeAnnotation).Append(" = ").Append(extendsTypeName).AppendLine("Schema.extend({");
         }
         else
         {
-            sb.Append("export const ").Append(schemaName).AppendLine("Schema = z.object({");
+            sb.Append("export const ").Append(schemaName).Append("Schema").Append(typeAnnotation).AppendLine(" = z.object({");
         }
 
         for (var i = 0; i < properties.Count; i++)
@@ -204,7 +219,9 @@ public static class TypeScriptZodModelExtractor
             var propName = prop.Key.ApplyNamingStrategy(namingStrategy);
             var isRequired = required.Contains(prop.Key, StringComparer.Ordinal);
 
-            var zodChain = MapPropertyToZod(prop.Value, isRequired, enumNames);
+            // Parent name flows into the property mapper so recursive sub-expressions
+            // get wrapped in z.lazy. Non-self-referencing properties skip the wrap.
+            var zodChain = MapPropertyToZod(prop.Value, isRequired, enumNames, schemaName);
 
             sb.Append("  ").Append(propName).Append(": ").Append(zodChain).Append(',');
             sb.AppendLine();
@@ -213,6 +230,75 @@ public static class TypeScriptZodModelExtractor
         sb.AppendLine("});");
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Walks <paramref name="schema"/> (including <c>$ref</c>, array items, additional
+    /// properties, and <c>allOf</c>/<c>oneOf</c>/<c>anyOf</c> members) and returns
+    /// <c>true</c> if any of them resolves to <paramref name="targetName"/>. Used to
+    /// detect recursive schema references so the Zod emitter can apply <c>z.lazy(...)</c>
+    /// where needed.
+    /// </summary>
+    private static bool SchemaReferencesType(
+        IOpenApiSchema schema,
+        string targetName)
+    {
+        if (schema is OpenApiSchemaReference schemaRef)
+        {
+            var refName = schemaRef.Reference.Id ?? schemaRef.Id;
+            return string.Equals(refName, targetName, StringComparison.Ordinal);
+        }
+
+        if (schema is not OpenApiSchema actualSchema)
+        {
+            return false;
+        }
+
+        if (actualSchema.Items != null && SchemaReferencesType(actualSchema.Items, targetName))
+        {
+            return true;
+        }
+
+        if (actualSchema.AdditionalProperties != null &&
+            SchemaReferencesType(actualSchema.AdditionalProperties, targetName))
+        {
+            return true;
+        }
+
+        if (actualSchema.AllOf is { Count: > 0 })
+        {
+            foreach (var sub in actualSchema.AllOf)
+            {
+                if (SchemaReferencesType(sub, targetName))
+                {
+                    return true;
+                }
+            }
+        }
+
+        if (actualSchema.OneOf is { Count: > 0 })
+        {
+            foreach (var sub in actualSchema.OneOf)
+            {
+                if (SchemaReferencesType(sub, targetName))
+                {
+                    return true;
+                }
+            }
+        }
+
+        if (actualSchema.AnyOf is { Count: > 0 })
+        {
+            foreach (var sub in actualSchema.AnyOf)
+            {
+                if (SchemaReferencesType(sub, targetName))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static string GenerateZodArray(
@@ -277,12 +363,36 @@ public static class TypeScriptZodModelExtractor
     }
 
     /// <summary>
-    /// Maps an OpenAPI property schema to a Zod chain string.
+    /// Maps an OpenAPI property schema to a Zod chain string. When
+    /// <paramref name="parentSchemaName"/> is supplied and any part of <paramref name="schema"/>
+    /// references it (direct <c>$ref</c>, array items, etc.), the chain is wrapped in
+    /// <c>z.lazy(() =&gt; ...)</c> to defer the recursive reference; this is required for
+    /// strict TypeScript compilation of recursive schemas (TS 7022 / TS 2448).
     /// </summary>
     private static string MapPropertyToZod(
         IOpenApiSchema schema,
         bool isRequired,
-        HashSet<string>? enumNames)
+        HashSet<string>? enumNames,
+        string? parentSchemaName = null)
+    {
+        var inner = BuildPropertyZodChain(schema, isRequired, enumNames, parentSchemaName);
+
+        // Wrap recursive properties in z.lazy at the top level. Modifiers (.optional() /
+        // .nullable() / .default()) stay inside the lazy so the lambda produces the fully
+        // resolved schema for the caller.
+        if (parentSchemaName != null && SchemaReferencesType(schema, parentSchemaName))
+        {
+            return "z.lazy(() => " + inner + ")";
+        }
+
+        return inner;
+    }
+
+    private static string BuildPropertyZodChain(
+        IOpenApiSchema schema,
+        bool isRequired,
+        HashSet<string>? enumNames,
+        string? parentSchemaName)
     {
         var sb = new StringBuilder();
 
@@ -378,7 +488,7 @@ public static class TypeScriptZodModelExtractor
         if (actualSchema.AdditionalProperties != null)
         {
             sb.Append("z.record(z.string(), ");
-            var valueZod = MapPropertyToZod(actualSchema.AdditionalProperties, isRequired: true, enumNames);
+            var valueZod = MapPropertyToZod(actualSchema.AdditionalProperties, isRequired: true, enumNames, parentSchemaName);
             sb.Append(valueZod).Append(')');
             AppendModifiers(sb, isNullable, isRequired, actualSchema.Default);
             return sb.ToString();

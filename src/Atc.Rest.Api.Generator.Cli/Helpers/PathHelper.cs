@@ -68,7 +68,7 @@ internal static class PathHelper
         // bug was caused by stripping segments outside that prefix.
         if (resolvedPath.StartsWith(cwdWithSep, StringComparison.OrdinalIgnoreCase))
         {
-            return cleanedCwd + resolvedPath.Substring(cwdWithSep.Length);
+            return string.Concat(cleanedCwd, resolvedPath.AsSpan(cwdWithSep.Length));
         }
 
         return resolvedPath;

@@ -149,6 +149,99 @@ public class TypeScriptZodExtractorTests
         Assert.Single(includedResult);
     }
 
+    [Fact]
+    public void ZodModel_SelfReferencingSchema_WrapsRecursiveRefWithZLazy()
+    {
+        // Regression for issues/003 §2: a schema whose property references itself (here
+        // via array.items.$ref) must emit z.lazy(...) around the recursive sub-expression
+        // and an explicit `: z.ZodType<Name>` annotation, or strict tsc trips TS 7022
+        // (implicit any) and TS 2448 (used before declaration).
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Node:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                    children:
+                                      type: array
+                                      items:
+                                        $ref: '#/components/schemas/Node'
+                                  required: [id]
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc!, new TypeScriptClientConfig()));
+
+        // Explicit type annotation on the const — without this the recursive ref types
+        // as `any` and zod's inference can't recover.
+        Assert.Contains("export const NodeSchema: z.ZodType<Node>", content, StringComparison.Ordinal);
+
+        // The model type import sits next to the zod import so the annotation resolves.
+        Assert.Contains("import type { Node } from './Node';", content, StringComparison.Ordinal);
+
+        // The recursive sub-expression itself is wrapped in z.lazy.
+        Assert.Contains("z.lazy(() => z.array(NodeSchema)", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ZodModel_DirectSelfReferenceViaRef_WrapsWithZLazy()
+    {
+        // A direct $ref to self (without an array layer) also needs z.lazy.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                TreeNode:
+                                  type: object
+                                  properties:
+                                    parent:
+                                      $ref: '#/components/schemas/TreeNode'
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc!, new TypeScriptClientConfig()));
+
+        Assert.Contains("z.lazy(() => TreeNodeSchema", content, StringComparison.Ordinal);
+        Assert.Contains("export const TreeNodeSchema: z.ZodType<TreeNode>", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ZodModel_NonRecursiveSchema_DoesNotEmitZLazyOrTypeAnnotation()
+    {
+        // Regression guard: the lazy / type-annotation branch must only fire for
+        // self-referencing schemas. A vanilla object should still emit the original
+        // unannotated form so downstream consumers and existing snapshots stay stable.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                User:
+                                  type: object
+                                  properties:
+                                    id: { type: string }
+                                    name: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc!, new TypeScriptClientConfig()));
+
+        Assert.DoesNotContain("z.lazy(", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("z.ZodType<", content, StringComparison.Ordinal);
+        Assert.Contains("export const UserSchema = z.object({", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

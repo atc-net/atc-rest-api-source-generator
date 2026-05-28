@@ -233,7 +233,8 @@ public static class TypeScriptOperationHelper
     /// declares 200. When the operation declares no 2xx, returns just <c>['ok']</c> as a
     /// safe default so generated narrowing still compiles.
     /// </summary>
-    public static List<string> CollectDeclared2xxDiscriminators(OpenApiOperation operation)
+    public static List<string> CollectDeclared2xxDiscriminators(
+        OpenApiOperation operation)
     {
         var discriminators = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
