@@ -76,6 +76,90 @@ public static class TypeScriptOperationHelper
     /// <summary>
     /// Gets the TypeScript return type for an operation.
     /// </summary>
+    /// <summary>
+    /// Resolves the Zod schema expression for an operation's success response. Returns
+    /// <c>null</c> when runtime validation can't apply: no JSON response, no <c>$ref</c>,
+    /// inline objects with no canonical schema name, or unsupported shapes.
+    /// </summary>
+    /// <remarks>
+    /// Three supported shapes:
+    /// <list type="bullet">
+    ///   <item>Single <c>$ref</c> to a named schema → <c>PetSchema</c></item>
+    ///   <item><c>$ref</c> to an array schema or top-level array of <c>$ref</c> →
+    ///     <c>PetListSchema</c> when the array is registered (handled by
+    ///     <see cref="TypeScriptZodModelExtractor.ExtractArrayTypeAliases"/>),
+    ///     otherwise <c>z.array(PetSchema)</c> + a flag that consumers should import <c>z</c></item>
+    ///   <item>Primitive (<c>string</c>, <c>number</c>, <c>boolean</c>) →
+    ///     <c>z.string()</c> / <c>z.number()</c> / <c>z.boolean()</c> + the <c>z</c> import flag</item>
+    /// </list>
+    /// Other shapes (oneOf/anyOf/allOf without ref, inline objects, multi-status with
+    /// different schemas) intentionally return null — the validation path falls back
+    /// to no-parse, identical to the today's behavior.
+    /// </remarks>
+    public static ZodResponseSchemaSpec? TryGetResponseZodSchemaSpec(
+        OpenApiOperation operation)
+    {
+        // Validation only makes sense for JSON success bodies. Try 200, 201, 202 in order.
+        var schema = operation.GetResponseSchema("200")
+                  ?? operation.GetResponseSchema("201")
+                  ?? operation.GetResponseSchema("202");
+        if (schema == null)
+        {
+            return null;
+        }
+
+        // Direct $ref to a named schema → PetSchema.
+        if (schema is OpenApiSchemaReference singleRef)
+        {
+            var name = singleRef.Reference?.Id ?? singleRef.Id;
+            if (!string.IsNullOrEmpty(name))
+            {
+                return new ZodResponseSchemaSpec(
+                    Expression: name + "Schema",
+                    RefSchemaNames: new HashSet<string>(StringComparer.Ordinal) { name! },
+                    NeedsZodImport: false);
+            }
+        }
+
+        if (schema is OpenApiSchema actual)
+        {
+            // Array of $ref → z.array(PetSchema). Requires a `z` import in the
+            // emitting file; the per-item schema gets imported from its zod module.
+            if (actual.Type?.HasFlag(JsonSchemaType.Array) == true &&
+                actual.Items is OpenApiSchemaReference itemRef)
+            {
+                var itemName = itemRef.Reference?.Id ?? itemRef.Id;
+                if (!string.IsNullOrEmpty(itemName))
+                {
+                    return new ZodResponseSchemaSpec(
+                        Expression: "z.array(" + itemName + "Schema)",
+                        RefSchemaNames: new HashSet<string>(StringComparer.Ordinal) { itemName! },
+                        NeedsZodImport: true);
+                }
+            }
+
+            // Primitive — string / number / integer / boolean. Zod renders these as
+            // z.string() etc; everything else (date strings, formats) flows through
+            // the same constructors so we keep this conservative.
+            if (actual.Type?.HasFlag(JsonSchemaType.String) == true && actual.Enum is not { Count: > 0 })
+            {
+                return new ZodResponseSchemaSpec("z.string()", new HashSet<string>(StringComparer.Ordinal), NeedsZodImport: true);
+            }
+
+            if (actual.Type?.HasFlag(JsonSchemaType.Integer) == true || actual.Type?.HasFlag(JsonSchemaType.Number) == true)
+            {
+                return new ZodResponseSchemaSpec("z.number()", new HashSet<string>(StringComparer.Ordinal), NeedsZodImport: true);
+            }
+
+            if (actual.Type?.HasFlag(JsonSchemaType.Boolean) == true)
+            {
+                return new ZodResponseSchemaSpec("z.boolean()", new HashSet<string>(StringComparer.Ordinal), NeedsZodImport: true);
+            }
+        }
+
+        return null;
+    }
+
     public static string GetReturnType(
         OpenApiOperation operation,
         bool isStreaming,

@@ -21,7 +21,8 @@ public static class TypeScriptClientExtractor
         bool convertDates = false,
         TypeScriptHttpClient httpClient = TypeScriptHttpClient.Fetch,
         HashSet<string>? writableSchemas = null,
-        bool brandedIds = false)
+        bool brandedIds = false,
+        bool zodRuntimeValidate = false)
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
@@ -38,7 +39,7 @@ public static class TypeScriptClientExtractor
             }
 
             var className = segment + "Client";
-            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy, convertDates, httpClient, writableSchemas, brandedIds);
+            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy, convertDates, httpClient, writableSchemas, brandedIds, zodRuntimeValidate);
             results.Add((className, content));
         }
 
@@ -55,11 +56,18 @@ public static class TypeScriptClientExtractor
         bool convertDates,
         TypeScriptHttpClient httpClient,
         HashSet<string> writableSchemas,
-        bool brandedIds)
+        bool brandedIds,
+        bool zodRuntimeValidate)
     {
         var sb = new StringBuilder();
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
         var brandImports = new SortedSet<string>(StringComparer.Ordinal);
+
+        // Per-class accumulator for the Zod schemas this client file references.
+        // Drives both the `import { PetSchema } from '../models/Pet.zod'` lines and
+        // the conditional `import { z } from 'zod'` when any method wraps inline.
+        var zodSchemaImports = new SortedSet<string>(StringComparer.Ordinal);
+        var needsZodImport = false;
 
         // First pass: collect all import types
         foreach (var (operationPath, _, operation) in operations)
@@ -232,6 +240,30 @@ public static class TypeScriptClientExtractor
             }
         }
 
+        // Pre-scan response schemas for runtime Zod validation. The schema imports
+        // need to land in the file header before any method body references them.
+        if (zodRuntimeValidate)
+        {
+            foreach (var (_, _, operation) in operations)
+            {
+                var spec = TypeScriptOperationHelper.TryGetResponseZodSchemaSpec(operation);
+                if (spec == null)
+                {
+                    continue;
+                }
+
+                foreach (var name in spec.RefSchemaNames)
+                {
+                    zodSchemaImports.Add(name);
+                }
+
+                if (spec.NeedsZodImport)
+                {
+                    needsZodImport = true;
+                }
+            }
+        }
+
         // Write header
         if (headerContent != null)
         {
@@ -239,7 +271,7 @@ public static class TypeScriptClientExtractor
         }
 
         // Write imports
-        AppendImports(sb, importTypes, enumNames, perOpErrorImports, httpClient, brandImports);
+        AppendImports(sb, importTypes, enumNames, perOpErrorImports, httpClient, brandImports, zodSchemaImports, needsZodImport);
 
         // Emit per-operation result-type aliases before the class.
         foreach (var declaration in perOpDeclarations)
@@ -262,7 +294,7 @@ public static class TypeScriptClientExtractor
             sb.AppendLine();
             perOpResultTypes.TryGetValue(operation, out var resultTypeName);
             perOpPageResultTypes.TryGetValue(operation, out var pageResultTypeName);
-            AppendMethod(sb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, writableSchemas, pageResultTypeName, brandedIds);
+            AppendMethod(sb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, writableSchemas, pageResultTypeName, brandedIds, zodRuntimeValidate);
         }
 
         sb.AppendLine("}");
@@ -307,7 +339,9 @@ public static class TypeScriptClientExtractor
         HashSet<string>? enumNames,
         HashSet<string> errorImports,
         TypeScriptHttpClient httpClient,
-        SortedSet<string> brandImports)
+        SortedSet<string> brandImports,
+        SortedSet<string> zodSchemaImports,
+        bool needsZodImport)
     {
         // The Axios variant references AxiosResponse in per-op result-type arms — the Fetch
         // variant uses the global Response type, so only the Axios path needs the import.
@@ -356,6 +390,19 @@ public static class TypeScriptClientExtractor
             sb.Append("import type { ").Append(string.Join(", ", brandImports)).AppendLine(" } from '../types/BrandedIds';");
         }
 
+        // Runtime Zod validation: one import line per response schema the methods
+        // reference, plus the `z` runtime import when any method wraps inline
+        // (z.array, z.string, etc).
+        if (needsZodImport)
+        {
+            sb.AppendLine("import { z } from 'zod';");
+        }
+
+        foreach (var schemaName in zodSchemaImports)
+        {
+            sb.Append("import { ").Append(schemaName).Append("Schema } from '../models/").Append(schemaName).AppendLine(".zod';");
+        }
+
         sb.AppendLine();
     }
 
@@ -370,7 +417,8 @@ public static class TypeScriptClientExtractor
         string? perOpResultTypeName,
         HashSet<string> writableSchemas,
         string? perOpPageResultTypeName,
-        bool brandedIds)
+        bool brandedIds,
+        bool zodRuntimeValidate)
     {
         var isStreaming = operation.IsAsyncEnumerableOperation();
         var isFileDownload = operation.HasFileDownload();
@@ -412,7 +460,13 @@ public static class TypeScriptClientExtractor
         }
         else
         {
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds);
+            // Compute the Zod schema spec for this op's response (if any). Threaded
+            // through so AppendStandardMethod can splice `parseSchema: <expr>` into
+            // the request options bag.
+            var zodSpec = zodRuntimeValidate
+                ? TypeScriptOperationHelper.TryGetResponseZodSchemaSpec(operation)
+                : null;
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec);
         }
     }
 
@@ -566,7 +620,8 @@ public static class TypeScriptClientExtractor
         bool convertDates,
         string? perOpResultTypeName,
         HashSet<string> writableSchemas,
-        bool brandedIds)
+        bool brandedIds,
+        ZodResponseSchemaSpec? zodSpec)
     {
         // Build parameter list
         var paramList = BuildParameterList(pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path);
@@ -591,7 +646,11 @@ public static class TypeScriptClientExtractor
             ? " as Promise<" + perOpResultTypeName + ">"
             : string.Empty;
 
-        if (hasQuery || hasHeaders || hasBody || isFileUpload || isFileDownload || isTextDownload)
+        // The Zod schema only validates JSON bodies. File/text downloads carry no
+        // structured payload, so skip emission even when the spec is non-null.
+        var emitParseSchema = zodSpec != null && !isFileDownload && !isTextDownload;
+
+        if (hasQuery || hasHeaders || hasBody || isFileUpload || isFileDownload || isTextDownload || emitParseSchema)
         {
             sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(interpolatedPath).AppendLine(", {");
 
@@ -621,6 +680,11 @@ public static class TypeScriptClientExtractor
             else if (isTextDownload)
             {
                 sb.AppendLine("      responseType: 'text',");
+            }
+
+            if (emitParseSchema)
+            {
+                sb.Append("      parseSchema: ").Append(zodSpec!.Expression).AppendLine(",");
             }
 
             sb.Append("    })").Append(castSuffix).AppendLine(";");

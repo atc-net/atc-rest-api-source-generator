@@ -459,7 +459,7 @@ public static class TypeScriptClientGenerationService
         bool brandedIds,
         bool zodRuntimeValidate)
     {
-        var clients = TypeScriptClientExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates, httpClient, writableSchemas, brandedIds);
+        var clients = TypeScriptClientExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates, httpClient, writableSchemas, brandedIds, zodRuntimeValidate);
         if (clients.Count == 0)
         {
             return (0, Array.Empty<string>());
