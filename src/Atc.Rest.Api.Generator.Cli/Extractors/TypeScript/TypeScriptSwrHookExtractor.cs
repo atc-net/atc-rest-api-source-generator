@@ -72,17 +72,31 @@ public static class TypeScriptSwrHookExtractor
             var isQuery = httpMethod == "GET" && !isFileDownload && !isStreaming;
             var isMutation = httpMethod is "POST" or "PUT" or "PATCH" or "DELETE";
 
-            if (!isQuery && !isMutation)
+            if (!isQuery && !isMutation && !isStreaming)
             {
-                if (isStreaming)
-                {
-                    hookInfos.Add(new SwrHookInfo(operationId, returnType, IsQuery: false, IsMutation: false, IsSkipped: true));
-                }
-
                 continue;
             }
 
-            hookInfos.Add(new SwrHookInfo(operationId, returnType, isQuery, isMutation, IsSkipped: false));
+            // Streaming hooks need the operation's path/query/header params at emission
+            // time so the generated useState/useEffect-backed hook can forward them to the
+            // async-generator client method. Non-streaming hooks ignore these but it's
+            // cheaper to populate them unconditionally than to branch the record shape.
+            var pathParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Path);
+            var queryParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Query);
+            var headerParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Header);
+            var methodName = operationId.ToCamelCase().ToTypeScriptIdentifier();
+
+            hookInfos.Add(new SwrHookInfo(
+                operationId,
+                returnType,
+                isQuery,
+                isMutation,
+                isStreaming,
+                path,
+                methodName,
+                pathParams,
+                queryParams,
+                headerParams));
         }
 
         return hookInfos;
@@ -105,6 +119,15 @@ public static class TypeScriptSwrHookExtractor
         // Imports
         var hasQueries = hookInfos.Any(h => h.IsQuery);
         var hasMutations = hookInfos.Any(h => h.IsMutation);
+        var hasStreaming = hookInfos.Any(h => h.IsStreaming);
+
+        // Streaming hooks are framework-agnostic React + AbortController code — they
+        // don't go through useSWR at all. React primitive hooks come first so the
+        // import order matches what consumers expect.
+        if (hasStreaming)
+        {
+            sb.AppendLine("import { useCallback, useEffect, useRef, useState } from 'react';");
+        }
 
         if (hasQueries)
         {
@@ -122,7 +145,7 @@ public static class TypeScriptSwrHookExtractor
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
         foreach (var info in hookInfos)
         {
-            if (!info.IsSkipped && info.ReturnType != "void" && info.ReturnType != "unknown")
+            if (info.ReturnType != "void" && info.ReturnType != "unknown")
             {
                 var cleanType = info.ReturnType
                     .Replace("[]", string.Empty, StringComparison.Ordinal)
@@ -152,17 +175,17 @@ public static class TypeScriptSwrHookExtractor
         // Generate hooks
         foreach (var info in hookInfos)
         {
-            if (info.IsSkipped)
-            {
-                sb.Append("// Streaming operation ").Append(info.OperationId).AppendLine(" is skipped.");
-                sb.AppendLine();
-                continue;
-            }
-
             var hookName = $"use{info.OperationId.EnsureFirstCharacterToUpper()}";
             var methodName = info.OperationId.EnsureFirstCharacterToLower();
 
-            if (info.IsQuery)
+            if (info.IsStreaming)
+            {
+                // React Query Option A treatment for SWR consumers — the
+                // streaming hook is plain React + AbortController, no SWR machinery, so
+                // the body is essentially the same shape as the React Query sibling.
+                GenerateStreamHook(sb, info, segmentLower, namingStrategy);
+            }
+            else if (info.IsQuery)
             {
                 GenerateQueryHook(sb, hookName, methodName, info, segmentLower);
             }
@@ -236,10 +259,164 @@ public static class TypeScriptSwrHookExtractor
         sb.AppendLine();
     }
 
+    /// <summary>
+    /// Emits the Option A streaming hook (useState + useEffect + AbortController) for an
+    /// async-enumerable operation. The body is framework-agnostic — same shape as the
+    /// React Query sibling — so SWR consumers get the same `{ items, status, error,
+    /// cancel, reset }` contract without an Option C-style opt-in flag.
+    /// </summary>
+    private static void GenerateStreamHook(
+        StringBuilder sb,
+        SwrHookInfo info,
+        string segmentLower,
+        TypeScriptNamingStrategy namingStrategy)
+    {
+        var hookName = "use" + info.MethodName.ToPascalCaseForDotNet() + "Stream";
+        var itemType = string.IsNullOrEmpty(info.ReturnType) ? "unknown" : info.ReturnType;
+
+        var hookParams = new List<string>();
+        foreach (var p in info.PathParams)
+        {
+            var n = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var t = TypeScriptOperationHelper.GetParameterType(p);
+            hookParams.Add(n + ": " + t);
+        }
+
+        if (info.QueryParams.Count > 0)
+        {
+            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy);
+            hookParams.Add("query?: " + queryType);
+        }
+
+        if (info.HeaderParams.Count > 0)
+        {
+            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams);
+            hookParams.Add("headers?: " + headerType);
+        }
+
+        hookParams.Add("options?: { enabled?: boolean }");
+        var hookParamStr = string.Join(", ", hookParams);
+
+        // Client call args mirror the streaming client method: pathParams..., query?,
+        // headers?, controller.signal.
+        var callParts = new List<string>();
+        foreach (var p in info.PathParams)
+        {
+            callParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+        }
+
+        if (info.QueryParams.Count > 0)
+        {
+            callParts.Add("query");
+        }
+
+        if (info.HeaderParams.Count > 0)
+        {
+            callParts.Add("headers");
+        }
+
+        callParts.Add("controller.signal");
+        var clientCallArgs = string.Join(", ", callParts);
+
+        // useEffect deps: enabled flag + path params + (optional) JSON-serialized
+        // query/header bags so reference-equal-but-value-different re-renders restart
+        // the stream cleanly.
+        var depParts = new List<string> { "enabled" };
+        foreach (var p in info.PathParams)
+        {
+            depParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+        }
+
+        var needsKeyDep = info.QueryParams.Count > 0 || info.HeaderParams.Count > 0;
+        if (needsKeyDep)
+        {
+            depParts.Add("keyDep");
+        }
+
+        var depList = string.Join(", ", depParts);
+
+        sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
+        sb.AppendLine("  const api = useApiService();");
+        sb.Append("  const [items, setItems] = useState<readonly ").Append(itemType).AppendLine("[]>([]);");
+        sb.AppendLine("  const [status, setStatus] = useState<'idle' | 'streaming' | 'success' | 'error'>('idle');");
+        sb.AppendLine("  const [error, setError] = useState<Error | null>(null);");
+        sb.AppendLine("  const controllerRef = useRef<AbortController | null>(null);");
+        sb.AppendLine();
+        sb.AppendLine("  const cancel = useCallback(() => {");
+        sb.AppendLine("    controllerRef.current?.abort();");
+        sb.AppendLine("    controllerRef.current = null;");
+        sb.AppendLine("    setStatus('idle');");
+        sb.AppendLine("  }, []);");
+        sb.AppendLine();
+        sb.AppendLine("  const reset = useCallback(() => {");
+        sb.AppendLine("    cancel();");
+        sb.AppendLine("    setItems([]);");
+        sb.AppendLine("    setError(null);");
+        sb.AppendLine("  }, [cancel]);");
+        sb.AppendLine();
+        sb.AppendLine("  const enabled = options?.enabled !== false;");
+
+        if (needsKeyDep)
+        {
+            sb.Append("  const keyDep = JSON.stringify({");
+            if (info.QueryParams.Count > 0)
+            {
+                sb.Append(" query");
+            }
+
+            if (info.HeaderParams.Count > 0)
+            {
+                sb.Append(info.QueryParams.Count > 0 ? ", headers" : " headers");
+            }
+
+            sb.AppendLine(" });");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("  useEffect(() => {");
+        sb.AppendLine("    if (!enabled) return;");
+        sb.AppendLine();
+        sb.AppendLine("    const controller = new AbortController();");
+        sb.AppendLine("    controllerRef.current = controller;");
+        sb.AppendLine("    setStatus('streaming');");
+        sb.AppendLine("    setItems([]);");
+        sb.AppendLine("    setError(null);");
+        sb.AppendLine();
+        sb.Append("    let buffer: ").Append(itemType).AppendLine("[] = [];");
+        sb.AppendLine("    (async () => {");
+        sb.AppendLine("      try {");
+        sb.Append("        for await (const item of api.").Append(segmentLower).Append('.').Append(info.MethodName).Append('(').Append(clientCallArgs).AppendLine(")) {");
+        sb.AppendLine("          if (controller.signal.aborted) return;");
+        sb.AppendLine("          buffer = [...buffer, item];");
+        sb.AppendLine("          setItems(buffer);");
+        sb.AppendLine("        }");
+        sb.AppendLine("        if (!controller.signal.aborted) setStatus('success');");
+        sb.AppendLine("      } catch (err) {");
+        sb.AppendLine("        if (controller.signal.aborted) return;");
+        sb.AppendLine("        if (err instanceof DOMException && err.name === 'AbortError') return;");
+        sb.AppendLine("        setError(err as Error);");
+        sb.AppendLine("        setStatus('error');");
+        sb.AppendLine("      }");
+        sb.AppendLine("    })();");
+        sb.AppendLine();
+        sb.AppendLine("    return () => controller.abort();");
+        sb.AppendLine("    // eslint-disable-next-line react-hooks/exhaustive-deps");
+        sb.Append("  }, [").Append(depList).AppendLine("]);");
+        sb.AppendLine();
+        sb.AppendLine("  return { items, status, error, cancel, reset };");
+        sb.AppendLine("}");
+        sb.AppendLine();
+    }
+
     private sealed record SwrHookInfo(
         string OperationId,
         string ReturnType,
         bool IsQuery,
         bool IsMutation,
-        bool IsSkipped);
+        bool IsStreaming,
+        string Path,
+        string MethodName,
+        List<OpenApiParameter> PathParams,
+        List<OpenApiParameter> QueryParams,
+        List<OpenApiParameter> HeaderParams);
 }
