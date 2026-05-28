@@ -96,7 +96,10 @@ public static class TypeScriptSwrHookExtractor
                 methodName,
                 pathParams,
                 queryParams,
-                headerParams));
+                headerParams,
+                operation.Summary,
+                operation.Description,
+                operation.Deprecated));
         }
 
         return hookInfos;
@@ -208,6 +211,7 @@ public static class TypeScriptSwrHookExtractor
         var isDetail = info.OperationId.Contains("ById", StringComparison.OrdinalIgnoreCase) ||
                        info.OperationId.Contains("ByName", StringComparison.OrdinalIgnoreCase);
 
+        AppendHookJsDoc(sb, info);
         if (isDetail)
         {
             sb.Append("export function ").Append(hookName).AppendLine("(id: string) {");
@@ -246,6 +250,7 @@ public static class TypeScriptSwrHookExtractor
         SwrHookInfo info,
         string segmentLower)
     {
+        AppendHookJsDoc(sb, info);
         sb.Append("export function ").Append(hookName).AppendLine("() {");
         sb.AppendLine("  const api = useApiService();");
         sb.AppendLine();
@@ -335,6 +340,7 @@ public static class TypeScriptSwrHookExtractor
 
         var depList = string.Join(", ", depParts);
 
+        AppendHookJsDoc(sb, info);
         sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
         sb.Append("  const [items, setItems] = useState<readonly ").Append(itemType).AppendLine("[]>([]);");
@@ -418,5 +424,34 @@ public static class TypeScriptSwrHookExtractor
         string MethodName,
         List<OpenApiParameter> PathParams,
         List<OpenApiParameter> QueryParams,
-        List<OpenApiParameter> HeaderParams);
+        List<OpenApiParameter> HeaderParams,
+        string? Summary,
+        string? Description,
+        bool Deprecated);
+
+    private static void AppendHookJsDoc(
+        StringBuilder sb,
+        SwrHookInfo info)
+    {
+        var description = !string.IsNullOrWhiteSpace(info.Summary)
+            ? info.Summary
+            : info.Description;
+        if (string.IsNullOrWhiteSpace(description) && !info.Deprecated)
+        {
+            return;
+        }
+
+        var jsDoc = new JsDocComment(
+            description,
+            parameters: null,
+            returns: null,
+            isDeprecated: info.Deprecated,
+            deprecatedMessage: null,
+            example: null);
+        var rendered = new JsDocCommentGenerator().GenerateTags(indentSpaces: 0, jsDoc);
+        if (!string.IsNullOrEmpty(rendered))
+        {
+            sb.Append(rendered);
+        }
+    }
 }

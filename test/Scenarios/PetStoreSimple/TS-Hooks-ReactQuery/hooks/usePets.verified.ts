@@ -13,6 +13,7 @@ const petsKeys = {
 
 export { petsKeys };
 
+/** List all pets */
 export function useListPets(query?: { limit?: number }, options?: Omit<UseQueryOptions<Pets, ApiError>, 'queryKey' | 'queryFn'>) {
   const api = useApiService();
   return useQuery({
@@ -33,6 +34,7 @@ export function useListPets(query?: { limit?: number }, options?: Omit<UseQueryO
   });
 }
 
+/** Create a pet */
 export function useCreatePets(options?: Omit<UseMutationOptions<void, ApiError, void>, 'mutationFn'>) {
   const api = useApiService();
   const queryClient = useQueryClient();
@@ -57,6 +59,7 @@ export function useCreatePets(options?: Omit<UseMutationOptions<void, ApiError, 
   });
 }
 
+/** Info for a specific pet */
 export function useShowPetById(petId: string, options?: Omit<UseQueryOptions<Pet, ApiError>, 'queryKey' | 'queryFn'>) {
   const api = useApiService();
   return useQuery({

@@ -15,6 +15,7 @@ const itemsKeys = {
 
 export { itemsKeys };
 
+/** Stream all items (async-enumerable) */
 export function useListItemsStream(query?: { filter?: string }, options?: { enabled?: boolean }) {
   const api = useApiService();
   const [items, setItems] = useState<readonly Item[]>([]);
@@ -70,6 +71,7 @@ export function useListItemsStream(query?: { filter?: string }, options?: { enab
   return { items, status, error, cancel, reset };
 }
 
+/** Stream paginated items (async-enumerable with PaginationResult) */
 export function useListItemPagesStream(query?: { pageSize?: number }, options?: { enabled?: boolean }) {
   const api = useApiService();
   const [items, setItems] = useState<readonly PaginationResult<Item>[]>([]);
@@ -125,6 +127,7 @@ export function useListItemPagesStream(query?: { pageSize?: number }, options?: 
   return { items, status, error, cancel, reset };
 }
 
+/** Stream paginated items (async-enumerable with PaginationResult) */
 export function useListItemPagesInfinite(query?: { pageSize?: number }) {
   const api = useApiService();
   return useInfiniteQuery({
@@ -146,6 +149,7 @@ export function useListItemPagesInfinite(query?: { pageSize?: number }) {
   });
 }
 
+/** Get logs for an item with filters (path + query, no streaming) */
 export function useGetItemLogs(itemId: string, query?: { logLevel?: 'debug' | 'info' | 'warn' | 'error'; from?: Date }, options?: Omit<UseQueryOptions<ItemLogs, ApiError>, 'queryKey' | 'queryFn'>) {
   const api = useApiService();
   return useQuery({
@@ -167,6 +171,7 @@ export function useGetItemLogs(itemId: string, query?: { logLevel?: 'debug' | 'i
   });
 }
 
+/** Search items by date-time range (date-time query params) */
 export function useSearchItems(query?: { createdAfter?: Date; createdBefore?: Date }, options?: Omit<UseQueryOptions<Items, ApiError>, 'queryKey' | 'queryFn'>) {
   const api = useApiService();
   return useQuery({

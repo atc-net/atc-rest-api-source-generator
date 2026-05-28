@@ -468,6 +468,7 @@ public static class TypeScriptReactQueryHookExtractor
         // Build client call args (headers ARE forwarded to the client method)
         var clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, hasBody: false, namingStrategy: namingStrategy);
 
+        AppendHookJsDoc(sb, info);
         sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
         sb.Append("  return ").Append(queryFn).AppendLine("({");
@@ -578,6 +579,7 @@ public static class TypeScriptReactQueryHookExtractor
 
         var depList = string.Join(", ", depParts);
 
+        AppendHookJsDoc(sb, info);
         sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
         sb.Append("  const [items, setItems] = useState<readonly ").Append(itemType).AppendLine("[]>([]);");
@@ -715,6 +717,7 @@ public static class TypeScriptReactQueryHookExtractor
         callArgs.Add("pageParam ? { 'x-continuation': pageParam } : undefined");
         var callArgsStr = string.Join(", ", callArgs);
 
+        AppendHookJsDoc(sb, info);
         sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
         sb.AppendLine("  return useInfiniteQuery({");
@@ -883,6 +886,7 @@ public static class TypeScriptReactQueryHookExtractor
 
         var hookParamStr = string.Join(", ", hookParams);
 
+        AppendHookJsDoc(sb, info);
         sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
         sb.AppendLine("  const queryClient = useQueryClient();");
@@ -1112,7 +1116,41 @@ public static class TypeScriptReactQueryHookExtractor
             FileUploadArgName: fileUploadArgName,
             Success2xxDiscriminators: TypeScriptOperationHelper.CollectDeclared2xxDiscriminators(operation),
             IsPaginatedStreaming: isPaginatedStreaming,
-            PageReturnType: pageReturnType);
+            PageReturnType: pageReturnType,
+            Summary: operation.Summary,
+            Description: operation.Description,
+            Deprecated: operation.Deprecated);
+    }
+
+    /// <summary>
+    /// Renders a `/** ... */` block from the operation's summary/description plus a
+    /// `@deprecated` tag when the spec marks the operation deprecated. Skipped when
+    /// there's nothing worth saying so the emitted file stays clean.
+    /// </summary>
+    private static void AppendHookJsDoc(
+        StringBuilder sb,
+        HookInfo info)
+    {
+        var description = !string.IsNullOrWhiteSpace(info.Summary)
+            ? info.Summary
+            : info.Description;
+        if (string.IsNullOrWhiteSpace(description) && !info.Deprecated)
+        {
+            return;
+        }
+
+        var jsDoc = new JsDocComment(
+            description,
+            parameters: null,
+            returns: null,
+            isDeprecated: info.Deprecated,
+            deprecatedMessage: null,
+            example: null);
+        var rendered = new JsDocCommentGenerator().GenerateTags(indentSpaces: 0, jsDoc);
+        if (!string.IsNullOrEmpty(rendered))
+        {
+            sb.Append(rendered);
+        }
     }
 
     private static (bool HasArg, string ParamDecl, string ArgName) GetFileUploadInfo(
@@ -1194,5 +1232,8 @@ public static class TypeScriptReactQueryHookExtractor
         string FileUploadArgName,
         List<string> Success2xxDiscriminators,
         bool IsPaginatedStreaming,
-        string PageReturnType);
+        string PageReturnType,
+        string? Summary,
+        string? Description,
+        bool Deprecated);
 }
