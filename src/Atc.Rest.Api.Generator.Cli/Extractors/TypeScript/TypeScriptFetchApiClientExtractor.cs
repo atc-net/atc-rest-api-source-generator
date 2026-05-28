@@ -14,7 +14,8 @@ public static class TypeScriptFetchApiClientExtractor
     public static string Generate(
         string? headerContent,
         bool convertDates = false,
-        bool hasRetry = false)
+        bool hasRetry = false,
+        bool zodRuntimeValidate = false)
     {
         var sb = new StringBuilder();
 
@@ -23,7 +24,7 @@ public static class TypeScriptFetchApiClientExtractor
             sb.Append(headerContent);
         }
 
-        AppendImports(sb, hasRetry);
+        AppendImports(sb, hasRetry, zodRuntimeValidate);
 
         if (convertDates)
         {
@@ -31,15 +32,16 @@ public static class TypeScriptFetchApiClientExtractor
         }
 
         AppendApiClientOptionsInterface(sb, hasRetry);
-        AppendRequestOptionsInterface(sb);
-        AppendApiClientClass(sb, convertDates, hasRetry);
+        AppendRequestOptionsInterface(sb, zodRuntimeValidate);
+        AppendApiClientClass(sb, convertDates, hasRetry, zodRuntimeValidate);
 
         return sb.ToString();
     }
 
     private static void AppendImports(
         StringBuilder sb,
-        bool hasRetry)
+        bool hasRetry,
+        bool zodRuntimeValidate)
     {
         sb.AppendLine("import { ApiError } from '../errors/ApiError';");
         sb.AppendLine("import { ValidationError } from '../errors/ValidationError';");
@@ -50,6 +52,14 @@ public static class TypeScriptFetchApiClientExtractor
             sb.AppendLine("import { retryWithBackoff } from '../helpers/retryInterceptor';");
             sb.AppendLine("import { defaultRetryPolicy } from '../helpers/retryConfig';");
             sb.AppendLine("import type { RetryPolicy } from '../helpers/retryConfig';");
+        }
+
+        if (zodRuntimeValidate)
+        {
+            // ZodTypeAny is the broad parent type — accepts any z.object / z.array /
+            // primitive / discriminated union. Type-only import keeps the bundle clean
+            // for consumers who set the flag but never narrow into schemaMismatch.
+            sb.AppendLine("import type { ZodTypeAny } from 'zod';");
         }
 
         sb.AppendLine();
@@ -78,7 +88,9 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine();
     }
 
-    private static void AppendRequestOptionsInterface(StringBuilder sb)
+    private static void AppendRequestOptionsInterface(
+        StringBuilder sb,
+        bool zodRuntimeValidate)
     {
         sb.AppendLine("export interface RequestOptions {");
         sb.AppendLine("  body?: unknown;");
@@ -86,6 +98,14 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("  headers?: Record<string, string | number | boolean | undefined>;");
         sb.AppendLine("  signal?: AbortSignal;");
         sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
+        if (zodRuntimeValidate)
+        {
+            // The schema is whatever the generated client method passes — z.object,
+            // z.array, primitive, discriminated union. ApiClient only needs to call
+            // .safeParse() on it; the broad ZodTypeAny captures every shape.
+            sb.AppendLine("  parseSchema?: ZodTypeAny;");
+        }
+
         sb.AppendLine("}");
         sb.AppendLine();
     }
@@ -113,7 +133,8 @@ public static class TypeScriptFetchApiClientExtractor
     private static void AppendApiClientClass(
         StringBuilder sb,
         bool convertDates,
-        bool hasRetry)
+        bool hasRetry,
+        bool zodRuntimeValidate)
     {
         sb.AppendLine("export class ApiClient {");
         sb.AppendLine("  private readonly baseUrl: string;");
@@ -124,16 +145,50 @@ public static class TypeScriptFetchApiClientExtractor
             sb.AppendLine("  private readonly retryPolicy: RetryPolicy | false;");
         }
 
+        if (zodRuntimeValidate)
+        {
+            // strictMode toggles between the "return schemaMismatch arm" (default, prod-
+            // friendly) and "throw on validation failure" (opt-in, dev-friendly). Default
+            // false matches the prod-shape "errors surface as values, not exceptions".
+            sb.AppendLine("  private strictMode = false;");
+        }
+
         sb.AppendLine();
 
         AppendConstructor(sb, hasRetry);
-        AppendRequestMethod(sb, convertDates, hasRetry);
+
+        if (zodRuntimeValidate)
+        {
+            AppendSetStrictModeMethod(sb);
+        }
+
+        AppendRequestMethod(sb, convertDates, hasRetry, zodRuntimeValidate);
         AppendRequestStreamMethod(sb, convertDates);
         AppendBuildUrlMethod(sb);
         AppendGetHeadersMethod(sb);
-        AppendHandleResponseMethod(sb, convertDates);
+        AppendHandleResponseMethod(sb, convertDates, zodRuntimeValidate);
 
         sb.AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits the <c>setStrictMode</c> toggle. When strict, schema-mismatch failures
+    /// throw an Error with the Zod issues instead of surfacing the
+    /// <c>schemaMismatch</c> arm — useful in dev/CI to fail fast on spec drift.
+    /// </summary>
+    private static void AppendSetStrictModeMethod(
+        StringBuilder sb)
+    {
+        sb.AppendLine("  /**");
+        sb.AppendLine("   * Toggle strict runtime validation. When enabled, schema-mismatch");
+        sb.AppendLine("   * failures throw an Error with the Zod issues instead of returning a");
+        sb.AppendLine("   * 'schemaMismatch' ApiResult arm. Useful in dev/staging to surface");
+        sb.AppendLine("   * spec drift loudly; leave off in prod to keep errors as values.");
+        sb.AppendLine("   */");
+        sb.AppendLine("  setStrictMode(enabled: boolean): void {");
+        sb.AppendLine("    this.strictMode = enabled;");
+        sb.AppendLine("  }");
+        sb.AppendLine();
     }
 
     private static void AppendConstructor(
@@ -156,7 +211,8 @@ public static class TypeScriptFetchApiClientExtractor
     private static void AppendRequestMethod(
         StringBuilder sb,
         bool convertDates,
-        bool hasRetry)
+        bool hasRetry,
+        bool zodRuntimeValidate)
     {
         var stringify = convertDates ? "JSON.stringify(options.body, dateReplacer)" : "JSON.stringify(options.body)";
 
@@ -214,7 +270,15 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("      response = await interceptor(response);");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    return this.handleResponse<T>(response, options?.responseType);");
+        if (zodRuntimeValidate)
+        {
+            sb.AppendLine("    return this.handleResponse<T>(response, options?.responseType, options?.parseSchema);");
+        }
+        else
+        {
+            sb.AppendLine("    return this.handleResponse<T>(response, options?.responseType);");
+        }
+
         sb.AppendLine("  }");
         sb.AppendLine();
     }
@@ -344,13 +408,17 @@ public static class TypeScriptFetchApiClientExtractor
 
     private static void AppendHandleResponseMethod(
         StringBuilder sb,
-        bool convertDates)
+        bool convertDates,
+        bool zodRuntimeValidate)
     {
         var parseJson = convertDates
             ? "JSON.parse(await response.text(), dateReviver)"
             : "await response.json()";
 
-        sb.AppendLine("  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text'): Promise<ApiResult<T>> {");
+        var signature = zodRuntimeValidate
+            ? "  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text', parseSchema?: ZodTypeAny): Promise<ApiResult<T>> {"
+            : "  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text'): Promise<ApiResult<T>> {";
+        sb.AppendLine(signature);
         sb.AppendLine("    if (response.status === 204) {");
         sb.AppendLine("      return { status: 'noContent', response };");
         sb.AppendLine("    }");
@@ -366,6 +434,29 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("      } catch (parseError) {");
         sb.AppendLine("        return { status: 'parseError', error: parseError as Error, response };");
         sb.AppendLine("      }");
+
+        if (zodRuntimeValidate)
+        {
+            // Validate JSON payloads only — text/blob responses aren't structured, so the
+            // schema can't speak to them. The `safeParse` path returns the issues without
+            // throwing; strictMode escalates to an exception so dev/CI can fail fast.
+            sb.AppendLine();
+            sb.AppendLine("      if (parseSchema && isJson) {");
+            sb.AppendLine("        const parsed = parseSchema.safeParse(data);");
+            sb.AppendLine("        if (!parsed.success) {");
+            sb.AppendLine("          if (this.strictMode) {");
+            sb.AppendLine("            const issuesSummary = parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ');");
+            sb.AppendLine("            throw new Error(`Schema mismatch: ${issuesSummary}`);");
+            sb.AppendLine("          }");
+            sb.AppendLine();
+            sb.AppendLine("          return { status: 'schemaMismatch', issues: parsed.error.issues, data, response };");
+            sb.AppendLine("        }");
+            sb.AppendLine();
+            sb.AppendLine("        data = parsed.data;");
+            sb.AppendLine("      }");
+            sb.AppendLine();
+        }
+
         sb.AppendLine("      const status = response.status === 201");
         sb.AppendLine("        ? 'created' as const");
         sb.AppendLine("        : response.status === 202");
