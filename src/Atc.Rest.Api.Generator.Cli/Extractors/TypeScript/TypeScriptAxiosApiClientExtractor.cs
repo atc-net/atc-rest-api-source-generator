@@ -243,13 +243,15 @@ public static class TypeScriptAxiosApiClientExtractor
 
         if (hasRetry)
         {
-            sb.AppendLine("    const doRequest = () => this.client.request<T>({");
+            sb.AppendLine("    // doRequest accepts an optional override signal so the retry path can hand each");
+            sb.AppendLine("    // attempt a fresh AbortSignal — that way policy.timeoutMs actually cancels axios.");
+            sb.AppendLine("    const doRequest = (attemptSignal?: AbortSignal) => this.client.request<T>({");
             sb.AppendLine("      method,");
             sb.AppendLine("      url: path,");
             sb.AppendLine("      data,");
             sb.AppendLine("      params: options?.query,");
             sb.AppendLine("      headers,");
-            sb.AppendLine("      signal: options?.signal,");
+            sb.AppendLine("      signal: attemptSignal ?? options?.signal,");
             sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'blob' : options?.responseType === 'text' ? 'text' : 'json',");
             sb.AppendLine("    });");
             sb.AppendLine();
@@ -257,8 +259,8 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("    if (this.retryPolicy) {");
             sb.AppendLine("      // Use retryWithBackoff with a fetch-compatible wrapper.");
             sb.AppendLine("      // The wrapper captures the AxiosResponse so it can be handed to handleResponse below.");
-            sb.AppendLine("      const fetchWrapper = async (): Promise<Response> => {");
-            sb.AppendLine("        response = await doRequest();");
+            sb.AppendLine("      const fetchWrapper = async (attemptSignal: AbortSignal): Promise<Response> => {");
+            sb.AppendLine("        response = await doRequest(attemptSignal);");
             sb.AppendLine("        return new Response(null, { status: response.status });");
             sb.AppendLine("      };");
             sb.AppendLine("      await retryWithBackoff(fetchWrapper, this.retryPolicy, options?.signal);");

@@ -193,7 +193,13 @@ public static class TypeScriptFetchApiClientExtractor
         {
             sb.AppendLine("    let response: Response;");
             sb.AppendLine("    if (this.retryPolicy) {");
-            sb.AppendLine("      response = await retryWithBackoff(() => fetch(url, init), this.retryPolicy, options?.signal);");
+            sb.AppendLine("      // Wire the per-attempt signal through so policy.timeoutMs actually cancels the");
+            sb.AppendLine("      // in-flight fetch and parent aborts propagate to every retry attempt.");
+            sb.AppendLine("      response = await retryWithBackoff(");
+            sb.AppendLine("        (attemptSignal) => fetch(url, { ...init, signal: attemptSignal }),");
+            sb.AppendLine("        this.retryPolicy,");
+            sb.AppendLine("        options?.signal,");
+            sb.AppendLine("      );");
             sb.AppendLine("    } else {");
             sb.AppendLine("      response = await fetch(url, init);");
             sb.AppendLine("    }");

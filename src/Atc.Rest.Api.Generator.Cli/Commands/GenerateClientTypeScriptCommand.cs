@@ -156,6 +156,17 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         AnsiConsole.MarkupLine($"  Duration:              [dim]{elapsed.TotalSeconds:F1}s[/]");
         AnsiConsole.WriteLine();
 
+        if (generationResult.Warnings.Count > 0)
+        {
+            AnsiConsole.MarkupLine($"[yellow]![/] Generation completed with {generationResult.Warnings.Count} warning(s):");
+            foreach (var warning in generationResult.Warnings)
+            {
+                AnsiConsole.MarkupLine($"  [yellow]{Markup.Escape(warning)}[/]");
+            }
+
+            AnsiConsole.WriteLine();
+        }
+
         if (dryRun)
         {
             AnsiConsole.MarkupLine("[dim]Dry run - no files were written.[/]");

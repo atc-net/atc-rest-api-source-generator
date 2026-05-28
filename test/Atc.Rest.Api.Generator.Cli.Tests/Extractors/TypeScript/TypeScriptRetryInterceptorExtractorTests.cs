@@ -39,4 +39,52 @@ public class TypeScriptRetryInterceptorExtractorTests
 
         Assert.StartsWith(header, result, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Generate_FetchFn_AcceptsPerAttemptAbortSignal()
+    {
+        // The fetchFn signature must accept an AbortSignal so callers can wire it into the
+        // in-flight request. Without this, policy.timeoutMs fires the controller but the
+        // network request keeps running — that was the bug §2.6 of the roadmap describes.
+        var result = TypeScriptRetryInterceptorExtractor.Generate(headerContent: null);
+
+        Assert.Contains("fetchFn: (signal: AbortSignal) => Promise<Response>", result, StringComparison.Ordinal);
+        Assert.Contains("await fetchFn(controller.signal)", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_PerAttemptController_ChainsParentAbort()
+    {
+        var result = TypeScriptRetryInterceptorExtractor.Generate(headerContent: null);
+
+        // Parent aborts must propagate to the per-attempt controller — both eagerly (if the
+        // parent is already aborted) and lazily (via addEventListener).
+        Assert.Contains("controller.abort(signal.reason)", result, StringComparison.Ordinal);
+        Assert.Contains("signal?.addEventListener('abort', onParentAbort, { once: true })", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_TimeoutAbort_DistinguishedFromCallerAbort()
+    {
+        // A per-attempt timeout should retry; a caller-initiated abort should propagate.
+        // The catch branch keys off the timeoutFired flag to tell the two cases apart.
+        var result = TypeScriptRetryInterceptorExtractor.Generate(headerContent: null);
+
+        Assert.Contains("let timeoutFired = false", result, StringComparison.Ordinal);
+        Assert.Contains("timeoutFired = true", result, StringComparison.Ordinal);
+        Assert.Contains("error.name === 'AbortError' && !timeoutFired", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_PerAttemptCleanup_HappensInFinally()
+    {
+        // The timer must be cleared and the parent listener removed in finally so each
+        // attempt starts from a clean slate — otherwise a leaked listener fires when the
+        // parent aborts after the fetch already resolved.
+        var result = TypeScriptRetryInterceptorExtractor.Generate(headerContent: null);
+
+        Assert.Contains("} finally {", result, StringComparison.Ordinal);
+        Assert.Contains("clearTimeout(timer)", result, StringComparison.Ordinal);
+        Assert.Contains("removeEventListener('abort', onParentAbort)", result, StringComparison.Ordinal);
+    }
 }

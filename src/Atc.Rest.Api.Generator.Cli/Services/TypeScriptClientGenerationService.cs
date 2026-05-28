@@ -155,6 +155,8 @@ public static class TypeScriptClientGenerationService
             WriteRootBarrelExport(outputPath, headerContent, subdirectories, dryRun);
         }
 
+        var warnings = CollectCookieParameterWarnings(openApiDoc);
+
         return new TypeScriptGenerationResult(
             ModelCount: modelCount,
             EnumCount: enumCount,
@@ -164,7 +166,94 @@ public static class TypeScriptClientGenerationService
             HookCount: hookCount,
             ZodSchemaCount: zodSchemaCount,
             MswHandlerCount: mswHandlerCount,
-            ScaffoldGenerated: scaffoldGenerated);
+            ScaffoldGenerated: scaffoldGenerated)
+        {
+            Warnings = warnings,
+        };
+    }
+
+    /// <summary>
+    /// Scans every operation (and path-item-level parameters) for OpenAPI <c>in: cookie</c>
+    /// parameters and produces one warning per operation that declares any. The TypeScript
+    /// emitter intentionally skips cookie parameters — cookies are browser-managed via
+    /// <c>document.cookie</c> and the fetch <c>credentials</c> option, so SDK methods do
+    /// not accept a cookies bag. The warning surfaces the silent skip so spec authors
+    /// notice when a cookie param will not be wired through.
+    /// </summary>
+    private static IReadOnlyList<string> CollectCookieParameterWarnings(
+        OpenApiDocument openApiDoc)
+    {
+        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var warnings = new List<string>();
+
+        foreach (var pathEntry in openApiDoc.Paths)
+        {
+            if (pathEntry.Value is not OpenApiPathItem pathItem)
+            {
+                continue;
+            }
+
+            var pathLevelCookieNames = CollectCookieParameterNames(pathItem.Parameters);
+
+            if (pathItem.Operations == null)
+            {
+                continue;
+            }
+
+            foreach (var operationEntry in pathItem.Operations)
+            {
+                var operationCookieNames = CollectCookieParameterNames(operationEntry.Value.Parameters);
+
+                if (pathLevelCookieNames.Count == 0 && operationCookieNames.Count == 0)
+                {
+                    continue;
+                }
+
+                // Merge path-item-level params with operation-level params, preserving order
+                // and de-duplicating in case the same name appears at both levels.
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                var names = new List<string>(pathLevelCookieNames.Count + operationCookieNames.Count);
+                foreach (var name in pathLevelCookieNames.Concat(operationCookieNames))
+                {
+                    if (seen.Add(name))
+                    {
+                        names.Add(name);
+                    }
+                }
+
+                var method = operationEntry.Key.ToString().ToUpperInvariant();
+                var nameList = string.Join(", ", names);
+                warnings.Add(
+                    $"Operation {method} {pathEntry.Key}: cookie parameter(s) [{nameList}] are not emitted in the TypeScript client. Cookies are browser-managed — set credentials: 'include' on ApiClientOptions if you need them sent.");
+            }
+        }
+
+        return warnings;
+    }
+
+    private static List<string> CollectCookieParameterNames(
+        IList<IOpenApiParameter>? parameters)
+    {
+        if (parameters == null || parameters.Count == 0)
+        {
+            return [];
+        }
+
+        var names = new List<string>();
+        foreach (var paramInterface in parameters)
+        {
+            var resolved = paramInterface.Resolve();
+            if (resolved.Parameter is { In: ParameterLocation.Cookie } cookie)
+            {
+                names.Add(cookie.Name ?? "(unnamed)");
+            }
+        }
+
+        return names;
     }
 
     /// <summary>
