@@ -81,11 +81,11 @@ public static class TypeScriptClientGenerationService
         var hookCount = 0;
         if (config.HooksStyle == TypeScriptHooksStyle.ReactQuery && clientCount > 0)
         {
-            hookCount = WriteReactQueryHooks(openApiDoc, outputPath, headerContent, enumNameSet, config.NamingStrategy, config.ConvertDates, dryRun, writableSchemas, config.HooksMode);
+            hookCount = WriteReactQueryHooks(openApiDoc, outputPath, headerContent, enumNameSet, config.NamingStrategy, config.ConvertDates, dryRun, writableSchemas, config.HooksMode, config.BrandedIds);
         }
         else if (config.HooksStyle == TypeScriptHooksStyle.Swr && clientCount > 0)
         {
-            hookCount = WriteSwrHooks(openApiDoc, outputPath, headerContent, enumNameSet, config.NamingStrategy, dryRun);
+            hookCount = WriteSwrHooks(openApiDoc, outputPath, headerContent, enumNameSet, config.NamingStrategy, dryRun, config.BrandedIds);
         }
 
         // Step 6b: Generate Zod schemas (if configured)
@@ -508,9 +508,10 @@ public static class TypeScriptClientGenerationService
         bool convertDates,
         bool dryRun,
         HashSet<string> writableSchemas,
-        TypeScriptHooksMode hooksMode)
+        TypeScriptHooksMode hooksMode,
+        bool brandedIds)
     {
-        var hooks = TypeScriptReactQueryHookExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates, writableSchemas, hooksMode);
+        var hooks = TypeScriptReactQueryHookExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates, writableSchemas, hooksMode, brandedIds);
         if (hooks.Count == 0)
         {
             return 0;
@@ -562,9 +563,10 @@ public static class TypeScriptClientGenerationService
         string? headerContent,
         HashSet<string> enumNameSet,
         TypeScriptNamingStrategy namingStrategy,
-        bool dryRun)
+        bool dryRun,
+        bool brandedIds)
     {
-        var hooks = TypeScriptSwrHookExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy);
+        var hooks = TypeScriptSwrHookExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, brandedIds);
         if (hooks.Count == 0)
         {
             return 0;
