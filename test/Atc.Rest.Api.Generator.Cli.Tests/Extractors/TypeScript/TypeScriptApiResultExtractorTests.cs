@@ -98,6 +98,26 @@ public class TypeScriptApiResultExtractorTests
     }
 
     [Fact]
+    public void Generate_IncludesAcceptedArmFor202()
+    {
+        // 202 was previously folded into 'ok' by handleResponse; with per-op result types,
+        // a dedicated 'accepted' discriminator is needed so ops declaring both 200 and 202
+        // with different body schemas can narrow correctly.
+        var result = TypeScriptApiResultExtractor.Generate(headerContent: null);
+
+        Assert.Contains("{ status: 'accepted'; data: T; response: Response }", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_IncludesIsAcceptedGuard()
+    {
+        var result = TypeScriptApiResultExtractor.Generate(headerContent: null);
+
+        Assert.Contains("export function isAccepted<T>", result, StringComparison.Ordinal);
+        Assert.Contains("return result.status === 'accepted'", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Generate_AxiosVariant_ParseErrorArmUsesAxiosResponse()
     {
         var result = TypeScriptApiResultExtractor.Generate(headerContent: null, httpClient: TypeScriptHttpClient.Axios);

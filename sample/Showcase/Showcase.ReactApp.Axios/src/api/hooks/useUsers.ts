@@ -19,7 +19,7 @@ export function useListUsers(query?: { search?: string; country?: string; role?:
     queryKey: usersKeys.list(query),
     queryFn: async () => {
       const result = await api.users.listUsers(query);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(
@@ -38,7 +38,7 @@ export function useCreateUser() {
   return useMutation({
     mutationFn: async (body: CreateUserRequest) => {
       const result = await api.users.createUser(body);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'created') {
         return result.data;
       }
       throw new ApiError(
@@ -60,7 +60,7 @@ export function useGetUserById(userId: string) {
     queryKey: usersKeys.detail(userId),
     queryFn: async () => {
       const result = await api.users.getUserById(userId);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(
@@ -80,7 +80,7 @@ export function useUpdateUserById(userId: string) {
   return useMutation({
     mutationFn: async (body: UpdateUserRequest) => {
       const result = await api.users.updateUserById(userId, body);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(
@@ -102,7 +102,7 @@ export function useDeleteUserById() {
   return useMutation({
     mutationFn: async (userId: string) => {
       const result = await api.users.deleteUserById(userId);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'noContent') {
         return;
       }
       throw new ApiError(

@@ -984,6 +984,90 @@ public class TypeScriptOperationHelperOtherMethodsTests
         Assert.Contains("'X-Api-Version': string /* default: 'v1' */", result, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void CollectDeclared2xxDiscriminators_ReturnsArmsInDeclaredOrder()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /items:
+                                post:
+                                  operationId: createItem
+                                  responses:
+                                    '201':
+                                      description: Created
+                                    '202':
+                                      description: Accepted async
+                                    '400':
+                                      description: Bad request
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var operation = ((OpenApiPathItem)doc!.Paths!["/items"]).Operations!.Values.First();
+
+        var discriminators = TypeScriptOperationHelper.CollectDeclared2xxDiscriminators(operation);
+
+        Assert.Equal(new[] { "created", "accepted" }, discriminators);
+    }
+
+    [Fact]
+    public void CollectDeclared2xxDiscriminators_NoDeclaredSuccesses_DefaultsToOk()
+    {
+        // Hook narrowing emission would type-error with an empty list; the helper falls
+        // back to ['ok'] so generated code still compiles for ops that omit success codes.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: peekItems
+                                  responses:
+                                    '404':
+                                      description: Not found
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var operation = ((OpenApiPathItem)doc!.Paths!["/items"]).Operations!.Values.First();
+
+        var discriminators = TypeScriptOperationHelper.CollectDeclared2xxDiscriminators(operation);
+
+        Assert.Equal(new[] { "ok" }, discriminators);
+    }
+
+    [Fact]
+    public void BuildPerOperationResultType_NoResponses_EmitsOnlyParseError()
+    {
+        // Degenerate spec: an op declaring no responses still needs a callable shape.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /noop:
+                                get:
+                                  operationId: noop
+                                  responses: {}
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var operation = ((OpenApiPathItem)doc!.Paths!["/noop"]).Operations!.Values.First();
+
+        var (declaration, imports) = TypeScriptOperationHelper.BuildPerOperationResultType(
+            operation,
+            "NoopResult",
+            isFileDownload: false,
+            isTextDownload: false,
+            TypeScriptHttpClient.Fetch);
+
+        Assert.Contains("export type NoopResult =", declaration, StringComparison.Ordinal);
+        Assert.Contains("status: 'parseError'", declaration, StringComparison.Ordinal);
+        Assert.Empty(imports);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

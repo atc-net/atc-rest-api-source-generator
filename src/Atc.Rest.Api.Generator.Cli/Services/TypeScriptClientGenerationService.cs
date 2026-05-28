@@ -415,7 +415,7 @@ public static class TypeScriptClientGenerationService
         bool hasRetry,
         bool dryRun)
     {
-        var clients = TypeScriptClientExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates);
+        var clients = TypeScriptClientExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates, httpClient);
         if (clients.Count == 0)
         {
             return 0;

@@ -31,9 +31,11 @@ public class TypeScriptClientExtractorTests
         var (_, content) = Assert.Single(clients);
 
         // Per-operation method must opt into text parsing AND surface the body as a string,
-        // not a Blob (default for non-JSON responses).
+        // not a Blob (default for non-JSON responses). Per-op result types replaced the
+        // generic ApiResult return type — the 'ok' arm now carries `data: string` directly.
         Assert.Contains("responseType: 'text'", content, StringComparison.Ordinal);
-        Assert.Contains("Promise<ApiResult<string>>", content, StringComparison.Ordinal);
+        Assert.Contains("Promise<GetTextReportResult>", content, StringComparison.Ordinal);
+        Assert.Contains("{ status: 'ok'; data: string; response: Response }", content, StringComparison.Ordinal);
         Assert.Contains("this.api.request<string>('GET', '/reports/text'", content, StringComparison.Ordinal);
     }
 
@@ -65,7 +67,7 @@ public class TypeScriptClientExtractorTests
         var (_, content) = Assert.Single(clients);
 
         Assert.Contains("responseType: 'text'", content, StringComparison.Ordinal);
-        Assert.Contains("Promise<ApiResult<string>>", content, StringComparison.Ordinal);
+        Assert.Contains("Promise<ExportCsvResult>", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -460,6 +462,194 @@ public class TypeScriptClientExtractorTests
 
         Assert.Contains("async listItems(", content, StringComparison.Ordinal);
         Assert.DoesNotContain("async list-items(", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PerOperationResultType_EmitsAliasWithDeclaredArmsAndParseError()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /pets/{petId}:
+                                get:
+                                  operationId: getPet
+                                  parameters:
+                                    - name: petId
+                                      in: path
+                                      required: true
+                                      schema: { type: string }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Pet'
+                                    '404':
+                                      description: Not found
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    id: { type: string }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+
+        // Per-op alias has one arm per declared status + parseError, no extra arms.
+        Assert.Contains("export type GetPetResult =", content, StringComparison.Ordinal);
+        Assert.Contains("{ status: 'ok'; data: Pet; response: Response }", content, StringComparison.Ordinal);
+        Assert.Contains("{ status: 'notFound'; error: ApiError; response: Response }", content, StringComparison.Ordinal);
+        Assert.Contains("{ status: 'parseError'; error: Error; response: Response }", content, StringComparison.Ordinal);
+
+        // Method declares the per-op type and casts the request<T> call to it.
+        Assert.Contains("async getPet(petId: string): Promise<GetPetResult>", content, StringComparison.Ordinal);
+        Assert.Contains("as Promise<GetPetResult>", content, StringComparison.Ordinal);
+
+        // Errors barrel is imported because notFound arm needs ApiError.
+        Assert.Contains("from '../errors'", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PerOperationResultType_OmitsArmsForStatusesTheOperationDoesNotDeclare()
+    {
+        // 401/403/409 etc. are mapped by handleResponse globally, but per-op types must
+        // stay narrow — only emit arms the spec actually documents. The cast at the call
+        // site is sound because handleResponse uses the same discriminator names.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Items'
+                            components:
+                              schemas:
+                                Items:
+                                  type: object
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+
+        Assert.Contains("export type ListItemsResult =", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'ok'", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'parseError'", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("status: 'unauthorized'", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("status: 'notFound'", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("status: 'serverError'", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PerOperationResultType_DefaultResponseFansOutToCommonErrorArms()
+    {
+        // PetStore-style specs use `default:` as a catch-all error response. The per-op
+        // type fans that into the standard error arms so consumers can still match
+        // common 4xx/5xx without the spec listing every code.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Pets'
+                                    default:
+                                      description: unexpected error
+                            components:
+                              schemas:
+                                Pets:
+                                  type: array
+                                  items: { type: string }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+
+        Assert.Contains("status: 'ok'", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'badRequest'", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'unauthorized'", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'notFound'", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'serverError'", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PerOperationResultType_AcceptedArmFor202WithBody()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /jobs:
+                                post:
+                                  operationId: enqueueJob
+                                  responses:
+                                    '202':
+                                      description: Accepted
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Job'
+                            components:
+                              schemas:
+                                Job:
+                                  type: object
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+
+        // 202 maps to a dedicated 'accepted' discriminator so consumers can distinguish
+        // it from 'ok' (200) when the spec uses both.
+        Assert.Contains("{ status: 'accepted'; data: Job; response: Response }", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_AxiosVariant_ImportsAxiosResponseForPerOpArms()
+    {
+        // The per-op result-type arms reference Response (Fetch) or AxiosResponse (Axios).
+        // Axios needs an explicit import — Fetch's Response is a DOM global.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(
+            document!,
+            headerContent: null,
+            httpClient: TypeScriptHttpClient.Axios));
+
+        Assert.Contains("import type { AxiosResponse } from 'axios';", content, StringComparison.Ordinal);
+        Assert.Contains("response: AxiosResponse", content, StringComparison.Ordinal);
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)

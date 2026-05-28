@@ -38,6 +38,7 @@ public static class TypeScriptApiResultExtractor
         sb.AppendLine("export type ApiResult<T> =");
         sb.Append("  | { status: 'ok'; data: T; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'created'; data: T; response: ").Append(responseType).AppendLine(" }");
+        sb.Append("  | { status: 'accepted'; data: T; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'noContent'; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'badRequest'; error: ValidationError; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'unauthorized'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
@@ -53,6 +54,7 @@ public static class TypeScriptApiResultExtractor
         // Type guard functions
         AppendTypeGuard(sb, "isOk", "ok", hasData: true, responseType);
         AppendTypeGuard(sb, "isCreated", "created", hasData: true, responseType);
+        AppendTypeGuard(sb, "isAccepted", "accepted", hasData: true, responseType);
         AppendTypeGuard(sb, "isNoContent", "noContent", hasData: false, responseType);
         AppendErrorTypeGuard(sb, "isBadRequest", "badRequest", "ValidationError", responseType);
         AppendErrorTypeGuard(sb, "isUnauthorized", "unauthorized", "ApiError", responseType);

@@ -342,7 +342,7 @@ public static class TypeScriptReactQueryHookExtractor
         sb.AppendLine("    queryFn: async () => {");
         sb.Append("      const result = await api.").Append(segmentProperty).Append('.').Append(info.MethodName).Append('(').Append(clientCallArgs).AppendLine(");");
 
-        AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod);
+        AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
 
         sb.AppendLine("    },");
 
@@ -642,7 +642,7 @@ public static class TypeScriptReactQueryHookExtractor
         sb.Append("    mutationFn: async ").Append(mutationArg).AppendLine(" => {");
         sb.Append("      const result = await api.").Append(segmentProperty).Append('.').Append(info.MethodName).Append('(').Append(clientCallArgs).AppendLine(");");
 
-        AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod);
+        AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
 
         sb.AppendLine("    },");
         sb.AppendLine("    onSuccess: () => {");
@@ -655,19 +655,35 @@ public static class TypeScriptReactQueryHookExtractor
     private static void AppendResultUnwrap(
         StringBuilder sb,
         string returnType,
-        string httpMethod)
+        string httpMethod,
+        List<string> success2xxDiscriminators)
     {
         var isVoid = returnType == "void";
         var isDelete = httpMethod.Equals("DELETE", StringComparison.OrdinalIgnoreCase);
 
+        // The narrowing list must match the per-op result type's declared 2xx arms. Without
+        // this, a hook generated for an op that only declares 200 would type-error on
+        // `result.status === 'created'` because 'created' isn't in the per-op union.
         if (isVoid || isDelete)
         {
-            sb.AppendLine("      if (result.status === 'noContent' || result.status === 'ok') {");
+            var allSuccess = success2xxDiscriminators.Count > 0
+                ? success2xxDiscriminators
+                : new List<string> { "noContent", "ok" };
+            sb.Append("      if (").Append(BuildStatusDisjunction(allSuccess)).AppendLine(") {");
             sb.AppendLine("        return;");
         }
         else
         {
-            sb.AppendLine("      if (result.status === 'ok' || result.status === 'created') {");
+            // Data-bearing arms only — noContent has no data to forward.
+            var dataBearing = success2xxDiscriminators
+                .Where(d => !string.Equals(d, "noContent", StringComparison.Ordinal))
+                .ToList();
+            if (dataBearing.Count == 0)
+            {
+                dataBearing.Add("ok");
+            }
+
+            sb.Append("      if (").Append(BuildStatusDisjunction(dataBearing)).AppendLine(") {");
             sb.AppendLine("        return result.data;");
         }
 
@@ -679,6 +695,11 @@ public static class TypeScriptReactQueryHookExtractor
         sb.AppendLine("        result.response,");
         sb.AppendLine("      );");
     }
+
+    private static string BuildStatusDisjunction(List<string> discriminators)
+        => string.Join(
+            " || ",
+            discriminators.Select(d => $"result.status === '{d}'"));
 
     private static string BuildClientCallArgs(
         List<OpenApiParameter> pathParams,
@@ -811,7 +832,8 @@ public static class TypeScriptReactQueryHookExtractor
             BodyType: bodyType,
             HasFileUploadArg: hasFileUploadArg,
             FileUploadParam: fileUploadParam,
-            FileUploadArgName: fileUploadArgName);
+            FileUploadArgName: fileUploadArgName,
+            Success2xxDiscriminators: TypeScriptOperationHelper.CollectDeclared2xxDiscriminators(operation));
     }
 
     private static (bool HasArg, string ParamDecl, string ArgName) GetFileUploadInfo(
@@ -890,5 +912,6 @@ public static class TypeScriptReactQueryHookExtractor
         string BodyType,
         bool HasFileUploadArg,
         string FileUploadParam,
-        string FileUploadArgName);
+        string FileUploadArgName,
+        List<string> Success2xxDiscriminators);
 }

@@ -20,7 +20,7 @@ export function useListAccounts(query?: { limit?: number }) {
     queryKey: accountsKeys.list(query),
     queryFn: async () => {
       const result = await api.accounts.listAccounts(query);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(
@@ -39,7 +39,7 @@ export function useCreateAccount() {
   return useMutation({
     mutationFn: async (body: Account) => {
       const result = await api.accounts.createAccount(body);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'created') {
         return result.data;
       }
       throw new ApiError(
@@ -61,7 +61,7 @@ export function useGetAccountById(accountId: string) {
     queryKey: accountsKeys.detail(accountId),
     queryFn: async () => {
       const result = await api.accounts.getAccountById(accountId);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(
@@ -81,7 +81,7 @@ export function useDeleteAccountById() {
   return useMutation({
     mutationFn: async (accountId: string) => {
       const result = await api.accounts.deleteAccountById(accountId);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'noContent') {
         return;
       }
       throw new ApiError(
@@ -103,7 +103,7 @@ export function useUpdateAccountById(accountId: string) {
   return useMutation({
     mutationFn: async (body: Account) => {
       const result = await api.accounts.updateAccountById(accountId, body);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(
@@ -125,7 +125,7 @@ export function useListPaginatedAccounts(query?: { pageSize?: number /* default:
     queryKey: accountsKeys.listPaginated(query),
     queryFn: async () => {
       const result = await api.accounts.listPaginatedAccounts(query);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'ok') {
         return result.data;
       }
       throw new ApiError(

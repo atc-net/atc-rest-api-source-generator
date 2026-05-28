@@ -32,7 +32,7 @@ export function useCreateTask() {
   return useMutation({
     mutationFn: async (body: Task) => {
       const result = await tasksClient.createTask(body);
-      if (result.status === 'ok' || result.status === 'created') {
+      if (result.status === 'created') {
         return result.data;
       }
       throw new ApiError(
@@ -53,7 +53,7 @@ export function useDeleteTask() {
   return useMutation({
     mutationFn: async (taskId: string) => {
       const result = await tasksClient.deleteTaskById(taskId);
-      if (result.status === 'noContent' || result.status === 'ok') {
+      if (result.status === 'noContent') {
         return;
       }
       throw new ApiError(

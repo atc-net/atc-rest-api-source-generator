@@ -412,7 +412,11 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("          response,");
         sb.AppendLine("        };");
         sb.AppendLine("      }");
-        sb.AppendLine("      const status = response.status === 201 ? 'created' as const : 'ok' as const;");
+        sb.AppendLine("      const status = response.status === 201");
+        sb.AppendLine("        ? 'created' as const");
+        sb.AppendLine("        : response.status === 202");
+        sb.AppendLine("          ? 'accepted' as const");
+        sb.AppendLine("          : 'ok' as const;");
         sb.AppendLine("      return { status, data: response.data, response };");
         sb.AppendLine("    }");
         sb.AppendLine();

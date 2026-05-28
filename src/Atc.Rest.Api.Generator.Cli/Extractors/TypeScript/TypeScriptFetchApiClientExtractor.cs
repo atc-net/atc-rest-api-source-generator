@@ -366,7 +366,11 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("      } catch (parseError) {");
         sb.AppendLine("        return { status: 'parseError', error: parseError as Error, response };");
         sb.AppendLine("      }");
-        sb.AppendLine("      const status = response.status === 201 ? 'created' as const : 'ok' as const;");
+        sb.AppendLine("      const status = response.status === 201");
+        sb.AppendLine("        ? 'created' as const");
+        sb.AppendLine("        : response.status === 202");
+        sb.AppendLine("          ? 'accepted' as const");
+        sb.AppendLine("          : 'ok' as const;");
         sb.AppendLine("      return { status, data: data as T, response };");
         sb.AppendLine("    }");
         sb.AppendLine();
