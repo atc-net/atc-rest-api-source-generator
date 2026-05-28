@@ -2,6 +2,60 @@ namespace Atc.CodeGeneration.TypeScript.Tests.Extensions;
 
 public class TypeScriptStringExtensionsTests
 {
+    // ========== ToTypeScriptIdentifier Tests ==========
+
+    [Theory]
+    [InlineData("listItems", "listItems")]              // already safe
+    [InlineData("getUserById", "getUserById")]          // already safe
+    [InlineData("", "")]                                 // empty stays empty
+    public void ToTypeScriptIdentifier_SafeInput_ReturnsUnchanged(
+        string input,
+        string expected)
+        => Assert.Equal(expected, input.ToTypeScriptIdentifier());
+
+    [Theory]
+    [InlineData("1stItem", "_1stItem")]
+    [InlineData("123abc", "_123abc")]
+    [InlineData("9lives", "_9lives")]
+    public void ToTypeScriptIdentifier_StartsWithDigit_PrefixesUnderscore(
+        string input,
+        string expected)
+        => Assert.Equal(expected, input.ToTypeScriptIdentifier());
+
+    [Theory]
+    [InlineData("for", "_for")]
+    [InlineData("if", "_if")]
+    [InlineData("function", "_function")]
+    [InlineData("return", "_return")]
+    [InlineData("class", "_class")]
+    [InlineData("delete", "_delete")]
+    [InlineData("new", "_new")]
+    [InlineData("default", "_default")]
+    [InlineData("typeof", "_typeof")]
+    [InlineData("void", "_void")]
+    [InlineData("import", "_import")]
+    [InlineData("export", "_export")]
+    [InlineData("async", "_async")]
+    [InlineData("await", "_await")]
+    public void ToTypeScriptIdentifier_ReservedWord_PrefixesUnderscore(
+        string input,
+        string expected)
+    {
+        // Standalone-function emission (e.g. useXxx hook names) can't shadow reserved
+        // words. Prefix `_` so the generated TS stays a valid program even when the
+        // operationId was `delete`, `for`, etc.
+        Assert.Equal(expected, input.ToTypeScriptIdentifier());
+    }
+
+    [Theory]
+    [InlineData("FOR", "FOR")]              // upper-case isn't reserved
+    [InlineData("forX", "forX")]            // longer-than-keyword isn't reserved
+    [InlineData("forwarded", "forwarded")]  // prefix collision shouldn't match
+    public void ToTypeScriptIdentifier_LooksLikeReservedButIsnt_LeavesAlone(
+        string input,
+        string expected)
+        => Assert.Equal(expected, input.ToTypeScriptIdentifier());
+
     // ========== ToPascalCase Tests ==========
     [Theory]
     [InlineData("hello", "Hello")]

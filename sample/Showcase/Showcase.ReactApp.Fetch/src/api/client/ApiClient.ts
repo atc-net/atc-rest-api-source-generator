@@ -190,12 +190,25 @@ export class ApiClient {
     const isJson = responseType ? responseType === 'json' : (!isText && contentType.includes('application/json'));
 
     if (response.ok) {
-      const data = isText ? await response.text() : isJson ? await response.json() : await response.blob();
+      let data: unknown;
+      try {
+        data = isText ? await response.text() : isJson ? await response.json() : await response.blob();
+      } catch (parseError) {
+        return { status: 'parseError', error: parseError as Error, response };
+      }
       const status = response.status === 201 ? 'created' as const : 'ok' as const;
       return { status, data: data as T, response };
     }
 
-    const errorBody = isJson ? await response.json() : null;
+    // Malformed JSON in an error response is non-fatal — fall back to statusText.
+    let errorBody: { title?: string; message?: string; errors?: Record<string, string[]> } | null = null;
+    if (isJson) {
+      try {
+        errorBody = await response.json();
+      } catch {
+        errorBody = null;
+      }
+    }
     const message = errorBody?.title ?? errorBody?.message ?? response.statusText;
 
     if (response.status === 400 && errorBody?.errors) {

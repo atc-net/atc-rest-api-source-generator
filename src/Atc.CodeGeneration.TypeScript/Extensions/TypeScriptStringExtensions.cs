@@ -4,6 +4,24 @@ namespace System;
 [SuppressMessage("", "CA1034:Do not nest type", Justification = "OK - CLang14 - extension")]
 public static class TypeScriptStringExtensions
 {
+    /// <summary>
+    /// TypeScript reserved words and strict-mode reserved words that would either be a
+    /// syntax error or shadow built-ins when used as a top-level function name. Method
+    /// names on a class can be any of these, so this list is intentionally tight — we
+    /// only block names that break standalone function declarations.
+    /// </summary>
+    private static readonly HashSet<string> TypeScriptReservedWords = new(StringComparer.Ordinal)
+    {
+        "break", "case", "catch", "class", "const", "continue", "debugger", "default",
+        "delete", "do", "else", "enum", "export", "extends", "false", "finally", "for",
+        "function", "if", "import", "in", "instanceof", "new", "null", "return", "super",
+        "switch", "this", "throw", "true", "try", "typeof", "var", "void", "while", "with",
+        "as", "implements", "interface", "let", "package", "private", "protected",
+        "public", "static", "yield", "any", "boolean", "constructor", "declare", "get",
+        "module", "require", "number", "set", "string", "symbol", "type", "from", "of",
+        "async", "await",
+    };
+
     extension(string value)
     {
         public string ToCamelCase()
@@ -66,6 +84,36 @@ public static class TypeScriptStringExtensions
             => string.IsNullOrEmpty(value)
                 ? value
                 : value.TrimEnd();
+
+        /// <summary>
+        /// Returns a TypeScript-safe identifier. Apply this to operationIds and any other
+        /// spec-supplied names that become standalone function or top-level binding names:
+        /// <list type="bullet">
+        ///   <item>Identifiers starting with a digit are prefixed with <c>_</c>.</item>
+        ///   <item>Identifiers that match a TypeScript reserved word are prefixed with <c>_</c>.</item>
+        ///   <item>Already-safe identifiers pass through unchanged.</item>
+        /// </list>
+        /// Whitespace / hyphen / dot splitting is intentionally NOT done here — call
+        /// <c>ToCamelCase()</c> or <c>ToPascalCase()</c> first if the input has separators.
+        /// </summary>
+        public string ToTypeScriptIdentifier()
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return value;
+            }
+
+            var result = value;
+
+            if (char.IsDigit(result[0]))
+            {
+                result = "_" + result;
+            }
+
+            return TypeScriptReservedWords.Contains(result)
+                ? "_" + result
+                : result;
+        }
 
         private static List<string> SplitIntoWords(string input)
         {

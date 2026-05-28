@@ -97,7 +97,7 @@ export function useDeleteSubscription() {
   });
 }
 
-export function useListNotificationsStream(query?: { topics?: string }, options?: { enabled?: boolean }) {
+export function useListNotificationsStream(query?: { topics?: string /* default: 'system,user,data' */ }, options?: { enabled?: boolean }) {
   const api = useApiService();
   const [items, setItems] = useState<readonly NotificationEvent[]>([]);
   const [status, setStatus] = useState<'idle' | 'streaming' | 'success' | 'error'>('idle');

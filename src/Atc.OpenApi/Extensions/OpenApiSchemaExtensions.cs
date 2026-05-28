@@ -491,9 +491,15 @@ public static class OpenApiSchemaExtensions
                 return false;
             }
 
-            // prefixItems is stored in Extensions since Microsoft.OpenApi doesn't have native support
-            return actualSchema.Extensions != null &&
-                   actualSchema.Extensions.ContainsKey("prefixItems");
+            // Microsoft.OpenApi 3.x doesn't surface prefixItems as a typed property — for
+            // OpenAPI 3.1 specs the YAML reader drops the keyword into UnrecognizedKeywords,
+            // and older specs that work around the parser put it under Extensions (with or
+            // without the "x-" prefix). Accept both so the helper works regardless of how
+            // the spec was written.
+            return (actualSchema.UnrecognizedKeywords != null &&
+                    actualSchema.UnrecognizedKeywords.ContainsKey("prefixItems")) ||
+                   (actualSchema.Extensions != null &&
+                    actualSchema.Extensions.ContainsKey("prefixItems"));
         }
 
         /// <summary>

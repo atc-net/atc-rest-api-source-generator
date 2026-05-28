@@ -385,6 +385,83 @@ public class TypeScriptClientExtractorTests
         Assert.Contains("import type { Tier } from '../enums';", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_OperationIdIsReservedWord_PrefixesMethodWithUnderscore()
+    {
+        // operationId: "delete" would produce `async delete(...)` on the client class,
+        // which TypeScript accepts as a method but breaks the moment a consumer treats
+        // it as `client.delete` (shadows the global `delete` operator at the call site).
+        // The sanitizer prefixes `_` to keep both the declaration and the call site safe.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items/{id}:
+                                delete:
+                                  operationId: delete
+                                  parameters:
+                                    - name: id
+                                      in: path
+                                      required: true
+                                      schema: { type: string }
+                                  responses:
+                                    '204': { description: No Content }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+
+        Assert.Contains("async _delete(", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("async delete(", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_OperationIdStartsWithDigit_PrefixesMethodWithUnderscore()
+    {
+        // `1stPage` would camelCase to `1stPage` — invalid TS identifier (leading digit).
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: 1stPage
+                                  responses:
+                                    '200': { description: OK }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+
+        Assert.Contains("async _1stPage(", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_OperationIdWithHyphen_CamelCasesAndStaysSafe()
+    {
+        // Hyphens are word separators in ToCamelCase, so `list-items` → `listItems`.
+        // Regression-guard: the sanitizer must not re-introduce the hyphen.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: list-items
+                                  responses:
+                                    '200': { description: OK }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+
+        Assert.Contains("async listItems(", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("async list-items(", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

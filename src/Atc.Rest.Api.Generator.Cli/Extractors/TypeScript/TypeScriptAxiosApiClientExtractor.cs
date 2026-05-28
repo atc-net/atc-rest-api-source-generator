@@ -398,6 +398,18 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    if (response.status >= 200 && response.status < 300) {");
+        sb.AppendLine("      // Axios with responseType: 'json' falls back to the raw string when JSON.parse");
+        sb.AppendLine("      // fails. Detect that case (text body where JSON was expected) and surface it");
+        sb.AppendLine("      // as a discriminated 'parseError' instead of pretending the response succeeded.");
+        sb.AppendLine("      const contentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');");
+        sb.AppendLine("      const expectsJson = contentType.includes('application/json');");
+        sb.AppendLine("      if (expectsJson && typeof response.data === 'string' && (response.data as string).length > 0) {");
+        sb.AppendLine("        return {");
+        sb.AppendLine("          status: 'parseError',");
+        sb.AppendLine("          error: new Error('Response body could not be parsed as JSON'),");
+        sb.AppendLine("          response,");
+        sb.AppendLine("        };");
+        sb.AppendLine("      }");
         sb.AppendLine("      const status = response.status === 201 ? 'created' as const : 'ok' as const;");
         sb.AppendLine("      return { status, data: response.data, response };");
         sb.AppendLine("    }");

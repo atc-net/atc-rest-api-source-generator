@@ -201,7 +201,7 @@ public static class TypeScriptClientExtractor
         var isFileUpload = operation.HasFileUpload();
         var isTextDownload = !isFileDownload && operation.HasTextResponse();
         var operationId = operation.GetOperationId(path, httpMethod);
-        var methodName = operationId.ToCamelCase();
+        var methodName = operationId.ToCamelCase().ToTypeScriptIdentifier();
 
         // Get parameters (merge path-level and operation-level)
         var pathParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Path);

@@ -872,6 +872,118 @@ public class TypeScriptOperationHelperOtherMethodsTests
         Assert.DoesNotContain("Address", imports);
     }
 
+    [Fact]
+    public void BuildQueryTypeInline_ParamHasStringDefault_EmitsInlineDefaultComment()
+    {
+        // OpenAPI `default: available` on a query param should surface as an inline
+        // comment in the generated TS type literal so consumers can see the server's
+        // default without having to read the spec.
+        var queryParams = new List<OpenApiParameter>
+        {
+            new()
+            {
+                Name = "status",
+                In = ParameterLocation.Query,
+                Schema = new OpenApiSchema
+                {
+                    Type = JsonSchemaType.String,
+                    Default = System.Text.Json.Nodes.JsonValue.Create("available"),
+                },
+            },
+        };
+
+        var result = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams);
+
+        Assert.Contains("status?: string /* default: 'available' */", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildQueryTypeInline_ParamHasNumberDefault_EmitsInlineDefaultComment()
+    {
+        var queryParams = new List<OpenApiParameter>
+        {
+            new()
+            {
+                Name = "limit",
+                In = ParameterLocation.Query,
+                Schema = new OpenApiSchema
+                {
+                    Type = JsonSchemaType.Integer,
+                    Default = System.Text.Json.Nodes.JsonValue.Create(20),
+                },
+            },
+        };
+
+        var result = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams);
+
+        Assert.Contains("limit?: number /* default: 20 */", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildQueryTypeInline_ParamHasBooleanDefault_EmitsInlineDefaultComment()
+    {
+        var queryParams = new List<OpenApiParameter>
+        {
+            new()
+            {
+                Name = "active",
+                In = ParameterLocation.Query,
+                Schema = new OpenApiSchema
+                {
+                    Type = JsonSchemaType.Boolean,
+                    Default = System.Text.Json.Nodes.JsonValue.Create(true),
+                },
+            },
+        };
+
+        var result = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams);
+
+        Assert.Contains("active?: boolean /* default: true */", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildQueryTypeInline_ParamHasNoDefault_OmitsComment()
+    {
+        // Regression-guard: params without `default:` must stay clean (no stray comment).
+        var queryParams = new List<OpenApiParameter>
+        {
+            new()
+            {
+                Name = "limit",
+                In = ParameterLocation.Query,
+                Schema = new OpenApiSchema { Type = JsonSchemaType.Integer },
+            },
+        };
+
+        var result = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams);
+
+        Assert.Equal("{ limit?: number }", result);
+        Assert.DoesNotContain("/* default:", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildHeaderTypeInline_ParamHasDefault_EmitsInlineDefaultComment()
+    {
+        var headerParams = new List<OpenApiParameter>
+        {
+            new()
+            {
+                Name = "X-Api-Version",
+                In = ParameterLocation.Header,
+                Required = true,
+                Schema = new OpenApiSchema
+                {
+                    Type = JsonSchemaType.String,
+                    Default = System.Text.Json.Nodes.JsonValue.Create("v1"),
+                },
+            },
+        };
+
+        var result = TypeScriptOperationHelper.BuildHeaderTypeInline(headerParams);
+
+        Assert.Contains("'X-Api-Version': string /* default: 'v1' */", result, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

@@ -60,6 +60,19 @@ public class TypeScriptAxiosApiClientExtractorTests
     }
 
     [Fact]
+    public void Generate_HandleResponse_SurfacesParseErrorArm()
+    {
+        // The Axios variant uses axios's built-in JSON parsing (via responseType: 'json'),
+        // but the parsed body can still be invalid — Axios reports the parse error via
+        // the response in a separate path. Either way the generated handleResponse needs
+        // to surface the discriminated 'parseError' arm when response.data is not the
+        // expected shape and a JSON parse failure can be detected.
+        var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
+
+        Assert.Contains("status: 'parseError'", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Generate_StreamHeadersLoop_GuardsAgainstUndefinedValue()
     {
         // RequestOptions.headers accepts `string | number | boolean | undefined` (axios

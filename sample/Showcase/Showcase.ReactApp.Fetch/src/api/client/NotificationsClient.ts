@@ -29,7 +29,7 @@ export class NotificationsClient {
     return this.api.request<void>('DELETE', `/notifications/subscriptions/${subscriptionId}`);
   }
 
-  async *listNotifications(query?: { topics?: string }, signal?: AbortSignal): AsyncGenerator<NotificationEvent> {
+  async *listNotifications(query?: { topics?: string /* default: 'system,user,data' */ }, signal?: AbortSignal): AsyncGenerator<NotificationEvent> {
     yield* this.api.requestStream<NotificationEvent>('GET', '/notifications/stream', {
       query: {
         topics: query?.topics,

@@ -306,7 +306,150 @@ public class TypeScriptTypeMapperTests
         Assert.Equal("User", result);
     }
 
+    // ========== prefixItems → tuple type tests (OpenAPI 3.1 / JSON Schema 2020-12) ==========
+
+    [Fact]
+    public void ToTypeScriptReturnType_PrefixItems_TwoNumbers_ReturnsNumberTuple()
+    {
+        // Coordinate from OpenApi31Features.yaml — prefixItems with two number positions.
+        // Today this returns "unknown[]" which loses the tuple shape and length constraint.
+        // After the fix: "[number, number]".
+        var doc = ParseYaml(YamlWithPrefixItemsCoordinate);
+        Assert.NotNull(doc);
+        var schema = GetSchema(doc!, "Coordinate");
+        Assert.NotNull(schema);
+
+        var result = schema!.ToTypeScriptReturnType();
+
+        Assert.Equal("[number, number]", result);
+    }
+
+    [Fact]
+    public void ToTypeScriptReturnType_PrefixItems_ThreeIntegers_ReturnsNumberTuple()
+    {
+        // RgbColor pattern — three integers (red, green, blue).
+        var doc = ParseYaml(YamlWithPrefixItemsRgb);
+        Assert.NotNull(doc);
+        var schema = GetSchema(doc!, "RgbColor");
+        Assert.NotNull(schema);
+
+        var result = schema!.ToTypeScriptReturnType();
+
+        Assert.Equal("[number, number, number]", result);
+    }
+
+    [Fact]
+    public void ToTypeScriptReturnType_PrefixItems_MixedTypes_ReturnsMixedTuple()
+    {
+        // [string, number] — heterogeneous tuple. Each prefix item has its own type.
+        var doc = ParseYaml(YamlWithPrefixItemsMixed);
+        Assert.NotNull(doc);
+        var schema = GetSchema(doc!, "NamedScore");
+        Assert.NotNull(schema);
+
+        var result = schema!.ToTypeScriptReturnType();
+
+        Assert.Equal("[string, number]", result);
+    }
+
+    [Fact]
+    public void ToTypeScriptReturnType_PrefixItems_OpenTuple_EmitsRestElement()
+    {
+        // prefixItems with a regular `items: { type: string }` — additional elements
+        // beyond the prefix must be the `items` type. TS tuple syntax: [..., ...string[]].
+        var doc = ParseYaml(YamlWithPrefixItemsOpenTuple);
+        Assert.NotNull(doc);
+        var schema = GetSchema(doc!, "RowWithLabels");
+        Assert.NotNull(schema);
+
+        var result = schema!.ToTypeScriptReturnType();
+
+        Assert.Equal("[number, number, ...string[]]", result);
+    }
+
     // ========== Helper Methods ==========
+
+    private static IOpenApiSchema? GetSchema(
+        OpenApiDocument doc,
+        string schemaName)
+    {
+        if (doc.Components?.Schemas == null)
+        {
+            return null;
+        }
+
+        return doc.Components.Schemas.TryGetValue(schemaName, out var schemaValue)
+            ? schemaValue
+            : null;
+    }
+
+    private const string YamlWithPrefixItemsCoordinate = """
+        openapi: 3.1.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths: {}
+        components:
+          schemas:
+            Coordinate:
+              type: array
+              prefixItems:
+                - type: number
+                - type: number
+              items: false
+        """;
+
+    private const string YamlWithPrefixItemsRgb = """
+        openapi: 3.1.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths: {}
+        components:
+          schemas:
+            RgbColor:
+              type: array
+              prefixItems:
+                - type: integer
+                - type: integer
+                - type: integer
+              items: false
+        """;
+
+    private const string YamlWithPrefixItemsMixed = """
+        openapi: 3.1.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths: {}
+        components:
+          schemas:
+            NamedScore:
+              type: array
+              prefixItems:
+                - type: string
+                - type: number
+              items: false
+        """;
+
+    private const string YamlWithPrefixItemsOpenTuple = """
+        openapi: 3.1.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths: {}
+        components:
+          schemas:
+            RowWithLabels:
+              type: array
+              prefixItems:
+                - type: number
+                - type: number
+              items:
+                type: string
+        """;
+
+    // ========== Existing helpers continue below ==========
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(
             yaml,
