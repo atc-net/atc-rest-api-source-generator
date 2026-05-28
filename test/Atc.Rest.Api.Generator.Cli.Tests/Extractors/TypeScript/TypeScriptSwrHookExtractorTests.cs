@@ -193,6 +193,37 @@ public class TypeScriptSwrHookExtractorTests
         Assert.Contains("return useSWR(", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_OperationWithSummaryAndDeprecated_EmitsJsDocAboveSwrHook()
+    {
+        // §5 DX polish: SWR hooks must surface the same JSDoc as the React Query
+        // hooks and the client method — keeps the IDE strikethrough consistent
+        // regardless of which hook style consumers pick.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info: { title: t, version: '1' }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  summary: List all items
+                                  deprecated: true
+                                  responses:
+                                    '200': { description: OK }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptSwrHookExtractor.Extract(document!, headerContent: null));
+
+        Assert.Contains("* List all items", content, StringComparison.Ordinal);
+        Assert.Contains("* @deprecated", content, StringComparison.Ordinal);
+
+        var deprecatedIdx = content.IndexOf("@deprecated", StringComparison.Ordinal);
+        var fnIdx = content.IndexOf("export function useListItems", StringComparison.Ordinal);
+        Assert.True(deprecatedIdx > 0 && fnIdx > deprecatedIdx, "JSDoc must precede the hook signature.");
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

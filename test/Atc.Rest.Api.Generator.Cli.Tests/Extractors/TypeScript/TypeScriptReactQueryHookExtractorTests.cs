@@ -894,6 +894,66 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.Contains("data: PaginationResult<Item>", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_OperationWithSummaryAndDeprecated_EmitsJsDocAboveHook()
+    {
+        // §5 DX polish parity: hooks must surface the same JSDoc as the client method.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info: { title: t, version: '1' }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  summary: List all items
+                                  deprecated: true
+                                  responses:
+                                    '200': { description: OK }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(document!, headerContent: null));
+
+        Assert.Contains("* List all items", content, StringComparison.Ordinal);
+        Assert.Contains("* @deprecated", content, StringComparison.Ordinal);
+
+        var deprecatedIdx = content.IndexOf("@deprecated", StringComparison.Ordinal);
+        var fnIdx = content.IndexOf("export function useListItems", StringComparison.Ordinal);
+        Assert.True(deprecatedIdx > 0 && fnIdx > deprecatedIdx, "JSDoc must precede the hook signature.");
+    }
+
+    [Fact]
+    public void Extract_OperationWithoutSummaryOrDeprecated_DoesNotEmitJsDocAboveHook()
+    {
+        // Regression guard: ops with no useful metadata must not produce a leading
+        // JSDoc block — the @deprecated path must not fire on its own.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info: { title: t, version: '1' }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  responses:
+                                    '200': { description: OK }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(document!, headerContent: null));
+
+        var fnIdx = content.IndexOf("export function useListItems", StringComparison.Ordinal);
+        var before = content[..fnIdx];
+
+        // The line immediately above the export must not be a JSDoc closer.
+        var lastNewlineBefore = before.LastIndexOf('\n');
+        var prevNewline = before.LastIndexOf('\n', lastNewlineBefore - 1);
+        var lineAbove = before[(prevNewline + 1)..lastNewlineBefore];
+        Assert.DoesNotContain("*/", lineAbove, StringComparison.Ordinal);
+        Assert.DoesNotContain("/**", lineAbove, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
