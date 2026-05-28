@@ -26,9 +26,7 @@ internal static class PathHelper
     /// <remarks>
     /// The strip is anchored to the CWD prefix only. Segments the user typed in the
     /// argument itself are preserved verbatim — so a spec at <c>src/specs/api.yaml</c>
-    /// is reachable from a sibling project under <c>src/</c>. See
-    /// <c>issues/002-path-helper-strips-src-segments.md</c> for the regression this
-    /// guarantees.
+    /// is reachable from a sibling project under <c>src/</c>.
     /// </remarks>
     /// <param name="path">The path to resolve.</param>
     /// <returns>The resolved absolute path.</returns>

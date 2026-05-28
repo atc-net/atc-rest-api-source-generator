@@ -164,8 +164,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("}");
     }
 
-    private static void AppendSetStrictModeMethod(
-        StringBuilder sb)
+    private static void AppendSetStrictModeMethod(StringBuilder sb)
     {
         sb.AppendLine("  /**");
         sb.AppendLine("   * Toggle strict runtime validation. When enabled, schema-mismatch");

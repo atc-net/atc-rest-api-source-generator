@@ -84,12 +84,11 @@ public class PathHelperTests
     }
 
     [Fact]
-    public void PathHelper_ResolveRelativePath_DoesNotStripSegmentsTypedInTheArgument_Issue002()
+    public void PathHelper_ResolveRelativePath_DoesNotStripSegmentsTypedInTheArgument()
     {
-        // Regression for issues/002-path-helper-strips-src-segments.md: a relative
-        // argument whose resolved path contains src/<segment>/ must NOT have those
-        // segments stripped just because they look like the CWD strip pattern. The
-        // strip is anchored to the CWD prefix only.
+        // Regression guard: a relative argument whose resolved path contains
+        // src/<segment>/ must NOT have those segments stripped just because they
+        // look like the CWD strip pattern. The strip is anchored to the CWD prefix only.
         WithCwdLayout("src/consumer-app/ClientApp", (tempRoot, _) =>
         {
             // Act

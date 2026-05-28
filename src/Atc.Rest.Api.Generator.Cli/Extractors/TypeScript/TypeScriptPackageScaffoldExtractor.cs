@@ -34,9 +34,9 @@ public static class TypeScriptPackageScaffoldExtractor
             root["description"] = description;
         }
 
-        // Dual ESM/CJS layout: ESM at dist/, CJS at dist/cjs/. `main` points at CJS
-        // for legacy `require()` consumers; `module` is the bundler hint for ESM;
-        // `types` is the canonical ESM declaration file (CJS types are not duplicated).
+        //// Dual ESM/CJS layout: ESM at dist/, CJS at dist/cjs/. `main` points at CJS
+        //// for legacy `require()` consumers; `module` is the bundler hint for ESM;
+        //// `types` is the canonical ESM declaration file (CJS types are not duplicated).
         root["main"] = "./dist/cjs/index.js";
         root["module"] = "./dist/index.js";
         root["types"] = "./dist/index.d.ts";
