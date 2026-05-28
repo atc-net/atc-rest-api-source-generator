@@ -36,6 +36,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         AnsiConsole.MarkupLine($"[blue]Mutable models:[/] {config.MutableModels}");
         AnsiConsole.MarkupLine($"[blue]Zod schemas:[/] {config.GenerateZodSchemas}");
         AnsiConsole.MarkupLine($"[blue]Scaffold:[/] {config.Scaffold}");
+        AnsiConsole.MarkupLine($"[blue]Branded IDs:[/] {config.BrandedIds}");
         if (config.DryRun)
         {
             AnsiConsole.MarkupLine("[blue]Dry run:[/] True");
@@ -310,6 +311,11 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         if (!string.IsNullOrWhiteSpace(settings.PackageVersion))
         {
             config.PackageVersion = settings.PackageVersion;
+        }
+
+        if (settings.BrandedIds)
+        {
+            config.BrandedIds = true;
         }
 
         if (settings.DryRun)
