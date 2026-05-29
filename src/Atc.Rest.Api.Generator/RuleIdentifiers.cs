@@ -75,6 +75,12 @@ public static class RuleIdentifiers
     /// </summary>
     public const string ContractsNamespaceAmbiguous = "ATC_API_GEN011";
 
+    /// <summary>
+    /// ATC_API_GEN012: A hand-written handler shadows a scaffolded stub of the same name in
+    /// the scaffold output folder; the stub is ignored and should be deleted.
+    /// </summary>
+    public const string HandlerStubShadowed = "ATC_API_GEN012";
+
     // ========== Dependency Rules (DEP) ==========
 
     /// <summary>
