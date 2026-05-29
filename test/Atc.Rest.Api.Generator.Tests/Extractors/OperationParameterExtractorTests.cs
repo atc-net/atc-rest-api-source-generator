@@ -1074,6 +1074,69 @@ public class OperationParameterExtractorTests
         Assert.Equal("ListUsersParametersRoles", inlineEnum.TypeName);
     }
 
+    [Fact]
+    public void ExtractWithInlineEnums_OptOut_RendersParameterAsString()
+    {
+        // Opt-out (emitInlineEnums: false) keeps the pre-1.0.252 contract: an inline enum
+        // on a parameter renders as `string` and no enum type is emitted, so handlers/services
+        // written against the old string shape keep compiling.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /github/repository/{repositoryName}/issues/{state}:
+                                get:
+                                  operationId: getIssuesByRepositoryNameAndState
+                                  parameters:
+                                    - name: repositoryName
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                    - name: state
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                        enum: [all, open, closed]
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Opt-out: parameter is string, no inline enum emitted.
+        var (optOut, optOutEnums) = OperationParameterExtractor.ExtractWithInlineEnums(
+            document!,
+            "Demo",
+            "Github",
+            registry: null,
+            emitInlineEnums: false);
+
+        Assert.NotNull(optOut);
+        var optOutRecord = Assert.Single(optOut.Parameters!);
+        var stateParam = Assert.Single(optOutRecord.Parameters!, p => p.Name == "State");
+        Assert.Equal("string", stateParam.TypeName);
+        Assert.Empty(optOutEnums);
+
+        // Default (opt-in): parameter is the generated enum type.
+        var (optIn, optInEnums) = OperationParameterExtractor.ExtractWithInlineEnums(
+            document!,
+            "Demo",
+            "Github",
+            registry: null);
+
+        Assert.NotNull(optIn);
+        var optInRecord = Assert.Single(optIn.Parameters!);
+        var stateEnumParam = Assert.Single(optInRecord.Parameters!, p => p.Name == "State");
+        Assert.Equal("GetIssuesByRepositoryNameAndStateParametersState", stateEnumParam.TypeName);
+        Assert.Single(optInEnums);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

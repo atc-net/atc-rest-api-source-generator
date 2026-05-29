@@ -14,6 +14,28 @@ public class ConfigurationTests
         Assert.Null(config.Namespace);
         Assert.Equal(SubFolderStrategyType.FirstPathSegment, config.SubFolderStrategy);
         Assert.Equal(MinimalApiPackageMode.Auto, config.UseMinimalApiPackage);
+        Assert.Equal(InlineParameterEnumMode.Enum, config.InlineParameterEnums);
+    }
+
+    [Theory]
+    [InlineData("String", InlineParameterEnumMode.String)]
+    [InlineData("string", InlineParameterEnumMode.String)]
+    [InlineData("Enum", InlineParameterEnumMode.Enum)]
+    [InlineData("unknown", InlineParameterEnumMode.Enum)]
+    public void ServerConfig_InlineParameterEnums_DeserializesFromMarker(
+        string markerValue,
+        InlineParameterEnumMode expected)
+    {
+        var json = $$"""
+            {
+                "inlineParameterEnums": "{{markerValue}}"
+            }
+            """;
+
+        var config = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
+
+        Assert.NotNull(config);
+        Assert.Equal(expected, config!.InlineParameterEnums);
     }
 
     [Fact]

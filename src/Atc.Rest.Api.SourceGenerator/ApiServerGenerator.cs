@@ -441,7 +441,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                 registry,
                 config.IncludeDeprecated,
                 includeSharedModelsUsing: sharedSchemas.Count > 0,
-                includeSegmentModelsUsing: hasSegmentModels);
+                includeSegmentModelsUsing: hasSegmentModels,
+                emitInlineParameterEnums: config.InlineParameterEnums == InlineParameterEnumMode.Enum);
 
             // Generate result classes
             GenerateResultClasses(
@@ -1105,10 +1106,12 @@ public class ApiServerGenerator : IIncrementalGenerator
         TypeConflictRegistry registry,
         bool includeDeprecated,
         bool includeSharedModelsUsing = false,
-        bool includeSegmentModelsUsing = true)
+        bool includeSegmentModelsUsing = true,
+        bool emitInlineParameterEnums = true)
     {
         // Use OperationParameterExtractor inline-enum-aware variant so inline enums on
         // parameter schemas produce dedicated enum files alongside the parameter record.
+        // emitInlineParameterEnums = false opts back into the pre-1.0.252 string contract.
         var (recordsParams, inlineEnums) = OperationParameterExtractor.ExtractWithInlineEnums(
             openApiDoc,
             projectName,
@@ -1116,7 +1119,8 @@ public class ApiServerGenerator : IIncrementalGenerator
             registry,
             includeDeprecated,
             includeSharedModelsUsing,
-            includeSegmentModelsUsing);
+            includeSegmentModelsUsing,
+            emitInlineEnums: emitInlineParameterEnums);
 
         // Emit inline enum files first so the parameter record's type references resolve.
         foreach (var inlineEnum in inlineEnums)
