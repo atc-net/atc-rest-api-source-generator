@@ -45,7 +45,7 @@ public class TypeScriptRetryInterceptorExtractorTests
     {
         // The fetchFn signature must accept an AbortSignal so callers can wire it into the
         // in-flight request. Without this, policy.timeoutMs fires the controller but the
-        // network request keeps running — that was the bug §2.6 of the roadmap describes.
+        // network request keeps running.
         var result = TypeScriptRetryInterceptorExtractor.Generate(headerContent: null);
 
         Assert.Contains("fetchFn: (signal: AbortSignal) => Promise<Response>", result, StringComparison.Ordinal);

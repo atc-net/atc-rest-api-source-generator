@@ -141,7 +141,7 @@ public class TypeScriptClientGenerationServiceTests
     [Fact]
     public void Generate_WithMswEnabled_EmitsMocksIndexBarrel()
     {
-        // Regression for issues/003 §1: the root api/index.ts re-exports './mocks' when
+        // The root api/index.ts re-exports './mocks' when
         // any MSW handler files are written, but the generator never emitted a
         // mocks/index.ts barrel — strict tsc -b failed with TS2307.
         const string yaml = """

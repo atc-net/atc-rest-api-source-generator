@@ -967,7 +967,7 @@ public static class TypeScriptClientGenerationService
 
         // The root barrel (api/index.ts) does `export * from './mocks'` whenever any MSW
         // handler files exist; that requires a real mocks/index.ts. Without this barrel,
-        // strict tsc -b emits TS2307: Cannot find module './mocks' (issue 003 §1).
+        // strict tsc -b emits TS2307: Cannot find module './mocks'.
         var mocksBarrel = TypeScriptBarrelExportExtractor.Create(headerContent, moduleNames, isTypeOnly: false);
         var mocksBarrelContent = new GenerateContentForBarrelExport(mocksBarrel).Generate();
         WriteTsFile(Path.Combine(mocksDir, "index.ts"), mocksBarrelContent, dryRun);

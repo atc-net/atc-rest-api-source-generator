@@ -3,10 +3,10 @@ info:
   title: AsyncEnumerableHooks
   description: |
     Repro spec for issue 001: every fix has at least one operation that exercises it.
-    - listItems: minimal async-enumerable (Option A useXxxStream emission — §1)
-    - listItemPages: async-enumerable with PaginationResult<Item> wrapper (§4.1 imports)
-    - getItemLogs: GET with path + query params (§4.3 query in queryKey)
-    - searchItems: GET with date-time query param + convertDates=true (§4.4)
+    - listItems: minimal async-enumerable
+    - listItemPages: async-enumerable with PaginationResult<Item> wrapper
+    - getItemLogs: GET with path + query params
+    - searchItems: GET with date-time query param + convertDates=true
   version: v1
 servers:
   - url: /api/v1

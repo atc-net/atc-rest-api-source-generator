@@ -29,7 +29,7 @@ public class TypeScriptAxiosApiClientExtractorTests
         // The wrapped retry path assigns `response` from inside an async closure. TS's
         // control-flow analysis can't prove the closure ran before the variable is read
         // for handleResponse. The fix types `response` as `AxiosResponse<T> | undefined`
-        // and adds a runtime guard — see issues/001-feedback.md "Out of scope" §.
+        // and adds a runtime guard.
         var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null, hasRetry: true);
 
         Assert.Contains("let response: AxiosResponse<T> | undefined;", result, StringComparison.Ordinal);
