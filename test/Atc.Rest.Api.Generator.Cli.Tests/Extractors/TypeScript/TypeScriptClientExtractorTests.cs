@@ -1027,6 +1027,200 @@ public class TypeScriptClientExtractorTests
         Assert.DoesNotContain("from 'zod'", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_PaginatedStreamingWithSpecDeclaredContinuation_DoesNotDuplicateHeader()
+    {
+        // When the spec already declares an x-continuation header param the
+        // Page companion must not synthesize a second one (TS2300 / TS1117).
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /insights/devices:
+                                get:
+                                  operationId: getInsightsDevices
+                                  x-return-async-enumerable: true
+                                  parameters:
+                                    - { name: x-continuation, in: header, required: false, schema: { type: string } }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            allOf:
+                                              - $ref: '#/components/schemas/PaginationResult'
+                                              - type: object
+                                                properties:
+                                                  items:
+                                                    type: array
+                                                    items: { $ref: '#/components/schemas/InsightDevice' }
+                            components:
+                              schemas:
+                                InsightDevice: { type: object, properties: { id: { type: string } } }
+                                PaginationResult:
+                                  type: object
+                                  properties:
+                                    items: { type: array, items: {} }
+                            """;
+
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc!, headerContent: null));
+
+        Assert.DoesNotContain("'x-continuation'?: string; 'x-continuation'?: string", content, StringComparison.Ordinal);
+
+        // The request object literal must carry the continuation key exactly once per method.
+        var pageMethodBody = content[content.IndexOf("getInsightsDevicesPage", StringComparison.Ordinal)..];
+        var objectLiteralOccurrences = CountOccurrences(pageMethodBody, "'x-continuation': headers?.['x-continuation'],");
+        Assert.Equal(1, objectLiteralOccurrences);
+    }
+
+    [Fact]
+    public void Extract_AxiosPureStreamingOnlyClient_DoesNotImportAxiosResponse()
+    {
+        // A client whose only op is pure-streaming emits no per-op result
+        // type, so AxiosResponse is never referenced and must not be imported.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /logs:
+                                get:
+                                  operationId: streamLogs
+                                  x-return-async-enumerable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/LogLines' }
+                            components:
+                              schemas:
+                                LogLine: { type: object, properties: { message: { type: string } } }
+                                LogLines: { type: array, items: { $ref: '#/components/schemas/LogLine' } }
+                            """;
+
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(
+            doc!,
+            headerContent: null,
+            httpClient: TypeScriptHttpClient.Axios));
+
+        Assert.DoesNotContain("from 'axios'", content, StringComparison.Ordinal);
+
+        // The streamed item type is still imported; only the unused wrapper alias drops out.
+        Assert.Contains("import type { LogLine } from '../models';", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PaginatedStreamingGenericItem_ImportsItemType()
+    {
+        // The item type folded into PaginationResult<Item> must be imported
+        // (otherwise TS2304 "Cannot find name 'Item'").
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /insights/devices:
+                                get:
+                                  operationId: getInsightsDevices
+                                  x-return-async-enumerable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            allOf:
+                                              - $ref: '#/components/schemas/PaginationResult'
+                                              - type: object
+                                                properties:
+                                                  items:
+                                                    type: array
+                                                    items: { $ref: '#/components/schemas/InsightDevice' }
+                            components:
+                              schemas:
+                                InsightDevice: { type: object, properties: { id: { type: string } } }
+                                PaginationResult:
+                                  type: object
+                                  properties:
+                                    items: { type: array, items: {} }
+                            """;
+
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc!, headerContent: null));
+
+        Assert.Contains("PaginationResult<InsightDevice>", content, StringComparison.Ordinal);
+        Assert.Contains("import type { InsightDevice, PaginationResult } from '../models';", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_EnumReachableOnlyViaInlineBody_IsNotImported()
+    {
+        // An enum collected from a nested/inline body property but never
+        // surfaced in the client signature must not be imported (TS6133 / TS6196).
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /devices/{id}:
+                                post:
+                                  operationId: updateDevice
+                                  parameters:
+                                    - { name: id, in: path, required: true, schema: { type: string } }
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema:
+                                          type: object
+                                          required: [name]
+                                          properties:
+                                            name: { type: string }
+                                            connectionType: { $ref: '#/components/schemas/ConnectionType' }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/Device' }
+                            components:
+                              schemas:
+                                ConnectionType: { type: string, enum: [wired, wireless] }
+                                Device: { type: object, properties: { id: { type: string } } }
+                            """;
+
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var enumNames = new HashSet<string>(StringComparer.Ordinal) { "ConnectionType" };
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc!, headerContent: null, enumNames: enumNames));
+
+        Assert.DoesNotContain("ConnectionType", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("from '../enums'", content, StringComparison.Ordinal);
+    }
+
+    private static int CountOccurrences(
+        string haystack,
+        string needle)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = haystack.IndexOf(needle, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += needle.Length;
+        }
+
+        return count;
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

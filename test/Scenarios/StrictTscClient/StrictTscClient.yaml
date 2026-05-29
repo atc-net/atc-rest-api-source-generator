@@ -1,0 +1,144 @@
+openapi: 3.0.1
+info:
+  title: StrictTscClient
+  description: |
+    Repro spec for strict tsc failures in the generated TypeScript client. Each segment
+    exercises a distinct error class so a `tsc --noEmit` gate fails on the unfixed
+    generator and passes once all are fixed:
+    - insights: paginated-streaming op with an explicit x-continuation header
+      (duplicate header) whose item type is only reachable through the
+      PaginationResult<InsightDevice> generic argument (missing import).
+    - devices: a POST mutation (onSuccess arity) whose inline request body
+      references the ConnectionType enum, which is collected but never rendered in
+      the client/hook surface (unused enum import).
+    - logs: a pure-streaming op only, so the Axios client imports AxiosResponse
+      without ever referencing it (unused import).
+  version: v1
+servers:
+  - url: /api/v1
+paths:
+  /insights/devices:
+    get:
+      summary: Stream insight devices page-by-page (async-enumerable + PaginationResult)
+      operationId: getInsightsDevices
+      x-return-async-enumerable: true
+      tags:
+        - insights
+      parameters:
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: x-continuation
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationResult'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/InsightDevice'
+  /devices/{id}:
+    post:
+      summary: Update a device
+      operationId: updateDevice
+      tags:
+        - devices
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                connectionType:
+                  $ref: '#/components/schemas/ConnectionType'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+  /logs:
+    get:
+      summary: Stream log lines (pure async-enumerable)
+      operationId: streamLogs
+      x-return-async-enumerable: true
+      tags:
+        - logs
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogLines'
+components:
+  schemas:
+    InsightDevice:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    PaginationResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items: {}
+        continuationToken:
+          type: string
+          nullable: true
+        totalCount:
+          type: integer
+    ConnectionType:
+      type: string
+      enum:
+        - wired
+        - wireless
+    Device:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+        lastSeen:
+          type: string
+          format: date-time
+    LogLine:
+      type: object
+      required: [timestamp, message]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        message:
+          type: string
+    LogLines:
+      type: array
+      items:
+        $ref: '#/components/schemas/LogLine'
