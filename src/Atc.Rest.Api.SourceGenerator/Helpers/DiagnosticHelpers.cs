@@ -151,6 +151,17 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
+    /// ATC_API_GEN012: A hand-written handler shadows a scaffolded stub of the same name.
+    /// </summary>
+    public static readonly DiagnosticDescriptor HandlerStubShadowed = new(
+        RuleIdentifiers.HandlerStubShadowed,
+        "Handler Stub Shadowed by User Handler",
+        "Handler '{0}' is implemented in '{1}' and also has a leftover scaffolded stub in '{2}'. The user handler is registered; delete the stub to avoid confusion.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// ATCAPI012: Client EndpointPerOperation mode requires Atc.Rest.Client reference.
     /// </summary>
     public static readonly DiagnosticDescriptor ClientRequiresAtcRestClient = new(
@@ -524,6 +535,23 @@ internal static class DiagnosticHelpers
             GenerationSummary,
             Location.None,
             message));
+    }
+
+    /// <summary>
+    /// Reports that a hand-written handler shadows a leftover scaffolded stub of the same name.
+    /// </summary>
+    public static void ReportHandlerStubShadowed(
+        SourceProductionContext context,
+        string handlerName,
+        string userNamespace,
+        string stubNamespace)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            HandlerStubShadowed,
+            Location.None,
+            handlerName,
+            userNamespace,
+            stubNamespace));
     }
 
     /// <summary>

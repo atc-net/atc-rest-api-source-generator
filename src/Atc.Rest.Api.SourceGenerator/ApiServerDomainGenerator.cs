@@ -161,10 +161,13 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         var assemblyName = compilation.AssemblyName;
 
-        // Sort all collections to ensure deterministic equality comparison
+        // Sort all collections to ensure deterministic equality comparison. All discovered
+        // (name, namespace) pairs are kept — including duplicate names across namespaces — so
+        // the generation phase can prefer a user handler over a scaffolded stub.
         var implementedHandlers = FindImplementedHandlers(compilation)
-            .Select(kvp => new HandlerInfo(kvp.Key, kvp.Value))
+            .Select(h => new HandlerInfo(h.HandlerName, h.Namespace))
             .OrderBy(h => h.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(h => h.Namespace, StringComparer.Ordinal)
             .ToImmutableArray();
 
         var interfaceNamespaces = FindHandlerInterfaceNamespaces(compilation)
@@ -260,11 +263,22 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         var assemblyName = summary.AssemblyName ?? "Generated";
 
-        // Convert summary handler data to lookup dictionary
-        var implementedHandlers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // Convert summary handler data to a lookup of handler name -> all namespaces that
+        // implement it. Keeping every namespace (rather than collapsing to one) lets the
+        // loop below prefer a user-written handler over a scaffolded stub of the same name.
+        var implementedHandlers = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var handler in summary.ImplementedHandlers.Values)
         {
-            implementedHandlers[handler.Name] = handler.Namespace;
+            if (!implementedHandlers.TryGetValue(handler.Name, out var namespaces))
+            {
+                namespaces = new List<string>();
+                implementedHandlers[handler.Name] = namespaces;
+            }
+
+            if (!namespaces.Contains(handler.Namespace))
+            {
+                namespaces.Add(handler.Namespace);
+            }
         }
 
         // Get all operations from the OpenAPI document
@@ -317,13 +331,37 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             var operationId = operation.GetOperationId(path, operationType);
             var handlerName = $"{operationId.ToPascalCaseForDotNet()}{config.HandlerSuffix}";
 
-            // Check if handler is already implemented and get its actual namespace
-            var isImplemented = implementedHandlers.TryGetValue(handlerName, out var actualNamespace);
+            // The namespace a scaffolded stub for this operation would live in.
+            var scaffoldNamespace = GetHandlerNamespace(assemblyName, path, operation, config);
+
+            // Resolve which implementation to register. When the same handler name exists in
+            // multiple namespaces (a leftover stub under the scaffold namespace PLUS a
+            // hand-written handler elsewhere), prefer the user's handler so the endpoint
+            // doesn't silently resolve to the NotImplementedException stub (HTTP 501).
+            var isImplemented = implementedHandlers.TryGetValue(handlerName, out var implementingNamespaces)
+                && implementingNamespaces.Count > 0;
+
+            string? actualNamespace = null;
+            if (isImplemented)
+            {
+                actualNamespace =
+                    implementingNamespaces!.FirstOrDefault(ns => !string.Equals(ns, scaffoldNamespace, StringComparison.Ordinal))
+                    ?? implementingNamespaces![0];
+
+                // A user handler shadowing a leftover stub is silent otherwise — surface it so
+                // the developer knows to delete the stale stub in the scaffold folder.
+                if (implementingNamespaces!.Count > 1 &&
+                    implementingNamespaces.Contains(scaffoldNamespace) &&
+                    !string.Equals(actualNamespace, scaffoldNamespace, StringComparison.Ordinal))
+                {
+                    DiagnosticHelpers.ReportHandlerStubShadowed(context, handlerName, actualNamespace, scaffoldNamespace);
+                }
+            }
 
             // Use actual namespace if implemented, otherwise use config-based namespace
             var handlerNamespace = isImplemented && !string.IsNullOrEmpty(actualNamespace)
-                ? actualNamespace
-                : GetHandlerNamespace(assemblyName, path, operation, config);
+                ? actualNamespace!
+                : scaffoldNamespace;
 
             // Add to all handlers list for DI registration (regardless of implementation status)
             allHandlers.Add((operationId, handlerName, handlerNamespace));
@@ -460,10 +498,27 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     /// Detection is done both by interface implementation AND by class naming convention to handle
     /// cases where the interface isn't yet resolved during source generation.
     /// </summary>
-    private static Dictionary<string, string> FindImplementedHandlers(
+    internal static List<(string HandlerName, string Namespace)> FindImplementedHandlers(
         Compilation compilation)
     {
-        var implementedHandlers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // All discovered (name, namespace) pairs are returned WITHOUT collapsing to one
+        // namespace per name. When the same handler name exists in two namespaces — e.g. a
+        // previously scaffolded stub under "...ApiHandlers" AND a hand-written handler the
+        // user placed elsewhere — collapsing would let discovery order decide which one
+        // wins, silently registering the stub (HTTP 501). The caller, which knows the
+        // scaffold namespace per operation, picks the right one and can warn on shadowing.
+        var seen = new HashSet<(string, string)>();
+        var implementedHandlers = new List<(string HandlerName, string Namespace)>();
+
+        void Add(
+            string handlerName,
+            string ns)
+        {
+            if (seen.Add((handlerName, ns)))
+            {
+                implementedHandlers.Add((handlerName, ns));
+            }
+        }
 
         // Get type symbols from the current assembly only (avoids scanning all referenced assemblies)
         var allTypes = GetAllTypesFromAssembly(compilation.Assembly.GlobalNamespace);
@@ -492,15 +547,14 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                     // Get the actual namespace of the implementation
                     var actualNamespace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
 
-                    implementedHandlers[handlerName] = actualNamespace;
+                    Add(handlerName, actualNamespace);
                 }
             }
 
             // Method 2: Check by class name convention (e.g., SetShutdownHandler)
             // This catches handlers even when the interface isn't resolved yet during source generation
             var className = typeSymbol.Name;
-            if (className.EndsWith("Handler", StringComparison.Ordinal) &&
-                !implementedHandlers.ContainsKey(className))
+            if (className.EndsWith("Handler", StringComparison.Ordinal))
             {
                 // Verify it's a user-defined class (has source location in the current project)
                 var syntaxRef = typeSymbol.DeclaringSyntaxReferences.FirstOrDefault();
@@ -514,7 +568,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                         !filePath.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase))
                     {
                         var actualNamespace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
-                        implementedHandlers[className] = actualNamespace;
+                        Add(className, actualNamespace);
                     }
                 }
             }
