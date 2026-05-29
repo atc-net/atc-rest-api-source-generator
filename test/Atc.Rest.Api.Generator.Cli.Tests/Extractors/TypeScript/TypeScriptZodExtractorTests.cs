@@ -152,7 +152,7 @@ public class TypeScriptZodExtractorTests
     [Fact]
     public void ZodModel_SelfReferencingSchema_WrapsRecursiveRefWithZLazy()
     {
-        // Regression for issues/003 §2: a schema whose property references itself (here
+        // A schema whose property references itself (here
         // via array.items.$ref) must emit z.lazy(...) around the recursive sub-expression
         // and an explicit `: z.ZodType<Name>` annotation, or strict tsc trips TS 7022
         // (implicit any) and TS 2448 (used before declaration).
@@ -284,7 +284,7 @@ public class TypeScriptZodExtractorTests
     [Fact]
     public void ZodModel_AcyclicCrossSchemaReference_DoesNotEmitLazyOrAnnotation()
     {
-        // Regression guard for §3.6: when A references B but B does not reference A,
+        // When A references B but B does not reference A,
         // the relationship is acyclic — neither side needs lazy/annotation.
         const string yaml = """
                             openapi: 3.0.0
