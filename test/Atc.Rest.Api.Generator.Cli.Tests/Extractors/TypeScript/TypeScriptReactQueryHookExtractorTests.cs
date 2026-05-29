@@ -255,10 +255,10 @@ public class TypeScriptReactQueryHookExtractorTests
         // (vs `useListItems` which would be a useQuery wrapping a regular GET).
         Assert.Contains("export function useListItemsStream(", content, StringComparison.Ordinal);
 
-        // The skip-with-comment behavior is gone — this is the regression-guard against §1.
+        // The skip-with-comment behavior is gone — this is the regression-guard.
         Assert.DoesNotContain("is skipped", content, StringComparison.Ordinal);
 
-        // Hook surface — issue 001 §2 Option A contract.
+        // Hook surface.
         Assert.Contains("AbortController", content, StringComparison.Ordinal);
         Assert.Contains("'idle' | 'streaming' | 'success' | 'error'", content, StringComparison.Ordinal);
         Assert.Contains("return { items, status, error, cancel, reset };", content, StringComparison.Ordinal);
@@ -633,12 +633,13 @@ public class TypeScriptReactQueryHookExtractorTests
             StringComparison.Ordinal);
 
         // onSuccess composition: caller's onSuccess runs after the generator's invalidate,
-        // even when the caller spreads its own onSuccess via ...options.
-        Assert.Contains("options?.onSuccess?.(data, variables, context);", content, StringComparison.Ordinal);
+        // even when the caller spreads its own onSuccess via ...options. React Query >= 5.81
+        // mutation callbacks take 4 params (data, variables, onMutateResult, context).
+        Assert.Contains("options?.onSuccess?.(data, variables, onMutateResult, context);", content, StringComparison.Ordinal);
 
         // Spread order: caller options spread FIRST, then the composed onSuccess wins.
         var spreadIdx = content.IndexOf("...options,", StringComparison.Ordinal);
-        var onSuccessIdx = content.IndexOf("onSuccess: (data, variables, context)", StringComparison.Ordinal);
+        var onSuccessIdx = content.IndexOf("onSuccess: (data, variables, onMutateResult, context)", StringComparison.Ordinal);
         Assert.True(
             spreadIdx > 0 &&
             onSuccessIdx > 0 &&
@@ -983,6 +984,35 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.Contains("import type { PetId } from '../types/BrandedIds';", content, StringComparison.Ordinal);
         Assert.Contains("useGetPet(petId: PetId,", content, StringComparison.Ordinal);
         Assert.Contains("getPet: (petId: PetId) =>", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_MutationHook_ComposedOnSuccessForwardsFourArguments()
+    {
+        // React Query >= 5.81 mutation callbacks take 4 params
+        // (data, variables, onMutateResult, context). The composed onSuccess wrapper must
+        // declare and forward all four or callers' options.onSuccess fails TS2554.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /devices/{id}:
+                                post:
+                                  operationId: updateDevice
+                                  parameters:
+                                    - { name: id, in: path, required: true, schema: { type: string } }
+                                  responses:
+                                    '204': { description: No Content }
+                            """;
+
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null));
+
+        Assert.Contains("onSuccess: (data, variables, onMutateResult, context) => {", content, StringComparison.Ordinal);
+        Assert.Contains("options?.onSuccess?.(data, variables, onMutateResult, context);", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("options?.onSuccess?.(data, variables, context);", content, StringComparison.Ordinal);
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)
