@@ -155,7 +155,7 @@ public static class TypeScriptClientExtractor
         // method, with arms keyed off the operation's declared response codes. Computed first
         // so their referenced model/error types get folded into the file-level import set.
         // Paginated-streaming ops additionally get a `<MethodName>PageResult` alias for the
-        // non-streaming companion method that feeds useInfiniteQuery (see §4.1).
+        // non-streaming companion method that feeds useInfiniteQuery.
         var perOpResultTypes = new Dictionary<OpenApiOperation, string>(ReferenceEqualityComparer.Instance);
         var perOpPageResultTypes = new Dictionary<OpenApiOperation, string>(ReferenceEqualityComparer.Instance);
         var perOpDeclarations = new List<string>();
@@ -264,40 +264,51 @@ public static class TypeScriptClientExtractor
             }
         }
 
+        // Build the file body (per-op result aliases + class) BEFORE the imports so the
+        // import line can be narrowed to identifiers the body actually references. Without
+        // this, a model/enum collected from the schema graph but never surfaced in a
+        // signature/result-type — or AxiosResponse on a pure-streaming-only client — would
+        // import for nothing and fail strict tsc under noUnusedLocals.
+        var bodySb = new StringBuilder();
+
+        // Emit per-operation result-type aliases before the class.
+        foreach (var declaration in perOpDeclarations)
+        {
+            bodySb.Append(declaration);
+            bodySb.AppendLine();
+        }
+
+        // Class declaration
+        bodySb.Append("export class ").Append(className).AppendLine(" {");
+        bodySb.AppendLine("  private readonly api: ApiClient;");
+        bodySb.AppendLine();
+        bodySb.AppendLine("  constructor(api: ApiClient) {");
+        bodySb.AppendLine("    this.api = api;");
+        bodySb.AppendLine("  }");
+
+        // Generate methods
+        foreach (var (path, method, operation) in operations)
+        {
+            bodySb.AppendLine();
+            perOpResultTypes.TryGetValue(operation, out var resultTypeName);
+            perOpPageResultTypes.TryGetValue(operation, out var pageResultTypeName);
+            AppendMethod(bodySb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, writableSchemas, pageResultTypeName, brandedIds, zodRuntimeValidate);
+        }
+
+        bodySb.AppendLine("}");
+
+        var bodyText = bodySb.ToString();
+
         // Write header
         if (headerContent != null)
         {
             sb.Append(headerContent);
         }
 
-        // Write imports
-        AppendImports(sb, importTypes, enumNames, perOpErrorImports, httpClient, brandImports, zodSchemaImports, needsZodImport);
+        // Write imports (narrowed to what the body references)
+        AppendImports(sb, importTypes, enumNames, perOpErrorImports, httpClient, brandImports, zodSchemaImports, needsZodImport, bodyText);
 
-        // Emit per-operation result-type aliases before the class.
-        foreach (var declaration in perOpDeclarations)
-        {
-            sb.Append(declaration);
-            sb.AppendLine();
-        }
-
-        // Class declaration
-        sb.Append("export class ").Append(className).AppendLine(" {");
-        sb.AppendLine("  private readonly api: ApiClient;");
-        sb.AppendLine();
-        sb.AppendLine("  constructor(api: ApiClient) {");
-        sb.AppendLine("    this.api = api;");
-        sb.AppendLine("  }");
-
-        // Generate methods
-        foreach (var (path, method, operation) in operations)
-        {
-            sb.AppendLine();
-            perOpResultTypes.TryGetValue(operation, out var resultTypeName);
-            perOpPageResultTypes.TryGetValue(operation, out var pageResultTypeName);
-            AppendMethod(sb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, writableSchemas, pageResultTypeName, brandedIds, zodRuntimeValidate);
-        }
-
-        sb.AppendLine("}");
+        sb.Append(bodyText);
 
         return sb.ToString();
     }
@@ -341,11 +352,14 @@ public static class TypeScriptClientExtractor
         TypeScriptHttpClient httpClient,
         SortedSet<string> brandImports,
         SortedSet<string> zodSchemaImports,
-        bool needsZodImport)
+        bool needsZodImport,
+        string bodyText)
     {
         // The Axios variant references AxiosResponse in per-op result-type arms — the Fetch
-        // variant uses the global Response type, so only the Axios path needs the import.
-        if (httpClient == TypeScriptHttpClient.Axios)
+        // variant uses the global Response type. A client with no per-op result type (e.g.
+        // only pure-streaming ops) never references it, so gate the import on actual usage
+        // to avoid an unused-import tsc error.
+        if (httpClient == TypeScriptHttpClient.Axios && TypeScriptOperationHelper.ReferencesIdentifier(bodyText, "AxiosResponse"))
         {
             sb.AppendLine("import type { AxiosResponse } from 'axios';");
         }
@@ -353,12 +367,20 @@ public static class TypeScriptClientExtractor
         // Import ApiClient
         sb.AppendLine("import { ApiClient } from './ApiClient';");
 
-        // Build model imports and enum imports separately
+        // Build model imports and enum imports separately. Only types the body actually
+        // references are imported — the schema-graph scan can over-collect (e.g. an enum
+        // reachable only through an inline request-body property, or an array-alias wrapper
+        // for a streamed item type) which would otherwise fail tsc under noUnusedLocals.
         var modelImports = new SortedSet<string>(StringComparer.Ordinal);
         var enumImports = new SortedSet<string>(StringComparer.Ordinal);
 
         foreach (var typeName in importTypes)
         {
+            if (!TypeScriptOperationHelper.ReferencesIdentifier(bodyText, typeName))
+            {
+                continue;
+            }
+
             if (enumNames != null && enumNames.Contains(typeName))
             {
                 enumImports.Add(typeName);
@@ -544,8 +566,13 @@ public static class TypeScriptClientExtractor
             paramParts.Add("query?: " + queryType);
         }
 
-        // Synthesized continuation header is always present in the signature. If the spec
-        // also declares header params, merge them inline.
+        // The continuation header is synthesized so the consumer can pass the token even
+        // when the spec doesn't declare it. When the spec DOES declare an x-continuation
+        // header param it already lands in the headerParams loop below, so synthesizing it
+        // again would emit a duplicate property (TS2300 / TS1117). Only synthesize when absent.
+        var specHasContinuation = headerParams.Any(p =>
+            string.Equals(p.Name, "x-continuation", StringComparison.OrdinalIgnoreCase));
+
         var headerProps = new List<string>();
         foreach (var p in headerParams)
         {
@@ -555,7 +582,11 @@ public static class TypeScriptClientExtractor
             headerProps.Add("'" + rawName + "'" + optional + ": " + t);
         }
 
-        headerProps.Add("'x-continuation'?: string");
+        if (!specHasContinuation)
+        {
+            headerProps.Add("'x-continuation'?: string");
+        }
+
         paramParts.Add("headers?: { " + string.Join("; ", headerProps) + " }");
 
         var paramList = string.Join(", ", paramParts);
@@ -595,7 +626,13 @@ public static class TypeScriptClientExtractor
             sb.Append("        '").Append(rawName).Append("': headers?.['").Append(rawName).AppendLine("'],");
         }
 
-        sb.AppendLine("        'x-continuation': headers?.['x-continuation'],");
+        // Mirror the signature: only synthesize the continuation entry when the spec
+        // didn't already declare it (the loop above emits the real one in that case).
+        if (!specHasContinuation)
+        {
+            sb.AppendLine("        'x-continuation': headers?.['x-continuation'],");
+        }
+
         sb.AppendLine("      },");
 
         sb.Append("    })").Append(" as Promise<").Append(pageResultTypeName).AppendLine(">;");

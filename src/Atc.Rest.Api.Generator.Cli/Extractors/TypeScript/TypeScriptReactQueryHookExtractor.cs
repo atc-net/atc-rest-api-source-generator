@@ -158,13 +158,66 @@ public static class TypeScriptReactQueryHookExtractor
             needsApiError = true;
         }
 
+        // Build the body (query-key factory + hooks) BEFORE the imports so model/enum
+        // import lines can be narrowed to identifiers the body actually references. The
+        // schema-graph scan can over-collect — e.g. an enum reachable only through an
+        // inline request body, or an array-alias wrapper for a streamed item type — which
+        // would otherwise fail tsc under noUnusedLocals.
+        var bodySb = new StringBuilder();
+
+        // Write query key factory
+        var segmentCamel = segment.ToCamelCase();
+        AppendQueryKeyFactory(bodySb, segmentCamel, hookInfos, namingStrategy, convertDates, brandedIds);
+
+        // Write hook functions
+        foreach (var info in hookInfos)
+        {
+            if (info.IsStreaming)
+            {
+                bodySb.AppendLine();
+                AppendStreamHook(bodySb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
+
+                // Paginated-streaming ops also get a useInfiniteQuery sibling that
+                // consumes the non-streaming Page companion emitted by the client extractor.
+                if (info.IsPaginatedStreaming)
+                {
+                    bodySb.AppendLine();
+                    AppendInfiniteHook(bodySb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
+                }
+            }
+            else if (info.IsQuery)
+            {
+                // For Both mode, emit standard and suspense as TWO separate hooks. For
+                // single-mode emission the canonical hook name is used; the suffix only
+                // disambiguates when both variants live in the same file.
+                if (emitStandardQuery)
+                {
+                    bodySb.AppendLine();
+                    AppendQueryHook(bodySb, info, segmentCamel, namingStrategy, convertDates, isSuspense: false, useSuspenseSuffix: false, brandedIds: brandedIds);
+                }
+
+                if (emitSuspenseQuery)
+                {
+                    bodySb.AppendLine();
+                    AppendQueryHook(bodySb, info, segmentCamel, namingStrategy, convertDates, isSuspense: true, useSuspenseSuffix: hooksMode == TypeScriptHooksMode.Both, brandedIds: brandedIds);
+                }
+            }
+            else
+            {
+                bodySb.AppendLine();
+                AppendMutationHook(bodySb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
+            }
+        }
+
+        var bodyText = bodySb.ToString();
+
         // Write header
         if (headerContent != null)
         {
             sb.Append(headerContent);
         }
 
-        // Write imports
+        // Write imports (narrowed to what the body references)
         AppendImports(
             sb,
             importTypes,
@@ -176,51 +229,10 @@ public static class TypeScriptReactQueryHookExtractor
             needsReactHooks,
             needsApiError,
             needsUseInfiniteQuery,
-            brandImports);
+            brandImports,
+            bodyText);
 
-        // Write query key factory
-        var segmentCamel = segment.ToCamelCase();
-        AppendQueryKeyFactory(sb, segmentCamel, hookInfos, namingStrategy, convertDates, brandedIds);
-
-        // Write hook functions
-        foreach (var info in hookInfos)
-        {
-            if (info.IsStreaming)
-            {
-                sb.AppendLine();
-                AppendStreamHook(sb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
-
-                // Paginated-streaming ops also get a useInfiniteQuery sibling that
-                // consumes the non-streaming Page companion emitted by the client extractor.
-                if (info.IsPaginatedStreaming)
-                {
-                    sb.AppendLine();
-                    AppendInfiniteHook(sb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
-                }
-            }
-            else if (info.IsQuery)
-            {
-                // For Both mode, emit standard and suspense as TWO separate hooks. For
-                // single-mode emission the canonical hook name is used; the suffix only
-                // disambiguates when both variants live in the same file.
-                if (emitStandardQuery)
-                {
-                    sb.AppendLine();
-                    AppendQueryHook(sb, info, segmentCamel, namingStrategy, convertDates, isSuspense: false, useSuspenseSuffix: false, brandedIds: brandedIds);
-                }
-
-                if (emitSuspenseQuery)
-                {
-                    sb.AppendLine();
-                    AppendQueryHook(sb, info, segmentCamel, namingStrategy, convertDates, isSuspense: true, useSuspenseSuffix: hooksMode == TypeScriptHooksMode.Both, brandedIds: brandedIds);
-                }
-            }
-            else
-            {
-                sb.AppendLine();
-                AppendMutationHook(sb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
-            }
-        }
+        sb.Append(bodyText);
 
         return sb.ToString();
     }
@@ -236,7 +248,8 @@ public static class TypeScriptReactQueryHookExtractor
         bool needsReactHooks,
         bool needsApiError,
         bool needsUseInfiniteQuery,
-        SortedSet<string> brandImports)
+        SortedSet<string> brandImports,
+        string bodyText)
     {
         // React primitive hooks (only required by stream hooks)
         if (needsReactHooks)
@@ -311,12 +324,19 @@ public static class TypeScriptReactQueryHookExtractor
             sb.AppendLine("import { ApiError } from '../errors/ApiError';");
         }
 
-        // Model and enum imports
+        // Model and enum imports — only those the hook body actually references, so an
+        // over-collected enum/model (e.g. an array-alias wrapper for a streamed item type)
+        // doesn't trip tsc under noUnusedLocals.
         var modelImports = new SortedSet<string>(StringComparer.Ordinal);
         var enumImports = new SortedSet<string>(StringComparer.Ordinal);
 
         foreach (var typeName in importTypes)
         {
+            if (!TypeScriptOperationHelper.ReferencesIdentifier(bodyText, typeName))
+            {
+                continue;
+            }
+
             if (enumNames != null && enumNames.Contains(typeName))
             {
                 enumImports.Add(typeName);
@@ -938,9 +958,13 @@ public static class TypeScriptReactQueryHookExtractor
         // Other handlers (onError, onSettled, retry, …) still pass through via the spread.
         sb.AppendLine("    ...options,");
 
-        sb.AppendLine("    onSuccess: (data, variables, context) => {");
+        // React Query 5.81 widened the mutation lifecycle callbacks to 4 params —
+        // onSuccess(data, variables, onMutateResult, context). Forward all four so the
+        // composed wrapper type-matches the caller's options.onSuccess. See the bumped
+        // peerDependency (@tanstack/react-query >= 5.81) in the package scaffold.
+        sb.AppendLine("    onSuccess: (data, variables, onMutateResult, context) => {");
         sb.Append("      queryClient.invalidateQueries({ queryKey: ").Append(segmentCamel).AppendLine("Keys.all });");
-        sb.AppendLine("      options?.onSuccess?.(data, variables, context);");
+        sb.AppendLine("      options?.onSuccess?.(data, variables, onMutateResult, context);");
         sb.AppendLine("    },");
 
         sb.AppendLine("  });");

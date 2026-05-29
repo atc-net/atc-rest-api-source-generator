@@ -582,6 +582,45 @@ public static class TypeScriptOperationHelper
     }
 
     /// <summary>
+    /// Returns true when <paramref name="identifier"/> appears in <paramref name="text"/>
+    /// as a standalone TypeScript identifier (bounded by non-identifier characters), so
+    /// import lines can be narrowed to types the generated body actually references. A
+    /// plain substring check would mismatch (e.g. <c>Device</c> inside
+    /// <c>DeviceManagement</c>); this respects identifier boundaries.
+    /// </summary>
+    /// <param name="text">The generated body text to scan.</param>
+    /// <param name="identifier">The candidate identifier to look for.</param>
+    /// <returns>True when the identifier occurs as a standalone token.</returns>
+    public static bool ReferencesIdentifier(
+        string text,
+        string identifier)
+    {
+        if (string.IsNullOrEmpty(identifier))
+        {
+            return false;
+        }
+
+        var index = 0;
+        while ((index = text.IndexOf(identifier, index, StringComparison.Ordinal)) >= 0)
+        {
+            var before = index == 0 || !IsIdentifierChar(text[index - 1]);
+            var afterIndex = index + identifier.Length;
+            var after = afterIndex >= text.Length || !IsIdentifierChar(text[afterIndex]);
+            if (before && after)
+            {
+                return true;
+            }
+
+            index = afterIndex;
+        }
+
+        return false;
+    }
+
+    private static bool IsIdentifierChar(char c)
+        => char.IsLetterOrDigit(c) || c == '_' || c == '$';
+
+    /// <summary>
     /// Collects all import types needed by an operation (from response schemas, request body,
     /// and parameter schemas).
     /// </summary>
@@ -714,7 +753,7 @@ public static class TypeScriptOperationHelper
             return;
         }
 
-        // Handle allOf references — flat list, refs only.
+        // Handle allOf references.
         if (actualSchema.AllOf is { Count: > 0 })
         {
             foreach (var subSchema in actualSchema.AllOf)
@@ -725,6 +764,26 @@ public static class TypeScriptOperationHelper
                     if (refName != null)
                     {
                         importTypes.Add(refName);
+                    }
+                }
+                else if (subSchema is OpenApiSchema inlineSchema && inlineSchema.Properties is { Count: > 0 })
+                {
+                    // Pagination pattern: allOf [$ref PaginationResult, { items: Item[] }].
+                    // ToTypeScriptReturnType folds the array item into the generic argument
+                    // (PaginationResult<Item>), so the item type must be imported too —
+                    // otherwise it surfaces as TS2304 "Cannot find name 'Item'".
+                    foreach (var prop in inlineSchema.Properties.Values)
+                    {
+                        if (prop is OpenApiSchema { Type: var t } arrayProp &&
+                            t?.HasFlag(JsonSchemaType.Array) == true &&
+                            arrayProp.Items is OpenApiSchemaReference itemRefInAllOf)
+                        {
+                            var itemName = itemRefInAllOf.Reference.Id ?? itemRefInAllOf.Id;
+                            if (itemName != null)
+                            {
+                                importTypes.Add(itemName);
+                            }
+                        }
                     }
                 }
             }
