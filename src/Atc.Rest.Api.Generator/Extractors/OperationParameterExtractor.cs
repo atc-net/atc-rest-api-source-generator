@@ -115,9 +115,16 @@ public static class OperationParameterExtractor
         TypeConflictRegistry? registry = null,
         bool includeDeprecated = false,
         bool includeSharedModelsUsing = false,
-        bool includeSegmentModelsUsing = true)
+        bool includeSegmentModelsUsing = true,
+        bool emitInlineEnums = true)
     {
-        var inlineEnumsByValuesKey = new Dictionary<string, InlineEnumInfo>(StringComparer.Ordinal);
+        // When opted out (emitInlineEnums = false), pass no accumulator so inline-enum
+        // parameters fall back to `string` and no enum types are emitted — the pre-1.0.252
+        // contract. This is the back-compat escape hatch for consumers whose handlers were
+        // written against the old string-typed parameter shape.
+        var inlineEnumsByValuesKey = emitInlineEnums
+            ? new Dictionary<string, InlineEnumInfo>(StringComparer.Ordinal)
+            : null;
         var recordsList = ExtractIndividual(
             openApiDoc,
             projectName,
@@ -130,7 +137,7 @@ public static class OperationParameterExtractor
 
         if (recordsList == null || recordsList.Count == 0)
         {
-            return (null, [.. inlineEnumsByValuesKey.Values]);
+            return (null, ToInlineEnumList(inlineEnumsByValuesKey));
         }
 
         var namespaceValue = NamespaceBuilder.ForParameters(projectName, pathSegment);
@@ -157,8 +164,14 @@ public static class OperationParameterExtractor
             DeclarationModifier: DeclarationModifiers.Public,
             Parameters: recordsList);
 
-        return (records, [.. inlineEnumsByValuesKey.Values]);
+        return (records, ToInlineEnumList(inlineEnumsByValuesKey));
     }
+
+    private static List<InlineEnumInfo> ToInlineEnumList(
+        Dictionary<string, InlineEnumInfo>? inlineEnumsByValuesKey)
+        => inlineEnumsByValuesKey is null
+            ? []
+            : [.. inlineEnumsByValuesKey.Values];
 
     /// <summary>
     /// Extracts individual parameter records from OpenAPI document paths and operations.
@@ -313,9 +326,14 @@ public static class OperationParameterExtractor
         TypeConflictRegistry? registry,
         bool includeBindingAttributes,
         string namespaceSubFolder,
-        bool includeDeprecated = false)
+        bool includeDeprecated = false,
+        bool emitInlineEnums = true)
     {
-        var inlineEnumsByValuesKey = new Dictionary<string, InlineEnumInfo>(StringComparer.Ordinal);
+        // See ExtractWithInlineEnums: emitInlineEnums = false opts back into the pre-1.0.252
+        // contract where inline-enum parameters render as `string`.
+        var inlineEnumsByValuesKey = emitInlineEnums
+            ? new Dictionary<string, InlineEnumInfo>(StringComparer.Ordinal)
+            : null;
         var records = ExtractIndividual(
             openApiDoc,
             projectName,
@@ -326,7 +344,7 @@ public static class OperationParameterExtractor
             includeDeprecated,
             inlineEnumsByValuesKey);
 
-        return (records, [.. inlineEnumsByValuesKey.Values]);
+        return (records, ToInlineEnumList(inlineEnumsByValuesKey));
     }
 
     /// <summary>

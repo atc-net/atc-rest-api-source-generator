@@ -90,4 +90,14 @@ public class ServerConfig : BaseConfig
     /// When enabled, generates /health, /health/live, and /health/ready with optional API key security.
     /// </summary>
     public HealthCheckConfig? HealthChecks { get; set; }
+
+    /// <summary>
+    /// How to generate an inline <c>enum</c> declared directly on a path/query/header
+    /// parameter. Default: <see cref="InlineParameterEnumMode.Enum"/> (a named C# enum type).
+    /// Set to <see cref="InlineParameterEnumMode.String"/> to keep the pre-1.0.252 behavior
+    /// where such parameters are generated as <c>string</c>, avoiding a source-breaking change
+    /// for handlers/services written against the old shape.
+    /// </summary>
+    [JsonConverter(typeof(InlineParameterEnumModeConverter))]
+    public InlineParameterEnumMode InlineParameterEnums { get; set; } = InlineParameterEnumMode.Enum;
 }
