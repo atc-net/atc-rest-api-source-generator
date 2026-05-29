@@ -86,7 +86,9 @@ public static class TypeScriptPackageScaffoldExtractor
         {
             root["peerDependencies"] = new JsonObject
             {
-                ["@tanstack/react-query"] = "^5.0.0",
+                // >= 5.81: mutation lifecycle callbacks gained a 4th parameter
+                // (onMutateResult); the generated composed onSuccess forwards all four.
+                ["@tanstack/react-query"] = "^5.81.0",
                 ["react"] = "^18.0.0",
             };
         }

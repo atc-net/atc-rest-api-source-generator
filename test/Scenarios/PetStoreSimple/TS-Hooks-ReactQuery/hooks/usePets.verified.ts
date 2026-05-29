@@ -52,9 +52,9 @@ export function useCreatePets(options?: Omit<UseMutationOptions<void, ApiError, 
       );
     },
     ...options,
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, onMutateResult, context) => {
       queryClient.invalidateQueries({ queryKey: petsKeys.all });
-      options?.onSuccess?.(data, variables, context);
+      options?.onSuccess?.(data, variables, onMutateResult, context);
     },
   });
 }

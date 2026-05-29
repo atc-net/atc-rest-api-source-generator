@@ -4,7 +4,7 @@ import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import type { UseQueryOptions } from '@tanstack/react-query';
 import { useApiService } from './useApiService';
 import { ApiError } from '../errors/ApiError';
-import type { Item, ItemLog, ItemLogs, Items, PaginationResult } from '../models';
+import type { Item, ItemLogs, Items, PaginationResult } from '../models';
 
 const itemsKeys = {
   all: ['items'] as const,
