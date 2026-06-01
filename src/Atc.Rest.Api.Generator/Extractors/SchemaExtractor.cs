@@ -14,6 +14,12 @@ public static class SchemaExtractor
     private static readonly string[] PaginationArrayPropertyNames
         = ["results", "items", "data", "values", "content"];
 
+    // Cache for CollectAllOfBaseSchemas results, keyed by document. The result is a pure function
+    // of the document, but ExtractIndividual is invoked once per path segment, so without this the
+    // whole-document allOf pre-scan is recomputed N times. Mirrors PathSegmentHelper's cache; uses
+    // ConditionalWeakTable so entries are GC'd with the document.
+    private static readonly ConditionalWeakTable<OpenApiDocument, HashSet<string>> AllOfBaseSchemasCache = new();
+
     /// <summary>
     /// Extracts model records from OpenAPI document components.
     /// </summary>
@@ -1162,6 +1168,10 @@ public static class SchemaExtractor
     /// These schemas should be generated as non-sealed records to allow inheritance.
     /// </summary>
     private static HashSet<string> CollectAllOfBaseSchemas(
+        OpenApiDocument openApiDoc)
+        => AllOfBaseSchemasCache.GetValue(openApiDoc, BuildAllOfBaseSchemas);
+
+    private static HashSet<string> BuildAllOfBaseSchemas(
         OpenApiDocument openApiDoc)
     {
         var allOfBaseSchemas = new HashSet<string>(StringComparer.Ordinal);
