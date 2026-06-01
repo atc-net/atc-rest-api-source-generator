@@ -11,7 +11,7 @@ namespace Polymorphism.Generated.Models;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
-[JsonDerivedType(typeof(EmailNotification), "email_notification")]
-[JsonDerivedType(typeof(SmsNotification), "sms_notification")]
-[JsonDerivedType(typeof(PushNotification), "push_notification")]
+[JsonDerivedType(typeof(EmailNotification), "EmailNotification")]
+[JsonDerivedType(typeof(SmsNotification), "SmsNotification")]
+[JsonDerivedType(typeof(PushNotification), "PushNotification")]
 public abstract record Notification;

@@ -111,6 +111,57 @@ public class PolymorphicTypeExtractorTests
     }
 
     [Fact]
+    public void ExtractPolymorphicConfigs_AutoDetectedDiscriminator_UsesVerbatimSchemaNameAsValue()
+    {
+        // Arrange — anyOf with auto-detected discriminator and multi-word variant names.
+        // The OpenAPI implicit-mapping convention uses the schema name verbatim as the
+        // discriminator value, NOT a snake_case transformation of it.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Notification:
+                                  anyOf:
+                                    - $ref: '#/components/schemas/EmailNotification'
+                                    - $ref: '#/components/schemas/SmsNotification'
+                                EmailNotification:
+                                  type: object
+                                  properties:
+                                    kind:
+                                      type: string
+                                    emailAddress:
+                                      type: string
+                                SmsNotification:
+                                  type: object
+                                  properties:
+                                    kind:
+                                      type: string
+                                    phoneNumber:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var configs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document!);
+
+        // Assert
+        Assert.NotNull(configs);
+        var config = configs!["Notification"];
+        Assert.False(config.IsDiscriminatorExplicit);
+
+        var email = config.Variants.First(v => string.Equals(v.TypeName, "EmailNotification", StringComparison.Ordinal));
+        var sms = config.Variants.First(v => string.Equals(v.TypeName, "SmsNotification", StringComparison.Ordinal));
+        Assert.Equal("EmailNotification", email.DiscriminatorValue);
+        Assert.Equal("SmsNotification", sms.DiscriminatorValue);
+    }
+
+    [Fact]
     public void ExtractPolymorphicConfigs_WithoutDiscriminator_ReturnsUnionConfig()
     {
         // Arrange — oneOf with no common string property
