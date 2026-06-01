@@ -333,19 +333,5 @@ public static class OutputCachePoliciesExtractor
     /// <param name="policyName">The policy name (e.g., "products", "product-list").</param>
     /// <returns>A valid C# identifier (e.g., "Products", "ProductList").</returns>
     public static string GenerateConstantName(string policyName)
-    {
-        // Split by '-', '_', and other separators
-        var parts = policyName.Split(['-', '_', ':', ' '], StringSplitOptions.RemoveEmptyEntries);
-
-        var result = new StringBuilder();
-
-        foreach (var part in parts)
-        {
-            // Convert each part to PascalCase
-            var pascalPart = part.ToPascalCaseForDotNet();
-            result.Append(pascalPart);
-        }
-
-        return result.ToString();
-    }
+        => PolicyNamingHelper.ToConstantName(policyName);
 }

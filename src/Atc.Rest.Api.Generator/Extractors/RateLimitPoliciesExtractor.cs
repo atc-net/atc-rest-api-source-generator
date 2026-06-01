@@ -249,19 +249,5 @@ public static class RateLimitPoliciesExtractor
     /// <param name="policyName">The policy name (e.g., "global", "create-user").</param>
     /// <returns>A valid C# identifier (e.g., "Global", "CreateUser").</returns>
     public static string GenerateConstantName(string policyName)
-    {
-        // Split by '-', '_', and other separators
-        var parts = policyName.Split(new[] { '-', '_', ':', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-        var result = new StringBuilder();
-
-        foreach (var part in parts)
-        {
-            // Convert each part to PascalCase
-            var pascalPart = part.ToPascalCaseForDotNet();
-            result.Append(pascalPart);
-        }
-
-        return result.ToString();
-    }
+        => PolicyNamingHelper.ToConstantName(policyName);
 }
