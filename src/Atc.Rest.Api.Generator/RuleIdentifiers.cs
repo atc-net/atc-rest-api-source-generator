@@ -81,6 +81,11 @@ public static class RuleIdentifiers
     /// </summary>
     public const string HandlerStubShadowed = "ATC_API_GEN012";
 
+    /// <summary>
+    /// ATC_API_GEN013: A marker file could not be deserialized; default configuration was used.
+    /// </summary>
+    public const string MarkerConfigParseError = "ATC_API_GEN013";
+
     // ========== Dependency Rules (DEP) ==========
 
     /// <summary>
@@ -326,6 +331,12 @@ public static class RuleIdentifiers
     /// This restricts properties in composition (allOf/oneOf/anyOf) but is not fully supported in code generation.
     /// </summary>
     public const string UnevaluatedPropertiesNotSupported = "ATC_API_SCH017";
+
+    /// <summary>
+    /// ATC_API_SCH018: Two or more distinct schema names sanitize to the same C# identifier,
+    /// which would produce duplicate type definitions in the generated code.
+    /// </summary>
+    public const string SchemaNameCollision = "ATC_API_SCH018";
 
     // ========== Path Rules (PTH) ==========
 

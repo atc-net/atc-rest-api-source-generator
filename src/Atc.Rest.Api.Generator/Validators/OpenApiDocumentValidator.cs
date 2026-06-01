@@ -89,6 +89,9 @@ public static class OpenApiDocumentValidator
         // ATCAPI_SCH013: Validate schema references (fundamental error that breaks code generation)
         diagnostics.AddRange(ValidateSchemaReferences(document, sourceFilePath));
 
+        // ATC_API_SCH018: Detect schema-name sanitization collisions (also breaks code generation)
+        diagnostics.AddRange(ValidateSchemaNameCollisions(document, sourceFilePath));
+
         return diagnostics;
     }
 
@@ -2535,6 +2538,54 @@ public static class OpenApiDocumentValidator
                         "Define the schema for the data your API will receive"
                     ]));
             }
+        }
+
+        return diagnostics;
+    }
+
+    /// <summary>
+    /// Validates that no two distinct schema names sanitize to the same C# identifier (ATC_API_SCH018).
+    /// Such collisions would produce duplicate type definitions in the generated code.
+    /// </summary>
+    private static List<DiagnosticMessage> ValidateSchemaNameCollisions(
+        OpenApiDocument document,
+        string sourceFilePath)
+    {
+        var diagnostics = new List<DiagnosticMessage>();
+
+        if (document.Components?.Schemas == null)
+        {
+            return diagnostics;
+        }
+
+        // Group the original schema names by the C# identifier they sanitize to. Use the same
+        // sanitization the generator applies so detection matches real generation behavior.
+        var groupsByIdentifier = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        foreach (var schemaName in document.Components.Schemas.Keys)
+        {
+            var sanitized = OpenApiSchemaExtensions.SanitizeSchemaName(schemaName);
+            if (!groupsByIdentifier.TryGetValue(sanitized, out var names))
+            {
+                names = new List<string>();
+                groupsByIdentifier[sanitized] = names;
+            }
+
+            names.Add(schemaName);
+        }
+
+        foreach (var group in groupsByIdentifier)
+        {
+            if (group.Value.Count <= 1)
+            {
+                continue;
+            }
+
+            var collidingNames = string.Join("', '", group.Value);
+            diagnostics.Add(new DiagnosticMessage(
+                RuleIdentifiers.SchemaNameCollision,
+                $"Schema names '{collidingNames}' all sanitize to the C# identifier '{group.Key}', which would produce duplicate type definitions. Rename all but one to avoid the collision.",
+                DiagnosticSeverity.Error,
+                sourceFilePath));
         }
 
         return diagnostics;

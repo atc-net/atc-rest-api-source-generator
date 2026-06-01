@@ -77,8 +77,9 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             {
                 config = JsonSerializer.Deserialize<ServerDomainConfig>(markerInfo.Content, JsonHelper.ConfigOptions) ?? new ServerDomainConfig();
             }
-            catch
+            catch (Exception ex)
             {
+                DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, markerInfo.Path, ex);
                 config = new ServerDomainConfig();
             }
 
