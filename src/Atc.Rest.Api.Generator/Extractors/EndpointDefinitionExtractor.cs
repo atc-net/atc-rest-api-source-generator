@@ -10,85 +10,6 @@ namespace Atc.Rest.Api.Generator.Extractors;
 public static class EndpointDefinitionExtractor
 {
     /// <summary>
-    /// Maps HTTP status code strings to their ASP.NET Core StatusCodes constant names.
-    /// </summary>
-    private static readonly Dictionary<string, string> HttpStatusCodeMap = new(StringComparer.Ordinal)
-    {
-        // 1xx Informational
-        ["100"] = "Status100Continue",
-        ["101"] = "Status101SwitchingProtocols",
-        ["102"] = "Status102Processing",
-        ["103"] = "Status103EarlyHints",
-
-        // 2xx Success
-        ["200"] = "Status200OK",
-        ["201"] = "Status201Created",
-        ["202"] = "Status202Accepted",
-        ["203"] = "Status203NonAuthoritative",
-        ["204"] = "Status204NoContent",
-        ["205"] = "Status205ResetContent",
-        ["206"] = "Status206PartialContent",
-        ["207"] = "Status207MultiStatus",
-        ["208"] = "Status208AlreadyReported",
-        ["226"] = "Status226IMUsed",
-
-        // 3xx Redirection
-        ["300"] = "Status300MultipleChoices",
-        ["301"] = "Status301MovedPermanently",
-        ["302"] = "Status302Found",
-        ["303"] = "Status303SeeOther",
-        ["304"] = "Status304NotModified",
-        ["305"] = "Status305UseProxy",
-        ["306"] = "Status306SwitchProxy",
-        ["307"] = "Status307TemporaryRedirect",
-        ["308"] = "Status308PermanentRedirect",
-
-        // 4xx Client Error
-        ["400"] = "Status400BadRequest",
-        ["401"] = "Status401Unauthorized",
-        ["402"] = "Status402PaymentRequired",
-        ["403"] = "Status403Forbidden",
-        ["404"] = "Status404NotFound",
-        ["405"] = "Status405MethodNotAllowed",
-        ["406"] = "Status406NotAcceptable",
-        ["407"] = "Status407ProxyAuthenticationRequired",
-        ["408"] = "Status408RequestTimeout",
-        ["409"] = "Status409Conflict",
-        ["410"] = "Status410Gone",
-        ["411"] = "Status411LengthRequired",
-        ["412"] = "Status412PreconditionFailed",
-        ["413"] = "Status413PayloadTooLarge",
-        ["414"] = "Status414UriTooLong",
-        ["415"] = "Status415UnsupportedMediaType",
-        ["416"] = "Status416RangeNotSatisfiable",
-        ["417"] = "Status417ExpectationFailed",
-        ["418"] = "Status418ImATeapot",
-        ["421"] = "Status421MisdirectedRequest",
-        ["422"] = "Status422UnprocessableEntity",
-        ["423"] = "Status423Locked",
-        ["424"] = "Status424FailedDependency",
-        ["425"] = "Status425TooEarly",
-        ["426"] = "Status426UpgradeRequired",
-        ["428"] = "Status428PreconditionRequired",
-        ["429"] = "Status429TooManyRequests",
-        ["431"] = "Status431RequestHeaderFieldsTooLarge",
-        ["451"] = "Status451UnavailableForLegalReasons",
-
-        // 5xx Server Error
-        ["500"] = "Status500InternalServerError",
-        ["501"] = "Status501NotImplemented",
-        ["502"] = "Status502BadGateway",
-        ["503"] = "Status503ServiceUnavailable",
-        ["504"] = "Status504GatewayTimeout",
-        ["505"] = "Status505HttpVersionNotsupported",
-        ["506"] = "Status506VariantAlsoNegotiates",
-        ["507"] = "Status507InsufficientStorage",
-        ["508"] = "Status508LoopDetected",
-        ["510"] = "Status510NotExtended",
-        ["511"] = "Status511NetworkAuthenticationRequired",
-    };
-
-    /// <summary>
     /// Extracts endpoint definition interface and classes from OpenAPI document.
     /// Groups operations by the specified strategy (first path segment or OpenAPI tag).
     /// </summary>
@@ -1352,7 +1273,7 @@ using Microsoft.AspNetCore.Builder;
                 }
 
                 // Get the StatusCodes constant name
-                if (!HttpStatusCodeMap.TryGetValue(statusCode, out var statusCodeConstant))
+                if (!HttpStatusCodeHelper.TryGetStatusCodesConstant(statusCode, out var statusCodeConstant))
                 {
                     continue;
                 }

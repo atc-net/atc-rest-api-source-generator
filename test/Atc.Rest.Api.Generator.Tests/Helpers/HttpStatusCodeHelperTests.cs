@@ -84,6 +84,41 @@ public class HttpStatusCodeHelperTests
         Assert.Equal(expected, result);
     }
 
+    // ========== StatusCodes Constant Lookup (shared by endpoint extractors) ==========
+    [Theory]
+    [InlineData("100", "Status100Continue")]
+    [InlineData("200", "Status200OK")]
+    [InlineData("404", "Status404NotFound")]
+    [InlineData("429", "Status429TooManyRequests")]
+    [InlineData("500", "Status500InternalServerError")]
+    [InlineData("504", "Status504GatewayTimeout")]
+    public void TryGetStatusCodesConstant_KnownCode_ReturnsConstantName(
+        string statusCode,
+        string expected)
+    {
+        // Act
+        var found = HttpStatusCodeHelper.TryGetStatusCodesConstant(statusCode, out var constant);
+
+        // Assert
+        Assert.True(found);
+        Assert.Equal(expected, constant);
+    }
+
+    [Theory]
+    [InlineData("999")]
+    [InlineData("418-invalid")]
+    [InlineData("")]
+    public void TryGetStatusCodesConstant_UnknownCode_ReturnsFalse(
+        string statusCode)
+    {
+        // Act
+        var found = HttpStatusCodeHelper.TryGetStatusCodesConstant(statusCode, out var constant);
+
+        // Assert
+        Assert.False(found);
+        Assert.Null(constant);
+    }
+
     // ========== Result Is Always a Valid C# Identifier ==========
     [Theory]
     [InlineData(200)]
