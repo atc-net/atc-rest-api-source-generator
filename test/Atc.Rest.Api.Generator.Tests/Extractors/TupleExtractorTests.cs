@@ -27,6 +27,33 @@ public class TupleExtractorTests
     }
 
     [Fact]
+    public void GetTupleInfo_PrefixItemWithMalformedRef_FallsBackToSafeType()
+    {
+        // Arrange — a prefixItems entry whose $ref has an empty last segment (trailing slash).
+        // Naively splitting on '/' and taking Last() yields "", which would produce an empty,
+        // invalid C# type in the generated tuple. The parser must fall back to a safe type.
+        var schema = new OpenApiSchema
+        {
+            Type = JsonSchemaType.Array,
+            Extensions = new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
+            {
+                ["prefixItems"] = new JsonNodeExtension(
+                    new JsonArray(
+                        new JsonObject { ["$ref"] = "#/components/schemas/" })),
+            },
+        };
+
+        // Act
+        var result = schema.GetTupleInfo();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Single(result!.PrefixItems);
+        Assert.False(string.IsNullOrWhiteSpace(result.PrefixItems[0].CSharpType));
+        Assert.Equal("object", result.PrefixItems[0].CSharpType);
+    }
+
+    [Fact]
     public void Extract_NoPrefixItems_ReturnsNull()
     {
         // Arrange — regular object schema without prefixItems

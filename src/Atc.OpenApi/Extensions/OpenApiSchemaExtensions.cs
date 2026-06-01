@@ -640,15 +640,18 @@ public static class OpenApiSchemaExtensions
             // Handle $ref
             var refStr = schemaObj["$ref"]?.GetValue<string>();
             string csharpType;
-            if (!string.IsNullOrEmpty(refStr))
+            var refName = !string.IsNullOrEmpty(refStr)
+                ? refStr!.Split('/').LastOrDefault()
+                : null;
+            if (!string.IsNullOrWhiteSpace(refName))
             {
-                var refName = refStr
-                    .Split('/')
-                    .Last();
-                csharpType = ResolveTypeName(refName, registry);
+                csharpType = ResolveTypeName(refName!, registry);
             }
             else
             {
+                // Either no $ref, or a malformed one (e.g. a trailing-slash ref whose last
+                // segment is empty). Fall back to the mapped primitive type rather than
+                // emitting an empty, invalid C# type name.
                 csharpType = IOpenApiSchema.MapJsonTypeToCSharp(typeStr, format);
             }
 
