@@ -13,6 +13,7 @@ global using Atc.Rest.Api.Generator.Extractors;
 global using Atc.Rest.Api.Generator.Helpers;
 global using Atc.Rest.Api.Generator.Validators;
 global using Atc.Rest.Api.SourceGenerator.Helpers;
+global using Atc.Rest.Api.SourceGenerator.Tests.Helpers;
 
 global using Microsoft.CodeAnalysis;
 global using Microsoft.CodeAnalysis.CSharp;

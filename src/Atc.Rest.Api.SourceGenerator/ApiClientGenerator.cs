@@ -75,8 +75,9 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             config = JsonSerializer.Deserialize<ClientConfig>(marker.Content, JsonHelper.ConfigOptions) ?? new ClientConfig();
         }
-        catch
+        catch (Exception ex)
         {
+            DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, marker.Path, ex);
             config = new ClientConfig();
         }
 

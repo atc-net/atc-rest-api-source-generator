@@ -162,6 +162,17 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
+    /// ATC_API_GEN013: A marker file could not be deserialized; default configuration was used.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MarkerConfigParseError = new(
+        RuleIdentifiers.MarkerConfigParseError,
+        "Marker File Could Not Be Parsed",
+        "The marker file '{0}' could not be parsed ({1}); using default configuration. Fix the JSON to apply your settings.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// ATCAPI012: Client EndpointPerOperation mode requires Atc.Rest.Client reference.
     /// </summary>
     public static readonly DiagnosticDescriptor ClientRequiresAtcRestClient = new(
@@ -552,6 +563,21 @@ internal static class DiagnosticHelpers
             handlerName,
             userNamespace,
             stubNamespace));
+    }
+
+    /// <summary>
+    /// Reports that a marker file could not be parsed and default configuration was used.
+    /// </summary>
+    public static void ReportMarkerConfigParseError(
+        SourceProductionContext context,
+        string markerPath,
+        Exception exception)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            MarkerConfigParseError,
+            Location.None,
+            markerPath,
+            exception.Message));
     }
 
     /// <summary>

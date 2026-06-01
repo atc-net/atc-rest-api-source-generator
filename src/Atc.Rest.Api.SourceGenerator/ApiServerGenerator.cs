@@ -82,8 +82,9 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             config = JsonSerializer.Deserialize<ServerConfig>(marker.Content, JsonHelper.ConfigOptions) ?? new ServerConfig();
         }
-        catch
+        catch (Exception ex)
         {
+            DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, marker.Path, ex);
             config = new ServerConfig();
         }
 

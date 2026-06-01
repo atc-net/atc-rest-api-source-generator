@@ -732,6 +732,89 @@ public class SchemaValidationTests
         Assert.Null(sch017);
     }
 
+    // ========== SCH018: Schema name sanitization collision ==========
+
+    [Fact]
+    public void Validate_TwoSchemasSanitizeToSameIdentifier_ReportsSCH018()
+    {
+        // Arrange — "User.Profile" sanitizes to "User_Profile", colliding with the literal "User_Profile".
+        // This breaks code generation (duplicate type) regardless of strictness, so it runs in Standard mode.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                User.Profile:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                User_Profile:
+                                  type: object
+                                  properties:
+                                    age:
+                                      type: integer
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Standard,
+            document!,
+            [],
+            TestFilePath);
+
+        // Assert
+        var sch018 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.SchemaNameCollision);
+        Assert.NotNull(sch018);
+        Assert.Equal(Generator.Models.DiagnosticSeverity.Error, sch018.Severity);
+        Assert.Contains("User_Profile", sch018.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_SchemasWithDistinctIdentifiers_NoSCH018()
+    {
+        // Arrange — no two schema names collide after sanitization
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                User:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                Profile:
+                                  type: object
+                                  properties:
+                                    age:
+                                      type: integer
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Standard,
+            document!,
+            [],
+            TestFilePath);
+
+        // Assert
+        var sch018 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.SchemaNameCollision);
+        Assert.Null(sch018);
+    }
+
     // ========== Helper Methods ==========
 
     private static OpenApiDocument? ParseYaml(string yaml)
