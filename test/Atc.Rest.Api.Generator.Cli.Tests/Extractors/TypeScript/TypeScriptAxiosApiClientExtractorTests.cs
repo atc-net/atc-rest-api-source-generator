@@ -108,6 +108,42 @@ public class TypeScriptAxiosApiClientExtractorTests
     }
 
     [Fact]
+    public void Generate_ConvertDates_AnchorsIsoDateRegexToWholeString()
+    {
+        // The reviver must only convert strings that are ENTIRELY an ISO datetime.
+        // An end-anchored regex prevents free-text fields like
+        // "2026-06-01T12:30:45Z [INFO] hello" (which merely start with a date) from
+        // being silently turned into Date objects.
+        var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null, convertDates: true);
+
+        Assert.Contains(
+            "const ISO_DATE_RE = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})?$/;",
+            result,
+            StringComparison.Ordinal);
+
+        // Regression guard for the buggy prefix-only regex.
+        Assert.DoesNotContain("/^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2})/;", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_ConvertDates_GuardsAgainstInvalidDate()
+    {
+        // Even when the regex matches, new Date(value) can yield an Invalid Date.
+        // The reviver must return the original string in that case rather than a
+        // corrupt Date object.
+        var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null, convertDates: true);
+
+        Assert.Contains("const parsed = new Date(value);", result, StringComparison.Ordinal);
+        Assert.Contains(
+            "return Number.isNaN(parsed.getTime()) ? value : parsed;",
+            result,
+            StringComparison.Ordinal);
+
+        // Regression guard: the old reviver returned the Date unconditionally.
+        Assert.DoesNotContain("    return new Date(value);", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Generate_ZodRuntimeValidate_ImportsZodTypeAnyAndValidatesAxiosData()
     {
         // Axios already parsed the JSON into response.data; the validation runs on

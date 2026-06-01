@@ -112,11 +112,12 @@ public static class TypeScriptFetchApiClientExtractor
 
     private static void AppendDateReviverReplacer(StringBuilder sb)
     {
-        sb.AppendLine("const ISO_DATE_RE = /^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2})/;");
+        sb.AppendLine("const ISO_DATE_RE = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})?$/;");
         sb.AppendLine();
         sb.AppendLine("function dateReviver(_key: string, value: unknown): unknown {");
         sb.AppendLine("  if (typeof value === 'string' && ISO_DATE_RE.test(value)) {");
-        sb.AppendLine("    return new Date(value);");
+        sb.AppendLine("    const parsed = new Date(value);");
+        sb.AppendLine("    return Number.isNaN(parsed.getTime()) ? value : parsed;");
         sb.AppendLine("  }");
         sb.AppendLine("  return value;");
         sb.AppendLine("}");
