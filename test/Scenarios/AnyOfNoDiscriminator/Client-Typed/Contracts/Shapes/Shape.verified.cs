@@ -11,7 +11,7 @@ namespace AnyOfNoDiscriminator.Generated.Models;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "color")]
-[JsonDerivedType(typeof(Circle), "circle")]
-[JsonDerivedType(typeof(Square), "square")]
-[JsonDerivedType(typeof(Triangle), "triangle")]
+[JsonDerivedType(typeof(Circle), "Circle")]
+[JsonDerivedType(typeof(Square), "Square")]
+[JsonDerivedType(typeof(Triangle), "Triangle")]
 public abstract record Shape;

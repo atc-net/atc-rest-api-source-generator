@@ -402,39 +402,9 @@ public static class PolymorphicTypeExtractor
             }
         }
 
-        // Auto-generate discriminator value from schema name (convert to snake_case)
-        return ToSnakeCase(variantSchemaName);
-    }
-
-    /// <summary>
-    /// Converts a PascalCase string to snake_case.
-    /// </summary>
-    private static string ToSnakeCase(string input)
-    {
-        if (string.IsNullOrEmpty(input))
-        {
-            return input;
-        }
-
-        var sb = new StringBuilder();
-        for (var i = 0; i < input.Length; i++)
-        {
-            var c = input[i];
-            if (char.IsUpper(c))
-            {
-                if (i > 0)
-                {
-                    sb.Append('_');
-                }
-
-                sb.Append(char.ToLowerInvariant(c));
-            }
-            else
-            {
-                sb.Append(c);
-            }
-        }
-
-        return sb.ToString();
+        // No explicit mapping: use the schema name verbatim. This matches the OpenAPI
+        // implicit-mapping convention (the discriminator value is the schema name as-is)
+        // and System.Text.Json's default, rather than guessing a snake_case transformation.
+        return variantSchemaName;
     }
 }
