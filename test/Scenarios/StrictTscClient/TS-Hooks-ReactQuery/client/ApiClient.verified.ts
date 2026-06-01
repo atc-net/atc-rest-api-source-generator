@@ -5,11 +5,12 @@ import { ApiError } from '../errors/ApiError';
 import { ValidationError } from '../errors/ValidationError';
 import type { ApiResult } from '../types/ApiResult';
 
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})/;
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/;
 
 function dateReviver(_key: string, value: unknown): unknown {
   if (typeof value === 'string' && ISO_DATE_RE.test(value)) {
-    return new Date(value);
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : parsed;
   }
   return value;
 }
