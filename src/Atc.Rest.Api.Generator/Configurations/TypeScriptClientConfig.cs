@@ -101,4 +101,14 @@ public class TypeScriptClientConfig
     /// <see cref="GenerateZodSchemas"/>. Default: false.
     /// </summary>
     public bool ZodRuntimeValidate { get; set; }
+
+    /// <summary>
+    /// For Union-style enums (<see cref="EnumStyle"/> is <see cref="TypeScriptEnumStyle.Union"/>),
+    /// also emit a runtime <c>{EnumName}Values</c> const array (e.g. <c>['A', 'B'] as const</c>)
+    /// beside the type alias. This gives consumers an iterable, <c>.map()</c>-able list for
+    /// populating dropdowns without forcing a TypeScript enum or requiring Zod. Has no effect
+    /// when <see cref="EnumStyle"/> is <see cref="TypeScriptEnumStyle.Enum"/> (which already
+    /// supports <c>Object.values</c>). Default: false.
+    /// </summary>
+    public bool EnumRuntimeValues { get; set; }
 }

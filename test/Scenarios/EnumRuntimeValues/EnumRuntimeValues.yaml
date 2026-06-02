@@ -1,0 +1,59 @@
+openapi: 3.0.0
+info:
+  title: EnumRuntimeValues
+  version: 1.0.0
+  description: Scenario covering --enum-runtime-values, which emits a runtime '{EnumName}Values' const array beside Union-style enum types.
+paths:
+  /tickets:
+    get:
+      operationId: getTickets
+      summary: List tickets
+      tags:
+        - tickets
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TicketStatus'
+      responses:
+        '200':
+          description: A list of tickets.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ticket'
+components:
+  schemas:
+    Ticket:
+      type: object
+      title: Ticket
+      required:
+        - id
+        - status
+        - priority
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/TicketStatus'
+        priority:
+          $ref: '#/components/schemas/TicketPriority'
+    TicketStatus:
+      type: string
+      description: The lifecycle state of a ticket.
+      enum:
+        - Open
+        - InProgress
+        - Resolved
+        - Closed
+    TicketPriority:
+      type: string
+      description: The urgency assigned to a ticket.
+      enum:
+        - Low
+        - Medium
+        - High

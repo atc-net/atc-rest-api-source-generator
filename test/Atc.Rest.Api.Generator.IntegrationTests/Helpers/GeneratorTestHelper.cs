@@ -353,6 +353,7 @@ public static class GeneratorTestHelper
             // CLI command's auto-imply so the scenario doesn't have to repeat both flags.
             ZodRuntimeValidate = markerConfig?.ZodRuntimeValidate ?? false,
             GenerateZodSchemas = (markerConfig?.ZodRuntimeValidate ?? false) || (markerConfig?.GenerateZodSchemas ?? false),
+            EnumRuntimeValues = markerConfig?.EnumRuntimeValues ?? false,
             DryRun = false,
             GenerateFileHeaders = true,
         };
@@ -572,5 +573,7 @@ public sealed class {handlerName} : {interfaceName}
         public bool ZodRuntimeValidate { get; init; }
 
         public bool GenerateZodSchemas { get; init; }
+
+        public bool EnumRuntimeValues { get; init; }
     }
 }

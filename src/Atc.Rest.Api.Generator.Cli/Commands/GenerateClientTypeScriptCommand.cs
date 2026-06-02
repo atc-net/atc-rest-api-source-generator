@@ -38,6 +38,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         AnsiConsole.MarkupLine($"[blue]Zod runtime validate:[/] {config.ZodRuntimeValidate}");
         AnsiConsole.MarkupLine($"[blue]Scaffold:[/] {config.Scaffold}");
         AnsiConsole.MarkupLine($"[blue]Branded IDs:[/] {config.BrandedIds}");
+        AnsiConsole.MarkupLine($"[blue]Enum runtime values:[/] {config.EnumRuntimeValues}");
         if (config.DryRun)
         {
             AnsiConsole.MarkupLine("[blue]Dry run:[/] True");
@@ -326,6 +327,11 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
             // intent is clear when they ask for runtime validation.
             config.ZodRuntimeValidate = true;
             config.GenerateZodSchemas = true;
+        }
+
+        if (settings.EnumRuntimeValues)
+        {
+            config.EnumRuntimeValues = true;
         }
 
         if (settings.DryRun)

@@ -107,6 +107,11 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
     [DefaultValue(false)]
     public bool ZodRuntimeValidate { get; init; }
 
+    [CommandOption("--enum-runtime-values")]
+    [Description("For Union-style enums, also emit a runtime '{EnumName}Values' const array (as const) for iterating/populating dropdowns without a TS enum or Zod. No effect with --enum-style Enum.")]
+    [DefaultValue(false)]
+    public bool EnumRuntimeValues { get; init; }
+
     public override ValidationResult Validate()
     {
         if (string.IsNullOrWhiteSpace(SpecificationPath))
