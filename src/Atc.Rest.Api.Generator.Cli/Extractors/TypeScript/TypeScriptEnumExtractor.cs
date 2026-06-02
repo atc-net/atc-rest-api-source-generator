@@ -78,7 +78,7 @@ public static class TypeScriptEnumExtractor
             string content;
             if (config.EnumStyle == TypeScriptEnumStyle.Union)
             {
-                content = GenerateUnionType(headerContent, docTags, schemaName, enumValues);
+                content = GenerateUnionType(headerContent, docTags, schemaName, enumValues, config.EnumRuntimeValues);
             }
             else
             {
@@ -92,13 +92,17 @@ public static class TypeScriptEnumExtractor
     }
 
     /// <summary>
-    /// Generates a string union type alias.
+    /// Generates a string union type alias. When <paramref name="includeRuntimeValues"/> is
+    /// true, a runtime <c>{typeName}Values = [...] as const</c> array is appended beside the
+    /// type so consumers can iterate the values (e.g. to populate a dropdown) without a TS
+    /// enum or Zod.
     /// </summary>
     private static string GenerateUnionType(
         string? headerContent,
         JsDocComment? docTags,
         string typeName,
-        List<string> values)
+        List<string> values,
+        bool includeRuntimeValues)
     {
         var parameters = TypeScriptTypeAliasParametersFactory.CreateStringUnion(
             headerContent,
@@ -110,7 +114,33 @@ public static class TypeScriptEnumExtractor
             new JsDocCommentGenerator(),
             parameters);
 
-        return generator.Generate();
+        var content = generator.Generate();
+
+        if (!includeRuntimeValues)
+        {
+            return content;
+        }
+
+        // The type-alias output already ends with a newline; add one blank line, then the
+        // runtime const array. Built manually because the TypeScript code-generation library
+        // has no const/variable primitive (matches the StringBuilder pattern used by other
+        // extractors such as TypeScriptServersExtractor / TypeScriptRetryConfigExtractor).
+        var sb = new StringBuilder(content);
+        sb.AppendLine();
+        sb.Append("export const ").Append(typeName).Append("Values = [");
+        for (var i = 0; i < values.Count; i++)
+        {
+            if (i > 0)
+            {
+                sb.Append(", ");
+            }
+
+            sb.Append('\'').Append(values[i]).Append('\'');
+        }
+
+        sb.AppendLine("] as const;");
+
+        return sb.ToString();
     }
 
     /// <summary>

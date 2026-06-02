@@ -85,6 +85,103 @@ public class TypeScriptEnumExtractorTests
     }
 
     [Fact]
+    public void Extract_StringEnum_UnionStyle_WithRuntimeValues_AppendsConstArray()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: T
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Status:
+                                  type: string
+                                  enum: [active, inactive, pending]
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+        var config = new TypeScriptClientConfig
+        {
+            EnumStyle = TypeScriptEnumStyle.Union,
+            EnumRuntimeValues = true,
+        };
+
+        var result = TypeScriptEnumExtractor.Extract(doc!, config);
+
+        var (name, content) = Assert.Single(result);
+        Assert.Equal("Status", name);
+
+        // The type alias is still emitted unchanged ...
+        Assert.Contains("export type Status = 'active' | 'inactive' | 'pending';", content, StringComparison.Ordinal);
+
+        // ... plus the runtime const array beside it.
+        Assert.Contains("export const StatusValues = ['active', 'inactive', 'pending'] as const;", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_StringEnum_UnionStyle_WithoutRuntimeValues_NoConstArray()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: T
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Status:
+                                  type: string
+                                  enum: [active, inactive]
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+        var config = new TypeScriptClientConfig
+        {
+            EnumStyle = TypeScriptEnumStyle.Union,
+            EnumRuntimeValues = false,
+        };
+
+        var result = TypeScriptEnumExtractor.Extract(doc!, config);
+
+        var (_, content) = Assert.Single(result);
+        Assert.DoesNotContain("StatusValues", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("as const", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_EnumStyle_WithRuntimeValues_DoesNotAppendConstArray()
+    {
+        // EnumRuntimeValues only affects Union style; the Enum style already exposes
+        // Object.values, so no const array is appended.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: T
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Color:
+                                  type: string
+                                  enum: [red, green, blue]
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+        var config = new TypeScriptClientConfig
+        {
+            EnumStyle = TypeScriptEnumStyle.Enum,
+            EnumRuntimeValues = true,
+        };
+
+        var result = TypeScriptEnumExtractor.Extract(doc!, config);
+
+        var (_, content) = Assert.Single(result);
+        Assert.Contains("enum Color", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("ColorValues", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Extract_NonStringSchema_Skipped()
     {
         // Only string-typed enums are surfaced. Object / number schemas are ignored.
