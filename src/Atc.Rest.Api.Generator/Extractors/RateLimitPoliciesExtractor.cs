@@ -37,7 +37,7 @@ public static class RateLimitPoliciesExtractor
     /// <summary>
     /// Collects all unique policies from rate limit extensions across all operations.
     /// </summary>
-    private static Dictionary<string, RateLimitConfiguration> CollectPolicies(
+    internal static Dictionary<string, RateLimitConfiguration> CollectPolicies(
         OpenApiDocument openApiDoc,
         bool includeDeprecated)
     {
