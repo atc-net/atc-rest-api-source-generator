@@ -37,7 +37,7 @@ public static class OutputCachePoliciesExtractor
     /// <summary>
     /// Collects all unique Output Cache policies from cache extensions across all operations.
     /// </summary>
-    private static Dictionary<string, CacheConfiguration> CollectPolicies(
+    internal static Dictionary<string, CacheConfiguration> CollectPolicies(
         OpenApiDocument openApiDoc,
         bool includeDeprecated)
     {
