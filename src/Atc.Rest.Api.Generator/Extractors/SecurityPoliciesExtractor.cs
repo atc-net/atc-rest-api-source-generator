@@ -37,7 +37,7 @@ public static class SecurityPoliciesExtractor
     /// <summary>
     /// Collects all unique policies from security requirements across all operations.
     /// </summary>
-    private static Dictionary<string, List<string>> CollectPolicies(
+    internal static Dictionary<string, List<string>> CollectPolicies(
         OpenApiDocument openApiDoc,
         bool includeDeprecated)
     {

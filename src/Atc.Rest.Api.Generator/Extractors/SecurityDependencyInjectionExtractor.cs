@@ -23,7 +23,7 @@ public static class SecurityDependencyInjectionExtractor
         }
 
         // Collect all unique policies from security requirements
-        var policies = CollectPolicies(openApiDoc, includeDeprecated);
+        var policies = SecurityPoliciesExtractor.CollectPolicies(openApiDoc, includeDeprecated);
 
         if (policies.Count == 0)
         {
@@ -32,119 +32,6 @@ public static class SecurityDependencyInjectionExtractor
 
         // Generate the complete file content
         return GenerateFileContent(projectName, policies);
-    }
-
-    /// <summary>
-    /// Collects all unique policies from security requirements across all operations.
-    /// </summary>
-    private static Dictionary<string, List<string>> CollectPolicies(
-        OpenApiDocument openApiDoc,
-        bool includeDeprecated)
-    {
-        var policies = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
-        {
-            return policies;
-        }
-
-        foreach (var pathPair in openApiDoc.Paths)
-        {
-            if (pathPair.Value is not OpenApiPathItem pathItem || pathItem.Operations == null)
-            {
-                continue;
-            }
-
-            foreach (var operationPair in pathItem.Operations)
-            {
-                var operation = operationPair.Value;
-
-                // Skip deprecated operations if not including them
-                if (!includeDeprecated && operation?.Deprecated == true)
-                {
-                    continue;
-                }
-
-                if (operation == null)
-                {
-                    continue;
-                }
-
-                // Extract security requirements for this operation
-                var securityRequirements = operation.ExtractSecurityRequirements(openApiDoc);
-
-                if (securityRequirements == null || securityRequirements.Count == 0)
-                {
-                    continue;
-                }
-
-                // Group requirements by scheme to handle AND logic within same scheme
-                var schemeScopes = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-
-                foreach (var requirement in securityRequirements)
-                {
-                    if (requirement.Scopes.Count == 0)
-                    {
-                        continue;
-                    }
-
-                    if (!schemeScopes.TryGetValue(requirement.SchemeName, out var scopeList))
-                    {
-                        scopeList = new List<string>();
-                        schemeScopes[requirement.SchemeName] = scopeList;
-                    }
-
-                    foreach (var scope in requirement.Scopes)
-                    {
-                        if (!scopeList.Contains(scope, StringComparer.Ordinal))
-                        {
-                            scopeList.Add(scope);
-                        }
-                    }
-                }
-
-                // Create policies for each scheme's scopes
-                foreach (var schemeKvp in schemeScopes)
-                {
-                    var schemeName = schemeKvp.Key;
-                    var scopes = schemeKvp.Value;
-
-                    if (scopes.Count == 0)
-                    {
-                        continue;
-                    }
-
-                    // Sort scopes for consistent policy names
-                    var sortedScopes = scopes
-                        .OrderBy(s => s, StringComparer.Ordinal)
-                        .ToList();
-
-                    var policyName = SecurityPoliciesExtractor.GeneratePolicyName(schemeName, sortedScopes);
-
-                    if (!policies.ContainsKey(policyName))
-                    {
-                        policies[policyName] = sortedScopes;
-                    }
-
-                    // Also create individual scope policies for single scopes
-                    if (scopes.Count > 1)
-                    {
-                        foreach (var scope in scopes)
-                        {
-                            var singleScopePolicyName = SecurityPoliciesExtractor.GeneratePolicyName(
-                                schemeName,
-                                new[] { scope });
-                            if (!policies.ContainsKey(singleScopePolicyName))
-                            {
-                                policies[singleScopePolicyName] = new List<string> { scope };
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return policies;
     }
 
     /// <summary>
