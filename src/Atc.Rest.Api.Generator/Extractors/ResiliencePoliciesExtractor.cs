@@ -37,7 +37,7 @@ public static class ResiliencePoliciesExtractor
     /// <summary>
     /// Collects all unique policies from retry extensions across all operations.
     /// </summary>
-    private static Dictionary<string, RetryConfiguration> CollectPolicies(
+    internal static Dictionary<string, RetryConfiguration> CollectPolicies(
         OpenApiDocument openApiDoc,
         bool includeDeprecated)
     {
