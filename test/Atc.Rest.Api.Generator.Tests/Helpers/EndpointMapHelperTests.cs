@@ -46,4 +46,27 @@ public class EndpointMapHelperTests
         => Assert.Equal(
             "MapMethods(\"/pets/{id}\", new[] { \"LINK\" }, LinkPet)",
             EndpointMapHelper.BuildSingleLineMapCall("LINK", "/pets/{id}", "LinkPet"));
+
+    [Theory]
+    [InlineData("GET", "HttpMethod.Get")]
+    [InlineData("post", "HttpMethod.Post")]
+    [InlineData("PUT", "HttpMethod.Put")]
+    [InlineData("DELETE", "HttpMethod.Delete")]
+    [InlineData("PATCH", "HttpMethod.Patch")]
+    [InlineData("HEAD", "HttpMethod.Head")]
+    [InlineData("OPTIONS", "HttpMethod.Options")]
+    [InlineData("QUERY", "HttpMethod.Query")]
+    public void BuildHttpMethodExpression_StandardVerb_UsesStaticProperty(
+        string httpMethod,
+        string expected)
+        => Assert.Equal(expected, EndpointMapHelper.BuildHttpMethodExpression(httpMethod));
+
+    [Theory]
+    [InlineData("LINK", "new HttpMethod(\"LINK\")")]
+    [InlineData("unlink", "new HttpMethod(\"UNLINK\")")]
+    [InlineData("PURGE", "new HttpMethod(\"PURGE\")")]
+    public void BuildHttpMethodExpression_CustomVerb_ConstructsHttpMethod(
+        string httpMethod,
+        string expected)
+        => Assert.Equal(expected, EndpointMapHelper.BuildHttpMethodExpression(httpMethod));
 }
