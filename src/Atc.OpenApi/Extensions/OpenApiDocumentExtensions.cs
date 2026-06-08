@@ -9,9 +9,35 @@ namespace Atc.OpenApi.Extensions;
 [SuppressMessage("", "S3398:Move this method inside", Justification = "OK - CLang14 - extension")]
 public static class OpenApiDocumentExtensions
 {
+    /// <summary>
+    /// Key used to stash the detected <see cref="OpenApiSpecVersion"/> in
+    /// <see cref="OpenApiDocument.Metadata"/> at parse time. The metadata bag is
+    /// not part of the OpenAPI specification and is never serialized, so it is a
+    /// safe side-channel for carrying the spec version to code that only holds the
+    /// document (validators, extractors) — the version itself lives on the parser's
+    /// diagnostic, not on the document.
+    /// </summary>
+    public const string SpecVersionMetadataKey = "x-atc-openapi-spec-version";
+
     /// <param name="document">The OpenAPI document.</param>
     extension(OpenApiDocument document)
     {
+        /// <summary>
+        /// Gets the OpenAPI specification version (3.0 / 3.1 / 3.2) that the document
+        /// was parsed as, when available.
+        /// </summary>
+        /// <returns>
+        /// The detected <see cref="OpenApiSpecVersion"/>, or <c>null</c> when the
+        /// document was not parsed through <c>OpenApiDocumentHelper</c> (e.g. constructed
+        /// in-memory) and therefore carries no version metadata.
+        /// </returns>
+        public OpenApiSpecVersion? GetOpenApiSpecVersion()
+            => document?.Metadata is not null &&
+               document.Metadata.TryGetValue(SpecVersionMetadataKey, out var value) &&
+               value is OpenApiSpecVersion specVersion
+                ? specVersion
+                : null;
+
         /// <summary>
         /// Gets all operations from all paths in the document.
         /// </summary>

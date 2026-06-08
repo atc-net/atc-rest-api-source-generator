@@ -102,6 +102,60 @@ public class SpecificationServiceTests
     }
 
     [Fact]
+    public void MergeSpecifications_PreservesOpenApiSpecVersion()
+    {
+        // The merged document is a clone of the base; the spec version stamped at
+        // parse time must survive the clone so later phases can gate on it.
+        const string baseYaml = """
+                                openapi: 3.2.0
+                                info:
+                                  title: Test API
+                                  version: 1.0.0
+                                paths:
+                                  /health:
+                                    get:
+                                      operationId: health
+                                      responses:
+                                        '200':
+                                          description: OK
+                                """;
+        var baseFile = SpecificationService.ReadFromContent(baseYaml, "SpecVersionBase.yaml");
+        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, baseFile.Document!.GetOpenApiSpecVersion());
+
+        var result = SpecificationService.MergeSpecifications(baseFile, new List<SpecificationFile>());
+
+        Assert.NotNull(result.Document);
+        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, result.Document!.GetOpenApiSpecVersion());
+    }
+
+    [Fact]
+    public void SerializeToYaml_DoesNotLeakSpecVersionMetadataKey()
+    {
+        // The spec version is stashed in the document's non-serialized Metadata bag
+        // (not Extensions, which serialize as x-* fields), so it must never appear
+        // in written YAML output.
+        const string yaml = """
+                            openapi: 3.2.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /health:
+                                get:
+                                  operationId: health
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+        var file = SpecificationService.ReadFromContent(yaml, "SpecVersionLeak.yaml");
+        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, file.Document!.GetOpenApiSpecVersion());
+
+        var serialized = SpecificationService.SerializeToYaml(file.Document!);
+
+        Assert.DoesNotContain("x-atc-openapi-spec-version", serialized, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void MergeSpecifications_MergesPathsFromPartFiles()
     {
         const string baseYaml = """

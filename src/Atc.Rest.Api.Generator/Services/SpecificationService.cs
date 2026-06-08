@@ -648,6 +648,15 @@ public static class SpecificationService
                 StringComparer.Ordinal);
         }
 
+        // Copy metadata (non-serialized annotation bag) so the parsed OpenAPI spec
+        // version stamped at parse time survives into the merged document.
+        if (source.Metadata != null)
+        {
+            clone.Metadata = new Dictionary<string, object>(
+                source.Metadata,
+                StringComparer.Ordinal);
+        }
+
         return clone;
     }
 
