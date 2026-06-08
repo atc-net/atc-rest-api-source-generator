@@ -937,18 +937,12 @@ using Microsoft.AspNetCore.Builder;
         var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";
         var methodName = operationId.ToPascalCaseForDotNet();
 
-        // Convert HTTP method to Pascal case
-        var httpMethodPascal = char.ToUpperInvariant(
-            httpMethod[0]) + httpMethod
-            .Substring(1)
-            .ToLowerInvariant();
-
         // Calculate relative path from original prefix (without server base path)
         var relativePath = GetRelativePath(path, originalPrefix);
 
         builder.Append(segment.ToLowerInvariant());
         builder.AppendLine();
-        builder.Append($"    .Map{httpMethodPascal}(\"{relativePath}\", {methodName})");
+        builder.Append($"    .{EndpointMapHelper.BuildSingleLineMapCall(httpMethod, relativePath, methodName)}");
         builder.AppendLine();
         builder.Append($"    .WithName(\"{methodName}\")");
 
