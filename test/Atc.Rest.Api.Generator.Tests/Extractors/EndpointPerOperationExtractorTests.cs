@@ -1238,6 +1238,54 @@ public class EndpointPerOperationExtractorTests
             StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_ItemSchemaStreamingResponse_GeneratesStreamingEndpointResponse()
+    {
+        // Arrange - OpenAPI 3.2 itemSchema streaming, no x-return-async-enumerable.
+        const string yaml = """
+                            openapi: 3.2.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /events:
+                                get:
+                                  operationId: streamEvents
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/jsonl:
+                                          itemSchema:
+                                            $ref: '#/components/schemas/Event'
+                            components:
+                              schemas:
+                                Event:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document!,
+            "TestApi",
+            "events",
+            registry: null,
+            includeDeprecated: false);
+
+        // Assert
+        var operationFile = Assert.Single(files);
+        Assert.NotNull(operationFile.EndpointInterfaceContent);
+        Assert.Contains("StreamingEndpointResponse<Event>", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
+        Assert.NotNull(operationFile.EndpointClassContent);
+        Assert.Contains("BuildStreamingEndpointResponseAsync<Event>", operationFile.EndpointClassContent, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

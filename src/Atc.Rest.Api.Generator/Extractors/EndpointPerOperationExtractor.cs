@@ -254,8 +254,9 @@ public static class EndpointPerOperationExtractor
         // Check if this is a binary endpoint (returns application/octet-stream)
         var isBinaryEndpoint = IsBinaryEndpoint(operation);
 
-        // Check if this operation returns an async enumerable (streaming response)
-        var isAsyncEnumerable = operation.IsAsyncEnumerableOperation();
+        // Check if this operation returns an async enumerable / streamed response
+        // (x-return-async-enumerable annotation or an OpenAPI 3.2 itemSchema).
+        var isAsyncEnumerable = operation.IsStreamingResponse();
 
         // Extract response information from OpenAPI spec
         var responses = ExtractResponses(
@@ -332,8 +333,16 @@ public static class EndpointPerOperationExtractor
         var hasRequestBody = operation.RequestBody is { Content: not null };
         var hasParameters = hasQueryRouteParams || hasRequestBody;
 
-        // Extract streaming item type for IAsyncEnumerable endpoints (e.g., "Account" from "IAsyncEnumerable<Account>")
-        var streamingItemType = isAsyncEnumerable ? ExtractStreamingItemType(responses) : null;
+        // Extract streaming item type for IAsyncEnumerable endpoints (e.g., "Account" from "IAsyncEnumerable<Account>").
+        // OpenAPI 3.2 itemSchema is already the per-element type, so map it directly.
+        string? streamingItemType = null;
+        if (isAsyncEnumerable)
+        {
+            var streamingItemSchema = operation.GetStreamingItemSchema();
+            streamingItemType = streamingItemSchema != null
+                ? GetSchemaTypeName(streamingItemSchema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas, isAsyncEnumerable: false)
+                : ExtractStreamingItemType(responses);
+        }
 
         // Generate endpoint interface
         var endpointInterfaceContent = GenerateEndpointInterface(

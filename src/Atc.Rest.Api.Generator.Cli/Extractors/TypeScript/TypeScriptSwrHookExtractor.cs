@@ -66,7 +66,7 @@ public static class TypeScriptSwrHookExtractor
                 continue;
             }
 
-            var isStreaming = operation.IsAsyncEnumerableOperation();
+            var isStreaming = operation.IsStreamingResponse();
             var isFileDownload = operation.HasFileDownload();
             var returnType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming, isFileDownload);
             var httpMethod = method.ToUpperInvariant();

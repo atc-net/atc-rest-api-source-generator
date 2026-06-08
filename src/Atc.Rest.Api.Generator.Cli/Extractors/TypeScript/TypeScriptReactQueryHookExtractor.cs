@@ -1103,7 +1103,7 @@ public static class TypeScriptReactQueryHookExtractor
         TypeScriptNamingStrategy namingStrategy,
         HashSet<string> writableSchemas)
     {
-        var isStreaming = operation.IsAsyncEnumerableOperation();
+        var isStreaming = operation.IsStreamingResponse();
         var isFileDownload = operation.HasFileDownload();
         var isFileUpload = operation.HasFileUpload();
         var operationId = operation.GetOperationId(path, httpMethod);
