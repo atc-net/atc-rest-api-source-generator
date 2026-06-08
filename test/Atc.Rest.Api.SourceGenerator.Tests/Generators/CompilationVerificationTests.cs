@@ -49,6 +49,62 @@ public class CompilationVerificationTests
             $"Expected at least 3 generated files, got {generatedSources.Count}");
     }
 
+    // ========== Client Generator (real C# compilation of generated output) ==========
+    [Theory]
+    [InlineData("PetStoreSimple", "PetStoreSimple.yaml")]
+    [InlineData("Demo", "Demo.yaml")]
+    [InlineData("HttpMethods", "HttpMethods.yaml")]
+    public void ClientGenerator_GeneratedCode_CompilesWithoutErrors(
+        string scenarioName,
+        string yamlFileName)
+    {
+        // Arrange & Act — generate the typed client for the scenario.
+        var (_, generatedSources) = RunGenerator(
+            new ApiClientGenerator(),
+            scenarioName,
+            yamlFileName,
+            ".atc-rest-api-client",
+            "Client-Typed");
+
+        Assert.NotEmpty(generatedSources);
+
+        // Assert — the generated client compiles with no errors.
+        var errors = CompileGeneratedSources(generatedSources);
+
+        Assert.True(
+            errors.Count == 0,
+            $"Generated client for {scenarioName} did not compile:\n" +
+            string.Join("\n", errors));
+    }
+
+    [Theory]
+    [InlineData("PetStoreSimple", "PetStoreSimple.yaml")]
+    [InlineData("Demo", "Demo.yaml")]
+    [InlineData("HttpMethods", "HttpMethods.yaml")]
+    public void ServerGenerator_GeneratedCode_CompilesWithoutErrors(
+        string scenarioName,
+        string yamlFileName)
+    {
+        // Arrange & Act — generate the server for the scenario.
+        var (_, generatedSources) = RunGenerator(
+            new ApiServerGenerator(),
+            scenarioName,
+            yamlFileName,
+            ".atc-rest-api-server",
+            "Server",
+            useFullReferences: true);
+
+        Assert.NotEmpty(generatedSources);
+
+        // Assert — the generated server compiles with no errors.
+        var errors = CompileGeneratedSources(generatedSources);
+
+        Assert.True(
+            errors.Count == 0,
+            $"Generated server for {scenarioName} did not compile:\n" +
+            string.Join("\n", errors));
+    }
+
     // ========== Generator Detection ==========
     [Fact]
     public void ClientGenerator_WithNoMarkerFile_ProducesNoOutput()
@@ -126,7 +182,8 @@ public class CompilationVerificationTests
         string scenarioName,
         string yamlFileName,
         string markerFileName,
-        string masterFolder)
+        string masterFolder,
+        bool useFullReferences = false)
     {
         var yamlPath = GetScenarioPath(scenarioName, yamlFileName);
         var yamlContent = File.ReadAllText(yamlPath);
@@ -141,9 +198,11 @@ public class CompilationVerificationTests
             new InMemoryAdditionalText(yamlFileName, yamlContent),
             new InMemoryAdditionalText(markerFileName, markerContent));
 
+        // The server generator gates on ASP.NET Core references being present; supply the
+        // full reference set when the caller needs the generator to actually emit output.
         var compilation = CSharpCompilation.Create(
             "TestAssembly",
-            references: GetMinimalReferences(),
+            references: useFullReferences ? GetFullFrameworkReferences() : GetMinimalReferences(),
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var driver = CSharpGeneratorDriver
@@ -173,6 +232,65 @@ public class CompilationVerificationTests
         references.Add(MetadataReference.CreateFromFile(Path.Combine(assemblyPath, "netstandard.dll")));
 
         return references;
+    }
+
+    /// <summary>
+    /// Compiles the generated sources as a real C# assembly and returns any compile
+    /// errors. Supplies the host project's ImplicitUsings (which generated code assumes)
+    /// and the full framework + ASP.NET Core + Atc.Rest.Client reference set.
+    /// </summary>
+    private static List<string> CompileGeneratedSources(
+        List<(string HintName, string Source)> generatedSources)
+    {
+        // Generated code assumes the host project's ImplicitUsings; supply the standard set
+        // so BCL types (Task, IAsyncEnumerable, HttpClient, ...) resolve without per-file usings.
+        const string implicitUsings = """
+            global using System;
+            global using System.Collections.Generic;
+            global using System.IO;
+            global using System.Linq;
+            global using System.Net.Http;
+            global using System.Threading;
+            global using System.Threading.Tasks;
+            """;
+
+        var trees = generatedSources
+            .Select(s => CSharpSyntaxTree.ParseText(
+                SourceText.From(s.Source, Encoding.UTF8),
+                cancellationToken: TestContext.Current.CancellationToken))
+            .Append(CSharpSyntaxTree.ParseText(
+                SourceText.From(implicitUsings, Encoding.UTF8),
+                cancellationToken: TestContext.Current.CancellationToken))
+            .ToList();
+
+        var compilation = CSharpCompilation.Create(
+            "GeneratedCodeCompileTest",
+            trees,
+            GetFullFrameworkReferences(),
+            new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary,
+                nullableContextOptions: NullableContextOptions.Enable));
+
+        return compilation
+            .GetDiagnostics(TestContext.Current.CancellationToken)
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .Select(d => d.ToString())
+            .ToList();
+    }
+
+    /// <summary>
+    /// Full reference set: every assembly the test host can see (the
+    /// trusted-platform-assemblies list), which includes the BCL, the ASP.NET Core
+    /// shared framework, and Atc.Rest.Client — so generated code compiles for real.
+    /// </summary>
+    private static List<MetadataReference> GetFullFrameworkReferences()
+    {
+        var tpa = (string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!;
+        return tpa
+            .Split(Path.PathSeparator)
+            .Where(p => p.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))
+            .ToList();
     }
 
     private static string GetScenarioPath(
