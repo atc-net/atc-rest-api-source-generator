@@ -575,7 +575,91 @@ public class OpenApiOperationExtensionsTests
         Assert.NotNull(media);
     }
 
+    // ========== GetStreamingFraming Tests ==========
+    [Theory]
+    [InlineData("text/event-stream", StreamingFraming.ServerSentEvents)]
+    [InlineData("application/jsonl", StreamingFraming.JsonLines)]
+    [InlineData("application/x-ndjson", StreamingFraming.JsonLines)]
+    [InlineData("application/x-jsonlines", StreamingFraming.JsonLines)]
+    [InlineData("application/json-seq", StreamingFraming.JsonSequence)]
+    [InlineData("multipart/mixed", StreamingFraming.MultipartMixed)]
+    [InlineData("application/json", StreamingFraming.JsonArray)]
+    [InlineData("text/event-stream; charset=utf-8", StreamingFraming.ServerSentEvents)]
+    [InlineData("application/octet-stream", StreamingFraming.JsonArray)]
+    [InlineData("text/html", StreamingFraming.JsonArray)]
+    [InlineData("*/*", StreamingFraming.JsonArray)]
+    public void GetStreamingFraming_ItemSchemaMediaType_ReturnsExpectedFraming(
+        string mediaType,
+        StreamingFraming expected)
+    {
+        var operation = BuildStreamingOperation(mediaType);
+
+        Assert.Equal(expected, operation.GetStreamingFraming());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(null)]
+    public void Classify_EmptyOrNull_ReturnsJsonArray(string? mediaType)
+    {
+        Assert.Equal(StreamingFraming.JsonArray, StreamingMediaType.Classify(mediaType!));
+    }
+
+    [Fact]
+    public void GetStreamingFraming_LegacyAnnotationOnly_ReturnsJsonArray()
+    {
+        var operation = BuildAsyncEnumerableAnnotatedOperation();
+
+        Assert.Equal(StreamingFraming.JsonArray, operation.GetStreamingFraming());
+    }
+
+    [Fact]
+    public void GetStreamingResponse_ItemSchemaPresent_ReturnsMediaTypeAndSchema()
+    {
+        var operation = BuildStreamingOperation("application/jsonl");
+
+        var result = operation.GetStreamingResponse();
+
+        Assert.NotNull(result);
+        Assert.Equal("application/jsonl", result.Value.MediaType);
+        Assert.NotNull(result.Value.ItemSchema);
+    }
+
     // ========== Helper Methods ==========
+    private static OpenApiOperation BuildStreamingOperation(string mediaType)
+        => new()
+        {
+            Responses = new OpenApiResponses
+            {
+                ["200"] = new OpenApiResponse
+                {
+                    Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal)
+                    {
+                        [mediaType] = new OpenApiMediaType { ItemSchema = new OpenApiSchema { Title = "Event" } },
+                    },
+                },
+            },
+        };
+
+    private static OpenApiOperation BuildAsyncEnumerableAnnotatedOperation()
+        => new()
+        {
+            Extensions = new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
+            {
+                ["x-return-async-enumerable"] = new JsonNodeExtension(JsonValue.Create(true)),
+            },
+            Responses = new OpenApiResponses
+            {
+                ["200"] = new OpenApiResponse
+                {
+                    Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal)
+                    {
+                        ["application/json"] = new OpenApiMediaType { Schema = new OpenApiSchema() },
+                    },
+                },
+            },
+        };
+
     private static OpenApiOperation CreateOperationWithJsonBody()
         => new()
         {
