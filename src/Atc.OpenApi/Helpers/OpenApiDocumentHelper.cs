@@ -117,8 +117,29 @@ public static class OpenApiDocumentHelper
         var baseUri = new Uri("file://" + yamlPath.Replace("\\", "/"));
         var readResult = reader.Read(memoryStream, baseUri, settings);
 
+        StashSpecVersion(readResult.Document, readResult.Diagnostic);
+
         ParseCache[yamlPath] = (contentHash, contentLength, readResult.Document, readResult.Diagnostic);
 
         return (readResult.Document, readResult.Diagnostic);
+    }
+
+    /// <summary>
+    /// Stashes the parsed OpenAPI specification version onto the document's
+    /// (non-serialized) metadata bag, so that downstream code holding only the
+    /// document can recover it via <c>OpenApiDocument.GetOpenApiSpecVersion()</c>.
+    /// The spec version is only exposed on the parser diagnostic, not the document.
+    /// </summary>
+    private static void StashSpecVersion(
+        OpenApiDocument? document,
+        OpenApiDiagnostic? diagnostic)
+    {
+        if (document is null || diagnostic is null)
+        {
+            return;
+        }
+
+        document.Metadata ??= new Dictionary<string, object>(StringComparer.Ordinal);
+        document.Metadata[OpenApiDocumentExtensions.SpecVersionMetadataKey] = diagnostic.SpecificationVersion;
     }
 }

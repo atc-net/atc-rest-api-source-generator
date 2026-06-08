@@ -132,7 +132,11 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
-    /// Validates OpenAPI version (ATCAPI_VAL002: OpenAPI 2.0 not supported).
+    /// Validates the OpenAPI specification version (ATCAPI_VAL002: OpenAPI 2.0 not supported).
+    /// Recognizes 3.0 / 3.1 / 3.2 as supported and rejects Swagger/OpenAPI 2.0.
+    /// The spec version is read from the parsed document's metadata (see
+    /// <c>OpenApiDocument.GetOpenApiSpecVersion()</c>), not from <c>info.version</c>
+    /// (which is the API's own semantic version).
     /// </summary>
     private static List<DiagnosticMessage> ValidateOpenApiVersion(
         OpenApiDocument document,
@@ -140,18 +144,13 @@ public static class OpenApiDocumentValidator
     {
         var diagnostics = new List<DiagnosticMessage>();
 
-        if (document.Info.Version != null)
+        if (document.GetOpenApiSpecVersion() == OpenApiSpecVersion.OpenApi2_0)
         {
-            // Check if version starts with "2." (OpenAPI/Swagger 2.0)
-            var specVersion = document.Info.Version;
-            if (specVersion.StartsWith("2.", StringComparison.OrdinalIgnoreCase))
-            {
-                diagnostics.Add(new DiagnosticMessage(
-                    RuleIdentifiers.OpenApi20NotSupported,
-                    $"OpenAPI 2.0 (Swagger) is not supported. Please use OpenAPI 3.0.x. Current version: {specVersion}",
-                    DiagnosticSeverity.Error,
-                    sourceFilePath));
-            }
+            diagnostics.Add(new DiagnosticMessage(
+                RuleIdentifiers.OpenApi20NotSupported,
+                "OpenAPI 2.0 (Swagger) is not supported. Please use OpenAPI 3.0.x, 3.1.x or 3.2.x.",
+                DiagnosticSeverity.Error,
+                sourceFilePath));
         }
 
         return diagnostics;

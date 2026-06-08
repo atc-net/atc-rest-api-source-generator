@@ -39,7 +39,7 @@ public class RuleCoverageTests
 
         // ========== OpenAPI Validation Rules (VAL) - Parsing errors ==========
         ["ATC_API_VAL001"] = "OpenApiCoreError - Reported by Microsoft.OpenApi parser, requires malformed YAML",
-        ["ATC_API_VAL002"] = "OpenApi20NotSupported - Checks Info.Version field (API version), not spec version",
+        ["ATC_API_VAL002"] = "OpenApi20NotSupported - Tested in Atc.Rest.Api.SourceGenerator.Tests.OpenApiVersionValidationTests",
 
         // ========== Multi-Part Rules (MPT) - Requires integration tests ==========
         ["ATC_API_MPT001"] = "DuplicatePathInPart - Requires multi-file parsing, integration test needed",
