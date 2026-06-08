@@ -344,8 +344,8 @@ public static class HttpClientExtractor
             return null;
         }
 
-        // Check if this is an async enumerable streaming operation
-        var isAsyncEnumerable = operation.IsAsyncEnumerableOperation();
+        // Check if this is an async enumerable streaming operation (x-* annotation or 3.2 itemSchema)
+        var isAsyncEnumerable = operation.IsStreamingResponse();
         var normalizedPath = path
             .Replace("/", "_")
             .Replace("{", string.Empty)
@@ -399,6 +399,17 @@ public static class HttpClientExtractor
         {
             returnType = "Uri";
             hasLocationHeader = true;
+        }
+
+        // OpenAPI 3.2 streaming: when the response declares an itemSchema, the element
+        // type comes from it directly (not from an application/json array body).
+        if (isAsyncEnumerable && streamingItemType == null)
+        {
+            var streamingItemSchema = operation.GetStreamingItemSchema();
+            if (streamingItemSchema != null)
+            {
+                streamingItemType = GetSchemaTypeName(streamingItemSchema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
+            }
         }
 
         // Check if operation has parameters or request body (including path-level parameters)
