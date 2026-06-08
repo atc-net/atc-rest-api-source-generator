@@ -1313,6 +1313,14 @@ using Microsoft.AspNetCore.Builder;
                         {
                             builder.Append($"    .Produces<{contentType}>(StatusCodes.{statusCodeConstant}, contentType: \"{textResponseMediaType}\")");
                         }
+                        else if (string.IsNullOrEmpty(contentType) &&
+                                 operation.IsStreamingResponse() &&
+                                 operation.GetStreamingFraming() == StreamingFraming.ServerSentEvents)
+                        {
+                            // Server-Sent Events advertise the text/event-stream content type so
+                            // OpenAPI/Swagger reflects the actual streamed media type.
+                            builder.Append($"    .Produces(StatusCodes.{statusCodeConstant}, contentType: \"text/event-stream\")");
+                        }
                         else
                         {
                             // 200 is the default status code for Produces<T>()

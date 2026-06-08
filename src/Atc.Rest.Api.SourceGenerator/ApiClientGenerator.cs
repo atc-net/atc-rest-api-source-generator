@@ -339,6 +339,16 @@ public class ApiClientGenerator : IIncrementalGenerator
             }
         }
 
+        // Emit the shared StreamReaders helper once when any operation uses a non-JsonArray
+        // streaming framing (e.g. Server-Sent Events). Both client modes reference it.
+        if (StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
+        {
+            var streamReadersContent = StreamReadersExtractor.GenerateContent(projectName);
+            context.AddSource(
+                $"{projectName}.Streaming.StreamReaders.g.cs",
+                SourceText.From(streamReadersContent.NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
         // Generate consolidated DI extension method for all path segments (EndpointPerOperation mode only)
         if (config.GenerationMode == GenerationModeType.EndpointPerOperation &&
             generatedPathSegments.Count > 0)
@@ -775,7 +785,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         // Use HttpClientExtractor to extract HTTP client class parameters filtered by path segment
         // This also extracts inline schemas for type generation
-        var (classParameters, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, useServersBasePath);
+        var (classParameters, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, useServersBasePath, hasSegmentModels, hasSharedModels);
 
         if (classParameters == null)
         {

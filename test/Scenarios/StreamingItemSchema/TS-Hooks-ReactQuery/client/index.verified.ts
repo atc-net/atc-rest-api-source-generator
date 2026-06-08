@@ -2,3 +2,4 @@
 export * from './ApiClient';
 export * from './ApiService';
 export * from './EventsClient';
+export * from './EventsSseClient';

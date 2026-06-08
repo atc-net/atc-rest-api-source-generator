@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using StreamingItemSchema.Generated.Models;
+using StreamingItemSchema.Generated.Streaming;
 
 namespace StreamingItemSchema.Generated.Client;
 
@@ -45,6 +46,23 @@ public sealed class StreamingItemSchemaClient
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
 
         await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable<Event>(stream, jsonSerializerOptions, cancellationToken))
+        {
+            if (item != null)
+            {
+                yield return item;
+            }
+        }
+    }
+
+    public async IAsyncEnumerable<Event> StreamEventsSseAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var url = "/events-sse";
+        using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+
+        await foreach (var item in StreamReaders.ReadServerSentEventsAsync<Event>(stream, jsonSerializerOptions, cancellationToken))
         {
             if (item != null)
             {

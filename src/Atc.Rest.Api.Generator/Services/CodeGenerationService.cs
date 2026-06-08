@@ -1258,6 +1258,13 @@ public static class CodeGenerationService
             .Distinct(StringComparer.Ordinal);
         usings.AddRange(inlineNamespaces);
 
+        // Reference the emitted StreamReaders helper namespace when the client body uses it
+        // (Server-Sent Events and other wire-framed streaming reads).
+        if (content.IndexOf("StreamReaders", StringComparison.Ordinal) >= 0)
+        {
+            usings.Add($"{projectName}.Generated.Streaming");
+        }
+
         var subFolder = GetSubFolder("Client", null, generatorType);
 
         result.Add(new GeneratedType(
@@ -1269,7 +1276,34 @@ public static class CodeGenerationService
             GroupName: null,
             SubFolder: subFolder));
 
+        AddStreamReadersIfNeeded(result, openApiDoc, projectName);
+
         return result;
+    }
+
+    /// <summary>
+    /// Adds the shared <c>Streaming/StreamReaders.cs</c> helper once when any operation uses a
+    /// non-JsonArray streaming framing (e.g. Server-Sent Events). The full file content is carried
+    /// in <see cref="GeneratedType.Content"/> (it already starts with the auto-generated header).
+    /// </summary>
+    private static void AddStreamReadersIfNeeded(
+        List<GeneratedType> result,
+        OpenApiDocument openApiDoc,
+        string projectName)
+    {
+        if (!StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
+        {
+            return;
+        }
+
+        result.Add(new GeneratedType(
+            TypeName: "StreamReaders",
+            Category: "Streaming",
+            Namespace: $"{projectName}.Generated.Streaming",
+            Content: StreamReadersExtractor.GenerateContent(projectName),
+            RequiredUsings: [],
+            GroupName: null,
+            SubFolder: "Streaming"));
     }
 
     /// <summary>
@@ -1371,6 +1405,8 @@ public static class CodeGenerationService
                 }
             }
         }
+
+        AddStreamReadersIfNeeded(result, openApiDoc, projectName);
 
         return result;
     }

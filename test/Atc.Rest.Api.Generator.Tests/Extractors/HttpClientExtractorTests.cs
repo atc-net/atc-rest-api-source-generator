@@ -704,11 +704,16 @@ public class HttpClientExtractorTests
             systemTypeResolver: new SystemTypeConflictResolver([]),
             includeDeprecated: false);
 
-        // Assert
+        // Assert — the response still surfaces as IAsyncEnumerable<Event>, but a text/event-stream
+        // itemSchema now reads via the emitted StreamReaders SSE helper (not the JSON-array
+        // DeserializeAsyncEnumerable path, which cannot parse `data:` framing).
         Assert.NotNull(clientClass);
         var method = clientClass.Methods![0];
         Assert.NotNull(method.Content);
-        Assert.Contains("DeserializeAsyncEnumerable<Event>", method.Content, StringComparison.Ordinal);
+        Assert.Equal("IAsyncEnumerable", method.ReturnGenericTypeName);
+        Assert.Equal("Event", method.ReturnTypeName);
+        Assert.Contains("StreamReaders.ReadServerSentEventsAsync<Event>", method.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("DeserializeAsyncEnumerable", method.Content, StringComparison.Ordinal);
     }
 
     // ========== NeedsUrlEncoding Tests ==========
