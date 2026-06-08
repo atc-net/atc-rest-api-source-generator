@@ -54,6 +54,7 @@ public class CompilationVerificationTests
     [InlineData("PetStoreSimple", "PetStoreSimple.yaml")]
     [InlineData("Demo", "Demo.yaml")]
     [InlineData("HttpMethods", "HttpMethods.yaml")]
+    [InlineData("StreamingItemSchema", "StreamingItemSchema.yaml")]
     public void ClientGenerator_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)
@@ -81,6 +82,7 @@ public class CompilationVerificationTests
     [InlineData("PetStoreSimple", "PetStoreSimple.yaml")]
     [InlineData("Demo", "Demo.yaml")]
     [InlineData("HttpMethods", "HttpMethods.yaml")]
+    [InlineData("StreamingItemSchema", "StreamingItemSchema.yaml")]
     public void ServerGenerator_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)

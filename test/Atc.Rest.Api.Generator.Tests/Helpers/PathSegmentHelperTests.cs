@@ -150,6 +150,44 @@ paths:
 
     // ========== GetSchemasUsedBySegment Tests ==========
     [Fact]
+    public void GetSchemasUsedBySegment_IncludesItemSchemaReferences()
+    {
+        // OpenAPI 3.2 itemSchema (streaming): the per-element type must be collected so the
+        // model gets generated, even when referenced only via itemSchema. Regression test
+        // for an itemSchema-only type producing a client/server that references an
+        // undefined type (caught by CompilationVerificationTests).
+        var yaml = @"
+openapi: 3.2.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /events:
+    get:
+      operationId: streamEvents
+      responses:
+        '200':
+          description: OK
+          content:
+            application/jsonl:
+              itemSchema:
+                $ref: '#/components/schemas/Event'
+components:
+  schemas:
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+";
+        var doc = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var result = PathSegmentHelper.GetSchemasUsedBySegment(doc, "Events");
+
+        Assert.Contains("Event", result);
+    }
+
+    [Fact]
     public void GetSchemasUsedBySegment_ReturnsReferencedSchemas()
     {
         var yaml = @"

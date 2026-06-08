@@ -203,16 +203,17 @@ public static class PathSegmentHelper
                 }
             }
 
-            // Collect schemas from request body
+            // Collect schemas from request body (Schema and OpenAPI 3.2 ItemSchema)
             if (operation.RequestBody?.Content != null)
             {
                 foreach (var content in operation.RequestBody.Content)
                 {
                     CollectSchemaNames(content.Value.Schema, schemaNames);
+                    CollectSchemaNames(content.Value.ItemSchema, schemaNames);
                 }
             }
 
-            // Collect schemas from responses
+            // Collect schemas from responses (Schema and OpenAPI 3.2 ItemSchema)
             if (operation.Responses != null)
             {
                 foreach (var response in operation.Responses)
@@ -222,6 +223,7 @@ public static class PathSegmentHelper
                         foreach (var content in openApiResponse.Content)
                         {
                             CollectSchemaNames(content.Value.Schema, schemaNames);
+                            CollectSchemaNames(content.Value.ItemSchema, schemaNames);
                         }
                     }
                 }
