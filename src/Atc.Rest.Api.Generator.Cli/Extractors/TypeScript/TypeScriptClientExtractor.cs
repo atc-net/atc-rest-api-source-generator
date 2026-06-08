@@ -467,7 +467,14 @@ public static class TypeScriptClientExtractor
 
         if (isStreaming)
         {
-            AppendStreamingMethod(sb, methodName, path, pathParams, queryParams, headerParams, returnType, namingStrategy, convertDates, brandedIds);
+            // Map the wire framing to the requestStream() framing argument. Only SSE needs an
+            // explicit arg today; all other framings (incl. JsonArray/JsonLines) use the default
+            // brace-scan path, so omit the arg to keep their call sites unchanged.
+            var streamFramingArg = operation.GetStreamingFraming() == StreamingFraming.ServerSentEvents
+                ? "'sse'"
+                : null;
+
+            AppendStreamingMethod(sb, methodName, path, pathParams, queryParams, headerParams, returnType, namingStrategy, convertDates, brandedIds, streamFramingArg);
 
             // Paginated-streaming ops also get a non-streaming Page companion that
             // returns one page of results for useInfiniteQuery to consume. The page return
@@ -744,7 +751,8 @@ public static class TypeScriptClientExtractor
         string itemType,
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
-        bool brandedIds)
+        bool brandedIds,
+        string? streamFramingArg = null)
     {
         // Build parameter list (streaming methods may have query / header params + signal)
         var paramParts = new List<string>();
@@ -792,11 +800,16 @@ public static class TypeScriptClientExtractor
             }
 
             sb.AppendLine("      signal,");
-            sb.AppendLine("    });");
+            sb.AppendLine(streamFramingArg is null
+                ? "    });"
+                : $"    }}, {streamFramingArg});");
         }
         else
         {
-            sb.Append("    yield* this.api.requestStream<").Append(itemType).Append(">('GET', ").Append(interpolatedPath).AppendLine(", { signal });");
+            sb.Append("    yield* this.api.requestStream<").Append(itemType).Append(">('GET', ").Append(interpolatedPath);
+            sb.AppendLine(streamFramingArg is null
+                ? ", { signal });"
+                : $", {{ signal }}, {streamFramingArg});");
         }
 
         sb.AppendLine("  }");

@@ -4,6 +4,7 @@
 using System.CodeDom.Compiler;
 using Microsoft.Extensions.DependencyInjection;
 using StreamingItemSchema.Generated.Events;
+using StreamingItemSchema.Generated.EventsSse;
 
 namespace StreamingItemSchema.Generated;
 
@@ -21,6 +22,7 @@ public static class StreamingItemSchemaEndpointsServiceCollectionExtensions
     public static IServiceCollection AddStreamingItemSchemaEndpoints(this IServiceCollection services)
     {
         services.AddEventsEndpoints();
+        services.AddEventsSseEndpoints();
 
         return services;
     }

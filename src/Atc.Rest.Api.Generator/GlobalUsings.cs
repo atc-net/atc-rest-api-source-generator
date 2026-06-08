@@ -15,6 +15,7 @@ global using Atc.CodeGeneration.CSharp.Content;
 global using Atc.CodeGeneration.CSharp.Content.Generators;
 global using Atc.CodeGeneration.CSharp.Helpers;
 global using Atc.Helpers;
+global using Atc.OpenApi;
 global using Atc.OpenApi.Extensions;
 global using Atc.OpenApi.Helpers;
 global using Atc.OpenApi.Models;

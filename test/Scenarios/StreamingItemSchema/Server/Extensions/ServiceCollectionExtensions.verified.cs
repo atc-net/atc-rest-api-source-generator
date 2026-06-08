@@ -12,6 +12,8 @@ public static class ServiceCollectionExtensions
     {
         // Handler for IStreamEventsHandler must be registered in the Domain project
         // services.AddScoped<IStreamEventsHandler, YourImplementation>();
+        // Handler for IStreamEventsSseHandler must be registered in the Domain project
+        // services.AddScoped<IStreamEventsSseHandler, YourImplementation>();
 
         return services;
     }

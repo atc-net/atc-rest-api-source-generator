@@ -104,6 +104,12 @@ public static class TypeScriptAxiosApiClientExtractor
 
         sb.AppendLine("}");
         sb.AppendLine();
+
+        // Wire framing discriminator for streamed responses. Drives how requestStream parses
+        // the body: 'json-array' | 'json-lines' | 'json-seq' use the brace-scan path; 'sse'
+        // parses Server-Sent Events (`data: <json>\n\n`).
+        sb.AppendLine("export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';");
+        sb.AppendLine();
     }
 
     private static void AppendDateReviverReplacer(StringBuilder sb)
@@ -352,7 +358,7 @@ public static class TypeScriptAxiosApiClientExtractor
 
         sb.AppendLine("  // Streaming uses native fetch — Axios doesn't natively support ReadableStream iteration.");
         sb.AppendLine("  // Auth and default headers are applied manually; Axios interceptors do not apply to streaming requests.");
-        sb.AppendLine("  async *requestStream<T>(method: string, path: string, options?: RequestOptions): AsyncGenerator<T> {");
+        sb.AppendLine("  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {");
         sb.AppendLine("    const url = this.buildUrl(path, options?.query);");
         sb.AppendLine("    const headers = new Headers(this.options.defaultHeaders);");
         sb.AppendLine();
@@ -386,6 +392,32 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine();
         sb.AppendLine("    const decoder = new TextDecoder();");
         sb.AppendLine("    let buffer = '';");
+        sb.AppendLine();
+        sb.AppendLine("    if (framing === 'sse') {");
+        sb.AppendLine("      try {");
+        sb.AppendLine("        while (true) {");
+        sb.AppendLine("          const { done, value } = await reader.read();");
+        sb.AppendLine("          if (done) break;");
+        sb.AppendLine("          buffer += decoder.decode(value, { stream: true });");
+        sb.AppendLine("          let sep: number;");
+        sb.AppendLine("          while ((sep = buffer.indexOf('\\n\\n')) !== -1) {");
+        sb.AppendLine("            const rawEvent = buffer.substring(0, sep);");
+        sb.AppendLine("            buffer = buffer.substring(sep + 2);");
+        sb.AppendLine("            const data = rawEvent");
+        sb.AppendLine("              .split('\\n')");
+        sb.AppendLine("              .filter((l) => l.startsWith('data:'))");
+        sb.AppendLine("              .map((l) => l.slice(5).trimStart())");
+        sb.AppendLine("              .join('\\n');");
+        sb.AppendLine("            if (data.length > 0) {");
+        sb.AppendLine("              yield JSON.parse(data) as T;");
+        sb.AppendLine("            }");
+        sb.AppendLine("          }");
+        sb.AppendLine("        }");
+        sb.AppendLine("      } finally {");
+        sb.AppendLine("        reader.releaseLock();");
+        sb.AppendLine("      }");
+        sb.AppendLine("      return;");
+        sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    try {");
         sb.AppendLine("      while (true) {");

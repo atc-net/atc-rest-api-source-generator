@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using StreamingItemSchema.Generated.Events.Handlers;
-using StreamingItemSchema.Generated.Events.Models;
 using StreamingItemSchema.Generated.Events.Results;
 
 namespace StreamingItemSchema.Generated.Events.Endpoints;

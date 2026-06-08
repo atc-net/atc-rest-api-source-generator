@@ -23,6 +23,8 @@ export interface RequestOptions {
   responseType?: 'json' | 'blob' | 'text';
 }
 
+export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
+
 export class ApiClient {
   private readonly baseUrl: string;
   private readonly client: AxiosInstance;
@@ -99,7 +101,7 @@ export class ApiClient {
 
   // Streaming uses native fetch — Axios doesn't natively support ReadableStream iteration.
   // Auth and default headers are applied manually; Axios interceptors do not apply to streaming requests.
-  async *requestStream<T>(method: string, path: string, options?: RequestOptions): AsyncGenerator<T> {
+  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {
     const url = this.buildUrl(path, options?.query);
     const headers = new Headers(this.options.defaultHeaders);
 
@@ -133,6 +135,32 @@ export class ApiClient {
 
     const decoder = new TextDecoder();
     let buffer = '';
+
+    if (framing === 'sse') {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let sep: number;
+          while ((sep = buffer.indexOf('\n\n')) !== -1) {
+            const rawEvent = buffer.substring(0, sep);
+            buffer = buffer.substring(sep + 2);
+            const data = rawEvent
+              .split('\n')
+              .filter((l) => l.startsWith('data:'))
+              .map((l) => l.slice(5).trimStart())
+              .join('\n');
+            if (data.length > 0) {
+              yield JSON.parse(data) as T;
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      return;
+    }
 
     try {
       while (true) {

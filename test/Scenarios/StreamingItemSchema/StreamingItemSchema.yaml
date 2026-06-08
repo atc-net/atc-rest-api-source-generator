@@ -21,6 +21,19 @@ paths:
             application/jsonl:
               itemSchema:
                 $ref: "#/components/schemas/Event"
+  /events-sse:
+    get:
+      operationId: streamEventsSse
+      summary: Stream events as server-sent events
+      tags:
+        - events
+      responses:
+        "200":
+          description: A stream of events
+          content:
+            text/event-stream:
+              itemSchema:
+                $ref: "#/components/schemas/Event"
 
 components:
   schemas:

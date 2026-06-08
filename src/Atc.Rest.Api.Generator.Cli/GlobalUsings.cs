@@ -27,6 +27,7 @@ global using Atc.Console.Spectre.Helpers;
 global using Atc.Console.Spectre.Logging;
 global using Atc.Helpers;
 
+global using Atc.OpenApi;
 global using Atc.OpenApi.Extensions;
 global using Atc.OpenApi.Helpers;
 global using Atc.OpenApi.Models;

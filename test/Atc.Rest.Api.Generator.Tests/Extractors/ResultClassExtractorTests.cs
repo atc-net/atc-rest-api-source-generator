@@ -856,6 +856,9 @@ public class ResultClassExtractorTests
         Assert.NotNull(okMethod);
         var param = okMethod!.Parameters![0];
         Assert.Equal("IAsyncEnumerable<Event>", param.TypeName);
+
+        // text/event-stream framing emits the first-party SSE writer, not TypedResults.Ok.
+        Assert.Contains("TypedResults.ServerSentEvents(response)", okMethod.Content, StringComparison.Ordinal);
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)
