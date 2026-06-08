@@ -1276,20 +1276,23 @@ public static class CodeGenerationService
             GroupName: null,
             SubFolder: subFolder));
 
-        AddStreamReadersIfNeeded(result, openApiDoc, projectName);
+        AddStreamReadersIfNeeded(result, openApiDoc, projectName, perOperation: false);
 
         return result;
     }
 
     /// <summary>
-    /// Adds the shared <c>Streaming/StreamReaders.cs</c> helper once when any operation uses a
-    /// non-JsonArray streaming framing (e.g. Server-Sent Events). The full file content is carried
-    /// in <see cref="GeneratedType.Content"/> (it already starts with the auto-generated header).
+    /// Adds the shared <c>Streaming/StreamReaders.cs</c> helper once when an operation references
+    /// it (Server-Sent Events today). The <paramref name="perOperation"/> flag selects the reader
+    /// variant: the per-operation client deserializes via the DI <c>IContractSerializer</c>; the
+    /// typed client uses <c>JsonSerializerOptions</c>. The full file content is carried in
+    /// <see cref="GeneratedType.Content"/> (it already starts with the auto-generated header).
     /// </summary>
     private static void AddStreamReadersIfNeeded(
         List<GeneratedType> result,
         OpenApiDocument openApiDoc,
-        string projectName)
+        string projectName,
+        bool perOperation)
     {
         if (!StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
         {
@@ -1300,7 +1303,7 @@ public static class CodeGenerationService
             TypeName: "StreamReaders",
             Category: "Streaming",
             Namespace: $"{projectName}.Generated.Streaming",
-            Content: StreamReadersExtractor.GenerateContent(projectName),
+            Content: StreamReadersExtractor.GenerateContent(projectName, perOperation),
             RequiredUsings: [],
             GroupName: null,
             SubFolder: "Streaming"));
@@ -1406,7 +1409,7 @@ public static class CodeGenerationService
             }
         }
 
-        AddStreamReadersIfNeeded(result, openApiDoc, projectName);
+        AddStreamReadersIfNeeded(result, openApiDoc, projectName, perOperation: true);
 
         return result;
     }

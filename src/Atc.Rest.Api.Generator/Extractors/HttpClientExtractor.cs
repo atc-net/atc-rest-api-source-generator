@@ -277,8 +277,12 @@ public static class HttpClientExtractor
             usings.Add(modelsNamespace);
         }
 
-        // Reference the emitted StreamReaders helper namespace when any method uses it
-        // (Server-Sent Events and other wire-framed streaming reads).
+        // Reference the emitted StreamReaders helper namespace when this segment's methods use it
+        // (Server-Sent Events reads). NOTE: a typed bool ("does any operation use StreamReaders")
+        // would be cleaner than this content scan, but it must be computed PER SEGMENT — the
+        // doc-wide StreamReadersExtractor.DocumentRequiresStreamReaders would over-inject the using
+        // into a sibling segment client that has no SSE op. Until a per-segment framing signal is
+        // threaded through, the content scan keeps the using precisely scoped to where it is used.
         if (contentForAnalysis.IndexOf("StreamReaders", StringComparison.Ordinal) >= 0)
         {
             usings.Add($"{projectName}.Generated.Streaming");

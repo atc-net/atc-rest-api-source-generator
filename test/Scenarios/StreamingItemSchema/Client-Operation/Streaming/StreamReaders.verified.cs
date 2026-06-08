@@ -5,8 +5,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using System.Threading;
+using Atc.Rest.Client.Serialization;
 
 namespace StreamingItemSchema.Generated.Streaming;
 
@@ -15,12 +15,12 @@ internal static class StreamReaders
 {
     public static async IAsyncEnumerable<T?> ReadServerSentEventsAsync<T>(
         Stream stream,
-        JsonSerializerOptions options,
+        IContractSerializer serializer,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var parser = SseParser.Create(
             stream,
-            (eventType, bytes) => JsonSerializer.Deserialize<T>(bytes, options));
+            (eventType, bytes) => serializer.Deserialize<T>(bytes.ToArray()));
 
         await foreach (var item in parser.EnumerateAsync(cancellationToken))
         {
