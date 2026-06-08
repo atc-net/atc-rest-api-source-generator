@@ -653,6 +653,12 @@ public static class HttpClientExtractor
             case "DELETE":
                 GenerateDeleteMethodBody(returnType, hasReturnType, builder);
                 break;
+            default:
+                // Non-standard verbs: OpenAPI 3.2 `query` and `additionalOperations`
+                // (e.g. LINK), plus PATCH. No dedicated HttpClient JSON helper exists,
+                // so build the request explicitly and dispatch by body/return presence.
+                GenerateGenericMethodBody(httpMethod, operation, returnType, hasParameters, hasReturnType, builder);
+                break;
         }
 
         return builder
@@ -749,6 +755,36 @@ public static class HttpClientExtractor
         {
             builder.AppendLine("var response = await httpClient.GetAsync(url, cancellationToken);");
             builder.Append("await EnsureSuccessAsync(response, cancellationToken);");
+        }
+    }
+
+    private static void GenerateGenericMethodBody(
+        string httpMethod,
+        OpenApiOperation operation,
+        string returnType,
+        bool hasParameters,
+        bool hasReturnType,
+        StringBuilder builder)
+    {
+        var hasJsonBody = operation.RequestBody?.Content?.ContainsKey("application/json") ?? false;
+        var requestAccess = hasParameters ? "parameters.Request" : "request";
+        var verb = httpMethod.ToUpperInvariant();
+
+        builder.AppendLine();
+        builder.AppendLine($"using var requestMessage = new HttpRequestMessage(new HttpMethod(\"{verb}\"), url);");
+
+        if (hasJsonBody)
+        {
+            builder.AppendLine($"requestMessage.Content = JsonContent.Create({requestAccess}, options: jsonSerializerOptions);");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("var response = await httpClient.SendAsync(requestMessage, cancellationToken);");
+        builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
+
+        if (hasReturnType)
+        {
+            builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
         }
     }
 
