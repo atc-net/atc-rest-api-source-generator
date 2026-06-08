@@ -170,6 +170,17 @@ public static class TypeScriptOperationHelper
             return "Blob";
         }
 
+        // OpenAPI 3.2 streaming: itemSchema is already the per-element type, so map it
+        // directly (do not run it through GetStreamingItemType, which unwraps arrays).
+        if (isStreaming)
+        {
+            var itemSchema = operation.GetStreamingItemSchema();
+            if (itemSchema != null)
+            {
+                return itemSchema.ToTypeScriptReturnType();
+            }
+        }
+
         // Try to get 200 response schema, then 201 (both default to application/json)
         var schema = operation.GetResponseSchema("200") ?? operation.GetResponseSchema("201");
 

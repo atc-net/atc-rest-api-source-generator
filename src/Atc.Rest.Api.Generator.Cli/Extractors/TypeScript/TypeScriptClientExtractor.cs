@@ -98,7 +98,7 @@ public static class TypeScriptClientExtractor
         // operation also references it.
         foreach (var (_, _, operation) in operations)
         {
-            if (!operation.IsAsyncEnumerableOperation())
+            if (!operation.IsStreamingResponse())
             {
                 continue;
             }
@@ -118,7 +118,7 @@ public static class TypeScriptClientExtractor
                     {
                         foreach (var (otherPath, _, otherOp) in operations)
                         {
-                            if (otherOp == operation || otherOp.IsAsyncEnumerableOperation())
+                            if (otherOp == operation || otherOp.IsStreamingResponse())
                             {
                                 continue;
                             }
@@ -163,7 +163,7 @@ public static class TypeScriptClientExtractor
 
         foreach (var (operationPath, methodVerb, operation) in operations)
         {
-            var isStreaming = operation.IsAsyncEnumerableOperation();
+            var isStreaming = operation.IsStreamingResponse();
             var isPaginatedStreaming = isStreaming && operation.IsPaginatedStreamingOperation();
 
             if (isStreaming && !isPaginatedStreaming)
@@ -442,7 +442,7 @@ public static class TypeScriptClientExtractor
         bool brandedIds,
         bool zodRuntimeValidate)
     {
-        var isStreaming = operation.IsAsyncEnumerableOperation();
+        var isStreaming = operation.IsStreamingResponse();
         var isFileDownload = operation.HasFileDownload();
         var isFileUpload = operation.HasFileUpload();
         var isTextDownload = !isFileDownload && operation.HasTextResponse();
