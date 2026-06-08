@@ -12,6 +12,15 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
     <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.6.0" />
+    <!-- Referenced only so the assemblies are present in the test host (TRUSTED_PLATFORM_ASSEMBLIES),
+         enabling real C# compilation of generated client/server output in CompilationVerificationTests. -->
+    <PackageReference Include="Atc.Rest.Client" Version="2.0.36" />
+  </ItemGroup>
+
+  <!-- ASP.NET Core shared framework, so generated server/client output (which uses
+       Microsoft.AspNetCore.*, Microsoft.Extensions.DependencyInjection/Http) can be compiled in tests. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>
