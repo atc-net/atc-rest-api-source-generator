@@ -24,6 +24,35 @@ public class StreamingWireFramingTests
         Assert.Equal("b", items[1].GetProperty("id").GetString());
     }
 
+    [Fact]
+    public async Task JsonLines_WriteThenRead_RoundTrips()
+    {
+        var writerType = LoadGeneratedServerType("SequentialStreamWriter");
+        var readerType = LoadGeneratedType("StreamReaders");
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+        var source = new[]
+        {
+            JsonSerializer.SerializeToElement(new { id = "a", type = "x" }),
+            JsonSerializer.SerializeToElement(new { id = "b", type = "y" }),
+        };
+
+        using var ms = new MemoryStream();
+        await InvokeWriteAsync(writerType, "WriteJsonLinesAsync", source, ms, options);
+        var bytes = ms.ToArray();
+
+        var text = Encoding.UTF8.GetString(bytes);
+        Assert.EndsWith("\n", text, StringComparison.Ordinal);
+        Assert.Equal(2, text.TrimEnd('\n').Split('\n').Length);
+        Assert.DoesNotContain("[", text, StringComparison.Ordinal); // not a JSON array
+
+        using var readStream = new MemoryStream(bytes);
+        var read = readerType.GetMethod("ReadJsonLinesAsync")!.MakeGenericMethod(typeof(JsonElement));
+        var items = await EnumerateAsync<JsonElement>(read, readStream, options);
+        Assert.Equal(2, items.Count);
+        Assert.Equal("a", items[0].GetProperty("id").GetString());
+    }
+
     /// <summary>
     /// Generates the StreamingItemSchema typed client, compiles + loads it, and returns the
     /// emitted type with the given simple name.
@@ -33,6 +62,41 @@ public class StreamingWireFramingTests
             .EmitAndLoad(CompilationVerificationHarness.RunClient("StreamingItemSchema", "StreamingItemSchema.yaml"))
             .GetTypes()
             .Single(t => t.Name == name);
+
+    /// <summary>
+    /// Generates the StreamingItemSchema server, compiles + loads it, and returns the emitted
+    /// type with the given simple name (e.g. the server-side <c>SequentialStreamWriter</c>).
+    /// </summary>
+    private static Type LoadGeneratedServerType(string name)
+        => CompilationVerificationHarness
+            .EmitAndLoad(CompilationVerificationHarness.RunServer("StreamingItemSchema", "StreamingItemSchema.yaml"))
+            .GetTypes()
+            .Single(t => t.Name == name);
+
+    /// <summary>
+    /// Invokes an emitted server writer (e.g. <c>WriteJsonLinesAsync&lt;T&gt;</c>) via reflection
+    /// over an <see cref="IAsyncEnumerable{T}"/> built from <paramref name="items"/> and awaits the
+    /// returned <see cref="Task"/>, so the written bytes land in <paramref name="stream"/>.
+    /// </summary>
+    private static Task InvokeWriteAsync(
+        Type writerType,
+        string methodName,
+        JsonElement[] items,
+        Stream stream,
+        JsonSerializerOptions options)
+    {
+        async IAsyncEnumerable<JsonElement> ToAsyncEnumerable()
+        {
+            foreach (var item in items)
+            {
+                await Task.Yield();
+                yield return item;
+            }
+        }
+
+        var write = writerType.GetMethod(methodName)!.MakeGenericMethod(typeof(JsonElement));
+        return (Task)write.Invoke(null, [ToAsyncEnumerable(), stream, options, CancellationToken.None])!;
+    }
 
     /// <summary>
     /// Invokes an emitted <c>IAsyncEnumerable&lt;T?&gt;</c> stream reader (via reflection) and

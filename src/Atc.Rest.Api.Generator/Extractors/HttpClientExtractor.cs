@@ -729,12 +729,16 @@ public static class HttpClientExtractor
             builder.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken);");
             builder.AppendLine();
 
-            // Server-Sent Events use the emitted StreamReaders helper to parse the
-            // `data:` framing. All other framings (JsonArray, JsonLines, ...) keep the
-            // legacy DeserializeAsyncEnumerable brace/line-scan path byte-for-byte.
+            // Server-Sent Events and JSON Lines use the emitted StreamReaders helper to parse
+            // their wire framing. The remaining framings (JsonArray, ...) keep the legacy
+            // DeserializeAsyncEnumerable brace-scan path byte-for-byte.
             if (streamingFraming == StreamingFraming.ServerSentEvents)
             {
                 builder.AppendLine($"await foreach (var item in StreamReaders.ReadServerSentEventsAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken))");
+            }
+            else if (streamingFraming == StreamingFraming.JsonLines)
+            {
+                builder.AppendLine($"await foreach (var item in StreamReaders.ReadJsonLinesAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken))");
             }
             else
             {

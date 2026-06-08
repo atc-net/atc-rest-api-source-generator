@@ -10,6 +10,6 @@ export class EventsClient {
 
   /** Stream events */
   async *streamEvents(signal?: AbortSignal): AsyncGenerator<Event> {
-    yield* this.api.requestStream<Event>('GET', '/events', { signal });
+    yield* this.api.requestStream<Event>('GET', '/events', { signal }, 'json-lines');
   }
 }

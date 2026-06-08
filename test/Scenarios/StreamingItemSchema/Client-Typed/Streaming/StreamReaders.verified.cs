@@ -27,4 +27,10 @@ internal static class StreamReaders
             yield return item.Data;
         }
     }
+
+    public static IAsyncEnumerable<T?> ReadJsonLinesAsync<T>(
+        Stream stream,
+        JsonSerializerOptions options,
+        CancellationToken cancellationToken)
+        => JsonSerializer.DeserializeAsyncEnumerable<T>(stream, topLevelValues: true, options, cancellationToken);
 }

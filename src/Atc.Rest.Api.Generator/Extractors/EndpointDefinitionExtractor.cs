@@ -1315,11 +1315,13 @@ using Microsoft.AspNetCore.Builder;
                         }
                         else if (string.IsNullOrEmpty(contentType) &&
                                  operation.IsStreamingResponse() &&
-                                 operation.GetStreamingFraming() == StreamingFraming.ServerSentEvents)
+                                 operation.GetStreamingResponse() is { } streamingResponse)
                         {
-                            // Server-Sent Events advertise the text/event-stream content type so
-                            // OpenAPI/Swagger reflects the actual streamed media type.
-                            builder.Append($"    .Produces(StatusCodes.{statusCodeConstant}, contentType: \"text/event-stream\")");
+                            // Wire-framed streaming responses (SSE, JSON Lines, ...) advertise their
+                            // declared media type (text/event-stream, application/jsonl, ...) so
+                            // OpenAPI/Swagger reflects the actual streamed framing rather than the
+                            // application/json default.
+                            builder.Append($"    .Produces(StatusCodes.{statusCodeConstant}, contentType: \"{streamingResponse.MediaType}\")");
                         }
                         else
                         {

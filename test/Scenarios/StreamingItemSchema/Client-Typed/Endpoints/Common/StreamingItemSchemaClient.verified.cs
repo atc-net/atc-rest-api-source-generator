@@ -45,7 +45,7 @@ public sealed class StreamingItemSchemaClient
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
 
-        await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable<Event>(stream, jsonSerializerOptions, cancellationToken))
+        await foreach (var item in StreamReaders.ReadJsonLinesAsync<Event>(stream, jsonSerializerOptions, cancellationToken))
         {
             if (item != null)
             {
