@@ -339,11 +339,14 @@ public class ApiClientGenerator : IIncrementalGenerator
             }
         }
 
-        // Emit the shared StreamReaders helper once when any operation uses a non-JsonArray
-        // streaming framing (e.g. Server-Sent Events). Both client modes reference it.
+        // Emit the shared StreamReaders helper once when an operation references it (Server-Sent
+        // Events today). The per-operation variant deserializes each event via the DI-configured
+        // contract serializer, whereas the typed variant uses the client serializer options. A
+        // generated client is entirely one mode or the other, so only one variant is ever emitted.
         if (StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
         {
-            var streamReadersContent = StreamReadersExtractor.GenerateContent(projectName);
+            var perOperation = config.GenerationMode == GenerationModeType.EndpointPerOperation;
+            var streamReadersContent = StreamReadersExtractor.GenerateContent(projectName, perOperation);
             context.AddSource(
                 $"{projectName}.Streaming.StreamReaders.g.cs",
                 SourceText.From(streamReadersContent.NormalizeForSourceOutput(), Encoding.UTF8));

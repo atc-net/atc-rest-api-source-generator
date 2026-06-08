@@ -5,11 +5,11 @@ using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Atc.Rest.Client;
 using Atc.Rest.Client.Builder;
+using Atc.Rest.Client.Serialization;
 using Microsoft.Extensions.Http;
 using StreamingItemSchema.Generated;
 using StreamingItemSchema.Generated.Streaming;
@@ -28,13 +28,16 @@ public sealed class StreamEventsSseEndpoint : IStreamEventsSseEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;
+    private readonly IContractSerializer contractSerializer;
 
     public StreamEventsSseEndpoint(
         IHttpClientFactory factory,
-        IHttpMessageFactory httpMessageFactory)
+        IHttpMessageFactory httpMessageFactory,
+        IContractSerializer contractSerializer)
     {
         this.factory = factory;
         this.httpMessageFactory = httpMessageFactory;
+        this.contractSerializer = contractSerializer;
     }
 
     public async Task<StreamingEndpointResponse<Event>> ExecuteAsync(
@@ -55,8 +58,7 @@ public sealed class StreamEventsSseEndpoint : IStreamEventsSseEndpoint
         }
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        var serializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
-        var content = StreamReaders.ReadServerSentEventsAsync<Event>(stream, serializerOptions, cancellationToken);
+        var content = StreamReaders.ReadServerSentEventsAsync<Event>(stream, contractSerializer, cancellationToken);
         return new StreamingEndpointResponse<Event>(true, response.StatusCode, content, errorContent: null, response);
     }
 }

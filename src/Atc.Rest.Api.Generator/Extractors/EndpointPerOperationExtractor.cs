@@ -704,7 +704,8 @@ public static class EndpointPerOperationExtractor
         var namespaceValue = $"{projectName}.Generated.{pathSegment}.Endpoints";
 
         // Server-Sent Events build the StreamingEndpointResponse<T> inline using the emitted
-        // StreamReaders helper, which needs JSON serializer options + the Streaming namespace.
+        // StreamReaders helper, which deserializes each event via the DI-configured
+        // IContractSerializer (Atc.Rest.Client.Serialization) and lives in the Streaming namespace.
         var isServerSentEventsStreaming = isAsyncEnumerable &&
                                           !string.IsNullOrEmpty(streamingItemType) &&
                                           operation.GetStreamingFraming() == StreamingFraming.ServerSentEvents;
@@ -718,11 +719,6 @@ public static class EndpointPerOperationExtractor
         headerBuilder.AppendLine("using System.Collections.Generic;");
         headerBuilder.AppendLine("using System.Net;");
         headerBuilder.AppendLine("using System.Net.Http;");
-        if (isServerSentEventsStreaming)
-        {
-            headerBuilder.AppendLine("using System.Text.Json;");
-        }
-
         headerBuilder.AppendLine("using System.Threading;");
         headerBuilder.AppendLine("using System.Threading.Tasks;");
 
@@ -733,6 +729,11 @@ public static class EndpointPerOperationExtractor
         }
 
         headerBuilder.AppendLine("using Atc.Rest.Client.Builder;");
+        if (isServerSentEventsStreaming)
+        {
+            headerBuilder.AppendLine("using Atc.Rest.Client.Serialization;");
+        }
+
         headerBuilder.AppendLine("using Microsoft.Extensions.Http;");
         headerBuilder.AppendLine($"using {projectName}.Generated;");
         if (isServerSentEventsStreaming)
@@ -794,6 +795,22 @@ public static class EndpointPerOperationExtractor
                 CreateAsPrivateReadonlyMember: true,
                 CreateAaOneLiner: false),
         };
+
+        // Server-Sent Events deserialize each event via the DI-configured IContractSerializer
+        // (so the per-op client honors the same serialization as the legacy streaming path).
+        // Only SSE endpoints need it; other endpoints keep the 2-arg constructor.
+        if (isServerSentEventsStreaming)
+        {
+            constructorParams.Add(new(
+                GenericTypeName: null,
+                TypeName: "IContractSerializer",
+                IsNullableType: false,
+                Name: "contractSerializer",
+                DefaultValue: null,
+                PassToInheritedClass: false,
+                CreateAsPrivateReadonlyMember: true,
+                CreateAaOneLiner: false));
+        }
 
         var constructor = new ConstructorParameters(
             DocumentationTags: null,
@@ -1126,8 +1143,7 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine("}");
             sb.AppendLine();
             sb.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken);");
-            sb.AppendLine("var serializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);");
-            sb.AppendLine($"var content = StreamReaders.ReadServerSentEventsAsync<{streamingItemType}>(stream, serializerOptions, cancellationToken);");
+            sb.AppendLine($"var content = StreamReaders.ReadServerSentEventsAsync<{streamingItemType}>(stream, contractSerializer, cancellationToken);");
             sb.Append($"return new StreamingEndpointResponse<{streamingItemType}>(true, response.StatusCode, content, errorContent: null, response);");
         }
         else if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
