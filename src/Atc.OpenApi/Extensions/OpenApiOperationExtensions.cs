@@ -244,6 +244,51 @@ public static class OpenApiOperationExtensions
         }
 
         /// <summary>
+        /// Gets the per-element schema for an OpenAPI 3.2 streaming response — the
+        /// <c>itemSchema</c> declared on a 2xx response media type (e.g.
+        /// <c>text/event-stream</c>, <c>application/jsonl</c>). Unlike <c>schema</c>,
+        /// <c>itemSchema</c> already describes a single streamed element, so callers must
+        /// use it directly (do not unwrap arrays/pagination).
+        /// </summary>
+        /// <returns>The item schema, or <c>null</c> when no response media type declares one.</returns>
+        public IOpenApiSchema? GetStreamingItemSchema()
+        {
+            if (operation.Responses == null)
+            {
+                return null;
+            }
+
+            foreach (var statusCode in new[] { "200", "201" })
+            {
+                if (!operation.Responses.TryGetValue(statusCode, out var response) ||
+                    response.Content == null)
+                {
+                    continue;
+                }
+
+                foreach (var mediaType in response.Content.Values)
+                {
+                    if (mediaType.ItemSchema != null)
+                    {
+                        return mediaType.ItemSchema;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Determines whether the operation produces a streamed/sequential response that
+        /// should be generated as <c>IAsyncEnumerable&lt;T&gt;</c> (server) / async-iterator
+        /// (clients). True when the operation carries the <c>x-return-async-enumerable</c>
+        /// annotation OR declares an OpenAPI 3.2 <c>itemSchema</c> on a 2xx response.
+        /// </summary>
+        /// <returns>True if the response should be streamed.</returns>
+        public bool IsStreamingResponse()
+            => operation.IsAsyncEnumerableOperation() || operation.GetStreamingItemSchema() != null;
+
+        /// <summary>
         /// Checks if the operation is a paginated-streaming operation: it has
         /// <c>x-return-async-enumerable: true</c> AND its 200/201 response is an
         /// <c>allOf</c> referencing a schema whose name matches a pagination wrapper
