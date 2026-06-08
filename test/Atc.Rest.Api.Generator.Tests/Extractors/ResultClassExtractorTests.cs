@@ -809,6 +809,55 @@ public class ResultClassExtractorTests
         Assert.Equal("KL.IoT.Device.Management.Generated.Devices.Models.Device", param.TypeName);
     }
 
+    [Fact]
+    public void Extract_ItemSchemaStreamingResponse_OkAcceptsAsyncEnumerableOfItem()
+    {
+        // Arrange - OpenAPI 3.2 itemSchema streaming, no x-* annotation.
+        const string yaml = """
+                            openapi: 3.2.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /events:
+                                get:
+                                  operationId: streamEvents
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        text/event-stream:
+                                          itemSchema:
+                                            $ref: '#/components/schemas/Event'
+                            components:
+                              schemas:
+                                Event:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var resultClasses = ResultClassExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        var resultClass = resultClasses!.Single();
+        var okMethod = resultClass.Methods?.FirstOrDefault(m => m.Name == "Ok");
+        Assert.NotNull(okMethod);
+        var param = okMethod!.Parameters![0];
+        Assert.Equal("IAsyncEnumerable<Event>", param.TypeName);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

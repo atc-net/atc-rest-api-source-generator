@@ -664,6 +664,53 @@ public class HttpClientExtractorTests
         Assert.Contains("EnsureSuccessAsync(", method.Content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_ItemSchemaStreamingResponse_ReturnsAsyncEnumerableOfItem()
+    {
+        // Arrange - OpenAPI 3.2 itemSchema on a streaming media type (no x-* annotation).
+        const string yaml = """
+                            openapi: 3.2.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /events:
+                                get:
+                                  operationId: streamEvents
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        text/event-stream:
+                                          itemSchema:
+                                            $ref: '#/components/schemas/Event'
+                            components:
+                              schemas:
+                                Event:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var clientClass = HttpClientExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(clientClass);
+        var method = clientClass.Methods![0];
+        Assert.NotNull(method.Content);
+        Assert.Contains("DeserializeAsyncEnumerable<Event>", method.Content, StringComparison.Ordinal);
+    }
+
     // ========== NeedsUrlEncoding Tests ==========
     [Theory]
     [InlineData("string", true)]

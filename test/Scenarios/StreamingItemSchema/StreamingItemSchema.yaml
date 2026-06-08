@@ -1,0 +1,38 @@
+openapi: "3.2.0"
+info:
+  version: 1.0.0
+  title: Streaming ItemSchema Test
+  description: >
+    OpenAPI 3.2 itemSchema-driven streaming. The response declares a per-element
+    itemSchema on a sequential media type (no x-return-async-enumerable annotation),
+    which drives IAsyncEnumerable<T> on the server and a streaming read on the client.
+
+paths:
+  /events:
+    get:
+      operationId: streamEvents
+      summary: Stream events
+      tags:
+        - events
+      responses:
+        "200":
+          description: A stream of events
+          content:
+            application/jsonl:
+              itemSchema:
+                $ref: "#/components/schemas/Event"
+
+components:
+  schemas:
+    Event:
+      type: object
+      title: Event
+      required:
+        - id
+        - type
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string

@@ -158,7 +158,8 @@ public static class ResultClassExtractor
         var methods = new List<MethodParameters>();
 
         // Check if this operation should use IAsyncEnumerable for streaming
-        var isAsyncEnumerable = operationValue.IsAsyncEnumerableOperation();
+        // (x-return-async-enumerable annotation or an OpenAPI 3.2 itemSchema).
+        var isAsyncEnumerable = operationValue.IsStreamingResponse();
 
         // Generate factory methods for each response defined in spec
         // Note: Only generate factory methods for responses DEFINED in the OpenAPI spec.
@@ -331,6 +332,20 @@ public static class ResultClassExtractor
         if (!isFileDownload && responseValue.Content != null && responseValue.Content.TryGetValue("application/json", out var mediaType))
         {
             contentType = GetSchemaTypeName(mediaType.Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
+        }
+
+        // OpenAPI 3.2 streaming: when a response media type declares an itemSchema, the
+        // streamed element type comes from it directly (wrapped as IAsyncEnumerable<T> below).
+        if (!isFileDownload && contentType is null && isAsyncEnumerable && responseValue.Content != null)
+        {
+            foreach (var mt in responseValue.Content.Values)
+            {
+                if (mt.ItemSchema != null)
+                {
+                    contentType = GetSchemaTypeName(mt.ItemSchema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
+                    break;
+                }
+            }
         }
 
         // If no JSON or binary match, check for a textual response (text/plain, text/csv,
