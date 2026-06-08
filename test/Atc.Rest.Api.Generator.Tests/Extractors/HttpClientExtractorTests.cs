@@ -564,6 +564,106 @@ public class HttpClientExtractorTests
         Assert.Contains("ReadFromJsonAsync<Gadget>(jsonSerializerOptions, cancellationToken)", method.Content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_QueryMethodBody_SendsRequestWithBodyAndReadsResponse()
+    {
+        // Arrange - OpenAPI 3.2 `query` method: GET-like with a request body.
+        const string yaml = """
+                            openapi: 3.2.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /widgets:
+                                query:
+                                  operationId: queryWidgets
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/WidgetQuery'
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Widget'
+                            components:
+                              schemas:
+                                WidgetQuery:
+                                  type: object
+                                  properties:
+                                    filter:
+                                      type: string
+                                Widget:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var clientClass = HttpClientExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(clientClass);
+        var method = clientClass.Methods![0];
+        Assert.NotNull(method.Content);
+        Assert.Contains("new HttpMethod(\"QUERY\")", method.Content, StringComparison.Ordinal);
+        Assert.Contains("JsonContent.Create(parameters.Request, options: jsonSerializerOptions)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("SendAsync(", method.Content, StringComparison.Ordinal);
+        Assert.Contains("ReadFromJsonAsync<Widget>(jsonSerializerOptions, cancellationToken)", method.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_CustomVerbMethodBody_SendsRequestWithoutBody()
+    {
+        // Arrange - OpenAPI 3.2 additionalOperations custom verb (LINK), no body, no return.
+        const string yaml = """
+                            openapi: 3.2.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /widgets:
+                                additionalOperations:
+                                  LINK:
+                                    operationId: linkWidget
+                                    responses:
+                                      '204':
+                                        description: Linked
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var clientClass = HttpClientExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(clientClass);
+        var method = clientClass.Methods![0];
+        Assert.NotNull(method.Content);
+        Assert.Contains("new HttpMethod(\"LINK\")", method.Content, StringComparison.Ordinal);
+        Assert.Contains("SendAsync(", method.Content, StringComparison.Ordinal);
+        Assert.Contains("EnsureSuccessAsync(", method.Content, StringComparison.Ordinal);
+    }
+
     // ========== NeedsUrlEncoding Tests ==========
     [Theory]
     [InlineData("string", true)]
