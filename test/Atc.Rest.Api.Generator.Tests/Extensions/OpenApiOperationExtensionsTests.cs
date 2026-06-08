@@ -2,6 +2,96 @@ namespace Atc.Rest.Api.Generator.Tests.Extensions;
 
 public class OpenApiOperationExtensionsTests
 {
+    // ========== Streaming (OpenAPI 3.2 itemSchema) Tests ==========
+    private static OpenApiOperation CreateOperationWithItemSchema(
+        string contentType)
+        => new()
+        {
+            Responses = new OpenApiResponses
+            {
+                ["200"] = new OpenApiResponse
+                {
+                    Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal)
+                    {
+                        [contentType] = new OpenApiMediaType { ItemSchema = new OpenApiSchema { Title = "Event" } },
+                    },
+                },
+            },
+        };
+
+    [Fact]
+    public void GetStreamingItemSchema_ItemSchemaPresent_ReturnsItem()
+    {
+        var op = CreateOperationWithItemSchema("text/event-stream");
+
+        var item = op.GetStreamingItemSchema();
+
+        Assert.NotNull(item);
+        Assert.Equal("Event", item!.Title);
+    }
+
+    [Fact]
+    public void GetStreamingItemSchema_NoItemSchema_ReturnsNull()
+    {
+        var op = new OpenApiOperation
+        {
+            Responses = new OpenApiResponses
+            {
+                ["200"] = new OpenApiResponse
+                {
+                    Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal)
+                    {
+                        ["application/json"] = new OpenApiMediaType { Schema = new OpenApiSchema() },
+                    },
+                },
+            },
+        };
+
+        Assert.Null(op.GetStreamingItemSchema());
+    }
+
+    [Fact]
+    public void IsStreamingResponse_ItemSchemaOnResponse_ReturnsTrue()
+    {
+        var op = CreateOperationWithItemSchema("application/jsonl");
+
+        Assert.True(op.IsStreamingResponse());
+    }
+
+    [Fact]
+    public void IsStreamingResponse_PlainJsonResponse_ReturnsFalse()
+    {
+        var op = new OpenApiOperation
+        {
+            Responses = new OpenApiResponses
+            {
+                ["200"] = new OpenApiResponse
+                {
+                    Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal)
+                    {
+                        ["application/json"] = new OpenApiMediaType { Schema = new OpenApiSchema() },
+                    },
+                },
+            },
+        };
+
+        Assert.False(op.IsStreamingResponse());
+    }
+
+    [Fact]
+    public void IsStreamingResponse_AsyncEnumerableAnnotation_ReturnsTrue()
+    {
+        var op = new OpenApiOperation
+        {
+            Extensions = new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
+            {
+                ["x-return-async-enumerable"] = new JsonNodeExtension(JsonValue.Create(true)),
+            },
+        };
+
+        Assert.True(op.IsStreamingResponse());
+    }
+
     // ========== GetOperationId Tests ==========
     [Fact]
     public void GetOperationId_WithOperationId_ReturnsIt()
