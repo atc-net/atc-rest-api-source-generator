@@ -9,8 +9,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Atc.Rest.Client;
 using Atc.Rest.Client.Builder;
+using Atc.Rest.Client.Serialization;
 using Microsoft.Extensions.Http;
 using StreamingItemSchema.Generated;
+using StreamingItemSchema.Generated.Streaming;
 using StreamingItemSchema.Generated.Events.Endpoints.Interfaces;
 using StreamingItemSchema.Generated.Events.Models;
 
@@ -26,13 +28,16 @@ public sealed class StreamEventsEndpoint : IStreamEventsEndpoint
 {
     private readonly IHttpClientFactory factory;
     private readonly IHttpMessageFactory httpMessageFactory;
+    private readonly IContractSerializer contractSerializer;
 
     public StreamEventsEndpoint(
         IHttpClientFactory factory,
-        IHttpMessageFactory httpMessageFactory)
+        IHttpMessageFactory httpMessageFactory,
+        IContractSerializer contractSerializer)
     {
         this.factory = factory;
         this.httpMessageFactory = httpMessageFactory;
+        this.contractSerializer = contractSerializer;
     }
 
     public async Task<StreamingEndpointResponse<Event>> ExecuteAsync(
@@ -46,7 +51,14 @@ public sealed class StreamEventsEndpoint : IStreamEventsEndpoint
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
         var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 
-        var responseBuilder = httpMessageFactory.FromResponse(response);
-        return await responseBuilder.BuildStreamingEndpointResponseAsync<Event>(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            return new StreamingEndpointResponse<Event>(false, response.StatusCode, content: null, errorContent, response);
+        }
+
+        var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var content = StreamReaders.ReadJsonLinesAsync<Event>(stream, contractSerializer, cancellationToken);
+        return new StreamingEndpointResponse<Event>(true, response.StatusCode, content, errorContent: null, response);
     }
 }

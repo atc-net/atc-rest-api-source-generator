@@ -1283,7 +1283,13 @@ public class EndpointPerOperationExtractorTests
         Assert.NotNull(operationFile.EndpointInterfaceContent);
         Assert.Contains("StreamingEndpointResponse<Event>", operationFile.EndpointInterfaceContent, StringComparison.Ordinal);
         Assert.NotNull(operationFile.EndpointClassContent);
-        Assert.Contains("BuildStreamingEndpointResponseAsync<Event>", operationFile.EndpointClassContent, StringComparison.Ordinal);
+
+        // application/jsonl is real JSON Lines wire-framing, so the per-op endpoint reads it via the
+        // emitted StreamReaders.ReadJsonLinesAsync (using the DI-configured IContractSerializer) and
+        // builds the StreamingEndpointResponse<T> inline — it does NOT use the JSON-array-based
+        // BuildStreamingEndpointResponseAsync reader.
+        Assert.Contains("ReadJsonLinesAsync<Event>", operationFile.EndpointClassContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("BuildStreamingEndpointResponseAsync<Event>", operationFile.EndpointClassContent, StringComparison.Ordinal);
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)

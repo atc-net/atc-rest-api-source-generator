@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using Atc.Rest.Client.Serialization;
 
@@ -25,6 +26,24 @@ internal static class StreamReaders
         await foreach (var item in parser.EnumerateAsync(cancellationToken))
         {
             yield return item.Data;
+        }
+    }
+
+    public static async IAsyncEnumerable<T?> ReadJsonLinesAsync<T>(
+        Stream stream,
+        IContractSerializer serializer,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);
+        string? line;
+        while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
+        {
+            if (line.Length == 0)
+            {
+                continue;
+            }
+
+            yield return serializer.Deserialize<T>(line);
         }
     }
 }

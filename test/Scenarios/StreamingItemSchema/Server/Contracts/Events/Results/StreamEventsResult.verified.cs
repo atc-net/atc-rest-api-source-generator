@@ -29,7 +29,7 @@ public sealed class StreamEventsResult : IResult
     /// 200 OK - A stream of events.
     /// </summary>
     public static StreamEventsResult Ok(IAsyncEnumerable<Event> response)
-        => new(TypedResults.Ok(response));
+        => new(new StreamingItemSchema.Generated.Streaming.JsonLinesResult<Event>(response));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

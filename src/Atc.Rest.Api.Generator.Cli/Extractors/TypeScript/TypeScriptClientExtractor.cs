@@ -467,12 +467,16 @@ public static class TypeScriptClientExtractor
 
         if (isStreaming)
         {
-            // Map the wire framing to the requestStream() framing argument. Only SSE needs an
-            // explicit arg today; all other framings (incl. JsonArray/JsonLines) use the default
-            // brace-scan path, so omit the arg to keep their call sites unchanged.
-            var streamFramingArg = operation.GetStreamingFraming() == StreamingFraming.ServerSentEvents
-                ? "'sse'"
-                : null;
+            // Map the wire framing to the requestStream() framing argument. SSE needs 'sse' and
+            // JSON Lines passes 'json-lines' (which the runtime resolves to the brace-scan default
+            // path, but threading it keeps the call site explicit); JsonArray omits the arg to keep
+            // its call site unchanged (the default is 'json-array').
+            var streamFramingArg = operation.GetStreamingFraming() switch
+            {
+                StreamingFraming.ServerSentEvents => "'sse'",
+                StreamingFraming.JsonLines => "'json-lines'",
+                _ => null,
+            };
 
             AppendStreamingMethod(sb, methodName, path, pathParams, queryParams, headerParams, returnType, namingStrategy, convertDates, brandedIds, streamFramingArg);
 

@@ -11,7 +11,8 @@ public static class StreamReadersExtractor
     /// <summary>
     /// Determines whether the document declares any streaming operation that references the
     /// emitted <c>StreamReaders</c> helper. Today that is a Server-Sent Events operation
-    /// (<c>text/event-stream</c>); other framings read via the legacy path and do not use it.
+    /// (<c>text/event-stream</c>) or a JSON Lines operation (<c>application/jsonl</c>); the
+    /// remaining framings read via the legacy path and do not use it.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document.</param>
     /// <returns>True when at least one operation requires the StreamReaders helper.</returns>
@@ -32,12 +33,17 @@ public static class StreamReadersExtractor
             foreach (var operation in path.Value.Operations)
             {
                 // Emit the helper only when an operation actually references it. Today that is
-                // Server-Sent Events; other framings (JsonArray, JsonLines, ...) still read via
-                // the legacy DeserializeAsyncEnumerable path and never call StreamReaders, so a
-                // jsonl-only spec must not ship an orphan helper. Tasks that add SSE-style helpers
-                // for the remaining framings widen this gate as they start using StreamReaders.
-                if (operation.Value.IsStreamingResponse() &&
-                    operation.Value.GetStreamingFraming() == StreamingFraming.ServerSentEvents)
+                // Server-Sent Events and JSON Lines; the remaining framings (JsonArray, ...) still
+                // read via the legacy DeserializeAsyncEnumerable path and never call StreamReaders,
+                // so a legacy-only spec must not ship an orphan helper. Tasks that add reader
+                // helpers for the remaining framings widen this gate as they start using StreamReaders.
+                if (!operation.Value.IsStreamingResponse())
+                {
+                    continue;
+                }
+
+                var framing = operation.Value.GetStreamingFraming();
+                if (framing is StreamingFraming.ServerSentEvents or StreamingFraming.JsonLines)
                 {
                     return true;
                 }
@@ -76,6 +82,11 @@ public static class StreamReadersExtractor
         if (!perOperation)
         {
             sb.AppendLine("using System.Text.Json;");
+        }
+
+        if (perOperation)
+        {
+            sb.AppendLine("using System.Text;");
         }
 
         sb.AppendLine("using System.Threading;");
@@ -117,6 +128,45 @@ public static class StreamReadersExtractor
         sb.AppendLine("            yield return item.Data;");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // JSON Lines / NDJSON (application/jsonl): newline-separated top-level JSON values.
+        if (perOperation)
+        {
+            // Per-operation client has no JsonSerializerOptions in scope and IContractSerializer
+            // exposes no topLevelValues overload (its DeserializeAsyncEnumerable reads a JSON
+            // array, not jsonl), so read the stream line-by-line and deserialize each non-empty
+            // line via the DI-configured serializer — matching the SSE per-op serialization path.
+            sb.AppendLine("    public static async IAsyncEnumerable<T?> ReadJsonLinesAsync<T>(");
+            sb.AppendLine("        Stream stream,");
+            sb.AppendLine("        IContractSerializer serializer,");
+            sb.AppendLine("        [EnumeratorCancellation] CancellationToken cancellationToken)");
+            sb.AppendLine("    {");
+            sb.AppendLine("        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);");
+            sb.AppendLine("        string? line;");
+            sb.AppendLine("        while ((line = await reader.ReadLineAsync(cancellationToken)) != null)");
+            sb.AppendLine("        {");
+            sb.AppendLine("            if (line.Length == 0)");
+            sb.AppendLine("            {");
+            sb.AppendLine("                continue;");
+            sb.AppendLine("            }");
+            sb.AppendLine();
+            sb.AppendLine("            yield return serializer.Deserialize<T>(line);");
+            sb.AppendLine("        }");
+            sb.AppendLine("    }");
+        }
+        else
+        {
+            // Typed client has its configured JsonSerializerOptions in scope, so use the efficient
+            // top-level-values overload (newline is JSON whitespace, so '\n'-separated values parse
+            // natively without a per-line StreamReader).
+            sb.AppendLine("    public static IAsyncEnumerable<T?> ReadJsonLinesAsync<T>(");
+            sb.AppendLine("        Stream stream,");
+            sb.AppendLine("        JsonSerializerOptions options,");
+            sb.AppendLine("        CancellationToken cancellationToken)");
+            sb.AppendLine("        => JsonSerializer.DeserializeAsyncEnumerable<T>(stream, topLevelValues: true, options, cancellationToken);");
+        }
+
         sb.AppendLine("}");
 
         return sb.ToString();

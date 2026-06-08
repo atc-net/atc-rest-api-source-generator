@@ -703,12 +703,13 @@ public static class EndpointPerOperationExtractor
     {
         var namespaceValue = $"{projectName}.Generated.{pathSegment}.Endpoints";
 
-        // Server-Sent Events build the StreamingEndpointResponse<T> inline using the emitted
-        // StreamReaders helper, which deserializes each event via the DI-configured
+        // Server-Sent Events and JSON Lines build the StreamingEndpointResponse<T> inline using the
+        // emitted StreamReaders helper, which deserializes each element via the DI-configured
         // IContractSerializer (Atc.Rest.Client.Serialization) and lives in the Streaming namespace.
-        var isServerSentEventsStreaming = isAsyncEnumerable &&
-                                          !string.IsNullOrEmpty(streamingItemType) &&
-                                          operation.GetStreamingFraming() == StreamingFraming.ServerSentEvents;
+        var streamFraming = operation.GetStreamingFraming();
+        var usesStreamReaders = isAsyncEnumerable &&
+                                !string.IsNullOrEmpty(streamingItemType) &&
+                                streamFraming is StreamingFraming.ServerSentEvents or StreamingFraming.JsonLines;
 
         // Build header with usings
         var headerBuilder = new StringBuilder();
@@ -729,14 +730,14 @@ public static class EndpointPerOperationExtractor
         }
 
         headerBuilder.AppendLine("using Atc.Rest.Client.Builder;");
-        if (isServerSentEventsStreaming)
+        if (usesStreamReaders)
         {
             headerBuilder.AppendLine("using Atc.Rest.Client.Serialization;");
         }
 
         headerBuilder.AppendLine("using Microsoft.Extensions.Http;");
         headerBuilder.AppendLine($"using {projectName}.Generated;");
-        if (isServerSentEventsStreaming)
+        if (usesStreamReaders)
         {
             headerBuilder.AppendLine($"using {projectName}.Generated.Streaming;");
         }
@@ -796,10 +797,10 @@ public static class EndpointPerOperationExtractor
                 CreateAaOneLiner: false),
         };
 
-        // Server-Sent Events deserialize each event via the DI-configured IContractSerializer
+        // SSE and JSON Lines deserialize each element via the DI-configured IContractSerializer
         // (so the per-op client honors the same serialization as the legacy streaming path).
-        // Only SSE endpoints need it; other endpoints keep the 2-arg constructor.
-        if (isServerSentEventsStreaming)
+        // Only these StreamReaders-based endpoints need it; others keep the 2-arg constructor.
+        if (usesStreamReaders)
         {
             constructorParams.Add(new(
                 GenericTypeName: null,
@@ -1114,13 +1115,15 @@ public static class EndpointPerOperationExtractor
 
         sb.AppendLine();
 
-        // Server-Sent Events build the StreamingEndpointResponse<T> inline (it can't use the
-        // JSON-based responseBuilder), so only emit the responseBuilder for the other paths.
-        var isServerSentEventsStreaming = isAsyncEnumerable &&
-                                          !string.IsNullOrEmpty(streamingItemType) &&
-                                          operation.GetStreamingFraming() == StreamingFraming.ServerSentEvents;
+        // SSE and JSON Lines build the StreamingEndpointResponse<T> inline (their wire framing is
+        // not a JSON array, so the JSON-based responseBuilder can't parse it), so only emit the
+        // responseBuilder for the other paths.
+        var streamFraming = operation.GetStreamingFraming();
+        var usesStreamReaders = isAsyncEnumerable &&
+                                !string.IsNullOrEmpty(streamingItemType) &&
+                                streamFraming is StreamingFraming.ServerSentEvents or StreamingFraming.JsonLines;
 
-        if (!isServerSentEventsStreaming)
+        if (!usesStreamReaders)
         {
             // Build response
             sb.AppendLine("var responseBuilder = httpMessageFactory.FromResponse(response);");
@@ -1131,11 +1134,15 @@ public static class EndpointPerOperationExtractor
             // For binary endpoints, use BuildBinaryResponseAsync directly
             sb.Append("return await responseBuilder.BuildBinaryResponseAsync(cancellationToken);");
         }
-        else if (isServerSentEventsStreaming)
+        else if (usesStreamReaders)
         {
-            // Server-Sent Events: the wire framing (`data: <json>\n\n`) is not JSON, so the
-            // Atc.Rest.Client BuildStreamingEndpointResponseAsync<T> JSON reader cannot parse it.
-            // Build the StreamingEndpointResponse<T> inline using the emitted StreamReaders helper.
+            // SSE (`data: <json>\n\n`) and JSON Lines (`<json>\n`) framing is not a JSON array, so
+            // the Atc.Rest.Client BuildStreamingEndpointResponseAsync<T> reader cannot parse it.
+            // Build the StreamingEndpointResponse<T> inline using the emitted StreamReaders helper,
+            // which deserializes each element via the DI-configured IContractSerializer.
+            var readerMethod = streamFraming == StreamingFraming.ServerSentEvents
+                ? "ReadServerSentEventsAsync"
+                : "ReadJsonLinesAsync";
             sb.AppendLine("if (!response.IsSuccessStatusCode)");
             sb.AppendLine("{");
             sb.AppendLine(4, "var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);");
@@ -1143,7 +1150,7 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine("}");
             sb.AppendLine();
             sb.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken);");
-            sb.AppendLine($"var content = StreamReaders.ReadServerSentEventsAsync<{streamingItemType}>(stream, contractSerializer, cancellationToken);");
+            sb.AppendLine($"var content = StreamReaders.{readerMethod}<{streamingItemType}>(stream, contractSerializer, cancellationToken);");
             sb.Append($"return new StreamingEndpointResponse<{streamingItemType}>(true, response.StatusCode, content, errorContent: null, response);");
         }
         else if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))

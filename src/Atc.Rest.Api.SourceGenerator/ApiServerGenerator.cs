@@ -490,6 +490,16 @@ public class ApiServerGenerator : IIncrementalGenerator
             GenerateParsableListHelper(context, projectName);
         }
 
+        // Generate the server-side SequentialResults helper (JSON Lines writer + IResult wrapper)
+        // when an operation uses a writer-based sequential framing (jsonl today).
+        if (SequentialResultsExtractor.DocumentRequiresSequentialResults(openApiDoc))
+        {
+            var sequentialResultsContent = SequentialResultsExtractor.GenerateContent(projectName);
+            context.AddSource(
+                $"{projectName}.Streaming.SequentialResults.g.cs",
+                SourceText.From(sequentialResultsContent.NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
         // Generate combined endpoint mapping extension (calls all path segment endpoint methods)
         GenerateCombinedEndpointMapping(context, projectName, pathSegments);
 

@@ -127,7 +127,7 @@ public static class ResultClassExtractor
                     .ToUpperInvariant();
                 var pathItem = path.Value as OpenApiPathItem;
                 var currentPathSegment = PathSegmentHelper.GetFirstPathSegment(pathKey);
-                var classParams = ExtractResultClass(openApiDoc, operationId!, operationValue!, pathItem!, httpMethod, namespaceValue, modelsNamespace, registry, systemTypeResolver, currentPathSegment, inlineSchemas);
+                var classParams = ExtractResultClass(openApiDoc, projectName, operationId!, operationValue!, pathItem!, httpMethod, namespaceValue, modelsNamespace, registry, systemTypeResolver, currentPathSegment, inlineSchemas);
                 if (classParams != null)
                 {
                     resultClasses.Add(classParams);
@@ -140,6 +140,7 @@ public static class ResultClassExtractor
 
     private static ClassParameters ExtractResultClass(
         OpenApiDocument openApiDoc,
+        string projectName,
         string operationId,
         OpenApiOperation operationValue,
         OpenApiPathItem pathItem,
@@ -175,7 +176,7 @@ public static class ResultClassExtractor
                     continue;
                 }
 
-                var factoryMethods = GenerateFactoryMethods(openApiDoc, className, response.Key, openApiResponse, isAsyncEnumerable, operationValue.GetStreamingFraming(), registry, operationId, pathSegment, inlineSchemas);
+                var factoryMethods = GenerateFactoryMethods(openApiDoc, projectName, className, response.Key, openApiResponse, isAsyncEnumerable, operationValue.GetStreamingFraming(), registry, operationId, pathSegment, inlineSchemas);
                 methods.AddRange(factoryMethods);
             }
         }
@@ -298,6 +299,7 @@ public static class ResultClassExtractor
 
     private static List<MethodParameters> GenerateFactoryMethods(
         OpenApiDocument openApiDoc,
+        string projectName,
         string className,
         string statusCode,
         OpenApiResponse responseValue,
@@ -366,7 +368,7 @@ public static class ResultClassExtractor
         {
             // Generate factory method based on status code
             case "200":
-                methods.AddRange(GenerateOkMethods(className, description, contentType, isAsyncEnumerable, streamingFraming, isFileDownload, fileDownloadContentType, isTextResponse, textResponseMediaType));
+                methods.AddRange(GenerateOkMethods(projectName, className, description, contentType, isAsyncEnumerable, streamingFraming, isFileDownload, fileDownloadContentType, isTextResponse, textResponseMediaType));
                 break;
             case "201":
                 methods.AddRange(GenerateCreatedMethods(className, description, contentType));
@@ -427,6 +429,7 @@ public static class ResultClassExtractor
     }
 
     private static List<MethodParameters> GenerateOkMethods(
+        string projectName,
         string className,
         string description,
         string? contentType,
@@ -514,13 +517,26 @@ public static class ResultClassExtractor
                 ? "response"
                 : parameterType == "string" ? "message" : "response";
 
-            // Server-Sent Events use the first-party TypedResults.ServerSentEvents writer; all
-            // other streaming framings (JsonArray, JsonLines, ...) keep TypedResults.Ok.
-            var content = isTextResponse
-                ? $"new(TypedResults.Text({paramName}, \"{textResponseMediaType}\"))"
-                : isAsyncEnumerable && streamingFraming == StreamingFraming.ServerSentEvents
-                    ? $"new(TypedResults.ServerSentEvents({paramName}))"
-                    : $"new(TypedResults.Ok({paramName}))";
+            // Server-Sent Events use the first-party TypedResults.ServerSentEvents writer; JSON
+            // Lines uses the emitted JsonLinesResult<T> writer (fully-qualified — the Results file
+            // has no Streaming using); all other framings (JsonArray, ...) keep TypedResults.Ok.
+            string content;
+            if (isTextResponse)
+            {
+                content = $"new(TypedResults.Text({paramName}, \"{textResponseMediaType}\"))";
+            }
+            else if (isAsyncEnumerable && streamingFraming == StreamingFraming.ServerSentEvents)
+            {
+                content = $"new(TypedResults.ServerSentEvents({paramName}))";
+            }
+            else if (isAsyncEnumerable && streamingFraming == StreamingFraming.JsonLines)
+            {
+                content = $"new(new {projectName}.Generated.Streaming.JsonLinesResult<{contentType}>({paramName}))";
+            }
+            else
+            {
+                content = $"new(TypedResults.Ok({paramName}))";
+            }
 
             // Factory method with parameter
             var okMethod = new MethodParameters(
