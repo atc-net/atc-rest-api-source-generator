@@ -1,0 +1,73 @@
+openapi: "3.2.0"
+info:
+  version: 1.0.0
+  title: HTTP Methods Test
+  description: OpenAPI 3.2 query method and additionalOperations (custom verbs) end-to-end
+
+paths:
+  /resources:
+    get:
+      operationId: listResources
+      summary: List resources
+      tags:
+        - resources
+      responses:
+        "200":
+          description: A list of resources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Resource"
+    query:
+      operationId: queryResources
+      summary: Query resources with a body
+      tags:
+        - resources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResourceQuery"
+      responses:
+        "200":
+          description: Matching resources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Resource"
+    additionalOperations:
+      LINK:
+        operationId: linkResource
+        summary: Link a resource (custom verb)
+        tags:
+          - resources
+        responses:
+          "204":
+            description: Linked
+
+components:
+  schemas:
+    Resource:
+      type: object
+      title: Resource
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+
+    ResourceQuery:
+      type: object
+      title: ResourceQuery
+      properties:
+        filter:
+          type: string
