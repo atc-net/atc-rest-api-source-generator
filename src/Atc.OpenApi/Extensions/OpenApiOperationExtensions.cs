@@ -244,14 +244,11 @@ public static class OpenApiOperationExtensions
         }
 
         /// <summary>
-        /// Gets the per-element schema for an OpenAPI 3.2 streaming response — the
-        /// <c>itemSchema</c> declared on a 2xx response media type (e.g.
-        /// <c>text/event-stream</c>, <c>application/jsonl</c>). Unlike <c>schema</c>,
-        /// <c>itemSchema</c> already describes a single streamed element, so callers must
-        /// use it directly (do not unwrap arrays/pagination).
+        /// Gets the streaming response media type and its per-element <c>itemSchema</c>,
+        /// inspecting the <c>200</c> and <c>201</c> responses specifically, or <c>null</c>
+        /// when neither declares one.
         /// </summary>
-        /// <returns>The item schema, or <c>null</c> when no response media type declares one.</returns>
-        public IOpenApiSchema? GetStreamingItemSchema()
+        public (string MediaType, IOpenApiSchema ItemSchema)? GetStreamingResponse()
         {
             if (operation.Responses == null)
             {
@@ -266,17 +263,44 @@ public static class OpenApiOperationExtensions
                     continue;
                 }
 
-                foreach (var mediaType in response.Content.Values)
+                foreach (var kvp in response.Content)
                 {
-                    if (mediaType.ItemSchema != null)
+                    if (kvp.Value.ItemSchema != null)
                     {
-                        return mediaType.ItemSchema;
+                        return (kvp.Key, kvp.Value.ItemSchema);
                     }
                 }
             }
 
             return null;
         }
+
+        /// <summary>
+        /// Classifies the streaming response's wire framing from its declared media type.
+        /// Returns <see cref="StreamingFraming.JsonArray"/> when the only streaming signal is the
+        /// legacy <c>x-return-async-enumerable</c> annotation on <c>application/json</c>.
+        /// When both an <c>itemSchema</c> and <c>x-return-async-enumerable</c> are present the
+        /// media-type framing wins, because <see cref="GetStreamingResponse"/> returns non-null
+        /// and the annotation is ignored.
+        /// </summary>
+        public StreamingFraming GetStreamingFraming()
+        {
+            var streaming = operation.GetStreamingResponse();
+            return streaming is { } s
+                ? StreamingMediaType.Classify(s.MediaType)
+                : StreamingFraming.JsonArray;
+        }
+
+        /// <summary>
+        /// Gets the per-element schema for an OpenAPI 3.2 streaming response — the
+        /// <c>itemSchema</c> declared on a 2xx response media type (e.g.
+        /// <c>text/event-stream</c>, <c>application/jsonl</c>). Unlike <c>schema</c>,
+        /// <c>itemSchema</c> already describes a single streamed element, so callers must
+        /// use it directly (do not unwrap arrays/pagination).
+        /// </summary>
+        /// <returns>The item schema, or <c>null</c> when no response media type declares one.</returns>
+        public IOpenApiSchema? GetStreamingItemSchema()
+            => operation.GetStreamingResponse()?.ItemSchema;
 
         /// <summary>
         /// Determines whether the operation produces a streamed/sequential response that
