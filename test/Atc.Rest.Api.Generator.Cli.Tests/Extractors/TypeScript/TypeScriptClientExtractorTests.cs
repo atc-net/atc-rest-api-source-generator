@@ -1221,6 +1221,47 @@ public class TypeScriptClientExtractorTests
         return count;
     }
 
+    [Fact]
+    public void Extract_ItemSchemaStreamingOperation_EmitsAsyncGeneratorOfItem()
+    {
+        // OpenAPI 3.2 itemSchema on a streaming media type (no x-* annotation) must
+        // drive a streaming async-generator method whose item type is the itemSchema.
+        const string yaml = """
+                            openapi: 3.2.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /events:
+                                get:
+                                  operationId: streamEvents
+                                  tags: [events]
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/jsonl:
+                                          itemSchema:
+                                            $ref: '#/components/schemas/Event'
+                            components:
+                              schemas:
+                                Event:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null);
+
+        var (_, content) = Assert.Single(clients);
+        Assert.Contains("AsyncGenerator<Event>", content, StringComparison.Ordinal);
+        Assert.Contains("requestStream<Event>('GET', '/events'", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
