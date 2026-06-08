@@ -1054,12 +1054,9 @@ public static class EndpointPerOperationExtractor
 
         sb.AppendLine();
 
-        // Build and send request - Convert HTTP method to PascalCase for System.Net.Http.HttpMethod (e.g., GET → Get, POST → Post)
-        var httpMethodPascal = char.ToUpperInvariant(
-            httpMethod[0]) + httpMethod
-            .Substring(1)
-            .ToLowerInvariant();
-        sb.AppendLine($"using var requestMessage = requestBuilder.Build(HttpMethod.{httpMethodPascal});");
+        // Build and send request. Standard verbs use the HttpMethod static property;
+        // OpenAPI 3.2 custom additionalOperations verbs (e.g. LINK) are constructed by name.
+        sb.AppendLine($"using var requestMessage = requestBuilder.Build({EndpointMapHelper.BuildHttpMethodExpression(httpMethod)});");
 
         // Use ResponseHeadersRead for streaming (IAsyncEnumerable) to enable true HTTP streaming
         // instead of buffering the entire response before iteration.
