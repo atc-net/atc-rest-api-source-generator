@@ -10,6 +10,14 @@ namespace Atc.Rest.Api.Generator.Extractors;
 public static class SequentialResultsExtractor
 {
     /// <summary>
+    /// The multipart/mixed boundary token baked into the emitted server writer and used as the
+    /// client-side fallback when a response omits an explicit <c>boundary</c> media-type parameter.
+    /// Single generator-side source for the three emission sites (server const, typed-client
+    /// fallback, per-operation-client fallback) so the emitted literal stays in lockstep.
+    /// </summary>
+    public const string MultipartBoundaryValue = "atc-stream-boundary";
+
+    /// <summary>
     /// Determines whether the document declares any streaming operation that needs the emitted
     /// server-side <c>SequentialResults</c> helper. That is any operation whose framing is one of
     /// the writer-based framings — <see cref="StreamingFraming.JsonLines"/>,
@@ -98,7 +106,7 @@ public static class SequentialResultsExtractor
         sb.AppendLine();
 
         // multipart/mixed boundary token + CRLF, used to frame each part.
-        sb.AppendLine("    public const string MultipartBoundary = \"atc-stream-boundary\";");
+        sb.AppendLine($"    public const string MultipartBoundary = \"{MultipartBoundaryValue}\";");
         sb.AppendLine();
         sb.AppendLine("    private static readonly byte[] Crlf = { (byte)'\\r', (byte)'\\n' };");
         sb.AppendLine();

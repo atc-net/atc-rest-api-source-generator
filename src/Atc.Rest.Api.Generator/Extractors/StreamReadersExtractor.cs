@@ -1,10 +1,12 @@
 namespace Atc.Rest.Api.Generator.Extractors;
 
 /// <summary>
-/// Emits the generated <c>Streaming/StreamReaders.cs</c> helper that the C# clients use to
-/// read OpenAPI 3.2 wire-framed streaming responses (e.g. Server-Sent Events). The helper is
-/// emitted once per client (typed or per-operation) only when the client has an operation that
-/// actually references it — currently a <see cref="StreamingFraming.ServerSentEvents"/> operation.
+/// Emits the generated <c>Streaming/StreamReaders.cs</c> helper that the C# clients use to read
+/// OpenAPI 3.2 wire-framed streaming responses: Server-Sent Events (<c>text/event-stream</c>),
+/// JSON Lines (<c>application/jsonl</c>), JSON Text Sequence (<c>application/json-seq</c>) and
+/// multipart/mixed (<c>multipart/mixed</c>). The helper is emitted once per client (typed or
+/// per-operation) only when the client has an operation that actually references it; the legacy
+/// JSON-array framing reads via the legacy path and does not use it.
 /// </summary>
 public static class StreamReadersExtractor
 {

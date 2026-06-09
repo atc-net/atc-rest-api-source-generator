@@ -490,9 +490,10 @@ public class ApiServerGenerator : IIncrementalGenerator
             GenerateParsableListHelper(context, projectName);
         }
 
-        // Generate the server-side SequentialResults helper (JSON Lines writer + IResult wrapper)
-        // when an operation uses a writer-based sequential framing (jsonl today). Uses the shared
-        // CodeGenerationService producer (parallel to the client-side StreamReaders emission).
+        // Generate the server-side SequentialResults helper (the writer-based sequential-streaming
+        // writers + their IResult wrappers for JSON Lines, JSON Text Sequence and multipart/mixed)
+        // when an operation uses one of those framings. Uses the shared CodeGenerationService
+        // producer (parallel to the client-side StreamReaders emission).
         var sequentialResults = CodeGenerationService.GenerateSequentialResults(openApiDoc, projectName);
         if (sequentialResults != null)
         {
