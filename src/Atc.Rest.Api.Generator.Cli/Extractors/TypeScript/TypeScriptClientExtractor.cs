@@ -468,15 +468,16 @@ public static class TypeScriptClientExtractor
         if (isStreaming)
         {
             // Map the wire framing to the requestStream framing argument. SSE maps to sse;
-            // JSON Lines maps to json-lines and JSON Text Sequence maps to json-seq. Both resolve
-            // to the runtime brace-scan default path (the leading RS framing byte is skipped while
-            // seeking the opening brace), but threading the arg keeps the call site explicit.
+            // JSON Lines maps to json-lines and JSON Text Sequence maps to json-seq (both resolve
+            // to the runtime brace-scan default path, but threading the arg keeps the call site
+            // explicit); multipart/mixed maps to multipart (its own runtime parse branch).
             // JsonArray omits the arg to keep its call site unchanged (the default is json-array).
             var streamFramingArg = operation.GetStreamingFraming() switch
             {
                 StreamingFraming.ServerSentEvents => "'sse'",
                 StreamingFraming.JsonLines => "'json-lines'",
                 StreamingFraming.JsonSequence => "'json-seq'",
+                StreamingFraming.MultipartMixed => "'multipart'",
                 _ => null,
             };
 

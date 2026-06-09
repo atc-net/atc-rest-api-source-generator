@@ -537,6 +537,10 @@ public static class ResultClassExtractor
             {
                 content = $"new(new {projectName}.Generated.Streaming.JsonSequenceResult<{contentType}>({paramName}))";
             }
+            else if (isAsyncEnumerable && streamingFraming == StreamingFraming.MultipartMixed)
+            {
+                content = $"new(new {projectName}.Generated.Streaming.MultipartMixedResult<{contentType}>({paramName}))";
+            }
             else
             {
                 content = $"new(TypedResults.Ok({paramName}))";

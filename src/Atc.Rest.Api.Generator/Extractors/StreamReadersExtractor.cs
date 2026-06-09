@@ -10,10 +10,10 @@ public static class StreamReadersExtractor
 {
     /// <summary>
     /// Determines whether the document declares any streaming operation that references the
-    /// emitted <c>StreamReaders</c> helper. Today that is a Server-Sent Events operation
-    /// (<c>text/event-stream</c>), a JSON Lines operation (<c>application/jsonl</c>) or a JSON Text
-    /// Sequence operation (<c>application/json-seq</c>); the remaining framings read via the legacy
-    /// path and do not use it.
+    /// emitted <c>StreamReaders</c> helper. That is a Server-Sent Events (<c>text/event-stream</c>),
+    /// JSON Lines (<c>application/jsonl</c>), JSON Text Sequence (<c>application/json-seq</c>) or
+    /// multipart/mixed (<c>multipart/mixed</c>) operation; the legacy JSON-array framing reads via
+    /// the legacy path and does not use it.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document.</param>
     /// <returns>True when at least one operation requires the StreamReaders helper.</returns>
@@ -33,11 +33,10 @@ public static class StreamReadersExtractor
 
             foreach (var operation in path.Value.Operations)
             {
-                // Emit the helper only when an operation actually references it. Today that is
-                // Server-Sent Events, JSON Lines and JSON Text Sequence; the remaining framings
-                // (JsonArray, ...) still read via the legacy DeserializeAsyncEnumerable path and
-                // never call StreamReaders, so a legacy-only spec must not ship an orphan helper.
-                // Tasks that add reader helpers for the remaining framings widen this gate.
+                // Emit the helper only when an operation actually references it: SSE, JSON Lines,
+                // JSON Text Sequence and multipart/mixed. The legacy JSON-array framing still reads
+                // via the DeserializeAsyncEnumerable path and never calls StreamReaders, so a
+                // JsonArray-only spec must not ship an orphan helper.
                 if (!operation.Value.IsStreamingResponse())
                 {
                     continue;
@@ -46,7 +45,8 @@ public static class StreamReadersExtractor
                 var framing = operation.Value.GetStreamingFraming();
                 if (framing is StreamingFraming.ServerSentEvents
                     or StreamingFraming.JsonLines
-                    or StreamingFraming.JsonSequence)
+                    or StreamingFraming.JsonSequence
+                    or StreamingFraming.MultipartMixed)
                 {
                     return true;
                 }
@@ -82,12 +82,11 @@ public static class StreamReadersExtractor
         sb.AppendLine("using System.IO;");
         sb.AppendLine("using System.Net.ServerSentEvents;");
         sb.AppendLine("using System.Runtime.CompilerServices;");
-        if (perOperation)
-        {
-            // Encoding.UTF8 / StreamReader for the per-operation JSON Lines reader.
-            sb.AppendLine("using System.Text;");
-        }
-        else
+
+        // Encoding.UTF8 / StreamReader / StringBuilder for the JSON Lines (per-op) and
+        // multipart/mixed (both variants) readers.
+        sb.AppendLine("using System.Text;");
+        if (!perOperation)
         {
             sb.AppendLine("using System.Text.Json;");
         }
@@ -223,6 +222,83 @@ public static class StreamReadersExtractor
         sb.AppendLine("        if (record.Length > 0)");
         sb.AppendLine("        {");
         sb.AppendLine($"            yield return {deserializeRecord};");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // The multipart deserialize call differs only by variant — the typed reader uses the
+        // JsonSerializerOptions and the per-op reader uses the DI-configured IContractSerializer.
+        // Both take the accumulated body string.
+        var deserializeBody = perOperation
+            ? "serializer.Deserialize<T>(body.ToString())"
+            : "JsonSerializer.Deserialize<T>(body.ToString(), options)";
+
+        // multipart/mixed: parts are delimited by `--<boundary>` lines, each part has headers up to
+        // a blank line, then the JSON body; the stream ends at `--<boundary>--`. Accumulate body
+        // lines (so multi-line / pretty-printed bodies reconstitute into one valid JSON document —
+        // interior LFs are insignificant JSON whitespace, and the boundary token cannot appear at
+        // the start of a JSON body line). Read truly-async via StreamReader.ReadLineAsync.
+        sb.AppendLine("    public static async IAsyncEnumerable<T?> ReadMultipartMixedAsync<T>(");
+        sb.AppendLine("        Stream stream,");
+        sb.AppendLine("        string boundary,");
+        if (perOperation)
+        {
+            sb.AppendLine("        IContractSerializer serializer,");
+        }
+        else
+        {
+            sb.AppendLine("        JsonSerializerOptions options,");
+        }
+
+        sb.AppendLine("        [EnumeratorCancellation] CancellationToken cancellationToken)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        var delimiter = \"--\" + boundary;");
+        sb.AppendLine("        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);");
+        sb.AppendLine("        var inPart = false;");
+        sb.AppendLine("        var inHeaders = false;");
+        sb.AppendLine("        var body = new StringBuilder();");
+        sb.AppendLine("        string? line;");
+        sb.AppendLine("        while ((line = await reader.ReadLineAsync(cancellationToken)) != null)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (line.StartsWith(delimiter, StringComparison.Ordinal))");
+        sb.AppendLine("            {");
+        sb.AppendLine("                if (inPart && body.Length > 0)");
+        sb.AppendLine("                {");
+        sb.AppendLine($"                    yield return {deserializeBody};");
+        sb.AppendLine("                    body.Clear();");
+        sb.AppendLine("                }");
+        sb.AppendLine();
+        sb.AppendLine("                if (line.StartsWith(delimiter + \"--\", StringComparison.Ordinal))");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    yield break;");
+        sb.AppendLine("                }");
+        sb.AppendLine();
+        sb.AppendLine("                inPart = true;");
+        sb.AppendLine("                inHeaders = true;");
+        sb.AppendLine("                continue;");
+        sb.AppendLine("            }");
+        sb.AppendLine();
+        sb.AppendLine("            if (!inPart)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                continue;");
+        sb.AppendLine("            }");
+        sb.AppendLine();
+        sb.AppendLine("            if (inHeaders)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                if (line.Length == 0)");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    inHeaders = false;");
+        sb.AppendLine("                }");
+        sb.AppendLine();
+        sb.AppendLine("                continue;");
+        sb.AppendLine("            }");
+        sb.AppendLine();
+        sb.AppendLine("            body.Append(line);");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        if (inPart && body.Length > 0)");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            yield return {deserializeBody};");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
 

@@ -79,4 +79,60 @@ internal static class StreamReaders
             yield return serializer.Deserialize<T>(record.ToArray());
         }
     }
+
+    public static async IAsyncEnumerable<T?> ReadMultipartMixedAsync<T>(
+        Stream stream,
+        string boundary,
+        IContractSerializer serializer,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var delimiter = "--" + boundary;
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);
+        var inPart = false;
+        var inHeaders = false;
+        var body = new StringBuilder();
+        string? line;
+        while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
+        {
+            if (line.StartsWith(delimiter, StringComparison.Ordinal))
+            {
+                if (inPart && body.Length > 0)
+                {
+                    yield return serializer.Deserialize<T>(body.ToString());
+                    body.Clear();
+                }
+
+                if (line.StartsWith(delimiter + "--", StringComparison.Ordinal))
+                {
+                    yield break;
+                }
+
+                inPart = true;
+                inHeaders = true;
+                continue;
+            }
+
+            if (!inPart)
+            {
+                continue;
+            }
+
+            if (inHeaders)
+            {
+                if (line.Length == 0)
+                {
+                    inHeaders = false;
+                }
+
+                continue;
+            }
+
+            body.Append(line);
+        }
+
+        if (inPart && body.Length > 0)
+        {
+            yield return serializer.Deserialize<T>(body.ToString());
+        }
+    }
 }

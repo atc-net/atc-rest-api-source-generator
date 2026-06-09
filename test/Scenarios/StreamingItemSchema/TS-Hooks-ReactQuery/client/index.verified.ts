@@ -2,5 +2,6 @@
 export * from './ApiClient';
 export * from './ApiService';
 export * from './EventsClient';
+export * from './EventsMultipartClient';
 export * from './EventsSeqClient';
 export * from './EventsSseClient';

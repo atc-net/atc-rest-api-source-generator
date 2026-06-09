@@ -47,6 +47,19 @@ paths:
             application/json-seq:
               itemSchema:
                 $ref: "#/components/schemas/Event"
+  /events-multipart:
+    get:
+      operationId: streamEventsMultipart
+      summary: Stream events as multipart/mixed
+      tags:
+        - events
+      responses:
+        "200":
+          description: A stream of events
+          content:
+            multipart/mixed:
+              itemSchema:
+                $ref: "#/components/schemas/Event"
 
 components:
   schemas:

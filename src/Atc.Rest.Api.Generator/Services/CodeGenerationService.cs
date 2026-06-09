@@ -1265,6 +1265,13 @@ public static class CodeGenerationService
             usings.Add($"{projectName}.Generated.Streaming");
         }
 
+        // multipart/mixed extracts the response Content-Type boundary via LINQ (.FirstOrDefault) —
+        // ensure System.Linq is imported.
+        if (content.IndexOf(".FirstOrDefault(", StringComparison.Ordinal) >= 0)
+        {
+            usings.Add(NamespaceConstants.SystemLinq);
+        }
+
         var subFolder = GetSubFolder("Client", null, generatorType);
 
         result.Add(new GeneratedType(

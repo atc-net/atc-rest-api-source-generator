@@ -3,6 +3,7 @@
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,6 +20,10 @@ public static class SequentialStreamWriter
     private static readonly byte[] LineFeed = { (byte)'\n' };
 
     private static readonly byte[] RecordSeparator = { 0x1E };
+
+    public const string MultipartBoundary = "atc-stream-boundary";
+
+    private static readonly byte[] Crlf = { (byte)'\r', (byte)'\n' };
 
     public static async Task WriteJsonLinesAsync<T>(
         IAsyncEnumerable<T> items,
@@ -47,6 +52,27 @@ public static class SequentialStreamWriter
             await stream.WriteAsync(LineFeed, cancellationToken);
             await stream.FlushAsync(cancellationToken);
         }
+    }
+
+    public static async Task WriteMultipartMixedAsync<T>(
+        IAsyncEnumerable<T> items,
+        Stream stream,
+        string boundary,
+        JsonSerializerOptions options,
+        CancellationToken cancellationToken)
+    {
+        await foreach (var item in items.WithCancellation(cancellationToken))
+        {
+            var header = Encoding.ASCII.GetBytes($"--{boundary}\r\nContent-Type: application/json\r\n\r\n");
+            await stream.WriteAsync(header, cancellationToken);
+            await JsonSerializer.SerializeAsync(stream, item, options, cancellationToken);
+            await stream.WriteAsync(Crlf, cancellationToken);
+            await stream.FlushAsync(cancellationToken);
+        }
+
+        var closing = Encoding.ASCII.GetBytes($"--{boundary}--\r\n");
+        await stream.WriteAsync(closing, cancellationToken);
+        await stream.FlushAsync(cancellationToken);
     }
 }
 
@@ -83,5 +109,23 @@ public sealed class JsonSequenceResult<T> : IResult
             .GetRequiredService<IOptions<JsonOptions>>()
             .Value.SerializerOptions;
         await SequentialStreamWriter.WriteJsonSequenceAsync(items, httpContext.Response.Body, options, httpContext.RequestAborted);
+    }
+}
+
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class MultipartMixedResult<T> : IResult
+{
+    private readonly IAsyncEnumerable<T> items;
+
+    public MultipartMixedResult(IAsyncEnumerable<T> items)
+        => this.items = items;
+
+    public async Task ExecuteAsync(HttpContext httpContext)
+    {
+        httpContext.Response.ContentType = $"multipart/mixed; boundary={SequentialStreamWriter.MultipartBoundary}";
+        var options = httpContext.RequestServices
+            .GetRequiredService<IOptions<JsonOptions>>()
+            .Value.SerializerOptions;
+        await SequentialStreamWriter.WriteMultipartMixedAsync(items, httpContext.Response.Body, SequentialStreamWriter.MultipartBoundary, options, httpContext.RequestAborted);
     }
 }

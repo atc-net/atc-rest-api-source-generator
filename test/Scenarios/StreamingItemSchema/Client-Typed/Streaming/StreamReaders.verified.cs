@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 
@@ -64,6 +65,62 @@ internal static class StreamReaders
         if (record.Length > 0)
         {
             yield return JsonSerializer.Deserialize<T>(record.ToArray(), options);
+        }
+    }
+
+    public static async IAsyncEnumerable<T?> ReadMultipartMixedAsync<T>(
+        Stream stream,
+        string boundary,
+        JsonSerializerOptions options,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var delimiter = "--" + boundary;
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);
+        var inPart = false;
+        var inHeaders = false;
+        var body = new StringBuilder();
+        string? line;
+        while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
+        {
+            if (line.StartsWith(delimiter, StringComparison.Ordinal))
+            {
+                if (inPart && body.Length > 0)
+                {
+                    yield return JsonSerializer.Deserialize<T>(body.ToString(), options);
+                    body.Clear();
+                }
+
+                if (line.StartsWith(delimiter + "--", StringComparison.Ordinal))
+                {
+                    yield break;
+                }
+
+                inPart = true;
+                inHeaders = true;
+                continue;
+            }
+
+            if (!inPart)
+            {
+                continue;
+            }
+
+            if (inHeaders)
+            {
+                if (line.Length == 0)
+                {
+                    inHeaders = false;
+                }
+
+                continue;
+            }
+
+            body.Append(line);
+        }
+
+        if (inPart && body.Length > 0)
+        {
+            yield return JsonSerializer.Deserialize<T>(body.ToString(), options);
         }
     }
 }

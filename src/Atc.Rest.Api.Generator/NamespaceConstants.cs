@@ -38,6 +38,11 @@ public static class NamespaceConstants
     public const string SystemIO = "System.IO";
 
     /// <summary>
+    /// System.Linq - Required for LINQ extension methods (e.g. FirstOrDefault).
+    /// </summary>
+    public const string SystemLinq = "System.Linq";
+
+    /// <summary>
     /// System.Net - Required for network types.
     /// </summary>
     public const string SystemNet = "System.Net";
