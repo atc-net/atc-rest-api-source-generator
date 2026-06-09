@@ -437,7 +437,7 @@ public static class RuleIdentifiers
     /// </summary>
     public const string Multiple2xxStatusCodes = "ATC_API_OPR018";
 
-    // ========== Response Code Consistency Rules (OPR021-OPR026) ==========
+    // ========== Response Code Consistency Rules (OPR021-OPR025) ==========
 
     /// <summary>
     /// ATC_API_OPR021: 401 Unauthorized response defined but no security requirements.
@@ -463,6 +463,14 @@ public static class RuleIdentifiers
     /// ATC_API_OPR025: 429 TooManyRequests response defined but no rate limiting configured.
     /// </summary>
     public const string TooManyRequestsWithoutRateLimiting = "ATC_API_OPR025";
+
+    // ========== Parameter Serialization Rules (OPR026) ==========
+
+    /// <summary>
+    /// ATC_API_OPR026: Parameter declares a style/explode serialization this generator does not
+    /// yet support; default form serialization is emitted instead.
+    /// </summary>
+    public const string ParameterSerializationNotSupported = "ATC_API_OPR026";
 
     // ========== Webhook Rules (WBH) ==========
 
