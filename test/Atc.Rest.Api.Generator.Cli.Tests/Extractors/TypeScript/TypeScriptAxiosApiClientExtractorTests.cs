@@ -224,8 +224,18 @@ public class TypeScriptAxiosApiClientExtractorTests
         // loop does not try to iterate undefined.
         var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
 
-        var continueIdx = result.IndexOf("continue;", StringComparison.Ordinal);
-        var arrayIdx = result.IndexOf("Array.isArray(value)", StringComparison.Ordinal);
-        Assert.True(continueIdx > 0 && arrayIdx > continueIdx, "The 'continue' (undefined guard) must appear before Array.isArray.");
+        // Scope the search to the buildUrl method definition so the assertion cannot be
+        // satisfied by an unrelated 'continue;' elsewhere in the generated file
+        // (e.g. the streaming/multipart parser).
+        var buildUrlIdx = result.IndexOf("buildUrl(path: string,", StringComparison.Ordinal);
+        Assert.True(buildUrlIdx >= 0, "buildUrl method must be generated.");
+        var buildUrlBody = result.Substring(buildUrlIdx);
+
+        var undefinedGuardIdx = buildUrlBody.IndexOf("value === undefined", StringComparison.Ordinal);
+        var continueIdx = buildUrlBody.IndexOf("continue;", StringComparison.Ordinal);
+        var arrayIdx = buildUrlBody.IndexOf("Array.isArray(value)", StringComparison.Ordinal);
+        Assert.True(undefinedGuardIdx >= 0, "buildUrl must contain the 'value === undefined' guard.");
+        Assert.True(continueIdx > undefinedGuardIdx, "The 'continue' must follow the undefined guard within buildUrl.");
+        Assert.True(arrayIdx > continueIdx, "The undefined guard must appear before Array.isArray within buildUrl.");
     }
 }
