@@ -1422,8 +1422,11 @@ public static class HttpClientExtractor
         }
 
         // allowReserved => emit the value WITHOUT URL-encoding. Array elements are non-nullable
-        // per the NeedsUrlEncoding/array contract, so a string element is used as-is and a
-        // non-string value type uses .ToString() (cleaner than the old nested $"{item}").
+        // here (the foreach variable over a List<T> of value types / strings), so a string element
+        // is used as-is and a non-string value type uses .ToString(). Unlike the sibling
+        // BuildEncodedExpression/BuildPathParameterReplacement — which interpolate via $"{...}" to
+        // dodge nullable-ToString (CS8602) warnings on possibly-null scalars — `item` is provably
+        // non-null, so the cleaner direct .ToString() is safe.
         var encodedItem = allowReserved
             ? (elementType == "string" ? "item" : "item.ToString()")
             : BuildEncodedExpression("item", elementType);
