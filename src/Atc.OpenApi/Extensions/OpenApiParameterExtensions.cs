@@ -282,9 +282,11 @@ public static class OpenApiParameterExtensions
             return ParameterValueKind.Object;
         }
 
-        // Schemas via $ref/oneOf/anyOf/allOf (Type==null, no Properties) fall through to Primitive —
-        // a known limitation; object query params via $ref won't trigger the unsupported-style warning
-        // until this is extended. deepObject/object-query handling is deferred.
+        // $ref schemas are NOT a problem here: the Microsoft.OpenApi OpenApiSchemaReference proxy
+        // transparently forwards Type/Properties to its target, so a $ref-to-array classifies as
+        // Array and a $ref-to-object as Object via the branches above (locked by unit tests).
+        // What still falls through to Primitive are genuine composition schemas — oneOf/anyOf/allOf
+        // with Type==null and no Properties; classifying those is deferred (deepObject/object-query).
         return ParameterValueKind.Primitive;
     }
 }

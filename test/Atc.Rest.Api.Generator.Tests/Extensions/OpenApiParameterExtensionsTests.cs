@@ -222,6 +222,91 @@ public class OpenApiParameterExtensionsTests
         Assert.True(s.IsSupported);
     }
 
+    [Fact]
+    public void GetParameterSerialization_RefToArraySchema_ClassifiesAsArraySupported()
+    {
+        // A query param whose schema is a $ref to a components array schema must resolve the
+        // reference before classifying — otherwise Type==null falls through to Primitive and the
+        // typed client silently serializes the collection's .ToString() (the silent-wrong gap).
+        const string yaml = """
+                            openapi: 3.0.3
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  parameters:
+                                    - name: ids
+                                      in: query
+                                      schema:
+                                        $ref: '#/components/schemas/IdList'
+                                  responses:
+                                    '200':
+                                      description: OK
+                            components:
+                              schemas:
+                                IdList:
+                                  type: array
+                                  items:
+                                    type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var operation = document.Paths["/items"].Operations.Values.First();
+        var param = operation.Parameters![0].Resolve().Parameter;
+
+        Assert.NotNull(param);
+        var s = param!.GetParameterSerialization();
+
+        Assert.Equal(ParameterValueKind.Array, s.ValueKind);
+        Assert.True(s.IsSupported);
+    }
+
+    [Fact]
+    public void GetParameterSerialization_RefToObjectSchema_ClassifiesAsObjectNotSupported()
+    {
+        // A query param whose schema is a $ref to a components object schema must resolve to Object
+        // (not Primitive) so the unsupported-style warning (ATC_API_OPR026) fires for object query
+        // params delivered via $ref.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  parameters:
+                                    - name: filter
+                                      in: query
+                                      schema:
+                                        $ref: '#/components/schemas/Filter'
+                                  responses:
+                                    '200':
+                                      description: OK
+                            components:
+                              schemas:
+                                Filter:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var operation = document.Paths["/items"].Operations.Values.First();
+        var param = operation.Parameters![0].Resolve().Parameter;
+
+        Assert.NotNull(param);
+        var s = param!.GetParameterSerialization();
+
+        Assert.Equal(ParameterValueKind.Object, s.ValueKind);
+        Assert.False(s.IsSupported);
+    }
+
     // ========== Helper Methods ==========
     private static OpenApiParameter CreateParameterWithType(JsonSchemaType type)
         => new()
