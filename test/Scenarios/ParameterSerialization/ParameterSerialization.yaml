@@ -1,0 +1,66 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Parameter Serialization Test
+  description: >
+    Exercises query-parameter style/explode/allowReserved serialization:
+    a supported optional form-explode array (tags), an allowReserved primitive (q),
+    an unsupported spaceDelimited array (legacy → ATC_API_OPR026), and a $ref-to-array
+    query param (ids) that must resolve to an array and get the repeated-key foreach.
+
+paths:
+  /items:
+    get:
+      operationId: listItems
+      summary: List items
+      tags:
+        - items
+      parameters:
+        - name: tags
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: q
+          in: query
+          required: false
+          allowReserved: true
+          schema:
+            type: string
+        - name: legacy
+          in: query
+          required: false
+          style: spaceDelimited
+          schema:
+            type: array
+            items:
+              type: string
+        - name: ids
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/IdList"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Item"
+
+components:
+  schemas:
+    IdList:
+      type: array
+      items:
+        type: string
+    Item:
+      type: object
+      title: Item
+      properties:
+        id:
+          type: string

@@ -749,6 +749,17 @@ public static class OperationParameterExtractor
         // Handle schema references
         if (schemaInterface is OpenApiSchemaReference schemaRef)
         {
+            // A $ref to a top-level ARRAY schema (e.g. components/schemas/IdList: {type: array})
+            // has no named C# type — C# never emits a class for a bare array schema. The
+            // OpenApiSchemaReference proxy forwards Type/Items to its target, so map it as the
+            // collection it is (List<itemType>) rather than the (undefined) reference name; the
+            // result then flows through the same nullable handling as an inline array.
+            if (schemaRef.Type?.HasFlag(JsonSchemaType.Array) == true)
+            {
+                var arrayType = MapArrayType(schemaRef, registry);
+                return isRequired ? arrayType : $"{arrayType}?";
+            }
+
             // Use Reference.Id first (Microsoft.OpenApi v3.0+), fall back to Id
             var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "object";
             refName = OpenApiSchemaExtensions.ResolveTypeName(refName, registry);
@@ -857,7 +868,7 @@ public static class OperationParameterExtractor
     }
 
     private static string MapArrayType(
-        OpenApiSchema schema,
+        IOpenApiSchema schema,
         TypeConflictRegistry? registry = null)
     {
         if (schema.Items == null)
