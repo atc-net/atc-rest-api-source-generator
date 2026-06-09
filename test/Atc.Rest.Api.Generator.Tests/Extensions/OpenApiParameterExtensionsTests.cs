@@ -103,6 +103,85 @@ public class OpenApiParameterExtensionsTests
         Assert.False(param.IsValueType());
     }
 
+    // ========== GetParameterSerialization Tests ==========
+    [Fact]
+    public void GetParameterSerialization_QueryArray_DefaultsToFormExplodeSupported()
+    {
+        var param = new OpenApiParameter
+        {
+            Name = "tags",
+            In = ParameterLocation.Query,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.Array, Items = new OpenApiSchema { Type = JsonSchemaType.String } },
+        };
+
+        var s = param.GetParameterSerialization();
+
+        Assert.Equal(ParameterStyle.Form, s.Style);
+        Assert.True(s.Explode);
+        Assert.Equal(ParameterValueKind.Array, s.ValueKind);
+        Assert.True(s.IsSupported);
+        Assert.False(s.AllowReserved);
+    }
+
+    [Fact]
+    public void GetParameterSerialization_QueryPrimitive_DefaultsToFormSupported()
+    {
+        var param = new OpenApiParameter { Name = "q", In = ParameterLocation.Query, Schema = new OpenApiSchema { Type = JsonSchemaType.String } };
+        var s = param.GetParameterSerialization();
+        Assert.Equal(ParameterStyle.Form, s.Style);
+        Assert.Equal(ParameterValueKind.Primitive, s.ValueKind);
+        Assert.True(s.IsSupported);
+    }
+
+    [Fact]
+    public void GetParameterSerialization_PathPrimitive_DefaultsToSimpleSupported()
+    {
+        var param = new OpenApiParameter { Name = "id", In = ParameterLocation.Path, Schema = new OpenApiSchema { Type = JsonSchemaType.String } };
+        var s = param.GetParameterSerialization();
+        Assert.Equal(ParameterStyle.Simple, s.Style);
+        Assert.True(s.IsSupported);
+    }
+
+    [Theory]
+    [InlineData(ParameterStyle.SpaceDelimited)]
+    [InlineData(ParameterStyle.PipeDelimited)]
+    [InlineData(ParameterStyle.DeepObject)]
+    public void GetParameterSerialization_ExoticArrayStyle_NotSupported(
+        ParameterStyle style)
+    {
+        var param = new OpenApiParameter
+        {
+            Name = "tags",
+            In = ParameterLocation.Query,
+            Style = style,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.Array, Items = new OpenApiSchema { Type = JsonSchemaType.String } },
+        };
+        Assert.False(param.GetParameterSerialization().IsSupported);
+    }
+
+    [Fact]
+    public void GetParameterSerialization_FormArrayExplodeFalse_NotSupported()
+    {
+        var param = new OpenApiParameter
+        {
+            Name = "tags",
+            In = ParameterLocation.Query,
+            Style = ParameterStyle.Form,
+            Explode = false,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.Array, Items = new OpenApiSchema { Type = JsonSchemaType.String } },
+        };
+        var s = param.GetParameterSerialization();
+        Assert.False(s.Explode);
+        Assert.False(s.IsSupported);
+    }
+
+    [Fact]
+    public void GetParameterSerialization_AllowReserved_IsCaptured()
+    {
+        var param = new OpenApiParameter { Name = "q", In = ParameterLocation.Query, AllowReserved = true, Schema = new OpenApiSchema { Type = JsonSchemaType.String } };
+        Assert.True(param.GetParameterSerialization().AllowReserved);
+    }
+
     // ========== Helper Methods ==========
     private static OpenApiParameter CreateParameterWithType(JsonSchemaType type)
         => new()
