@@ -753,11 +753,14 @@ public static class OperationParameterExtractor
             // has no named C# type — C# never emits a class for a bare array schema. The
             // OpenApiSchemaReference proxy forwards Type/Items to its target, so map it as the
             // collection it is (List<itemType>) rather than the (undefined) reference name; the
-            // result then flows through the same nullable handling as an inline array.
+            // result then flows through the same nullable handling as an inline array — adding a
+            // '?' when the param is optional OR the (proxy-resolved) schema declares the Null type
+            // flag (OpenAPI 3.1 combined type, e.g. type: [array, null]).
             if (schemaRef.Type?.HasFlag(JsonSchemaType.Array) == true)
             {
                 var arrayType = MapArrayType(schemaRef, registry);
-                return isRequired ? arrayType : $"{arrayType}?";
+                var isNullableArray = schemaRef.Type?.HasFlag(JsonSchemaType.Null) == true;
+                return !isRequired || isNullableArray ? $"{arrayType}?" : arrayType;
             }
 
             // Use Reference.Id first (Microsoft.OpenApi v3.0+), fall back to Id
@@ -805,9 +808,6 @@ public static class OperationParameterExtractor
         return baseType;
     }
 
-    /// <summary>
-    /// Maps array type from OpenAPI schema.
-    /// </summary>
     /// <summary>
     /// Detects an inline enum on a parameter schema and registers it for code emission.
     /// Returns the generated C# enum type name, or null if the schema is not an inline enum
@@ -867,6 +867,9 @@ public static class OperationParameterExtractor
         return typeName;
     }
 
+    /// <summary>
+    /// Maps an array schema (inline or a $ref proxy) to a C# <c>List&lt;itemType&gt;</c>.
+    /// </summary>
     private static string MapArrayType(
         IOpenApiSchema schema,
         TypeConflictRegistry? registry = null)
