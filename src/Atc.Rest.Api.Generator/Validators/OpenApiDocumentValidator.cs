@@ -1598,6 +1598,25 @@ public static class OpenApiDocumentValidator
 
         // ATCAPI_OPR018: Multiple 2xx status codes not supported
         ValidateResponseStatusCodes(diagnostics, sourceFilePath, operation, operationId);
+
+        // ATCAPI_OPR026: Parameter serialization not supported
+        if (operation.Parameters != null)
+        {
+            foreach (var parameter in operation.Parameters)
+            {
+                if (parameter is OpenApiParameter p)
+                {
+                    var serialization = p.GetParameterSerialization();
+                    if (!serialization.IsSupported)
+                    {
+                        diagnostics.Add(DiagnosticBuilder.ParameterSerializationNotSupportedWarning(
+                            p.Name ?? "(unnamed)",
+                            $"style '{serialization.Style}' explode={serialization.Explode.ToString().ToLowerInvariant()} on {serialization.ValueKind}",
+                            sourceFilePath));
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>

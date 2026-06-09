@@ -1818,6 +1818,94 @@ public class OperationValidationTests
         Assert.Null(opr025);
     }
 
+    // ========== OPR026: Parameter serialization not supported ==========
+
+    [Fact]
+    public void Validate_QueryArray_SpaceDelimited_EmitsParameterSerializationWarning()
+    {
+        // Arrange
+        const string yaml = """
+
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  parameters:
+                                    - name: tags
+                                      in: query
+                                      style: spaceDelimited
+                                      schema:
+                                        type: array
+                                        items:
+                                          type: string
+                                  responses:
+                                    '200':
+                                      description: Success
+
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr026 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.ParameterSerializationNotSupported);
+        Assert.NotNull(opr026);
+        Assert.Contains("tags", opr026.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_QueryArray_DefaultFormExplode_NoSerializationWarning()
+    {
+        // Arrange
+        const string yaml = """
+
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  parameters:
+                                    - name: tags
+                                      in: query
+                                      schema:
+                                        type: array
+                                        items:
+                                          type: string
+                                  responses:
+                                    '200':
+                                      description: Success
+
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr026 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.ParameterSerializationNotSupported);
+        Assert.Null(opr026);
+    }
+
     // ========== Helper Methods ==========
 
     private static OpenApiDocument? ParseYaml(string yaml)

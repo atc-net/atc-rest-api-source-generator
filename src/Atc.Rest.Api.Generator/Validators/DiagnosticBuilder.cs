@@ -159,6 +159,24 @@ public static class DiagnosticBuilder
             DocumentationUrl: GetDocUrl(ruleId));
     }
 
+    /// <summary>
+    /// Creates a parameter serialization not supported warning diagnostic.
+    /// </summary>
+    public static DiagnosticMessage ParameterSerializationNotSupportedWarning(
+        string parameterName,
+        string styleDescription,
+        string sourceFilePath)
+        => new(
+            RuleId: RuleIdentifiers.ParameterSerializationNotSupported,
+            Message: $"Parameter '{parameterName}' declares {styleDescription}, which is not yet supported; emitting default form serialization.",
+            Severity: DiagnosticSeverity.Warning,
+            FilePath: sourceFilePath,
+            Suggestions:
+            [
+                "Use style 'form' (query/cookie) or 'simple' (path/header) with explode for correct serialization, or remove the unsupported style."
+            ],
+            DocumentationUrl: GetDocUrl(RuleIdentifiers.ParameterSerializationNotSupported));
+
     private static string GetDocUrl(string ruleId)
     {
         var lowerRuleId = ruleId
