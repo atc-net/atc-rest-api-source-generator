@@ -297,6 +297,12 @@ public static class TypeScriptFetchApiClientExtractor
             ? "JSON.parse(buffer.substring(objStart, objEnd + 1), dateReviver)"
             : "JSON.parse(buffer.substring(objStart, objEnd + 1))";
 
+        // multipart/mixed parses each part body with the same date-revival posture as the
+        // brace-scan path (parity — must not be strictly weaker than the sibling framings).
+        var multipartParse = convertDates
+            ? "JSON.parse(bodyText, dateReviver)"
+            : "JSON.parse(bodyText)";
+
         sb.AppendLine("  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {");
         sb.AppendLine("    const url = this.buildUrl(path, options?.query);");
         sb.AppendLine("    const headers = await this.getHeaders(options?.headers);");
@@ -351,6 +357,34 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("        }");
         sb.AppendLine("      } finally {");
         sb.AppendLine("        reader.releaseLock();");
+        sb.AppendLine("      }");
+        sb.AppendLine("      return;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    if (framing === 'multipart') {");
+        sb.AppendLine("      // Buffer the whole body then split on the boundary: scanning a boundary token");
+        sb.AppendLine("      // across streamed chunk edges is non-trivial, so this is an intentional");
+        sb.AppendLine("      // simplification for multipart (the other framings parse incrementally).");
+        sb.AppendLine("      const contentType = response.headers.get('content-type') ?? '';");
+        sb.AppendLine("      const m = /boundary=(\"?)([^\";]+)\\1/i.exec(contentType);");
+        sb.AppendLine("      const delimiter = '--' + (m ? m[2] : '');");
+        sb.AppendLine("      let all = '';");
+        sb.AppendLine("      try {");
+        sb.AppendLine("        while (true) {");
+        sb.AppendLine("          const { done, value } = await reader.read();");
+        sb.AppendLine("          if (done) break;");
+        sb.AppendLine("          all += decoder.decode(value, { stream: true });");
+        sb.AppendLine("        }");
+        sb.AppendLine("      } finally {");
+        sb.AppendLine("        reader.releaseLock();");
+        sb.AppendLine("      }");
+        sb.AppendLine("      for (const part of all.split(delimiter)) {");
+        sb.AppendLine("        const trimmed = part.replace(/^\\r\\n/, '');");
+        sb.AppendLine("        if (trimmed.length === 0 || trimmed.startsWith('--')) continue;");
+        sb.AppendLine("        const sep = trimmed.indexOf('\\r\\n\\r\\n');");
+        sb.AppendLine("        if (sep === -1) continue;");
+        sb.AppendLine("        const bodyText = trimmed.substring(sep + 4).trim();");
+        sb.Append("        if (bodyText.length > 0) yield ").Append(multipartParse).AppendLine(" as T;");
         sb.AppendLine("      }");
         sb.AppendLine("      return;");
         sb.AppendLine("    }");

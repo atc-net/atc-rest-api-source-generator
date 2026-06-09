@@ -2,9 +2,10 @@ namespace Atc.Rest.Api.Generator.Extractors;
 
 /// <summary>
 /// Emits the generated server-side <c>Streaming/SequentialResults.cs</c> helper that the API
-/// server uses to write OpenAPI 3.2 sequential (writer-based) streaming responses — JSON Lines
-/// today (<c>application/jsonl</c>), with JSON Text Sequence and multipart/mixed to follow.
-/// The helper is emitted once per server project only when an operation actually requires it.
+/// server uses to write OpenAPI 3.2 sequential (writer-based) streaming responses: JSON Lines
+/// (<c>application/jsonl</c>), JSON Text Sequence (<c>application/json-seq</c>) and
+/// multipart/mixed (<c>multipart/mixed</c>). The helper is emitted once per server project only
+/// when an operation actually requires it.
 /// </summary>
 public static class SequentialResultsExtractor
 {
@@ -56,9 +57,9 @@ public static class SequentialResultsExtractor
     /// <summary>
     /// Generates the source content for the server-side <c>Streaming/SequentialResults.cs</c>
     /// helper. The namespace is the server's generated root suffixed with <c>.Streaming</c>.
-    /// Ships the JSON Lines writer (<c>WriteJsonLinesAsync</c> + <c>JsonLinesResult&lt;T&gt;</c>)
-    /// and the JSON Text Sequence writer (<c>WriteJsonSequenceAsync</c> + <c>JsonSequenceResult&lt;T&gt;</c>);
-    /// a later task adds the multipart/mixed members.
+    /// Ships the JSON Lines (<c>WriteJsonLinesAsync</c> + <c>JsonLinesResult&lt;T&gt;</c>), JSON Text
+    /// Sequence (<c>WriteJsonSequenceAsync</c> + <c>JsonSequenceResult&lt;T&gt;</c>) and multipart/mixed
+    /// (<c>WriteMultipartMixedAsync</c> + <c>MultipartMixedResult&lt;T&gt;</c>) writers.
     /// </summary>
     /// <param name="projectName">The generated project name (the server root namespace prefix).</param>
     /// <returns>The full file content for the SequentialResults helper.</returns>
@@ -70,6 +71,7 @@ public static class SequentialResultsExtractor
         sb.AppendLine("using System.CodeDom.Compiler;");
         sb.AppendLine("using System.Collections.Generic;");
         sb.AppendLine("using System.IO;");
+        sb.AppendLine("using System.Text;");
         sb.AppendLine("using System.Text.Json;");
         sb.AppendLine("using System.Threading;");
         sb.AppendLine("using System.Threading.Tasks;");
@@ -93,6 +95,12 @@ public static class SequentialResultsExtractor
 
         // RFC 7464 JSON Text Sequence record separator (0x1E), written before each record.
         sb.AppendLine("    private static readonly byte[] RecordSeparator = { 0x1E };");
+        sb.AppendLine();
+
+        // multipart/mixed boundary token + CRLF, used to frame each part.
+        sb.AppendLine("    public const string MultipartBoundary = \"atc-stream-boundary\";");
+        sb.AppendLine();
+        sb.AppendLine("    private static readonly byte[] Crlf = { (byte)'\\r', (byte)'\\n' };");
         sb.AppendLine();
         sb.AppendLine("    public static async Task WriteJsonLinesAsync<T>(");
         sb.AppendLine("        IAsyncEnumerable<T> items,");
@@ -124,6 +132,30 @@ public static class SequentialResultsExtractor
         sb.AppendLine("            await stream.WriteAsync(LineFeed, cancellationToken);");
         sb.AppendLine("            await stream.FlushAsync(cancellationToken);");
         sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // multipart/mixed: each part is `--<boundary>\r\nContent-Type: application/json\r\n\r\n<json>\r\n`,
+        // terminated by `--<boundary>--\r\n`. All writes async (same Kestrel AllowSynchronousIO=false reason).
+        sb.AppendLine("    public static async Task WriteMultipartMixedAsync<T>(");
+        sb.AppendLine("        IAsyncEnumerable<T> items,");
+        sb.AppendLine("        Stream stream,");
+        sb.AppendLine("        string boundary,");
+        sb.AppendLine("        JsonSerializerOptions options,");
+        sb.AppendLine("        CancellationToken cancellationToken)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        await foreach (var item in items.WithCancellation(cancellationToken))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var header = Encoding.ASCII.GetBytes($\"--{boundary}\\r\\nContent-Type: application/json\\r\\n\\r\\n\");");
+        sb.AppendLine("            await stream.WriteAsync(header, cancellationToken);");
+        sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, options, cancellationToken);");
+        sb.AppendLine("            await stream.WriteAsync(Crlf, cancellationToken);");
+        sb.AppendLine("            await stream.FlushAsync(cancellationToken);");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        var closing = Encoding.ASCII.GetBytes($\"--{boundary}--\\r\\n\");");
+        sb.AppendLine("        await stream.WriteAsync(closing, cancellationToken);");
+        sb.AppendLine("        await stream.FlushAsync(cancellationToken);");
         sb.AppendLine("    }");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -167,6 +199,26 @@ public static class SequentialResultsExtractor
         sb.AppendLine("            .GetRequiredService<IOptions<JsonOptions>>()");
         sb.AppendLine("            .Value.SerializerOptions;");
         sb.AppendLine("        await SequentialStreamWriter.WriteJsonSequenceAsync(items, httpContext.Response.Body, options, httpContext.RequestAborted);");
+        sb.AppendLine("    }");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
+        sb.AppendLine("public sealed class MultipartMixedResult<T> : IResult");
+        sb.AppendLine("{");
+        sb.AppendLine("    private readonly IAsyncEnumerable<T> items;");
+        sb.AppendLine();
+        sb.AppendLine("    public MultipartMixedResult(IAsyncEnumerable<T> items)");
+        sb.AppendLine("        => this.items = items;");
+        sb.AppendLine();
+        sb.AppendLine("    public async Task ExecuteAsync(HttpContext httpContext)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        httpContext.Response.ContentType = $\"multipart/mixed; boundary={SequentialStreamWriter.MultipartBoundary}\";");
+
+        // Same DI-configured JSON options lookup as the other result types (the C2 fix).
+        sb.AppendLine("        var options = httpContext.RequestServices");
+        sb.AppendLine("            .GetRequiredService<IOptions<JsonOptions>>()");
+        sb.AppendLine("            .Value.SerializerOptions;");
+        sb.AppendLine("        await SequentialStreamWriter.WriteMultipartMixedAsync(items, httpContext.Response.Body, SequentialStreamWriter.MultipartBoundary, options, httpContext.RequestAborted);");
         sb.AppendLine("    }");
         sb.AppendLine("}");
 

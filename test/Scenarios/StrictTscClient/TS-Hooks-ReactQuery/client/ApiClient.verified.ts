@@ -187,6 +187,34 @@ export class ApiClient {
       return;
     }
 
+    if (framing === 'multipart') {
+      // Buffer the whole body then split on the boundary: scanning a boundary token
+      // across streamed chunk edges is non-trivial, so this is an intentional
+      // simplification for multipart (the other framings parse incrementally).
+      const contentType = response.headers.get('content-type') ?? '';
+      const m = /boundary=("?)([^";]+)\1/i.exec(contentType);
+      const delimiter = '--' + (m ? m[2] : '');
+      let all = '';
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          all += decoder.decode(value, { stream: true });
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      for (const part of all.split(delimiter)) {
+        const trimmed = part.replace(/^\r\n/, '');
+        if (trimmed.length === 0 || trimmed.startsWith('--')) continue;
+        const sep = trimmed.indexOf('\r\n\r\n');
+        if (sep === -1) continue;
+        const bodyText = trimmed.substring(sep + 4).trim();
+        if (bodyText.length > 0) yield JSON.parse(bodyText, dateReviver) as T;
+      }
+      return;
+    }
+
     try {
       while (true) {
         const { done, value } = await reader.read();
