@@ -109,9 +109,10 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("}");
         sb.AppendLine();
 
-        // Wire framing discriminator for streamed responses. Drives how requestStream parses
-        // the body: 'json-array' | 'json-lines' | 'json-seq' use the brace-scan path; 'sse'
-        // parses Server-Sent Events (`data: <json>\n\n`).
+        // Wire framing discriminator for streamed responses. Drives how requestStream parses the
+        // body: 'json-array' | 'json-lines' | 'json-seq' use the brace-scan path; 'sse' and
+        // 'multipart' each have a dedicated parse branch (Server-Sent Events `data: <json>\n\n`,
+        // and boundary-delimited multipart/mixed parts respectively).
         sb.AppendLine("export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';");
         sb.AppendLine();
     }

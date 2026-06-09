@@ -1289,10 +1289,11 @@ public static class CodeGenerationService
     }
 
     /// <summary>
-    /// Adds the shared <c>Streaming/StreamReaders.cs</c> helper once when an operation references
-    /// it (Server-Sent Events today). The <paramref name="perOperation"/> flag selects the reader
-    /// variant: the per-operation client deserializes via the DI <c>IContractSerializer</c>; the
-    /// typed client uses <c>JsonSerializerOptions</c>. The full file content is carried in
+    /// Adds the shared <c>Streaming/StreamReaders.cs</c> helper once when an operation references it
+    /// (Server-Sent Events, JSON Lines, JSON Text Sequence or multipart/mixed). The
+    /// <paramref name="perOperation"/> flag selects the reader variant: the per-operation client
+    /// deserializes via the DI <c>IContractSerializer</c>; the typed client uses
+    /// <c>JsonSerializerOptions</c>. The full file content is carried in
     /// <see cref="GeneratedType.Content"/> (it already starts with the auto-generated header).
     /// </summary>
     private static void AddStreamReadersIfNeeded(
@@ -1317,11 +1318,14 @@ public static class CodeGenerationService
     }
 
     /// <summary>
-    /// Produces the server-side <c>Streaming/SequentialResults.cs</c> helper (JSON Lines writer +
-    /// <c>JsonLinesResult&lt;T&gt;</c> wrapper) once when an operation uses a writer-based sequential
-    /// framing (jsonl today), or <c>null</c> when none does. Single shared producer for both the
-    /// Roslyn server generator and the integration test orchestrator, mirroring the client-side
-    /// <c>AddStreamReadersIfNeeded</c>. The full file content is carried in
+    /// Produces the server-side <c>Streaming/SequentialResults.cs</c> helper — the writer-based
+    /// sequential-streaming writers and their <c>IResult</c> wrappers for JSON Lines
+    /// (<c>JsonLinesResult&lt;T&gt;</c>), JSON Text Sequence (<c>JsonSequenceResult&lt;T&gt;</c>) and
+    /// multipart/mixed (<c>MultipartMixedResult&lt;T&gt;</c>) — once when an operation uses one of
+    /// those framings, or <c>null</c> when none does. (Server-Sent Events use the first-party
+    /// <c>TypedResults.ServerSentEvents</c> writer and need no helper.) Single shared producer for
+    /// both the Roslyn server generator and the integration test orchestrator, mirroring the
+    /// client-side <c>AddStreamReadersIfNeeded</c>. The full file content is carried in
     /// <see cref="GeneratedType.Content"/> (it already starts with the auto-generated header).
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document.</param>

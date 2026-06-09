@@ -756,12 +756,21 @@ public static class HttpClientExtractor
             {
                 builder.AppendLine("var boundary = response.Content.Headers.ContentType?.Parameters");
                 builder.AppendLine(4, ".FirstOrDefault(p => string.Equals(p.Name, \"boundary\", StringComparison.OrdinalIgnoreCase))?.Value?.Trim('\"')");
-                builder.AppendLine(4, "?? \"atc-stream-boundary\";");
+                builder.AppendLine(4, $"?? \"{SequentialResultsExtractor.MultipartBoundaryValue}\";");
                 builder.AppendLine($"await foreach (var item in StreamReaders.ReadMultipartMixedAsync<{streamingItemType}>(stream, boundary, jsonSerializerOptions, cancellationToken))");
+            }
+            else if (streamingFraming == StreamingFraming.JsonArray)
+            {
+                builder.AppendLine($"await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken))");
             }
             else
             {
-                builder.AppendLine($"await foreach (var item in JsonSerializer.DeserializeAsyncEnumerable<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken))");
+                // JsonArray is the legitimate legacy fallthrough above. Any other framing reaching
+                // here is a StreamReaders-based wire framing that was added without an explicit
+                // reader branch — fail loudly at generation time rather than silently emitting the
+                // JSON-array brace-scan path (wrong bytes). Mirrors the per-op ReaderMethodName switch.
+                throw new InvalidOperationException(
+                    $"No typed-client stream reader is defined for framing '{streamingFraming}'.");
             }
 
             builder.AppendLine("{");
