@@ -1,0 +1,64 @@
+openapi: "3.2.0"
+info:
+  title: Components Reuse Test
+  version: 1.0.0
+  description: >
+    Exercises components.pathItems ($ref path items, pre-3.2 gap) and
+    components.mediaTypes (new in 3.2). /items uses an inline path item
+    whose response content refs a components.mediaTypes entry.
+    /items/{id} is itself a $ref to components.pathItems/ItemById.
+
+paths:
+  /items:
+    get:
+      operationId: listItems
+      summary: List items
+      tags:
+        - items
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              $ref: '#/components/mediaTypes/ItemListContent'
+  /items/{id}:
+    $ref: '#/components/pathItems/ItemById'
+
+components:
+  pathItems:
+    ItemById:
+      get:
+        operationId: getItemById
+        summary: Get item by ID
+        tags:
+          - items
+        parameters:
+          - name: id
+            in: path
+            required: true
+            schema:
+              type: string
+        responses:
+          "200":
+            description: OK
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Item'
+          "404":
+            description: Not found
+  mediaTypes:
+    ItemListContent:
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/Item'
+  schemas:
+    Item:
+      type: object
+      title: Item
+      properties:
+        id:
+          type: string
+        name:
+          type: string
