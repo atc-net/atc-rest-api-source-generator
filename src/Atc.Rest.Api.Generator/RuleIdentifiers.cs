@@ -338,6 +338,13 @@ public static class RuleIdentifiers
     /// </summary>
     public const string SchemaNameCollision = "ATC_API_SCH018";
 
+    /// <summary>
+    /// ATC_API_SCH019: A reusable media type (in components.mediaTypes) wraps an anonymous
+    /// inline schema with no $ref to components.schemas. Reference a named schema instead to
+    /// ensure a stable, single type emission.
+    /// </summary>
+    public const string AnonymousInlineMediaTypeSchema = "ATC_API_SCH019";
+
     // ========== Path Rules (PTH) ==========
 
     /// <summary>

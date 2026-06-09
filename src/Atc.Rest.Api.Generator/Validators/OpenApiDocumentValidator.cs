@@ -92,6 +92,9 @@ public static class OpenApiDocumentValidator
         // ATC_API_SCH018: Detect schema-name sanitization collisions (also breaks code generation)
         diagnostics.AddRange(ValidateSchemaNameCollisions(document, sourceFilePath));
 
+        // ATC_API_SCH019: Warn on anonymous inline schema in components.mediaTypes
+        ValidateComponentsMediaTypes(diagnostics, sourceFilePath, document);
+
         return diagnostics;
     }
 
@@ -2592,6 +2595,47 @@ public static class OpenApiDocumentValidator
         }
 
         return diagnostics;
+    }
+
+    /// <summary>
+    /// Validates that components.mediaTypes entries do not wrap anonymous inline schemas (ATC_API_SCH019).
+    /// An array whose items is a named $ref is acceptable and does NOT trigger the warning.
+    /// </summary>
+    private static void ValidateComponentsMediaTypes(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        OpenApiDocument document)
+    {
+        if (document.Components?.MediaTypes == null)
+        {
+            return;
+        }
+
+        foreach (var mediaType in document.Components.MediaTypes)
+        {
+            var schema = mediaType.Value?.Schema;
+            if (schema == null)
+            {
+                continue;
+            }
+
+            // Array with named-ref items is OK (e.g., type: array, items: {$ref: '#/components/schemas/Foo'}).
+            // Only flag schemas that are truly anonymous (no $ref, no title).
+            if (schema.GetSchemaType() == "array" && schema.Items is OpenApiSchemaReference)
+            {
+                continue;
+            }
+
+            if (schema is not OpenApiSchemaReference && string.IsNullOrEmpty(schema.Title))
+            {
+                diagnostics.Add(new DiagnosticMessage(
+                    RuleId: RuleIdentifiers.AnonymousInlineMediaTypeSchema,
+                    Message: $"Reusable media type '{mediaType.Key}' in components.mediaTypes wraps an anonymous inline schema. " +
+                             "Reference a named components.schemas entry instead to ensure a stable type name in generated code.",
+                    Severity: DiagnosticSeverity.Warning,
+                    FilePath: sourceFilePath));
+            }
+        }
     }
 
     /// <summary>
