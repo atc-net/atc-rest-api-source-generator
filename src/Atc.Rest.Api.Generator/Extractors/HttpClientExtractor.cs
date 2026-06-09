@@ -643,9 +643,52 @@ public static class HttpClientExtractor
                 var paramAccess = $"parameters.{propName}";
                 var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName);
                 var isRequired = param.Required;
-                var needsEncoding = NeedsUrlEncoding(paramType);
+                var serialization = param.GetParameterSerialization();
 
-                // Required parameters are always added (non-nullable)
+                // Supported form-explode array: emit repeated-key foreach
+                if (serialization.ValueKind == ParameterValueKind.Array &&
+                    serialization.Style == ParameterStyle.Form &&
+                    serialization.Explode &&
+                    serialization.IsSupported)
+                {
+                    AppendQueryArrayForeach(builder, param.Name!, paramAccess, paramType, serialization.AllowReserved, isRequired);
+                    continue;
+                }
+
+                // allowReserved primitive: emit raw value without URL encoding
+                if (serialization.AllowReserved && serialization.ValueKind == ParameterValueKind.Primitive)
+                {
+                    if (isRequired)
+                    {
+                        builder.AppendLine($"queryParams.Add($\"{param.Name}={{{paramAccess}}}\");");
+                    }
+                    else
+                    {
+                        string nullCheck;
+                        if (paramType == "string")
+                        {
+                            nullCheck = $"!string.IsNullOrEmpty({paramAccess})";
+                        }
+                        else if (CSharpTypeHelper.IsBasicValueType(paramType))
+                        {
+                            nullCheck = $"{paramAccess}.HasValue";
+                        }
+                        else
+                        {
+                            nullCheck = $"{paramAccess} != null";
+                        }
+
+                        builder.AppendLine();
+                        builder.AppendLine($"if ({nullCheck})");
+                        builder.AppendLine("{");
+                        builder.AppendLine(4, $"queryParams.Add($\"{param.Name}={{{paramAccess}}}\");");
+                        builder.AppendLine("}");
+                    }
+
+                    continue;
+                }
+
+                // Default path: scalar primitive with URL encoding (existing behavior)
                 if (isRequired)
                 {
                     var valueExpression = BuildEncodedExpression(paramAccess, paramType);
@@ -1380,6 +1423,63 @@ public static class HttpClientExtractor
 
         // Use string interpolation for non-string types to avoid nullable ToString() warnings
         return $"{{Uri.EscapeDataString($\"{{parameters.{propName}}}\")}}";
+    }
+
+    /// <summary>
+    /// Appends a repeated-key foreach block for a form-explode array query parameter.
+    /// For required parameters, emits the bare foreach.
+    /// For optional parameters, wraps the foreach in a null guard.
+    /// Each element is encoded using <see cref="BuildEncodedExpression"/> (or raw when allowReserved).
+    /// </summary>
+    private static void AppendQueryArrayForeach(
+        StringBuilder builder,
+        string paramName,
+        string paramAccess,
+        string paramType,
+        bool allowReserved,
+        bool isRequired)
+    {
+        // Extract the element type:
+        // - "string[]"    → "string"
+        // - "List<string>" → "string"
+        // - Otherwise     → use paramType as-is (fallback)
+        string elementType;
+        if (paramType.EndsWith("[]", StringComparison.Ordinal))
+        {
+            elementType = paramType.Substring(0, paramType.Length - 2);
+        }
+        else if (paramType.StartsWith("List<", StringComparison.Ordinal) &&
+                 paramType.EndsWith(">", StringComparison.Ordinal))
+        {
+            elementType = paramType.Substring(5, paramType.Length - 6);
+        }
+        else
+        {
+            elementType = paramType;
+        }
+
+        var encodedItem = allowReserved
+            ? (elementType == "string" ? "item" : "$\"{item}\"")
+            : BuildEncodedExpression("item", elementType);
+
+        if (isRequired)
+        {
+            builder.AppendLine($"foreach (var item in {paramAccess})");
+            builder.AppendLine("{");
+            builder.AppendLine(4, $"queryParams.Add($\"{paramName}={{{encodedItem}}}\");");
+            builder.AppendLine("}");
+        }
+        else
+        {
+            builder.AppendLine();
+            builder.AppendLine($"if ({paramAccess} != null)");
+            builder.AppendLine("{");
+            builder.AppendLine(4, $"foreach (var item in {paramAccess})");
+            builder.AppendLine(4, "{");
+            builder.AppendLine(8, $"queryParams.Add($\"{paramName}={{{encodedItem}}}\");");
+            builder.AppendLine(4, "}");
+            builder.AppendLine("}");
+        }
     }
 
     public static bool NeedsUrlEncoding(string csharpType)

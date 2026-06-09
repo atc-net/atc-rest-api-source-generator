@@ -776,6 +776,158 @@ public class HttpClientExtractorTests
         Assert.Equal(expected, result);
     }
 
+    // ========== Array Query Parameter (form-explode repeated-key) Tests ==========
+    [Fact]
+    public void Extract_QueryArrayParam_Required_EmitsRepeatedKeyForeach()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: findPets
+                                  parameters:
+                                    - name: tags
+                                      in: query
+                                      required: true
+                                      schema:
+                                        type: array
+                                        items:
+                                          type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var clientClass = HttpClientExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(clientClass);
+        var method = clientClass.Methods!.First(m => m.Name == "FindPetsAsync");
+        Assert.NotNull(method.Content);
+
+        // Should emit repeated-key foreach
+        Assert.Contains("foreach (var item in parameters.Tags)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("queryParams.Add($\"tags={Uri.EscapeDataString(item)}\");", method.Content, StringComparison.Ordinal);
+
+        // Should NOT emit broken collection.ToString() pattern
+        Assert.DoesNotContain("{parameters.Tags}", method.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_QueryArrayParam_Optional_EmitsRepeatedKeyForeachWithNullGuard()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: findPets
+                                  parameters:
+                                    - name: tags
+                                      in: query
+                                      required: false
+                                      schema:
+                                        type: array
+                                        items:
+                                          type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var clientClass = HttpClientExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(clientClass);
+        var method = clientClass.Methods!.First(m => m.Name == "FindPetsAsync");
+        Assert.NotNull(method.Content);
+
+        // Should have null guard before the foreach
+        Assert.Contains("parameters.Tags != null", method.Content, StringComparison.Ordinal);
+
+        // Should emit repeated-key foreach inside the guard
+        Assert.Contains("foreach (var item in parameters.Tags)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("queryParams.Add($\"tags={Uri.EscapeDataString(item)}\");", method.Content, StringComparison.Ordinal);
+
+        // Should NOT emit broken collection.ToString() pattern
+        Assert.DoesNotContain("{parameters.Tags}", method.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_QueryPrimitiveParam_AllowReserved_EmitsRawValueWithoutEncoding()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /search:
+                                get:
+                                  operationId: search
+                                  parameters:
+                                    - name: q
+                                      in: query
+                                      required: true
+                                      allowReserved: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var clientClass = HttpClientExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(clientClass);
+        var method = clientClass.Methods!.First(m => m.Name == "SearchAsync");
+        Assert.NotNull(method.Content);
+
+        // Should emit raw value without encoding
+        Assert.Contains("queryParams.Add($\"q={parameters.Q}\");", method.Content, StringComparison.Ordinal);
+
+        // Should NOT encode the value
+        Assert.DoesNotContain("Uri.EscapeDataString(parameters.Q)", method.Content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
