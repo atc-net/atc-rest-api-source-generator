@@ -5,6 +5,7 @@ using System.CodeDom.Compiler;
 using Microsoft.AspNetCore.Builder;
 
 using StreamingItemSchema.Generated.Events.Endpoints;
+using StreamingItemSchema.Generated.EventsSeq.Endpoints;
 using StreamingItemSchema.Generated.EventsSse.Endpoints;
 
 namespace StreamingItemSchema.Generated.Endpoints;
@@ -23,6 +24,7 @@ public static class EndpointMappingExtensions
     public static WebApplication MapEndpoints(this WebApplication app)
     {
         app.MapEventsEndpoints();
+        app.MapEventsSeqEndpoints();
         app.MapEventsSseEndpoints();
 
         return app;

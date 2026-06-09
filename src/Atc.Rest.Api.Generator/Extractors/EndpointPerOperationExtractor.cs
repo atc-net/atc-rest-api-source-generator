@@ -1759,7 +1759,9 @@ public static class EndpointPerOperationExtractor
     /// JSON Lines. As later tasks add json-seq / multipart-mixed readers they extend this set.
     /// </summary>
     private static bool UsesStreamReaders(StreamingFraming framing)
-        => framing is StreamingFraming.ServerSentEvents or StreamingFraming.JsonLines;
+        => framing is StreamingFraming.ServerSentEvents
+            or StreamingFraming.JsonLines
+            or StreamingFraming.JsonSequence;
 
     /// <summary>
     /// Maps a StreamReaders-based framing to the emitted per-operation reader method name. Throws
@@ -1771,6 +1773,7 @@ public static class EndpointPerOperationExtractor
         {
             StreamingFraming.ServerSentEvents => "ReadServerSentEventsAsync",
             StreamingFraming.JsonLines => "ReadJsonLinesAsync",
+            StreamingFraming.JsonSequence => "ReadJsonSequenceAsync",
             _ => throw new InvalidOperationException(
                 $"No per-operation StreamReaders method is defined for framing '{framing}'."),
         };

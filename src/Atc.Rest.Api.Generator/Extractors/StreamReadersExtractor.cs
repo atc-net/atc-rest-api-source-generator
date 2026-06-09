@@ -11,8 +11,9 @@ public static class StreamReadersExtractor
     /// <summary>
     /// Determines whether the document declares any streaming operation that references the
     /// emitted <c>StreamReaders</c> helper. Today that is a Server-Sent Events operation
-    /// (<c>text/event-stream</c>) or a JSON Lines operation (<c>application/jsonl</c>); the
-    /// remaining framings read via the legacy path and do not use it.
+    /// (<c>text/event-stream</c>), a JSON Lines operation (<c>application/jsonl</c>) or a JSON Text
+    /// Sequence operation (<c>application/json-seq</c>); the remaining framings read via the legacy
+    /// path and do not use it.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document.</param>
     /// <returns>True when at least one operation requires the StreamReaders helper.</returns>
@@ -33,17 +34,19 @@ public static class StreamReadersExtractor
             foreach (var operation in path.Value.Operations)
             {
                 // Emit the helper only when an operation actually references it. Today that is
-                // Server-Sent Events and JSON Lines; the remaining framings (JsonArray, ...) still
-                // read via the legacy DeserializeAsyncEnumerable path and never call StreamReaders,
-                // so a legacy-only spec must not ship an orphan helper. Tasks that add reader
-                // helpers for the remaining framings widen this gate as they start using StreamReaders.
+                // Server-Sent Events, JSON Lines and JSON Text Sequence; the remaining framings
+                // (JsonArray, ...) still read via the legacy DeserializeAsyncEnumerable path and
+                // never call StreamReaders, so a legacy-only spec must not ship an orphan helper.
+                // Tasks that add reader helpers for the remaining framings widen this gate.
                 if (!operation.Value.IsStreamingResponse())
                 {
                     continue;
                 }
 
                 var framing = operation.Value.GetStreamingFraming();
-                if (framing is StreamingFraming.ServerSentEvents or StreamingFraming.JsonLines)
+                if (framing is StreamingFraming.ServerSentEvents
+                    or StreamingFraming.JsonLines
+                    or StreamingFraming.JsonSequence)
                 {
                     return true;
                 }
@@ -79,14 +82,14 @@ public static class StreamReadersExtractor
         sb.AppendLine("using System.IO;");
         sb.AppendLine("using System.Net.ServerSentEvents;");
         sb.AppendLine("using System.Runtime.CompilerServices;");
-        if (!perOperation)
-        {
-            sb.AppendLine("using System.Text.Json;");
-        }
-
         if (perOperation)
         {
+            // Encoding.UTF8 / StreamReader for the per-operation JSON Lines reader.
             sb.AppendLine("using System.Text;");
+        }
+        else
+        {
+            sb.AppendLine("using System.Text.Json;");
         }
 
         sb.AppendLine("using System.Threading;");
@@ -166,6 +169,62 @@ public static class StreamReadersExtractor
             sb.AppendLine("        CancellationToken cancellationToken)");
             sb.AppendLine("        => JsonSerializer.DeserializeAsyncEnumerable<T>(stream, topLevelValues: true, options, cancellationToken);");
         }
+
+        sb.AppendLine();
+
+        // The deserialize call differs only by variant: typed uses JsonSerializerOptions, per-op
+        // uses the DI-configured IContractSerializer (both accept a UTF-8 byte[] record).
+        var deserializeRecord = perOperation
+            ? "serializer.Deserialize<T>(record.ToArray())"
+            : "JsonSerializer.Deserialize<T>(record.ToArray(), options)";
+
+        // JSON Text Sequence, RFC 7464 (application/json-seq): each record is RS(0x1E) <json> LF.
+        // RS is the delimiter PRECISELY so a record's JSON may contain embedded LFs (e.g. a
+        // pretty-printed record from a third-party producer), so split on the RS byte — NOT on LF.
+        // A raw 0x1E can never occur inside a JSON value (control chars are escaped), so the split
+        // is unambiguous; any embedded/trailing LF is harmless JSON whitespace to the deserializer.
+        // Read bytes truly-async (no thread-blocking sync I/O) and accumulate each record into a
+        // MemoryStream — iterator-safe (no Span local crosses a yield).
+        sb.AppendLine("    public static async IAsyncEnumerable<T?> ReadJsonSequenceAsync<T>(");
+        sb.AppendLine("        Stream stream,");
+        if (perOperation)
+        {
+            sb.AppendLine("        IContractSerializer serializer,");
+        }
+        else
+        {
+            sb.AppendLine("        JsonSerializerOptions options,");
+        }
+
+        sb.AppendLine("        [EnumeratorCancellation] CancellationToken cancellationToken)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        var buffer = new byte[4096];");
+        sb.AppendLine("        using var record = new MemoryStream();");
+        sb.AppendLine("        int read;");
+        sb.AppendLine("        while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            for (var i = 0; i < read; i++)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                if (buffer[i] == 0x1E)");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    if (record.Length > 0)");
+        sb.AppendLine("                    {");
+        sb.AppendLine($"                        yield return {deserializeRecord};");
+        sb.AppendLine("                        record.SetLength(0);");
+        sb.AppendLine("                    }");
+        sb.AppendLine("                }");
+        sb.AppendLine("                else");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    record.WriteByte(buffer[i]);");
+        sb.AppendLine("                }");
+        sb.AppendLine("            }");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        if (record.Length > 0)");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            yield return {deserializeRecord};");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
 
         sb.AppendLine("}");
 

@@ -56,9 +56,9 @@ public static class SequentialResultsExtractor
     /// <summary>
     /// Generates the source content for the server-side <c>Streaming/SequentialResults.cs</c>
     /// helper. The namespace is the server's generated root suffixed with <c>.Streaming</c>.
-    /// This task ships the JSON Lines writer (<c>WriteJsonLinesAsync</c>) and its
-    /// <c>JsonLinesResult&lt;T&gt;</c> <c>IResult</c> wrapper; later tasks add the
-    /// json-seq / multipart members.
+    /// Ships the JSON Lines writer (<c>WriteJsonLinesAsync</c> + <c>JsonLinesResult&lt;T&gt;</c>)
+    /// and the JSON Text Sequence writer (<c>WriteJsonSequenceAsync</c> + <c>JsonSequenceResult&lt;T&gt;</c>);
+    /// a later task adds the multipart/mixed members.
     /// </summary>
     /// <param name="projectName">The generated project name (the server root namespace prefix).</param>
     /// <returns>The full file content for the SequentialResults helper.</returns>
@@ -90,6 +90,10 @@ public static class SequentialResultsExtractor
         // per-item allocation.
         sb.AppendLine("    private static readonly byte[] LineFeed = { (byte)'\\n' };");
         sb.AppendLine();
+
+        // RFC 7464 JSON Text Sequence record separator (0x1E), written before each record.
+        sb.AppendLine("    private static readonly byte[] RecordSeparator = { 0x1E };");
+        sb.AppendLine();
         sb.AppendLine("    public static async Task WriteJsonLinesAsync<T>(");
         sb.AppendLine("        IAsyncEnumerable<T> items,");
         sb.AppendLine("        Stream stream,");
@@ -98,6 +102,24 @@ public static class SequentialResultsExtractor
         sb.AppendLine("    {");
         sb.AppendLine("        await foreach (var item in items.WithCancellation(cancellationToken))");
         sb.AppendLine("        {");
+        sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, options, cancellationToken);");
+        sb.AppendLine("            await stream.WriteAsync(LineFeed, cancellationToken);");
+        sb.AppendLine("            await stream.FlushAsync(cancellationToken);");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // RFC 7464: each record is framed as RS(0x1E) <json> LF(0x0A). All writes are async for the
+        // same Kestrel AllowSynchronousIO=false reason as the JSON Lines writer above.
+        sb.AppendLine("    public static async Task WriteJsonSequenceAsync<T>(");
+        sb.AppendLine("        IAsyncEnumerable<T> items,");
+        sb.AppendLine("        Stream stream,");
+        sb.AppendLine("        JsonSerializerOptions options,");
+        sb.AppendLine("        CancellationToken cancellationToken)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        await foreach (var item in items.WithCancellation(cancellationToken))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            await stream.WriteAsync(RecordSeparator, cancellationToken);");
         sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, options, cancellationToken);");
         sb.AppendLine("            await stream.WriteAsync(LineFeed, cancellationToken);");
         sb.AppendLine("            await stream.FlushAsync(cancellationToken);");
@@ -125,6 +147,26 @@ public static class SequentialResultsExtractor
         sb.AppendLine("            .GetRequiredService<IOptions<JsonOptions>>()");
         sb.AppendLine("            .Value.SerializerOptions;");
         sb.AppendLine("        await SequentialStreamWriter.WriteJsonLinesAsync(items, httpContext.Response.Body, options, httpContext.RequestAborted);");
+        sb.AppendLine("    }");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
+        sb.AppendLine("public sealed class JsonSequenceResult<T> : IResult");
+        sb.AppendLine("{");
+        sb.AppendLine("    private readonly IAsyncEnumerable<T> items;");
+        sb.AppendLine();
+        sb.AppendLine("    public JsonSequenceResult(IAsyncEnumerable<T> items)");
+        sb.AppendLine("        => this.items = items;");
+        sb.AppendLine();
+        sb.AppendLine("    public async Task ExecuteAsync(HttpContext httpContext)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        httpContext.Response.ContentType = \"application/json-seq\";");
+
+        // Same DI-configured JSON options lookup as JsonLinesResult (the C2 fix).
+        sb.AppendLine("        var options = httpContext.RequestServices");
+        sb.AppendLine("            .GetRequiredService<IOptions<JsonOptions>>()");
+        sb.AppendLine("            .Value.SerializerOptions;");
+        sb.AppendLine("        await SequentialStreamWriter.WriteJsonSequenceAsync(items, httpContext.Response.Body, options, httpContext.RequestAborted);");
         sb.AppendLine("    }");
         sb.AppendLine("}");
 

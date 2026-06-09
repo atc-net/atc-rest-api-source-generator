@@ -33,4 +33,37 @@ internal static class StreamReaders
         JsonSerializerOptions options,
         CancellationToken cancellationToken)
         => JsonSerializer.DeserializeAsyncEnumerable<T>(stream, topLevelValues: true, options, cancellationToken);
+
+    public static async IAsyncEnumerable<T?> ReadJsonSequenceAsync<T>(
+        Stream stream,
+        JsonSerializerOptions options,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var buffer = new byte[4096];
+        using var record = new MemoryStream();
+        int read;
+        while ((read = await stream.ReadAsync(buffer, cancellationToken)) > 0)
+        {
+            for (var i = 0; i < read; i++)
+            {
+                if (buffer[i] == 0x1E)
+                {
+                    if (record.Length > 0)
+                    {
+                        yield return JsonSerializer.Deserialize<T>(record.ToArray(), options);
+                        record.SetLength(0);
+                    }
+                }
+                else
+                {
+                    record.WriteByte(buffer[i]);
+                }
+            }
+        }
+
+        if (record.Length > 0)
+        {
+            yield return JsonSerializer.Deserialize<T>(record.ToArray(), options);
+        }
+    }
 }

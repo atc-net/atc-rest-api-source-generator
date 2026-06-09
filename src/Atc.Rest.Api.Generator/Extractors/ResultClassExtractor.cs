@@ -533,6 +533,10 @@ public static class ResultClassExtractor
             {
                 content = $"new(new {projectName}.Generated.Streaming.JsonLinesResult<{contentType}>({paramName}))";
             }
+            else if (isAsyncEnumerable && streamingFraming == StreamingFraming.JsonSequence)
+            {
+                content = $"new(new {projectName}.Generated.Streaming.JsonSequenceResult<{contentType}>({paramName}))";
+            }
             else
             {
                 content = $"new(TypedResults.Ok({paramName}))";
