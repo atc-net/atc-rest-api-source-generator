@@ -74,12 +74,22 @@ public static class SequentialResultsExtractor
         sb.AppendLine("using System.Threading;");
         sb.AppendLine("using System.Threading.Tasks;");
         sb.AppendLine("using Microsoft.AspNetCore.Http;");
+        sb.AppendLine("using Microsoft.AspNetCore.Http.Json;");
+        sb.AppendLine("using Microsoft.Extensions.DependencyInjection;");
+        sb.AppendLine("using Microsoft.Extensions.Options;");
         sb.AppendLine();
         sb.AppendLine($"namespace {projectName}.Generated.Streaming;");
         sb.AppendLine();
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         sb.AppendLine("public static class SequentialStreamWriter");
         sb.AppendLine("{");
+
+        // The newline separator is emitted via WriteAsync (NOT WriteByte): at runtime the stream is
+        // Kestrel's Response.Body, which has AllowSynchronousIO=false by default, so the sync Write
+        // that WriteByte performs throws InvalidOperationException. Cache the single byte to avoid
+        // per-item allocation.
+        sb.AppendLine("    private static readonly byte[] LineFeed = { (byte)'\\n' };");
+        sb.AppendLine();
         sb.AppendLine("    public static async Task WriteJsonLinesAsync<T>(");
         sb.AppendLine("        IAsyncEnumerable<T> items,");
         sb.AppendLine("        Stream stream,");
@@ -89,7 +99,7 @@ public static class SequentialResultsExtractor
         sb.AppendLine("        await foreach (var item in items.WithCancellation(cancellationToken))");
         sb.AppendLine("        {");
         sb.AppendLine("            await JsonSerializer.SerializeAsync(stream, item, options, cancellationToken);");
-        sb.AppendLine("            stream.WriteByte((byte)'\\n');");
+        sb.AppendLine("            await stream.WriteAsync(LineFeed, cancellationToken);");
         sb.AppendLine("            await stream.FlushAsync(cancellationToken);");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
@@ -106,10 +116,14 @@ public static class SequentialResultsExtractor
         sb.AppendLine("    public async Task ExecuteAsync(HttpContext httpContext)");
         sb.AppendLine("    {");
         sb.AppendLine("        httpContext.Response.ContentType = \"application/jsonl\";");
+
+        // Resolve the application's configured JSON options via the options system. The previous
+        // GetService(typeof(JsonOptions)) lookup always returned null because ConfigureHttpJsonOptions
+        // registers JsonOptions via IOptions<>, not as a direct service — so it fell back to bare
+        // defaults (PascalCase, enums-as-numbers), mismatching the rest of the API's serialization.
         sb.AppendLine("        var options = httpContext.RequestServices");
-        sb.AppendLine("            .GetService(typeof(Microsoft.AspNetCore.Http.Json.JsonOptions)) is Microsoft.AspNetCore.Http.Json.JsonOptions jsonOptions");
-        sb.AppendLine("            ? jsonOptions.SerializerOptions");
-        sb.AppendLine("            : new JsonSerializerOptions();");
+        sb.AppendLine("            .GetRequiredService<IOptions<JsonOptions>>()");
+        sb.AppendLine("            .Value.SerializerOptions;");
         sb.AppendLine("        await SequentialStreamWriter.WriteJsonLinesAsync(items, httpContext.Response.Body, options, httpContext.RequestAborted);");
         sb.AppendLine("    }");
         sb.AppendLine("}");

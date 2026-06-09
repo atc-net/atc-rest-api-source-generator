@@ -491,13 +491,14 @@ public class ApiServerGenerator : IIncrementalGenerator
         }
 
         // Generate the server-side SequentialResults helper (JSON Lines writer + IResult wrapper)
-        // when an operation uses a writer-based sequential framing (jsonl today).
-        if (SequentialResultsExtractor.DocumentRequiresSequentialResults(openApiDoc))
+        // when an operation uses a writer-based sequential framing (jsonl today). Uses the shared
+        // CodeGenerationService producer (parallel to the client-side StreamReaders emission).
+        var sequentialResults = CodeGenerationService.GenerateSequentialResults(openApiDoc, projectName);
+        if (sequentialResults != null)
         {
-            var sequentialResultsContent = SequentialResultsExtractor.GenerateContent(projectName);
             context.AddSource(
                 $"{projectName}.Streaming.SequentialResults.g.cs",
-                SourceText.From(sequentialResultsContent.NormalizeForSourceOutput(), Encoding.UTF8));
+                SourceText.From(sequentialResults.Content.NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
         // Generate combined endpoint mapping extension (calls all path segment endpoint methods)

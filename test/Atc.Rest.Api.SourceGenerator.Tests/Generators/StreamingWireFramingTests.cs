@@ -53,6 +53,95 @@ public class StreamingWireFramingTests
         Assert.Equal("a", items[0].GetProperty("id").GetString());
     }
 
+    [Fact]
+    public async Task JsonLinesResult_ExecuteAsync_UsesConfiguredOptions_AndAsyncIo()
+    {
+        // Load the emitted server assembly and resolve JsonLinesResult<Event> + Event.
+        var serverAssembly = CompilationVerificationHarness.EmitAndLoad(
+            CompilationVerificationHarness.RunServer("StreamingItemSchema", "StreamingItemSchema.yaml"));
+        var eventType = serverAssembly.GetTypes().Single(t => t.Name == "Event");
+        var jsonLinesResultOpen = serverAssembly.GetTypes().Single(t => t.Name == "JsonLinesResult`1");
+        var jsonLinesResultType = jsonLinesResultOpen.MakeGenericType(eventType);
+
+        // Build an IAsyncEnumerable<Event> of one item via reflection.
+        var eventId = Guid.NewGuid();
+        var items = BuildAsyncEnumerable(eventType, [CreateEvent(eventType, eventId, "x")]);
+        var result = Activator.CreateInstance(jsonLinesResultType, items)!;
+
+        // RequestServices configured exactly like a real API: camelCase + enum-as-string via
+        // ConfigureHttpJsonOptions (registered through IOptions<JsonOptions>, NOT a direct service).
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.ConfigureHttpJsonOptions(o =>
+        {
+            o.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+            o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        });
+        var provider = services.BuildServiceProvider();
+
+        var innerStream = new MemoryStream();
+        var httpContext = new DefaultHttpContext
+        {
+            RequestServices = provider,
+        };
+        httpContext.Response.Body = new ThrowOnSyncWriteStream(innerStream);
+
+        // C1: must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
+        var executeAsync = jsonLinesResultType.GetMethod("ExecuteAsync")!;
+        await (Task)executeAsync.Invoke(result, [httpContext])!;
+
+        Assert.Equal("application/jsonl", httpContext.Response.ContentType);
+
+        var text = Encoding.UTF8.GetString(innerStream.ToArray());
+        Assert.EndsWith("\n", text, StringComparison.Ordinal);
+
+        // C2: camelCase property names prove the configured IOptions<JsonOptions> was used, not the
+        // bare-default fallback (which would emit PascalCase "Id"/"Type").
+        using var doc = JsonDocument.Parse(text.TrimEnd('\n'));
+        Assert.True(doc.RootElement.TryGetProperty("id", out var idProp));
+        Assert.Equal(eventId.ToString(), idProp.GetString());
+        Assert.True(doc.RootElement.TryGetProperty("type", out _));
+        Assert.False(doc.RootElement.TryGetProperty("Id", out _));
+    }
+
+    /// <summary>
+    /// Creates an instance of the generated <c>Event</c> record (Id: Guid, Type: string) via
+    /// reflection, coercing each argument to the constructor's declared parameter type.
+    /// </summary>
+    private static object CreateEvent(
+        Type eventType,
+        Guid id,
+        string type)
+    {
+        // The generated Event record has a primary constructor (Id, Type).
+        var ctor = eventType.GetConstructors().OrderByDescending(c => c.GetParameters().Length).First();
+        return ctor.Invoke([id, type]);
+    }
+
+    /// <summary>
+    /// Builds a strongly-typed <c>IAsyncEnumerable&lt;T&gt;</c> (T = <paramref name="elementType"/>)
+    /// from the given items, so it can be passed to the emitted <c>JsonLinesResult&lt;T&gt;</c> ctor.
+    /// </summary>
+    private static object BuildAsyncEnumerable(
+        Type elementType,
+        object[] items)
+    {
+        var generic = typeof(StreamingWireFramingTests)
+            .GetMethod(nameof(ToAsyncEnumerableTyped), BindingFlags.NonPublic | BindingFlags.Static)!
+            .MakeGenericMethod(elementType);
+        return generic.Invoke(null, [items])!;
+    }
+
+    private static async IAsyncEnumerable<T> ToAsyncEnumerableTyped<T>(
+        object[] items)
+    {
+        foreach (var item in items)
+        {
+            await Task.Yield();
+            yield return (T)item;
+        }
+    }
+
     /// <summary>
     /// Generates the StreamingItemSchema typed client, compiles + loads it, and returns the
     /// emitted type with the given simple name.
@@ -154,5 +243,68 @@ public class StreamingWireFramingTests
         }
 
         return items;
+    }
+
+    /// <summary>
+    /// A stream that mimics Kestrel's <c>Response.Body</c> with <c>AllowSynchronousIO=false</c>:
+    /// any synchronous <c>Write</c>/<c>WriteByte</c>/<c>Flush</c> throws, while the async overloads
+    /// delegate to an inner <see cref="MemoryStream"/> so written bytes can be inspected.
+    /// </summary>
+    private sealed class ThrowOnSyncWriteStream(MemoryStream inner) : Stream
+    {
+        public override bool CanRead => false;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => true;
+
+        public override long Length => inner.Length;
+
+        public override long Position
+        {
+            get => inner.Position;
+            set => inner.Position = value;
+        }
+
+        public override void Write(
+            byte[] buffer,
+            int offset,
+            int count)
+            => throw new InvalidOperationException("Synchronous writes are disallowed (AllowSynchronousIO=false).");
+
+        public override void WriteByte(byte value)
+            => throw new InvalidOperationException("Synchronous writes are disallowed (AllowSynchronousIO=false).");
+
+        public override void Flush()
+            => throw new InvalidOperationException("Synchronous flush is disallowed (AllowSynchronousIO=false).");
+
+        public override Task WriteAsync(
+            byte[] buffer,
+            int offset,
+            int count,
+            CancellationToken cancellationToken)
+            => inner.WriteAsync(buffer, offset, count, cancellationToken);
+
+        public override ValueTask WriteAsync(
+            ReadOnlyMemory<byte> buffer,
+            CancellationToken cancellationToken = default)
+            => inner.WriteAsync(buffer, cancellationToken);
+
+        public override Task FlushAsync(CancellationToken cancellationToken)
+            => inner.FlushAsync(cancellationToken);
+
+        public override int Read(
+            byte[] buffer,
+            int offset,
+            int count)
+            => throw new NotSupportedException();
+
+        public override long Seek(
+            long offset,
+            SeekOrigin origin)
+            => throw new NotSupportedException();
+
+        public override void SetLength(long value)
+            => throw new NotSupportedException();
     }
 }
