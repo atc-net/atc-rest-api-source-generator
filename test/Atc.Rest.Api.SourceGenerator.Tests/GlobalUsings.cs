@@ -7,6 +7,7 @@ global using System.Linq;
 global using System.Reflection;
 global using System.Text;
 global using System.Text.Json;
+global using System.Text.Json.Serialization;
 global using System.Threading;
 
 global using Atc.OpenApi.Helpers;
@@ -17,9 +18,11 @@ global using Atc.Rest.Api.Generator.Validators;
 global using Atc.Rest.Api.SourceGenerator.Helpers;
 global using Atc.Rest.Api.SourceGenerator.Tests.Helpers;
 
+global using Microsoft.AspNetCore.Http;
 global using Microsoft.CodeAnalysis;
 global using Microsoft.CodeAnalysis.CSharp;
 global using Microsoft.CodeAnalysis.Text;
+global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.OpenApi;
 
 global using Xunit;

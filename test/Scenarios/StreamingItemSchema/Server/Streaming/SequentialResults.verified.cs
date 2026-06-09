@@ -7,12 +7,17 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace StreamingItemSchema.Generated.Streaming;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class SequentialStreamWriter
 {
+    private static readonly byte[] LineFeed = { (byte)'\n' };
+
     public static async Task WriteJsonLinesAsync<T>(
         IAsyncEnumerable<T> items,
         Stream stream,
@@ -22,7 +27,7 @@ public static class SequentialStreamWriter
         await foreach (var item in items.WithCancellation(cancellationToken))
         {
             await JsonSerializer.SerializeAsync(stream, item, options, cancellationToken);
-            stream.WriteByte((byte)'\n');
+            await stream.WriteAsync(LineFeed, cancellationToken);
             await stream.FlushAsync(cancellationToken);
         }
     }
@@ -40,9 +45,8 @@ public sealed class JsonLinesResult<T> : IResult
     {
         httpContext.Response.ContentType = "application/jsonl";
         var options = httpContext.RequestServices
-            .GetService(typeof(Microsoft.AspNetCore.Http.Json.JsonOptions)) is Microsoft.AspNetCore.Http.Json.JsonOptions jsonOptions
-            ? jsonOptions.SerializerOptions
-            : new JsonSerializerOptions();
+            .GetRequiredService<IOptions<JsonOptions>>()
+            .Value.SerializerOptions;
         await SequentialStreamWriter.WriteJsonLinesAsync(items, httpContext.Response.Body, options, httpContext.RequestAborted);
     }
 }

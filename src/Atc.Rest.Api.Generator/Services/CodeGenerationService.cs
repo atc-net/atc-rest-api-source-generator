@@ -1310,6 +1310,36 @@ public static class CodeGenerationService
     }
 
     /// <summary>
+    /// Produces the server-side <c>Streaming/SequentialResults.cs</c> helper (JSON Lines writer +
+    /// <c>JsonLinesResult&lt;T&gt;</c> wrapper) once when an operation uses a writer-based sequential
+    /// framing (jsonl today), or <c>null</c> when none does. Single shared producer for both the
+    /// Roslyn server generator and the integration test orchestrator, mirroring the client-side
+    /// <c>AddStreamReadersIfNeeded</c>. The full file content is carried in
+    /// <see cref="GeneratedType.Content"/> (it already starts with the auto-generated header).
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="projectName">The generated server project name (root namespace prefix).</param>
+    /// <returns>The SequentialResults generated type, or <c>null</c> when not required.</returns>
+    public static GeneratedType? GenerateSequentialResults(
+        OpenApiDocument openApiDoc,
+        string projectName)
+    {
+        if (!SequentialResultsExtractor.DocumentRequiresSequentialResults(openApiDoc))
+        {
+            return null;
+        }
+
+        return new GeneratedType(
+            TypeName: "SequentialResults",
+            Category: "Streaming",
+            Namespace: $"{projectName}.Generated.Streaming",
+            Content: SequentialResultsExtractor.GenerateContent(projectName),
+            RequiredUsings: [],
+            GroupName: null,
+            SubFolder: "Streaming");
+    }
+
+    /// <summary>
     /// Generates EndpointPerOperation files for all operations in the OpenAPI document.
     /// Returns endpoint interfaces, endpoint classes, result interfaces, and result classes.
     /// </summary>

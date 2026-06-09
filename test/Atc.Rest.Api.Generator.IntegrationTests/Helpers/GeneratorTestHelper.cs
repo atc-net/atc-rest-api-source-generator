@@ -76,16 +76,10 @@ public static class GeneratorTestHelper
 
         // Server-side SequentialResults helper (JSON Lines writer + IResult wrapper) when an
         // operation uses a writer-based sequential framing (jsonl today).
-        if (SequentialResultsExtractor.DocumentRequiresSequentialResults(openApiDoc))
+        var sequentialResults = CodeGenerationService.GenerateSequentialResults(openApiDoc, scenarioName);
+        if (sequentialResults != null)
         {
-            yield return new GeneratedType(
-                TypeName: "SequentialResults",
-                Category: "Streaming",
-                Namespace: $"{scenarioName}.Generated.Streaming",
-                Content: SequentialResultsExtractor.GenerateContent(scenarioName),
-                RequiredUsings: [],
-                GroupName: null,
-                SubFolder: "Streaming");
+            yield return sequentialResults;
         }
 
         foreach (var type in CodeGenerationService.GenerateHandlerInterfaces(openApiDoc, scenarioName, generatorType))

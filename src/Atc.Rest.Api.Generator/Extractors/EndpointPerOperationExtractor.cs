@@ -706,10 +706,9 @@ public static class EndpointPerOperationExtractor
         // Server-Sent Events and JSON Lines build the StreamingEndpointResponse<T> inline using the
         // emitted StreamReaders helper, which deserializes each element via the DI-configured
         // IContractSerializer (Atc.Rest.Client.Serialization) and lives in the Streaming namespace.
-        var streamFraming = operation.GetStreamingFraming();
         var usesStreamReaders = isAsyncEnumerable &&
                                 !string.IsNullOrEmpty(streamingItemType) &&
-                                streamFraming is StreamingFraming.ServerSentEvents or StreamingFraming.JsonLines;
+                                UsesStreamReaders(operation.GetStreamingFraming());
 
         // Build header with usings
         var headerBuilder = new StringBuilder();
@@ -1121,7 +1120,7 @@ public static class EndpointPerOperationExtractor
         var streamFraming = operation.GetStreamingFraming();
         var usesStreamReaders = isAsyncEnumerable &&
                                 !string.IsNullOrEmpty(streamingItemType) &&
-                                streamFraming is StreamingFraming.ServerSentEvents or StreamingFraming.JsonLines;
+                                UsesStreamReaders(streamFraming);
 
         if (!usesStreamReaders)
         {
@@ -1140,9 +1139,7 @@ public static class EndpointPerOperationExtractor
             // the Atc.Rest.Client BuildStreamingEndpointResponseAsync<T> reader cannot parse it.
             // Build the StreamingEndpointResponse<T> inline using the emitted StreamReaders helper,
             // which deserializes each element via the DI-configured IContractSerializer.
-            var readerMethod = streamFraming == StreamingFraming.ServerSentEvents
-                ? "ReadServerSentEventsAsync"
-                : "ReadJsonLinesAsync";
+            var readerMethod = ReaderMethodName(streamFraming);
             sb.AppendLine("if (!response.IsSuccessStatusCode)");
             sb.AppendLine("{");
             sb.AppendLine(4, "var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);");
@@ -1754,4 +1751,27 @@ public static class EndpointPerOperationExtractor
             }
         }
     }
+
+    /// <summary>
+    /// Determines whether a streaming operation reads its response via the emitted per-operation
+    /// <c>StreamReaders</c> helper (rather than the JSON-array-based <c>BuildStreamingEndpointResponseAsync</c>).
+    /// That is true for the wire framings whose bytes are not a JSON array: Server-Sent Events and
+    /// JSON Lines. As later tasks add json-seq / multipart-mixed readers they extend this set.
+    /// </summary>
+    private static bool UsesStreamReaders(StreamingFraming framing)
+        => framing is StreamingFraming.ServerSentEvents or StreamingFraming.JsonLines;
+
+    /// <summary>
+    /// Maps a StreamReaders-based framing to the emitted per-operation reader method name. Throws
+    /// for any framing not explicitly handled so a newly-added framing (e.g. json-seq in a later
+    /// task) fails loudly here instead of silently routing through the JSON Lines reader.
+    /// </summary>
+    private static string ReaderMethodName(StreamingFraming framing)
+        => framing switch
+        {
+            StreamingFraming.ServerSentEvents => "ReadServerSentEventsAsync",
+            StreamingFraming.JsonLines => "ReadJsonLinesAsync",
+            _ => throw new InvalidOperationException(
+                $"No per-operation StreamReaders method is defined for framing '{framing}'."),
+        };
 }
