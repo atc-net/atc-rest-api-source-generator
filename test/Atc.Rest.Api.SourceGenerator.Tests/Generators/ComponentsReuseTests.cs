@@ -68,4 +68,51 @@ public class ComponentsReuseTests
             errors.Count == 0,
             "Server for ComponentsReuse did not compile:\n" + string.Join("\n", errors));
     }
+
+    [Fact]
+    public void AnonymousInlineMediaType_ProducesWarningDiagnostic()
+    {
+        // A components.mediaTypes entry whose schema is an anonymous inline array
+        // (items are inline objects, not $ref to components.schemas) should produce ATC_API_SCH019.
+        const string yaml = """
+            openapi: "3.2.0"
+            info:
+              title: Anon Test
+              version: 1.0.0
+            paths:
+              /things:
+                get:
+                  operationId: listThings
+                  tags:
+                    - things
+                  responses:
+                    "200":
+                      description: OK
+                      content:
+                        application/json:
+                          $ref: '#/components/mediaTypes/ThingList'
+            components:
+              mediaTypes:
+                ThingList:
+                  schema:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+            """;
+
+        var doc = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Standard,
+            doc,
+            [],
+            "anon-test.yaml");
+
+        Assert.True(
+            diagnostics.Any(d => d.RuleId == Generator.RuleIdentifiers.AnonymousInlineMediaTypeSchema),
+            "Expected ATC_API_SCH019 warning for anonymous inline schema in components.mediaTypes.");
+    }
 }
