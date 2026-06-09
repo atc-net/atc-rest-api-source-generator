@@ -182,6 +182,46 @@ public class OpenApiParameterExtensionsTests
         Assert.True(param.GetParameterSerialization().AllowReserved);
     }
 
+    [Fact]
+    public void GetParameterSerialization_ParsedFromYaml_QueryArrayNoExplode_DefaultsToFormExplodeSupported()
+    {
+        // Locks the parse-path behavior the seam depends on: when explode is NOT declared,
+        // the YAML reader applies the OpenAPI style-based default (true for Form). Guards
+        // against future Microsoft.OpenApi changes that the construct-object tests can't cover.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  parameters:
+                                    - name: tags
+                                      in: query
+                                      schema:
+                                        type: array
+                                        items:
+                                          type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var operation = document.Paths["/items"].Operations.Values.First();
+        var param = operation.Parameters![0].Resolve().Parameter;
+
+        Assert.NotNull(param);
+        var s = param!.GetParameterSerialization();
+
+        Assert.Equal(ParameterStyle.Form, s.Style);
+        Assert.True(s.Explode);
+        Assert.Equal(ParameterValueKind.Array, s.ValueKind);
+        Assert.True(s.IsSupported);
+    }
+
     // ========== Helper Methods ==========
     private static OpenApiParameter CreateParameterWithType(JsonSchemaType type)
         => new()

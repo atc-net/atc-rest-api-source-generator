@@ -145,6 +145,11 @@ public static class OpenApiParameterExtensions
         {
             var valueKind = GetValueKind(parameter.Schema);
             var style = parameter.Style ?? DefaultStyleFor(parameter.In);
+
+            // OpenApiParameter.Explode is a computed getter that derives the OpenAPI style-based default
+            // (true for Form, false otherwise), applied at parse time too. No null-coalescing fallback
+            // is needed; reading it directly is correct even when explode was not declared on the
+            // parameter. (Verified against the YAML reader parse path.)
             var explode = parameter.Explode;
             var allowReserved = parameter.AllowReserved;
 
@@ -277,6 +282,9 @@ public static class OpenApiParameterExtensions
             return ParameterValueKind.Object;
         }
 
+        // Schemas via $ref/oneOf/anyOf/allOf (Type==null, no Properties) fall through to Primitive —
+        // a known limitation; object query params via $ref won't trigger the unsupported-style warning
+        // until this is extended. deepObject/object-query handling is deferred.
         return ParameterValueKind.Primitive;
     }
 }
