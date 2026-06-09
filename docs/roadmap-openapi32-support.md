@@ -177,12 +177,11 @@ supported; 3.2 extends `oauth2` and adds scheme-level metadata.
 
 | Feature | Parser | Generator | Notes |
 |---------|:------:|:---------:|-------|
-| `components.mediaTypes` (reusable Media Type Objects) | ✅ | ❌ | The one new `components` key in 3.2. Resolution concern; ensure `$ref` to shared media types resolves during extraction |
+| `components.mediaTypes` (reusable Media Type Objects) | ✅ | ✅ | **Phase 4-1 done.** `$ref` to a `components.mediaTypes` entry resolves transparently via `OpenApiMediaTypeReference` proxy — named-schema items are collected and emitted correctly. Anonymous inline schemas (no `$ref` to `components.schemas`, no title) emit Warning `ATC_API_SCH019` with best-effort fallback; array schemas whose `.Items` is a named `$ref` are excluded from the warning. Reference scenario: `test/Scenarios/ComponentsReuse/` |
 
-> Note: `components.pathItems` (reusable Path Item Objects) is sometimes mentioned
-> alongside 3.2 but was actually introduced in **OpenAPI 3.1**. It remains
-> unsupported here and is tracked under
-> [Missing pre-3.2 features](#missing-pre-32-features-30--31-gaps).
+> Note: `components.pathItems` (reusable Path Item Objects) was introduced in
+> **OpenAPI 3.1** and is now **supported** — see the
+> [Missing pre-3.2 features](#missing-pre-32-features-30--31-gaps) section.
 
 ### Link Object & runtime expressions
 
@@ -206,7 +205,7 @@ itemizes that.
 | `allowReserved` on query parameters | 3.0 | 🟡 | The **typed C# client** emits the value un-encoded (`Uri.EscapeDataString` skipped) for `allowReserved` primitive query params. Documented limitations: the per-operation client (external `WithQueryParameter` builder) does not honor `allowReserved`, and the **TS clients do not honor `allowReserved` at all** (values are encoded normally by fetch/axios). 3.2 broadens `allowReserved` to headers and any `in`, which remains unsupported |
 | Links Object | 3.0 | ❌ | Not generated at all (no `OpenApiLink` handling) |
 | Callbacks code generation | 3.0 | 🟡 | A `Scenarios/Callbacks30` spec exists and parses, but no extractor emits callback code |
-| Path Item `$ref` / `components.pathItems` | 3.1 | ❌ | Reusable path items are not resolved during extraction |
+| Path Item `$ref` / `components.pathItems` | 3.1 | ✅ | **Phase 4-1 done.** All ~45 `is OpenApiPathItem` pattern casts relaxed to `is IOpenApiPathItem` across ~28 files. `OpenApiPathItemReference` (Microsoft.OpenApi's transparent proxy) now flows through every extractor, validator, policy extractor, TS client, and CLI. A path-item `$ref` generates identical output to an inline path item. Reference scenario: `test/Scenarios/ComponentsReuse/` |
 | `mutualTLS` security scheme | 3.1 | ❌ | Not present in `SecuritySchemeType` (only `http`, `apiKey`, `oauth2`, `openIdConnect`) |
 | Response headers extraction | 3.0 | 🟡 | Only the `Location` header is handled (redirects); general response-header objects are not surfaced |
 | Examples (`example` / `examples` objects) | 3.0 | 🟡 | Example handling is limited (mostly used to read x-* config); not systematically extracted into docs/tests/mocks |
@@ -369,9 +368,10 @@ snapshots for server, C# client, and TypeScript client output.
 
 ### Phase 4 — Parameters, components reuse, metadata 🟡
 
+**Phase 4-1 done:** `components.pathItems` $ref + `components.mediaTypes` reuse — see above.
+
+Remaining:
 - `in: querystring`, `allowReserved`, `style: cookie`.
-- `components.mediaTypes` and `components.pathItems` reference resolution (closes a
-  pre-existing path-item `$ref` gap).
 - `Tag.summary`/`parent`/`kind`, `Server.name`, `Response.summary`, optional
   `Response.description`, `$self`, `Example.dataValue`/`serializedValue`.
 - Support for `summary` across all supported objects (Schema, Parameter, Header, Security Scheme).
@@ -393,7 +393,7 @@ snapshots for server, C# client, and TypeScript client output.
 | OAuth2 device flow + scheme metadata | ❌ | 3 |
 | Discriminator `defaultMapping` + optional `propertyName` | 🟡 | 3 |
 | `querystring` / `allowReserved` / cookie `style` | ❌ | 4 |
-| `components.mediaTypes` reuse | ❌ | 4 |
+| `components.mediaTypes` reuse + `components.pathItems` $ref | ✅ | 4 |
 | Tag nesting, `Server.name`, `Response.summary`, `$self`, examples | ❌ | 4 |
 | Annotated Enumerations & Generic Data Structures | ❌ | 4 |
 | `summary` on Schema, Parameter, Header, etc. | ❌ | 4 |
