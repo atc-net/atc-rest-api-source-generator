@@ -93,7 +93,7 @@ public static class TypeScriptAxiosApiClientExtractor
     {
         sb.AppendLine("export interface RequestOptions {");
         sb.AppendLine("  body?: unknown;");
-        sb.AppendLine("  query?: Record<string, string | number | boolean | undefined>;");
+        sb.AppendLine("  query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>;");
         sb.AppendLine("  headers?: Record<string, string | number | boolean | undefined>;");
         sb.AppendLine("  signal?: AbortSignal;");
         sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
@@ -203,6 +203,10 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("    this.client = axios.create({");
         sb.AppendLine("      baseURL: this.baseUrl,");
         sb.AppendLine("      validateStatus: () => true,");
+
+        // Suppress axios 1.x bracket notation (tags[]=a) and emit repeated keys (tags=a&tags=b)
+        // so ASP.NET Core's default model binder can bind array query params correctly.
+        sb.AppendLine("      paramsSerializer: { indexes: null },");
 
         if (convertDates)
         {
@@ -496,15 +500,24 @@ public static class TypeScriptAxiosApiClientExtractor
 
     private static void AppendBuildUrlMethod(StringBuilder sb)
     {
-        sb.AppendLine("  private buildUrl(path: string, query?: Record<string, string | number | boolean | undefined>): string {");
+        sb.AppendLine("  private buildUrl(path: string, query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>): string {");
         sb.AppendLine("    const url = new URL(`${this.baseUrl}${path}`);");
         sb.AppendLine("    if (query) {");
         sb.AppendLine("      for (const [key, value] of Object.entries(query)) {");
-        sb.AppendLine("        if (value !== undefined) {");
+        sb.AppendLine("        if (value === undefined) {");
+        sb.AppendLine("          continue;");
+        sb.AppendLine("        }");
+        sb.AppendLine("        if (Array.isArray(value)) {");
+        sb.AppendLine("          for (const item of value) {");
+        sb.AppendLine("            url.searchParams.append(key, String(item));");
+        sb.AppendLine("          }");
+        sb.AppendLine("        } else {");
         sb.AppendLine("          url.searchParams.set(key, String(value));");
         sb.AppendLine("        }");
         sb.AppendLine("      }");
         sb.AppendLine("    }");
+        sb.AppendLine("    // Note: URL.searchParams always percent-encodes values.");
+        sb.AppendLine("    // OpenAPI allowReserved cannot be honoured via this path.");
         sb.AppendLine("    return url.toString();");
         sb.AppendLine("  }");
         sb.AppendLine();

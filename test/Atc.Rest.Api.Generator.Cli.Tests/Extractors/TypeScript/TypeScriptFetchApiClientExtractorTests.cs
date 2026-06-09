@@ -184,4 +184,42 @@ public class TypeScriptFetchApiClientExtractorTests
         Assert.DoesNotContain("schemaMismatch", result, StringComparison.Ordinal);
         Assert.DoesNotContain("setStrictMode", result, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Generate_RequestOptions_QueryAcceptsArrays()
+    {
+        // The query Record must accept arrays so that array params (e.g. tags: string[])
+        // can be passed without a TypeScript type error.
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
+
+        Assert.Contains(
+            "query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>;",
+            result,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_BuildUrl_UsesAppendForArrayValuesAndSetForScalars()
+    {
+        // Array query params must produce repeated keys (?tags=a&tags=b), not a single
+        // joined or overwritten key (?tags=a%2Cb). This requires an Array.isArray branch
+        // with searchParams.append per element, while scalars keep searchParams.set.
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
+
+        Assert.Contains("Array.isArray(value)", result, StringComparison.Ordinal);
+        Assert.Contains("url.searchParams.append(key, String(item));", result, StringComparison.Ordinal);
+        Assert.Contains("url.searchParams.set(key, String(value));", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_BuildUrl_SkipsUndefinedBeforeArrayCheck()
+    {
+        // The undefined-guard must come before the Array.isArray branch so the
+        // loop does not try to iterate undefined.
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
+
+        var continueIdx = result.IndexOf("continue;", StringComparison.Ordinal);
+        var arrayIdx = result.IndexOf("Array.isArray(value)", StringComparison.Ordinal);
+        Assert.True(continueIdx > 0 && arrayIdx > continueIdx, "The 'continue' (undefined guard) must appear before Array.isArray.");
+    }
 }
