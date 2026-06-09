@@ -70,7 +70,7 @@ public class ComponentsReuseTests
     }
 
     [Fact]
-    public void AnonymousInlineMediaType_ProducesWarningDiagnostic()
+    public void AnonymousInlineMediaType_SCH019_ProducesWarningDiagnostic()
     {
         // A components.mediaTypes entry whose schema is an anonymous inline array
         // (items are inline objects, not $ref to components.schemas) should produce ATC_API_SCH019.
