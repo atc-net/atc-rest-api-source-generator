@@ -416,10 +416,10 @@ public static class HttpClientExtractor
             {
                 returnType = contentType;
 
-                // For async enumerable, extract the List<T> item type
-                if (isAsyncEnumerable && contentType.StartsWith("List<", StringComparison.Ordinal) && contentType.EndsWith(">", StringComparison.Ordinal))
+                // For async enumerable, extract the List<T> item type (shared List<T>/T[] extractor)
+                if (isAsyncEnumerable && TryGetListElementType(contentType, out var itemType))
                 {
-                    streamingItemType = contentType.Substring(5, contentType.Length - 6); // Extract T from List<T>
+                    streamingItemType = itemType;
                 }
             }
         }
@@ -664,19 +664,7 @@ public static class HttpClientExtractor
                     }
                     else
                     {
-                        string nullCheck;
-                        if (paramType == "string")
-                        {
-                            nullCheck = $"!string.IsNullOrEmpty({paramAccess})";
-                        }
-                        else if (CSharpTypeHelper.IsBasicValueType(paramType))
-                        {
-                            nullCheck = $"{paramAccess}.HasValue";
-                        }
-                        else
-                        {
-                            nullCheck = $"{paramAccess} != null";
-                        }
+                        var nullCheck = BuildNullCheck(paramAccess, paramType);
 
                         builder.AppendLine();
                         builder.AppendLine($"if ({nullCheck})");
@@ -696,25 +684,12 @@ public static class HttpClientExtractor
                 }
                 else
                 {
-                    // Use appropriate null check based on type for optional parameters
-                    string nullCheck;
-
-                    if (paramType == "string")
-                    {
-                        nullCheck = $"!string.IsNullOrEmpty({paramAccess})";
-                    }
-                    else if (paramType.EndsWith("[]", StringComparison.Ordinal))
-                    {
-                        nullCheck = $"{paramAccess} != null && {paramAccess}.Length > 0";
-                    }
-                    else if (CSharpTypeHelper.IsBasicValueType(paramType))
-                    {
-                        nullCheck = $"{paramAccess}.HasValue";
-                    }
-                    else
-                    {
-                        nullCheck = $"{paramAccess} != null";
-                    }
+                    // Use appropriate null check based on type for optional parameters. A bare
+                    // T[] that reaches this scalar path (not the form-explode foreach above) keeps
+                    // its length guard; everything else delegates to the shared BuildNullCheck.
+                    var nullCheck = paramType.EndsWith("[]", StringComparison.Ordinal)
+                        ? $"{paramAccess} != null && {paramAccess}.Length > 0"
+                        : BuildNullCheck(paramAccess, paramType);
 
                     var valueExpression = BuildEncodedExpression(paramAccess, paramType);
 
@@ -1439,27 +1414,18 @@ public static class HttpClientExtractor
         bool allowReserved,
         bool isRequired)
     {
-        // Extract the element type:
-        // - "string[]"    → "string"
-        // - "List<string>" → "string"
-        // - Otherwise     → use paramType as-is (fallback)
-        string elementType;
-        if (paramType.EndsWith("[]", StringComparison.Ordinal))
-        {
-            elementType = paramType.Substring(0, paramType.Length - 2);
-        }
-        else if (paramType.StartsWith("List<", StringComparison.Ordinal) &&
-                 paramType.EndsWith(">", StringComparison.Ordinal))
-        {
-            elementType = paramType.Substring(5, paramType.Length - 6);
-        }
-        else
+        // Element type comes off the shared List<T>/T[] extractor; if neither shape matches
+        // (no array param should reach here that way) fall back to the param type itself.
+        if (!TryGetListElementType(paramType, out var elementType))
         {
             elementType = paramType;
         }
 
+        // allowReserved => emit the value WITHOUT URL-encoding. Array elements are non-nullable
+        // per the NeedsUrlEncoding/array contract, so a string element is used as-is and a
+        // non-string value type uses .ToString() (cleaner than the old nested $"{item}").
         var encodedItem = allowReserved
-            ? (elementType == "string" ? "item" : "$\"{item}\"")
+            ? (elementType == "string" ? "item" : "item.ToString()")
             : BuildEncodedExpression("item", elementType);
 
         if (isRequired)
@@ -1480,6 +1446,56 @@ public static class HttpClientExtractor
             builder.AppendLine(4, "}");
             builder.AppendLine("}");
         }
+    }
+
+    /// <summary>
+    /// Extracts the element type from a <c>List&lt;T&gt;</c> or <c>T[]</c> type name.
+    /// Upstream contract: array query params arrive as a non-nullable <c>List&lt;T&gt;</c>
+    /// (no trailing <c>?</c>, no nesting), and streaming response bodies arrive as
+    /// <c>List&lt;T&gt;</c>; both feed this single extractor so the surgery lives in one place.
+    /// </summary>
+    /// <returns><c>true</c> with <paramref name="elementType"/> set when the shape matched; otherwise <c>false</c>.</returns>
+    private static bool TryGetListElementType(
+        string paramType,
+        out string elementType)
+    {
+        if (paramType.EndsWith("[]", StringComparison.Ordinal))
+        {
+            elementType = paramType.Substring(0, paramType.Length - 2);
+            return true;
+        }
+
+        if (paramType.StartsWith("List<", StringComparison.Ordinal) &&
+            paramType.EndsWith(">", StringComparison.Ordinal))
+        {
+            elementType = paramType.Substring(5, paramType.Length - 6);
+            return true;
+        }
+
+        elementType = string.Empty;
+        return false;
+    }
+
+    /// <summary>
+    /// Builds the null/empty guard expression for an optional query parameter, selecting the
+    /// right form for the parameter's C# type: <c>!string.IsNullOrEmpty(x)</c> for strings,
+    /// <c>x.HasValue</c> for nullable value types, and <c>x != null</c> otherwise.
+    /// </summary>
+    private static string BuildNullCheck(
+        string paramAccess,
+        string paramType)
+    {
+        if (paramType == "string")
+        {
+            return $"!string.IsNullOrEmpty({paramAccess})";
+        }
+
+        if (CSharpTypeHelper.IsBasicValueType(paramType))
+        {
+            return $"{paramAccess}.HasValue";
+        }
+
+        return $"{paramAccess} != null";
     }
 
     public static bool NeedsUrlEncoding(string csharpType)

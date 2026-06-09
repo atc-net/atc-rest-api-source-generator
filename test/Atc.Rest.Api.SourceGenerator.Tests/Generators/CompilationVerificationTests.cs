@@ -55,6 +55,7 @@ public class CompilationVerificationTests
     [InlineData("Demo", "Demo.yaml")]
     [InlineData("HttpMethods", "HttpMethods.yaml")]
     [InlineData("StreamingItemSchema", "StreamingItemSchema.yaml")]
+    [InlineData("ParameterSerialization", "ParameterSerialization.yaml")]
     public void ClientGenerator_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)
@@ -81,6 +82,7 @@ public class CompilationVerificationTests
     // ========== Per-Operation Client Generator (real C# compilation of generated output) ==========
     [Theory]
     [InlineData("StreamingItemSchema", "StreamingItemSchema.yaml")]
+    [InlineData("ParameterSerialization", "ParameterSerialization.yaml")]
     public void ClientGenerator_PerOperation_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)
@@ -113,6 +115,7 @@ public class CompilationVerificationTests
     [InlineData("Demo", "Demo.yaml")]
     [InlineData("HttpMethods", "HttpMethods.yaml")]
     [InlineData("StreamingItemSchema", "StreamingItemSchema.yaml")]
+    [InlineData("ParameterSerialization", "ParameterSerialization.yaml")]
     public void ServerGenerator_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)

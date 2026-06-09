@@ -1821,7 +1821,7 @@ public class OperationValidationTests
     // ========== OPR026: Parameter serialization not supported ==========
 
     [Fact]
-    public void Validate_QueryArray_SpaceDelimited_EmitsParameterSerializationWarning()
+    public void Validate_QueryArray_SpaceDelimited_EmitsOPR026Warning()
     {
         // Arrange
         const string yaml = """
@@ -1865,7 +1865,7 @@ public class OperationValidationTests
     }
 
     [Fact]
-    public void Validate_QueryArray_DefaultFormExplode_NoSerializationWarning()
+    public void Validate_QueryArray_DefaultFormExplode_NoOPR026Warning()
     {
         // Arrange
         const string yaml = """
