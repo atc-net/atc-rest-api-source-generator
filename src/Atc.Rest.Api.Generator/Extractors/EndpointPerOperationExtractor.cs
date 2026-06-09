@@ -167,7 +167,7 @@ public static class EndpointPerOperationExtractor
                 continue;
             }
 
-            if (pathItemInterface is not OpenApiPathItem pathItem)
+            if (pathItemInterface is not IOpenApiPathItem pathItem)
             {
                 continue;
             }
@@ -230,7 +230,7 @@ public static class EndpointPerOperationExtractor
         string path,
         string httpMethod,
         OpenApiOperation operation,
-        OpenApiPathItem pathItem,
+        IOpenApiPathItem pathItem,
         IList<IOpenApiParameter>? pathLevelParameters,
         OpenApiDocument openApiDoc,
         TypeConflictRegistry? registry,

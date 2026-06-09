@@ -30,7 +30,7 @@ public static class TypeScriptWebhookExtractor
 
         foreach (var (path, pathValue) in openApiDoc.Paths)
         {
-            if (pathValue is not OpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathValue is not IOpenApiPathItem pathItem || pathItem.Operations == null)
             {
                 continue;
             }

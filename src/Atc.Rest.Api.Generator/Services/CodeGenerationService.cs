@@ -204,7 +204,7 @@ public static class CodeGenerationService
         foreach (var path in openApiDoc.Paths)
         {
             var pathKey = path.Key;
-            if (path.Value is not OpenApiPathItem pathItem || pathItem.Operations == null)
+            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
             {
                 continue;
             }
@@ -344,7 +344,7 @@ public static class CodeGenerationService
 
         foreach (var path in openApiDoc.Paths)
         {
-            if (path.Value is not OpenApiPathItem pathItem || pathItem.Operations == null)
+            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
             {
                 continue;
             }
@@ -1905,7 +1905,7 @@ public static class CodeGenerationService
 
         foreach (var path in openApiDoc.Paths)
         {
-            if (path.Value is not OpenApiPathItem pathItem || pathItem.Operations == null)
+            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
             {
                 continue;
             }

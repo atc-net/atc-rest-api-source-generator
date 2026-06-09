@@ -65,7 +65,7 @@ public static class OpenApiRateLimitExtensions
     /// <returns>A RateLimitConfiguration, or null if no rate limiting is configured.</returns>
     public static RateLimitConfiguration? ExtractRateLimitConfiguration(
         this OpenApiOperation operation,
-        OpenApiPathItem pathItem,
+        IOpenApiPathItem pathItem,
         OpenApiDocument document)
     {
         // Check for operation-level explicit disable
@@ -140,7 +140,7 @@ public static class OpenApiRateLimitExtensions
 
         foreach (var pathPair in document.Paths)
         {
-            if (pathPair.Value is not OpenApiPathItem pathItem)
+            if (pathPair.Value is not IOpenApiPathItem pathItem)
             {
                 continue;
             }

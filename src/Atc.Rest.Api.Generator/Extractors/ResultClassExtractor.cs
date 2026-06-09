@@ -125,7 +125,7 @@ public static class ResultClassExtractor
                     .Key
                     .ToString()
                     .ToUpperInvariant();
-                var pathItem = path.Value as OpenApiPathItem;
+                var pathItem = path.Value;
                 var currentPathSegment = PathSegmentHelper.GetFirstPathSegment(pathKey);
                 var classParams = ExtractResultClass(openApiDoc, projectName, operationId!, operationValue!, pathItem!, httpMethod, namespaceValue, modelsNamespace, registry, systemTypeResolver, currentPathSegment, inlineSchemas);
                 if (classParams != null)
@@ -143,7 +143,7 @@ public static class ResultClassExtractor
         string projectName,
         string operationId,
         OpenApiOperation operationValue,
-        OpenApiPathItem pathItem,
+        IOpenApiPathItem pathItem,
         string httpMethod,
         string namespaceValue,
         string modelsNamespace,

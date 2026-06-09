@@ -106,7 +106,7 @@ internal static class ParameterNameMigrator
 
         foreach (var path in doc.Paths)
         {
-            if (path.Value is not OpenApiPathItem pathItem || pathItem.Operations == null)
+            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
             {
                 continue;
             }

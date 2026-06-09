@@ -1803,12 +1803,7 @@ public static class OpenApiDocumentValidator
             return;
         }
 
-        if (pathItem is not OpenApiPathItem pathItemCast)
-        {
-            return;
-        }
-
-        var securityConfig = operation.ExtractUnifiedSecurityConfiguration(pathItemCast, document);
+        var securityConfig = operation.ExtractUnifiedSecurityConfiguration(pathItem, document);
         var hasSecurity = securityConfig is { AuthenticationRequired: true };
 
         // ATCAPI_OPR021: Has 401 Unauthorized but no security requirements
@@ -1839,12 +1834,7 @@ public static class OpenApiDocumentValidator
             return;
         }
 
-        if (pathItem is not OpenApiPathItem pathItemCast)
-        {
-            return;
-        }
-
-        var securityConfig = operation.ExtractUnifiedSecurityConfiguration(pathItemCast, document);
+        var securityConfig = operation.ExtractUnifiedSecurityConfiguration(pathItem, document);
         var hasRolesOrPolicies = securityConfig != null &&
             (securityConfig.Roles.Count > 0 ||
              securityConfig.Policies.Count > 0 ||
@@ -1944,12 +1934,7 @@ public static class OpenApiDocumentValidator
             return;
         }
 
-        if (pathItem is not OpenApiPathItem pathItemCast)
-        {
-            return;
-        }
-
-        var rateLimitConfig = operation.ExtractRateLimitConfiguration(pathItemCast, document);
+        var rateLimitConfig = operation.ExtractRateLimitConfiguration(pathItem, document);
         var hasRateLimiting = rateLimitConfig != null;
 
         // ATCAPI_OPR025: Has 429 TooManyRequests but no rate limiting configured

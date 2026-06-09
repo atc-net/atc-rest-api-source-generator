@@ -147,7 +147,7 @@ public static class PathSegmentHelper
                 continue;
             }
 
-            if (path.Value is not OpenApiPathItem pathItem || pathItem.Operations == null)
+            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
             {
                 continue;
             }
@@ -624,7 +624,7 @@ public static class PathSegmentHelper
                 continue;
             }
 
-            if (path.Value is OpenApiPathItem { Operations.Count: > 0 })
+            if (path.Value is IOpenApiPathItem { Operations.Count: > 0 })
             {
                 return true;
             }
@@ -655,7 +655,7 @@ public static class PathSegmentHelper
                 continue;
             }
 
-            if (path.Value is not OpenApiPathItem pathItem)
+            if (path.Value is not IOpenApiPathItem pathItem)
             {
                 continue;
             }

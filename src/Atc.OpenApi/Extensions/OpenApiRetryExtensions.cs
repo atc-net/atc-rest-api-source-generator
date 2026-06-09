@@ -113,7 +113,7 @@ public static class OpenApiRetryExtensions
     /// <returns>A RetryConfiguration, or null if no retry is configured.</returns>
     public static RetryConfiguration? ExtractRetryConfiguration(
         this OpenApiOperation operation,
-        OpenApiPathItem pathItem,
+        IOpenApiPathItem pathItem,
         OpenApiDocument document)
     {
         // Check for operation-level explicit disable
@@ -238,7 +238,7 @@ public static class OpenApiRetryExtensions
 
         foreach (var pathPair in document.Paths)
         {
-            if (pathPair.Value is not OpenApiPathItem pathItem)
+            if (pathPair.Value is not IOpenApiPathItem pathItem)
             {
                 continue;
             }

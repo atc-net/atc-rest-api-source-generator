@@ -64,7 +64,7 @@ public static class ResiliencePoliciesExtractor
 
         foreach (var pathPair in openApiDoc.Paths)
         {
-            if (pathPair.Value is not OpenApiPathItem pathItem)
+            if (pathPair.Value is not IOpenApiPathItem pathItem)
             {
                 continue;
             }

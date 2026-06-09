@@ -15,7 +15,7 @@ public static class OperationFeaturesHelper
     /// <returns>An OperationFeatures object with detected features.</returns>
     public static Models.OperationFeatures DetectOperationFeatures(
         OpenApiOperation operation,
-        OpenApiPathItem pathItem,
+        IOpenApiPathItem pathItem,
         OpenApiDocument document,
         string httpMethod)
     {

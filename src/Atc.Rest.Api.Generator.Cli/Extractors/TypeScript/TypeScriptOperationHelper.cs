@@ -28,7 +28,7 @@ public static class TypeScriptOperationHelper
         // Add path-level parameters first (only those not overridden at operation level)
         if (openApiDoc.Paths != null &&
             openApiDoc.Paths.TryGetValue(path, out var pathItemValue) &&
-            pathItemValue is OpenApiPathItem pathItem &&
+            pathItemValue is IOpenApiPathItem pathItem &&
             pathItem.Parameters != null)
         {
             var pathLevelParams = ResolveParametersByLocation(pathItem.Parameters, location);
@@ -672,7 +672,7 @@ public static class TypeScriptOperationHelper
         if (openApiDoc?.Paths != null &&
             path != null &&
             openApiDoc.Paths.TryGetValue(path, out var pathItemValue) &&
-            pathItemValue is OpenApiPathItem pathItem &&
+            pathItemValue is IOpenApiPathItem pathItem &&
             pathItem.Parameters != null)
         {
             foreach (var paramInterface in pathItem.Parameters)

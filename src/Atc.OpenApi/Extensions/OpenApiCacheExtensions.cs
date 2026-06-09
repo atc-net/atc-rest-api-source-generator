@@ -100,7 +100,7 @@ public static class OpenApiCacheExtensions
     /// <returns>A CacheConfiguration, or null if no caching is configured.</returns>
     public static CacheConfiguration? ExtractCacheConfiguration(
         this OpenApiOperation operation,
-        OpenApiPathItem pathItem,
+        IOpenApiPathItem pathItem,
         OpenApiDocument document)
     {
         // Check for operation-level explicit disable
@@ -211,7 +211,7 @@ public static class OpenApiCacheExtensions
 
         foreach (var pathPair in document.Paths)
         {
-            if (pathPair.Value is not OpenApiPathItem pathItem)
+            if (pathPair.Value is not IOpenApiPathItem pathItem)
             {
                 continue;
             }
@@ -282,7 +282,7 @@ public static class OpenApiCacheExtensions
 
         foreach (var pathPair in document.Paths)
         {
-            if (pathPair.Value is not OpenApiPathItem pathItem)
+            if (pathPair.Value is not IOpenApiPathItem pathItem)
             {
                 continue;
             }

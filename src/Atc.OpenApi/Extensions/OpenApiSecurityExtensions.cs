@@ -80,7 +80,7 @@ public static class OpenApiSecurityExtensions
     public static (bool AuthRequired, IReadOnlyList<string> Roles, IReadOnlyList<string> Schemes, bool AllowAnonymous)?
         ExtractSecurityConfiguration(
             this OpenApiOperation operation,
-            OpenApiPathItem pathItem,
+            IOpenApiPathItem pathItem,
             OpenApiDocument document)
     {
         // Check for operation-level explicit AllowAnonymous override
@@ -266,7 +266,7 @@ public static class OpenApiSecurityExtensions
     /// <returns>UnifiedSecurityConfig with merged security configuration.</returns>
     public static UnifiedSecurityConfig ExtractUnifiedSecurityConfiguration(
         this OpenApiOperation operation,
-        OpenApiPathItem pathItem,
+        IOpenApiPathItem pathItem,
         OpenApiDocument document)
     {
         // First, try ATC extensions
@@ -647,7 +647,7 @@ public static class OpenApiSecurityExtensions
 
         foreach (var pathPair in document.Paths)
         {
-            if (pathPair.Value is not OpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathPair.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
             {
                 continue;
             }
