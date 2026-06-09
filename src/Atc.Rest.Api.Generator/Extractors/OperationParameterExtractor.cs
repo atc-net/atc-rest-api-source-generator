@@ -253,8 +253,7 @@ public static class OperationParameterExtractor
                 }
             }
 
-            // Cast to concrete type to access Operations
-            if (path.Value is not OpenApiPathItem pathItem || pathItem.Operations == null)
+            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
             {
                 continue;
             }

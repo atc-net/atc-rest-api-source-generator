@@ -47,7 +47,7 @@ public static class ServerDependencyInjectionExtractor
         foreach (var path in openApiDoc.Paths)
         {
             var pathItemInterface = path.Value;
-            if (pathItemInterface is not OpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathItemInterface is not IOpenApiPathItem pathItem || pathItem.Operations == null)
             {
                 continue;
             }

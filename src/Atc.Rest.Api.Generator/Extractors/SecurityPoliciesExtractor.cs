@@ -50,7 +50,7 @@ public static class SecurityPoliciesExtractor
 
         foreach (var pathPair in openApiDoc.Paths)
         {
-            if (pathPair.Value is not OpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathPair.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
             {
                 continue;
             }

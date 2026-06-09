@@ -115,7 +115,7 @@ public static class TypeScriptRetryConfigExtractor
         {
             foreach (var pathPair in document.Paths)
             {
-                if (pathPair.Value is not OpenApiPathItem pathItem)
+                if (pathPair.Value is not IOpenApiPathItem pathItem)
                 {
                     continue;
                 }

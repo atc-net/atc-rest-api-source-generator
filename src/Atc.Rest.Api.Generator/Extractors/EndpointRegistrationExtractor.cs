@@ -200,7 +200,7 @@ public static class EndpointRegistrationExtractor
             var pathKey = path.Key;
             var pathItemInterface = path.Value;
 
-            if (pathItemInterface is not OpenApiPathItem pathItem)
+            if (pathItemInterface is not IOpenApiPathItem pathItem)
             {
                 continue;
             }
@@ -228,7 +228,7 @@ public static class EndpointRegistrationExtractor
     private static void GenerateEndpointMapping(
         StringBuilder builder,
         OpenApiDocument openApiDoc,
-        OpenApiPathItem pathItem,
+        IOpenApiPathItem pathItem,
         string path,
         string httpMethod,
         OpenApiOperation? operation,

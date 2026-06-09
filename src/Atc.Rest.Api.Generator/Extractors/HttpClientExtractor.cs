@@ -179,7 +179,7 @@ public static class HttpClientExtractor
                 }
             }
 
-            if (pathItemInterface is not OpenApiPathItem pathItem)
+            if (pathItemInterface is not IOpenApiPathItem pathItem)
             {
                 continue;
             }

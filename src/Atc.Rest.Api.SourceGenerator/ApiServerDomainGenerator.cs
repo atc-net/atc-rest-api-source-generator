@@ -852,7 +852,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         var hasPathParams = false;
         if (openApiDoc.Paths != null &&
             openApiDoc.Paths.TryGetValue(path, out var pathItemInterface) &&
-            pathItemInterface is OpenApiPathItem pathItem)
+            pathItemInterface is IOpenApiPathItem pathItem)
         {
             hasPathParams = pathItem.Parameters is { Count: > 0 };
         }

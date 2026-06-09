@@ -1293,17 +1293,12 @@ public static class SpecificationService
         IOpenApiPathItem pathItem,
         string indent)
     {
-        if (pathItem is not OpenApiPathItem item)
+        if (pathItem.Operations == null)
         {
             return;
         }
 
-        if (item.Operations == null)
-        {
-            return;
-        }
-
-        foreach (var operation in item.Operations)
+        foreach (var operation in pathItem.Operations)
         {
             var method = operation
                 .Key

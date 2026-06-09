@@ -232,7 +232,7 @@ public static class TypeScriptClientGenerationService
 
         foreach (var pathEntry in openApiDoc.Paths)
         {
-            if (pathEntry.Value is not OpenApiPathItem pathItem)
+            if (pathEntry.Value is not IOpenApiPathItem pathItem)
             {
                 continue;
             }

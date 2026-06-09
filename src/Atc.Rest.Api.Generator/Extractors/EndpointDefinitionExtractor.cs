@@ -150,7 +150,7 @@ public static class EndpointDefinitionExtractor
             var pathKey = path.Key;
             var pathItemInterface = path.Value;
 
-            if (pathItemInterface is not OpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathItemInterface is not IOpenApiPathItem pathItem || pathItem.Operations == null)
             {
                 continue;
             }
@@ -194,7 +194,7 @@ public static class EndpointDefinitionExtractor
             var pathKey = path.Key;
             var pathItemInterface = path.Value;
 
-            if (pathItemInterface is not OpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathItemInterface is not IOpenApiPathItem pathItem || pathItem.Operations == null)
             {
                 continue;
             }
@@ -243,7 +243,7 @@ public static class EndpointDefinitionExtractor
             var pathKey = path.Key;
             var pathItemInterface = path.Value;
 
-            if (pathItemInterface is not OpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathItemInterface is not IOpenApiPathItem pathItem || pathItem.Operations == null)
             {
                 continue;
             }
@@ -702,8 +702,8 @@ using Microsoft.AspNetCore.Builder;
             builder.AppendLine();
 
             // Find the PathItem for this path
-            OpenApiPathItem? pathItem = null;
-            if (openApiDoc.Paths.TryGetValue(path, out var pathItemInterface) && pathItemInterface is OpenApiPathItem item)
+            IOpenApiPathItem? pathItem = null;
+            if (openApiDoc.Paths.TryGetValue(path, out var pathItemInterface) && pathItemInterface is IOpenApiPathItem item)
             {
                 pathItem = item;
             }
@@ -727,8 +727,8 @@ using Microsoft.AspNetCore.Builder;
 
         // Get security config for first operation to check if all operations share the same security
         var firstOp = operations[0];
-        OpenApiPathItem? firstPathItem = null;
-        if (openApiDoc.Paths.TryGetValue(firstOp.Path, out var firstPathItemInterface) && firstPathItemInterface is OpenApiPathItem item)
+        IOpenApiPathItem? firstPathItem = null;
+        if (openApiDoc.Paths.TryGetValue(firstOp.Path, out var firstPathItemInterface) && firstPathItemInterface is IOpenApiPathItem item)
         {
             firstPathItem = item;
         }
@@ -749,8 +749,8 @@ using Microsoft.AspNetCore.Builder;
         // Check if all operations have the same base security requirement (authentication required, no allow anonymous)
         foreach (var (path, _, operation, _) in operations.Skip(1))
         {
-            OpenApiPathItem? pathItem = null;
-            if (openApiDoc.Paths.TryGetValue(path, out var pathItemInterface) && pathItemInterface is OpenApiPathItem pi)
+            IOpenApiPathItem? pathItem = null;
+            if (openApiDoc.Paths.TryGetValue(path, out var pathItemInterface) && pathItemInterface is IOpenApiPathItem pi)
             {
                 pathItem = pi;
             }
@@ -786,8 +786,8 @@ using Microsoft.AspNetCore.Builder;
 
         // Get rate limit config for first operation to check if all operations share the same policy
         var firstOp = operations[0];
-        OpenApiPathItem? firstPathItem = null;
-        if (openApiDoc.Paths.TryGetValue(firstOp.Path, out var firstPathItemInterface) && firstPathItemInterface is OpenApiPathItem item)
+        IOpenApiPathItem? firstPathItem = null;
+        if (openApiDoc.Paths.TryGetValue(firstOp.Path, out var firstPathItemInterface) && firstPathItemInterface is IOpenApiPathItem item)
         {
             firstPathItem = item;
         }
@@ -808,8 +808,8 @@ using Microsoft.AspNetCore.Builder;
         // Check if all operations have the same rate limit policy
         foreach (var (path, _, operation, _) in operations.Skip(1))
         {
-            OpenApiPathItem? pathItem = null;
-            if (openApiDoc.Paths.TryGetValue(path, out var pathItemInterface) && pathItemInterface is OpenApiPathItem pi)
+            IOpenApiPathItem? pathItem = null;
+            if (openApiDoc.Paths.TryGetValue(path, out var pathItemInterface) && pathItemInterface is IOpenApiPathItem pi)
             {
                 pathItem = pi;
             }
@@ -856,8 +856,8 @@ using Microsoft.AspNetCore.Builder;
 
         // Get output cache config for first GET operation to check if all GET operations share the same policy
         var firstOp = getOperations[0];
-        OpenApiPathItem? firstPathItem = null;
-        if (openApiDoc.Paths.TryGetValue(firstOp.Path, out var firstPathItemInterface) && firstPathItemInterface is OpenApiPathItem item)
+        IOpenApiPathItem? firstPathItem = null;
+        if (openApiDoc.Paths.TryGetValue(firstOp.Path, out var firstPathItemInterface) && firstPathItemInterface is IOpenApiPathItem item)
         {
             firstPathItem = item;
         }
@@ -884,8 +884,8 @@ using Microsoft.AspNetCore.Builder;
         // Check if all GET operations have the same output cache policy
         foreach (var (path, _, operation, _) in getOperations.Skip(1))
         {
-            OpenApiPathItem? pathItem = null;
-            if (openApiDoc.Paths.TryGetValue(path, out var pathItemInterface) && pathItemInterface is OpenApiPathItem pi)
+            IOpenApiPathItem? pathItem = null;
+            if (openApiDoc.Paths.TryGetValue(path, out var pathItemInterface) && pathItemInterface is IOpenApiPathItem pi)
             {
                 pathItem = pi;
             }
@@ -918,7 +918,7 @@ using Microsoft.AspNetCore.Builder;
         string path,
         string httpMethod,
         OpenApiOperation operation,
-        OpenApiPathItem? pathItem,
+        IOpenApiPathItem? pathItem,
         string projectName,
         string segment,
         string originalPrefix,
@@ -1004,7 +1004,7 @@ using Microsoft.AspNetCore.Builder;
     private static void GenerateSecurityMetadata(
         StringBuilder builder,
         OpenApiOperation operation,
-        OpenApiPathItem pathItem,
+        IOpenApiPathItem pathItem,
         OpenApiDocument openApiDoc,
         UnifiedSecurityConfig? groupSecurity)
     {
@@ -1055,7 +1055,7 @@ using Microsoft.AspNetCore.Builder;
     private static void GenerateRateLimitingMetadata(
         StringBuilder builder,
         OpenApiOperation operation,
-        OpenApiPathItem pathItem,
+        IOpenApiPathItem pathItem,
         OpenApiDocument openApiDoc,
         RateLimitConfiguration? groupRateLimit)
     {
@@ -1095,7 +1095,7 @@ using Microsoft.AspNetCore.Builder;
         StringBuilder builder,
         string httpMethod,
         OpenApiOperation operation,
-        OpenApiPathItem pathItem,
+        IOpenApiPathItem pathItem,
         OpenApiDocument openApiDoc,
         CacheConfiguration? groupOutputCache)
     {
@@ -1146,7 +1146,7 @@ using Microsoft.AspNetCore.Builder;
     private static void GenerateValidationFilterMetadata(
         StringBuilder builder,
         OpenApiOperation operation,
-        OpenApiPathItem? pathItem,
+        IOpenApiPathItem? pathItem,
         string methodName)
     {
         // Skip ValidationFilter for endpoints that use form binding flattening
@@ -1236,7 +1236,7 @@ using Microsoft.AspNetCore.Builder;
         StringBuilder builder,
         OpenApiDocument openApiDoc,
         OpenApiOperation operation,
-        OpenApiPathItem pathItem,
+        IOpenApiPathItem pathItem,
         string httpMethod,
         string projectName,
         string segment,

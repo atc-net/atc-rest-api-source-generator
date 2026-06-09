@@ -37,7 +37,7 @@ internal static class EndpointInjectionExtractor
                 continue;
             }
 
-            if (pathItemInterface is not OpenApiPathItem pathItem)
+            if (pathItemInterface is not IOpenApiPathItem pathItem)
             {
                 continue;
             }
