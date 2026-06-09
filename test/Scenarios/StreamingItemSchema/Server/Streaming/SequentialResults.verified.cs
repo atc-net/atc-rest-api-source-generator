@@ -18,6 +18,8 @@ public static class SequentialStreamWriter
 {
     private static readonly byte[] LineFeed = { (byte)'\n' };
 
+    private static readonly byte[] RecordSeparator = { 0x1E };
+
     public static async Task WriteJsonLinesAsync<T>(
         IAsyncEnumerable<T> items,
         Stream stream,
@@ -26,6 +28,21 @@ public static class SequentialStreamWriter
     {
         await foreach (var item in items.WithCancellation(cancellationToken))
         {
+            await JsonSerializer.SerializeAsync(stream, item, options, cancellationToken);
+            await stream.WriteAsync(LineFeed, cancellationToken);
+            await stream.FlushAsync(cancellationToken);
+        }
+    }
+
+    public static async Task WriteJsonSequenceAsync<T>(
+        IAsyncEnumerable<T> items,
+        Stream stream,
+        JsonSerializerOptions options,
+        CancellationToken cancellationToken)
+    {
+        await foreach (var item in items.WithCancellation(cancellationToken))
+        {
+            await stream.WriteAsync(RecordSeparator, cancellationToken);
             await JsonSerializer.SerializeAsync(stream, item, options, cancellationToken);
             await stream.WriteAsync(LineFeed, cancellationToken);
             await stream.FlushAsync(cancellationToken);
@@ -48,5 +65,23 @@ public sealed class JsonLinesResult<T> : IResult
             .GetRequiredService<IOptions<JsonOptions>>()
             .Value.SerializerOptions;
         await SequentialStreamWriter.WriteJsonLinesAsync(items, httpContext.Response.Body, options, httpContext.RequestAborted);
+    }
+}
+
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class JsonSequenceResult<T> : IResult
+{
+    private readonly IAsyncEnumerable<T> items;
+
+    public JsonSequenceResult(IAsyncEnumerable<T> items)
+        => this.items = items;
+
+    public async Task ExecuteAsync(HttpContext httpContext)
+    {
+        httpContext.Response.ContentType = "application/json-seq";
+        var options = httpContext.RequestServices
+            .GetRequiredService<IOptions<JsonOptions>>()
+            .Value.SerializerOptions;
+        await SequentialStreamWriter.WriteJsonSequenceAsync(items, httpContext.Response.Body, options, httpContext.RequestAborted);
     }
 }

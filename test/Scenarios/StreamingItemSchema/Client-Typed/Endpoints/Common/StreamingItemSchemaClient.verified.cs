@@ -71,6 +71,23 @@ public sealed class StreamingItemSchemaClient
         }
     }
 
+    public async IAsyncEnumerable<Event> StreamEventsSeqAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var url = "/events-seq";
+        using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+
+        var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+
+        await foreach (var item in StreamReaders.ReadJsonSequenceAsync<Event>(stream, jsonSerializerOptions, cancellationToken))
+        {
+            if (item != null)
+            {
+                yield return item;
+            }
+        }
+    }
+
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
