@@ -116,7 +116,7 @@ serialization, so 3.2 additions here land on top of a pre-existing gap.
 
 | Feature | Parser | Generator | Notes |
 |---------|:------:|:---------:|-------|
-| `itemSchema` for multipart items | ✅ | ❌ | See streaming row; shared mechanism |
+| `itemSchema` for multipart items | ✅ | ✅ | `multipart/mixed` streaming shipped (Phase 2) — emitted `MultipartMixedResult<T>` + boundary-delimited reader. See streaming row |
 | `prefixEncoding` / `itemEncoding` | ✅ | ❌ | Replace `encoding` for multipart. Multipart is supported today via schema flattening, but not these new encoding fields |
 
 ### XML representation
