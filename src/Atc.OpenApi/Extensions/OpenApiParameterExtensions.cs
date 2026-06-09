@@ -135,6 +135,31 @@ public static class OpenApiParameterExtensions
         }
 
         /// <summary>
+        /// Computes the effective style/explode/allowReserved and value-kind for the parameter,
+        /// and whether this generator serializes that combination correctly (form primitive any
+        /// explode; form array with explode:true; simple primitive). Unsupported combinations
+        /// return <c>IsSupported = false</c> so callers can warn and fall back to default form
+        /// serialization.
+        /// </summary>
+        public ParameterSerialization GetParameterSerialization()
+        {
+            var valueKind = GetValueKind(parameter.Schema);
+            var style = parameter.Style ?? DefaultStyleFor(parameter.In);
+            var explode = parameter.Explode;
+            var allowReserved = parameter.AllowReserved;
+
+            var isSupported = style switch
+            {
+                ParameterStyle.Form => valueKind == ParameterValueKind.Primitive
+                    || (valueKind == ParameterValueKind.Array && explode),
+                ParameterStyle.Simple => valueKind == ParameterValueKind.Primitive,
+                _ => false,
+            };
+
+            return new ParameterSerialization(style, explode, allowReserved, valueKind, isSupported);
+        }
+
+        /// <summary>
         /// Gets the default value for a parameter based on its type, required status, and schema default.
         /// </summary>
         /// <returns>The default value string or null.</returns>
@@ -228,5 +253,30 @@ public static class OpenApiParameterExtensions
 
             return null;
         }
+    }
+
+    private static ParameterStyle DefaultStyleFor(ParameterLocation? location)
+        => location is ParameterLocation.Query or ParameterLocation.Cookie
+            ? ParameterStyle.Form
+            : ParameterStyle.Simple;
+
+    private static ParameterValueKind GetValueKind(IOpenApiSchema? schema)
+    {
+        if (schema is null)
+        {
+            return ParameterValueKind.Primitive;
+        }
+
+        if (schema.Type?.HasFlag(JsonSchemaType.Array) == true)
+        {
+            return ParameterValueKind.Array;
+        }
+
+        if (schema.Type?.HasFlag(JsonSchemaType.Object) == true || schema.Properties is { Count: > 0 })
+        {
+            return ParameterValueKind.Object;
+        }
+
+        return ParameterValueKind.Primitive;
     }
 }
