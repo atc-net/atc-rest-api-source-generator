@@ -32,7 +32,7 @@ export interface ApiClientOptions {
 
 export interface RequestOptions {
   body?: unknown;
-  query?: Record<string, string | number | boolean | undefined>;
+  query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>;
   headers?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
   responseType?: 'json' | 'blob' | 'text';
@@ -210,15 +210,24 @@ export class ApiClient {
     }
   }
 
-  buildUrl(path: string, query?: Record<string, string | number | boolean | undefined>): string {
+  buildUrl(path: string, query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>): string {
     const url = new URL(`${this.baseUrl}${path}`);
     if (query) {
       for (const [key, value] of Object.entries(query)) {
-        if (value !== undefined) {
+        if (value === undefined) {
+          continue;
+        }
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            url.searchParams.append(key, String(item));
+          }
+        } else {
           url.searchParams.set(key, String(value));
         }
       }
     }
+    // Note: URL.searchParams always percent-encodes values.
+    // OpenAPI allowReserved cannot be honoured via this path.
     return url.toString();
   }
 

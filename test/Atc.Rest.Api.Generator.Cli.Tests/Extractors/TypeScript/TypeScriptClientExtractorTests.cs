@@ -1206,6 +1206,56 @@ public class TypeScriptClientExtractorTests
         Assert.DoesNotContain("from '../enums'", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_ArrayQueryParam_PassesThroughAsArrayInQueryObject()
+    {
+        // An array query param (e.g. tags: string[]) must appear in the query object
+        // as-is — NOT joined or stringified. buildUrl's Array.isArray branch handles
+        // the actual serialization to repeated keys. The inline query type must also
+        // accept arrays so the assignment does not produce a TypeScript error.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: findPetsByTags
+                                  parameters:
+                                    - name: tags
+                                      in: query
+                                      schema:
+                                        type: array
+                                        items:
+                                          type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null);
+        var (_, content) = Assert.Single(clients);
+
+        // The inline query type must carry the array type.
+        Assert.Contains("tags?: string[]", content, StringComparison.Ordinal);
+
+        // The query object must forward the array value as-is (not joined/stringified).
+        Assert.Contains("tags: query?.tags,", content, StringComparison.Ordinal);
+
+        // No array-joining must appear.
+        Assert.DoesNotContain("join(", content, StringComparison.Ordinal);
+    }
+
     private static int CountOccurrences(
         string haystack,
         string needle)
