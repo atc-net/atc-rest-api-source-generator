@@ -49,7 +49,9 @@ public static class PolymorphicTypeExtractor
     }
 
     /// <summary>
-    /// Generates code for a polymorphic base type (abstract record with JsonPolymorphic attributes).
+    /// Generates code for a polymorphic base type. Uses <c>[JsonPolymorphic]</c> + <c>[JsonDerivedType]</c>
+    /// attributes for the standard explicit-discriminator path, or <c>[JsonConverter]</c> when
+    /// <see cref="PolymorphicConfig.DefaultVariantTypeName"/> is set (auto-detect or <c>defaultMapping</c>).
     /// </summary>
     /// <param name="config">The polymorphic configuration.</param>
     /// <param name="projectName">The project name for namespace.</param>
@@ -62,17 +64,14 @@ public static class PolymorphicTypeExtractor
     {
         var sb = new StringBuilder();
 
-        // Header
         sb.Append(HeaderBuilder.WithUsings(
             NamespaceConstants.SystemCodeDomCompiler,
             NamespaceConstants.SystemTextJsonSerialization));
 
-        // Namespace
         var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
         sb.AppendLine($"namespace {ns};");
         sb.AppendLine();
 
-        // XML documentation
         var compositionType = config.IsOneOf ? "oneOf" : "anyOf";
         sb.AppendLine("/// <summary>");
         sb.AppendLine($"/// Polymorphic base type ({compositionType}) with discriminator property '{config.DiscriminatorPropertyName}'.");
@@ -81,22 +80,103 @@ public static class PolymorphicTypeExtractor
             sb.AppendLine("/// Note: Discriminator was auto-detected from common properties.");
         }
 
-        sb.AppendLine("/// </summary>");
-
-        // GeneratedCode attribute
-        sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-
-        // JsonPolymorphic attribute
-        sb.AppendLine($"[JsonPolymorphic(TypeDiscriminatorPropertyName = \"{config.DiscriminatorPropertyName}\")]");
-
-        // JsonDerivedType attributes for each variant
-        foreach (var variant in config.Variants)
+        if (config.DefaultVariantTypeName != null)
         {
-            sb.AppendLine($"[JsonDerivedType(typeof({variant.TypeName}), \"{variant.DiscriminatorValue}\")]");
+            var reason = config.IsDiscriminatorExplicit
+                ? "'discriminator.defaultMapping' is set"
+                : "discriminator was auto-detected";
+            sb.AppendLine($"/// Note: Uses a custom JsonConverter because {reason} (fallback: {config.DefaultVariantTypeName}).");
         }
 
-        // Abstract record declaration
+        sb.AppendLine("/// </summary>");
+
+        sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
+
+        if (config.DefaultVariantTypeName != null)
+        {
+            sb.AppendLine($"[JsonConverter(typeof({config.BaseTypeName}JsonConverter))]");
+        }
+        else
+        {
+            sb.AppendLine($"[JsonPolymorphic(TypeDiscriminatorPropertyName = \"{config.DiscriminatorPropertyName}\")]");
+            foreach (var variant in config.Variants)
+            {
+                sb.AppendLine($"[JsonDerivedType(typeof({variant.TypeName}), \"{variant.DiscriminatorValue}\")]");
+            }
+        }
+
         sb.AppendLine($"public abstract record {config.BaseTypeName};");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Generates a custom JSON converter for a discriminated polymorphic type with a
+    /// <c>defaultMapping</c> fallback (OpenAPI 3.2). The converter reads the discriminator
+    /// property, dispatches to the correct variant, and falls back to
+    /// <see cref="PolymorphicConfig.DefaultVariantTypeName"/> for unrecognized values.
+    /// </summary>
+    /// <param name="config">The polymorphic configuration (must have <see cref="PolymorphicConfig.DefaultVariantTypeName"/> set).</param>
+    /// <param name="projectName">The project name for namespace.</param>
+    /// <param name="pathSegment">Optional path segment for sub-namespace.</param>
+    /// <returns>The generated C# code for the discriminator converter class.</returns>
+    public static string GenerateDiscriminatorFallbackConverter(
+        PolymorphicConfig config,
+        string projectName,
+        string? pathSegment = null)
+    {
+        var sb = new StringBuilder();
+
+        sb.Append(HeaderBuilder.WithUsings(
+            NamespaceConstants.System,
+            NamespaceConstants.SystemCodeDomCompiler,
+            NamespaceConstants.SystemTextJson,
+            NamespaceConstants.SystemTextJsonSerialization));
+
+        var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
+        sb.AppendLine($"namespace {ns};");
+        sb.AppendLine();
+
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine($"/// Discriminator-based JSON converter for <see cref=\"{config.BaseTypeName}\"/>.");
+        sb.AppendLine($"/// Dispatches on property '{config.DiscriminatorPropertyName}' and falls back to");
+        sb.AppendLine($"/// <see cref=\"{config.DefaultVariantTypeName}\"/> for unrecognized discriminator values.");
+        sb.AppendLine("/// </summary>");
+
+        sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
+        sb.AppendLine($"public sealed class {config.BaseTypeName}JsonConverter : JsonConverter<{config.BaseTypeName}>");
+        sb.AppendLine("{");
+
+        sb.AppendLine($"    public override {config.BaseTypeName}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        using var document = JsonDocument.ParseValue(ref reader);");
+        sb.AppendLine("        var rawText = document.RootElement.GetRawText();");
+        sb.AppendLine();
+        sb.AppendLine("        string? discriminatorValue = null;");
+        sb.AppendLine($"        if (document.RootElement.TryGetProperty(\"{config.DiscriminatorPropertyName}\", out var discriminatorElement))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            discriminatorValue = discriminatorElement.GetString();");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        return discriminatorValue switch");
+        sb.AppendLine("        {");
+
+        foreach (var variant in config.Variants)
+        {
+            sb.AppendLine($"            \"{variant.DiscriminatorValue}\" => JsonSerializer.Deserialize<{variant.TypeName}>(rawText, options),");
+        }
+
+        sb.AppendLine($"            _ => JsonSerializer.Deserialize<{config.DefaultVariantTypeName}>(rawText, options),");
+        sb.AppendLine("        };");
+        sb.AppendLine("    }");
+
+        sb.AppendLine();
+        sb.AppendLine($"    public override void Write(Utf8JsonWriter writer, {config.BaseTypeName} value, JsonSerializerOptions options)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        JsonSerializer.Serialize(writer, value, value.GetType(), options);");
+        sb.AppendLine("    }");
+
+        sb.AppendLine("}");
 
         return sb.ToString();
     }
@@ -158,12 +238,24 @@ public static class PolymorphicTypeExtractor
             return unionConfig;
         }
 
+        var defaultVariantTypeName = schema.GetDiscriminatorDefaultMappingSchemaName();
+
+        // When the discriminator was auto-detected the detected property is a real CLR property
+        // on every variant. STJ [JsonPolymorphic] throws InvalidOperationException when
+        // TypeDiscriminatorPropertyName matches an actual property on a derived type (.NET 10+).
+        // Route through the custom converter instead, using the first variant as fallback.
+        if (!isExplicit && defaultVariantTypeName == null)
+        {
+            defaultVariantTypeName = variantNames[0];
+        }
+
         var config = new PolymorphicConfig
         {
             BaseTypeName = schemaName,
             DiscriminatorPropertyName = discriminatorPropertyName!,
             IsOneOf = isOneOf,
             IsDiscriminatorExplicit = isExplicit,
+            DefaultVariantTypeName = defaultVariantTypeName,
         };
 
         // Get discriminator mapping (explicit or generate from schema names)
@@ -260,17 +352,14 @@ public static class PolymorphicTypeExtractor
     {
         var sb = new StringBuilder();
 
-        // Header
         sb.Append(HeaderBuilder.WithUsings(
             NamespaceConstants.SystemCodeDomCompiler,
             NamespaceConstants.SystemTextJsonSerialization));
 
-        // Namespace
         var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
         sb.AppendLine($"namespace {ns};");
         sb.AppendLine();
 
-        // XML documentation
         var compositionType = config.IsOneOf ? "oneOf" : "anyOf";
         var variantList = string.Join(", ", config.Variants.Select(v => v.TypeName));
         sb.AppendLine("/// <summary>");
@@ -278,17 +367,11 @@ public static class PolymorphicTypeExtractor
         sb.AppendLine($"/// Variants: {variantList}");
         sb.AppendLine("/// </summary>");
 
-        // GeneratedCode attribute
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-
-        // JsonConverter attribute
         sb.AppendLine($"[JsonConverter(typeof({config.BaseTypeName}JsonConverter))]");
-
-        // Sealed record with Value property
         sb.AppendLine($"public sealed record {config.BaseTypeName}(object Value)");
         sb.AppendLine("{");
 
-        // Implicit conversion operators for each variant
         foreach (var variant in config.Variants)
         {
             sb.AppendLine($"    public static implicit operator {config.BaseTypeName}({variant.TypeName} value) => new(value);");
@@ -314,32 +397,25 @@ public static class PolymorphicTypeExtractor
     {
         var sb = new StringBuilder();
 
-        // Header
         sb.Append(HeaderBuilder.WithUsings(
-            "System",
+            NamespaceConstants.System,
             NamespaceConstants.SystemCodeDomCompiler,
             NamespaceConstants.SystemTextJson,
             NamespaceConstants.SystemTextJsonSerialization));
 
-        // Namespace
         var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
         sb.AppendLine($"namespace {ns};");
         sb.AppendLine();
 
-        // XML documentation
         sb.AppendLine("/// <summary>");
         sb.AppendLine($"/// Try-parse JSON converter for the <see cref=\"{config.BaseTypeName}\"/> union type.");
         sb.AppendLine("/// Attempts deserialization of each variant in order until one succeeds.");
         sb.AppendLine("/// </summary>");
 
-        // GeneratedCode attribute
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
-
-        // Class declaration
         sb.AppendLine($"public sealed class {config.BaseTypeName}JsonConverter : JsonConverter<{config.BaseTypeName}>");
         sb.AppendLine("{");
 
-        // Read method
         sb.AppendLine($"    public override {config.BaseTypeName}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)");
         sb.AppendLine("    {");
         sb.AppendLine("        using var document = JsonDocument.ParseValue(ref reader);");
@@ -370,7 +446,6 @@ public static class PolymorphicTypeExtractor
         sb.AppendLine("            lastException);");
         sb.AppendLine("    }");
 
-        // Write method
         sb.AppendLine();
         sb.AppendLine($"    public override void Write(Utf8JsonWriter writer, {config.BaseTypeName} value, JsonSerializerOptions options)");
         sb.AppendLine("    {");

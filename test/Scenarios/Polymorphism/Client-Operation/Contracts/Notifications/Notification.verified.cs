@@ -8,10 +8,8 @@ namespace Polymorphism.Generated.Models;
 /// <summary>
 /// Polymorphic base type (anyOf) with discriminator property 'kind'.
 /// Note: Discriminator was auto-detected from common properties.
+/// Note: Uses a custom JsonConverter because discriminator was auto-detected (fallback: EmailNotification).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
-[JsonDerivedType(typeof(EmailNotification), "EmailNotification")]
-[JsonDerivedType(typeof(SmsNotification), "SmsNotification")]
-[JsonDerivedType(typeof(PushNotification), "PushNotification")]
+[JsonConverter(typeof(NotificationJsonConverter))]
 public abstract record Notification;

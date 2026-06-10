@@ -1094,6 +1094,14 @@ public static class OpenApiSchemaExtensions
             => schema.HasOneOfComposition() || schema.HasAnyOfComposition();
 
         /// <summary>
+        /// Returns true when the schema has an explicit discriminator block, regardless of whether
+        /// <c>propertyName</c> is set. Use this to distinguish "discriminator block present but
+        /// propertyName omitted" from "no discriminator at all".
+        /// </summary>
+        public bool HasDiscriminatorBlock()
+            => schema is OpenApiSchema actualSchema && actualSchema.Discriminator != null;
+
+        /// <summary>
         /// Gets the discriminator property name from a polymorphic schema.
         /// </summary>
         /// <returns>The discriminator property name, or null if not defined.</returns>
@@ -1101,6 +1109,27 @@ public static class OpenApiSchemaExtensions
             => schema is not OpenApiSchema actualSchema
                 ? null
                 : actualSchema.Discriminator?.PropertyName;
+
+        /// <summary>
+        /// Gets the schema name from the OpenAPI 3.2 <c>discriminator.defaultMapping</c> field.
+        /// </summary>
+        /// <returns>The schema name to use as fallback, or null if not defined.</returns>
+        public string? GetDiscriminatorDefaultMappingSchemaName()
+        {
+            if (schema is not OpenApiSchema actualSchema)
+            {
+                return null;
+            }
+
+            var defaultMapping = actualSchema.Discriminator?.DefaultMapping;
+            if (defaultMapping == null)
+            {
+                return null;
+            }
+
+            var schemaName = defaultMapping.Reference?.Id ?? defaultMapping.Id;
+            return string.IsNullOrEmpty(schemaName) ? null : schemaName;
+        }
 
         /// <summary>
         /// Gets the discriminator mapping from a polymorphic schema.
@@ -1264,8 +1293,9 @@ public static class OpenApiSchemaExtensions
                 }
             }
 
-            // If no priority name found, return the first common string property
-            return commonProps.Count > 0 ? commonProps.First() : null;
+            // If no priority name found, return the alphabetically first common string property
+            // (sorted for deterministic output across GC runs and .NET versions)
+            return commonProps.Count > 0 ? commonProps.OrderBy(p => p, StringComparer.Ordinal).First() : null;
         }
 
         /// <summary>

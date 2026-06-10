@@ -345,6 +345,13 @@ public static class RuleIdentifiers
     /// </summary>
     public const string AnonymousInlineMediaTypeSchema = "ATC_API_SCH019";
 
+    /// <summary>
+    /// ATC_API_SCH020: A polymorphic schema has a discriminator block but 'propertyName' is absent
+    /// and no common string property could be auto-detected across all variants.
+    /// Add 'propertyName' to the discriminator block for reliable polymorphic code generation.
+    /// </summary>
+    public const string DiscriminatorMissingPropertyName = "ATC_API_SCH020";
+
     // ========== Path Rules (PTH) ==========
 
     /// <summary>

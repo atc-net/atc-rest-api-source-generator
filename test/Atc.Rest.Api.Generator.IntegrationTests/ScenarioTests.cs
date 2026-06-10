@@ -125,11 +125,12 @@ public class ScenarioTests
         var directory = Path.Combine(baseDir, type.SubFolder ?? string.Empty);
 
         // Sanitize type name for Windows filename compatibility
-        // Replace <T> with [T] and : with " - " to avoid invalid filename characters
+        // Replace <T> with [T] and " : " (inheritance) with "-"
         var safeTypeName = type.TypeName
             .Replace("<", "[", StringComparison.Ordinal)
             .Replace(">", "]", StringComparison.Ordinal)
-            .Replace(":", " -", StringComparison.Ordinal);
+            .Replace(" : ", "-", StringComparison.Ordinal)
+            .Replace(":", "-", StringComparison.Ordinal);
 
         string actualContent;
         string extension;

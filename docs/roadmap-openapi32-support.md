@@ -160,8 +160,8 @@ supported; 3.2 extends `oauth2` and adds scheme-level metadata.
 
 | Feature | Parser | Generator | Notes |
 |---------|:------:|:---------:|-------|
-| Optional `discriminator.propertyName` | ✅ | 🟡 | `PolymorphicTypeExtractor` currently assumes a discriminator property; needs to tolerate absence if the property is defined in the schema |
-| `discriminator.defaultMapping` | ✅ | ❌ | Fallback schema when the value is missing/unrecognized — maps to a default concrete type in deserialization |
+| Optional `discriminator.propertyName` | ✅ | ✅ | **Phase 3 done.** When `propertyName` is absent, auto-detect scans all variants for a common string property (priority: `type`, `kind`, `discriminator`, `$type`). If auto-detect succeeds the discriminator is used; if it fails, `ATC_API_SCH020` warning is emitted. Auto-detect path uses the custom converter (not `[JsonPolymorphic]`) to avoid the STJ .NET 10 property-name collision |
+| `discriminator.defaultMapping` | ✅ | ✅ | **Phase 3 done.** Generates a `{BaseType}JsonConverter : JsonConverter<T>` that dispatches on the discriminator property and falls back to the `defaultMapping` schema for unrecognized values. The custom converter is used instead of `[JsonPolymorphic]` + `[JsonDerivedType]` attributes. `ATC_API_SCH020` added to `RuleIdentifiers`. Reference scenario: `test/Scenarios/DiscriminatorImprovements/` |
 | **Annotated Enumerations** (`oneOf`/`anyOf` + `const`) | ✅ | ❌ | Pattern for associating metadata (description, deprecated) with individual enum members. Generator should map this to a real C# enum with attributes or a TS union/enum with JSDoc |
 | **Generic Data Structures** (`$dynamicAnchor`/`$dynamicRef`) | ✅ | ❌ | Formal support for "template" schemas (e.g. `PaginatedResponse<T>`). Generator should map these to C#/TS Generics instead of duplicating types |
 | `Schema.summary` | ✅ | ❌ | New short-description field for models; emit into C# `<summary>` or TS JSDoc |
@@ -360,11 +360,14 @@ snapshots for server, C# client, and TypeScript client output.
   unrelated to framing: TS model named `Event` collides with the DOM `Event` (no import
   emitted); the hand-rolled TS SSE parser is LF-only and duplicated across Fetch/Axios.
 
-### Phase 3 — Security & polymorphism enhancements ❌
+### Phase 3 — Security & polymorphism enhancements 🟡
 
+**Discriminator improvements done:**
+- ✅ Optional `discriminator.propertyName` — auto-detect from common variant properties; `ATC_API_SCH020` warning when auto-detect fails.
+- ✅ `discriminator.defaultMapping` — generates a custom `{BaseType}JsonConverter` with fallback to the default schema for unrecognized discriminator values.
+
+Remaining:
 - OAuth2 device flow, `oauth2MetadataUrl`, scheme `deprecated`, scheme `$ref`-by-URI.
-- Optional `discriminator.propertyName` and `defaultMapping` in
-  `PolymorphicTypeExtractor`.
 
 ### Phase 4 — Parameters, components reuse, metadata 🟡
 
@@ -391,7 +394,7 @@ Remaining:
 | `query` method + `additionalOperations` | ✅ | 1 |
 | Streaming / sequential media types (`itemSchema`, SSE/jsonl/json-seq/multipart framing) | ✅ | 2 |
 | OAuth2 device flow + scheme metadata | ❌ | 3 |
-| Discriminator `defaultMapping` + optional `propertyName` | 🟡 | 3 |
+| Discriminator `defaultMapping` + optional `propertyName` | ✅ | 3 |
 | `querystring` / `allowReserved` / cookie `style` | ❌ | 4 |
 | `components.mediaTypes` reuse + `components.pathItems` $ref | ✅ | 4 |
 | Tag nesting, `Server.name`, `Response.summary`, `$self`, examples | ❌ | 4 |

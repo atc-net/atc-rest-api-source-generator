@@ -45,12 +45,6 @@ public static class CodeGenerationService
         NamespaceConstants.SystemTextJsonSerialization,
     ];
 
-    private static readonly string[] UnionModelUsings =
-    [
-        NamespaceConstants.SystemCodeDomCompiler,
-        NamespaceConstants.SystemTextJsonSerialization,
-    ];
-
     private static readonly string[] UnionConverterUsings =
     [
         NamespaceConstants.System,
@@ -615,7 +609,6 @@ public static class CodeGenerationService
 
     /// <summary>
     /// Generates polymorphic base types from OpenAPI oneOf/anyOf schemas.
-    /// These are abstract records with [JsonPolymorphic] and [JsonDerivedType] attributes.
     /// </summary>
     public static List<GeneratedType> GeneratePolymorphicTypes(
         OpenApiDocument openApiDoc,
@@ -643,48 +636,50 @@ public static class CodeGenerationService
 
             if (config.UsesCustomConverter)
             {
-                // Generate union wrapper type
                 var unionContent = PolymorphicTypeExtractor.GenerateUnionBaseType(config, projectName);
-                var unionRecordContent = ExtractRecordContentFromFullCode(unionContent);
-
                 result.Add(new GeneratedType(
                     TypeName: schemaName,
                     Category: "Models",
                     Namespace: @namespace,
-                    Content: unionRecordContent,
-                    RequiredUsings: new List<string>(UnionModelUsings),
+                    Content: ExtractRecordContentFromFullCode(unionContent),
+                    RequiredUsings: new List<string>(PolymorphicModelUsings),
                     GroupName: groupName,
                     SubFolder: subFolder));
 
-                // Generate converter class
                 var converterContent = PolymorphicTypeExtractor.GenerateUnionConverter(config, projectName);
-                var converterClassContent = ExtractRecordContentFromFullCode(converterContent);
-
                 result.Add(new GeneratedType(
                     TypeName: $"{schemaName}JsonConverter",
                     Category: "Models",
                     Namespace: @namespace,
-                    Content: converterClassContent,
+                    Content: ExtractRecordContentFromFullCode(converterContent),
                     RequiredUsings: new List<string>(UnionConverterUsings),
                     GroupName: groupName,
                     SubFolder: subFolder));
             }
             else
             {
-                // Generate the polymorphic base type content (discriminator-based)
-                var content = PolymorphicTypeExtractor.GeneratePolymorphicBaseType(config, projectName);
-
-                // Extract just the record declaration part (after the namespace declaration)
-                var recordContent = ExtractRecordContentFromFullCode(content);
-
+                var baseContent = PolymorphicTypeExtractor.GeneratePolymorphicBaseType(config, projectName);
                 result.Add(new GeneratedType(
                     TypeName: schemaName,
                     Category: "Models",
                     Namespace: @namespace,
-                    Content: recordContent,
+                    Content: ExtractRecordContentFromFullCode(baseContent),
                     RequiredUsings: new List<string>(PolymorphicModelUsings),
                     GroupName: groupName,
                     SubFolder: subFolder));
+
+                if (config.DefaultVariantTypeName != null)
+                {
+                    var converterContent = PolymorphicTypeExtractor.GenerateDiscriminatorFallbackConverter(config, projectName);
+                    result.Add(new GeneratedType(
+                        TypeName: $"{schemaName}JsonConverter",
+                        Category: "Models",
+                        Namespace: @namespace,
+                        Content: ExtractRecordContentFromFullCode(converterContent),
+                        RequiredUsings: new List<string>(UnionConverterUsings),
+                        GroupName: groupName,
+                        SubFolder: subFolder));
+                }
             }
         }
 

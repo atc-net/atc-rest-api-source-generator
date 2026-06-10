@@ -95,6 +95,9 @@ public static class OpenApiDocumentValidator
         // ATC_API_SCH019: Warn on anonymous inline schema in components.mediaTypes
         ValidateComponentsMediaTypes(diagnostics, sourceFilePath, document);
 
+        // ATC_API_SCH020: Warn when discriminator block lacks propertyName and auto-detect fails
+        ValidateDiscriminatorPropertyNames(diagnostics, sourceFilePath, document);
+
         return diagnostics;
     }
 
@@ -2635,6 +2638,58 @@ public static class OpenApiDocumentValidator
                     Severity: DiagnosticSeverity.Warning,
                     FilePath: sourceFilePath));
             }
+        }
+    }
+
+    /// <summary>
+    /// Warns when a polymorphic schema has a discriminator block without 'propertyName' and
+    /// no common string property can be auto-detected across variants (ATC_API_SCH020).
+    /// </summary>
+    private static void ValidateDiscriminatorPropertyNames(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        OpenApiDocument document)
+    {
+        if (document.Components?.Schemas == null)
+        {
+            return;
+        }
+
+        foreach (var schema in document.Components.Schemas)
+        {
+            var schemaValue = schema.Value;
+
+            // Skip references — they are validated at their target
+            if (schemaValue is OpenApiSchemaReference)
+            {
+                continue;
+            }
+
+            // Only check schemas with polymorphic composition and a discriminator block
+            if (!schemaValue.HasPolymorphicComposition() || !schemaValue.HasDiscriminatorBlock())
+            {
+                continue;
+            }
+
+            // If propertyName is set, there is nothing to warn about
+            if (!string.IsNullOrEmpty(schemaValue.GetDiscriminatorPropertyName()))
+            {
+                continue;
+            }
+
+            // Try auto-detect — if it succeeds, generation will proceed normally
+            if (!string.IsNullOrEmpty(schemaValue.DetectDiscriminatorProperty(document)))
+            {
+                continue;
+            }
+
+            diagnostics.Add(new DiagnosticMessage(
+                RuleId: RuleIdentifiers.DiscriminatorMissingPropertyName,
+                Message: $"Schema '{schema.Key}' has a discriminator block without 'propertyName', " +
+                         "and no common string property could be auto-detected across all polymorphic variants. " +
+                         "Add 'propertyName' to the discriminator block for reliable polymorphic code generation.",
+                Severity: DiagnosticSeverity.Warning,
+                FilePath: sourceFilePath));
         }
     }
 
