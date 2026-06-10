@@ -35,6 +35,14 @@ public class PolymorphicConfig
     public bool UsesCustomConverter { get; set; }
 
     /// <summary>
+    /// Gets or sets the fallback variant type name for unrecognized discriminator values.
+    /// Set from OpenAPI 3.2 <c>discriminator.defaultMapping</c>.
+    /// When non-null a custom discriminator JsonConverter is generated instead of
+    /// <c>[JsonPolymorphic]</c> attributes, so that the fallback is enforced at runtime.
+    /// </summary>
+    public string? DefaultVariantTypeName { get; set; }
+
+    /// <summary>
     /// Gets the list of polymorphic variants.
     /// </summary>
     public List<PolymorphicVariant> Variants { get; } = [];

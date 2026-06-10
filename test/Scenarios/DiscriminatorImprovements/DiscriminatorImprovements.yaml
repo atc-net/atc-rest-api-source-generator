@@ -1,0 +1,150 @@
+openapi: "3.2.0"
+info:
+  version: 1.0.0
+  title: Discriminator Improvements API
+  description: API demonstrating OpenAPI 3.2 discriminator improvements
+servers:
+  - url: http://api.example.com/v1
+paths:
+  /orders:
+    post:
+      operationId: createOrder
+      summary: Create an order
+      tags:
+        - orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Order'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Invalid order data
+  /orders/{orderId}:
+    parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getOrderById
+      summary: Get an order
+      tags:
+        - orders
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: Order not found
+
+  /events:
+    get:
+      operationId: listEvents
+      summary: List events
+      tags:
+        - events
+      responses:
+        '200':
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+
+components:
+  schemas:
+    # Case 1: oneOf with explicit discriminator + defaultMapping (OpenAPI 3.2 feature).
+    # When the discriminator value is missing or unrecognized, the converter falls back
+    # to OnlineOrder. Exercises the custom discriminator JsonConverter generation path.
+    Order:
+      oneOf:
+        - $ref: '#/components/schemas/OnlineOrder'
+        - $ref: '#/components/schemas/InStoreOrder'
+      discriminator:
+        propertyName: orderType
+        mapping:
+          online: '#/components/schemas/OnlineOrder'
+          in_store: '#/components/schemas/InStoreOrder'
+        defaultMapping: '#/components/schemas/OnlineOrder'
+
+    OnlineOrder:
+      type: object
+      required:
+        - orderType
+        - url
+      properties:
+        orderType:
+          type: string
+          description: Discriminator value
+        url:
+          type: string
+          format: uri
+          description: Online storefront URL
+
+    InStoreOrder:
+      type: object
+      required:
+        - orderType
+        - storeId
+      properties:
+        orderType:
+          type: string
+          description: Discriminator value
+        storeId:
+          type: string
+          description: Physical store identifier
+
+    # Case 2: oneOf with discriminator block but without propertyName (valid in 3.2).
+    # Auto-detect finds the common "eventType" property across all variants and the
+    # explicit mapping is still honoured for discriminator values.
+    Event:
+      oneOf:
+        - $ref: '#/components/schemas/UserCreatedEvent'
+        - $ref: '#/components/schemas/OrderPlacedEvent'
+      discriminator:
+        mapping:
+          user_created: '#/components/schemas/UserCreatedEvent'
+          order_placed: '#/components/schemas/OrderPlacedEvent'
+
+    UserCreatedEvent:
+      type: object
+      required:
+        - eventType
+        - userId
+      properties:
+        eventType:
+          type: string
+          description: Discriminator value
+        userId:
+          type: string
+          format: uuid
+          description: Created user identifier
+
+    OrderPlacedEvent:
+      type: object
+      required:
+        - eventType
+        - orderId
+      properties:
+        eventType:
+          type: string
+          description: Discriminator value
+        orderId:
+          type: string
+          format: uuid
+          description: Placed order identifier

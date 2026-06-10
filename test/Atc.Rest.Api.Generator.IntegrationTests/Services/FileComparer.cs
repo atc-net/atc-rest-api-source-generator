@@ -21,11 +21,12 @@ public static class FileComparer
         var subFolder = type.SubFolder ?? string.Empty;
 
         // Sanitize type name for Windows filename compatibility
-        // Replace <T> with [T] and : with " -" to avoid invalid filename characters
+        // Replace <T> with [T] and " : " (inheritance) with "-"
         var safeTypeName = type.TypeName
             .Replace("<", "[", StringComparison.Ordinal)
             .Replace(">", "]", StringComparison.Ordinal)
-            .Replace(":", " -", StringComparison.Ordinal);
+            .Replace(" : ", "-", StringComparison.Ordinal)
+            .Replace(":", "-", StringComparison.Ordinal);
 
         var extension = isTypeScript ? "ts" : "cs";
         var fileName = $"{safeTypeName}.verified.{extension}";

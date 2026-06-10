@@ -8,10 +8,8 @@ namespace AnyOfNoDiscriminator.Generated.Models;
 /// <summary>
 /// Polymorphic base type (anyOf) with discriminator property 'color'.
 /// Note: Discriminator was auto-detected from common properties.
+/// Note: Uses a custom JsonConverter because discriminator was auto-detected (fallback: Circle).
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "color")]
-[JsonDerivedType(typeof(Circle), "Circle")]
-[JsonDerivedType(typeof(Square), "Square")]
-[JsonDerivedType(typeof(Triangle), "Triangle")]
+[JsonConverter(typeof(ShapeJsonConverter))]
 public abstract record Shape;
