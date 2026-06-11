@@ -20,11 +20,13 @@ export interface ApiClientOptions {
 
 export interface RequestOptions {
   body?: unknown;
-  query?: Record<string, string | number | boolean | undefined>;
+  query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>;
   headers?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
   responseType?: 'json' | 'blob' | 'text';
 }
+
+export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
 
 export class ApiClient {
   private readonly baseUrl: string;
@@ -85,7 +87,7 @@ export class ApiClient {
     return this.handleResponse<T>(response, options?.responseType);
   }
 
-  async *requestStream<T>(method: string, path: string, options?: RequestOptions): AsyncGenerator<T> {
+  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {
     const url = this.buildUrl(path, options?.query);
     const headers = await this.getHeaders(options?.headers);
 
@@ -116,6 +118,60 @@ export class ApiClient {
 
     const decoder = new TextDecoder();
     let buffer = '';
+
+    if (framing === 'sse') {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let sep: number;
+          while ((sep = buffer.indexOf('\n\n')) !== -1) {
+            const rawEvent = buffer.substring(0, sep);
+            buffer = buffer.substring(sep + 2);
+            const data = rawEvent
+              .split('\n')
+              .filter((l) => l.startsWith('data:'))
+              .map((l) => l.slice(5).trimStart())
+              .join('\n');
+            if (data.length > 0) {
+              yield JSON.parse(data) as T;
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      return;
+    }
+
+    if (framing === 'multipart') {
+      // Buffer the whole body then split on the boundary: scanning a boundary token
+      // across streamed chunk edges is non-trivial, so this is an intentional
+      // simplification for multipart (the other framings parse incrementally).
+      const contentType = response.headers.get('content-type') ?? '';
+      const m = /boundary=("?)([^";]+)\1/i.exec(contentType);
+      const delimiter = '--' + (m ? m[2] : '');
+      let all = '';
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          all += decoder.decode(value, { stream: true });
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      for (const part of all.split(delimiter)) {
+        const trimmed = part.replace(/^\r\n/, '');
+        if (trimmed.length === 0 || trimmed.startsWith('--')) continue;
+        const sep = trimmed.indexOf('\r\n\r\n');
+        if (sep === -1) continue;
+        const bodyText = trimmed.substring(sep + 4).trim();
+        if (bodyText.length > 0) yield JSON.parse(bodyText) as T;
+      }
+      return;
+    }
 
     try {
       while (true) {
@@ -155,15 +211,24 @@ export class ApiClient {
     }
   }
 
-  buildUrl(path: string, query?: Record<string, string | number | boolean | undefined>): string {
+  buildUrl(path: string, query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>): string {
     const url = new URL(`${this.baseUrl}${path}`);
     if (query) {
       for (const [key, value] of Object.entries(query)) {
-        if (value !== undefined) {
+        if (value === undefined) {
+          continue;
+        }
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            url.searchParams.append(key, String(item));
+          }
+        } else {
           url.searchParams.set(key, String(value));
         }
       }
     }
+    // Note: URL.searchParams always percent-encodes values.
+    // OpenAPI allowReserved cannot be honoured via this path.
     return url.toString();
   }
 

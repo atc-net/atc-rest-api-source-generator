@@ -15,6 +15,7 @@ export class TestingClient {
     this.api = api;
   }
 
+  /** Test exception handling */
   async getExceptionTest(code: number): Promise<GetExceptionTestResult> {
     return this.api.request<ExceptionTestResponse>('GET', `/testing/exception/${code}`) as Promise<GetExceptionTestResult>;
   }
