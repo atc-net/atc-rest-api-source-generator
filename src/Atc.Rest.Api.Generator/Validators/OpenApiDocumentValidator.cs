@@ -77,8 +77,23 @@ public static class OpenApiDocumentValidator
 
         if (diagnosticErrors.Count > 0)
         {
+            var isOpenApi32 = document.GetOpenApiSpecVersion() == OpenApiSpecVersion.OpenApi3_2;
+
             foreach (var error in diagnosticErrors)
             {
+                // In OpenAPI 3.2, discriminator.propertyName is optional.
+                // Suppress the parser's 3.0/3.1 rule "discriminator property must be in required"
+                // when the discriminator at that path genuinely has no propertyName.
+                if (isOpenApi32 &&
+                    error.Pointer is not null &&
+                    error.Pointer.EndsWith("/discriminator", StringComparison.Ordinal) &&
+                    error.Message.Contains("discriminator", StringComparison.OrdinalIgnoreCase) &&
+                    error.Message.Contains("required", StringComparison.OrdinalIgnoreCase) &&
+                    IsDiscriminatorWithoutPropertyName(document, error.Pointer))
+                {
+                    continue;
+                }
+
                 diagnostics.Add(DiagnosticBuilder.ParsingError(
                     error.Message,
                     error.Pointer,
@@ -2645,6 +2660,34 @@ public static class OpenApiDocumentValidator
     /// Warns when a polymorphic schema has a discriminator block without 'propertyName' and
     /// no common string property can be auto-detected across variants (ATC_API_SCH020).
     /// </summary>
+    /// <summary>
+    /// Returns true when the discriminator at the given JSON pointer path
+    /// has no propertyName — used to suppress parser errors that are only
+    /// valid for OAS 3.0/3.1 but not 3.2 (where propertyName is optional).
+    /// </summary>
+    private static bool IsDiscriminatorWithoutPropertyName(
+        OpenApiDocument document,
+        string pointer)
+    {
+        // pointer format: #/components/schemas/{Name}/discriminator
+        var parts = pointer.TrimStart('#').TrimStart('/').Split('/');
+        if (parts.Length < 3 ||
+            parts[0] != "components" ||
+            parts[1] != "schemas")
+        {
+            return false;
+        }
+
+        var schemaName = parts[2];
+        if (document.Components?.Schemas is null ||
+            !document.Components.Schemas.TryGetValue(schemaName, out var schema))
+        {
+            return false;
+        }
+
+        return string.IsNullOrEmpty(schema.GetDiscriminatorPropertyName());
+    }
+
     private static void ValidateDiscriminatorPropertyNames(
         List<DiagnosticMessage> diagnostics,
         string sourceFilePath,
