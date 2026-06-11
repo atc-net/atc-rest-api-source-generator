@@ -8,6 +8,11 @@ using PetStoreFull.Generated.Models;
 
 namespace PetStoreFull.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Update an existing pet..
+/// Operation: UpdatePet.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdatePetParameters(
     [property: FromBody, Required] Pet Request);

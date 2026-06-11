@@ -7,6 +7,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ModelsAndProperties.Generated.Models;
 
+/// <summary>
+/// A comprehensive model demonstrating all OpenAPI features.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ComprehensiveModel(
     [property: Required] Guid Id,

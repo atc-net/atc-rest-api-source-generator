@@ -8,6 +8,11 @@ using OpenApi32Features.Generated.Models;
 
 namespace OpenApi32Features.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create a document with base64 content.
+/// Operation: CreateDocument.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateDocumentParameters(
     [property: FromBody, Required] DocumentRequest Request);

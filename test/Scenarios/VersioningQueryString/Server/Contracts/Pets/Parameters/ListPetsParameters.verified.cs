@@ -8,6 +8,11 @@ using VersioningQueryString.Generated.Models;
 
 namespace VersioningQueryString.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: List all pets.
+/// Operation: ListPets.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListPetsParameters(
     [property: FromQuery(Name = "limit"), Range(long.MinValue, 100)] int? Limit);

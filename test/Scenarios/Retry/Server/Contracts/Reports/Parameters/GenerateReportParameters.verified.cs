@@ -8,6 +8,11 @@ using Retry.Generated.Models;
 
 namespace Retry.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Generate report (no retry, long timeout).
+/// Operation: GenerateReport.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GenerateReportParameters(
     [property: FromBody, Required] ReportRequest Request);

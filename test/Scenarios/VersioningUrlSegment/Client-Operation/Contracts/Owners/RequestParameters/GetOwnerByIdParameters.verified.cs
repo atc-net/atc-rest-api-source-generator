@@ -9,6 +9,11 @@ using VersioningUrlSegment.Generated.Models;
 
 namespace VersioningUrlSegment.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get an owner by ID.
+/// Operation: GetOwnerById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetOwnerByIdParameters(
     [property: FromRoute(Name = "ownerId"), Required] Guid OwnerId);

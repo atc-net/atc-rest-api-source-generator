@@ -105,8 +105,8 @@ the existing TS streaming heuristic onto a real spec signal.
 | Feature | Parser | Generator | Notes |
 |---------|:------:|:---------:|-------|
 | `in: querystring` location | ✅ | ❌ | Entire query string parsed as one value via `content`. New parameter location alongside path/query/header/cookie |
-| `Parameter.summary` | ✅ | ❌ | New short-description field for path/query/header/cookie parameters |
-| `Header.summary` | ✅ | ❌ | New short-description field for response headers |
+| `Parameter.summary` | ❌ | ❌ | Parser drops this field (emits validation error); value is unrecoverable at `Microsoft.OpenApi` 3.7.0. Deferred |
+| `Header.summary` | ❌ | ❌ | Same parser limitation as `Parameter.summary`. Deferred |
 | `allowReserved` on headers / any `in` | ✅ | ❌ | Affects percent-encoding behavior; relevant to client serialization |
 | `style: cookie` for cookie content | ✅ | ❌ | No `style`/`explode` serialization handling exists today at all |
 
@@ -141,7 +141,7 @@ serialization, so 3.2 additions here land on top of a pre-existing gap.
 |---------|:------:|:---------:|-------|
 | OAuth2 Device Authorization flow (`deviceAuthorization`, `deviceAuthorizationUrl`) | ✅ | ❌ | New flow type. `OAuthFlowsInfo`/`OAuthFlowInfo` models would need a device-flow arm |
 | `oauth2MetadataUrl` | ✅ | ❌ | Auth-server metadata URL (RFC 8414) |
-| `SecurityScheme.summary` | ✅ | ❌ | New short-description field for security schemes |
+| `SecurityScheme.summary` | ❌ | ❌ | Parser likely drops this (same pattern as `Parameter.summary`). Deferred |
 | `deprecated` on a security scheme | ✅ | ❌ | Emit `[Obsolete]`/deprecation notes where schemes flow into generated code |
 | Reference a security scheme by URI | ✅ | ❌ | Resolution concern in security extractors |
 
@@ -164,14 +164,14 @@ supported; 3.2 extends `oauth2` and adds scheme-level metadata.
 | `discriminator.defaultMapping` | ✅ | ✅ | **Phase 3 done.** Generates a `{BaseType}JsonConverter : JsonConverter<T>` that dispatches on the discriminator property and falls back to the `defaultMapping` schema for unrecognized values. The custom converter is used instead of `[JsonPolymorphic]` + `[JsonDerivedType]` attributes. `ATC_API_SCH020` added to `RuleIdentifiers`. Reference scenario: `test/Scenarios/DiscriminatorImprovements/` |
 | **Annotated Enumerations** (`oneOf`/`anyOf` + `const`) | ✅ | ❌ | Pattern for associating metadata (description, deprecated) with individual enum members. Generator should map this to a real C# enum with attributes or a TS union/enum with JSDoc |
 | **Generic Data Structures** (`$dynamicAnchor`/`$dynamicRef`) | ✅ | ❌ | Formal support for "template" schemas (e.g. `PaginatedResponse<T>`). Generator should map these to C#/TS Generics instead of duplicating types |
-| `Schema.summary` | ✅ | ❌ | New short-description field for models; emit into C# `<summary>` or TS JSDoc |
+| `Schema.summary` | 🟡 | ✅ | **Phase 4-2 done.** Read via `UnrecognizedKeywords["summary"]` (parser doesn't expose it as a native property); preferred over `description` in `<summary>` (C#) and JSDoc (TS). Reference scenario: `test/Scenarios/SchemaSummaryFields/`. Parser status 🟡 = accessible but not a first-class property |
 
 ### Response Object
 
 | Feature | Parser | Generator | Notes |
 |---------|:------:|:---------:|-------|
 | Optional `description` | ✅ | 🟡 | Generators may assume a description is present; verify nullable handling |
-| `Response.summary` | ✅ | ❌ | New short-description field; emit into doc comments |
+| `Response.summary` | ✅ | ✅ | **Phase 4-2 done.** Native property on `OpenApiResponse`; preferred over `description` in result class doc comments. Reference scenario: `test/Scenarios/SchemaSummaryFields/` |
 
 ### Components reuse
 
@@ -375,9 +375,9 @@ Remaining:
 
 Remaining:
 - `in: querystring`, `allowReserved`, `style: cookie`.
-- `Tag.summary`/`parent`/`kind`, `Server.name`, `Response.summary`, optional
-  `Response.description`, `$self`, `Example.dataValue`/`serializedValue`.
-- Support for `summary` across all supported objects (Schema, Parameter, Header, Security Scheme).
+- `Tag.summary`/`parent`/`kind`, `Server.name`, optional `Response.description`, `$self`, `Example.dataValue`/`serializedValue`.
+- `Parameter.summary`, `Header.summary`, `SecurityScheme.summary` — blocked by parser dropping the field; deferred until `Microsoft.OpenApi` exposes them natively.
+- Support for Annotated Enumerations and Generic Data Structures.
 - Support for Annotated Enumerations and Generic Data Structures.
 
 ### Phase 5 — XML & documentation-only ⬜
@@ -399,7 +399,8 @@ Remaining:
 | `components.mediaTypes` reuse + `components.pathItems` $ref | ✅ | 4 |
 | Tag nesting, `Server.name`, `Response.summary`, `$self`, examples | ❌ | 4 |
 | Annotated Enumerations & Generic Data Structures | ❌ | 4 |
-| `summary` on Schema, Parameter, Header, etc. | ❌ | 4 |
+| `Schema.summary` + `Response.summary` | ✅ | 4 |
+| `Parameter.summary`, `Header.summary`, `SecurityScheme.summary` | ❌ (parser blocks) | — |
 | XML `nodeType`, ABNF, Links | ⬜ | 5 |
 | [Pre-3.2 gaps](#missing-pre-32-features-30--31-gaps) (style/explode, Links, callbacks, mutualTLS, …) | 🟡 | 0/4 |
 

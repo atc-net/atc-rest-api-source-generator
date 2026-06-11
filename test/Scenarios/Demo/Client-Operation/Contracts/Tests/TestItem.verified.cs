@@ -6,6 +6,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Demo.Generated.Models;
 
+/// <summary>
+/// A test item used to demonstrate different 201 response patterns.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record TestItem(
     [property: Required] Guid Id,

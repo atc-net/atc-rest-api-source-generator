@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CachingHybrid.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create user (no caching).
+/// Operation: CreateUser.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateUserParameters(
     [property: FromBody, Required] CreateUserRequest Request);

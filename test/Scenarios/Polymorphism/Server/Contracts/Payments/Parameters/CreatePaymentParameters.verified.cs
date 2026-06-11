@@ -8,6 +8,11 @@ using Polymorphism.Generated.Models;
 
 namespace Polymorphism.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create a payment.
+/// Operation: CreatePayment.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreatePaymentParameters(
     [property: FromBody, Required] PaymentMethod Request);

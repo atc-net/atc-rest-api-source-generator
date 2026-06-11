@@ -9,6 +9,11 @@ using SecurityAtcExt.Generated.Models;
 
 namespace SecurityAtcExt.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Delete order (override to admin only).
+/// Operation: DeleteOrder.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeleteOrderParameters(
     [property: FromRoute(Name = "orderId"), Required] Guid OrderId);

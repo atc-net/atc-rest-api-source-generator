@@ -8,6 +8,11 @@ using VersioningHeader.Generated.Models;
 
 namespace VersioningHeader.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create a new pet.
+/// Operation: CreatePet.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreatePetParameters(
     [property: FromBody, Required] CreatePetRequest Request);

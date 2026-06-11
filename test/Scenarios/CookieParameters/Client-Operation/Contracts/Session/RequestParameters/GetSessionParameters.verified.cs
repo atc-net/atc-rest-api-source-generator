@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CookieParameters.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get current session.
+/// Operation: GetSession.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetSessionParameters(
     [property: FromCookie(Name = "sessionId"), Required] string SessionId,

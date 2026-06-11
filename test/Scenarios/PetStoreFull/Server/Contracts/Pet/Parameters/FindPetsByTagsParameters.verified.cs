@@ -8,6 +8,11 @@ using PetStoreFull.Generated.Models;
 
 namespace PetStoreFull.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Finds Pets by tags..
+/// Operation: FindPetsByTags.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record FindPetsByTagsParameters(
     [property: FromQuery(Name = "tags"), Required] ParsableList<string> Tags);

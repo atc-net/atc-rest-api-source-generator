@@ -9,6 +9,11 @@ using VersioningUrlSegment.Generated.Models;
 
 namespace VersioningUrlSegment.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Delete a pet.
+/// Operation: DeletePet.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeletePetParameters(
     [property: FromRoute(Name = "petId"), Required] Guid PetId);

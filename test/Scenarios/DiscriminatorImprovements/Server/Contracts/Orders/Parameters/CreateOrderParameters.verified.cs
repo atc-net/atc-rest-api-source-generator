@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DiscriminatorImprovements.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create an order.
+/// Operation: CreateOrder.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOrderParameters(
     [property: FromBody, Required] Order Request);

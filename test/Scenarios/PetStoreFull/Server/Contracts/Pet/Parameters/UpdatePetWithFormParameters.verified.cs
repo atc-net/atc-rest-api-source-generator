@@ -8,6 +8,11 @@ using PetStoreFull.Generated.Models;
 
 namespace PetStoreFull.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Updates a pet in the store with form data..
+/// Operation: UpdatePetWithForm.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdatePetWithFormParameters(
     [property: FromRoute(Name = "petId"), Required] long PetId,

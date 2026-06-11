@@ -8,6 +8,11 @@ using Retry.Generated.Models;
 
 namespace Retry.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create order (retry disabled for non-idempotent).
+/// Operation: CreateOrder.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOrderParameters(
     [property: FromBody, Required] CreateOrderRequest Request);

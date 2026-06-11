@@ -9,6 +9,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CachingOutput.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get product by ID with output caching.
+/// Operation: GetProductById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetProductByIdParameters(
     [property: FromRoute(Name = "productId"), Required] Guid ProductId);

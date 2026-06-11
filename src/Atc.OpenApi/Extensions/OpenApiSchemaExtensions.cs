@@ -254,6 +254,27 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
+        /// Gets the <c>summary</c> value for a schema (OpenAPI 3.2 field).
+        /// Microsoft.OpenApi 3.6.0 does not expose <c>summary</c> as a first-class property on
+        /// <see cref="OpenApiSchema"/>, so the value is read from <see cref="OpenApiSchema.UnrecognizedKeywords"/>.
+        /// Returns <see langword="null"/> if the schema is a reference (summary on a reference is not supported)
+        /// or if no <c>summary</c> keyword is present.
+        /// </summary>
+        /// <returns>The summary string, or <see langword="null"/> if not set.</returns>
+        public string? GetSchemaSummary()
+        {
+            if (schema is not OpenApiSchema actualSchema ||
+                actualSchema.UnrecognizedKeywords is null)
+            {
+                return null;
+            }
+
+            return actualSchema.UnrecognizedKeywords.TryGetValue("summary", out var value)
+                ? value?.ToString()
+                : null;
+        }
+
+        /// <summary>
         /// Gets the effective deprecated status for a schema, considering OpenAPI 3.1 $ref with sibling support.
         /// In OpenAPI 3.1, a deprecated flag alongside a $ref can override the referenced schema's status.
         /// </summary>

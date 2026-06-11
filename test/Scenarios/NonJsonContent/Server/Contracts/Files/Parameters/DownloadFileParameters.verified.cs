@@ -8,6 +8,11 @@ using NonJsonContent.Generated.Models;
 
 namespace NonJsonContent.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Download a binary file.
+/// Operation: DownloadFile.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DownloadFileParameters(
     [property: FromRoute(Name = "fileId"), Required] string FileId);

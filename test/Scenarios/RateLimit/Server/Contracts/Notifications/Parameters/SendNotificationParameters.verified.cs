@@ -8,6 +8,11 @@ using RateLimit.Generated.Models;
 
 namespace RateLimit.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Send notification (token bucket with queue).
+/// Operation: SendNotification.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record SendNotificationParameters(
     [property: FromBody, Required] Notification Request);

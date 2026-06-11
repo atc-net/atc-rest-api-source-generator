@@ -8,6 +8,11 @@ using SecurityHybrid.Generated.Models;
 
 namespace SecurityHybrid.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create a new order.
+/// Operation: CreateOrder.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOrderParameters(
     [property: FromBody, Required] CreateOrderRequest Request);

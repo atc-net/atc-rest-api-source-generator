@@ -9,6 +9,11 @@ using SecurityOpenIdConnect.Generated.Models;
 
 namespace SecurityOpenIdConnect.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get resource by ID.
+/// Operation: GetResourceById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetResourceByIdParameters(
     [property: FromRoute(Name = "resourceId"), Required] Guid ResourceId);

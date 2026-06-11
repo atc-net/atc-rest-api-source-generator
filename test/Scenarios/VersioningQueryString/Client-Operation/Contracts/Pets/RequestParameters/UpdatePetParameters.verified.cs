@@ -9,6 +9,11 @@ using VersioningQueryString.Generated.Models;
 
 namespace VersioningQueryString.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Update a pet.
+/// Operation: UpdatePet.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdatePetParameters(
     [property: FromRoute(Name = "petId"), Required] Guid PetId,

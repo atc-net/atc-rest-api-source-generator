@@ -8,6 +8,11 @@ using ModelsAndProperties.Generated.Models;
 
 namespace ModelsAndProperties.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create address.
+/// Operation: CreateAddress.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateAddressParameters(
     [property: FromBody, Required] Address Request);

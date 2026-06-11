@@ -9,5 +9,5 @@ namespace OpenApi31Features.Generated.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DocumentRequest(
     [property: Required] string Name,
-    [property: Required] byte[] Content,
+    [property: Required] string Content,
     Dictionary<string, string>? Metadata);

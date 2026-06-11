@@ -9,6 +9,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CachingHybrid.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get user by ID with HybridCache and sliding expiration.
+/// Operation: GetUserById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetUserByIdParameters(
     [property: FromRoute(Name = "userId"), Required] Guid UserId);

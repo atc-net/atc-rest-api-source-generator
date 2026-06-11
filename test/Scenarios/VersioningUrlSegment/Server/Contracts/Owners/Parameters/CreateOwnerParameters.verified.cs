@@ -8,6 +8,11 @@ using VersioningUrlSegment.Generated.Models;
 
 namespace VersioningUrlSegment.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create a new owner.
+/// Operation: CreateOwner.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOwnerParameters(
     [property: FromBody, Required] CreateOwnerRequest Request);

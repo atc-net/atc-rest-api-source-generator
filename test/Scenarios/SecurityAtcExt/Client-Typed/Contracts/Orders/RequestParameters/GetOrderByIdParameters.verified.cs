@@ -9,6 +9,11 @@ using SecurityAtcExt.Generated.Models;
 
 namespace SecurityAtcExt.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get order (manager role inherited).
+/// Operation: GetOrderById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetOrderByIdParameters(
     [property: FromRoute(Name = "orderId"), Required] Guid OrderId);

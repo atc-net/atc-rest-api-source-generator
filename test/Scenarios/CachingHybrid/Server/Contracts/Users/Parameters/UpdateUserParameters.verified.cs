@@ -9,6 +9,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CachingHybrid.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Update user (no caching).
+/// Operation: UpdateUser.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdateUserParameters(
     [property: FromRoute(Name = "userId"), Required] Guid UserId,

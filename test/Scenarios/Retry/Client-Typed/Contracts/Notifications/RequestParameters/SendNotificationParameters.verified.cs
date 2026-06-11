@@ -8,6 +8,11 @@ using Retry.Generated.Models;
 
 namespace Retry.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Send notification (constant backoff).
+/// Operation: SendNotification.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record SendNotificationParameters(
     [property: FromBody, Required] Notification Request);

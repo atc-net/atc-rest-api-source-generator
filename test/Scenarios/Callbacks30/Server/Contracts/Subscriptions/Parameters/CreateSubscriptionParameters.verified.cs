@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Callbacks30.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create a webhook subscription.
+/// Operation: CreateSubscription.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateSubscriptionParameters(
     [property: FromBody, Required] SubscriptionRequest Request);

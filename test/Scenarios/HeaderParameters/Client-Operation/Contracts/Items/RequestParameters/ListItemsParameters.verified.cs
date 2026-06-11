@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HeaderParameters.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: List items with pagination via header.
+/// Operation: ListItems.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemsParameters(
     [property: FromHeader(Name = "x-continuation")] string? Continuation,

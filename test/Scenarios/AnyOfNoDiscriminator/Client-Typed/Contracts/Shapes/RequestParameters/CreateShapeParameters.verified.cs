@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AnyOfNoDiscriminator.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create a shape.
+/// Operation: CreateShape.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateShapeParameters(
     [property: FromBody, Required] Shape Request);

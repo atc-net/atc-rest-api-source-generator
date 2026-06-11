@@ -8,6 +8,11 @@ using SecurityAtcExt.Generated.Models;
 
 namespace SecurityAtcExt.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create order (requires auth).
+/// Operation: CreateOrder.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOrderParameters(
     [property: FromBody, Required] CreateOrderRequest Request);

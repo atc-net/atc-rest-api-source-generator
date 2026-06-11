@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CachingHybrid.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: List users with HybridCache.
+/// Operation: ListUsers.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListUsersParameters(
     [property: FromQuery(Name = "search")] string? Search,

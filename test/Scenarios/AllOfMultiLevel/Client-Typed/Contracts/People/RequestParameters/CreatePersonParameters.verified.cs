@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace AllOfMultiLevel.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create a person.
+/// Operation: CreatePerson.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreatePersonParameters(
     [property: FromBody, Required] Person Request);

@@ -311,7 +311,7 @@ public static class ResultClassExtractor
         Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
     {
         var methods = new List<MethodParameters>();
-        var description = responseValue.Description ?? string.Empty;
+        var description = responseValue.Summary ?? responseValue.Description ?? string.Empty;
 
         // Check for binary file download response first
         string? fileDownloadContentType = null;

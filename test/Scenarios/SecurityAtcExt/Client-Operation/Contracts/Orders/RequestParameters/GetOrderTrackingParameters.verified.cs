@@ -9,6 +9,11 @@ using SecurityAtcExt.Generated.Models;
 
 namespace SecurityAtcExt.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get tracking (public override).
+/// Operation: GetOrderTracking.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetOrderTrackingParameters(
     [property: FromRoute(Name = "orderId"), Required] Guid OrderId);

@@ -1,0 +1,103 @@
+openapi: "3.2.0"
+info:
+  version: 1.0.0
+  title: Schema Summary Fields API
+  description: |
+    Tests that OpenAPI 3.2 `summary` fields on Schema objects are emitted as
+    doc comments in generated C# (`<summary>`) and TypeScript (JSDoc).
+servers:
+  - url: http://api.example.com/v1
+paths:
+  /pets:
+    get:
+      summary: List all pets
+      operationId: listPets
+      tags:
+        - pets
+      responses:
+        '200':
+          summary: Successful pet list response
+          description: A list of pets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pet"
+        '404':
+          summary: No pets found
+          description: No pets exist in the store
+    post:
+      summary: Create a pet
+      operationId: createPet
+      tags:
+        - pets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Pet"
+      responses:
+        '201':
+          summary: Pet created
+          description: The newly created pet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+        '400':
+          description: Validation error
+  /pets/{petId}:
+    get:
+      summary: Get a pet by ID
+      operationId: getPetById
+      tags:
+        - pets
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          summary: Pet found
+          description: The requested pet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+        '404':
+          description: Pet not found
+components:
+  schemas:
+    Pet:
+      summary: A pet in the store
+      description: Represents a pet available for adoption
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          summary: Unique pet identifier
+          description: The auto-assigned pet ID
+          type: integer
+          format: int32
+        name:
+          summary: Pet name
+          description: The pet's given name
+          type: string
+        status:
+          summary: Adoption status
+          description: Current adoption status of the pet
+          $ref: "#/components/schemas/PetStatus"
+    PetStatus:
+      summary: Adoption status values
+      description: Allowed values for a pet's adoption status
+      type: string
+      enum:
+        - available
+        - pending
+        - adopted
