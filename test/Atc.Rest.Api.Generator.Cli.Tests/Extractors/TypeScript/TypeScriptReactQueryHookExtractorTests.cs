@@ -1015,6 +1015,86 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.DoesNotContain("options?.onSuccess?.(data, variables, context);", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_MultipleGetByOperationsOnSameSegment_GeneratesUniqueQueryKeys()
+    {
+        // Regression: DeriveKeyName previously returned the hardcoded string "detail" for
+        // every get*By* operation, producing duplicate property names in the query-key
+        // factory object literal (TS1117) when a segment had more than one such operation.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /foundry/usages/by-account:
+                                get:
+                                  operationId: getFoundryUsagesByAccount
+                                  responses:
+                                    '200': { description: OK }
+                              /foundry/usages/by-model:
+                                get:
+                                  operationId: getFoundryUsagesByModel
+                                  responses:
+                                    '200': { description: OK }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var (fileName, content) = Assert.Single(result);
+
+        Assert.Equal("useFoundry", fileName);
+
+        // Each get*By* operation must produce a distinct key name — no duplicate "detail".
+        Assert.DoesNotContain("  detail:", content, StringComparison.Ordinal);
+        Assert.Contains("usagesByAccount:", content, StringComparison.Ordinal);
+        Assert.Contains("usagesByModel:", content, StringComparison.Ordinal);
+
+        // Both hook functions must reference their own distinct keys.
+        Assert.Contains("foundryKeys.usagesByAccount()", content, StringComparison.Ordinal);
+        Assert.Contains("foundryKeys.usagesByModel()", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_MutationWithQueryParams_QueryAppearsInHookSignatureAndClientCall()
+    {
+        // Regression: AppendMutationHook called BuildClientCallArgs (which emits "query"
+        // when queryParams exist) but never added query to hookParams. The mutationFn
+        // closure referenced `query` without it being in scope → TS2304.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /foundry/{accountName}/deployments:
+                                post:
+                                  operationId: createFoundryDeployment
+                                  parameters:
+                                    - { name: accountName, in: path, required: true, schema: { type: string } }
+                                    - { name: subscriptionId, in: query, schema: { type: string } }
+                                    - { name: resourceGroupName, in: query, schema: { type: string } }
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema:
+                                          type: object
+                                          properties:
+                                            name: { type: string }
+                                  responses:
+                                    '201': { description: Created }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        // `query` must appear as a hook-level parameter so the mutationFn closure can reference it.
+        Assert.Contains("query?: { subscriptionId?: string; resourceGroupName?: string }", content, StringComparison.Ordinal);
+
+        // The client call inside mutationFn must include `query` as an argument.
+        Assert.Contains("api.foundry.createFoundryDeployment(accountName, body, query)", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

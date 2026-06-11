@@ -924,6 +924,22 @@ public static class TypeScriptReactQueryHookExtractor
             variablesType = "void";
         }
 
+        // Query params are hook-scoped (set once per useXxx() call) for mutations,
+        // matching the pattern used for header params below. HasBody branches already
+        // include 'query' in clientCallArgs via BuildClientCallArgs; remaining branches
+        // (path-only, file-upload, no-args) need it appended here as well.
+        // Not adding query to hookParams was the cause of TS2304 ("Cannot find name 'query'").
+        if (info.QueryParams.Count > 0)
+        {
+            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
+            hookParams.Add("query?: " + queryType);
+
+            if (!info.HasBody)
+            {
+                clientCallArgs = clientCallArgs.Length == 0 ? "query" : clientCallArgs + ", query";
+            }
+        }
+
         // Header params are hook-scoped (set once per useXxx() call) for mutations,
         // matching how query params behave for the same operation. The order at the
         // call site is path-params..., body, query, headers — see BuildClientCallArgs.
@@ -1068,11 +1084,25 @@ public static class TypeScriptReactQueryHookExtractor
         // Try to strip the segment suffix (case-insensitive)
         var segmentPascal = segmentCamel.ToPascalCaseForDotNet();
 
-        // Check if this is a "get...By..." pattern -> detail
+        // Check if this is a "get...By..." pattern.
+        // Derive a unique key by stripping the "get" prefix and the segment name so that
+        // multiple get*By* operations on the same segment each get a distinct key —
+        // e.g. getFoundryUsagesByAccount → usagesByAccount, getFoundryUsagesByModel → usagesByModel.
+        // Returning the hardcoded "detail" caused TS1117 (duplicate object-literal keys)
+        // when a segment had more than one get*By* operation.
         if (methodName.StartsWith("get", StringComparison.OrdinalIgnoreCase) &&
             methodName.Contains("By", StringComparison.Ordinal))
         {
-            return "detail";
+            var withoutGet = methodName.Length > 3 ? methodName[3..] : methodName;
+            if (withoutGet.StartsWith(segmentPascal, StringComparison.OrdinalIgnoreCase) &&
+                withoutGet.Length > segmentPascal.Length)
+            {
+                withoutGet = withoutGet[segmentPascal.Length..];
+            }
+
+            return withoutGet.Length > 0
+                ? char.ToLowerInvariant(withoutGet[0]) + withoutGet[1..]
+                : methodName;
         }
 
         // Strip segment name from the method name
