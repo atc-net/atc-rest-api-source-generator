@@ -2,7 +2,6 @@
 import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { CreateSubscriptionRequest, NotificationEvent, Subscription, Subscriptions } from '../models';
-import type { NotificationType } from '../enums';
 import type { ApiError, ValidationError } from '../errors';
 
 export type ListSubscriptionsResult =
@@ -32,24 +31,29 @@ export class NotificationsClient {
     this.api = api;
   }
 
+  /** List all notification subscriptions */
   async listSubscriptions(): Promise<ListSubscriptionsResult> {
     return this.api.request<Subscriptions>('GET', '/notifications/subscriptions') as Promise<ListSubscriptionsResult>;
   }
 
+  /** Create a new subscription */
   async createSubscription(body: CreateSubscriptionRequest): Promise<CreateSubscriptionResult> {
     return this.api.request<Subscription>('POST', '/notifications/subscriptions', {
       body,
     }) as Promise<CreateSubscriptionResult>;
   }
 
+  /** Get subscription details */
   async getSubscriptionById(subscriptionId: string): Promise<GetSubscriptionByIdResult> {
     return this.api.request<Subscription>('GET', `/notifications/subscriptions/${subscriptionId}`) as Promise<GetSubscriptionByIdResult>;
   }
 
+  /** Cancel a subscription */
   async deleteSubscription(subscriptionId: string): Promise<DeleteSubscriptionResult> {
     return this.api.request<void>('DELETE', `/notifications/subscriptions/${subscriptionId}`) as Promise<DeleteSubscriptionResult>;
   }
 
+  /** Stream notifications in real-time */
   async *listNotifications(query?: { topics?: string /* default: 'system,user,data' */ }, signal?: AbortSignal): AsyncGenerator<NotificationEvent> {
     yield* this.api.requestStream<NotificationEvent>('GET', '/notifications/stream', {
       query: {
