@@ -6,6 +6,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ModelsAndProperties.Generated.Models;
 
+/// <summary>
+/// Demonstrates dictionary/map types using additionalProperties.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DictionaryTypes(
     Dictionary<string, string>? StringDictionary,

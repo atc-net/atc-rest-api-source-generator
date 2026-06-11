@@ -9,6 +9,11 @@ using SecurityOpenIdConnect.Generated.Models;
 
 namespace SecurityOpenIdConnect.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Delete a resource.
+/// Operation: DeleteResource.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeleteResourceParameters(
     [property: FromRoute(Name = "resourceId"), Required] Guid ResourceId);

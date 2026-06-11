@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Demo.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: List all tasks.
+/// Operation: ListTasks.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListTasksParameters(
     [property: FromQuery(Name = "limit"), Range(long.MinValue, 100)] int? Limit);

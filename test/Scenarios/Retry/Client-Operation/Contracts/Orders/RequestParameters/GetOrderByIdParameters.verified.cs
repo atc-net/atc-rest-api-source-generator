@@ -9,6 +9,11 @@ using Retry.Generated.Models;
 
 namespace Retry.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get order (inherits orders-fast).
+/// Operation: GetOrderById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetOrderByIdParameters(
     [property: FromRoute(Name = "orderId"), Required] Guid OrderId);

@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Demo.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Update a specific account.
+/// Operation: UpdateAccountById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdateAccountByIdParameters(
     [property: FromRoute(Name = "accountId"), Required] string AccountId,

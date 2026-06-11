@@ -8,6 +8,11 @@ using PetStoreFull.Generated.Models;
 
 namespace PetStoreFull.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Finds Pets by status..
+/// Operation: FindPetsByStatus.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record FindPetsByStatusParameters(
     [property: FromQuery(Name = "status"), Required, DefaultValue("available")] string Status = "available");

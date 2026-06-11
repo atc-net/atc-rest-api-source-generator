@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Demo.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get a specific account.
+/// Operation: GetAccountById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetAccountByIdParameters(
     [property: FromRoute(Name = "accountId"), Required] string AccountId);

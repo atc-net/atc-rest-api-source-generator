@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Demo.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Upload files as FormData.
+/// Operation: UploadFormDataFiles.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UploadFormDataFilesParameters(
     [property: Required] FilesAsFormDataRequest Request);

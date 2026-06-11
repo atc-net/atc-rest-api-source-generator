@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Demo.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Upload a file as OctetStream.
+/// Operation: UploadSingleFileAsFormData.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UploadSingleFileAsFormDataParameters(
     [property: FromBody, Required] Stream File);

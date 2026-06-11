@@ -9,6 +9,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Demo.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Update a specific user.
+/// Operation: UpdateUserById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdateUserByIdParameters(
     [property: FromRoute(Name = "userId"), Required] Guid UserId,

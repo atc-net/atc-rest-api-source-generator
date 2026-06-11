@@ -8,6 +8,11 @@ using Retry.Generated.Models;
 
 namespace Retry.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Process payment (circuit breaker enabled).
+/// Operation: ProcessPayment.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ProcessPaymentParameters(
     [property: FromBody, Required] PaymentRequest Request);

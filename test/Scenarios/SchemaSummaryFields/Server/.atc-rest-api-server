@@ -1,0 +1,8 @@
+{
+  "generate": true,
+  "validateSpecificationStrategy": "Standard",
+  "includeDeprecated": false,
+  "subFolderStrategy": "FirstPathSegment",
+  "namespace": null,
+  "useServersBasePath": false
+}

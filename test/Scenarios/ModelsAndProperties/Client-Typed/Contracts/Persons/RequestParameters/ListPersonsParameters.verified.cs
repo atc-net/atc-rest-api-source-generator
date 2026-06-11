@@ -8,6 +8,11 @@ using ModelsAndProperties.Generated.Models;
 
 namespace ModelsAndProperties.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: List persons.
+/// Operation: ListPersons.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListPersonsParameters(
     [property: FromQuery(Name = "gender")] GenderType? Gender);

@@ -8,6 +8,11 @@ using RateLimit.Generated.Models;
 
 namespace RateLimit.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create export (concurrency limited).
+/// Operation: CreateExport.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateExportParameters(
     [property: FromBody, Required] ExportRequest Request);

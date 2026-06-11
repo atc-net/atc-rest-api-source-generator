@@ -30,6 +30,11 @@ public class GenerateContentForRecords : IContentGenerator
         {
             var recordParameters = parameters.Parameters[i];
 
+            if (recordParameters.DocumentationTags is not null)
+            {
+                sb.Append(codeDocumentationTagsGenerator.GenerateTags(0, recordParameters.DocumentationTags));
+            }
+
             if (recordParameters.Attributes is not null)
             {
                 foreach (var attribute in recordParameters.Attributes)

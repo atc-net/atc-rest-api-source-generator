@@ -9,6 +9,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Demo.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Delete a specific user.
+/// Operation: DeleteUserById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeleteUserByIdParameters(
     [property: FromRoute(Name = "userId"), Required] Guid UserId);

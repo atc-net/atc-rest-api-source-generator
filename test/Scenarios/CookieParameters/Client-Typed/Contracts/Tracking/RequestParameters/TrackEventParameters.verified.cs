@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CookieParameters.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Track an event with user context.
+/// Operation: TrackEvent.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record TrackEventParameters(
     [property: FromRoute(Name = "eventId"), Required] string EventId,

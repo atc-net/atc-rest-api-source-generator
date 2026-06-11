@@ -8,6 +8,11 @@ using PetStoreSimple.Generated.Models;
 
 namespace PetStoreSimple.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Info for a specific pet.
+/// Operation: ShowPetById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ShowPetByIdParameters(
     [property: FromRoute(Name = "petId"), Required] string PetId);

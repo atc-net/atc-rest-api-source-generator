@@ -9,6 +9,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Callbacks30.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Delete a subscription.
+/// Operation: DeleteSubscription.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeleteSubscriptionParameters(
     [property: FromRoute(Name = "subscriptionId"), Required] Guid SubscriptionId);

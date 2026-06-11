@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ComponentsReuse.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get item by ID.
+/// Operation: GetItemById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetItemByIdParameters(
     [property: FromRoute(Name = "id"), Required] string Id);

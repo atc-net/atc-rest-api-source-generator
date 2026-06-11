@@ -9,6 +9,11 @@ using Polymorphism.Generated.Models;
 
 namespace Polymorphism.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get a specific payment.
+/// Operation: GetPaymentById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetPaymentByIdParameters(
     [property: FromRoute(Name = "paymentId"), Required] Guid PaymentId);

@@ -8,6 +8,11 @@ using ModelsAndProperties.Generated.Models;
 
 namespace ModelsAndProperties.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create a new model.
+/// Operation: CreateModel.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateModelParameters(
     [property: FromBody, Required] ComprehensiveModel Request);

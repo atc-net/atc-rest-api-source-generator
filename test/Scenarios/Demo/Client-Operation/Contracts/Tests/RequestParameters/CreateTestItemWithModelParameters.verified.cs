@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Demo.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create and return the created model.
+/// Operation: CreateTestItemWithModel.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateTestItemWithModelParameters(
     [property: FromBody, Required] CreateTestItemRequest Request);

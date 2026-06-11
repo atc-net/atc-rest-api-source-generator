@@ -8,6 +8,11 @@ using ReadOnlyWriteOnly.Generated.Models;
 
 namespace ReadOnlyWriteOnly.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create a new user.
+/// Operation: CreateUser.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateUserParameters(
     [property: FromBody, Required] User Request);

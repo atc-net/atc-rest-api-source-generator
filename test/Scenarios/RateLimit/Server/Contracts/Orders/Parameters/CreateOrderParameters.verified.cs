@@ -8,6 +8,11 @@ using RateLimit.Generated.Models;
 
 namespace RateLimit.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create order (orders-standard policy).
+/// Operation: CreateOrder.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOrderParameters(
     [property: FromBody, Required] CreateOrderRequest Request);

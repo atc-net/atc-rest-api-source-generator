@@ -8,6 +8,11 @@ using SecurityStandard.Generated.Models;
 
 namespace SecurityStandard.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Update admin settings.
+/// Operation: UpdateAdminSettings.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdateAdminSettingsParameters(
     [property: FromBody, Required] AdminSettings Request);

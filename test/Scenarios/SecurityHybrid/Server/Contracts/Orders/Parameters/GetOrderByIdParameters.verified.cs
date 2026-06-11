@@ -9,6 +9,11 @@ using SecurityHybrid.Generated.Models;
 
 namespace SecurityHybrid.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get order by ID.
+/// Operation: GetOrderById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetOrderByIdParameters(
     [property: FromRoute(Name = "orderId"), Required] Guid OrderId);

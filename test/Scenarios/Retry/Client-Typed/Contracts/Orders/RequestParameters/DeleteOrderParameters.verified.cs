@@ -9,6 +9,11 @@ using Retry.Generated.Models;
 
 namespace Retry.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Delete order (idempotent - can retry).
+/// Operation: DeleteOrder.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeleteOrderParameters(
     [property: FromRoute(Name = "orderId"), Required] Guid OrderId);

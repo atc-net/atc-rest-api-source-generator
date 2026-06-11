@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Demo.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: List all accounts paginated.
+/// Operation: ListPaginatedAccounts.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListPaginatedAccountsParameters(
     [property: FromQuery(Name = "queryString")] string? QueryString,

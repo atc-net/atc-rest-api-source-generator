@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CachingOutput.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: List products with output caching.
+/// Operation: ListProducts.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListProductsParameters(
     [property: FromQuery(Name = "category")] string? Category,

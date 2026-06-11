@@ -879,7 +879,8 @@ public static class SchemaExtractor
     private static CodeDocumentationTags? BuildDocumentationTags(
         OpenApiSchema schema)
     {
-        var hasDescription = !string.IsNullOrWhiteSpace(schema.Description);
+        var schemaSummary = schema.GetSchemaSummary();
+        var hasDescription = schemaSummary is not null || !string.IsNullOrWhiteSpace(schema.Description);
         var example = ExtractExampleString(schema);
 
         if (!hasDescription && example == null)
@@ -887,9 +888,10 @@ public static class SchemaExtractor
             return null;
         }
 
-        var summary = hasDescription
-            ? schema.Description!.Trim()
-            : $"Represents a {schema.Title ?? "model"}.";
+        var summary = schemaSummary
+            ?? (string.IsNullOrWhiteSpace(schema.Description)
+                ? $"Represents a {schema.Title ?? "model"}."
+                : schema.Description!.Trim());
 
         return new CodeDocumentationTags(
             summary: summary,

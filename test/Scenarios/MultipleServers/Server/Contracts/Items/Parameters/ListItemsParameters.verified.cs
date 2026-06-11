@@ -8,6 +8,11 @@ using MultipleServers.Generated.Models;
 
 namespace MultipleServers.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: List items.
+/// Operation: ListItems.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ListItemsParameters(
     [property: FromQuery(Name = "limit"), DefaultValue(20)] int? Limit = 20);

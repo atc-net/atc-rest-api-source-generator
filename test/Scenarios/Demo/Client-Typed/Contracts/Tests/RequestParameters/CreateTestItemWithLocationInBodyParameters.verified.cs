@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Demo.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create and return location in body.
+/// Operation: CreateTestItemWithLocationInBody.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateTestItemWithLocationInBodyParameters(
     [property: FromBody, Required] CreateTestItemRequest Request);

@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HttpMethods.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Query resources with a body.
+/// Operation: QueryResources.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record QueryResourcesParameters(
     [property: FromBody, Required] ResourceQuery Request);

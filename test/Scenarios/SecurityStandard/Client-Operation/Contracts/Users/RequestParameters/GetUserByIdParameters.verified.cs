@@ -9,6 +9,11 @@ using SecurityStandard.Generated.Models;
 
 namespace SecurityStandard.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get user by ID.
+/// Operation: GetUserById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetUserByIdParameters(
     [property: FromRoute(Name = "userId"), Required] Guid UserId);

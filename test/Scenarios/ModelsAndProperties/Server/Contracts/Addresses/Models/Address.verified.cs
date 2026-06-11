@@ -5,6 +5,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ModelsAndProperties.Generated.Models;
 
+/// <summary>
+/// Postal address with validation constraints.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Address(
     [property: Required, MaxLength(255)] string StreetName,

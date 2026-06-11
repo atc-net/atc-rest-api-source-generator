@@ -8,6 +8,11 @@ using SecurityOpenIdConnect.Generated.Models;
 
 namespace SecurityOpenIdConnect.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create a new resource.
+/// Operation: CreateResource.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateResourceParameters(
     [property: FromBody, Required] CreateResourceRequest Request);

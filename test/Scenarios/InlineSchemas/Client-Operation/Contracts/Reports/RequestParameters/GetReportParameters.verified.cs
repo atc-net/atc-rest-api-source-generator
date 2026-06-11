@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace InlineSchemas.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get a report by ID.
+/// Operation: GetReport.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetReportParameters(
     [property: FromRoute(Name = "reportId"), Required] string ReportId);

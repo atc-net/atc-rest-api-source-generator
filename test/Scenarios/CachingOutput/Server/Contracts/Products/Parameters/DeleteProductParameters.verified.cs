@@ -9,6 +9,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CachingOutput.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Delete product (no caching).
+/// Operation: DeleteProduct.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeleteProductParameters(
     [property: FromRoute(Name = "productId"), Required] Guid ProductId);

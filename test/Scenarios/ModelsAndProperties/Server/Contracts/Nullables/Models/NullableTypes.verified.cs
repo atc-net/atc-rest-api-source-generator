@@ -6,6 +6,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ModelsAndProperties.Generated.Models;
 
+/// <summary>
+/// Demonstrates nullable versions of all types.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record NullableTypes(
     [property: Required] string RequiredString,

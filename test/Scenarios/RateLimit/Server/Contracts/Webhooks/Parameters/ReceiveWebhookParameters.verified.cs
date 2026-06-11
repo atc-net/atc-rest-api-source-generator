@@ -8,6 +8,11 @@ using RateLimit.Generated.Models;
 
 namespace RateLimit.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Receive webhook (rate limiting disabled).
+/// Operation: ReceiveWebhook.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ReceiveWebhookParameters(
     [property: FromBody, Required] WebhookPayload Request);

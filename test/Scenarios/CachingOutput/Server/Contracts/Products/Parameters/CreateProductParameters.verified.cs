@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CachingOutput.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Create product (no caching).
+/// Operation: CreateProduct.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateProductParameters(
     [property: FromBody, Required] CreateProductRequest Request);

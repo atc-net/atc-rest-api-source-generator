@@ -9,6 +9,11 @@ using ModelsAndProperties.Generated.Models;
 
 namespace ModelsAndProperties.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Get a specific model.
+/// Operation: GetModelById.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetModelByIdParameters(
     [property: FromRoute(Name = "modelId"), Required] Guid ModelId);

@@ -8,6 +8,11 @@ using PetStoreFull.Generated.Models;
 
 namespace PetStoreFull.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Delete purchase order by identifier..
+/// Operation: DeleteOrder.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DeleteOrderParameters(
     [property: FromRoute(Name = "orderId"), Required] long OrderId);

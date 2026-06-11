@@ -8,6 +8,11 @@ using PetStoreFull.Generated.Models;
 
 namespace PetStoreFull.Generated.Parameters;
 
+/// <summary>
+/// Parameters for operation request.
+/// Description: Place an order for a pet..
+/// Operation: PlaceOrder.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record PlaceOrderParameters(
     [property: FromBody, Required] Order Request);

@@ -5,6 +5,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ModelsAndProperties.Generated.Models;
 
+/// <summary>
+/// Base animal type for allOf inheritance.
+/// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public record Animal(
     [property: Required] string Name,

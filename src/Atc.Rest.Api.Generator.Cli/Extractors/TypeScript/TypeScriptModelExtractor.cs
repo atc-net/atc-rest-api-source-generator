@@ -470,16 +470,19 @@ public static class TypeScriptModelExtractor
             // @deprecated tag so IDE shows the strikethrough; without it the spec author's
             // intent is invisible at the call site.
             JsDocComment? docTags = null;
-            if (prop.Value is OpenApiSchema propSchema &&
-                (!string.IsNullOrEmpty(propSchema.Description) || propSchema.Deprecated))
+            if (prop.Value is OpenApiSchema propSchema)
             {
-                docTags = new JsDocComment(
-                    description: propSchema.Description,
-                    parameters: null,
-                    returns: null,
-                    isDeprecated: propSchema.Deprecated,
-                    deprecatedMessage: null,
-                    example: null);
+                var propDoc = propSchema.GetSchemaSummary() ?? propSchema.Description;
+                if (!string.IsNullOrEmpty(propDoc) || propSchema.Deprecated)
+                {
+                    docTags = new JsDocComment(
+                        description: propDoc,
+                        parameters: null,
+                        returns: null,
+                        isDeprecated: propSchema.Deprecated,
+                        deprecatedMessage: null,
+                        example: null);
+                }
             }
 
             tsProperties.Add(new TypeScriptPropertyParameters(
@@ -505,10 +508,11 @@ public static class TypeScriptModelExtractor
         // Build JSDoc for the interface itself. The whole schema may be deprecated (i.e.
         // the spec author is signaling "stop using this type") — surface that to consumers.
         JsDocComment? interfaceDocTags = null;
-        if (!string.IsNullOrEmpty(schema.Description) || schema.Deprecated)
+        var schemaDoc = schema.GetSchemaSummary() ?? schema.Description;
+        if (!string.IsNullOrEmpty(schemaDoc) || schema.Deprecated)
         {
             interfaceDocTags = new JsDocComment(
-                description: schema.Description,
+                description: schemaDoc,
                 parameters: null,
                 returns: null,
                 isDeprecated: schema.Deprecated,
