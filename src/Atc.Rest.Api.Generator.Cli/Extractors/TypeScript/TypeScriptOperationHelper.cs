@@ -966,4 +966,39 @@ public static class TypeScriptOperationHelper
 
         return "`" + interpolated + "`";
     }
+
+    /// <summary>
+    /// Emits the module-level parseEventStream async generator function shared by both
+    /// Axios and Fetch ApiClient extractors. Centralising the SSE parsing logic here
+    /// ensures the two clients stay in sync without copying the block.
+    /// </summary>
+    internal static void AppendParseEventStreamHelper(StringBuilder sb)
+    {
+        sb.AppendLine("async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {");
+        sb.AppendLine("  let buffer = '';");
+        sb.AppendLine("  try {");
+        sb.AppendLine("    while (true) {");
+        sb.AppendLine("      const { done, value } = await reader.read();");
+        sb.AppendLine("      if (done) break;");
+        sb.AppendLine("      buffer += decoder.decode(value, { stream: true }).replace(/\\r/g, '');");
+        sb.AppendLine("      let sep: number;");
+        sb.AppendLine("      while ((sep = buffer.indexOf('\\n\\n')) !== -1) {");
+        sb.AppendLine("        const rawEvent = buffer.substring(0, sep);");
+        sb.AppendLine("        buffer = buffer.substring(sep + 2);");
+        sb.AppendLine("        const data = rawEvent");
+        sb.AppendLine("          .split('\\n')");
+        sb.AppendLine("          .filter((l) => l.startsWith('data:'))");
+        sb.AppendLine("          .map((l) => l.slice(5).trimStart())");
+        sb.AppendLine("          .join('\\n');");
+        sb.AppendLine("        if (data.length > 0) {");
+        sb.AppendLine("          yield JSON.parse(data) as T;");
+        sb.AppendLine("        }");
+        sb.AppendLine("      }");
+        sb.AppendLine("    }");
+        sb.AppendLine("  } finally {");
+        sb.AppendLine("    reader.releaseLock();");
+        sb.AppendLine("  }");
+        sb.AppendLine("}");
+        sb.AppendLine();
+    }
 }
