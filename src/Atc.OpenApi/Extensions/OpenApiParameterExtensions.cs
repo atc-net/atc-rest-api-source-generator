@@ -87,9 +87,10 @@ public static class OpenApiParameterExtensions
 
         /// <summary>
         /// Gets the binding attribute name for the parameter based on its location.
+        /// Returns null for Cookie parameters — ASP.NET Core has no [FromCookie] attribute.
         /// </summary>
-        /// <returns>The attribute name (FromQuery, FromRoute, FromHeader, etc.).</returns>
-        public string GetBindingAttributeName()
+        /// <returns>The attribute name (FromQuery, FromRoute, FromHeader), or null for Cookie.</returns>
+        public string? GetBindingAttributeName()
         {
             if (parameter == null)
             {
@@ -101,6 +102,7 @@ public static class OpenApiParameterExtensions
                 ParameterLocation.Query => "FromQuery",
                 ParameterLocation.Path => "FromRoute",
                 ParameterLocation.Header => "FromHeader",
+                ParameterLocation.Cookie => null,
                 _ => "FromQuery",
             };
         }
