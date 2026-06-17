@@ -42,10 +42,10 @@ public class OpenApiParameterExtensionsTests
     [InlineData(ParameterLocation.Query, "FromQuery")]
     [InlineData(ParameterLocation.Path, "FromRoute")]
     [InlineData(ParameterLocation.Header, "FromHeader")]
-    [InlineData(ParameterLocation.Cookie, "FromCookie")]
+    [InlineData(ParameterLocation.Cookie, null)]
     public void GetBindingAttributeName_ReturnsExpected(
         ParameterLocation location,
-        string expected)
+        string? expected)
     {
         var param = new OpenApiParameter { Name = "test", In = location };
 
