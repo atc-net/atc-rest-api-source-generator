@@ -23,7 +23,7 @@ public static class SecurityDependencyInjectionExtractor
         }
 
         // Collect all unique policies from security requirements
-        var (policies, _) = SecurityPoliciesExtractor.CollectPolicies(openApiDoc, includeDeprecated);
+        var (policies, _, _, _) = SecurityPoliciesExtractor.CollectPolicies(openApiDoc, includeDeprecated);
 
         if (policies.Count == 0)
         {

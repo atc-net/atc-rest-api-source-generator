@@ -1354,4 +1354,88 @@ public class SpecificationServiceTests
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, d => d.RuleId == RuleIdentifiers.NonIdenticalMergeConflict);
     }
+
+    // ========== $self URI ==========
+    [Fact]
+    public void ReadFromContent_WithSelfUri_SetsDocumentBaseUri()
+    {
+        // Arrange — A4: top-level $self declares canonical URI; used as baseUri for $ref resolution
+        const string yaml = """
+                            $self: "https://api.example.com/openapi.yaml"
+                            openapi: "3.2.0"
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            """;
+
+        // Act
+        var result = SpecificationService.ReadFromContent(yaml, "test.yaml");
+
+        // Assert
+        Assert.NotNull(result.Document);
+        Assert.Equal(new Uri("https://api.example.com/openapi.yaml"), result.Document.BaseUri);
+    }
+
+    [Fact]
+    public void ReadFromContent_WithSelfUriSingleQuotes_SetsDocumentBaseUri()
+    {
+        // Arrange — A4: $self with single-quoted value
+        const string yaml = """
+                            $self: 'https://api.example.com/openapi.yaml'
+                            openapi: "3.2.0"
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            """;
+
+        // Act
+        var result = SpecificationService.ReadFromContent(yaml, "test.yaml");
+
+        // Assert
+        Assert.NotNull(result.Document);
+        Assert.Equal(new Uri("https://api.example.com/openapi.yaml"), result.Document.BaseUri);
+    }
+
+    [Fact]
+    public void ReadFromContent_WithSelfUriUnquoted_SetsDocumentBaseUri()
+    {
+        // Arrange — A4: $self without quotes
+        const string yaml = """
+                            $self: https://api.example.com/openapi.yaml
+                            openapi: "3.2.0"
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            """;
+
+        // Act
+        var result = SpecificationService.ReadFromContent(yaml, "test.yaml");
+
+        // Assert
+        Assert.NotNull(result.Document);
+        Assert.Equal(new Uri("https://api.example.com/openapi.yaml"), result.Document.BaseUri);
+    }
+
+    [Fact]
+    public void ReadFromContent_WithoutSelfUri_BaseUriUsesFilePath()
+    {
+        // Arrange — without $self, BaseUri should reflect the provided file path
+        const string yaml = """
+                            openapi: "3.2.0"
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths: {}
+                            """;
+
+        // Act
+        var result = SpecificationService.ReadFromContent(yaml, "C:/specs/openapi.yaml");
+
+        // Assert
+        Assert.NotNull(result.Document);
+        Assert.NotEqual(new Uri("https://api.example.com/openapi.yaml"), result.Document.BaseUri);
+    }
 }

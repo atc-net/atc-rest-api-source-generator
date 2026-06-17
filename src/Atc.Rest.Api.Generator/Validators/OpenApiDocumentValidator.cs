@@ -113,6 +113,12 @@ public static class OpenApiDocumentValidator
         // ATC_API_SCH020: Warn when discriminator block lacks propertyName and auto-detect fails
         ValidateDiscriminatorPropertyNames(diagnostics, sourceFilePath, document);
 
+        // ATC_API_SEC011: Info when a mutualTLS security scheme is declared
+        ValidateMutualTlsSchemes(diagnostics, sourceFilePath, document);
+
+        // ATC_API_STREAM001: Info when a streaming media type has unsupported prefixEncoding
+        ValidateStreamingEncodings(diagnostics, sourceFilePath, document);
+
         return diagnostics;
     }
 
@@ -2733,6 +2739,95 @@ public static class OpenApiDocumentValidator
                          "Add 'propertyName' to the discriminator block for reliable polymorphic code generation.",
                 Severity: DiagnosticSeverity.Warning,
                 FilePath: sourceFilePath));
+        }
+    }
+
+    /// <summary>
+    /// Emits ATC_API_SEC011 (Info) for each mutualTLS security scheme — the generator produces a policy
+    /// constant but no HTTP credential injection; certificate must be configured at transport level.
+    /// </summary>
+    private static void ValidateMutualTlsSchemes(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        OpenApiDocument document)
+    {
+        if (document.Components?.SecuritySchemes == null)
+        {
+            return;
+        }
+
+        foreach (var kvp in document.Components.SecuritySchemes)
+        {
+            if (kvp.Value.Type != Microsoft.OpenApi.SecuritySchemeType.MutualTLS)
+            {
+                continue;
+            }
+
+            diagnostics.Add(new DiagnosticMessage(
+                RuleId: RuleIdentifiers.MutualTlsSchemeNoCertInjection,
+                Message: $"Security scheme '{kvp.Key}' uses mutualTLS — no HTTP credential is injected by the generator. " +
+                         "Configure the client certificate at the HttpClient transport level (e.g., via X509Certificate2 on HttpClientHandler).",
+                Severity: DiagnosticSeverity.Info,
+                FilePath: sourceFilePath));
+        }
+    }
+
+    /// <summary>
+    /// Emits ATC_API_STREAM001 (Info) when any response media type declares <c>prefixEncoding</c>.
+    /// The generator does not yet emit per-prefix encoding headers; the field is silently ignored.
+    /// </summary>
+    private static void ValidateStreamingEncodings(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        OpenApiDocument document)
+    {
+        if (document.Paths == null)
+        {
+            return;
+        }
+
+        foreach (var pathEntry in document.Paths)
+        {
+            var pathItem = pathEntry.Value;
+            if (pathItem.Operations == null)
+            {
+                continue;
+            }
+
+            foreach (var operationEntry in pathItem.Operations)
+            {
+                var operation = operationEntry.Value;
+                if (operation.Responses == null)
+                {
+                    continue;
+                }
+
+                foreach (var response in operation.Responses.Values)
+                {
+                    if (response.Content == null)
+                    {
+                        continue;
+                    }
+
+                    foreach (var contentEntry in response.Content)
+                    {
+                        var mediaTypeKey = contentEntry.Key;
+                        var mediaTypeValue = contentEntry.Value;
+
+                        if (mediaTypeValue.PrefixEncoding is not { Count: > 0 })
+                        {
+                            continue;
+                        }
+
+                        diagnostics.Add(new DiagnosticMessage(
+                            RuleId: RuleIdentifiers.StreamingPrefixEncodingUnsupported,
+                            Message: $"Media type '{mediaTypeKey}' on operation '{operation.OperationId}' declares 'prefixEncoding' " +
+                                     "which is not yet supported by the generator. The field will be ignored.",
+                            Severity: DiagnosticSeverity.Info,
+                            FilePath: sourceFilePath));
+                    }
+                }
+            }
         }
     }
 

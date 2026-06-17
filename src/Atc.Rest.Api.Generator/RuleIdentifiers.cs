@@ -234,6 +234,20 @@ public static class RuleIdentifiers
     /// </summary>
     public const string PathAuthenticationConflict = "ATC_API_SEC010";
 
+    /// <summary>
+    /// ATC_API_SEC011: mutualTLS security scheme — no HTTP credential is injected by the generator.
+    /// Certificate must be configured at the HttpClient transport level.
+    /// </summary>
+    public const string MutualTlsSchemeNoCertInjection = "ATC_API_SEC011";
+
+    // ========== Streaming Rules (STREAM) ==========
+
+    /// <summary>
+    /// ATC_API_STREAM001: Streaming media type has unsupported `prefixEncoding`.
+    /// The generator does not yet emit per-prefix encoding headers; this field is ignored.
+    /// </summary>
+    public const string StreamingPrefixEncodingUnsupported = "ATC_API_STREAM001";
+
     // ========== Server Rules (SRV) ==========
 
     /// <summary>

@@ -23,7 +23,7 @@ public static class SecurityPoliciesExtractor
         }
 
         // Collect all unique policies from security requirements
-        var (policies, deprecatedPolicies) = CollectPolicies(openApiDoc, includeDeprecated);
+        var (policies, deprecatedPolicies, mutualTlsPolicies, metadataUrls) = CollectPolicies(openApiDoc, includeDeprecated);
 
         if (policies.Count == 0)
         {
@@ -31,23 +31,25 @@ public static class SecurityPoliciesExtractor
         }
 
         // Generate the complete class content
-        return GenerateFileContent(projectName, policies, deprecatedPolicies);
+        return GenerateFileContent(projectName, policies, deprecatedPolicies, mutualTlsPolicies, metadataUrls);
     }
 
     /// <summary>
     /// Collects all unique policies from security requirements across all operations.
-    /// Returns the policy dict and a set of policy names from deprecated security schemes.
+    /// Returns the policy dict, deprecated policy names, mutualTLS policy names, and OAuth2 metadata URLs.
     /// </summary>
-    internal static (Dictionary<string, List<string>> Policies, HashSet<string> DeprecatedPolicies) CollectPolicies(
+    internal static (Dictionary<string, List<string>> Policies, HashSet<string> DeprecatedPolicies, HashSet<string> MutualTlsPolicies, Dictionary<string, Uri> MetadataUrls) CollectPolicies(
         OpenApiDocument openApiDoc,
         bool includeDeprecated)
     {
         var policies = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         var deprecatedPolicies = new HashSet<string>(StringComparer.Ordinal);
+        var mutualTlsPolicies = new HashSet<string>(StringComparer.Ordinal);
+        var metadataUrls = CollectMetadataUrls(openApiDoc);
 
         if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
         {
-            return (policies, deprecatedPolicies);
+            return (policies, deprecatedPolicies, mutualTlsPolicies, metadataUrls);
         }
 
         foreach (var pathPair in openApiDoc.Paths)
@@ -87,6 +89,14 @@ public static class SecurityPoliciesExtractor
                 {
                     if (requirement.Scopes.Count == 0)
                     {
+                        // mutualTLS schemes have no HTTP scopes by design — record with empty list
+                        // so the "Create policies" loop can emit a policy constant for them.
+                        if (IsMutualTlsScheme(openApiDoc, requirement.SchemeName) &&
+                            !schemeScopes.ContainsKey(requirement.SchemeName))
+                        {
+                            schemeScopes[requirement.SchemeName] = [];
+                        }
+
                         continue;
                     }
 
@@ -113,6 +123,14 @@ public static class SecurityPoliciesExtractor
 
                     if (scopes.Count == 0)
                     {
+                        // mutualTLS schemes have no HTTP scopes by design — generate a policy using
+                        // the scheme name directly so callers can still reference the policy constant.
+                        if (IsMutualTlsScheme(openApiDoc, schemeName) && !policies.ContainsKey(schemeName))
+                        {
+                            policies[schemeName] = [];
+                            mutualTlsPolicies.Add(schemeName);
+                        }
+
                         continue;
                     }
 
@@ -157,7 +175,7 @@ public static class SecurityPoliciesExtractor
             }
         }
 
-        return (policies, deprecatedPolicies);
+        return (policies, deprecatedPolicies, mutualTlsPolicies, metadataUrls);
     }
 
     /// <summary>
@@ -166,7 +184,9 @@ public static class SecurityPoliciesExtractor
     private static string GenerateFileContent(
         string projectName,
         Dictionary<string, List<string>> policies,
-        HashSet<string> deprecatedPolicies)
+        HashSet<string> deprecatedPolicies,
+        HashSet<string> mutualTlsPolicies,
+        Dictionary<string, Uri> metadataUrls)
     {
         var builder = new StringBuilder();
 
@@ -202,9 +222,11 @@ public static class SecurityPoliciesExtractor
             var policyName = policyKvp.Key;
             var scopes = policyKvp.Value;
             var constantName = GenerateConstantName(policyName);
-            var scopeDescription = scopes.Count == 1
-                ? $"Policy requiring scope: {scopes[0]}"
-                : $"Policy requiring scopes: {string.Join(" AND ", scopes)} (all required)";
+            var scopeDescription = mutualTlsPolicies.Contains(policyName)
+                ? "Requires TLS client certificate — no HTTP credential injected; configure at HttpClient transport level."
+                : scopes.Count == 1
+                    ? $"Policy requiring scope: {scopes[0]}"
+                    : $"Policy requiring scopes: {string.Join(" AND ", scopes)} (all required)";
 
             builder.AppendLine(4, "/// <summary>");
             builder.AppendLine(4, $"/// {scopeDescription}");
@@ -217,9 +239,66 @@ public static class SecurityPoliciesExtractor
             builder.AppendLine(4, $"public const string {constantName} = \"{policyName}\";");
         }
 
+        // Emit RFC 8414 metadata URL constants when oauth2MetadataUrl is set on any scheme
+        if (metadataUrls.Count > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine(4, "/// <summary>");
+            builder.AppendLine(4, "/// OAuth 2.0 authorization server metadata URLs (RFC 8414).");
+            builder.AppendLine(4, "/// </summary>");
+            builder.AppendLine(4, "public static class Metadata");
+            builder.AppendLine(4, "{");
+
+            var isFirstUrl = true;
+
+            foreach (var kvp in metadataUrls.OrderBy(k => k.Key, StringComparer.Ordinal))
+            {
+                if (!isFirstUrl)
+                {
+                    builder.AppendLine();
+                }
+
+                isFirstUrl = false;
+
+                var urlConstantName = kvp.Key.ToPascalCaseForDotNet() + "MetadataUrl";
+
+                builder.AppendLine(8, "/// <summary>");
+                builder.AppendLine(8, $"/// RFC 8414 discovery URL for the {kvp.Key} scheme.");
+                builder.AppendLine(8, "/// </summary>");
+                builder.AppendLine(8, $"public const string {urlConstantName} = \"{kvp.Value.AbsoluteUri}\";");
+            }
+
+            builder.AppendLine(4, "}");
+        }
+
         builder.AppendLine("}");
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// Collects OAuth2MetadataUrl values from all defined security schemes.
+    /// </summary>
+    private static Dictionary<string, Uri> CollectMetadataUrls(
+        OpenApiDocument openApiDoc)
+    {
+        var result = new Dictionary<string, Uri>(StringComparer.Ordinal);
+
+        if (openApiDoc.Components?.SecuritySchemes == null)
+        {
+            return result;
+        }
+
+        foreach (var kvp in openApiDoc.Components.SecuritySchemes)
+        {
+            if (kvp.Value is OpenApiSecurityScheme scheme &&
+                scheme.OAuth2MetadataUrl != null)
+            {
+                result[kvp.Key] = scheme.OAuth2MetadataUrl;
+            }
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -284,4 +363,11 @@ public static class SecurityPoliciesExtractor
 
         return result.ToString();
     }
+
+    private static bool IsMutualTlsScheme(
+        OpenApiDocument openApiDoc,
+        string schemeName)
+        => openApiDoc.Components?.SecuritySchemes != null &&
+           openApiDoc.Components.SecuritySchemes.TryGetValue(schemeName, out var scheme) &&
+           scheme.Type == Microsoft.OpenApi.SecuritySchemeType.MutualTLS;
 }

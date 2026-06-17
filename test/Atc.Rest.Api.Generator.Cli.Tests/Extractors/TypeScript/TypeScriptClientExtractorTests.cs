@@ -1312,7 +1312,7 @@ public class TypeScriptClientExtractorTests
         Assert.Contains("requestStream<Event>('GET', '/events'", content, StringComparison.Ordinal);
     }
 
-    // ========== OAS 3.2 in:querystring / in:cookie (A1 + A2) ==========
+    // ========== OAS 3.2 in:querystring / in:cookie ==========
     [Fact]
     public void Extract_QuerystringInParam_AppearsAsRawStringArgAndBuildsUrl()
     {
