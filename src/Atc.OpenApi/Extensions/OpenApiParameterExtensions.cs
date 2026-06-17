@@ -158,6 +158,11 @@ public static class OpenApiParameterExtensions
                 ParameterStyle.Form => valueKind == ParameterValueKind.Primitive
                     || (valueKind == ParameterValueKind.Array && explode),
                 ParameterStyle.Simple => valueKind == ParameterValueKind.Primitive,
+
+                // OAS 3.2: style:cookie (RFC 6265) applies to in:cookie params; no percent-encoding,
+                // semicolon-separated pairs. Supported for primitive and array values.
+                ParameterStyle.Cookie => valueKind == ParameterValueKind.Primitive
+                    || valueKind == ParameterValueKind.Array,
                 _ => false,
             };
 

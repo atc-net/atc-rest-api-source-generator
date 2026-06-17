@@ -453,6 +453,8 @@ public static class TypeScriptClientExtractor
         var pathParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Path);
         var queryParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Query);
         var headerParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Header);
+        var cookieParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Cookie);
+        var querystringParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.QueryString);
 
         // Get request body
         var (bodySchema, bodyContentType) = operation.GetRequestBodySchemaWithContentType();
@@ -502,7 +504,7 @@ public static class TypeScriptClientExtractor
             var zodSpec = zodRuntimeValidate
                 ? TypeScriptOperationHelper.TryGetResponseZodSchemaSpec(operation)
                 : null;
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec);
         }
     }
 
@@ -661,6 +663,8 @@ public static class TypeScriptClientExtractor
         List<OpenApiParameter> pathParams,
         List<OpenApiParameter> queryParams,
         List<OpenApiParameter> headerParams,
+        List<OpenApiParameter> cookieParams,
+        List<OpenApiParameter> querystringParams,
         IOpenApiSchema? bodySchema,
         string bodyContentType,
         bool isFileUpload,
@@ -675,7 +679,7 @@ public static class TypeScriptClientExtractor
         ZodResponseSchemaSpec? zodSpec)
     {
         // Build parameter list
-        var paramList = BuildParameterList(pathParams, queryParams, headerParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path);
+        var paramList = BuildParameterList(pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path);
 
         // perOpResultTypeName is supplied for every non-streaming op when called from
         // GenerateClientClass. The generic ApiResult fallback is a safety net for any unit
@@ -686,9 +690,35 @@ public static class TypeScriptClientExtractor
         // Build path with interpolation
         var interpolatedPath = TypeScriptOperationHelper.BuildInterpolatedPath(path, pathParams, namingStrategy, convertDates);
 
+        // OAS 3.2 in:querystring: emit _basePath/_url locals before the return statement.
+        // The raw querystring value is appended verbatim so callers can pass pre-encoded
+        // query strings (e.g. "q=hello&sort=asc") without double-encoding.
+        var hasQuerystring = querystringParams.Count > 0;
+        if (hasQuerystring)
+        {
+            sb.Append("    const _basePath = ").Append(interpolatedPath).AppendLine(";");
+            if (querystringParams.Count == 1)
+            {
+                var qsName = (querystringParams[0].Name ?? string.Empty).ToCamelCase();
+                sb.Append("    const _url = ").Append(qsName).Append(" ? `${_basePath}?${").Append(qsName).AppendLine("}` : _basePath;");
+            }
+            else
+            {
+                sb.AppendLine("    const _rawParts = [");
+                foreach (var qsParam in querystringParams)
+                {
+                    var qsName = (qsParam.Name ?? string.Empty).ToCamelCase();
+                    sb.Append("      ").Append(qsName).AppendLine(",");
+                }
+
+                sb.AppendLine("    ].filter(Boolean).join('&');");
+                sb.AppendLine("    const _url = _rawParts ? `${_basePath}?${_rawParts}` : _basePath;");
+            }
+        }
+
         // Build request options
         var hasQuery = queryParams.Count > 0;
-        var hasHeaders = headerParams.Count > 0;
+        var hasHeaders = headerParams.Count > 0 || cookieParams.Count > 0;
         var hasBody = bodySchema != null;
 
         // Cast suffix narrows the generic ApiResult<T> returned by ApiClient.request to the
@@ -701,9 +731,11 @@ public static class TypeScriptClientExtractor
         // structured payload, so skip emission even when the spec is non-null.
         var emitParseSchema = zodSpec != null && !isFileDownload && !isTextDownload;
 
+        var urlArg = hasQuerystring ? "_url" : interpolatedPath;
+
         if (hasQuery || hasHeaders || hasBody || isFileUpload || isFileDownload || isTextDownload || emitParseSchema)
         {
-            sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(interpolatedPath).AppendLine(", {");
+            sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(urlArg).AppendLine(", {");
 
             if (hasBody && isFileUpload)
             {
@@ -721,7 +753,7 @@ public static class TypeScriptClientExtractor
 
             if (hasHeaders)
             {
-                AppendHeadersObject(sb, headerParams, convertDates);
+                AppendHeadersObject(sb, headerParams, cookieParams, convertDates);
             }
 
             if (isFileDownload)
@@ -742,7 +774,7 @@ public static class TypeScriptClientExtractor
         }
         else
         {
-            sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(interpolatedPath).Append(')').Append(castSuffix).AppendLine(";");
+            sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(urlArg).Append(')').Append(castSuffix).AppendLine(";");
         }
 
         sb.AppendLine("  }");
@@ -803,7 +835,7 @@ public static class TypeScriptClientExtractor
 
             if (hasHeaders)
             {
-                AppendHeadersObject(sb, headerParams, convertDates);
+                AppendHeadersObject(sb, headerParams, cookieParams: null, convertDates);
             }
 
             sb.AppendLine("      signal,");
@@ -826,6 +858,8 @@ public static class TypeScriptClientExtractor
         List<OpenApiParameter> pathParams,
         List<OpenApiParameter> queryParams,
         List<OpenApiParameter> headerParams,
+        List<OpenApiParameter> cookieParams,
+        List<OpenApiParameter> querystringParams,
         IOpenApiSchema? bodySchema,
         string bodyContentType,
         bool isFileUpload,
@@ -871,6 +905,14 @@ public static class TypeScriptClientExtractor
             }
         }
 
+        // OAS 3.2 in:querystring parameters — individual optional string args placed before
+        // the query? object so callers can pass the raw query string without wrapping it.
+        foreach (var param in querystringParams)
+        {
+            var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            parts.Add(paramName + "?: string");
+        }
+
         // Query parameters (optional object)
         if (queryParams.Count > 0)
         {
@@ -885,7 +927,27 @@ public static class TypeScriptClientExtractor
             parts.Add("headers?: " + headerType);
         }
 
+        // OAS 3.2 in:cookie parameters — grouped cookies? object placed after headers?.
+        if (cookieParams.Count > 0)
+        {
+            var cookieType = BuildCookieTypeInline(cookieParams, namingStrategy);
+            parts.Add("cookies?: " + cookieType);
+        }
+
         return string.Join(", ", parts);
+    }
+
+    private static string BuildCookieTypeInline(
+        List<OpenApiParameter> cookieParams,
+        TypeScriptNamingStrategy namingStrategy)
+    {
+        var props = cookieParams.Select(p =>
+        {
+            var name = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var optional = p.Required ? string.Empty : "?";
+            return name + optional + ": string";
+        });
+        return "{ " + string.Join("; ", props) + " }";
     }
 
     private static void AppendFileUploadParams(
@@ -1067,6 +1129,7 @@ public static class TypeScriptClientExtractor
     private static void AppendHeadersObject(
         StringBuilder sb,
         List<OpenApiParameter> headerParams,
+        List<OpenApiParameter>? cookieParams,
         bool convertDates)
     {
         // Header names are emitted verbatim (no naming-strategy transform). HTTP header
@@ -1083,6 +1146,44 @@ public static class TypeScriptClientExtractor
             sb.Append("        '").Append(rawName).Append("': headers?.['").Append(rawName).Append("']").Append(coercion).AppendLine(",");
         }
 
+        if (cookieParams is { Count: > 0 })
+        {
+            AppendCookieHeader(sb, cookieParams);
+        }
+
         sb.AppendLine("      },");
+    }
+
+    /// <summary>
+    /// Emits a combined Cookie header entry from OAS 3.2 in:cookie parameters.
+    /// </summary>
+    /// <remarks>
+    /// Browsers forbid setting the Cookie header via the fetch API (forbidden request
+    /// header). The emitted code is intended for Node.js server-to-server use.
+    /// </remarks>
+    private static void AppendCookieHeader(
+        StringBuilder sb,
+        List<OpenApiParameter> cookieParams)
+    {
+        sb.AppendLine("        // Note: browsers forbid setting the Cookie header via fetch; Node.js only.");
+        if (cookieParams.Count == 1)
+        {
+            var param = cookieParams[0];
+            var propName = (param.Name ?? string.Empty).ToCamelCase();
+            var rawName = param.Name ?? string.Empty;
+            sb.Append("        'Cookie': cookies?.").Append(propName).Append(" != null ? `").Append(rawName).Append("=${cookies.").Append(propName).AppendLine("}` : undefined,");
+        }
+        else
+        {
+            sb.AppendLine("        'Cookie': [");
+            foreach (var param in cookieParams)
+            {
+                var propName = (param.Name ?? string.Empty).ToCamelCase();
+                var rawName = param.Name ?? string.Empty;
+                sb.Append("          cookies?.").Append(propName).Append(" && `").Append(rawName).Append("=${cookies.").Append(propName).AppendLine("}`,");
+            }
+
+            sb.AppendLine("        ].filter(Boolean).join('; ') || undefined,");
+        }
     }
 }

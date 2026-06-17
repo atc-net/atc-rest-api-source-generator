@@ -401,40 +401,41 @@ public static class TypeScriptReactQueryHookExtractor
             }
 
             var keyName = DeriveKeyName(info.MethodName, segmentCamel);
-            var hasPath = info.PathParams.Count > 0;
-            var hasQuery = info.QueryParams.Count > 0;
 
-            if (hasPath && hasQuery)
+            // Build key function param list and key spread values incrementally.
+            // Order: pathParams..., querystringParams (individual)..., query?
+            // Headers and cookies are intentionally excluded — they fragment the cache
+            // per-request rather than per-resource, which breaks cache sharing.
+            var keyFuncParts = new List<string>();
+            var keySpreadValues = new List<string>();
+
+            foreach (var p in info.PathParams)
             {
-                // Detail/list hybrid — path params + query bag. Both must be in the key so
-                // React Query refetches when either changes.
-                var pathParamList = string.Join(
-                    ", ",
-                    info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy) + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path)));
-                var pathArgs = string.Join(
-                    ", ",
-                    info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy)));
-                var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
-
-                sb.Append("  ").Append(keyName).Append(": (").Append(pathParamList).Append(", query?: ").Append(queryType).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).Append("', ").Append(pathArgs).AppendLine(", query] as const,");
+                var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+                keyFuncParts.Add(pName + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path));
+                keySpreadValues.Add(pName);
             }
-            else if (hasPath)
-            {
-                // Detail-style key with path params
-                var paramList = string.Join(
-                    ", ",
-                    info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy) + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path)));
-                var keyArgs = string.Join(
-                    ", ",
-                    info.PathParams.Select(p => (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy)));
 
-                sb.Append("  ").Append(keyName).Append(": (").Append(paramList).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).Append("', ").Append(keyArgs).AppendLine("] as const,");
-            }
-            else if (hasQuery)
+            foreach (var p in info.QuerystringParams)
             {
-                // List-style key with query params
+                var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+                keyFuncParts.Add(pName + "?: string");
+                keySpreadValues.Add(pName);
+            }
+
+            if (info.QueryParams.Count > 0)
+            {
                 var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
-                sb.Append("  ").Append(keyName).Append(": (query?: ").Append(queryType).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).Append("', query").AppendLine("] as const,");
+                keyFuncParts.Add("query?: " + queryType);
+                keySpreadValues.Add("query");
+            }
+
+            if (keyFuncParts.Count > 0)
+            {
+                var spreadSuffix = keySpreadValues.Count > 0
+                    ? ", " + string.Join(", ", keySpreadValues)
+                    : string.Empty;
+                sb.Append("  ").Append(keyName).Append(": (").Append(string.Join(", ", keyFuncParts)).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).Append('\'').Append(spreadSuffix).AppendLine("] as const,");
             }
             else
             {
@@ -478,6 +479,12 @@ public static class TypeScriptReactQueryHookExtractor
             hookParams.Add(paramName + ": " + paramType);
         }
 
+        foreach (var param in info.QuerystringParams)
+        {
+            var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            hookParams.Add(paramName + "?: string");
+        }
+
         if (info.QueryParams.Count > 0)
         {
             var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
@@ -488,6 +495,12 @@ public static class TypeScriptReactQueryHookExtractor
         {
             var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams, convertDates);
             hookParams.Add("headers?: " + headerType);
+        }
+
+        if (info.CookieParams.Count > 0)
+        {
+            var cookieType = BuildCookieTypeInline(info.CookieParams, namingStrategy);
+            hookParams.Add("cookies?: " + cookieType);
         }
 
         // Pass-through options: every generated hook accepts a final options? arg whose
@@ -501,11 +514,16 @@ public static class TypeScriptReactQueryHookExtractor
 
         var hookParamStr = string.Join(", ", hookParams);
 
-        // Build key args — headers are intentionally excluded so the React Query cache
-        // does NOT fragment on per-request headers (correlation IDs, etc). Query params
-        // ARE included alongside path params so the cache correctly partitions per filter.
+        // Build key args — headers and cookies are intentionally excluded so the React Query
+        // cache does NOT fragment on per-request headers/cookies (correlation IDs, etc).
+        // Query params and querystring params ARE included alongside path params.
         var keyArgsParts = new List<string>();
         foreach (var p in info.PathParams)
+        {
+            keyArgsParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+        }
+
+        foreach (var p in info.QuerystringParams)
         {
             keyArgsParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
         }
@@ -517,8 +535,8 @@ public static class TypeScriptReactQueryHookExtractor
 
         var keyCallArgs = string.Join(", ", keyArgsParts);
 
-        // Build client call args (headers ARE forwarded to the client method)
-        var clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, hasBody: false, namingStrategy: namingStrategy);
+        // Build client call args (headers and cookies ARE forwarded to the client method)
+        var clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, info.CookieParams, info.QuerystringParams, hasBody: false, namingStrategy: namingStrategy);
 
         AppendHookJsDoc(sb, info);
         sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
@@ -834,14 +852,14 @@ public static class TypeScriptReactQueryHookExtractor
             }
 
             mutationArg = "(body: " + info.BodyType + ")";
-            clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, hasBody: true, namingStrategy: namingStrategy);
+            clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, info.CookieParams, info.QuerystringParams, hasBody: true, namingStrategy: namingStrategy);
             variablesType = info.BodyType;
         }
         else if (info.HasBody)
         {
             // Body only as mutation arg
             mutationArg = "(body: " + info.BodyType + ")";
-            clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, hasBody: true, namingStrategy: namingStrategy);
+            clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, info.CookieParams, info.QuerystringParams, hasBody: true, namingStrategy: namingStrategy);
             variablesType = info.BodyType;
         }
         else if (info.HasFileUploadArg && info.PathParams.Count > 0)
@@ -1048,11 +1066,13 @@ public static class TypeScriptReactQueryHookExtractor
         List<OpenApiParameter> pathParams,
         List<OpenApiParameter> queryParams,
         List<OpenApiParameter> headerParams,
+        List<OpenApiParameter> cookieParams,
+        List<OpenApiParameter> querystringParams,
         bool hasBody,
         TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase)
     {
         // Argument order must mirror the client method's parameter list:
-        //   pathParams..., body, query, headers
+        //   pathParams..., body, querystringParams (individual)..., query, headers, cookies
         // See TypeScriptClientExtractor.BuildParameterList.
         var args = new List<string>();
 
@@ -1066,6 +1086,11 @@ public static class TypeScriptReactQueryHookExtractor
             args.Add("body");
         }
 
+        foreach (var param in querystringParams)
+        {
+            args.Add((param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+        }
+
         if (queryParams.Count > 0)
         {
             args.Add("query");
@@ -1076,7 +1101,25 @@ public static class TypeScriptReactQueryHookExtractor
             args.Add("headers");
         }
 
+        if (cookieParams.Count > 0)
+        {
+            args.Add("cookies");
+        }
+
         return string.Join(", ", args);
+    }
+
+    private static string BuildCookieTypeInline(
+        List<OpenApiParameter> cookieParams,
+        TypeScriptNamingStrategy namingStrategy)
+    {
+        var props = cookieParams.Select(p =>
+        {
+            var name = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var optional = p.Required ? string.Empty : "?";
+            return name + optional + ": string";
+        });
+        return "{ " + string.Join("; ", props) + " }";
     }
 
     /// <summary>
@@ -1153,6 +1196,10 @@ public static class TypeScriptReactQueryHookExtractor
             operation, openApiDoc, path, ParameterLocation.Query);
         var headerParams = TypeScriptOperationHelper.GetMergedParameters(
             operation, openApiDoc, path, ParameterLocation.Header);
+        var cookieParams = TypeScriptOperationHelper.GetMergedParameters(
+            operation, openApiDoc, path, ParameterLocation.Cookie);
+        var querystringParams = TypeScriptOperationHelper.GetMergedParameters(
+            operation, openApiDoc, path, ParameterLocation.QueryString);
 
         var returnType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming, isFileDownload);
 
@@ -1205,6 +1252,8 @@ public static class TypeScriptReactQueryHookExtractor
             PathParams: pathParams,
             QueryParams: queryParams,
             HeaderParams: headerParams,
+            CookieParams: cookieParams,
+            QuerystringParams: querystringParams,
             ReturnType: returnType,
             HasBody: hasBody,
             BodyType: bodyType,
@@ -1322,6 +1371,8 @@ public static class TypeScriptReactQueryHookExtractor
         List<OpenApiParameter> PathParams,
         List<OpenApiParameter> QueryParams,
         List<OpenApiParameter> HeaderParams,
+        List<OpenApiParameter> CookieParams,
+        List<OpenApiParameter> QuerystringParams,
         string ReturnType,
         bool HasBody,
         string BodyType,

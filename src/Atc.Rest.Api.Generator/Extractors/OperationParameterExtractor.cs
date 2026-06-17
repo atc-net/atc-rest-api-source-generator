@@ -502,29 +502,38 @@ public static class OperationParameterExtractor
                     continue;
                 }
 
-                // Inline-enum detection: when the parameter schema is an inline enum
-                // (string + enum values, no $ref) — or an array whose items are an
-                // inline enum — AND the caller supplied an accumulator, generate a named
-                // C# enum type and record it as a side-output. Dedup by sorted value set
-                // so two params with the same value list share one type. Falls through
-                // to plain primitive mapping when no accumulator is supplied.
+                // OAS 3.2 in:querystring uses `content` (not `schema`) — the full raw query string
+                // is always typed as string. Schema is null so skip enum-detection and type-mapping.
                 string paramType;
-                var inlineEnumTypeName = TryRegisterInlineEnumOnParameter(
-                    parameter.Schema,
-                    recordName,
-                    propName,
-                    projectName,
-                    pathSegment,
-                    inlineEnumsByValuesKey,
-                    out var isArrayOfInlineEnum);
-                if (inlineEnumTypeName != null)
+                if (paramLocation == ParameterLocation.QueryString)
                 {
-                    var rendered = isArrayOfInlineEnum ? $"List<{inlineEnumTypeName}>" : inlineEnumTypeName;
-                    paramType = parameter.Required ? rendered : rendered + "?";
+                    paramType = parameter.Required ? "string" : "string?";
                 }
                 else
                 {
-                    paramType = MapOpenApiTypeToCSharp(parameter.Schema!, parameter.Required, registry);
+                    // Inline-enum detection: when the parameter schema is an inline enum
+                    // (string + enum values, no $ref) — or an array whose items are an
+                    // inline enum — AND the caller supplied an accumulator, generate a named
+                    // C# enum type and record it as a side-output. Dedup by sorted value set
+                    // so two params with the same value list share one type. Falls through
+                    // to plain primitive mapping when no accumulator is supplied.
+                    var inlineEnumTypeName = TryRegisterInlineEnumOnParameter(
+                        parameter.Schema,
+                        recordName,
+                        propName,
+                        projectName,
+                        pathSegment,
+                        inlineEnumsByValuesKey,
+                        out var isArrayOfInlineEnum);
+                    if (inlineEnumTypeName != null)
+                    {
+                        var rendered = isArrayOfInlineEnum ? $"List<{inlineEnumTypeName}>" : inlineEnumTypeName;
+                        paramType = parameter.Required ? rendered : rendered + "?";
+                    }
+                    else
+                    {
+                        paramType = MapOpenApiTypeToCSharp(parameter.Schema!, parameter.Required, registry);
+                    }
                 }
 
                 // Extract nullability from the type name - the code generation library handles adding "?"
