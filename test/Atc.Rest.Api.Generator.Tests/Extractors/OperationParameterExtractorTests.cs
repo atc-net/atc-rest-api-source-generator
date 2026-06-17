@@ -1230,10 +1230,12 @@ public class OperationParameterExtractorTests
 
     // ========== in:cookie + style:cookie (OAS 3.2) ==========
     [Fact]
-    public void Extract_WithCookieStyleOnCookieParam_ServerSideGeneratesFromCookieAttribute()
+    public void Extract_WithCookieParam_ServerSideOmitsBindingAttribute()
     {
-        // style:cookie is an explicit serialization style for in:cookie params (RFC 6265).
-        // The server-side binding attribute is still [FromCookie] — style only affects client serialization.
+        // ASP.NET Core has no [FromCookie] attribute — cookie params cannot be bound
+        // automatically via [AsParameters]. They appear in the Parameters record without
+        // any binding attribute; callers access them via HttpContext.Request.Cookies.
+        // CS0246: error — FromCookieAttribute does not exist in ASP.NET Core.
         const string yaml = """
                             openapi: "3.2.0"
                             info:
@@ -1271,8 +1273,9 @@ public class OperationParameterExtractorTests
         Assert.Equal("Session", param.Name);
         Assert.Equal("string", param.TypeName);
         Assert.True(param.IsNullableType);
-        Assert.NotNull(param.Attributes);
-        Assert.Contains(param.Attributes!, a => a.Name == "FromCookie");
+
+        // No [FromCookie] — that attribute does not exist in ASP.NET Core.
+        Assert.Null(param.Attributes?.FirstOrDefault(a => a.Name == "FromCookie"));
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)
