@@ -487,10 +487,23 @@ public static class TypeScriptClientGenerationService
         WriteTsFile(Path.Combine(clientDir, "ApiService.ts"), apiServiceContent, dryRun);
 
         // Generate barrel export for client directory (not type-only, they are classes)
-        var clientNames = new List<string> { "ApiClient" };
-        clientNames.AddRange(segmentClientNames);
-        clientNames.Add("ApiService");
-        var barrelParams = TypeScriptBarrelExportExtractor.Create(headerContent, clientNames, isTypeOnly: false);
+        var clientItems = new List<(string Name, string? Summary)> { ("ApiClient", null) };
+        foreach (var className in segmentClientNames)
+        {
+            var tagName = className.EndsWith("Client", StringComparison.Ordinal)
+                ? className[..^6]
+                : className;
+            var summary = openApiDoc.Tags
+                ?.FirstOrDefault(t => string.Equals(
+                    t.Name?.ToPascalCaseForDotNet(),
+                    tagName,
+                    StringComparison.OrdinalIgnoreCase))
+                ?.Summary;
+            clientItems.Add((className, summary));
+        }
+
+        clientItems.Add(("ApiService", null));
+        var barrelParams = TypeScriptBarrelExportExtractor.CreateWithSummaries(headerContent, clientItems, isTypeOnly: false);
         var barrelGenerator = new GenerateContentForBarrelExport(barrelParams);
         var barrelContent = barrelGenerator.Generate();
         WriteTsFile(Path.Combine(clientDir, "index.ts"), barrelContent, dryRun);

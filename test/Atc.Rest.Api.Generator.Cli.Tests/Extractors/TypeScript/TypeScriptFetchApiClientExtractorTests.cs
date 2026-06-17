@@ -256,7 +256,21 @@ public class TypeScriptFetchApiClientExtractorTests
 
         // Incremental approach: inner loop advances on each complete part found so far.
         Assert.Contains("buf.startsWith(delimiter)", result, StringComparison.Ordinal);
+
         // Must NOT buffer the whole body first.
         Assert.DoesNotContain("let all = ''", result, StringComparison.Ordinal);
+    }
+
+    // ========== SSE parser dedup ==========
+    [Fact]
+    public void Generate_SseParser_ExtractsParseEventStreamHelper()
+    {
+        // The SSE parsing block is identical in Axios and Fetch clients. It is extracted
+        // to a module-level parseEventStream generator so the logic lives in one place
+        // and the requestStream SSE branch delegates to it via yield*.
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
+
+        Assert.Contains("async function* parseEventStream<T>(", result, StringComparison.Ordinal);
+        Assert.Contains("yield* parseEventStream<T>(reader, decoder);", result, StringComparison.Ordinal);
     }
 }

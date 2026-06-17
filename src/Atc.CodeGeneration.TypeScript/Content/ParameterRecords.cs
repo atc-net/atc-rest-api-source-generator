@@ -73,7 +73,8 @@ public record TypeScriptBarrelExportParameters(
 public record TypeScriptReExportParameters(
     string ModulePath,
     IList<string>? NamedExports,
-    bool IsTypeOnly);
+    bool IsTypeOnly,
+    JsDocComment? DocumentationTags = null);
 
 public record TypeScriptPropertyParameters(
     JsDocComment? DocumentationTags,
