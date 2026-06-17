@@ -363,6 +363,41 @@ public class PolicyExtractorTests
     }
 
     [Fact]
+    public void SecurityPoliciesExtractor_WithMutualTlsScheme_ProducesConstantWithTlsDocComment()
+    {
+        // Arrange - A6: mutualTLS scheme type → policy constant with TLS doc comment (ATC_API_SEC011)
+        const string yaml = """
+                            openapi: 3.2.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /devices:
+                                get:
+                                  operationId: listDevices
+                                  security:
+                                    - clientCert: []
+                                  responses:
+                                    '200':
+                                      description: OK
+                            components:
+                              securitySchemes:
+                                clientCert:
+                                  type: mutualTLS
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        // Act
+        var result = SecurityPoliciesExtractor.Extract(document, "TestApi");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Contains("clientCert", result, StringComparison.Ordinal);
+        Assert.Contains("TLS client certificate", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SecurityPoliciesExtractor_WithNonDeprecatedScheme_DoesNotEmitObsoleteAttribute()
     {
         // Arrange - non-deprecated scheme should not get [Obsolete]
@@ -402,6 +437,132 @@ public class PolicyExtractorTests
         Assert.NotNull(result);
         Assert.DoesNotContain("[Obsolete", result, StringComparison.Ordinal);
         Assert.Contains("pets.read", result, StringComparison.Ordinal);
+    }
+
+    // ========== OAuth2MetadataUrl + DeviceAuthorization flow ==========
+    [Fact]
+    public void SecurityPoliciesExtractor_WithOAuth2MetadataUrl_EmitsMetadataUrlConstant()
+    {
+        // Arrange — A9: oauth2MetadataUrl → named constant in SecurityPolicies.Metadata nested class
+        const string yaml = """
+                            openapi: "3.2.0"
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  security:
+                                    - deviceOAuth:
+                                        - "pets.read"
+                                  responses:
+                                    '200':
+                                      description: OK
+                            components:
+                              securitySchemes:
+                                deviceOAuth:
+                                  type: oauth2
+                                  oauth2MetadataUrl: "https://auth.example.com/.well-known/oauth-authorization-server"
+                                  flows:
+                                    deviceAuthorization:
+                                      tokenUrl: "https://auth.example.com/token"
+                                      scopes:
+                                        "pets.read": Read access to pets
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        // Act
+        var result = SecurityPoliciesExtractor.Extract(document, "TestApi");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Contains("DeviceOAuthMetadataUrl", result, StringComparison.Ordinal);
+        Assert.Contains("https://auth.example.com/.well-known/oauth-authorization-server", result, StringComparison.Ordinal);
+        Assert.Contains("RFC 8414", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SecurityPoliciesExtractor_WithDeviceAuthorizationFlow_EmitsPolicyConstant()
+    {
+        // Arrange — A9: deviceAuthorization flow scopes generate policy constants just like other OAuth2 flows
+        const string yaml = """
+                            openapi: "3.2.0"
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  security:
+                                    - deviceOAuth:
+                                        - "pets.read"
+                                  responses:
+                                    '200':
+                                      description: OK
+                            components:
+                              securitySchemes:
+                                deviceOAuth:
+                                  type: oauth2
+                                  flows:
+                                    deviceAuthorization:
+                                      tokenUrl: "https://auth.example.com/token"
+                                      scopes:
+                                        "pets.read": Read access to pets
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        // Act
+        var result = SecurityPoliciesExtractor.Extract(document, "TestApi");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Contains("DeviceOAuthPetsRead", result, StringComparison.Ordinal);
+        Assert.Contains("deviceOAuth:pets.read", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SecurityPoliciesExtractor_WithoutOAuth2MetadataUrl_DoesNotEmitMetadataClass()
+    {
+        // Arrange — no oauth2MetadataUrl → no Metadata nested class emitted
+        const string yaml = """
+                            openapi: "3.0.0"
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  security:
+                                    - oauth2:
+                                        - "pets.read"
+                                  responses:
+                                    '200':
+                                      description: OK
+                            components:
+                              securitySchemes:
+                                oauth2:
+                                  type: oauth2
+                                  flows:
+                                    clientCredentials:
+                                      tokenUrl: "https://auth.example.com/token"
+                                      scopes:
+                                        "pets.read": Read access to pets
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        // Act
+        var result = SecurityPoliciesExtractor.Extract(document, "TestApi");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.DoesNotContain("MetadataUrl", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("RFC 8414", result, StringComparison.Ordinal);
     }
 
     // ========== OutputCachePoliciesExtractor ==========

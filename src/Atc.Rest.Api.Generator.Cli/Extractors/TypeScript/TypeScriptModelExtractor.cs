@@ -473,7 +473,8 @@ public static class TypeScriptModelExtractor
             if (prop.Value is OpenApiSchema propSchema)
             {
                 var propDoc = propSchema.GetSchemaSummary() ?? propSchema.Description;
-                if (!string.IsNullOrEmpty(propDoc) || propSchema.Deprecated)
+                var propExample = GetSchemaExampleString(propSchema);
+                if (!string.IsNullOrEmpty(propDoc) || propSchema.Deprecated || propExample != null)
                 {
                     docTags = new JsDocComment(
                         description: propDoc,
@@ -481,7 +482,7 @@ public static class TypeScriptModelExtractor
                         returns: null,
                         isDeprecated: propSchema.Deprecated,
                         deprecatedMessage: null,
-                        example: null);
+                        example: propExample);
                 }
             }
 
@@ -634,6 +635,27 @@ public static class TypeScriptModelExtractor
     /// <summary>
     /// Builds import statements for referenced types.
     /// </summary>
+    /// <summary>
+    /// Returns a string representation of the schema's example for use in JSDoc @example.
+    /// Fallback chain: Examples[0] → Example (scalar on media-type), both as JSON strings.
+    /// </summary>
+    private static string? GetSchemaExampleString(OpenApiSchema schema)
+    {
+        // OAS 3.1/3.2 schema-level examples array (JSON Schema keyword)
+        if (schema.Examples is { Count: > 0 })
+        {
+            return schema.Examples[0].ToJsonString();
+        }
+
+        // OAS 3.0-style scalar example on the schema
+        if (schema.Example != null)
+        {
+            return schema.Example.ToJsonString();
+        }
+
+        return null;
+    }
+
     private static List<string> BuildImportStatements(
         HashSet<string> importTypes,
         string currentTypeName,

@@ -425,4 +425,117 @@ public class HandlerScaffoldExtractorTests
         // Assert
         Assert.Null(result.AdditionalFieldDeclarations);
     }
+
+    [Fact]
+    public void Extract_RequestBodyWithNamedExampleValue_IncludesExampleCommentInStub()
+    {
+        // Arrange - A5: DataValue → Value → ExternalValue fallback chain in scaffold stub
+        const string yaml = """
+                            openapi: 3.2.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                post:
+                                  operationId: createPet
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/Pet'
+                                        examples:
+                                          fido:
+                                            value:
+                                              name: Fido
+                                              age: 3
+                                  responses:
+                                    '201':
+                                      description: Created
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                    age:
+                                      type: integer
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var pathItem = document.Paths["/pets"];
+        var operation = pathItem.Operations.Values.First();
+        var resolver = new SystemTypeConflictResolver([]);
+
+        // Act
+        var result = HandlerScaffoldExtractor.Extract(
+            "CreatePetHandler",
+            "TestApi.Handlers.Pets",
+            operation,
+            (OpenApiPathItem)pathItem,
+            "createPet",
+            "Handler",
+            "throw-not-implemented",
+            resolver);
+
+        // Assert - stub should include an example comment
+        Assert.NotNull(result.Methods);
+        var methodContent = result.Methods[0].Content;
+        Assert.NotNull(methodContent);
+        Assert.Contains("// Example body:", methodContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_RequestBodyWithInlineExample_IncludesExampleCommentInStub()
+    {
+        // Arrange - A5: inline 'example:' on media type
+        const string yaml = """
+                            openapi: 3.1.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                post:
+                                  operationId: createPet
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema:
+                                          type: object
+                                          properties:
+                                            name:
+                                              type: string
+                                        example:
+                                          name: Fido
+                                  responses:
+                                    '201':
+                                      description: Created
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var pathItem = document.Paths["/pets"];
+        var operation = pathItem.Operations.Values.First();
+        var resolver = new SystemTypeConflictResolver([]);
+
+        // Act
+        var result = HandlerScaffoldExtractor.Extract(
+            "CreatePetHandler",
+            "TestApi.Handlers.Pets",
+            operation,
+            (OpenApiPathItem)pathItem,
+            "createPet",
+            "Handler",
+            "throw-not-implemented",
+            resolver);
+
+        // Assert
+        Assert.NotNull(result.Methods);
+        var methodContent = result.Methods[0].Content;
+        Assert.NotNull(methodContent);
+        Assert.Contains("// Example body:", methodContent, StringComparison.Ordinal);
+    }
 }

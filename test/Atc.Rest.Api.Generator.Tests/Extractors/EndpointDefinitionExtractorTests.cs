@@ -349,4 +349,86 @@ public class EndpointDefinitionExtractorTests
         // Should contain the FQN, not just "Device"
         Assert.Contains("KL.IoT.Device.Management.Generated.Devices.Models.Device", allMethodBodies, StringComparison.Ordinal);
     }
+
+    // ========== Tag.Summary in namespace doc comment ==========
+    [Fact]
+    public void Extract_WithOpenApiTagStrategy_AndTagSummary_UsesTagSummaryAsDocComment()
+    {
+        // Arrange — A7: OpenApiTag.Summary surfaces in the generated endpoint class doc comment
+        const string yaml = """
+                            openapi: "3.2.0"
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            tags:
+                              - name: Pets
+                                summary: Everything about your Pets
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  tags:
+                                    - Pets
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var resolver = new SystemTypeConflictResolver(Array.Empty<string>());
+
+        // Act
+        var (_, classes) = EndpointDefinitionExtractor.Extract(
+            document,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: resolver,
+            subFolderStrategy: SubFolderStrategyType.OpenApiTag);
+
+        // Assert
+        Assert.NotNull(classes);
+        Assert.NotEmpty(classes);
+        var petsClass = classes.FirstOrDefault(c => c.ClassTypeName == "PetsEndpointDefinition");
+        Assert.NotNull(petsClass);
+        Assert.Equal("Everything about your Pets", petsClass.DocumentationTags?.Summary);
+    }
+
+    [Fact]
+    public void Extract_WithOpenApiTagStrategy_AndNoTagSummary_UsesFallbackDocComment()
+    {
+        // Arrange — without Summary, fallback to "Endpoint definitions for {segment}."
+        const string yaml = """
+                            openapi: "3.2.0"
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  tags:
+                                    - Pets
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var resolver = new SystemTypeConflictResolver(Array.Empty<string>());
+
+        // Act
+        var (_, classes) = EndpointDefinitionExtractor.Extract(
+            document,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: resolver,
+            subFolderStrategy: SubFolderStrategyType.OpenApiTag);
+
+        // Assert
+        Assert.NotNull(classes);
+        Assert.NotEmpty(classes);
+        var petsClass = classes.FirstOrDefault(c => c.ClassTypeName == "PetsEndpointDefinition");
+        Assert.NotNull(petsClass);
+        Assert.Equal("Endpoint definitions for Pets.", petsClass.DocumentationTags?.Summary);
+    }
 }

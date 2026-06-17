@@ -114,7 +114,12 @@ public static class OpenApiDocumentHelper
         var reader = new OpenApiYamlReader();
         var settings = new OpenApiReaderSettings();
         using var memoryStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(yamlContent));
-        var baseUri = new Uri("file://" + yamlPath.Replace("\\", "/"));
+
+        // $self declares the document's canonical URI — use it as baseUri so that
+        // relative $ref resolution works even when the file is not at its canonical location.
+        var selfUri = ExtractSelfUri(yamlContent);
+        var baseUri = selfUri ?? new Uri("file://" + yamlPath.Replace("\\", "/"));
+
         var readResult = reader.Read(memoryStream, baseUri, settings);
 
         StashSpecVersion(readResult.Document, readResult.Diagnostic);
@@ -141,5 +146,47 @@ public static class OpenApiDocumentHelper
 
         document.Metadata ??= new Dictionary<string, object>(StringComparer.Ordinal);
         document.Metadata[OpenApiDocumentExtensions.SpecVersionMetadataKey] = diagnostic.SpecificationVersion;
+    }
+
+    /// <summary>
+    /// Scans the raw YAML for a top-level <c>$self:</c> field and returns its value as a URI.
+    /// Returns null when the field is absent or its value is not a valid absolute URI.
+    /// </summary>
+    private static Uri? ExtractSelfUri(string yamlContent)
+    {
+        const string prefix = "$self:";
+
+        foreach (var rawLine in yamlContent.Split('\n'))
+        {
+            var line = rawLine.TrimEnd('\r');
+
+            // Only match top-level keys (must start at column 0, no indentation)
+            if (line.Length == 0 || line[0] == ' ' || line[0] == '\t' || line[0] == '#')
+            {
+                continue;
+            }
+
+            if (!line.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var value = line.Substring(prefix.Length).Trim();
+
+            // Strip optional surrounding quotes (single or double)
+            if (value.Length >= 2)
+            {
+                var last = value[value.Length - 1];
+                if ((value[0] == '"' && last == '"') ||
+                    (value[0] == '\'' && last == '\''))
+                {
+                    value = value.Substring(1, value.Length - 2);
+                }
+            }
+
+            return Uri.TryCreate(value, UriKind.Absolute, out var uri) ? uri : null;
+        }
+
+        return null;
     }
 }

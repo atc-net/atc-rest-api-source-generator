@@ -400,4 +400,78 @@ public class TypeScriptModelExtractorTests
         Assert.Equal("string", idProp.TypeAnnotation);
         Assert.DoesNotContain(parameters.ImportStatements ?? new List<string>(), s => s.Contains("BrandedIds", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void Extract_SchemaPropertyWithExample_PopulatesJsDocExample()
+    {
+        // Arrange - A5: schema-level 'example:' on a property → @example in JSDoc
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info:
+              title: Test
+              version: 1.0.0
+            paths: {}
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      description: The pet name
+                      example: Fido
+            """);
+
+        var config = new TypeScriptClientConfig();
+
+        // Act
+        var results = TypeScriptModelExtractor.Extract(document, config);
+
+        // Assert
+        Assert.Single(results);
+        var (_, parameters) = results[0];
+        var nameProp = parameters.Properties?.FirstOrDefault(p => p.Name == "name");
+        Assert.NotNull(nameProp);
+        Assert.NotNull(nameProp!.DocumentationTags);
+        Assert.NotNull(nameProp.DocumentationTags!.Example);
+        Assert.Contains("Fido", nameProp.DocumentationTags.Example, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_SchemaPropertyWithExamplesArray_PopulatesJsDocExampleFromFirst()
+    {
+        // Arrange - A5: OAS 3.1/3.2 schema 'examples:' array → first item in @example JSDoc
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.1.0
+            info:
+              title: Test
+              version: 1.0.0
+            paths: {}
+            components:
+              schemas:
+                Tag:
+                  type: object
+                  properties:
+                    value:
+                      type: string
+                      description: The tag value
+                      examples:
+                        - hello
+                        - world
+            """);
+
+        var config = new TypeScriptClientConfig();
+
+        // Act
+        var results = TypeScriptModelExtractor.Extract(document, config);
+
+        // Assert
+        Assert.Single(results);
+        var (_, parameters) = results[0];
+        var valueProp = parameters.Properties?.FirstOrDefault(p => p.Name == "value");
+        Assert.NotNull(valueProp);
+        Assert.NotNull(valueProp!.DocumentationTags);
+        Assert.NotNull(valueProp.DocumentationTags!.Example);
+        Assert.Contains("hello", valueProp.DocumentationTags.Example, StringComparison.Ordinal);
+    }
 }

@@ -74,7 +74,8 @@ public static class HandlerScaffoldExtractor
 
         // Generate method body content based on stub type
         var taskTypeName = systemTypeResolver.EnsureFullNamespaceIfNeeded(nameof(Task));
-        var methodContent = GenerateStubContent(resultTypeName, operationId, stubImplementation, taskTypeName, injectLogger, injectTracing);
+        var requestBodyExample = GetRequestBodyExample(operation);
+        var methodContent = GenerateStubContent(resultTypeName, operationId, stubImplementation, taskTypeName, injectLogger, injectTracing, requestBodyExample);
 
         // Calculate whether method signature fits on one line (ATC201 threshold = 80 chars)
         // Format: "    public Task<ResultType> ExecuteAsync(ParamType paramName = default)"
@@ -147,7 +148,8 @@ public static class HandlerScaffoldExtractor
         string stubImplementation,
         string taskTypeName,
         bool injectLogger,
-        bool injectTracing)
+        bool injectTracing,
+        string? requestBodyExample = null)
     {
         var builder = new StringBuilder();
 
@@ -158,6 +160,11 @@ public static class HandlerScaffoldExtractor
         }
 
         builder.AppendLine($"// TODO: Implement {operationId} logic");
+
+        if (!string.IsNullOrEmpty(requestBodyExample))
+        {
+            builder.AppendLine($"// Example body: {requestBodyExample}");
+        }
 
         // Add logger.LogTrace to use the injected logger (avoids S4487 "unread field" warning)
         if (injectLogger)
@@ -186,6 +193,51 @@ public static class HandlerScaffoldExtractor
         }
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// Extracts the first available example body from the request body using the
+    /// Fallback chain: DataValue → Value → ExternalValue.
+    /// Checks named examples first, then the inline example on the media type.
+    /// </summary>
+    private static string? GetRequestBodyExample(OpenApiOperation operation)
+    {
+        var mediaType = operation.RequestBody?.Content
+            ?.FirstOrDefault(c => c.Key.Equals("application/json", StringComparison.OrdinalIgnoreCase))
+            .Value;
+
+        if (mediaType == null)
+        {
+            return null;
+        }
+
+        // Named examples (examples:) take precedence over inline example:
+        if (mediaType.Examples is { Count: > 0 })
+        {
+            var firstExample = mediaType.Examples.Values.First();
+            if (firstExample.DataValue != null)
+            {
+                return firstExample.DataValue.ToJsonString();
+            }
+
+            if (firstExample.Value != null)
+            {
+                return firstExample.Value.ToJsonString();
+            }
+
+            if (!string.IsNullOrEmpty(firstExample.ExternalValue))
+            {
+                return firstExample.ExternalValue;
+            }
+        }
+
+        // Inline example: on the media type object
+        if (mediaType.Example != null)
+        {
+            return mediaType.Example.ToJsonString();
+        }
+
+        return null;
     }
 
     /// <summary>

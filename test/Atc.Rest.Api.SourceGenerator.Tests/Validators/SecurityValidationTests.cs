@@ -505,6 +505,49 @@ public class SecurityValidationTests
         Assert.Null(sec010);
     }
 
+    // ========== SEC011: mutualTLS scheme — no HTTP credential injected ==========
+
+    [Fact]
+    public void Validate_MutualTlsSecurityScheme_ReportsSEC011()
+    {
+        // Arrange - A6: mutualTLS type recognized; Info diagnostic emitted (ATC_API_SEC011)
+        const string yaml = """
+                            openapi: 3.2.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /devices:
+                                get:
+                                  operationId: listDevices
+                                  security:
+                                    - clientCert: []
+                                  responses:
+                                    '200':
+                                      description: OK
+                            components:
+                              securitySchemes:
+                                clientCert:
+                                  type: mutualTLS
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Standard,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var sec011 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.MutualTlsSchemeNoCertInjection);
+        Assert.NotNull(sec011);
+        Assert.Equal(Generator.Models.DiagnosticSeverity.Info, sec011.Severity);
+        Assert.Contains("mutualTLS", sec011.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     // ========== Helper Methods ==========
 
     private static OpenApiDocument? ParseYaml(string yaml)

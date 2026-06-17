@@ -429,10 +429,22 @@ using Microsoft.AspNetCore.Builder;
             new("internal", "string", "ApiRouteBase", effectiveRouteBase),
         };
 
+        // Use OpenApiTag.Summary when present for a richer generated doc comment
+        var tagSummary = openApiDoc.Tags
+            ?.FirstOrDefault(t => string.Equals(
+                t.Name?.ToPascalCaseForDotNet(),
+                segment,
+                StringComparison.OrdinalIgnoreCase))
+            ?.Summary;
+
+        var classDescription = string.IsNullOrEmpty(tagSummary)
+            ? $"Endpoint definitions for {segment}."
+            : tagSummary!;
+
         return new ClassParameters(
             HeaderContent: headerContent,
             Namespace: namespaceValue,
-            DocumentationTags: new CodeDocumentationTags($"Endpoint definitions for {segment}."),
+            DocumentationTags: new CodeDocumentationTags(classDescription),
             Attributes: new List<AttributeParameters>
             {
                 new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
