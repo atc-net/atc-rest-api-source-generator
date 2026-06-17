@@ -23,7 +23,7 @@ public static class SecurityPoliciesExtractor
         }
 
         // Collect all unique policies from security requirements
-        var policies = CollectPolicies(openApiDoc, includeDeprecated);
+        var (policies, deprecatedPolicies) = CollectPolicies(openApiDoc, includeDeprecated);
 
         if (policies.Count == 0)
         {
@@ -31,21 +31,23 @@ public static class SecurityPoliciesExtractor
         }
 
         // Generate the complete class content
-        return GenerateFileContent(projectName, policies);
+        return GenerateFileContent(projectName, policies, deprecatedPolicies);
     }
 
     /// <summary>
     /// Collects all unique policies from security requirements across all operations.
+    /// Returns the policy dict and a set of policy names from deprecated security schemes.
     /// </summary>
-    internal static Dictionary<string, List<string>> CollectPolicies(
+    internal static (Dictionary<string, List<string>> Policies, HashSet<string> DeprecatedPolicies) CollectPolicies(
         OpenApiDocument openApiDoc,
         bool includeDeprecated)
     {
         var policies = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        var deprecatedPolicies = new HashSet<string>(StringComparer.Ordinal);
 
         if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
         {
-            return policies;
+            return (policies, deprecatedPolicies);
         }
 
         foreach (var pathPair in openApiDoc.Paths)
@@ -114,6 +116,11 @@ public static class SecurityPoliciesExtractor
                         continue;
                     }
 
+                    var isSchemeDeprecated =
+                        openApiDoc.Components?.SecuritySchemes != null &&
+                        openApiDoc.Components.SecuritySchemes.TryGetValue(schemeName, out var schemeEntry) &&
+                        schemeEntry.Deprecated;
+
                     // Sort scopes for consistent policy names
                     var sortedScopes = scopes
                         .OrderBy(s => s, StringComparer.Ordinal)
@@ -124,6 +131,10 @@ public static class SecurityPoliciesExtractor
                     if (!policies.ContainsKey(policyName))
                     {
                         policies[policyName] = sortedScopes;
+                        if (isSchemeDeprecated)
+                        {
+                            deprecatedPolicies.Add(policyName);
+                        }
                     }
 
                     // Also create individual scope policies for single scopes
@@ -135,6 +146,10 @@ public static class SecurityPoliciesExtractor
                             if (!policies.ContainsKey(singleScopePolicyName))
                             {
                                 policies[singleScopePolicyName] = new List<string> { scope };
+                                if (isSchemeDeprecated)
+                                {
+                                    deprecatedPolicies.Add(singleScopePolicyName);
+                                }
                             }
                         }
                     }
@@ -142,7 +157,7 @@ public static class SecurityPoliciesExtractor
             }
         }
 
-        return policies;
+        return (policies, deprecatedPolicies);
     }
 
     /// <summary>
@@ -150,7 +165,8 @@ public static class SecurityPoliciesExtractor
     /// </summary>
     private static string GenerateFileContent(
         string projectName,
-        Dictionary<string, List<string>> policies)
+        Dictionary<string, List<string>> policies,
+        HashSet<string> deprecatedPolicies)
     {
         var builder = new StringBuilder();
 
@@ -193,6 +209,11 @@ public static class SecurityPoliciesExtractor
             builder.AppendLine(4, "/// <summary>");
             builder.AppendLine(4, $"/// {scopeDescription}");
             builder.AppendLine(4, "/// </summary>");
+            if (deprecatedPolicies.Contains(policyName))
+            {
+                builder.AppendLine(4, "[Obsolete(\"Security scheme marked deprecated in OpenAPI spec.\")]");
+            }
+
             builder.AppendLine(4, $"public const string {constantName} = \"{policyName}\";");
         }
 

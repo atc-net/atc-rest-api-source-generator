@@ -50,8 +50,26 @@ public class StatisticsCollectorTests
         var result = StatisticsCollector.CollectFromOpenApiDocument(
             doc, "test.yaml", "Server", []);
 
-        Assert.Equal("1.0.0", result.SpecificationVersion);
+        Assert.Equal("1.0.0", result.ApiVersion);
         Assert.Equal("Pet Store", result.ApiTitle);
+    }
+
+    [Fact]
+    public void CollectFromOpenApiDocument_WithParsedDocument_SetsCorrectOpenApiVersion()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.1.0
+            info:
+              title: Test
+              version: 2.0.0
+            paths: {}
+            """);
+
+        var result = StatisticsCollector.CollectFromOpenApiDocument(
+            doc, "test.yaml", "Server", []);
+
+        Assert.Equal("2.0.0", result.ApiVersion);
+        Assert.Equal("3.1", result.OpenApiVersion);
     }
 
     [Fact]
