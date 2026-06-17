@@ -18,4 +18,6 @@ public sealed record ListItemsParameters(
     [property: FromQuery(Name = "tags")] ParsableList<string>? Tags,
     [property: FromQuery(Name = "q")] string? Q,
     [property: FromQuery(Name = "legacy")] ParsableList<string>? Legacy,
-    [property: FromQuery(Name = "ids")] ParsableList<string>? Ids);
+    [property: FromQuery(Name = "ids")] ParsableList<string>? Ids,
+    string? RawFilter,
+    [property: FromCookie(Name = "session")] string? Session);

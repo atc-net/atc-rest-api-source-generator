@@ -1137,6 +1137,144 @@ public class OperationParameterExtractorTests
         Assert.Single(optInEnums);
     }
 
+    // ========== in:querystring (OAS 3.2) ==========
+    [Fact]
+    public void Extract_WithQuerystringInParameter_GeneratesNullableStringType()
+    {
+        // in:querystring uses `content` (not `schema`) — the raw query string is always a string.
+        // Bug guard: MapOpenApiTypeToCSharp receives null schema and currently returns "object".
+        // After fix: must return "string?" for non-required querystring params.
+        const string yaml = """
+                            openapi: "3.2.0"
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /search:
+                                get:
+                                  operationId: search
+                                  parameters:
+                                    - name: rawFilter
+                                      in: querystring
+                                      required: false
+                                      content:
+                                        application/x-www-form-urlencoded:
+                                          schema:
+                                            type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var recordsParams = OperationParameterExtractor.Extract(
+            document!,
+            "TestApi",
+            "Search",
+            registry: null,
+            includeDeprecated: false);
+
+        Assert.NotNull(recordsParams);
+        var param = recordsParams.Parameters[0].Parameters![0];
+
+        Assert.Equal("RawFilter", param.Name);
+        Assert.Equal("string", param.TypeName);  // NOT "object"
+        Assert.True(param.IsNullableType);
+        Assert.Null(param.Attributes?.FirstOrDefault(a => a.Name == "FromQuery"));
+    }
+
+    [Fact]
+    public void Extract_WithQuerystringInParameter_RequiredGeneratesNonNullableString()
+    {
+        const string yaml = """
+                            openapi: "3.2.0"
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /search:
+                                get:
+                                  operationId: search
+                                  parameters:
+                                    - name: rawFilter
+                                      in: querystring
+                                      required: true
+                                      content:
+                                        application/x-www-form-urlencoded:
+                                          schema:
+                                            type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var recordsParams = OperationParameterExtractor.Extract(
+            document!,
+            "TestApi",
+            "Search",
+            registry: null,
+            includeDeprecated: false);
+
+        Assert.NotNull(recordsParams);
+        var param = recordsParams.Parameters[0].Parameters![0];
+
+        Assert.Equal("RawFilter", param.Name);
+        Assert.Equal("string", param.TypeName);
+        Assert.False(param.IsNullableType);
+    }
+
+    // ========== in:cookie + style:cookie (OAS 3.2) ==========
+    [Fact]
+    public void Extract_WithCookieStyleOnCookieParam_ServerSideGeneratesFromCookieAttribute()
+    {
+        // style:cookie is an explicit serialization style for in:cookie params (RFC 6265).
+        // The server-side binding attribute is still [FromCookie] — style only affects client serialization.
+        const string yaml = """
+                            openapi: "3.2.0"
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  parameters:
+                                    - name: session
+                                      in: cookie
+                                      style: cookie
+                                      required: false
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var recordsParams = OperationParameterExtractor.Extract(
+            document!,
+            "TestApi",
+            "Items",
+            registry: null,
+            includeDeprecated: false);
+
+        Assert.NotNull(recordsParams);
+        var param = recordsParams.Parameters[0].Parameters![0];
+
+        Assert.Equal("Session", param.Name);
+        Assert.Equal("string", param.TypeName);
+        Assert.True(param.IsNullableType);
+        Assert.NotNull(param.Attributes);
+        Assert.Contains(param.Attributes!, a => a.Name == "FromCookie");
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

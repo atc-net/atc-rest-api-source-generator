@@ -41,7 +41,24 @@ public sealed class CookieParametersClient
         CancellationToken cancellationToken = default)
     {
         var url = "/session";
-        return (await httpClient.GetFromJsonAsync<Session>(url, jsonSerializerOptions, cancellationToken))!;
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+
+        var cookieParts = new List<string>();
+        cookieParts.Add($"sessionId={parameters.SessionId}");
+        if (!string.IsNullOrEmpty(parameters.Preferences))
+        {
+            cookieParts.Add($"preferences={parameters.Preferences}");
+        }
+
+        if (cookieParts.Count > 0)
+        {
+            request.Headers.TryAddWithoutValidation("Cookie", string.Join("; ", cookieParts));
+        }
+
+        var response = await httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<Session>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task TrackEventAsync(

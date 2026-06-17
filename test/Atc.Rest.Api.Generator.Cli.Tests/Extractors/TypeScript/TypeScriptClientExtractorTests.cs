@@ -1312,6 +1312,94 @@ public class TypeScriptClientExtractorTests
         Assert.Contains("requestStream<Event>('GET', '/events'", content, StringComparison.Ordinal);
     }
 
+    // ========== OAS 3.2 in:querystring / in:cookie (A1 + A2) ==========
+    [Fact]
+    public void Extract_QuerystringInParam_AppearsAsRawStringArgAndBuildsUrl()
+    {
+        // ATC_API_PAR001 (A1): OAS 3.2 in:querystring treats the parameter value as the
+        // entire raw query string. The TS client appends it verbatim to the URL path.
+        const string yaml = """
+                            openapi: "3.2.0"
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  parameters:
+                                    - name: rawFilter
+                                      in: querystring
+                                      required: false
+                                      content:
+                                        application/x-www-form-urlencoded:
+                                          schema:
+                                            type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null);
+        var (_, content) = Assert.Single(clients);
+
+        Assert.Contains("rawFilter?: string", content, StringComparison.Ordinal);
+
+        Assert.Contains("_basePath", content, StringComparison.Ordinal);
+
+        Assert.Contains("_url", content, StringComparison.Ordinal);
+
+        Assert.DoesNotContain("'GET', '/items'", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_CookieInParam_AppearsInCookiesArgAndForwardedAsHeader()
+    {
+        // ATC_API_PAR001 (A2): OAS 3.2 style:cookie on in:cookie params.
+        // The TS client forwards them as a Cookie header (Node.js only; browser fetch forbids it).
+        const string yaml = """
+                            openapi: "3.2.0"
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  parameters:
+                                    - name: session
+                                      in: cookie
+                                      style: cookie
+                                      required: false
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null);
+        var (_, content) = Assert.Single(clients);
+
+        Assert.Contains("cookies?: { session?: string }", content, StringComparison.Ordinal);
+
+        Assert.Contains("'Cookie':", content, StringComparison.Ordinal);
+
+        Assert.Contains("session", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

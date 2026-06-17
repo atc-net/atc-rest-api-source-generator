@@ -616,6 +616,8 @@ public static class HttpClientExtractor
         // Add query parameters - resolve parameter references first
         var queryParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
         var headerParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
+        var cookieParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
+        var querystringParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
         if (operation.Parameters != null)
         {
             foreach (var paramInterface in operation.Parameters)
@@ -629,6 +631,12 @@ public static class HttpClientExtractor
                         break;
                     case { In: ParameterLocation.Header }:
                         headerParams.Add((param, referenceId));
+                        break;
+                    case { In: ParameterLocation.Cookie }:
+                        cookieParams.Add((param, referenceId));
+                        break;
+                    case { In: ParameterLocation.QueryString }:
+                        querystringParams.Add((param, referenceId));
                         break;
                 }
             }
@@ -709,10 +717,26 @@ public static class HttpClientExtractor
             builder.AppendLine();
         }
 
+        // OAS 3.2 in:querystring — raw query string appended to URL as-is (no key=value encoding).
+        // Multiple querystring params on the same endpoint are unusual but handled by appending.
+        foreach (var (param, _) in querystringParams)
+        {
+            var propName = param.Name!.ToPascalCaseForDotNet();
+            var paramAccess = $"parameters.{propName}";
+
+            builder.AppendLine();
+            builder.AppendLine($"if (!string.IsNullOrEmpty({paramAccess}))");
+            builder.AppendLine("{");
+            builder.AppendLine(4, $"url += (url.Contains('?') ? \"&\" : \"?\") + {paramAccess};");
+            builder.AppendLine("}");
+
+            builder.AppendLine();
+        }
+
         switch (httpMethod)
         {
             case "GET":
-                GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), hasReturnType, builder, headerParams);
+                GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), hasReturnType, builder, headerParams, cookieParams);
                 break;
             case "POST":
                 GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder);
@@ -743,7 +767,8 @@ public static class HttpClientExtractor
         StreamingFraming streamingFraming,
         bool hasReturnType,
         StringBuilder builder,
-        List<(OpenApiParameter Param, string? ReferenceId)> headerParams)
+        List<(OpenApiParameter Param, string? ReferenceId)> headerParams,
+        List<(OpenApiParameter Param, string? ReferenceId)> cookieParams)
     {
         // Special handling for async enumerable streaming
         if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
@@ -798,20 +823,15 @@ public static class HttpClientExtractor
             builder.AppendLine(4, "}");
             builder.AppendLine("}");
         }
-        else if (headerParams.Count > 0)
+        else if (headerParams.Count > 0 || cookieParams.Count > 0)
         {
-            // Use HttpRequestMessage when headers are needed
+            // Use HttpRequestMessage when request headers or cookies are needed
             builder.AppendLine();
             builder.AppendLine("using var request = new HttpRequestMessage(HttpMethod.Get, url);");
-            if (headerParams.Count > 0)
-            {
-                builder.AppendLine();
-            }
+            builder.AppendLine();
 
             foreach (var (param, referenceId) in headerParams)
             {
-                // For header parameters, use reference ID as property name if available,
-                // otherwise strip x- prefix from header name
                 var propName = !string.IsNullOrEmpty(referenceId)
                     ? referenceId!.ToPascalCaseForDotNet()
                     : param.Name!.ToHeaderPropertyName();
@@ -824,15 +844,47 @@ public static class HttpClientExtractor
                 }
                 else
                 {
-                    builder.AppendLine();
                     builder.AppendLine($"if (!string.IsNullOrEmpty({paramAccess}))");
                     builder.AppendLine("{");
                     builder.AppendLine(4, $"request.Headers.Add(\"{headerName}\", {paramAccess});");
                     builder.AppendLine("}");
+                    builder.AppendLine();
                 }
             }
 
-            builder.AppendLine();
+            // OAS 3.2 in:cookie — build RFC 6265 Cookie header (name=value; name2=value2).
+            // style:cookie omits percent-encoding; style:form (default) uses the raw value here
+            // since cookie values rarely need encoding in practice. For full correctness, the
+            // application layer should configure HttpClientHandler.UseCookies = false.
+            if (cookieParams.Count > 0)
+            {
+                builder.AppendLine("var cookieParts = new List<string>();");
+                foreach (var (param, _) in cookieParams)
+                {
+                    var propName = param.Name!.ToPascalCaseForDotNet();
+                    var paramAccess = $"parameters.{propName}";
+
+                    if (param.Required)
+                    {
+                        builder.AppendLine($"cookieParts.Add($\"{param.Name}={{{paramAccess}}}\");");
+                    }
+                    else
+                    {
+                        builder.AppendLine($"if (!string.IsNullOrEmpty({paramAccess}))");
+                        builder.AppendLine("{");
+                        builder.AppendLine(4, $"cookieParts.Add($\"{param.Name}={{{paramAccess}}}\");");
+                        builder.AppendLine("}");
+                        builder.AppendLine();
+                    }
+                }
+
+                builder.AppendLine("if (cookieParts.Count > 0)");
+                builder.AppendLine("{");
+                builder.AppendLine(4, "request.Headers.TryAddWithoutValidation(\"Cookie\", string.Join(\"; \", cookieParts));");
+                builder.AppendLine("}");
+                builder.AppendLine();
+            }
+
             builder.AppendLine("var response = await httpClient.SendAsync(request, cancellationToken);");
             builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
 

@@ -1,12 +1,13 @@
-openapi: "3.0.3"
+openapi: "3.2.0"
 info:
   version: 1.0.0
   title: Parameter Serialization Test
   description: >
     Exercises query-parameter style/explode/allowReserved serialization:
     a supported optional form-explode array (tags), an allowReserved primitive (q),
-    an unsupported spaceDelimited array (legacy → ATC_API_OPR026), and a $ref-to-array
-    query param (ids) that must resolve to an array and get the repeated-key foreach.
+    an unsupported spaceDelimited array (legacy → ATC_API_OPR026), a $ref-to-array
+    query param (ids), an OAS 3.2 in:querystring raw-query param (rawFilter), and
+    an in:cookie with style:cookie (session) per RFC 6265.
 
 paths:
   /items:
@@ -42,6 +43,19 @@ paths:
           required: false
           schema:
             $ref: "#/components/schemas/IdList"
+        - name: rawFilter
+          in: querystring
+          required: false
+          content:
+            application/x-www-form-urlencoded:
+              schema:
+                type: string
+        - name: session
+          in: cookie
+          style: cookie
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: OK

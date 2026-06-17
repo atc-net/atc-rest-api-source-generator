@@ -307,6 +307,81 @@ public class OpenApiParameterExtensionsTests
         Assert.False(s.IsSupported);
     }
 
+    // ========== GetParameterSerialization — cookie style tests ==========
+    [Fact]
+    public void GetParameterSerialization_CookieStyleInCookiePrimitive_IsSupported()
+    {
+        // ATC_API_OPR026 must NOT fire for style:cookie on in:cookie primitive params.
+        var param = new OpenApiParameter
+        {
+            Name = "session",
+            In = ParameterLocation.Cookie,
+            Style = ParameterStyle.Cookie,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.String },
+        };
+
+        var s = param.GetParameterSerialization();
+
+        Assert.Equal(ParameterStyle.Cookie, s.Style);
+        Assert.Equal(ParameterValueKind.Primitive, s.ValueKind);
+        Assert.True(s.IsSupported);
+    }
+
+    [Fact]
+    public void GetParameterSerialization_CookieStyleInCookieArray_IsSupported()
+    {
+        // style:cookie on an array produces semicolon-separated RFC 6265 pairs.
+        var param = new OpenApiParameter
+        {
+            Name = "prefs",
+            In = ParameterLocation.Cookie,
+            Style = ParameterStyle.Cookie,
+            Schema = new OpenApiSchema { Type = JsonSchemaType.Array, Items = new OpenApiSchema { Type = JsonSchemaType.String } },
+        };
+
+        var s = param.GetParameterSerialization();
+
+        Assert.Equal(ParameterStyle.Cookie, s.Style);
+        Assert.Equal(ParameterValueKind.Array, s.ValueKind);
+        Assert.True(s.IsSupported);
+    }
+
+    [Fact]
+    public void GetParameterSerialization_ParsedFromYaml_ExplicitCookieStyle_IsSupported()
+    {
+        // Locks the parse path: in:cookie with explicit style:cookie must survive YAML parsing
+        // and be classified as supported (no ATC_API_OPR026).
+        const string yaml = """
+                            openapi: "3.2.0"
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  parameters:
+                                    - name: session
+                                      in: cookie
+                                      style: cookie
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var operation = document.Paths["/items"].Operations.Values.First();
+        var param = operation.Parameters![0].Resolve().Parameter;
+
+        Assert.NotNull(param);
+        var s = param!.GetParameterSerialization();
+
+        Assert.Equal(ParameterStyle.Cookie, s.Style);
+        Assert.True(s.IsSupported);
+    }
+
     // ========== Helper Methods ==========
     private static OpenApiParameter CreateParameterWithType(JsonSchemaType type)
         => new()
