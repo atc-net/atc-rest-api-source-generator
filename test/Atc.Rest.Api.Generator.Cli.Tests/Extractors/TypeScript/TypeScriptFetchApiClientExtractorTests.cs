@@ -232,4 +232,31 @@ public class TypeScriptFetchApiClientExtractorTests
         Assert.True(continueIdx > undefinedGuardIdx, "The 'continue' must follow the undefined guard within buildUrl.");
         Assert.True(arrayIdx > continueIdx, "The undefined guard must appear before Array.isArray within buildUrl.");
     }
+
+    // ========== SSE parser LF-only ==========
+    [Fact]
+    public void Generate_SseParser_StripsCarriageReturnChars()
+    {
+        // SSE spec mandates LF-only line endings; real-world servers may send CRLF.
+        // The generated SSE parser must strip CR chars so events delimited by \r\n\n
+        // or \r\n\r\n are still parsed correctly.
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
+
+        Assert.Contains(".replace(/\\r/g, '')", result, StringComparison.Ordinal);
+    }
+
+    // ========== multipart incremental consumption ==========
+    [Fact]
+    public void Generate_MultipartParser_YieldsPartsIncrementally()
+    {
+        // The multipart branch must not buffer the entire body before yielding parts.
+        // Instead it scans the rolling buffer for complete delimiter-bounded parts and
+        // yields each one as soon as it is complete (incremental streaming).
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
+
+        // Incremental approach: inner loop advances on each complete part found so far.
+        Assert.Contains("buf.startsWith(delimiter)", result, StringComparison.Ordinal);
+        // Must NOT buffer the whole body first.
+        Assert.DoesNotContain("let all = ''", result, StringComparison.Ordinal);
+    }
 }
