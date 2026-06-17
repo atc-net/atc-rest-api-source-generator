@@ -318,6 +318,92 @@ public class PolicyExtractorTests
         Assert.Null(result);
     }
 
+    [Fact]
+    public void SecurityPoliciesExtractor_WithDeprecatedScheme_EmitsObsoleteAttribute()
+    {
+        // Arrange - A8: deprecated: true on security scheme → [Obsolete] on policy constant
+        const string yaml = """
+                            openapi: 3.2.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  security:
+                                    - legacyOAuth:
+                                        - "pets.read"
+                                  responses:
+                                    '200':
+                                      description: OK
+                            components:
+                              securitySchemes:
+                                legacyOAuth:
+                                  type: oauth2
+                                  deprecated: true
+                                  flows:
+                                    authorizationCode:
+                                      authorizationUrl: https://auth.example.com/authorize
+                                      tokenUrl: https://auth.example.com/token
+                                      scopes:
+                                        "pets.read": Read access to pets
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        // Act
+        var result = SecurityPoliciesExtractor.Extract(document, "TestApi");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Contains("[Obsolete(", result, StringComparison.Ordinal);
+        Assert.Contains("Security scheme marked deprecated", result, StringComparison.Ordinal);
+        Assert.Contains("pets.read", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SecurityPoliciesExtractor_WithNonDeprecatedScheme_DoesNotEmitObsoleteAttribute()
+    {
+        // Arrange - non-deprecated scheme should not get [Obsolete]
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  security:
+                                    - oauth2:
+                                        - "pets.read"
+                                  responses:
+                                    '200':
+                                      description: OK
+                            components:
+                              securitySchemes:
+                                oauth2:
+                                  type: oauth2
+                                  flows:
+                                    authorizationCode:
+                                      authorizationUrl: https://auth.example.com/authorize
+                                      tokenUrl: https://auth.example.com/token
+                                      scopes:
+                                        "pets.read": Read access to pets
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        // Act
+        var result = SecurityPoliciesExtractor.Extract(document, "TestApi");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.DoesNotContain("[Obsolete", result, StringComparison.Ordinal);
+        Assert.Contains("pets.read", result, StringComparison.Ordinal);
+    }
+
     // ========== OutputCachePoliciesExtractor ==========
     [Fact]
     public void OutputCachePoliciesExtractor_WithPathLevelCachePolicy_ProducesConstants()

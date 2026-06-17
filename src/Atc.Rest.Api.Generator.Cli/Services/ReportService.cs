@@ -147,7 +147,7 @@ public static class ReportService
             sb.AppendLine(CultureInfo.InvariantCulture, $"| API Title | {stats.ApiTitle} |");
         }
 
-        sb.AppendLine(CultureInfo.InvariantCulture, $"| API Version | {stats.SpecificationVersion} |");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"| API Version | {stats.ApiVersion} |");
         sb.AppendLine();
     }
 

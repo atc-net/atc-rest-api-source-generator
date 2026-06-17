@@ -38,8 +38,8 @@ public static class StatisticsCollector
         return new GenerationStatistics
         {
             SpecificationName = specificationName,
-            SpecificationVersion = document.Info?.Version ?? string.Empty,
-            OpenApiVersion = GetOpenApiVersion(document),
+            ApiVersion = document.Info?.Version ?? string.Empty,
+            OpenApiVersion = document.GetOpenApiSpecVersion().ToDisplayString(),
             ApiTitle = document.Info?.Title ?? string.Empty,
             GeneratorVersion = GetGeneratorVersion(),
             GeneratorType = generatorType,
@@ -96,8 +96,8 @@ public static class StatisticsCollector
         return new GenerationStatistics
         {
             SpecificationName = specificationName,
-            SpecificationVersion = document.Info?.Version ?? string.Empty,
-            OpenApiVersion = GetOpenApiVersion(document),
+            ApiVersion = document.Info?.Version ?? string.Empty,
+            OpenApiVersion = document.GetOpenApiSpecVersion().ToDisplayString(),
             ApiTitle = document.Info?.Title ?? string.Empty,
             GeneratorVersion = GetGeneratorVersion(),
             GeneratorType = generatorType,
@@ -183,155 +183,6 @@ public static class StatisticsCollector
         }
 
         return System.Math.Max(1, segments.Count);
-    }
-
-    private static string GetOpenApiVersion(OpenApiDocument document)
-    {
-        // Detect OpenAPI 3.1 features
-        if (HasOpenApi31Features(document))
-        {
-            return "3.1.x";
-        }
-
-        return "3.0.x";
-    }
-
-    /// <summary>
-    /// Detects if the OpenAPI document uses any OpenAPI 3.1 specific features.
-    /// </summary>
-    private static bool HasOpenApi31Features(OpenApiDocument document)
-    {
-        // Check for webhooks (OpenAPI 3.1 feature)
-        if (document.Webhooks?.Count > 0)
-        {
-            return true;
-        }
-
-        // Check schemas for 3.1 features
-        if (document.Components?.Schemas != null)
-        {
-            foreach (var schemaEntry in document.Components.Schemas)
-            {
-                if (HasOpenApi31SchemaFeatures(schemaEntry.Value))
-                {
-                    return true;
-                }
-            }
-        }
-
-        // Check path/operation schemas for 3.1 features
-        if (document.Paths != null)
-        {
-            foreach (var pathItem in document.Paths.Values)
-            {
-                if (pathItem.Operations != null)
-                {
-                    foreach (var operation in pathItem.Operations.Values)
-                    {
-                        if (HasOperationOpenApi31Features(operation))
-                        {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Checks if a schema uses OpenAPI 3.1 specific features.
-    /// </summary>
-    private static bool HasOpenApi31SchemaFeatures(IOpenApiSchema schema)
-    {
-        // Check for multiple non-null types (type arrays)
-        if (schema.HasMultipleNonNullTypes())
-        {
-            return true;
-        }
-
-        // Check for const value (JSON Schema 2020-12)
-        if (schema is OpenApiSchema actualSchema)
-        {
-            // Check for const value
-            if (actualSchema.Const != null)
-            {
-                return true;
-            }
-
-            // Recursively check properties
-            if (actualSchema.Properties != null)
-            {
-                foreach (var propSchema in actualSchema.Properties.Values)
-                {
-                    if (HasOpenApi31SchemaFeatures(propSchema))
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            // Check array items
-            if (actualSchema.Items != null &&
-                HasOpenApi31SchemaFeatures(actualSchema.Items))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Checks if an operation uses OpenAPI 3.1 specific features.
-    /// </summary>
-    private static bool HasOperationOpenApi31Features(
-        OpenApiOperation operation)
-    {
-        // Check request body schemas
-        if (operation.RequestBody?.Content != null)
-        {
-            foreach (var content in operation.RequestBody.Content.Values)
-            {
-                if (content.Schema != null && HasOpenApi31SchemaFeatures(content.Schema))
-                {
-                    return true;
-                }
-            }
-        }
-
-        // Check response schemas
-        if (operation.Responses != null)
-        {
-            foreach (var response in operation.Responses.Values)
-            {
-                if (response.Content != null)
-                {
-                    foreach (var content in response.Content.Values)
-                    {
-                        if (content.Schema != null && HasOpenApi31SchemaFeatures(content.Schema))
-                        {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Check parameter schemas
-        if (operation.Parameters != null)
-        {
-            foreach (var parameter in operation.Parameters)
-            {
-                if (parameter.Schema != null && HasOpenApi31SchemaFeatures(parameter.Schema))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     private static string GetGeneratorVersion()

@@ -44,13 +44,8 @@ internal static class SpecificationValidator
 
             result.IsValid = true;
 
-            // Extract OpenAPI version
-            result.OpenApiVersion = openApiDoc.Info?.Version != null
-                ? $"3.x (API v{openApiDoc.Info.Version})"
-                : "3.x";
-
-            // Try to get the actual OpenAPI spec version from the YAML
-            result.OpenApiVersion = ExtractOpenApiSpecVersion(yamlContent) ?? result.OpenApiVersion;
+            // Extract OpenAPI version from parsed metadata
+            result.OpenApiVersion = openApiDoc.GetOpenApiSpecVersion().ToDisplayString();
 
             // Extract API info
             result.ApiTitle = openApiDoc.Info?.Title;
@@ -72,26 +67,6 @@ internal static class SpecificationValidator
         }
 
         return result;
-    }
-
-    private static string? ExtractOpenApiSpecVersion(string yamlContent)
-    {
-        // Simple extraction of openapi version from YAML
-        var lines = yamlContent.Split('\n');
-        foreach (var line in lines)
-        {
-            var trimmed = line.Trim();
-            if (trimmed.StartsWith("openapi:", StringComparison.OrdinalIgnoreCase))
-            {
-                var version = trimmed
-                    .Replace("openapi:", string.Empty, StringComparison.OrdinalIgnoreCase)
-                    .Trim()
-                    .Trim('"', '\'');
-                return version;
-            }
-        }
-
-        return null;
     }
 
     private static int CountOperations(OpenApiDocument document)
