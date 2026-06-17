@@ -265,6 +265,50 @@ public class TypeScriptReactQueryHookExtractorTests
     }
 
     [Fact]
+    public void Extract_AsyncEnumerableOperation_UsesThrottledFlushPattern()
+    {
+        // Regression guard: streaming hooks must use O(1) push + throttled flush rather than
+        // O(n²) spread-and-setState-per-item (fix for consumer-reported UI freeze at 110K items).
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  x-return-async-enumerable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        // O(1) push instead of O(n²) spread.
+        Assert.Contains("buffer.push(item);", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("buffer = [...buffer, item]", content, StringComparison.Ordinal);
+
+        // Throttled flush timer declared and scheduled.
+        Assert.Contains("flushTimer: ReturnType<typeof setTimeout> | null = null;", content, StringComparison.Ordinal);
+        Assert.Contains("if (flushTimer === null) flushTimer = setTimeout(flush, 200);", content, StringComparison.Ordinal);
+
+        // Guaranteed final flush on success and error paths.
+        Assert.Contains("setItems(buffer.slice());", content, StringComparison.Ordinal);
+
+        // Cleanup clears the timer to prevent setState-after-unmount.
+        Assert.Contains("if (flushTimer !== null) clearTimeout(flushTimer);", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("return () => controller.abort();", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Extract_AsyncEnumerableOperation_ImportsReactPrimitives()
     {
         // Stream hooks rely on useState / useEffect / useRef / useCallback — the import
