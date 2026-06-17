@@ -73,4 +73,42 @@ public class TypeScriptBarrelExportExtractorTests
 
         Assert.Equal(header, result.HeaderContent);
     }
+
+    // ========== barrel JSDoc (tag summaries) ==========
+    [Fact]
+    public void CreateWithSummaries_AssignsSummaryAsDocumentationTags()
+    {
+        // Tag summaries from the OpenAPI spec are passed as JsDocComment.Description
+        // on the re-export so client/index.ts gets /** {summary} */ above each export.
+        (string Name, string? Summary)[] items =
+        [
+            ("PetsClient", "Manages pet operations"),
+            ("OwnersClient", null),
+        ];
+
+        var result = TypeScriptBarrelExportExtractor.CreateWithSummaries(headerContent: null, items, isTypeOnly: false);
+
+        Assert.NotNull(result.Exports);
+        var petsExport = result.Exports!.First(e => e.ModulePath == "./PetsClient");
+        var ownersExport = result.Exports!.First(e => e.ModulePath == "./OwnersClient");
+        Assert.NotNull(petsExport.DocumentationTags);
+        Assert.Equal("Manages pet operations", petsExport.DocumentationTags!.Description);
+        Assert.Null(ownersExport.DocumentationTags);
+    }
+
+    [Fact]
+    public void CreateWithSummaries_OrdersItemsAlphabetically()
+    {
+        (string Name, string? Summary)[] items =
+        [
+            ("ZebraClient", "Z service"),
+            ("AppleClient", "A service"),
+        ];
+
+        var result = TypeScriptBarrelExportExtractor.CreateWithSummaries(headerContent: null, items, isTypeOnly: false);
+
+        Assert.NotNull(result.Exports);
+        var modules = result.Exports!.Select(e => e.ModulePath).ToList();
+        Assert.Equal(["./AppleClient", "./ZebraClient"], modules);
+    }
 }

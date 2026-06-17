@@ -65,6 +65,34 @@ public static class TypeScriptBarrelExportExtractor
     }
 
     /// <summary>
+    /// Creates barrel export parameters with optional JSDoc summaries per export.
+    /// </summary>
+    /// <param name="headerContent">Optional auto-generated header content.</param>
+    /// <param name="items">Name/summary pairs; null summary omits JSDoc for that entry.</param>
+    /// <param name="isTypeOnly">Whether to use type-only exports.</param>
+    /// <returns>Barrel export parameters with per-entry documentation.</returns>
+    public static TypeScriptBarrelExportParameters CreateWithSummaries(
+        string? headerContent,
+        IEnumerable<(string Name, string? Summary)> items,
+        bool isTypeOnly = false)
+    {
+        var exports = items
+            .OrderBy(item => item.Name, StringComparer.Ordinal)
+            .Select(item => new TypeScriptReExportParameters(
+                ModulePath: $"./{item.Name}",
+                NamedExports: null,
+                IsTypeOnly: isTypeOnly,
+                DocumentationTags: string.IsNullOrEmpty(item.Summary)
+                    ? null
+                    : new JsDocComment(item.Summary)))
+            .ToList();
+
+        return new TypeScriptBarrelExportParameters(
+            HeaderContent: headerContent,
+            Exports: exports);
+    }
+
+    /// <summary>
     /// Creates a root barrel export that re-exports from subdirectories.
     /// </summary>
     /// <param name="headerContent">Optional auto-generated header content.</param>

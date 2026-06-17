@@ -3,6 +3,7 @@ namespace Atc.CodeGeneration.TypeScript.Content.Generators;
 public class GenerateContentForBarrelExport : IContentGenerator
 {
     private readonly TypeScriptBarrelExportParameters parameters;
+    private readonly JsDocCommentGenerator jsDocGenerator = new JsDocCommentGenerator();
 
     public GenerateContentForBarrelExport(
         TypeScriptBarrelExportParameters parameters)
@@ -21,6 +22,15 @@ public class GenerateContentForBarrelExport : IContentGenerator
 
         foreach (var export in parameters.Exports)
         {
+            if (export.DocumentationTags is not null)
+            {
+                var jsDoc = jsDocGenerator.GenerateTags(0, export.DocumentationTags);
+                if (!string.IsNullOrEmpty(jsDoc))
+                {
+                    sb.Append(jsDoc);
+                }
+            }
+
             if (export.NamedExports is null || !export.NamedExports.Any())
             {
                 var typePrefix = export.IsTypeOnly ? "export type * from" : "export * from";
