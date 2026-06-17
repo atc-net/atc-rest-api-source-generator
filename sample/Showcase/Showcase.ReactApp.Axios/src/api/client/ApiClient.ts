@@ -30,6 +30,32 @@ export interface RequestOptions {
 
 export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
 
+async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {
+  let buffer = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true }).replace(/\r/g, '');
+      let sep: number;
+      while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        const rawEvent = buffer.substring(0, sep);
+        buffer = buffer.substring(sep + 2);
+        const data = rawEvent
+          .split('\n')
+          .filter((l) => l.startsWith('data:'))
+          .map((l) => l.slice(5).trimStart())
+          .join('\n');
+        if (data.length > 0) {
+          yield JSON.parse(data) as T;
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 export class ApiClient {
   private readonly baseUrl: string;
   private readonly client: AxiosInstance;
@@ -164,55 +190,41 @@ export class ApiClient {
     let buffer = '';
 
     if (framing === 'sse') {
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          let sep: number;
-          while ((sep = buffer.indexOf('\n\n')) !== -1) {
-            const rawEvent = buffer.substring(0, sep);
-            buffer = buffer.substring(sep + 2);
-            const data = rawEvent
-              .split('\n')
-              .filter((l) => l.startsWith('data:'))
-              .map((l) => l.slice(5).trimStart())
-              .join('\n');
-            if (data.length > 0) {
-              yield JSON.parse(data) as T;
-            }
-          }
-        }
-      } finally {
-        reader.releaseLock();
-      }
+      yield* parseEventStream<T>(reader, decoder);
       return;
     }
 
     if (framing === 'multipart') {
-      // Buffer the whole body then split on the boundary: scanning a boundary token
-      // across streamed chunk edges is non-trivial, so this is an intentional
-      // simplification for multipart (the other framings parse incrementally).
       const contentType = response.headers.get('content-type') ?? '';
       const m = /boundary=("?)([^";]+)\1/i.exec(contentType);
       const delimiter = '--' + (m ? m[2] : '');
-      let all = '';
+      let buf = '';
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          all += decoder.decode(value, { stream: true });
+          buf += decoder.decode(value, { stream: true });
+          // Discard preamble (everything before the first delimiter boundary).
+          const first = buf.indexOf(delimiter);
+          if (first === -1) { buf = ''; continue; }
+          if (first > 0) buf = buf.substring(first);
+          // Yield each complete part; buf always starts at a delimiter after this loop.
+          while (buf.startsWith(delimiter)) {
+            const partStart = delimiter.length;
+            const next = buf.indexOf(delimiter, partStart);
+            if (next === -1) break;
+            const part = buf.substring(partStart, next);
+            buf = buf.substring(next);
+            const trimmed = part.replace(/^\r\n/, '');
+            if (trimmed.length === 0 || trimmed.startsWith('--')) continue;
+            const sep = trimmed.indexOf('\r\n\r\n');
+            if (sep === -1) continue;
+            const bodyText = trimmed.substring(sep + 4).trim();
+            if (bodyText.length > 0) yield JSON.parse(bodyText) as T;
+          }
         }
       } finally {
         reader.releaseLock();
-      }
-      for (const part of all.split(delimiter)) {
-        const trimmed = part.replace(/^\r\n/, '');
-        if (trimmed.length === 0 || trimmed.startsWith('--')) continue;
-        const sep = trimmed.indexOf('\r\n\r\n');
-        if (sep === -1) continue;
-        const bodyText = trimmed.substring(sep + 4).trim();
-        if (bodyText.length > 0) yield JSON.parse(bodyText) as T;
       }
       return;
     }
