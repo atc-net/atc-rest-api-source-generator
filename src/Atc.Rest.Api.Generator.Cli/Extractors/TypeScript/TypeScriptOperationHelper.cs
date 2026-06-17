@@ -650,6 +650,12 @@ public static class TypeScriptOperationHelper
         CollectSchemaRefTypes(operation.GetResponseSchema("200"), importTypes);
         CollectSchemaRefTypes(operation.GetResponseSchema("201"), importTypes);
 
+        // OAS 3.2 itemSchema on streaming media types (text/event-stream, application/jsonl,
+        // etc.) does not use the regular 'schema' field, so GetResponseSchema returns null and
+        // the item type is never collected. Collect it explicitly here so generated stream
+        // client files can import the model type instead of falling back to the DOM 'Event'.
+        CollectSchemaRefTypes(operation.GetStreamingItemSchema(), importTypes);
+
         // From operation-level parameter schemas. We visit query, path, and header
         // params — all three are surfaced in the generated TS signatures. Cookie
         // params are deliberately excluded: cookies are browser-managed (document.cookie

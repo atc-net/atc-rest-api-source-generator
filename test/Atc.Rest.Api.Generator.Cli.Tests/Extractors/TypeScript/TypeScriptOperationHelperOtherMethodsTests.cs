@@ -1069,6 +1069,48 @@ public class TypeScriptOperationHelperOtherMethodsTests
         Assert.Empty(imports);
     }
 
+    // ========== itemSchema streaming — import collection ==========
+    [Fact]
+    public void CollectImportTypes_WithItemSchemaStreamingOperation_CollectsItemType()
+    {
+        // For OAS 3.2 itemSchema-based streaming, the item schema $ref should be added
+        // to importTypes so the generated client file emits the correct model import.
+        const string yaml = """
+                            openapi: "3.2.0"
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /events-sse:
+                                get:
+                                  operationId: streamEventsSse
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        text/event-stream:
+                                          itemSchema:
+                                            $ref: '#/components/schemas/Event'
+                            components:
+                              schemas:
+                                Event:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
+
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var operation = ((OpenApiPathItem)doc!.Paths!["/events-sse"]).Operations!.Values.First();
+        var importTypes = new HashSet<string>(StringComparer.Ordinal);
+
+        TypeScriptOperationHelper.CollectImportTypes(operation, importTypes, doc, "/events-sse");
+
+        Assert.Contains("Event", importTypes, StringComparer.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
