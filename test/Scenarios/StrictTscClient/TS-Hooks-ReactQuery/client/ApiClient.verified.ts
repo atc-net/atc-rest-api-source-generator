@@ -42,6 +42,32 @@ export interface RequestOptions {
 
 export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
 
+async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {
+  let buffer = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true }).replace(/\r/g, '');
+      let sep: number;
+      while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        const rawEvent = buffer.substring(0, sep);
+        buffer = buffer.substring(sep + 2);
+        const data = rawEvent
+          .split('\n')
+          .filter((l) => l.startsWith('data:'))
+          .map((l) => l.slice(5).trimStart())
+          .join('\n');
+        if (data.length > 0) {
+          yield JSON.parse(data) as T;
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 export class ApiClient {
   private readonly baseUrl: string;
   private readonly client: AxiosInstance;
@@ -163,28 +189,7 @@ export class ApiClient {
     let buffer = '';
 
     if (framing === 'sse') {
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true }).replace(/\r/g, '');
-          let sep: number;
-          while ((sep = buffer.indexOf('\n\n')) !== -1) {
-            const rawEvent = buffer.substring(0, sep);
-            buffer = buffer.substring(sep + 2);
-            const data = rawEvent
-              .split('\n')
-              .filter((l) => l.startsWith('data:'))
-              .map((l) => l.slice(5).trimStart())
-              .join('\n');
-            if (data.length > 0) {
-              yield JSON.parse(data) as T;
-            }
-          }
-        }
-      } finally {
-        reader.releaseLock();
-      }
+      yield* parseEventStream<T>(reader, decoder);
       return;
     }
 
