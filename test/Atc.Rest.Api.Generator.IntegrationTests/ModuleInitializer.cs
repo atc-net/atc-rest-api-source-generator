@@ -5,6 +5,9 @@ public static partial class ModuleInitializer
     [ModuleInitializer]
     public static void Init()
     {
+        // Write snapshots as UTF-8 without BOM so files are portable across platforms.
+        VerifierSettings.UseEncoding(new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
         // Configure Verify to scrub timestamps and other volatile content
         VerifierSettings.ScrubLinesContaining("Version=", StringComparison.Ordinal);
 
