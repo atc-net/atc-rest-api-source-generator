@@ -140,23 +140,31 @@ export function useListNotificationsStream(query?: { topics?: string /* default:
     setError(null);
 
     let buffer: NotificationEvent[] = [];
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    const flush = () => { flushTimer = null; if (!controller.signal.aborted) setItems(buffer.slice()); };
     (async () => {
       try {
         for await (const item of api.notifications.listNotifications(query, controller.signal)) {
           if (controller.signal.aborted) return;
-          buffer = [...buffer, item];
-          setItems(buffer);
+          buffer.push(item);
+          if (flushTimer === null) flushTimer = setTimeout(flush, 200);
         }
-        if (!controller.signal.aborted) setStatus('success');
+        if (!controller.signal.aborted) {
+          if (flushTimer !== null) clearTimeout(flushTimer);
+          setItems(buffer.slice());
+          setStatus('success');
+        }
       } catch (err) {
         if (controller.signal.aborted) return;
         if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (flushTimer !== null) clearTimeout(flushTimer);
+        setItems(buffer.slice());
         setError(err as Error);
         setStatus('error');
       }
     })();
 
-    return () => controller.abort();
+    return () => { controller.abort(); if (flushTimer !== null) clearTimeout(flushTimer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, keyDep]);
 
