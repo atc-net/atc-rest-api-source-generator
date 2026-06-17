@@ -576,9 +576,8 @@ public static class OperationParameterExtractor
                                 $"Name = \"{parameter.Name}\""));
                             break;
                         case ParameterLocation.Cookie:
-                            attributes.Add(new AttributeParameters(
-                                "FromCookie",
-                                $"Name = \"{parameter.Name}\""));
+                            // ASP.NET Core has no [FromCookie] attribute; omit binding so the
+                            // generated code compiles. Cookies must be read via HttpContext.Request.Cookies.
                             break;
                     }
                 }

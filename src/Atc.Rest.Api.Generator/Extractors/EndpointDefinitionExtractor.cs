@@ -1559,11 +1559,17 @@ using Microsoft.AspNetCore.Builder;
                 var cleanType = isNullable ? paramType.Substring(0, paramType.Length - 1) : paramType;
 
                 var paramLocation = parameter.In ?? ParameterLocation.Query;
+
+                // ASP.NET Core has no [FromCookie] attribute — skip cookie params.
+                if (paramLocation == ParameterLocation.Cookie)
+                {
+                    continue;
+                }
+
                 var bindingAttrName = paramLocation switch
                 {
                     ParameterLocation.Path => "FromRoute",
                     ParameterLocation.Header => "FromHeader",
-                    ParameterLocation.Cookie => "FromCookie",
                     _ => "FromQuery",
                 };
 

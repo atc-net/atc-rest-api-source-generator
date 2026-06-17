@@ -101,7 +101,6 @@ public static class OpenApiParameterExtensions
                 ParameterLocation.Query => "FromQuery",
                 ParameterLocation.Path => "FromRoute",
                 ParameterLocation.Header => "FromHeader",
-                ParameterLocation.Cookie => "FromCookie",
                 _ => "FromQuery",
             };
         }
