@@ -85,4 +85,9 @@ public abstract class BaseConfig
     /// Example: ["/internal/**"] excludes all internal endpoints.
     /// </summary>
     public List<string>? ExcludePaths { get; set; }
+
+    /// <summary>
+    /// Add [ExcludeFromCodeCoverage] alongside [GeneratedCode] on every generated type. Default: false.
+    /// </summary>
+    public bool ExcludeFromCodeCoverage { get; set; }
 }

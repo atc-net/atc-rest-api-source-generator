@@ -353,6 +353,10 @@ public class ApiServerGenerator : IIncrementalGenerator
         var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
 
+        // Proxy over `context` that adds [ExcludeFromCodeCoverage] alongside [GeneratedCode] when
+        // configured. Used by every sub-generation method below that only ever calls AddSource.
+        var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage);
+
         // Detect shared schemas (used by multiple path segments) for deduplication
         var sharedSchemas = PathSegmentHelper.GetSharedSchemas(openApiDoc);
 
@@ -361,7 +365,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName);
             GenerateModelsForSchemas(
-                context,
+                generatedContext,
                 openApiDoc,
                 projectName,
                 sharedSchemas,
@@ -371,14 +375,14 @@ public class ApiServerGenerator : IIncrementalGenerator
                 config.GeneratePartialModels);
 
             GenerateEnumsForSchemas(
-                context,
+                generatedContext,
                 openApiDoc,
                 projectName,
                 sharedSchemas,
                 pathSegment: null);
 
             GenerateTuplesForSchemas(
-                context,
+                generatedContext,
                 openApiDoc,
                 projectName,
                 sharedSchemas,
@@ -388,7 +392,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate shared IEndpointDefinition interface once (unless using Atc.Rest.MinimalApi package)
         if (!useMinimalApiPackage)
         {
-            GenerateSharedEndpointDefinitionInterface(context, projectName);
+            GenerateSharedEndpointDefinitionInterface(generatedContext, projectName);
         }
 
         // Generate files per path segment (excluding shared schemas)
@@ -405,7 +409,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             if (segmentSchemas.Count > 0)
             {
                 GenerateModelsForSchemas(
-                    context,
+                    generatedContext,
                     openApiDoc,
                     projectName,
                     segmentSchemas,
@@ -416,14 +420,14 @@ public class ApiServerGenerator : IIncrementalGenerator
                     includeSharedModelsUsing: sharedSchemas.Count > 0);
 
                 GenerateEnumsForSchemas(
-                    context,
+                    generatedContext,
                     openApiDoc,
                     projectName,
                     segmentSchemas,
                     pathSegment);
 
                 GenerateTuplesForSchemas(
-                    context,
+                    generatedContext,
                     openApiDoc,
                     projectName,
                     segmentSchemas,
@@ -435,7 +439,7 @@ public class ApiServerGenerator : IIncrementalGenerator
 
             // Generate parameter classes
             GenerateParameterClasses(
-                context,
+                generatedContext,
                 openApiDoc,
                 projectName,
                 pathSegment,
@@ -447,7 +451,7 @@ public class ApiServerGenerator : IIncrementalGenerator
 
             // Generate result classes
             GenerateResultClasses(
-                context,
+                generatedContext,
                 openApiDoc,
                 projectName,
                 pathSegment,
@@ -459,7 +463,7 @@ public class ApiServerGenerator : IIncrementalGenerator
 
             // Generate handler interfaces
             GenerateHandlerInterfaces(
-                context,
+                generatedContext,
                 openApiDoc,
                 projectName,
                 pathSegment,
@@ -468,7 +472,7 @@ public class ApiServerGenerator : IIncrementalGenerator
 
             // Generate endpoint registrations
             GenerateEndpointRegistrations(
-                context,
+                generatedContext,
                 openApiDoc,
                 projectName,
                 pathSegment,
@@ -487,7 +491,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate ParsableList<T> helper type when any query parameter uses array types
         if (CodeGenerationService.HasQueryArrayParameters(openApiDoc))
         {
-            GenerateParsableListHelper(context, projectName);
+            GenerateParsableListHelper(generatedContext, projectName);
         }
 
         // Generate the server-side SequentialResults helper (the writer-based sequential-streaming
@@ -497,21 +501,21 @@ public class ApiServerGenerator : IIncrementalGenerator
         var sequentialResults = CodeGenerationService.GenerateSequentialResults(openApiDoc, projectName);
         if (sequentialResults != null)
         {
-            context.AddSource(
+            generatedContext.AddSource(
                 $"{projectName}.Streaming.SequentialResults.g.cs",
                 SourceText.From(sequentialResults.Content.NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
         // Generate combined endpoint mapping extension (calls all path segment endpoint methods)
-        GenerateCombinedEndpointMapping(context, projectName, pathSegments);
+        GenerateCombinedEndpointMapping(generatedContext, projectName, pathSegments);
 
         // Generate DI registration (not segmented - registers all handlers)
-        GenerateDependencyInjection(context, openApiDoc, projectName, pathSegments, config.IncludeDeprecated);
+        GenerateDependencyInjection(generatedContext, openApiDoc, projectName, pathSegments, config.IncludeDeprecated);
 
         // Generate versioning DI registration (only if versioning is enabled)
         if (config.VersioningStrategy != VersioningStrategyType.None)
         {
-            GenerateVersioningDependencyInjection(context, projectName, config);
+            GenerateVersioningDependencyInjection(generatedContext, projectName, config);
         }
 
         // Generate security policies and DI extensions (only if OAuth2 scopes exist)
@@ -519,14 +523,14 @@ public class ApiServerGenerator : IIncrementalGenerator
         // don't need the packages directly - consuming API projects will need them
         if (openApiDoc.HasSecuritySchemes())
         {
-            GenerateSecurityPolicies(context, openApiDoc, projectName, config.IncludeDeprecated);
-            GenerateSecurityDependencyInjection(context, openApiDoc, projectName, config.IncludeDeprecated);
+            GenerateSecurityPolicies(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
+            GenerateSecurityDependencyInjection(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
         }
 
         // Generate OpenID Connect authentication extension (only if OpenID Connect is configured)
         if (openApiDoc.HasOpenIdConnectSecurity())
         {
-            GenerateOpenIdConnectAuthentication(context, openApiDoc, projectName);
+            GenerateOpenIdConnectAuthentication(generatedContext, openApiDoc, projectName);
         }
 
         // Generate rate limiting policies and DI extensions (only if rate limiting is configured)
@@ -534,32 +538,32 @@ public class ApiServerGenerator : IIncrementalGenerator
         // don't need the packages directly - consuming API projects will need them
         if (openApiDoc.HasRateLimiting())
         {
-            GenerateRateLimitPolicies(context, openApiDoc, projectName, config.IncludeDeprecated);
-            GenerateRateLimitDependencyInjection(context, openApiDoc, projectName, config.IncludeDeprecated);
+            GenerateRateLimitPolicies(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
+            GenerateRateLimitDependencyInjection(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
         }
 
         // Generate Output Caching policies and DI extensions (only if output caching is configured)
         if (openApiDoc.HasOutputCaching())
         {
-            GenerateOutputCachePolicies(context, openApiDoc, projectName, config.IncludeDeprecated);
-            GenerateOutputCachingDependencyInjection(context, openApiDoc, projectName, config.IncludeDeprecated);
+            GenerateOutputCachePolicies(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
+            GenerateOutputCachingDependencyInjection(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
         }
 
         // Generate HybridCache policies and DI extensions (only if hybrid caching is configured)
         if (openApiDoc.HasHybridCaching())
         {
-            GenerateHybridCachePolicies(context, openApiDoc, projectName, config.IncludeDeprecated);
-            GenerateHybridCachingDependencyInjection(context, openApiDoc, projectName, config.IncludeDeprecated);
+            GenerateHybridCachePolicies(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
+            GenerateHybridCachingDependencyInjection(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
         }
 
         // Generate webhook handlers, parameters, results, endpoints, and DI (only if webhooks exist and enabled)
         if (config.GenerateWebhooks && openApiDoc.HasWebhooks())
         {
-            GenerateWebhookHandlerInterfaces(context, openApiDoc, projectName, config.IncludeDeprecated);
-            GenerateWebhookParameterClasses(context, openApiDoc, projectName, config.IncludeDeprecated);
-            GenerateWebhookResultClasses(context, openApiDoc, projectName, config.IncludeDeprecated);
-            GenerateWebhookEndpoints(context, openApiDoc, projectName, config);
-            GenerateWebhookDependencyInjection(context, openApiDoc, projectName, config.IncludeDeprecated);
+            GenerateWebhookHandlerInterfaces(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
+            GenerateWebhookParameterClasses(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
+            GenerateWebhookResultClasses(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
+            GenerateWebhookEndpoints(generatedContext, openApiDoc, projectName, config);
+            GenerateWebhookDependencyInjection(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
         }
 
         // Generate health check endpoints (if configured in marker file)
@@ -578,22 +582,22 @@ public class ApiServerGenerator : IIncrementalGenerator
                 DiagnosticHelpers.ReportHealthChecksPackageRecommended(context);
             }
 
-            GenerateHealthCheckEndpoints(context, projectName, config.HealthChecks, hasHealthChecksPackage);
-            GenerateHealthCheckServiceExtensions(context, projectName);
+            GenerateHealthCheckEndpoints(generatedContext, projectName, config.HealthChecks, hasHealthChecksPackage);
+            GenerateHealthCheckServiceExtensions(generatedContext, projectName);
         }
 
         // Generate WebApplication extensions (GlobalErrorHandler middleware setup)
         if (useGlobalErrorHandler)
         {
-            GenerateWebApplicationExtensions(context, projectName, useGlobalErrorHandler);
+            GenerateWebApplicationExtensions(generatedContext, projectName, useGlobalErrorHandler);
         }
 
         // Generate simplified API surface (only if global error handler is enabled, which implies MinimalApi package)
         if (useGlobalErrorHandler)
         {
-            GenerateApiOptions(context, openApiDoc, projectName, config);
-            GenerateUnifiedServiceCollection(context, openApiDoc, projectName, config, pathSegments);
-            GenerateUnifiedWebApplicationExtensions(context, openApiDoc, projectName, config);
+            GenerateApiOptions(generatedContext, openApiDoc, projectName, config);
+            GenerateUnifiedServiceCollection(generatedContext, openApiDoc, projectName, config, pathSegments);
+            GenerateUnifiedWebApplicationExtensions(generatedContext, openApiDoc, projectName, config);
         }
 
         // Report generation summary
@@ -623,7 +627,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// Also generates inline enum types discovered during schema extraction.
     /// </summary>
     private static void GenerateModelsForSchemas(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         HashSet<string> schemaNames,
@@ -695,7 +699,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// Used for both shared types (pathSegment = null) and segment-specific types.
     /// </summary>
     private static void GenerateEnumsForSchemas(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         HashSet<string> schemaNames,
@@ -728,7 +732,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// Tuples are schemas with prefixItems (JSON Schema 2020-12 / OpenAPI 3.1).
     /// </summary>
     private static void GenerateTuplesForSchemas(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         HashSet<string> schemaNames,
@@ -762,7 +766,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateHandlerInterfaces(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         string pathSegment,
@@ -834,7 +838,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateEndpointRegistrations(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         string pathSegment,
@@ -997,7 +1001,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateCombinedEndpointMapping(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         string projectName,
         List<string> pathSegments)
     {
@@ -1058,7 +1062,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateDependencyInjection(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         List<string> pathSegments,
@@ -1086,7 +1090,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateWebApplicationExtensions(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         string projectName,
         bool useGlobalErrorHandler)
     {
@@ -1112,7 +1116,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateParameterClasses(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         string pathSegment,
@@ -1159,7 +1163,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateResultClasses(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         string pathSegment,
@@ -1255,7 +1259,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateSecurityPolicies(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         bool includeDeprecated)
@@ -1274,7 +1278,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateSecurityDependencyInjection(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         bool includeDeprecated)
@@ -1293,7 +1297,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateRateLimitPolicies(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         bool includeDeprecated)
@@ -1312,7 +1316,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateRateLimitDependencyInjection(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         bool includeDeprecated)
@@ -1331,7 +1335,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateOutputCachePolicies(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         bool includeDeprecated)
@@ -1350,7 +1354,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateOutputCachingDependencyInjection(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         bool includeDeprecated)
@@ -1369,7 +1373,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateHybridCachePolicies(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         bool includeDeprecated)
@@ -1388,7 +1392,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateHybridCachingDependencyInjection(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         bool includeDeprecated)
@@ -1407,7 +1411,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateOpenIdConnectAuthentication(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName)
     {
@@ -1433,7 +1437,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateVersioningDependencyInjection(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         string projectName,
         ServerConfig config)
     {
@@ -1462,7 +1466,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// Generates ApiServiceOptions and ApiMiddlewareOptions classes for simplified API configuration.
     /// </summary>
     private static void GenerateApiOptions(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         ServerConfig config)
@@ -1484,7 +1488,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// Generates the unified Add{ProjectName}Api() service collection extension method.
     /// </summary>
     private static void GenerateUnifiedServiceCollection(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         ServerConfig config,
@@ -1501,7 +1505,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// Generates the unified Map{ProjectName}Api() WebApplication extension method.
     /// </summary>
     private static void GenerateUnifiedWebApplicationExtensions(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         ServerConfig config)
@@ -1517,7 +1521,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// Generates webhook handler interfaces from OpenAPI webhooks.
     /// </summary>
     private static void GenerateWebhookHandlerInterfaces(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         bool includeDeprecated)
@@ -1535,7 +1539,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// Generates webhook parameter classes from OpenAPI webhooks.
     /// </summary>
     private static void GenerateWebhookParameterClasses(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         bool includeDeprecated)
@@ -1553,7 +1557,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// Generates webhook result classes from OpenAPI webhooks.
     /// </summary>
     private static void GenerateWebhookResultClasses(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         bool includeDeprecated)
@@ -1571,7 +1575,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// Generates webhook endpoint registration from OpenAPI webhooks.
     /// </summary>
     private static void GenerateWebhookEndpoints(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         ServerConfig config)
@@ -1590,7 +1594,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// Generates webhook DI registration from OpenAPI webhooks.
     /// </summary>
     private static void GenerateWebhookDependencyInjection(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         bool includeDeprecated)
@@ -1634,7 +1638,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// Generates the ParsableList&lt;T&gt; helper class for array query parameter binding.
     /// </summary>
     private static void GenerateParsableListHelper(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         string projectName)
     {
         var builder = new StringBuilder();
@@ -1707,7 +1711,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     /// Emitted once per project, referenced by all per-segment endpoint definition classes.
     /// </summary>
     private static void GenerateSharedEndpointDefinitionInterface(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         string projectName)
     {
         var sb = new StringBuilder();
@@ -1737,7 +1741,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateHealthCheckEndpoints(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         string projectName,
         HealthCheckConfig config,
         bool hasHealthChecksPackage)
@@ -1750,7 +1754,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     }
 
     private static void GenerateHealthCheckServiceExtensions(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         string projectName)
     {
         var content = HealthCheckExtractor.GenerateServiceExtensions(projectName);

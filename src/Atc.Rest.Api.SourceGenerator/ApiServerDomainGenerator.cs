@@ -312,7 +312,12 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         var requiredUsings = DomainGlobalUsingsHelper.BuildRequiredUsings(
             interfaceNamespaces, rootNamespace, pathSegments, openApiDoc, config.InjectLogger, config.InjectTracing);
         var globalUsingsContent = string.Join("\n", requiredUsings.OrderBy(u => u, StringComparer.Ordinal));
-        context.AddSource("DomainGlobalUsings.g.cs", SourceText.From(globalUsingsContent, Encoding.UTF8));
+
+        // Proxy over `context` that adds [ExcludeFromCodeCoverage] alongside [GeneratedCode] when
+        // configured. Handler scaffolds are excluded by design (they carry no [GeneratedCode]),
+        // so only the DI registration methods below (which take this proxy) are affected.
+        var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage);
+        generatedContext.AddSource("DomainGlobalUsings.g.cs", SourceText.From(globalUsingsContent, Encoding.UTF8));
 
         // Collect all handler info for DI registration
         var allHandlers = new List<(string OperationId, string HandlerName, string HandlerNamespace)>();
@@ -388,20 +393,20 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         }
 
         // Generate DI registration extension method for handlers
-        GenerateDependencyRegistration(context, assemblyName, rootNamespace, allHandlers, config, interfaceNamespaces, pathSegments);
+        GenerateDependencyRegistration(generatedContext, assemblyName, rootNamespace, allHandlers, config, interfaceNamespaces, pathSegments);
 
         // Generate DI registration extension method for validators
         var validators = summary.ImplementedValidators.Values
             .Select(v => (v.Name, v.Namespace, v.ModelType))
             .ToList();
-        GenerateValidatorDependencyRegistration(context, assemblyName, rootNamespace, validators);
+        GenerateValidatorDependencyRegistration(generatedContext, assemblyName, rootNamespace, validators);
     }
 
     /// <summary>
     /// Generates the dependency injection registration extension method.
     /// </summary>
     private static void GenerateDependencyRegistration(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         string assemblyName,
         string rootNamespace,
         List<(string OperationId, string HandlerName, string HandlerNamespace)> allHandlers,
@@ -459,7 +464,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     /// Generates the dependency injection registration extension method for validators.
     /// </summary>
     private static void GenerateValidatorDependencyRegistration(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         string assemblyName,
         string rootNamespace,
         List<(string ValidatorName, string ValidatorNamespace, string ModelType)> validators)
