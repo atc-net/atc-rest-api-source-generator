@@ -23,15 +23,15 @@ internal static class PackageVersionDefaults
     /// <summary>
     /// Fallback version for Atc.Rest.Api.SourceGenerator.
     /// </summary>
-    public static readonly Version SourceGeneratorFallback = new(1, 0, 115);
+    public static readonly Version SourceGeneratorFallback = new(1, 0, 341);
 
     /// <summary>
     /// Fallback minimum version for Atc.Rest.Client.
     /// </summary>
-    public static readonly Version RestClientMinFallback = new(2, 0, 31);
+    public static readonly Version RestClientMinFallback = new(2, 0, 36);
 
     /// <summary>
     /// Fallback minimum version for Microsoft.Extensions.Http.Resilience.
     /// </summary>
-    public static readonly Version ResilienceMinFallback = new(10, 3, 0);
+    public static readonly Version ResilienceMinFallback = new(10, 7, 0);
 }

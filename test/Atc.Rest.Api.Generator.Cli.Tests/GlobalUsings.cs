@@ -8,6 +8,7 @@ global using System.Text.RegularExpressions;
 global using Atc.Helpers;
 global using Atc.OpenApi.Helpers;
 
+global using Atc.Rest.Api.Generator.Cli.Enums;
 global using Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 global using Atc.Rest.Api.Generator.Cli.Helpers;
 global using Atc.Rest.Api.Generator.Cli.Services;
