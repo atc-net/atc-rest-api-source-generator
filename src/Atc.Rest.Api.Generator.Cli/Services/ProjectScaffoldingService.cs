@@ -589,6 +589,12 @@ public sealed class ProjectScaffoldingService
             sb.AppendLine(2, "<ItemGroup>");
             sb.AppendLine(4, "<PackageReference Include=\"Microsoft.AspNetCore.OpenApi\" Version=\"10.*\" />");
 
+            // Microsoft.AspNetCore.OpenApi transitively pulls an old, vulnerable Microsoft.OpenApi
+            // 2.0.0 (GHSA-v5pm-xwqc-g5wc). Pin the floor to the latest patched 2.x release — not
+            // 3.x, which is a breaking change incompatible with Microsoft.AspNetCore.OpenApi's
+            // built-in XmlCommentGenerator (IOpenApiMediaType.Example becomes read-only in 3.x).
+            sb.AppendLine(4, "<PackageReference Include=\"Microsoft.OpenApi\" Version=\"2.*\" />");
+
             switch (hostUi)
             {
                 case HostUiType.Scalar:

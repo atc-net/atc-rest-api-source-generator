@@ -8,4 +8,17 @@
 
   <!-- Place any common sample properties here -->
 
+  <!--
+    Microsoft.AspNetCore.OpenApi 10.0.9 transitively pulls Microsoft.OpenApi 2.0.0, which is
+    affected by GHSA-v5pm-xwqc-g5wc (stack-overflow DoS on circular schema refs, fixed in
+    2.7.5 / 3.5.4+). Pin to the latest patched 2.x release — NOT the 3.x line used in src/ —
+    because Microsoft.AspNetCore.OpenApi 10.0.9's built-in XmlCommentGenerator assumes the 2.x
+    API shape (IOpenApiMediaType.Example is settable there; Microsoft.OpenApi 3.x made it
+    read-only, which fails to compile against that generator). Upper-bounded below 3.0.0 so a
+    future transitive floor bump elsewhere in the graph can't silently resolve to 3.x again.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.OpenApi" Version="[2.9.0,3.0.0)" />
+  </ItemGroup>
+
 </Project>
