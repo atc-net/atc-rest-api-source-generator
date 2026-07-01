@@ -190,6 +190,48 @@ public class CompilationVerificationTests
         Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", consolidatedDiExtension, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(".atc-rest-api-server", "Server")]
+    public void ServerGenerator_ExcludeFromCodeCoverageTrue_AddsAttributeAndCompiles(
+        string markerFileName,
+        string masterFolder)
+        => AssertExcludeFromCodeCoverageAppliedAndCompiles(new ApiServerGenerator(), markerFileName, masterFolder);
+
+    [Theory]
+    [InlineData(".atc-rest-api-server", "Server")]
+    public void ServerGenerator_ExcludeFromCodeCoverageDefault_DoesNotAddAttribute(
+        string markerFileName,
+        string masterFolder)
+        => AssertExcludeFromCodeCoverageDefaultOff(new ApiServerGenerator(), markerFileName, masterFolder);
+
+    [Theory]
+    [InlineData(".atc-rest-api-client", "Client-Typed")]
+    public void ClientGenerator_Typed_ExcludeFromCodeCoverageTrue_AddsAttributeAndCompiles(
+        string markerFileName,
+        string masterFolder)
+        => AssertExcludeFromCodeCoverageAppliedAndCompiles(new ApiClientGenerator(), markerFileName, masterFolder);
+
+    [Theory]
+    [InlineData(".atc-rest-api-client", "Client-Typed")]
+    public void ClientGenerator_Typed_ExcludeFromCodeCoverageDefault_DoesNotAddAttribute(
+        string markerFileName,
+        string masterFolder)
+        => AssertExcludeFromCodeCoverageDefaultOff(new ApiClientGenerator(), markerFileName, masterFolder);
+
+    [Theory]
+    [InlineData(".atc-rest-api-client", "Client-Operation")]
+    public void ClientGenerator_PerOperation_ExcludeFromCodeCoverageTrue_AddsAttributeAndCompiles(
+        string markerFileName,
+        string masterFolder)
+        => AssertExcludeFromCodeCoverageAppliedAndCompiles(new ApiClientGenerator(), markerFileName, masterFolder);
+
+    [Theory]
+    [InlineData(".atc-rest-api-client", "Client-Operation")]
+    public void ClientGenerator_PerOperation_ExcludeFromCodeCoverageDefault_DoesNotAddAttribute(
+        string markerFileName,
+        string masterFolder)
+        => AssertExcludeFromCodeCoverageDefaultOff(new ApiClientGenerator(), markerFileName, masterFolder);
+
     // ========== Generator Detection ==========
     [Fact]
     public void ClientGenerator_WithNoMarkerFile_ProducesNoOutput()
@@ -247,6 +289,75 @@ public class CompilationVerificationTests
     }
 
     // ========== Helpers ==========
+    private static void AssertExcludeFromCodeCoverageAppliedAndCompiles(
+        IIncrementalGenerator generator,
+        string markerFileName,
+        string masterFolder)
+    {
+        // Arrange
+        var yamlPath = CompilationVerificationHarness.GetScenarioPath("PetStoreSimple", "PetStoreSimple.yaml");
+        var yamlContent = File.ReadAllText(yamlPath);
+
+        var additionalTexts = ImmutableArray.Create<AdditionalText>(
+            new CompilationVerificationHarness.InMemoryAdditionalText("PetStoreSimple.yaml", yamlContent),
+            new CompilationVerificationHarness.InMemoryAdditionalText(markerFileName, """{"excludeFromCodeCoverage": true}"""));
+
+        var compilation = CSharpCompilation.Create(
+            "TestAssembly",
+            references: CompilationVerificationHarness.GetFullFrameworkReferences(),
+            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var driver = CSharpGeneratorDriver
+            .Create(generator)
+            .AddAdditionalTexts(additionalTexts);
+
+        // Act
+        driver = (CSharpGeneratorDriver)driver.RunGeneratorsAndUpdateCompilation(
+            compilation, out _, out _, TestContext.Current.CancellationToken);
+
+        var generatedSources = driver.GetRunResult().GeneratedTrees
+            .Select(t => (HintName: Path.GetFileName(t.FilePath), Source: t.GetText().ToString()))
+            .ToList();
+
+        // Assert — every class/struct/record [GeneratedCode] also carries [ExcludeFromCodeCoverage].
+        // Interfaces/enums/delegates are excluded ([ExcludeFromCodeCoverage] isn't a valid target
+        // there), so this is expected to be less than or equal to the total [GeneratedCode] count.
+        var generatedCodeCount = generatedSources.Sum(s => s.Source.Split("[GeneratedCode(").Length - 1);
+        var excludeCount = generatedSources.Sum(s => s.Source.Split("[ExcludeFromCodeCoverage]").Length - 1);
+
+        Assert.True(generatedCodeCount > 0, $"Expected at least one [GeneratedCode] attribute for {masterFolder}.");
+        Assert.True(excludeCount > 0, $"Expected at least one [ExcludeFromCodeCoverage] attribute for {masterFolder}.");
+        Assert.True(
+            excludeCount <= generatedCodeCount,
+            $"[ExcludeFromCodeCoverage] count ({excludeCount}) exceeded [GeneratedCode] count ({generatedCodeCount}) for {masterFolder}.");
+
+        // Assert — the generated output still compiles (proves the using directive was inserted correctly).
+        var errors = CompilationVerificationHarness.CompileGeneratedSources(
+            generatedSources.Select(s => (s.HintName, s.Source)).ToList());
+
+        Assert.True(
+            errors.Count == 0,
+            $"Generated {masterFolder} output with excludeFromCodeCoverage did not compile:\n" + string.Join("\n", errors));
+    }
+
+    private static void AssertExcludeFromCodeCoverageDefaultOff(
+        IIncrementalGenerator generator,
+        string markerFileName,
+        string masterFolder)
+    {
+        // Arrange & Act — default marker config (no excludeFromCodeCoverage key).
+        var (_, generatedSources) = CompilationVerificationHarness.RunGenerator(
+            generator,
+            "PetStoreSimple",
+            "PetStoreSimple.yaml",
+            markerFileName,
+            masterFolder,
+            useFullReferences: true);
+
+        // Assert
+        Assert.DoesNotContain(generatedSources, s => s.Source.Contains("[ExcludeFromCodeCoverage]", StringComparison.Ordinal));
+    }
+
     private static void AssertNoErrors(
         ImmutableArray<Diagnostic> diagnostics,
         string generatorName,

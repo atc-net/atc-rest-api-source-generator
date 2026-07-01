@@ -33,6 +33,11 @@ public static class NamespaceConstants
     public const string SystemComponentModelDataAnnotations = "System.ComponentModel.DataAnnotations";
 
     /// <summary>
+    /// System.Diagnostics.CodeAnalysis - Required for [ExcludeFromCodeCoverage] attribute.
+    /// </summary>
+    public const string SystemDiagnosticsCodeAnalysis = "System.Diagnostics.CodeAnalysis";
+
+    /// <summary>
     /// System.IO - Required for stream types.
     /// </summary>
     public const string SystemIO = "System.IO";

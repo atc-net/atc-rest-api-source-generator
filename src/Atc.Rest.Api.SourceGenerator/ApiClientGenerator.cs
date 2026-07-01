@@ -263,17 +263,21 @@ public class ApiClientGenerator : IIncrementalGenerator
         var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
 
+        // Proxy over `context` that adds [ExcludeFromCodeCoverage] alongside [GeneratedCode] when
+        // configured. Used by every sub-generation method below that only ever calls AddSource.
+        var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage);
+
         // Generate shared ProblemDetails and factory once for EndpointPerOperation mode
         if (config.GenerationMode == GenerationModeType.EndpointPerOperation)
         {
-            GenerateProblemDetails(context, projectName);
-            GenerateProblemDetailsFactory(context, projectName);
-            GenerateConstants(context, projectName, config.HttpClientName);
+            GenerateProblemDetails(generatedContext, projectName);
+            GenerateProblemDetailsFactory(generatedContext, projectName);
+            GenerateConstants(generatedContext, projectName, config.HttpClientName);
 
             // Generate custom error response model if configured
             if (config.CustomErrorResponseModel != null)
             {
-                GenerateCustomErrorResponse(context, config.CustomErrorResponseModel, projectName);
+                GenerateCustomErrorResponse(generatedContext, config.CustomErrorResponseModel, projectName);
             }
         }
 
@@ -286,9 +290,9 @@ public class ApiClientGenerator : IIncrementalGenerator
             // Create conflict registry for shared types (no segment)
             var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName);
 
-            GenerateModelsForSchemas(context, openApiDoc, projectName, sharedSchemas, null, sharedRegistry, config.IncludeDeprecated, config.GeneratePartialModels);
-            GenerateEnumsForSchemas(context, openApiDoc, projectName, sharedSchemas, null);
-            GenerateTuplesForSchemas(context, openApiDoc, projectName, sharedSchemas, null);
+            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, null, sharedRegistry, config.IncludeDeprecated, config.GeneratePartialModels);
+            GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, null);
+            GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, null);
         }
 
         // Track generated path segments for consolidated DI extension
@@ -307,9 +311,9 @@ public class ApiClientGenerator : IIncrementalGenerator
             // Include shared models using directive so segment types can reference shared types
             if (segmentSchemas.Count > 0)
             {
-                GenerateModelsForSchemas(context, openApiDoc, projectName, segmentSchemas, pathSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, includeSharedModelsUsing: sharedSchemas.Count > 0);
-                GenerateEnumsForSchemas(context, openApiDoc, projectName, segmentSchemas, pathSegment);
-                GenerateTuplesForSchemas(context, openApiDoc, projectName, segmentSchemas, pathSegment);
+                GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, pathSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, includeSharedModelsUsing: sharedSchemas.Count > 0);
+                GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, pathSegment);
+                GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, pathSegment);
             }
 
             // Generate client code based on generation mode
@@ -325,7 +329,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                     ? ErrorResponseFormatType.Custom
                     : config.ErrorResponseFormat;
 
-                var hasEndpoints = GenerateEndpointPerOperation(context, openApiDoc, projectName, pathSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, config.CustomErrorResponseModel?.Name);
+                var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, config.CustomErrorResponseModel?.Name);
                 if (hasEndpoints)
                 {
                     generatedPathSegments.Add(pathSegment);
@@ -335,7 +339,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 var hasSegmentModelsTyped = segmentSchemas.Count > 0;
                 var hasSharedModelsTyped = sharedSchemas.Count > 0;
-                GenerateTypedClient(context, openApiDoc, projectName, pathSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath);
+                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath);
             }
         }
 
@@ -347,7 +351,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             var perOperation = config.GenerationMode == GenerationModeType.EndpointPerOperation;
             var streamReadersContent = StreamReadersExtractor.GenerateContent(projectName, perOperation);
-            context.AddSource(
+            generatedContext.AddSource(
                 $"{projectName}.Streaming.StreamReaders.g.cs",
                 SourceText.From(streamReadersContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -357,7 +361,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             generatedPathSegments.Count > 0)
         {
             var consolidatedDiContent = GenerateConsolidatedDiExtension(projectName, generatedPathSegments);
-            context.AddSource(
+            generatedContext.AddSource(
                 $"{projectName}.Endpoints.DependencyInjection.g.cs",
                 SourceText.From(consolidatedDiContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -373,14 +377,14 @@ public class ApiClientGenerator : IIncrementalGenerator
                 // Continue with generation - user may have a custom setup
             }
 
-            GenerateResiliencePolicies(context, openApiDoc, projectName, config.IncludeDeprecated);
-            GenerateResilienceDependencyInjection(context, openApiDoc, projectName, config.IncludeDeprecated);
+            GenerateResiliencePolicies(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
+            GenerateResilienceDependencyInjection(generatedContext, openApiDoc, projectName, config.IncludeDeprecated);
         }
 
         // Generate OAuth token management infrastructure (only if OAuth2 is configured and enabled)
         if (config.GenerateOAuthTokenManagement && OAuthConfigExtractor.HasOAuth2Security(openApiDoc))
         {
-            GenerateOAuthInfrastructure(context, openApiDoc, projectName);
+            GenerateOAuthInfrastructure(generatedContext, openApiDoc, projectName);
         }
 
         // Report generation summary
@@ -422,7 +426,7 @@ public class ApiClientGenerator : IIncrementalGenerator
     }
 
     private static void GenerateResiliencePolicies(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         bool includeDeprecated)
@@ -437,7 +441,7 @@ public class ApiClientGenerator : IIncrementalGenerator
     }
 
     private static void GenerateResilienceDependencyInjection(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         bool includeDeprecated)
@@ -452,7 +456,7 @@ public class ApiClientGenerator : IIncrementalGenerator
     }
 
     private static void GenerateOAuthInfrastructure(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName)
     {
@@ -517,7 +521,7 @@ public class ApiClientGenerator : IIncrementalGenerator
     /// Also generates inline enum types discovered during schema extraction.
     /// </summary>
     private static void GenerateModelsForSchemas(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         HashSet<string> schemaNames,
@@ -597,7 +601,7 @@ public class ApiClientGenerator : IIncrementalGenerator
     /// Generates enums for specific schemas (used for shared or segment-specific types).
     /// </summary>
     private static void GenerateEnumsForSchemas(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         HashSet<string> schemaNames,
@@ -636,7 +640,7 @@ public class ApiClientGenerator : IIncrementalGenerator
     /// Tuples are schemas with prefixItems (JSON Schema 2020-12 / OpenAPI 3.1).
     /// </summary>
     private static void GenerateTuplesForSchemas(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         HashSet<string> schemaNames,
@@ -734,7 +738,7 @@ public class ApiClientGenerator : IIncrementalGenerator
     }
 
     private static void GenerateTypedClient(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         string pathSegment,
@@ -822,7 +826,7 @@ public class ApiClientGenerator : IIncrementalGenerator
     }
 
     private static bool GenerateEndpointPerOperation(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
         string projectName,
         string pathSegment,
@@ -1052,7 +1056,7 @@ public class ApiClientGenerator : IIncrementalGenerator
     /// This type is shared across all path segments and used by endpoint result classes for error content.
     /// </summary>
     private static void GenerateProblemDetails(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         string projectName)
     {
         var sb = new StringBuilder();
@@ -1131,7 +1135,7 @@ public class ApiClientGenerator : IIncrementalGenerator
     /// Used as a fallback when servers return plain text instead of JSON for 401/403 responses.
     /// </summary>
     private static void GenerateProblemDetailsFactory(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         string projectName)
     {
         var sb = new StringBuilder();
@@ -1189,7 +1193,7 @@ public class ApiClientGenerator : IIncrementalGenerator
     /// Generates a Constants class with the HttpClientName for DI wireup.
     /// </summary>
     private static void GenerateConstants(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         string projectName,
         string? configuredHttpClientName)
     {
@@ -1209,7 +1213,7 @@ public class ApiClientGenerator : IIncrementalGenerator
     /// Generates the custom error response model class.
     /// </summary>
     private static void GenerateCustomErrorResponse(
-        SourceProductionContext context,
+        GeneratedSourceContext context,
         CustomErrorResponseModelConfig config,
         string projectName)
     {
