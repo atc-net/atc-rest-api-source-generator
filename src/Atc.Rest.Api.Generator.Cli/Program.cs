@@ -29,7 +29,7 @@ public static class Program
     private static async Task CheckForUpdatesAsync(
         INugetPackageVersionService nugetService)
     {
-        if (!NetworkInformationHelper.HasHttpConnection())
+        if (!await NetworkInformationHelper.HasHttpConnectionAsync())
         {
             AnsiConsole.MarkupLine("[yellow]⚠[/] [dim] No internet connection. Version check skipped.[/]");
             AnsiConsole.WriteLine();
