@@ -313,6 +313,7 @@ public static class GeneratorTestHelper
 
         var diUsings = new List<string>
         {
+            "System.CodeDom.Compiler",
             "Microsoft.Extensions.DependencyInjection",
             $"{scenarioName}.Generated.Handlers",
         };
@@ -499,6 +500,7 @@ public sealed class {handlerName} : {interfaceName}
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// Extension methods for registering API handlers in the dependency injection container.");
         sb.AppendLine("/// </summary>");
+        sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         sb.AppendLine("public static class ServiceCollectionEndpointHandlerExtensions");
         sb.AppendLine("{");
         sb.AppendLine("    /// <summary>");

@@ -46,4 +46,15 @@ public class ConstantsExtractorTests
         // Assert
         Assert.Contains("public static class Constants", result, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Generate_ContainsGeneratedCodeAttribute()
+    {
+        // Act
+        var result = ConstantsExtractor.Generate("Demo", "Demo-ApiClient");
+
+        // Assert
+        Assert.Contains("using System.CodeDom.Compiler;", result, StringComparison.Ordinal);
+        Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", result, StringComparison.Ordinal);
+    }
 }
