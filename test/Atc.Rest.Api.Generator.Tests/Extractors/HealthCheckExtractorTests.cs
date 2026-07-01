@@ -208,4 +208,29 @@ public class HealthCheckExtractorTests
         // Assert — filter checks IsNullOrEmpty so no key = passthrough
         Assert.Contains("!string.IsNullOrEmpty(expectedKey)", result, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void GenerateEndpoints_ContainsGeneratedCodeAttribute()
+    {
+        // Arrange
+        var config = new HealthCheckConfig { Enabled = true };
+
+        // Act
+        var result = HealthCheckExtractor.GenerateEndpoints("TestApi", config);
+
+        // Assert
+        Assert.Contains("using System.CodeDom.Compiler;", result, StringComparison.Ordinal);
+        Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateServiceExtensions_ContainsGeneratedCodeAttribute()
+    {
+        // Act
+        var result = HealthCheckExtractor.GenerateServiceExtensions("TestApi");
+
+        // Assert
+        Assert.Contains("using System.CodeDom.Compiler;", result, StringComparison.Ordinal);
+        Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", result, StringComparison.Ordinal);
+    }
 }

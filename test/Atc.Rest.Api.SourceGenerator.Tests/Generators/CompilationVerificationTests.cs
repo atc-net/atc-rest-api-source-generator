@@ -143,6 +143,53 @@ public class CompilationVerificationTests
             string.Join("\n", errors));
     }
 
+    // ========== GeneratedCode attribute coverage ==========
+    // These files are built via ApiClientGenerator's own StringBuilder-based emission (not the
+    // shared CodeGenerationService extractors), so they don't show up in the CodeGenerationService
+    // snapshot suite. Assert directly that every top-level type carries [GeneratedCode].
+    [Fact]
+    public void ClientGenerator_PerOperation_SharedTypes_ContainGeneratedCodeAttribute()
+    {
+        // Arrange & Act
+        var (_, generatedSources) = CompilationVerificationHarness.RunGenerator(
+            new ApiClientGenerator(),
+            "PetStoreSimple",
+            "PetStoreSimple.yaml",
+            ".atc-rest-api-client",
+            "Client-Operation",
+            useFullReferences: true);
+
+        string? SourceContaining(string marker)
+            => generatedSources
+                .Select(s => s.Source)
+                .FirstOrDefault(s => s.Contains(marker, StringComparison.Ordinal));
+
+        // Assert
+        var problemDetails = SourceContaining("public record ProblemDetails(");
+        Assert.NotNull(problemDetails);
+        Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", problemDetails, StringComparison.Ordinal);
+
+        var validationProblemDetails = SourceContaining("public record ValidationProblemDetails(");
+        Assert.NotNull(validationProblemDetails);
+        Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", validationProblemDetails, StringComparison.Ordinal);
+
+        var problemDetailsFactory = SourceContaining("public static class ProblemDetailsFactory");
+        Assert.NotNull(problemDetailsFactory);
+        Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", problemDetailsFactory, StringComparison.Ordinal);
+
+        var constants = SourceContaining("public static class Constants");
+        Assert.NotNull(constants);
+        Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", constants, StringComparison.Ordinal);
+
+        var segmentDiExtension = SourceContaining("public static class EndpointsServiceCollectionExtensions");
+        Assert.NotNull(segmentDiExtension);
+        Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", segmentDiExtension, StringComparison.Ordinal);
+
+        var consolidatedDiExtension = SourceContaining("public static class PetStoreSimpleEndpointsServiceCollectionExtensions");
+        Assert.NotNull(consolidatedDiExtension);
+        Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", consolidatedDiExtension, StringComparison.Ordinal);
+    }
+
     // ========== Generator Detection ==========
     [Fact]
     public void ClientGenerator_WithNoMarkerFile_ProducesNoOutput()

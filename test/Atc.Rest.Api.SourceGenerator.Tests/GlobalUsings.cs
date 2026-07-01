@@ -11,6 +11,7 @@ global using System.Text.Json.Serialization;
 global using System.Threading;
 
 global using Atc.OpenApi.Helpers;
+global using Atc.Rest.Api.Generator;
 global using Atc.Rest.Api.Generator.Configurations;
 global using Atc.Rest.Api.Generator.Extractors;
 global using Atc.Rest.Api.Generator.Helpers;
