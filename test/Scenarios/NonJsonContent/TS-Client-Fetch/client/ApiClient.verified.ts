@@ -252,7 +252,7 @@ export class ApiClient {
 
     const contentType = response.headers.get('Content-Type') ?? '';
     const isText = responseType === 'text' || (!responseType && (contentType.startsWith('text/') || contentType.includes('application/xml')));
-    const isJson = responseType ? responseType === 'json' : (!isText && contentType.includes('application/json'));
+    const isJson = responseType ? responseType === 'json' : (!isText && (contentType.includes('application/json') || contentType.includes('+json')));
 
     if (response.ok) {
       let data: unknown;
