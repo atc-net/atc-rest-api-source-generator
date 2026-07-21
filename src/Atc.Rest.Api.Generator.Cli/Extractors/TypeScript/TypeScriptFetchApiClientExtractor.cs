@@ -488,7 +488,11 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine();
         sb.AppendLine("    const contentType = response.headers.get('Content-Type') ?? '';");
         sb.AppendLine("    const isText = responseType === 'text' || (!responseType && (contentType.startsWith('text/') || contentType.includes('application/xml')));");
-        sb.AppendLine("    const isJson = responseType ? responseType === 'json' : (!isText && contentType.includes('application/json'));");
+
+        // Treat +json suffixes (application/problem+json, application/vnd.api+json) as JSON too,
+        // so RFC-7807 error bodies parse and their title/errors reach the badRequest arm instead
+        // of falling through to blob() and being lost.
+        sb.AppendLine("    const isJson = responseType ? responseType === 'json' : (!isText && (contentType.includes('application/json') || contentType.includes('+json')));");
         sb.AppendLine();
         sb.AppendLine("    if (response.ok) {");
         sb.AppendLine("      let data: unknown;");
