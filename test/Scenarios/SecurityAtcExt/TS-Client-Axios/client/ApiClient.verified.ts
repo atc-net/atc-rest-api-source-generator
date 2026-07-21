@@ -67,8 +67,9 @@ export class ApiClient {
       baseURL: this.baseUrl,
       validateStatus: () => true,
       paramsSerializer: { indexes: null },
-      transformResponse: [(data: unknown, headers?: Record<string, string>) => {
+      transformResponse: [function (this: InternalAxiosRequestConfig, data: unknown, headers?: Record<string, string>) {
         if (typeof data !== 'string' || data.length === 0) return data;
+        if (this.responseType === 'text') return data;
         const contentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '');
         if (!contentType.includes('application/json') && !contentType.includes('+json')) return data;
         try { return JSON.parse(data); } catch { return new UnparseableBody(data); }

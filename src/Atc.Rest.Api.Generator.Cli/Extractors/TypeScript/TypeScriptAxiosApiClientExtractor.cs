@@ -223,17 +223,20 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      paramsSerializer: { indexes: null },");
 
         // transformResponse is always emitted (both convertDates modes): it is the single place
-        // where a JSON parse failure is observable, so it must own the parse. Parsing is gated on
-        // the content-type — only JSON bodies (application/json and +json suffixes such as
-        // application/problem+json) are parsed, and only they can yield the UnparseableBody
-        // sentinel. Text bodies (text/plain, application/xml, ...) are returned verbatim so they
-        // never regress into a parse error.
+        // where a JSON parse failure is observable, so it must own the parse. It is a function (not
+        // an arrow) so `this` is the request config and responseType: 'text' can be honoured — that
+        // opt-out returns the body verbatim even for a JSON content-type. Otherwise parsing is gated
+        // on the content-type: only JSON bodies (application/json and +json suffixes such as
+        // application/problem+json) are parsed, and only they can yield the UnparseableBody sentinel.
+        // Text bodies (text/plain, application/xml, ...) are returned verbatim so they never regress
+        // into a parse error.
         var jsonParse = convertDates
             ? "JSON.parse(data, dateReviver)"
             : "JSON.parse(data)";
 
-        sb.AppendLine("      transformResponse: [(data: unknown, headers?: Record<string, string>) => {");
+        sb.AppendLine("      transformResponse: [function (this: InternalAxiosRequestConfig, data: unknown, headers?: Record<string, string>) {");
         sb.AppendLine("        if (typeof data !== 'string' || data.length === 0) return data;");
+        sb.AppendLine("        if (this.responseType === 'text') return data;");
         sb.AppendLine("        const contentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '');");
         sb.AppendLine("        if (!contentType.includes('application/json') && !contentType.includes('+json')) return data;");
         sb.Append("        try { return ").Append(jsonParse).AppendLine("; } catch { return new UnparseableBody(data); }");

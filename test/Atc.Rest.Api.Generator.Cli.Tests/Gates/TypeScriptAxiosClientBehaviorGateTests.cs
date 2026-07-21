@@ -205,6 +205,13 @@ public sealed class TypeScriptAxiosClientBehaviorGateTests
           const r3 = await client.request('get', '/text');
           check(label + ' text-plain-ok', r3.status === 'ok', 'expected ok, got ' + r3.status);
           check(label + ' text-plain-data', r3.status === 'ok' && r3.data === 'hello world', 'expected verbatim, got ' + JSON.stringify(r3.data));
+
+          // Case 4: responseType 'text' must force a raw string even when the server
+          // still sends application/json — the caller opted out of JSON parsing.
+          respondWith('{"a":1}', 'application/json');
+          const r4 = await client.request('get', '/raw', { responseType: 'text' });
+          check(label + ' text-forced-ok', r4.status === 'ok', 'expected ok, got ' + r4.status);
+          check(label + ' text-forced-raw', r4.status === 'ok' && r4.data === '{"a":1}', 'expected raw string, got ' + JSON.stringify(r4.data));
         }
 
         async function main(): Promise<void> {
