@@ -22,6 +22,10 @@ function dateReplacer(_key: string, value: unknown): unknown {
   return value;
 }
 
+class UnparseableBody {
+  constructor(public readonly raw: string) {}
+}
+
 export type AxiosRequestInterceptor = (config: InternalAxiosRequestConfig) => InternalAxiosRequestConfig | Promise<InternalAxiosRequestConfig>;
 export type AxiosResponseInterceptor = (response: AxiosResponse) => AxiosResponse | Promise<AxiosResponse>;
 
@@ -80,9 +84,11 @@ export class ApiClient {
       baseURL: this.baseUrl,
       validateStatus: () => true,
       paramsSerializer: { indexes: null },
-      transformResponse: [(data: string) => {
-        if (typeof data !== 'string') return data;
-        try { return JSON.parse(data, dateReviver); } catch { return data; }
+      transformResponse: [(data: unknown, headers?: Record<string, string>) => {
+        if (typeof data !== 'string' || data.length === 0) return data;
+        const contentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '');
+        if (!contentType.includes('application/json') && !contentType.includes('+json')) return data;
+        try { return JSON.parse(data, dateReviver); } catch { return new UnparseableBody(data); }
       }],
       transformRequest: [(data: unknown, headers: Record<string, string>) => {
         if (data instanceof FormData || data instanceof Blob) return data;
@@ -293,12 +299,11 @@ export class ApiClient {
     }
 
     if (response.status >= 200 && response.status < 300) {
-      // Axios with responseType: 'json' falls back to the raw string when JSON.parse
-      // fails. Detect that case (text body where JSON was expected) and surface it
-      // as a discriminated 'parseError' instead of pretending the response succeeded.
-      const contentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');
-      const expectsJson = contentType.includes('application/json');
-      if (expectsJson && typeof response.data === 'string' && (response.data as string).length > 0) {
+      // A JSON body that failed to parse is carried as an UnparseableBody sentinel by
+      // transformResponse (the only place the parse outcome is known). Surface it as a
+      // discriminated 'parseError' instead of pretending the response succeeded. A JSON
+      // string body that parsed fine (e.g. "token") is a plain string, not a sentinel.
+      if (response.data instanceof UnparseableBody) {
         return {
           status: 'parseError',
           error: new Error('Response body could not be parsed as JSON'),
@@ -313,7 +318,8 @@ export class ApiClient {
       return { status, data: response.data, response };
     }
 
-    const errorBody = response.data as Record<string, unknown> | null;
+    const errorData: unknown = response.data instanceof UnparseableBody ? response.data.raw : response.data;
+    const errorBody = errorData as Record<string, unknown> | null;
     const message = (errorBody?.title ?? errorBody?.message ?? response.statusText) as string;
 
     if (response.status === 400 && errorBody?.errors) {
