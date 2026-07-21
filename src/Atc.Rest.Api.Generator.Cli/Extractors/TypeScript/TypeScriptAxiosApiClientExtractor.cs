@@ -31,6 +31,7 @@ public static class TypeScriptAxiosApiClientExtractor
             AppendDateReviverReplacer(sb);
         }
 
+        AppendUnparseableBodyClass(sb);
         AppendApiClientOptionsInterface(sb, hasRetry);
         AppendRequestOptionsInterface(sb, zodRuntimeValidate);
         TypeScriptOperationHelper.AppendParseEventStreamHelper(sb);
@@ -62,6 +63,18 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("import type { ZodTypeAny } from 'zod';");
         }
 
+        sb.AppendLine();
+    }
+
+    private static void AppendUnparseableBodyClass(StringBuilder sb)
+    {
+        // Sentinel produced by transformResponse when a JSON body fails to parse. This is the
+        // only reliable "JSON.parse failed" signal — a successfully parsed JSON string body is
+        // itself a JS string, so typeof-based detection cannot tell the two apart. Carrying the
+        // failure as a distinct type lets handleResponse detect it with an instanceof check.
+        sb.AppendLine("class UnparseableBody {");
+        sb.AppendLine("  constructor(public readonly raw: string) {}");
+        sb.AppendLine("}");
         sb.AppendLine();
     }
 
@@ -209,12 +222,25 @@ public static class TypeScriptAxiosApiClientExtractor
         // so ASP.NET Core's default model binder can bind array query params correctly.
         sb.AppendLine("      paramsSerializer: { indexes: null },");
 
+        // transformResponse is always emitted (both convertDates modes): it is the single place
+        // where a JSON parse failure is observable, so it must own the parse. Parsing is gated on
+        // the content-type — only JSON bodies (application/json and +json suffixes such as
+        // application/problem+json) are parsed, and only they can yield the UnparseableBody
+        // sentinel. Text bodies (text/plain, application/xml, ...) are returned verbatim so they
+        // never regress into a parse error.
+        var jsonParse = convertDates
+            ? "JSON.parse(data, dateReviver)"
+            : "JSON.parse(data)";
+
+        sb.AppendLine("      transformResponse: [(data: unknown, headers?: Record<string, string>) => {");
+        sb.AppendLine("        if (typeof data !== 'string' || data.length === 0) return data;");
+        sb.AppendLine("        const contentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '');");
+        sb.AppendLine("        if (!contentType.includes('application/json') && !contentType.includes('+json')) return data;");
+        sb.Append("        try { return ").Append(jsonParse).AppendLine("; } catch { return new UnparseableBody(data); }");
+        sb.AppendLine("      }],");
+
         if (convertDates)
         {
-            sb.AppendLine("      transformResponse: [(data: string) => {");
-            sb.AppendLine("        if (typeof data !== 'string') return data;");
-            sb.AppendLine("        try { return JSON.parse(data, dateReviver); } catch { return data; }");
-            sb.AppendLine("      }],");
             sb.AppendLine("      transformRequest: [(data: unknown, headers: Record<string, string>) => {");
             sb.AppendLine("        if (data instanceof FormData || data instanceof Blob) return data;");
             sb.AppendLine("        if (data !== undefined) headers['Content-Type'] = 'application/json';");
@@ -523,12 +549,11 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    if (response.status >= 200 && response.status < 300) {");
-        sb.AppendLine("      // Axios with responseType: 'json' falls back to the raw string when JSON.parse");
-        sb.AppendLine("      // fails. Detect that case (text body where JSON was expected) and surface it");
-        sb.AppendLine("      // as a discriminated 'parseError' instead of pretending the response succeeded.");
-        sb.AppendLine("      const contentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');");
-        sb.AppendLine("      const expectsJson = contentType.includes('application/json');");
-        sb.AppendLine("      if (expectsJson && typeof response.data === 'string' && (response.data as string).length > 0) {");
+        sb.AppendLine("      // A JSON body that failed to parse is carried as an UnparseableBody sentinel by");
+        sb.AppendLine("      // transformResponse (the only place the parse outcome is known). Surface it as a");
+        sb.AppendLine("      // discriminated 'parseError' instead of pretending the response succeeded. A JSON");
+        sb.AppendLine("      // string body that parsed fine (e.g. \"token\") is a plain string, not a sentinel.");
+        sb.AppendLine("      if (response.data instanceof UnparseableBody) {");
         sb.AppendLine("        return {");
         sb.AppendLine("          status: 'parseError',");
         sb.AppendLine("          error: new Error('Response body could not be parsed as JSON'),");
@@ -541,6 +566,8 @@ public static class TypeScriptAxiosApiClientExtractor
             // Axios already parsed the response (response.data); we validate that against
             // the schema. JSON-only — text/blob bodies don't have a structured schema.
             sb.AppendLine();
+            sb.AppendLine("      const contentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');");
+            sb.AppendLine("      const expectsJson = contentType.includes('application/json') || contentType.includes('+json');");
             sb.AppendLine("      if (parseSchema && expectsJson) {");
             sb.AppendLine("        const parsed = parseSchema.safeParse(response.data);");
             sb.AppendLine("        if (!parsed.success) {");
@@ -565,7 +592,12 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      return { status, data: response.data, response };");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const errorBody = response.data as Record<string, unknown> | null;");
+
+        // For a non-2xx JSON error body that failed to parse, response.data is the sentinel.
+        // Unwrapping to its raw text keeps title/message probing falling through to statusText
+        // instead of reading fields off the sentinel. Non-JSON error bodies remain raw strings.
+        sb.AppendLine("    const errorData: unknown = response.data instanceof UnparseableBody ? response.data.raw : response.data;");
+        sb.AppendLine("    const errorBody = errorData as Record<string, unknown> | null;");
         sb.AppendLine("    const message = (errorBody?.title ?? errorBody?.message ?? response.statusText) as string;");
         sb.AppendLine();
         sb.AppendLine("    if (response.status === 400 && errorBody?.errors) {");
