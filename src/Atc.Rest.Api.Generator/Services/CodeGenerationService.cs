@@ -1062,12 +1062,34 @@ public static class CodeGenerationService
         builder.AppendLine($"using {NamespaceConstants.SystemCodeDomCompiler};");
         builder.AppendLine($"using {NamespaceConstants.SystemThreading};");
         builder.AppendLine($"using {NamespaceConstants.SystemThreadingTasks};");
+
+        // Add output caching namespace when output caching is used
+        if (openApiDoc.HasOutputCaching())
+        {
+            builder.AppendLine("using Microsoft.AspNetCore.OutputCaching;");
+            builder.AppendLine("using Microsoft.Extensions.DependencyInjection;");
+        }
+
         builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreBuilder};");
         builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreHttp};");
         builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreMvc};");
 
         // Add conditional segment namespace usings
         builder.AppendSegmentUsings(projectName, pathSegment, namespaces);
+
+        // Add caching namespace when output caching is used (for the OutputCachePolicies
+        // const class referenced by .CacheOutput(...) calls)
+        if (openApiDoc.HasOutputCaching())
+        {
+            builder.AppendLine($"using {projectName}.Generated.Caching;");
+        }
+
+        // Add RateLimiting namespace when rate limiting is used (for the RateLimitPolicies
+        // const class referenced by .RequireRateLimiting(...) calls)
+        if (openApiDoc.HasRateLimiting())
+        {
+            builder.AppendLine($"using {projectName}.Generated.RateLimiting;");
+        }
 
         builder.AppendLine();
         builder.AppendLine($"namespace {projectName}.Generated.{pathSegment}.Endpoints;");
@@ -1780,6 +1802,32 @@ public static class CodeGenerationService
         string projectName,
         bool includeDeprecated = false)
         => OutputCacheDependencyInjectionExtractor.Extract(openApiDoc, projectName, includeDeprecated);
+
+    /// <summary>
+    /// Generates Rate Limit policy constants from OpenAPI document.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="projectName">The project name for namespace.</param>
+    /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
+    /// <returns>Generated code content for the Rate Limit policies class, or null if no policies needed.</returns>
+    public static string? GenerateRateLimitPolicies(
+        OpenApiDocument openApiDoc,
+        string projectName,
+        bool includeDeprecated = false)
+        => RateLimitPoliciesExtractor.Extract(openApiDoc, projectName, includeDeprecated);
+
+    /// <summary>
+    /// Generates Rate Limiting DI extension from OpenAPI document.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="projectName">The project name for namespace.</param>
+    /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
+    /// <returns>Generated code content for the Rate Limiting DI extension class, or null if no policies needed.</returns>
+    public static string? GenerateRateLimitDependencyInjection(
+        OpenApiDocument openApiDoc,
+        string projectName,
+        bool includeDeprecated = false)
+        => RateLimitDependencyInjectionExtractor.Extract(openApiDoc, projectName, includeDeprecated);
 
     /// <summary>
     /// Generates HybridCache policy constants from OpenAPI document.

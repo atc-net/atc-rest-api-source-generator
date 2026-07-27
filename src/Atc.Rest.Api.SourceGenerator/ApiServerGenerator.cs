@@ -923,6 +923,13 @@ public class ApiServerGenerator : IIncrementalGenerator
             allGeneratedCode.AppendLine($"using {projectName}.Generated.Caching;");
         }
 
+        // Add RateLimiting namespace when rate limiting is used (for the RateLimitPolicies
+        // const class referenced by .RequireRateLimiting(...) calls)
+        if (openApiDoc.HasRateLimiting())
+        {
+            allGeneratedCode.AppendLine($"using {projectName}.Generated.RateLimiting;");
+        }
+
         allGeneratedCode.AppendLine();
         allGeneratedCode.AppendLine($"namespace {projectName}.Generated.{pathSegment}.Endpoints;");
         allGeneratedCode.AppendLine();

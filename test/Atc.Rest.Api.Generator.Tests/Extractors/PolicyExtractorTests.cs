@@ -163,6 +163,125 @@ public class PolicyExtractorTests
         Assert.Contains("namespace MyProject.Api.Generated.RateLimiting;", result, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void RateLimitPoliciesExtractor_DocComment_ReflectsActualPermitLimitAndWindow()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /logs:
+                                get:
+                                  operationId: getLogs
+                                  x-ratelimit-policy: logs-read
+                                  x-ratelimit-algorithm: sliding
+                                  x-ratelimit-permit-limit: 30
+                                  x-ratelimit-window-seconds: 60
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        // Act
+        var result = RateLimitPoliciesExtractor.Extract(document, "TestApi");
+
+        // Assert - the doc comment interpolates the *actual* configured numbers, not the
+        // fallback defaults (100/60), so this fails if permit-limit extraction regresses.
+        Assert.NotNull(result);
+        Assert.Contains("Policy: Sliding window, 30 requests/60s", result, StringComparison.Ordinal);
+        Assert.Contains("public const string LogsRead = \"logs-read\";", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RateLimitPoliciesExtractor_MultiplePolicies_AreSortedAlphabetically()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /orders:
+                                x-ratelimit-policy: orders-standard
+                                x-ratelimit-permit-limit: 100
+                                get:
+                                  operationId: listOrders
+                                  responses:
+                                    '200':
+                                      description: OK
+                              /accounts:
+                                x-ratelimit-policy: accounts-standard
+                                x-ratelimit-permit-limit: 50
+                                get:
+                                  operationId: listAccounts
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        // Act
+        var result = RateLimitPoliciesExtractor.Extract(document, "TestApi");
+
+        // Assert - policies are ordered by policy name (Ordinal), so "accounts-standard"
+        // (constant AccountsStandard) must appear before "orders-standard" even though
+        // /orders is declared first in the document.
+        Assert.NotNull(result);
+        var accountsIndex = result!.IndexOf("AccountsStandard", StringComparison.Ordinal);
+        var ordersIndex = result.IndexOf("OrdersStandard", StringComparison.Ordinal);
+        Assert.True(accountsIndex >= 0 && ordersIndex >= 0, "Both constants should be present");
+        Assert.True(accountsIndex < ordersIndex, "AccountsStandard should be emitted before OrdersStandard");
+    }
+
+    [Fact]
+    public void RateLimitPoliciesExtractor_SamePolicyNameReusedAcrossPaths_KeepsFirstOccurrenceConfig()
+    {
+        // Arrange - "global" is declared once at document level (permit-limit 1000) and then
+        // reused verbatim (no override) on a second path. CollectPolicies dedups by policy
+        // name and keeps whichever config it saw first.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            x-ratelimit-policy: global
+                            x-ratelimit-permit-limit: 1000
+                            x-ratelimit-window-seconds: 60
+                            paths:
+                              /health:
+                                get:
+                                  operationId: getHealth
+                                  responses:
+                                    '200':
+                                      description: OK
+                              /webhooks:
+                                x-ratelimit-policy: global
+                                post:
+                                  operationId: receiveWebhook
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        // Act
+        var result = RateLimitPoliciesExtractor.Extract(document, "TestApi");
+
+        // Assert - only one "Global" constant is emitted, with the document-level config.
+        Assert.NotNull(result);
+        var occurrences = result!.Split("public const string Global", StringSplitOptions.None).Length - 1;
+        Assert.Equal(1, occurrences);
+        Assert.Contains("Policy: Fixed window, 1000 requests/60s", result, StringComparison.Ordinal);
+    }
+
     // ========== SecurityPoliciesExtractor ==========
     [Fact]
     public void SecurityPoliciesExtractor_WithOAuth2Scopes_ProducesConstants()

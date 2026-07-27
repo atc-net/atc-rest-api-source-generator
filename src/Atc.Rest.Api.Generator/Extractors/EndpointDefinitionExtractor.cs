@@ -696,7 +696,7 @@ using Microsoft.AspNetCore.Builder;
         if (groupRateLimit != null && groupRateLimit.Enabled && !string.IsNullOrEmpty(groupRateLimit.Policy))
         {
             builder.AppendLine();
-            builder.Append(4, $".RequireRateLimiting(\"{groupRateLimit.Policy}\")");
+            builder.Append(4, $".RequireRateLimiting(RateLimitPolicies.{RateLimitPoliciesExtractor.GenerateConstantName(groupRateLimit.Policy!)})");
         }
 
         // Check for group-level output caching (common to all operations in this segment)
@@ -1099,7 +1099,7 @@ using Microsoft.AspNetCore.Builder;
         if (!string.IsNullOrEmpty(rateLimit.Policy))
         {
             builder.AppendLine();
-            builder.Append($"    .RequireRateLimiting(\"{rateLimit.Policy}\")");
+            builder.Append($"    .RequireRateLimiting(RateLimitPolicies.{RateLimitPoliciesExtractor.GenerateConstantName(rateLimit.Policy!)})");
         }
     }
 

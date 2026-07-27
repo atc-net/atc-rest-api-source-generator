@@ -119,6 +119,8 @@ public class CompilationVerificationTests
     [InlineData("StreamingItemSchema", "StreamingItemSchema.yaml")]
     [InlineData("ParameterSerialization", "ParameterSerialization.yaml")]
     [InlineData("ComponentsReuse", "ComponentsReuse.yaml")]
+    [InlineData("RateLimit", "RateLimit.yaml")]
+    [InlineData("CachingOutput", "CachingOutput.yaml")]
     public void ServerGenerator_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)
