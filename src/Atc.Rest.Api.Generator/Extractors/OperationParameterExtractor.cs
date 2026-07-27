@@ -3,6 +3,7 @@
 // ReSharper disable GrammarMistakeInComment
 // ReSharper disable ConvertIfStatementToReturnStatement
 // ReSharper disable ConvertIfStatementToSwitchStatement
+// ReSharper disable ConvertTypeCheckPatternToNullCheck
 namespace Atc.Rest.Api.Generator.Extractors;
 
 /// <summary>
@@ -394,7 +395,7 @@ public static class OperationParameterExtractor
         if (!string.IsNullOrEmpty(sharedModelsNamespace) &&
             !sharedModelsNamespace!.Equals(segmentModelsNamespace, StringComparison.Ordinal))
         {
-            usings.Add(sharedModelsNamespace!);
+            usings.Add(sharedModelsNamespace);
         }
 
         // Include segment-specific models namespace only if it exists
@@ -599,7 +600,7 @@ public static class OperationParameterExtractor
                 }
 
                 // Determine property initializer (use schema default if available)
-                var defaultValue = GetDefaultValue(cleanTypeName, parameter.Required, parameter.Schema, isNullableType, schemaDefault);
+                var defaultValue = GetDefaultValue(cleanTypeName, parameter.Required, isNullableType, schemaDefault);
 
                 parameters.Add(
                     new ParameterBaseParameters(
@@ -939,7 +940,6 @@ public static class OperationParameterExtractor
     private static string? GetDefaultValue(
         string paramType,
         bool isRequired,
-        IOpenApiSchema? schema,
         bool isNullableType,
         string? schemaDefault)
     {

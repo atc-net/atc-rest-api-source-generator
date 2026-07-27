@@ -1,5 +1,6 @@
 // ReSharper disable ConvertIfStatementToSwitchStatement
 // ReSharper disable InvertIf
+// ReSharper disable InconsistentNaming
 namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 
 /// <summary>
@@ -99,7 +100,7 @@ public static class TypeScriptReactQueryHookExtractor
                         continue;
                     }
 
-                    var brand = TypeScriptBrandedIdExtractor.ResolveParamBrand(info.Path, param.Name!, param.Schema);
+                    var brand = TypeScriptBrandedIdExtractor.ResolveParamBrand(info.Path, param.Name, param.Schema);
                     if (brand != null)
                     {
                         brandImports.Add(brand);
@@ -1029,7 +1030,7 @@ public static class TypeScriptReactQueryHookExtractor
         {
             var allSuccess = success2xxDiscriminators.Count > 0
                 ? success2xxDiscriminators
-                : new List<string> { "noContent", "ok" };
+                : ["noContent", "ok"];
             sb.Append("      if (").Append(BuildStatusDisjunction(allSuccess)).AppendLine(") {");
             sb.AppendLine("        return;");
         }

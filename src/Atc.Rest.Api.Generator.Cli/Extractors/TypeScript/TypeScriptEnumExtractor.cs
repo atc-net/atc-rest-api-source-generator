@@ -190,7 +190,7 @@ public static class TypeScriptEnumExtractor
             }
 
             // Clean up the value - remove quotes if present
-            var cleanValue = valueStr!.Trim('"');
+            var cleanValue = valueStr.Trim('"');
             result.Add(cleanValue);
         }
 

@@ -18,6 +18,7 @@ public static class AttributesParametersFactory
             new(name, content),
         };
 
+    [SuppressMessage("Design", "S1244:Do not check floating point equality with exact values", Justification = "OK.")]
     public static IList<AttributeParameters> Create(
         IList<ValidationAttribute> validationAttributes)
     {

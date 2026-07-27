@@ -840,7 +840,7 @@ public static class TypeScriptClientGenerationService
         var tsConfigCjsContent = TypeScriptPackageScaffoldExtractor.GenerateTsConfigCjs();
         WriteJsonFile(Path.Combine(outputPath, "tsconfig.cjs.json"), tsConfigCjsContent, dryRun);
 
-        var postbuildContent = TypeScriptPackageScaffoldExtractor.GeneratePostbuildCjsScript();
+        var postbuildContent = TypeScriptPackageScaffoldExtractor.GeneratePostBuildCjsScript();
         WriteTextFile(Path.Combine(outputPath, "scripts", "postbuild-cjs.mjs"), postbuildContent, dryRun);
 
         var readmeContent = TypeScriptPackageScaffoldExtractor.GenerateReadme(

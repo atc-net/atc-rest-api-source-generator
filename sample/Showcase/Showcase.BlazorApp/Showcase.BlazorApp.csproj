@@ -23,4 +23,15 @@
     <AdditionalFiles Include=".atc-rest-api-client" />
   </ItemGroup>
 
+  <!--
+    Razor.globalconfig: glob-based EditorConfig sections ([*.razor], [*.{cs,csx,cake}])
+    never match the synthetic paths of syntax trees emitted by the Razor source
+    generator, so severities that must reach Razor-generated @code blocks (e.g. S8969/
+    S8970 for CascadingParameter's required null! initializer) need an unconditional
+    (is_global = true) config file instead.
+  -->
+  <ItemGroup>
+    <GlobalAnalyzerConfigFiles Include="Razor.globalconfig" />
+  </ItemGroup>
+
 </Project>

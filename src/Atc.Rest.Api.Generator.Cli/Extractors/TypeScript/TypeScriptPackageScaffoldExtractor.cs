@@ -185,7 +185,7 @@ public static class TypeScriptPackageScaffoldExtractor
     /// dist/cjs/ as ESM and the dual-publish would not actually work.
     /// </summary>
     /// <returns>The formatted scripts/postbuild-cjs.mjs content.</returns>
-    public static string GeneratePostbuildCjsScript()
+    public static string GeneratePostBuildCjsScript()
         => """
            import { mkdirSync, writeFileSync } from 'node:fs';
 
@@ -220,13 +220,13 @@ public static class TypeScriptPackageScaffoldExtractor
         ArgumentNullException.ThrowIfNull(config);
 
         var sb = new StringBuilder();
-        var heading = !string.IsNullOrWhiteSpace(title) ? title!.Trim() : packageName;
+        var heading = !string.IsNullOrWhiteSpace(title) ? title.Trim() : packageName;
         sb.Append("# ").AppendLine(heading);
         sb.AppendLine();
 
         if (!string.IsNullOrWhiteSpace(description))
         {
-            sb.AppendLine(description!.Trim());
+            sb.AppendLine(description.Trim());
             sb.AppendLine();
         }
 

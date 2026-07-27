@@ -29,7 +29,7 @@ public static class TypeScriptSwrHookExtractor
                 continue;
             }
 
-            var hookInfos = CollectHookInfos(operations, openApiDoc, segment, namingStrategy);
+            var hookInfos = CollectHookInfos(operations, openApiDoc);
             if (hookInfos.Count == 0)
             {
                 continue;
@@ -39,7 +39,6 @@ public static class TypeScriptSwrHookExtractor
                 segment,
                 hookInfos,
                 headerContent,
-                enumNames,
                 namingStrategy,
                 brandedIds);
 
@@ -52,9 +51,7 @@ public static class TypeScriptSwrHookExtractor
 
     private static List<SwrHookInfo> CollectHookInfos(
         List<(string Path, string Method, OpenApiOperation Operation)> operations,
-        OpenApiDocument openApiDoc,
-        string segment,
-        TypeScriptNamingStrategy namingStrategy)
+        OpenApiDocument openApiDoc)
     {
         var hookInfos = new List<SwrHookInfo>();
 
@@ -81,7 +78,7 @@ public static class TypeScriptSwrHookExtractor
 
             // Streaming hooks need the operation's path/query/header params at emission
             // time so the generated useState/useEffect-backed hook can forward them to the
-            // async-generator client method. Non-streaming hooks ignore these but it's
+            // async-generator client method. Non-streaming hooks ignore these, but it's
             // cheaper to populate them unconditionally than to branch the record shape.
             var pathParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Path);
             var queryParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Query);
@@ -111,7 +108,6 @@ public static class TypeScriptSwrHookExtractor
         string segment,
         List<SwrHookInfo> hookInfos,
         string? headerContent,
-        HashSet<string>? enumNames,
         TypeScriptNamingStrategy namingStrategy,
         bool brandedIds)
     {
@@ -130,7 +126,7 @@ public static class TypeScriptSwrHookExtractor
                         continue;
                     }
 
-                    var brand = TypeScriptBrandedIdExtractor.ResolveParamBrand(info.Path, param.Name!, param.Schema);
+                    var brand = TypeScriptBrandedIdExtractor.ResolveParamBrand(info.Path, param.Name, param.Schema);
                     if (brand != null)
                     {
                         brandImports.Add(brand);
