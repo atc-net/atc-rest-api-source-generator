@@ -126,6 +126,33 @@ public static class GeneratorTestHelper
                 SubFolder: "Caching");
         }
 
+        // Rate Limiting generation
+        var rateLimitPolicies = CodeGenerationService.GenerateRateLimitPolicies(openApiDoc, scenarioName);
+        if (rateLimitPolicies != null)
+        {
+            yield return new GeneratedType(
+                TypeName: "RateLimitPolicies",
+                Category: "RateLimiting",
+                Namespace: $"{scenarioName}.Generated.RateLimiting",
+                Content: rateLimitPolicies,
+                RequiredUsings: ["System.CodeDom.Compiler"],
+                GroupName: null,
+                SubFolder: "RateLimiting");
+        }
+
+        var rateLimitDi = CodeGenerationService.GenerateRateLimitDependencyInjection(openApiDoc, scenarioName);
+        if (rateLimitDi != null)
+        {
+            yield return new GeneratedType(
+                TypeName: "RateLimitingServiceCollectionExtensions",
+                Category: "RateLimiting",
+                Namespace: $"{scenarioName}.Generated.RateLimiting",
+                Content: rateLimitDi,
+                RequiredUsings: ["System.CodeDom.Compiler", "Microsoft.AspNetCore.Http", "Microsoft.AspNetCore.RateLimiting", "Microsoft.Extensions.DependencyInjection", "System.Threading.RateLimiting", $"{scenarioName}.Generated.RateLimiting"],
+                GroupName: null,
+                SubFolder: "RateLimiting");
+        }
+
         // HybridCache generation
         var hybridCachePolicies = CodeGenerationService.GenerateHybridCachePolicies(openApiDoc, scenarioName);
         if (hybridCachePolicies != null)

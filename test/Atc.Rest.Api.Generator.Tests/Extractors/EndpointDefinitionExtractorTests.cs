@@ -431,4 +431,102 @@ public class EndpointDefinitionExtractorTests
         Assert.NotNull(petsClass);
         Assert.Equal("Endpoint definitions for Pets.", petsClass.DocumentationTags?.Summary);
     }
+
+    // ========== Rate limiting: reuse RateLimitPolicies const instead of a raw string literal ==========
+    [Fact]
+    public void Extract_WithGroupLevelRateLimitPolicy_ReferencesRateLimitPoliciesConstant()
+    {
+        // Arrange - path-level policy shared by every operation in the segment, so it is
+        // applied once on the route group chain (GetGroupLevelRateLimiting).
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /orders:
+                                x-ratelimit-policy: orders-standard
+                                x-ratelimit-permit-limit: 100
+                                get:
+                                  operationId: listOrders
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var resolver = new SystemTypeConflictResolver(Array.Empty<string>());
+
+        // Act
+        var (_, classes) = EndpointDefinitionExtractor.Extract(
+            document,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: resolver);
+
+        // Assert
+        Assert.NotNull(classes);
+        var defineEndpoints = classes!
+            .SelectMany(c => c.Methods ?? [])
+            .FirstOrDefault(m => m.Name == "DefineEndpoints");
+
+        Assert.NotNull(defineEndpoints);
+        Assert.Contains(".RequireRateLimiting(RateLimitPolicies.OrdersStandard)", defineEndpoints!.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"orders-standard\"", defineEndpoints.Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_WithOperationLevelRateLimitOverride_ReferencesRateLimitPoliciesConstant()
+    {
+        // Arrange - the group shares "orders-standard", but deleteOrder overrides with
+        // "orders-strict", so it must get its own operation-level RequireRateLimiting call.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /orders/{orderId}:
+                                x-ratelimit-policy: orders-standard
+                                parameters:
+                                  - name: orderId
+                                    in: path
+                                    required: true
+                                    schema:
+                                      type: string
+                                get:
+                                  operationId: getOrderById
+                                  responses:
+                                    '200':
+                                      description: OK
+                                delete:
+                                  operationId: deleteOrder
+                                  x-ratelimit-policy: orders-strict
+                                  x-ratelimit-permit-limit: 10
+                                  responses:
+                                    '204':
+                                      description: No Content
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var resolver = new SystemTypeConflictResolver(Array.Empty<string>());
+
+        // Act
+        var (_, classes) = EndpointDefinitionExtractor.Extract(
+            document,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: resolver);
+
+        // Assert
+        Assert.NotNull(classes);
+        var defineEndpoints = classes!
+            .SelectMany(c => c.Methods ?? [])
+            .FirstOrDefault(m => m.Name == "DefineEndpoints");
+
+        Assert.NotNull(defineEndpoints);
+        Assert.Contains(".RequireRateLimiting(RateLimitPolicies.OrdersStandard)", defineEndpoints!.Content, StringComparison.Ordinal);
+        Assert.Contains(".RequireRateLimiting(RateLimitPolicies.OrdersStrict)", defineEndpoints.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"orders-strict\"", defineEndpoints.Content, StringComparison.Ordinal);
+    }
 }
