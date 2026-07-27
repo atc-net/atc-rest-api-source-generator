@@ -1,0 +1,3 @@
+# Verify snapshot files must use LF-only line endings (Verify.XunitV3 enforces this).
+*.verified.cs text eol=lf working-tree-encoding=UTF-8
+*.verified.ts text eol=lf working-tree-encoding=UTF-8
