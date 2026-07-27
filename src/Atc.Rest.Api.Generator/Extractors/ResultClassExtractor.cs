@@ -87,7 +87,6 @@ public static class ResultClassExtractor
 
         var resultClasses = new List<ClassParameters>();
         var namespaceValue = NamespaceBuilder.ForResults(projectName, pathSegment);
-        var modelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
 
         foreach (var path in openApiDoc.Paths)
         {
@@ -121,13 +120,8 @@ public static class ResultClassExtractor
                     continue;
                 }
 
-                var httpMethod = operation
-                    .Key
-                    .ToString()
-                    .ToUpperInvariant();
-                var pathItem = path.Value;
                 var currentPathSegment = PathSegmentHelper.GetFirstPathSegment(pathKey);
-                var classParams = ExtractResultClass(openApiDoc, projectName, operationId!, operationValue!, pathItem!, httpMethod, namespaceValue, modelsNamespace, registry, systemTypeResolver, currentPathSegment, inlineSchemas);
+                var classParams = ExtractResultClass(openApiDoc, projectName, operationId!, operationValue!, namespaceValue, registry, systemTypeResolver, currentPathSegment, inlineSchemas);
                 if (classParams != null)
                 {
                     resultClasses.Add(classParams);
@@ -143,10 +137,7 @@ public static class ResultClassExtractor
         string projectName,
         string operationId,
         OpenApiOperation operationValue,
-        IOpenApiPathItem pathItem,
-        string httpMethod,
         string namespaceValue,
-        string modelsNamespace,
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
         string pathSegment,
@@ -314,7 +305,6 @@ public static class ResultClassExtractor
         var description = responseValue.Summary ?? responseValue.Description ?? string.Empty;
 
         // Check for binary file download response first
-        string? fileDownloadContentType = null;
         var isFileDownload = false;
 
         if (responseValue.Content != null)
@@ -324,7 +314,6 @@ public static class ResultClassExtractor
                 if (OpenApiOperationExtensions.IsFileDownloadContentType(contentEntry.Key))
                 {
                     isFileDownload = true;
-                    fileDownloadContentType = contentEntry.Key;
                     break;
                 }
             }
@@ -368,7 +357,7 @@ public static class ResultClassExtractor
         {
             // Generate factory method based on status code
             case "200":
-                methods.AddRange(GenerateOkMethods(projectName, className, description, contentType, isAsyncEnumerable, streamingFraming, isFileDownload, fileDownloadContentType, isTextResponse, textResponseMediaType));
+                methods.AddRange(GenerateOkMethods(projectName, className, description, contentType, isAsyncEnumerable, streamingFraming, isFileDownload, isTextResponse, textResponseMediaType));
                 break;
             case "201":
                 methods.AddRange(GenerateCreatedMethods(className, description, contentType));
@@ -389,16 +378,16 @@ public static class ResultClassExtractor
                 methods.Add(GenerateForbiddenMethod(className, description));
                 break;
             case "404":
-                methods.Add(GenerateNotFoundMethod(className, description, contentType));
+                methods.Add(GenerateNotFoundMethod(className, description));
                 break;
             case "409":
-                methods.Add(GenerateConflictMethod(className, description, contentType));
+                methods.Add(GenerateConflictMethod(className, description));
                 break;
             case "412":
                 methods.Add(GeneratePreconditionFailedMethod(className, description));
                 break;
             case "422":
-                methods.Add(GenerateUnprocessableEntityMethod(className, description, contentType));
+                methods.Add(GenerateUnprocessableEntityMethod(className, description));
                 break;
             case "429":
                 methods.Add(GenerateTooManyRequestsMethod(className, description));
@@ -436,7 +425,6 @@ public static class ResultClassExtractor
         bool isAsyncEnumerable,
         StreamingFraming streamingFraming,
         bool isFileDownload = false,
-        string? fileDownloadContentType = null,
         bool isTextResponse = false,
         string? textResponseMediaType = null)
     {
@@ -519,7 +507,7 @@ public static class ResultClassExtractor
 
             // Server-Sent Events use the first-party TypedResults.ServerSentEvents writer; JSON
             // Lines uses the emitted JsonLinesResult<T> writer (fully-qualified — the Results file
-            // has no Streaming using); all other framings (JsonArray, ...) keep TypedResults.Ok.
+            // has no Streaming using); all other framing's (JsonArray, ...) keep TypedResults.Ok.
             string content;
             if (isTextResponse)
             {
@@ -710,7 +698,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: $"new(TypedResults.Created((string?)null, response))");
+                Content: "new(TypedResults.Created((string?)null, response))");
             methods.Add(createdWithResponse);
 
             // Generate implicit operator for convenience
@@ -790,8 +778,7 @@ public static class ResultClassExtractor
 
     private static MethodParameters GenerateNotFoundMethod(
         string className,
-        string description,
-        string? contentType)
+        string description)
     {
         var doc = new CodeDocumentationTags($"404 Not Found - {description}");
 
@@ -959,7 +946,7 @@ public static class ResultClassExtractor
             },
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: $"new(\n        errors is null\n            ? TypedResults.BadRequest()\n            : TypedResults.BadRequest(errors))");
+            Content: "new(\n        errors is null\n            ? TypedResults.BadRequest()\n            : TypedResults.BadRequest(errors))");
     }
 
     private static MethodParameters GenerateUnauthorizedMethod(
@@ -1002,8 +989,7 @@ public static class ResultClassExtractor
 
     private static MethodParameters GenerateConflictMethod(
         string className,
-        string description,
-        string? contentType)
+        string description)
     {
         var doc = new CodeDocumentationTags($"409 Conflict - {description}");
 
@@ -1033,8 +1019,7 @@ public static class ResultClassExtractor
 
     private static MethodParameters GenerateUnprocessableEntityMethod(
         string className,
-        string description,
-        string? contentType)
+        string description)
     {
         var doc = new CodeDocumentationTags($"422 Unprocessable Entity - {description}");
 
@@ -1140,7 +1125,7 @@ public static class ResultClassExtractor
             },
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: $"new(\n        error is null\n            ? TypedResults.StatusCode(500)\n            : TypedResults.Json(error, statusCode: 500))");
+            Content: "new(\n        error is null\n            ? TypedResults.StatusCode(500)\n            : TypedResults.Json(error, statusCode: 500))");
     }
 
     private static MethodParameters GenerateGatewayTimeoutMethod(
@@ -1172,7 +1157,7 @@ public static class ResultClassExtractor
             },
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: $"new(\n        error is null\n            ? TypedResults.StatusCode(504)\n            : TypedResults.Json(error, statusCode: 504))");
+            Content: "new(\n        error is null\n            ? TypedResults.StatusCode(504)\n            : TypedResults.Json(error, statusCode: 504))");
     }
 
     private static MethodParameters GenerateGenericStatusCodeMethod(
@@ -1236,8 +1221,7 @@ public static class ResultClassExtractor
             // But tuple types with prefixItems (like Coordinate) should keep their type name
             if (openApiDoc.Components?.Schemas != null &&
                 openApiDoc.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
-                resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema &&
-                arraySchema.Items != null &&
+                resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array, Items: not null } arraySchema &&
                 !arraySchema.HasPrefixItems())
             {
                 // This is a simple array alias - resolve to the underlying array type

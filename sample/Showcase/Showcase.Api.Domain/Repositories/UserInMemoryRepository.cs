@@ -1,5 +1,5 @@
 // ReSharper disable StringLiteralTypo
-#pragma warning disable CA5394 // Random is used only for sample data generation
+#pragma warning disable CA5394, S2245 // Random is used only for sample data generation
 
 namespace Showcase.Api.Domain.Repositories;
 

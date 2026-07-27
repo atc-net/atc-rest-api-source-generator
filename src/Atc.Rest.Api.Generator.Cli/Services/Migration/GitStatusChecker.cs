@@ -29,7 +29,7 @@ internal static class GitStatusChecker
             // Run git status --porcelain
             var processStartInfo = new ProcessStartInfo
             {
-                FileName = "git",
+                FileName = ExecutableResolver.Resolve("git"),
                 Arguments = "status --porcelain",
                 WorkingDirectory = rootDirectory,
                 RedirectStandardOutput = true,

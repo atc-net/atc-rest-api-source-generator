@@ -1,3 +1,4 @@
+// ReSharper disable ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
 namespace Atc.Rest.Api.Generator.Services;
 
 /// <summary>
@@ -230,7 +231,7 @@ public static class SpecificationService
             MergeParameters(mergedDocument, partFile.Document, partFile.FilePath, config, diagnostics);
 
             // Merge tags
-            MergeTags(mergedDocument, partFile.Document, config);
+            MergeTags(mergedDocument, partFile.Document);
         }
 
         // Validate merged document for unresolved references
@@ -243,7 +244,7 @@ public static class SpecificationService
         }
 
         // Add success info if no errors
-        if (!diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        if (diagnostics.All(d => d.Severity != DiagnosticSeverity.Error))
         {
             diagnostics.Add(DiagnosticMessage.Info(
                 RuleIdentifiers.MultiPartMergeSuccessful,
@@ -270,14 +271,12 @@ public static class SpecificationService
         SplitStrategy strategy,
         bool extractCommon = true)
     {
-        var diagnostics = new List<DiagnosticMessage>();
-
         // Group operations by the selected strategy
         var operationGroups = GroupOperationsByStrategy(document, strategy);
 
         // Identify shared schemas (used by multiple groups)
         var sharedSchemas = extractCommon
-            ? IdentifySharedSchemas(document, operationGroups)
+            ? IdentifySharedSchemas(operationGroups)
             : new HashSet<string>(StringComparer.Ordinal);
 
         var partFiles = new List<SplitFileContent>();
@@ -322,9 +321,9 @@ public static class SpecificationService
         var baseContent = GenerateBaseFileContent(
             document,
             baseName,
-            partFiles
-                .Select(p => p.PartName!)
-                .ToList());
+            [
+                .. partFiles.Select(p => p.PartName!)
+            ]);
 
         var baseFile = new SplitFileContent(
             fileName: $"{baseName}.yaml",
@@ -336,7 +335,7 @@ public static class SpecificationService
             schemaCount: 0,
             parameterCount: 0);
 
-        return new SplitResult(baseFile, partFiles, commonFile, diagnostics, strategy);
+        return new SplitResult(baseFile, partFiles, commonFile, new List<DiagnosticMessage>(), strategy);
     }
 
     /// <summary>
@@ -417,12 +416,12 @@ public static class SpecificationService
         var (strategy, reason) = DetermineRecommendedStrategy(document, tagAnalysis, pathSegmentAnalysis);
 
         // Generate suggested splits
-        var suggestedSplits = GenerateSuggestedSplits(document, strategy, tagAnalysis, pathSegmentAnalysis);
+        var suggestedSplits = GenerateSuggestedSplits(strategy, tagAnalysis, pathSegmentAnalysis);
 
         // Identify shared schemas
-        var sharedSchemas = IdentifySharedSchemasForAnalysis(document, strategy, tagAnalysis, pathSegmentAnalysis);
+        var sharedSchemas = IdentifySharedSchemasForAnalysis(document, strategy);
 
-        var totalLines = 0; // Would need original content to calculate
+        const int totalLines = 0; // Would need original content to calculate
 
         return new SpecificationAnalysis(
             filePath: filePath,
@@ -687,8 +686,8 @@ public static class SpecificationService
 
                     case MergeStrategy.MergeIfIdentical:
                         if (!AreOpenApiElementsIdentical(
-                            (IOpenApiSerializable)target.Paths[path.Key],
-                            (IOpenApiSerializable)path.Value))
+                            target.Paths[path.Key],
+                            path.Value))
                         {
                             diagnostics.Add(DiagnosticMessage.Error(
                                 RuleIdentifiers.NonIdenticalMergeConflict,
@@ -741,8 +740,8 @@ public static class SpecificationService
 
                     case MergeStrategy.MergeIfIdentical:
                         if (!AreOpenApiElementsIdentical(
-                            (IOpenApiSerializable)target.Components.Schemas[schema.Key],
-                            (IOpenApiSerializable)schema.Value))
+                            target.Components.Schemas[schema.Key],
+                            schema.Value))
                         {
                             diagnostics.Add(DiagnosticMessage.Error(
                                 RuleIdentifiers.NonIdenticalMergeConflict,
@@ -763,7 +762,7 @@ public static class SpecificationService
             }
             else
             {
-                target.Components!.Schemas![schema.Key] = schema.Value;
+                target.Components.Schemas[schema.Key] = schema.Value;
             }
         }
     }
@@ -795,8 +794,8 @@ public static class SpecificationService
 
                     case MergeStrategy.MergeIfIdentical:
                         if (!AreOpenApiElementsIdentical(
-                            (IOpenApiSerializable)target.Components.Parameters[parameter.Key],
-                            (IOpenApiSerializable)parameter.Value))
+                            target.Components.Parameters[parameter.Key],
+                            parameter.Value))
                         {
                             diagnostics.Add(DiagnosticMessage.Error(
                                 RuleIdentifiers.NonIdenticalMergeConflict,
@@ -817,15 +816,14 @@ public static class SpecificationService
             }
             else
             {
-                target.Components!.Parameters![parameter.Key] = parameter.Value;
+                target.Components.Parameters[parameter.Key] = parameter.Value;
             }
         }
     }
 
     private static void MergeTags(
         OpenApiDocument target,
-        OpenApiDocument source,
-        MultiPartConfiguration config)
+        OpenApiDocument source)
     {
         if (source.Tags == null || source.Tags.Count == 0)
         {
@@ -919,9 +917,11 @@ public static class SpecificationService
             }
         }
 
-        return unresolvedRefs
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+        return
+        [
+            .. unresolvedRefs
+                .Distinct(StringComparer.Ordinal)
+        ];
     }
 
     private static void CheckSchemaReference(
@@ -936,7 +936,7 @@ public static class SpecificationService
 
         if (schema is OpenApiSchemaReference schemaRef)
         {
-            var refId = schemaRef.Reference?.Id;
+            var refId = schemaRef.Reference.Id;
             if (!string.IsNullOrEmpty(refId) && !validSchemaNames.Contains(refId!))
             {
                 unresolvedRefs.Add(refId!);
@@ -944,7 +944,7 @@ public static class SpecificationService
         }
 
         // Check array items
-        if (schema is OpenApiSchema actualSchema && actualSchema.Items != null)
+        if (schema is OpenApiSchema { Items: not null } actualSchema)
         {
             CheckSchemaReference(actualSchema.Items, validSchemaNames, unresolvedRefs);
         }
@@ -982,7 +982,7 @@ public static class SpecificationService
 
                 if (!groups.TryGetValue(groupName, out var list))
                 {
-                    list = new List<(string, OpenApiOperation)>();
+                    list = [];
                     groups[groupName] = list;
                 }
 
@@ -995,7 +995,7 @@ public static class SpecificationService
 
     private static string GetFirstPathSegment(string path)
     {
-        var segments = path.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+        var segments = path.Split(['/'], StringSplitOptions.RemoveEmptyEntries);
         foreach (var segment in segments)
         {
             // Skip version segments
@@ -1029,7 +1029,6 @@ public static class SpecificationService
     }
 
     private static HashSet<string> IdentifySharedSchemas(
-        OpenApiDocument document,
         Dictionary<string, List<(string Path, OpenApiOperation Operation)>> operationGroups)
     {
         var schemaUsage = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
@@ -1037,7 +1036,7 @@ public static class SpecificationService
         // Track which groups use each schema
         foreach (var group in operationGroups)
         {
-            foreach (var (path, operation) in group.Value)
+            foreach (var (_, operation) in group.Value)
             {
                 var usedSchemas = GetUsedSchemas(operation);
                 foreach (var schema in usedSchemas)
@@ -1101,7 +1100,8 @@ public static class SpecificationService
             return;
         }
 
-        if (schema is OpenApiSchemaReference schemaRef && !string.IsNullOrEmpty(schemaRef.Reference?.Id))
+        if (schema is OpenApiSchemaReference schemaRef &&
+            !string.IsNullOrEmpty(schemaRef.Reference?.Id))
         {
             schemas.Add(schemaRef.Reference!.Id!);
         }
@@ -1227,12 +1227,12 @@ public static class SpecificationService
 
         sb.AppendLine("openapi: \"3.1.0\"");
         sb.AppendLine("info:");
-        sb.AppendLine($"  title: {document.Info?.Title ?? baseName}");
-        sb.AppendLine($"  version: {document.Info?.Version ?? "1.0.0"}");
+        sb.AppendLine($"  title: {document.Info.Title ?? baseName}");
+        sb.AppendLine($"  version: {document.Info.Version ?? "1.0.0"}");
 
-        if (!string.IsNullOrEmpty(document.Info?.Description))
+        if (!string.IsNullOrEmpty(document.Info.Description))
         {
-            sb.AppendLine($"  description: {document.Info!.Description}");
+            sb.AppendLine($"  description: {document.Info.Description}");
         }
 
         if (document.Servers?.Count > 0)
@@ -1498,7 +1498,7 @@ public static class SpecificationService
         }
 
         // If path segments are distinct and roughly balanced, recommend ByPathSegment
-        if (pathSegmentAnalysis.Count > 1 && pathSegmentAnalysis.Count < 10)
+        if (pathSegmentAnalysis.Count is > 1 and < 10)
         {
             var avgOps = (double)totalOperations / pathSegmentAnalysis.Count;
             var allBalanced = pathSegmentAnalysis.Values.All(p =>
@@ -1515,7 +1515,6 @@ public static class SpecificationService
     }
 
     private static IReadOnlyList<SuggestedSplit> GenerateSuggestedSplits(
-        OpenApiDocument document,
         SplitStrategy strategy,
         Dictionary<string, TagAnalysis> tagAnalysis,
         Dictionary<string, PathSegmentAnalysis> pathSegmentAnalysis)
@@ -1541,15 +1540,13 @@ public static class SpecificationService
 
     private static IReadOnlyList<SharedSchemaAnalysis> IdentifySharedSchemasForAnalysis(
         OpenApiDocument document,
-        SplitStrategy strategy,
-        Dictionary<string, TagAnalysis> tagAnalysis,
-        Dictionary<string, PathSegmentAnalysis> pathSegmentAnalysis)
+        SplitStrategy strategy)
     {
         var schemaUsage = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
 
         if (document.Paths == null)
         {
-            return Array.Empty<SharedSchemaAnalysis>();
+            return [];
         }
 
         foreach (var path in document.Paths)
@@ -1582,15 +1579,19 @@ public static class SpecificationService
             }
         }
 
-        return schemaUsage
-            .Where(kvp => kvp.Value.Count > 1)
-            .Select(kvp => new SharedSchemaAnalysis(
-                name: kvp.Key,
-                usedByDomains: kvp
-                    .Value
-                    .OrderBy(d => d, StringComparer.OrdinalIgnoreCase)
-                    .ToList()))
-            .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        return
+        [
+            .. schemaUsage
+                .Where(kvp => kvp.Value.Count > 1)
+                .Select(kvp => new SharedSchemaAnalysis(
+                    name: kvp.Key,
+                    usedByDomains:
+                    [
+                        .. kvp
+                            .Value
+                            .OrderBy(d => d, StringComparer.OrdinalIgnoreCase)
+                    ]))
+                .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+        ];
     }
 }

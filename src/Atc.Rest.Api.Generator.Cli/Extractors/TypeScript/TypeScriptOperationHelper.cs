@@ -1,3 +1,5 @@
+// ReSharper disable ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
+// ReSharper disable InconsistentNaming
 namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 
 /// <summary>
@@ -28,8 +30,7 @@ public static class TypeScriptOperationHelper
         // Add path-level parameters first (only those not overridden at operation level)
         if (openApiDoc.Paths != null &&
             openApiDoc.Paths.TryGetValue(path, out var pathItemValue) &&
-            pathItemValue is IOpenApiPathItem pathItem &&
-            pathItem.Parameters != null)
+            pathItemValue is { Parameters: not null } pathItem)
         {
             var pathLevelParams = ResolveParametersByLocation(pathItem.Parameters, location);
             foreach (var param in pathLevelParams)
@@ -116,7 +117,7 @@ public static class TypeScriptOperationHelper
             {
                 return new ZodResponseSchemaSpec(
                     Expression: name + "Schema",
-                    RefSchemaNames: new HashSet<string>(StringComparer.Ordinal) { name! },
+                    RefSchemaNames: new HashSet<string>(StringComparer.Ordinal) { name },
                     NeedsZodImport: false);
             }
         }
@@ -133,7 +134,7 @@ public static class TypeScriptOperationHelper
                 {
                     return new ZodResponseSchemaSpec(
                         Expression: "z.array(" + itemName + "Schema)",
-                        RefSchemaNames: new HashSet<string>(StringComparer.Ordinal) { itemName! },
+                        RefSchemaNames: new HashSet<string>(StringComparer.Ordinal) { itemName },
                         NeedsZodImport: true);
                 }
             }
@@ -246,7 +247,7 @@ public static class TypeScriptOperationHelper
 
         if (operation.Responses != null)
         {
-            foreach (var (statusCode, response) in operation.Responses)
+            foreach (var (statusCode, _) in operation.Responses)
             {
                 if (string.Equals(statusCode, "default", StringComparison.OrdinalIgnoreCase))
                 {
@@ -504,8 +505,8 @@ public static class TypeScriptOperationHelper
         if (brandedIds && tsType == "string" && !string.IsNullOrEmpty(param.Name))
         {
             var brand = param.In == ParameterLocation.Path
-                ? TypeScriptBrandedIdExtractor.ResolveParamBrand(path ?? string.Empty, param.Name!, param.Schema)
-                : TypeScriptBrandedIdExtractor.ResolvePropertyBrand(schemaName: string.Empty, param.Name!, param.Schema);
+                ? TypeScriptBrandedIdExtractor.ResolveParamBrand(path ?? string.Empty, param.Name, param.Schema)
+                : TypeScriptBrandedIdExtractor.ResolvePropertyBrand(schemaName: string.Empty, param.Name, param.Schema);
             if (brand != null)
             {
                 tsType = brand;
@@ -678,8 +679,7 @@ public static class TypeScriptOperationHelper
         if (openApiDoc?.Paths != null &&
             path != null &&
             openApiDoc.Paths.TryGetValue(path, out var pathItemValue) &&
-            pathItemValue is IOpenApiPathItem pathItem &&
-            pathItem.Parameters != null)
+            pathItemValue is { Parameters: not null } pathItem)
         {
             foreach (var paramInterface in pathItem.Parameters)
             {
@@ -783,7 +783,7 @@ public static class TypeScriptOperationHelper
                         importTypes.Add(refName);
                     }
                 }
-                else if (subSchema is OpenApiSchema inlineSchema && inlineSchema.Properties is { Count: > 0 })
+                else if (subSchema is OpenApiSchema { Properties.Count: > 0 } inlineSchema)
                 {
                     // Pagination pattern: allOf [$ref PaginationResult, { items: Item[] }].
                     // ToTypeScriptReturnType folds the array item into the generic argument

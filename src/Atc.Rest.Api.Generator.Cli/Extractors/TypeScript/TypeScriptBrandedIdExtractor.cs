@@ -46,7 +46,7 @@ public static class TypeScriptBrandedIdExtractor
             }
         }
 
-        return brands.ToList();
+        return [.. brands];
     }
 
     /// <summary>
@@ -93,7 +93,7 @@ public static class TypeScriptBrandedIdExtractor
 
     /// <summary>
     /// Emits the <c>types/BrandedIds.ts</c> file content. Returns null when no
-    /// brands were detected — callers should skip the write in that case.
+    /// brands were detected — callers should skip the write-in that case.
     /// </summary>
     /// <param name="brandNames">The brands to emit, expected sorted.</param>
     /// <param name="headerContent">Optional auto-generated file header.</param>
@@ -202,7 +202,7 @@ public static class TypeScriptBrandedIdExtractor
             return;
         }
 
-        var brand = ResolveParamBrand(path, name!, parameter.Schema);
+        var brand = ResolveParamBrand(path, name, parameter.Schema);
         if (brand != null)
         {
             brands.Add(brand);
@@ -247,7 +247,7 @@ public static class TypeScriptBrandedIdExtractor
                 return null;
             }
 
-            return ToPascalCase(fallbackEntity!) + "Id";
+            return ToPascalCase(fallbackEntity) + "Id";
         }
 
         // `<entity>Id` or `<entity>ID` shapes. Strip the trailing Id, PascalCase the rest.

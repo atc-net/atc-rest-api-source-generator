@@ -111,13 +111,13 @@ public static class TypeScriptZodEnumExtractor
 
         foreach (var enumValue in enumValues)
         {
-            var valueStr = enumValue?.ToString();
+            var valueStr = enumValue.ToString();
             if (string.IsNullOrEmpty(valueStr))
             {
                 continue;
             }
 
-            var cleanValue = valueStr!.Trim('"');
+            var cleanValue = valueStr.Trim('"');
             result.Add(cleanValue);
         }
 

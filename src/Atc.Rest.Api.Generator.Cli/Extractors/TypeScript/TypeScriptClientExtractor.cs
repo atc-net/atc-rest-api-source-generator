@@ -333,7 +333,7 @@ public static class TypeScriptClientExtractor
                     continue;
                 }
 
-                var brand = TypeScriptBrandedIdExtractor.ResolveParamBrand(path, param.Name!, param.Schema);
+                var brand = TypeScriptBrandedIdExtractor.ResolveParamBrand(path, param.Name, param.Schema);
                 if (brand != null)
                 {
                     brands.Add(brand);
@@ -975,7 +975,7 @@ public static class TypeScriptClientExtractor
         {
             var formParts = new List<string>();
             var required = new HashSet<string>(StringComparer.Ordinal);
-            if (bodySchema is OpenApiSchema actualSchema && actualSchema.Required != null)
+            if (bodySchema is OpenApiSchema { Required: not null } actualSchema)
             {
                 foreach (var r in actualSchema.Required)
                 {

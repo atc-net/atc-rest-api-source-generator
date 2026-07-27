@@ -1,4 +1,4 @@
-#pragma warning disable CA5394, SCS0005 // Random is used only for sample data generation
+#pragma warning disable CA5394, SCS0005, S2245 // Random is used only for sample data generation
 
 namespace MultipartDemo.Api.Domain.Repositories;
 

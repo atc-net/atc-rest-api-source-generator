@@ -350,13 +350,12 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             string? actualNamespace = null;
             if (isImplemented)
             {
-                actualNamespace =
-                    implementingNamespaces!.FirstOrDefault(ns => !string.Equals(ns, scaffoldNamespace, StringComparison.Ordinal))
-                    ?? implementingNamespaces![0];
+                actualNamespace = implementingNamespaces.FirstOrDefault(ns => !string.Equals(ns, scaffoldNamespace, StringComparison.Ordinal))
+                                  ?? implementingNamespaces[0];
 
                 // A user handler shadowing a leftover stub is silent otherwise — surface it so
                 // the developer knows to delete the stale stub in the scaffold folder.
-                if (implementingNamespaces!.Count > 1 &&
+                if (implementingNamespaces.Count > 1 &&
                     implementingNamespaces.Contains(scaffoldNamespace) &&
                     !string.Equals(actualNamespace, scaffoldNamespace, StringComparison.Ordinal))
                 {
@@ -857,7 +856,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         var hasPathParams = false;
         if (openApiDoc.Paths != null &&
             openApiDoc.Paths.TryGetValue(path, out var pathItemInterface) &&
-            pathItemInterface is IOpenApiPathItem pathItem)
+            pathItemInterface is { } pathItem)
         {
             hasPathParams = pathItem.Parameters is { Count: > 0 };
         }

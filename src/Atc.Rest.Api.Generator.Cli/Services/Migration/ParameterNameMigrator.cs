@@ -146,21 +146,21 @@ internal static class ParameterNameMigrator
                 if (paramLocation == ParameterLocation.Header)
                 {
                     newName = !string.IsNullOrEmpty(referenceId)
-                        ? referenceId!.ToPascalCaseForDotNet()
-                        : parameter.Name!.ToHeaderPropertyName();
+                        ? referenceId.ToPascalCaseForDotNet()
+                        : parameter.Name.ToHeaderPropertyName();
                 }
                 else
                 {
-                    newName = parameter.Name!.ToPascalCaseForDotNet();
+                    newName = parameter.Name.ToPascalCaseForDotNet();
                 }
 
                 // Old generator logic: strip x- prefix, then PascalCase with hyphen handling
-                var oldName = GetOldGeneratorParameterName(parameter.Name!);
+                var oldName = GetOldGeneratorParameterName(parameter.Name);
 
                 // Only add to mapping if names differ
-                if (!oldName.Equals(newName, StringComparison.Ordinal) && !mapping.ContainsKey(oldName))
+                if (!oldName.Equals(newName, StringComparison.Ordinal))
                 {
-                    mapping[oldName] = newName;
+                    mapping.TryAdd(oldName, newName);
                 }
             }
         }

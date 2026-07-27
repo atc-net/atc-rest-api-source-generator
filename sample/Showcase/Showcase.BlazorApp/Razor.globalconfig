@@ -1,0 +1,9 @@
+is_global = true
+
+# Razor components' @code blocks compile via the Razor source generator, which emits
+# syntax trees under a synthetic hint-name path (not the physical .razor file path).
+# Glob-based EditorConfig sections (e.g. [*.razor], [*.{cs,csx,cake}]) never match those
+# generated trees, so severities that must reach Razor-generated code need an
+# unconditional (is_global = true) config instead.
+dotnet_diagnostic.S8969.severity = none             # Remove this null-forgiving operator; the compiler already knows this expression is not null here
+dotnet_diagnostic.S8970.severity = none             # Remove this null-forgiving operator; nullable warnings are disabled here

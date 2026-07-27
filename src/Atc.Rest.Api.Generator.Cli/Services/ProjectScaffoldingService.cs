@@ -314,7 +314,7 @@ public sealed class ProjectScaffoldingService
 
             var startInfo = new ProcessStartInfo
             {
-                FileName = "atc-coding-rules-updater",
+                FileName = ExecutableResolver.Resolve("atc-coding-rules-updater"),
                 Arguments = arguments,
                 WorkingDirectory = repoPath,
                 RedirectStandardOutput = true,
