@@ -913,6 +913,10 @@ public static class ResultClassExtractor
                 Content: "new(TypedResults.Accepted((string?)null, response))");
         }
 
+        // TypedResults.Accepted() has no parameterless overload - every overload expects
+        // either a location or a value, and we have neither here - so StatusCode(202) is
+        // the cleanest expression of "accepted, nothing to return" (mirrors the same
+        // fallback documented and used in WebhookResultExtractor.GetTypedResultExpression).
         return new MethodParameters(
             DocumentationTags: doc,
             Attributes: null,
@@ -923,7 +927,7 @@ public static class ResultClassExtractor
             Parameters: null,
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
-            Content: "new(TypedResults.Accepted())");
+            Content: "new(TypedResults.StatusCode(StatusCodes.Status202Accepted))");
     }
 
     private static MethodParameters GenerateBadRequestMethod(

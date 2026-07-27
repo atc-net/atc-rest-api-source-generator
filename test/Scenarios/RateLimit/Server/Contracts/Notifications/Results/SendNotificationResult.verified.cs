@@ -29,7 +29,7 @@ public sealed class SendNotificationResult : IResult
     /// 202 Accepted - Accepted.
     /// </summary>
     public static SendNotificationResult Accepted()
-        => new(TypedResults.Accepted());
+        => new(TypedResults.StatusCode(StatusCodes.Status202Accepted));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

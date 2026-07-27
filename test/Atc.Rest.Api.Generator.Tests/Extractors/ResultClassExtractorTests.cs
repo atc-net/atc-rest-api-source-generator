@@ -861,6 +861,48 @@ public class ResultClassExtractorTests
         Assert.Contains("TypedResults.ServerSentEvents(response)", okMethod.Content, StringComparison.Ordinal);
     }
 
+    // ========== 202 Accepted Tests ==========
+
+    [Fact]
+    public void Extract_WithNoContentAcceptedResponse_UsesStatusCodeNotParameterlessAccepted()
+    {
+        // Arrange - a 202 response with no response body content. TypedResults.Accepted()
+        // has no parameterless overload (every overload requires a location or a value),
+        // so the generated factory must fall back to TypedResults.StatusCode(202).
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /notifications:
+                                post:
+                                  operationId: sendNotification
+                                  responses:
+                                    '202':
+                                      description: Accepted
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var resultClasses = ResultClassExtractor.Extract(
+            document!,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        var acceptedMethod = resultClasses[0].Methods?.FirstOrDefault(m => m.Name == "Accepted");
+        Assert.NotNull(acceptedMethod);
+        Assert.Null(acceptedMethod!.Parameters);
+        Assert.Contains("TypedResults.StatusCode(StatusCodes.Status202Accepted)", acceptedMethod.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("TypedResults.Accepted()", acceptedMethod.Content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
