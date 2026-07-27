@@ -81,6 +81,149 @@ public class OpenApiRateLimitExtensionsTests
         Assert.Equal("GlobalPolicy", result!.Policy);
     }
 
+    [Fact]
+    public void ExtractRateLimitConfiguration_DefaultValues_WhenNotSpecified()
+    {
+        var doc = ParseYaml(YamlWithOperationRateLimitPolicy);
+        Assert.NotNull(doc);
+
+        var pathItem = GetFirstPathItem(doc!);
+        var operation = GetFirstOperation(pathItem);
+
+        var result = operation.ExtractRateLimitConfiguration(
+            pathItem,
+            doc);
+
+        Assert.NotNull(result);
+        Assert.Equal(100, result!.PermitLimit);
+        Assert.Equal(60, result.WindowSeconds);
+        Assert.Equal(0, result.QueueLimit);
+        Assert.Equal(RateLimitAlgorithm.Fixed, result.Algorithm);
+    }
+
+    [Fact]
+    public void ExtractRateLimitConfiguration_ReadsAllConfiguredValues()
+    {
+        var doc = ParseYaml(YamlWithFullOperationRateLimitConfig);
+        Assert.NotNull(doc);
+
+        var pathItem = GetFirstPathItem(doc!);
+        var operation = GetFirstOperation(pathItem);
+
+        var result = operation.ExtractRateLimitConfiguration(
+            pathItem,
+            doc);
+
+        Assert.NotNull(result);
+        Assert.Equal("LogsRead", result!.Policy);
+        Assert.Equal(30, result.PermitLimit);
+        Assert.Equal(60, result.WindowSeconds);
+        Assert.Equal(0, result.QueueLimit);
+        Assert.Equal(RateLimitAlgorithm.Sliding, result.Algorithm);
+    }
+
+    [Fact]
+    public void ExtractRateLimitConfiguration_OperationOverridesPathValues()
+    {
+        var doc = ParseYaml(YamlWithPathAndOperationRateLimitOverrides);
+        Assert.NotNull(doc);
+
+        var pathItem = GetFirstPathItem(doc!);
+        var operation = GetFirstOperation(pathItem);
+
+        var result = operation.ExtractRateLimitConfiguration(
+            pathItem,
+            doc);
+
+        Assert.NotNull(result);
+        Assert.Equal("PetsStrict", result!.Policy);
+        Assert.Equal(10, result.PermitLimit);
+        Assert.Equal(30, result.WindowSeconds);
+    }
+
+    [Fact]
+    public void ExtractRateLimitConfiguration_PathValues_InheritWhenOperationSilent()
+    {
+        // The path item configures numeric values; the operation only re-declares the
+        // policy name (as OAS requires a policy to apply rate limiting at all) without
+        // overriding permit-limit/window-seconds, so those must inherit from the path.
+        var doc = ParseYaml(YamlWithPathLevelNumericValues);
+        Assert.NotNull(doc);
+
+        var pathItem = GetFirstPathItem(doc!);
+        var operation = GetFirstOperation(pathItem);
+
+        var result = operation.ExtractRateLimitConfiguration(
+            pathItem,
+            doc);
+
+        Assert.NotNull(result);
+        Assert.Equal("PetsPath", result!.Policy);
+        Assert.Equal(50, result.PermitLimit);
+        Assert.Equal(120, result.WindowSeconds);
+    }
+
+    [Fact]
+    public void ExtractRateLimitConfiguration_EnabledFalse_ReturnsDisabledConfigWithoutPolicy()
+    {
+        var doc = ParseYaml(YamlWithRateLimitDisabledOnOperation);
+        Assert.NotNull(doc);
+
+        var pathItem = GetFirstPathItem(doc!);
+        var operation = GetFirstOperation(pathItem);
+
+        var result = operation.ExtractRateLimitConfiguration(
+            pathItem,
+            doc);
+
+        Assert.NotNull(result);
+        Assert.False(result!.Enabled);
+        Assert.Null(result.Policy);
+    }
+
+    [Theory]
+    [InlineData("sliding", RateLimitAlgorithm.Sliding)]
+    [InlineData("sliding-window", RateLimitAlgorithm.Sliding)]
+    [InlineData("token-bucket", RateLimitAlgorithm.TokenBucket)]
+    [InlineData("tokenbucket", RateLimitAlgorithm.TokenBucket)]
+    [InlineData("concurrency", RateLimitAlgorithm.Concurrency)]
+    [InlineData("fixed", RateLimitAlgorithm.Fixed)]
+    [InlineData("not-a-real-algorithm", RateLimitAlgorithm.Fixed)]
+    public void ExtractRateLimitConfiguration_ParsesAlgorithm(
+        string algorithmValue,
+        RateLimitAlgorithm expected)
+    {
+        var doc = ParseYaml(YamlWithAlgorithm(algorithmValue));
+        Assert.NotNull(doc);
+
+        var pathItem = GetFirstPathItem(doc!);
+        var operation = GetFirstOperation(pathItem);
+
+        var result = operation.ExtractRateLimitConfiguration(
+            pathItem,
+            doc);
+
+        Assert.NotNull(result);
+        Assert.Equal(expected, result!.Algorithm);
+    }
+
+    [Fact]
+    public void ExtractRateLimitConfiguration_NoAlgorithmSpecified_DefaultsToFixed()
+    {
+        var doc = ParseYaml(YamlWithOperationRateLimitPolicy);
+        Assert.NotNull(doc);
+
+        var pathItem = GetFirstPathItem(doc!);
+        var operation = GetFirstOperation(pathItem);
+
+        var result = operation.ExtractRateLimitConfiguration(
+            pathItem,
+            doc);
+
+        Assert.NotNull(result);
+        Assert.Equal(RateLimitAlgorithm.Fixed, result!.Algorithm);
+    }
+
     // ========== Extension Value Extraction Tests ==========
     [Fact]
     public void ExtractRateLimitPolicy_NullExtensions_ReturnsNull()
@@ -112,6 +255,22 @@ public class OpenApiRateLimitExtensionsTests
         IDictionary<string, IOpenApiExtension>? extensions = null;
 
         Assert.Null(extensions.ExtractWindowSeconds());
+    }
+
+    [Fact]
+    public void ExtractQueueLimit_NullExtensions_ReturnsNull()
+    {
+        IDictionary<string, IOpenApiExtension>? extensions = null;
+
+        Assert.Null(extensions.ExtractQueueLimit());
+    }
+
+    [Fact]
+    public void ExtractRateLimitAlgorithm_NullExtensions_ReturnsNull()
+    {
+        IDictionary<string, IOpenApiExtension>? extensions = null;
+
+        Assert.Null(extensions.ExtractRateLimitAlgorithm());
     }
 
     // ========== Helper Methods ==========
@@ -168,6 +327,93 @@ public class OpenApiRateLimitExtensionsTests
             get:
               operationId: getPets
               x-ratelimit-policy: PetsPolicy
+              responses:
+                '200':
+                  description: OK
+        """;
+
+    private const string YamlWithFullOperationRateLimitConfig = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /logs:
+            get:
+              operationId: getLogs
+              x-ratelimit-policy: LogsRead
+              x-ratelimit-algorithm: sliding
+              x-ratelimit-permit-limit: 30
+              x-ratelimit-window-seconds: 60
+              responses:
+                '200':
+                  description: OK
+        """;
+
+    private const string YamlWithPathAndOperationRateLimitOverrides = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            x-ratelimit-policy: PetsPath
+            x-ratelimit-permit-limit: 50
+            x-ratelimit-window-seconds: 120
+            get:
+              operationId: getPets
+              x-ratelimit-policy: PetsStrict
+              x-ratelimit-permit-limit: 10
+              x-ratelimit-window-seconds: 30
+              responses:
+                '200':
+                  description: OK
+        """;
+
+    private const string YamlWithPathLevelNumericValues = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            x-ratelimit-policy: PetsPath
+            x-ratelimit-permit-limit: 50
+            x-ratelimit-window-seconds: 120
+            get:
+              operationId: getPets
+              responses:
+                '200':
+                  description: OK
+        """;
+
+    private const string YamlWithRateLimitDisabledOnOperation = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        x-ratelimit-policy: GlobalPolicy
+        paths:
+          /pets:
+            get:
+              operationId: getPets
+              x-ratelimit-enabled: false
+              responses:
+                '200':
+                  description: OK
+        """;
+
+    private static string YamlWithAlgorithm(string algorithm) => $"""
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            get:
+              operationId: getPets
+              x-ratelimit-policy: PetsPolicy
+              x-ratelimit-algorithm: {algorithm}
               responses:
                 '200':
                   description: OK

@@ -364,6 +364,14 @@ public static class OpenApiRetryExtensions
             {
                 return longValue > int.MaxValue ? int.MaxValue : longValue < int.MinValue ? int.MinValue : (int)longValue;
             }
+
+            // YAML-sourced integer scalars are boxed as decimal (JsonValuePrimitive<decimal>)
+            // by the OpenAPI YAML reader, not int/long, so neither branch above ever matches
+            // for a document parsed from YAML (the common case for this generator).
+            if (jsonValue.TryGetValue<decimal>(out var decimalValue))
+            {
+                return decimalValue > int.MaxValue ? int.MaxValue : decimalValue < int.MinValue ? int.MinValue : (int)decimalValue;
+            }
         }
 
         return null;
@@ -408,6 +416,15 @@ public static class OpenApiRetryExtensions
             if (jsonValue.TryGetValue<long>(out var longValue))
             {
                 return longValue;
+            }
+
+            // YAML-sourced numeric scalars (both whole and fractional) are boxed as
+            // decimal (JsonValuePrimitive<decimal>) by the OpenAPI YAML reader, not
+            // double/int/long, so none of the branches above ever match for a document
+            // parsed from YAML (the common case for this generator).
+            if (jsonValue.TryGetValue<decimal>(out var decimalValue))
+            {
+                return (double)decimalValue;
             }
         }
 
