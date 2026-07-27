@@ -46,7 +46,7 @@ public class TypeScriptWebhookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var content = TypeScriptWebhookExtractor.Generate(doc!, headerContent: null);
+        var content = TypeScriptWebhookExtractor.Generate(doc, headerContent: null);
 
         Assert.NotNull(content);
         Assert.Contains("import type { EventPayload } from '../models';", content, StringComparison.Ordinal);
@@ -69,7 +69,7 @@ public class TypeScriptWebhookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var content = TypeScriptWebhookExtractor.Generate(doc!, headerContent: null);
+        var content = TypeScriptWebhookExtractor.Generate(doc, headerContent: null);
 
         Assert.Null(content);
     }
@@ -107,7 +107,7 @@ public class TypeScriptWebhookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var content = TypeScriptWebhookExtractor.Generate(doc!, headerContent: null);
+        var content = TypeScriptWebhookExtractor.Generate(doc, headerContent: null);
 
         Assert.Null(content);
     }
@@ -157,7 +157,7 @@ public class TypeScriptWebhookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var content = TypeScriptWebhookExtractor.Generate(doc!, headerContent: null);
+        var content = TypeScriptWebhookExtractor.Generate(doc, headerContent: null);
 
         Assert.NotNull(content);
         Assert.Contains("export type CreateSubscriptionOnCreatedPayload = CreatedEvent;", content, StringComparison.Ordinal);

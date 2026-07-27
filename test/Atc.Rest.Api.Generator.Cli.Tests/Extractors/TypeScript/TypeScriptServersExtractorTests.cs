@@ -23,7 +23,7 @@ public class TypeScriptServersExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var content = TypeScriptServersExtractor.Generate(doc!, headerContent: null);
+        var content = TypeScriptServersExtractor.Generate(doc, headerContent: null);
 
         Assert.NotNull(content);
         Assert.Contains("export const Servers = {", content, StringComparison.Ordinal);
@@ -50,7 +50,7 @@ public class TypeScriptServersExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var content = TypeScriptServersExtractor.Generate(doc!, headerContent: null);
+        var content = TypeScriptServersExtractor.Generate(doc, headerContent: null);
 
         Assert.Null(content);
     }
@@ -66,7 +66,7 @@ public class TypeScriptServersExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var content = TypeScriptServersExtractor.Generate(doc!, headerContent: null);
+        var content = TypeScriptServersExtractor.Generate(doc, headerContent: null);
 
         Assert.Null(content);
     }
@@ -86,7 +86,7 @@ public class TypeScriptServersExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var content = TypeScriptServersExtractor.Generate(doc!, headerContent: null);
+        var content = TypeScriptServersExtractor.Generate(doc, headerContent: null);
 
         Assert.NotNull(content);
         Assert.Contains("server1: 'https://api1.example.com'", content, StringComparison.Ordinal);
@@ -111,7 +111,7 @@ public class TypeScriptServersExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var content = TypeScriptServersExtractor.Generate(doc!, headerContent: null);
+        var content = TypeScriptServersExtractor.Generate(doc, headerContent: null);
 
         Assert.NotNull(content);
         Assert.Contains("production: 'https://eu.example.com'", content, StringComparison.Ordinal);
@@ -141,7 +141,7 @@ public class TypeScriptServersExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var content = TypeScriptServersExtractor.Generate(doc!, headerContent: null);
+        var content = TypeScriptServersExtractor.Generate(doc, headerContent: null);
 
         Assert.NotNull(content);
         Assert.Contains("primary: 'https://eu.example.com/v1'", content, StringComparison.Ordinal);

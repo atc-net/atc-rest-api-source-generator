@@ -155,9 +155,9 @@ global using Atc.Helpers;";
 
         // Assert
         Assert.Equal(3, result.Count);
-        Assert.Contains("System", result);
-        Assert.Contains("System.Text", result);
-        Assert.Contains("Atc.Helpers", result);
+        Assert.Contains("System", result, StringComparer.Ordinal);
+        Assert.Contains("System.Text", result, StringComparer.Ordinal);
+        Assert.Contains("Atc.Helpers", result, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -174,8 +174,8 @@ global using System.Text;";
 
         // Assert
         Assert.Equal(2, result.Count);
-        Assert.Contains("System", result);
-        Assert.Contains("System.Text", result);
+        Assert.Contains("System", result, StringComparer.Ordinal);
+        Assert.Contains("System.Text", result, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -199,7 +199,7 @@ global using Atc.Helpers;";
     public void ExtractNamespacesFromContent_HandlesDuplicates()
     {
         // Arrange
-        var content = @"global using System;
+        const string content = @"global using System;
 global using System;
 global using System.Text;
 global using System.Text;";
@@ -209,8 +209,8 @@ global using System.Text;";
 
         // Assert
         Assert.Equal(2, result.Count);
-        Assert.Contains("System", result);
-        Assert.Contains("System.Text", result);
+        Assert.Contains("System", result, StringComparer.Ordinal);
+        Assert.Contains("System.Text", result, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -225,10 +225,10 @@ global using System.Text;";
 
         // Assert
         Assert.Equal(4, result.Count);
-        Assert.Contains("System", result);
-        Assert.Contains("System.Text", result);
-        Assert.Contains("Atc.Helpers", result);
-        Assert.Contains("Microsoft.Extensions", result);
+        Assert.Contains("System", result, StringComparer.Ordinal);
+        Assert.Contains("System.Text", result, StringComparer.Ordinal);
+        Assert.Contains("Atc.Helpers", result, StringComparer.Ordinal);
+        Assert.Contains("Microsoft.Extensions", result, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -328,9 +328,9 @@ global using Atc.Helpers;";
 
         // Assert
         Assert.Equal(3, result.Count);
-        Assert.Contains("System", result);
-        Assert.Contains("System.Text", result);
-        Assert.Contains("Atc.Helpers", result);
+        Assert.Contains("System", result, StringComparer.Ordinal);
+        Assert.Contains("System.Text", result, StringComparer.Ordinal);
+        Assert.Contains("Atc.Helpers", result, StringComparer.Ordinal);
     }
 
     [Fact]

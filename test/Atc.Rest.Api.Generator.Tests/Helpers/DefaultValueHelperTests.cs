@@ -20,7 +20,7 @@ public class DefaultValueHelperTests
         string? expected)
     {
         // Act
-        var result = DefaultValueHelper.FormatDefaultValue(rawValue!, csharpTypeName);
+        var result = DefaultValueHelper.FormatDefaultValue(rawValue, csharpTypeName);
 
         // Assert
         Assert.Equal(expected, result);

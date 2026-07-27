@@ -17,7 +17,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithJwtBearer);
 
         Assert.NotNull(doc);
-        Assert.True(doc!.HasSecuritySchemes());
+        Assert.True(doc.HasSecuritySchemes());
     }
 
     // ========== HasDocumentSecurity Tests ==========
@@ -35,7 +35,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithDocumentLevelSecurity);
 
         Assert.NotNull(doc);
-        Assert.True(doc!.HasDocumentSecurity());
+        Assert.True(doc.HasDocumentSecurity());
     }
 
     // ========== HasJwtBearerSecurity Tests ==========
@@ -53,7 +53,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithJwtBearer);
 
         Assert.NotNull(doc);
-        Assert.True(doc!.HasJwtBearerSecurity());
+        Assert.True(doc.HasJwtBearerSecurity());
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithApiKey);
 
         Assert.NotNull(doc);
-        Assert.False(doc!.HasJwtBearerSecurity());
+        Assert.False(doc.HasJwtBearerSecurity());
     }
 
     // ========== HasOAuth2ClientCredentials Tests ==========
@@ -80,7 +80,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithOAuth2ClientCredentials);
 
         Assert.NotNull(doc);
-        Assert.True(doc!.HasOAuth2ClientCredentials());
+        Assert.True(doc.HasOAuth2ClientCredentials());
     }
 
     // ========== HasOAuth2AuthorizationCode Tests ==========
@@ -98,7 +98,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithOAuth2AuthorizationCode);
 
         Assert.NotNull(doc);
-        Assert.True(doc!.HasOAuth2AuthorizationCode());
+        Assert.True(doc.HasOAuth2AuthorizationCode());
     }
 
     // ========== HasOAuth2TokenManagement Tests ==========
@@ -116,7 +116,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithOAuth2ClientCredentials);
 
         Assert.NotNull(doc);
-        Assert.True(doc!.HasOAuth2TokenManagement());
+        Assert.True(doc.HasOAuth2TokenManagement());
     }
 
     // ========== HasOpenIdConnectSecurity Tests ==========
@@ -134,7 +134,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithOpenIdConnect);
 
         Assert.NotNull(doc);
-        Assert.True(doc!.HasOpenIdConnectSecurity());
+        Assert.True(doc.HasOpenIdConnectSecurity());
     }
 
     // ========== ExtractSecuritySchemes Tests ==========
@@ -154,13 +154,13 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithJwtBearer);
         Assert.NotNull(doc);
 
-        var result = doc!.ExtractSecuritySchemes();
+        var result = doc.ExtractSecuritySchemes();
 
         Assert.Single(result);
         Assert.True(result.ContainsKey("bearerAuth"));
         Assert.Equal("bearerAuth", result["bearerAuth"].Name);
         Assert.Equal(
-            Atc.OpenApi.Models.SecuritySchemeType.Http,
+            OpenApi.Models.SecuritySchemeType.Http,
             result["bearerAuth"].Type);
         Assert.Equal("bearer", result["bearerAuth"].Scheme);
     }
@@ -171,12 +171,12 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithApiKey);
         Assert.NotNull(doc);
 
-        var result = doc!.ExtractSecuritySchemes();
+        var result = doc.ExtractSecuritySchemes();
 
         Assert.Single(result);
         Assert.True(result.ContainsKey("apiKeyAuth"));
         Assert.Equal(
-            Atc.OpenApi.Models.SecuritySchemeType.ApiKey,
+            OpenApi.Models.SecuritySchemeType.ApiKey,
             result["apiKeyAuth"].Type);
         Assert.Equal("X-API-Key", result["apiKeyAuth"].ParameterName);
     }
@@ -187,15 +187,15 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithOAuth2ClientCredentials);
         Assert.NotNull(doc);
 
-        var result = doc!.ExtractSecuritySchemes();
+        var result = doc.ExtractSecuritySchemes();
 
         Assert.Single(result);
         Assert.True(result.ContainsKey("oauth2"));
         Assert.Equal(
-            Atc.OpenApi.Models.SecuritySchemeType.OAuth2,
+            OpenApi.Models.SecuritySchemeType.OAuth2,
             result["oauth2"].Type);
         Assert.NotNull(result["oauth2"].Flows);
-        Assert.NotNull(result["oauth2"].Flows!.ClientCredentials);
+        Assert.NotNull(result["oauth2"].Flows.ClientCredentials);
     }
 
     // ========== ExtractSecurityRequirements Tests ==========
@@ -205,7 +205,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithNoSecurity);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractSecurityRequirements(doc);
@@ -219,13 +219,13 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithDocumentLevelSecurity);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractSecurityRequirements(doc);
 
         Assert.NotNull(result);
-        Assert.NotEmpty(result!);
+        Assert.NotEmpty(result);
     }
 
     // ========== GetOAuth2SchemeName Tests ==========
@@ -243,7 +243,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithOAuth2ClientCredentials);
         Assert.NotNull(doc);
 
-        var result = doc!.GetOAuth2SchemeName();
+        var result = doc.GetOAuth2SchemeName();
 
         Assert.Equal("oauth2", result);
     }
@@ -263,7 +263,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithOpenIdConnect);
         Assert.NotNull(doc);
 
-        var result = doc!.GetOpenIdConnectSchemeName();
+        var result = doc.GetOpenIdConnectSchemeName();
 
         Assert.Equal("oidc", result);
     }
@@ -283,7 +283,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithOpenIdConnect);
         Assert.NotNull(doc);
 
-        var result = doc!.GetOpenIdConnectUrl();
+        var result = doc.GetOpenIdConnectUrl();
 
         Assert.NotNull(result);
         Assert.Contains(
@@ -307,13 +307,13 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithOAuth2ClientCredentials);
         Assert.NotNull(doc);
 
-        var result = doc!.GetOAuth2ClientCredentialsFlow();
+        var result = doc.GetOAuth2ClientCredentialsFlow();
 
         Assert.NotNull(result);
-        Assert.NotNull(result!.TokenUrl);
+        Assert.NotNull(result.TokenUrl);
         Assert.Contains(
             "token",
-            result.TokenUrl!,
+            result.TokenUrl,
             StringComparison.OrdinalIgnoreCase);
     }
 
@@ -332,10 +332,10 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithOAuth2AuthorizationCode);
         Assert.NotNull(doc);
 
-        var result = doc!.GetOAuth2AuthorizationCodeFlow();
+        var result = doc.GetOAuth2AuthorizationCodeFlow();
 
         Assert.NotNull(result);
-        Assert.NotNull(result!.AuthorizationUrl);
+        Assert.NotNull(result.AuthorizationUrl);
         Assert.NotNull(result.TokenUrl);
     }
 
@@ -356,7 +356,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithOAuth2ClientCredentials);
         Assert.NotNull(doc);
 
-        var result = doc!.GetAllOAuth2Scopes();
+        var result = doc.GetAllOAuth2Scopes();
 
         Assert.NotEmpty(result);
         Assert.True(result.ContainsKey("read:pets"));
@@ -369,7 +369,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithNoSecurity);
         Assert.NotNull(doc);
 
-        Assert.False(doc!.HasOperationsRequiringOAuth2());
+        Assert.False(doc.HasOperationsRequiringOAuth2());
     }
 
     [Fact]
@@ -378,7 +378,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithOAuth2DocumentSecurity);
         Assert.NotNull(doc);
 
-        Assert.True(doc!.HasOperationsRequiringOAuth2());
+        Assert.True(doc.HasOperationsRequiringOAuth2());
     }
 
     // ========== ExtractUnifiedSecurityConfiguration Tests ==========
@@ -388,7 +388,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithNoSecurity);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractUnifiedSecurityConfiguration(
@@ -405,7 +405,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithDocumentLevelSecurity);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractUnifiedSecurityConfiguration(
@@ -448,7 +448,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithAtcAuthRequired);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractSecurityConfiguration(
@@ -456,7 +456,7 @@ public class OpenApiSecurityExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.True(result!.Value.AuthRequired);
+        Assert.True(result.Value.AuthRequired);
     }
 
     [Fact]
@@ -465,7 +465,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithNoSecurity);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractSecurityConfiguration(
@@ -481,7 +481,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithAtcAllowAnonymous);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractSecurityConfiguration(
@@ -489,7 +489,7 @@ public class OpenApiSecurityExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.True(result!.Value.AllowAnonymous);
+        Assert.True(result.Value.AllowAnonymous);
         Assert.False(result.Value.AuthRequired);
     }
 
@@ -499,7 +499,7 @@ public class OpenApiSecurityExtensionsTests
         var doc = ParseYaml(YamlWithAtcDocLevelAuth);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractSecurityConfiguration(
@@ -507,7 +507,7 @@ public class OpenApiSecurityExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.True(result!.Value.AuthRequired);
+        Assert.True(result.Value.AuthRequired);
     }
 
     // ========== Helper Methods ==========

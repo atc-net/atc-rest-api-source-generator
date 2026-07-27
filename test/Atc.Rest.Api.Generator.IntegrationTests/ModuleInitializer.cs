@@ -9,7 +9,7 @@ public static partial class ModuleInitializer
         VerifierSettings.UseEncoding(new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
         // Configure Verify to scrub timestamps and other volatile content
-        VerifierSettings.ScrubLinesContaining("Version=", StringComparison.Ordinal);
+        VerifierSettings.ScrubLinesContaining(StringComparison.Ordinal, "Version=");
 
         // Scrub the version in GeneratedCode attribute (e.g., [GeneratedCode("Atc.Rest.Api.SourceGenerator", "x.y.z")])
         // to ensure verify files remain stable across different builds

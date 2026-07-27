@@ -46,8 +46,8 @@ public sealed class TypeScriptFetchClientBehaviorGateTests
 
         try
         {
-            GenerateClient(doc!, Path.Combine(workDir, "convertDatesOff"), convertDates: false);
-            GenerateClient(doc!, Path.Combine(workDir, "convertDatesOn"), convertDates: true);
+            GenerateClient(doc, Path.Combine(workDir, "convertDatesOff"), convertDates: false);
+            GenerateClient(doc, Path.Combine(workDir, "convertDatesOn"), convertDates: true);
 
             File.WriteAllText(Path.Combine(workDir, "package.json"), PackageJson);
             File.WriteAllText(Path.Combine(workDir, "tsconfig.json"), TsConfig);

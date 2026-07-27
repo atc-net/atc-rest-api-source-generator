@@ -592,7 +592,7 @@ public class SchemaExtractorTests
             pathSegment: null);
 
         Assert.NotNull(result);
-        var valueParam = result.Parameters[0].Parameters!.First(p => p.Name == "Value");
+        var valueParam = result.Parameters[0].Parameters.First(p => p.Name == "Value");
         Assert.Equal(expectedCSharpType, valueParam.TypeName);
     }
 
@@ -677,7 +677,7 @@ public class SchemaExtractorTests
             pathSegment: null);
 
         Assert.NotNull(result);
-        var parameters = result.Parameters[0].Parameters!;
+        var parameters = result.Parameters[0].Parameters;
 
         // Required without defaults first, then optional/defaults last
         // "name" is required (no default) -> first
@@ -721,7 +721,7 @@ public class SchemaExtractorTests
             pathSegment: null);
 
         Assert.NotNull(result);
-        var parameters = result.Parameters[0].Parameters!;
+        var parameters = result.Parameters[0].Parameters;
 
         var isActiveParam = parameters.First(p => p.Name == "IsActive");
         Assert.Equal("true", isActiveParam.DefaultValue);
@@ -802,7 +802,7 @@ public class SchemaExtractorTests
             pathSegment: null);
 
         Assert.NotNull(result);
-        var itemsParam = result.Parameters[0].Parameters!.First(p => p.Name == "Items");
+        var itemsParam = result.Parameters[0].Parameters.First(p => p.Name == "Items");
         Assert.Equal("List<string>", itemsParam.TypeName);
     }
 

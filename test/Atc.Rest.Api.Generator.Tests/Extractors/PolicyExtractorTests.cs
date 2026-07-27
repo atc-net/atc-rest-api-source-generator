@@ -234,7 +234,7 @@ public class PolicyExtractorTests
         // (constant AccountsStandard) must appear before "orders-standard" even though
         // /orders is declared first in the document.
         Assert.NotNull(result);
-        var accountsIndex = result!.IndexOf("AccountsStandard", StringComparison.Ordinal);
+        var accountsIndex = result.IndexOf("AccountsStandard", StringComparison.Ordinal);
         var ordersIndex = result.IndexOf("OrdersStandard", StringComparison.Ordinal);
         Assert.True(accountsIndex >= 0 && ordersIndex >= 0, "Both constants should be present");
         Assert.True(accountsIndex < ordersIndex, "AccountsStandard should be emitted before OrdersStandard");
@@ -277,7 +277,7 @@ public class PolicyExtractorTests
 
         // Assert - only one "Global" constant is emitted, with the document-level config.
         Assert.NotNull(result);
-        var occurrences = result!.Split("public const string Global", StringSplitOptions.None).Length - 1;
+        var occurrences = result.Split("public const string Global", StringSplitOptions.None).Length - 1;
         Assert.Equal(1, occurrences);
         Assert.Contains("Policy: Fixed window, 1000 requests/60s", result, StringComparison.Ordinal);
     }
@@ -901,7 +901,7 @@ public class PolicyExtractorTests
 
         // Assert
         Assert.NotNull(result);
-        var method = result.Methods![0];
+        var method = result.Methods[0];
         Assert.Contains("MapPost", method.Content, StringComparison.Ordinal);
         Assert.Contains("CreatePetParameters", method.Content, StringComparison.Ordinal);
         Assert.Contains("ICreatePetHandler", method.Content, StringComparison.Ordinal);
@@ -984,7 +984,7 @@ public class PolicyExtractorTests
 
         // Assert
         Assert.NotNull(result);
-        var method = result.Methods![0];
+        var method = result.Methods[0];
         Assert.Equal("MapPetsEndpoints", method.Name);
     }
 
@@ -1105,7 +1105,7 @@ public class PolicyExtractorTests
 
         // Assert
         Assert.NotNull(result);
-        var method = result.Methods![0];
+        var method = result.Methods[0];
         Assert.Contains("/api/hooks", method.Content, StringComparison.Ordinal);
     }
 

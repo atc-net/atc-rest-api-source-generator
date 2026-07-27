@@ -385,7 +385,7 @@ public class HandlerScaffoldExtractorTests
 
         // Assert
         Assert.NotNull(result.Methods);
-        Assert.Contains("StartActivity", result.Methods[0].Content!, StringComparison.Ordinal);
+        Assert.Contains("StartActivity", result.Methods[0].Content, StringComparison.Ordinal);
     }
 
     [Fact]

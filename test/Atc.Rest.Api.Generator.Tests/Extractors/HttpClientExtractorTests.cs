@@ -75,7 +75,7 @@ public class HttpClientExtractorTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -143,7 +143,7 @@ public class HttpClientExtractorTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -151,7 +151,7 @@ public class HttpClientExtractorTests
 
         // Assert
         Assert.NotNull(clientClass);
-        var method = clientClass.Methods![0];
+        var method = clientClass.Methods[0];
 
         // Verify generic return type: Task<PaginatedResult<User>>
         Assert.Equal("Task", method.ReturnGenericTypeName);
@@ -206,7 +206,7 @@ public class HttpClientExtractorTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -214,7 +214,7 @@ public class HttpClientExtractorTests
 
         // Assert
         Assert.NotNull(clientClass);
-        var method = clientClass.Methods![0];
+        var method = clientClass.Methods[0];
 
         // Verify generic return type: Task<PagedResult<Order>>
         Assert.Equal("Task", method.ReturnGenericTypeName);
@@ -269,7 +269,7 @@ public class HttpClientExtractorTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -277,7 +277,7 @@ public class HttpClientExtractorTests
 
         // Assert
         Assert.NotNull(clientClass);
-        var method = clientClass.Methods![0];
+        var method = clientClass.Methods[0];
 
         // Method should return Task<PaginationResult<Device>>, not IAsyncEnumerable
         Assert.Equal("Task", method.ReturnGenericTypeName);
@@ -326,7 +326,7 @@ public class HttpClientExtractorTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -334,7 +334,7 @@ public class HttpClientExtractorTests
 
         // Assert
         Assert.NotNull(clientClass);
-        var method = clientClass.Methods![0];
+        var method = clientClass.Methods[0];
 
         // Method should return IAsyncEnumerable<Item>
         Assert.Equal("IAsyncEnumerable", method.ReturnGenericTypeName);
@@ -383,7 +383,7 @@ public class HttpClientExtractorTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -432,7 +432,7 @@ public class HttpClientExtractorTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -489,7 +489,7 @@ public class HttpClientExtractorTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -497,7 +497,7 @@ public class HttpClientExtractorTests
 
         // Assert
         Assert.NotNull(clientClass);
-        var method = clientClass.Methods![0];
+        var method = clientClass.Methods[0];
         Assert.NotNull(method.Content);
         Assert.Contains("jsonSerializerOptions", method.Content, StringComparison.Ordinal);
         Assert.DoesNotContain("new JsonSerializerOptions", method.Content, StringComparison.Ordinal);
@@ -550,7 +550,7 @@ public class HttpClientExtractorTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -558,7 +558,7 @@ public class HttpClientExtractorTests
 
         // Assert
         Assert.NotNull(clientClass);
-        var method = clientClass.Methods![0];
+        var method = clientClass.Methods[0];
         Assert.NotNull(method.Content);
         Assert.Contains("PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken)", method.Content, StringComparison.Ordinal);
         Assert.Contains("ReadFromJsonAsync<Gadget>(jsonSerializerOptions, cancellationToken)", method.Content, StringComparison.Ordinal);
@@ -609,7 +609,7 @@ public class HttpClientExtractorTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -617,7 +617,7 @@ public class HttpClientExtractorTests
 
         // Assert
         Assert.NotNull(clientClass);
-        var method = clientClass.Methods![0];
+        var method = clientClass.Methods[0];
         Assert.NotNull(method.Content);
         Assert.Contains("new HttpMethod(\"QUERY\")", method.Content, StringComparison.Ordinal);
         Assert.Contains("JsonContent.Create(parameters.Request, options: jsonSerializerOptions)", method.Content, StringComparison.Ordinal);
@@ -649,7 +649,7 @@ public class HttpClientExtractorTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -657,7 +657,7 @@ public class HttpClientExtractorTests
 
         // Assert
         Assert.NotNull(clientClass);
-        var method = clientClass.Methods![0];
+        var method = clientClass.Methods[0];
         Assert.NotNull(method.Content);
         Assert.Contains("new HttpMethod(\"LINK\")", method.Content, StringComparison.Ordinal);
         Assert.Contains("SendAsync(", method.Content, StringComparison.Ordinal);
@@ -698,7 +698,7 @@ public class HttpClientExtractorTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -708,7 +708,7 @@ public class HttpClientExtractorTests
         // itemSchema now reads via the emitted StreamReaders SSE helper (not the JSON-array
         // DeserializeAsyncEnumerable path, which cannot parse `data:` framing).
         Assert.NotNull(clientClass);
-        var method = clientClass.Methods![0];
+        var method = clientClass.Methods[0];
         Assert.NotNull(method.Content);
         Assert.Equal("IAsyncEnumerable", method.ReturnGenericTypeName);
         Assert.Equal("Event", method.ReturnTypeName);
@@ -808,7 +808,7 @@ public class HttpClientExtractorTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -816,7 +816,7 @@ public class HttpClientExtractorTests
 
         // Assert
         Assert.NotNull(clientClass);
-        var method = clientClass.Methods!.First(m => m.Name == "FindPetsAsync");
+        var method = clientClass.Methods.First(m => m.Name == "FindPetsAsync");
         Assert.NotNull(method.Content);
 
         // Should emit repeated-key foreach
@@ -858,7 +858,7 @@ public class HttpClientExtractorTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -866,7 +866,7 @@ public class HttpClientExtractorTests
 
         // Assert
         Assert.NotNull(clientClass);
-        var method = clientClass.Methods!.First(m => m.Name == "FindPetsAsync");
+        var method = clientClass.Methods.First(m => m.Name == "FindPetsAsync");
         Assert.NotNull(method.Content);
 
         // Should have null guard before the foreach
@@ -910,7 +910,7 @@ public class HttpClientExtractorTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -918,7 +918,7 @@ public class HttpClientExtractorTests
 
         // Assert
         Assert.NotNull(clientClass);
-        var method = clientClass.Methods!.First(m => m.Name == "SearchAsync");
+        var method = clientClass.Methods.First(m => m.Name == "SearchAsync");
         Assert.NotNull(method.Content);
 
         // Should emit raw value without encoding

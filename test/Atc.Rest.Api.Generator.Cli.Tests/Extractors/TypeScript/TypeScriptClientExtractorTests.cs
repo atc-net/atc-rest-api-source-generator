@@ -26,7 +26,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null);
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null);
 
         var (_, content) = Assert.Single(clients);
 
@@ -63,7 +63,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null);
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null);
         var (_, content) = Assert.Single(clients);
 
         Assert.Contains("responseType: 'text'", content, StringComparison.Ordinal);
@@ -97,7 +97,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null);
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null);
         var (_, content) = Assert.Single(clients);
 
         Assert.DoesNotContain("responseType: 'text'", content, StringComparison.Ordinal);
@@ -135,7 +135,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null);
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null);
         var (_, content) = Assert.Single(clients);
 
         Assert.Contains("responseType: 'blob'", content, StringComparison.Ordinal);
@@ -187,7 +187,7 @@ public class TypeScriptClientExtractorTests
         Assert.NotNull(document);
 
         var enumNames = new HashSet<string>(StringComparer.Ordinal) { "BusinessLine" };
-        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null, enumNames);
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null, enumNames);
         var (_, content) = Assert.Single(clients);
 
         // The query type must reference BusinessLine, AND BusinessLine must be imported
@@ -241,7 +241,7 @@ public class TypeScriptClientExtractorTests
         Assert.NotNull(document);
 
         var enumNames = new HashSet<string>(StringComparer.Ordinal) { "BusinessLine" };
-        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null, enumNames);
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null, enumNames);
         var (_, content) = Assert.Single(clients);
 
         Assert.Contains("businessLine?: BusinessLine", content, StringComparison.Ordinal);
@@ -284,7 +284,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null);
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null);
         var (_, content) = Assert.Single(clients);
 
         Assert.Contains("status?: 'available' | 'pending' | 'sold'", content, StringComparison.Ordinal);
@@ -328,7 +328,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null);
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null);
         var (_, content) = Assert.Single(clients);
 
         // Signature: required header has no `?` on the key, optional one does; non-identifier
@@ -379,7 +379,7 @@ public class TypeScriptClientExtractorTests
         Assert.NotNull(document);
 
         var enumNames = new HashSet<string>(StringComparer.Ordinal) { "Tier" };
-        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null, enumNames);
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null, enumNames);
         var (_, content) = Assert.Single(clients);
 
         Assert.Contains("'X-Tier': Tier", content, StringComparison.Ordinal); // type in headers signature
@@ -412,7 +412,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
 
         Assert.Contains("async _delete(", content, StringComparison.Ordinal);
         Assert.DoesNotContain("async delete(", content, StringComparison.Ordinal);
@@ -435,7 +435,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
 
         Assert.Contains("async _1stPage(", content, StringComparison.Ordinal);
     }
@@ -458,7 +458,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
 
         Assert.Contains("async listItems(", content, StringComparison.Ordinal);
         Assert.DoesNotContain("async list-items(", content, StringComparison.Ordinal);
@@ -498,7 +498,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
 
         // Per-op alias has one arm per declared status + parseError, no extra arms.
         Assert.Contains("export type GetPetResult =", content, StringComparison.Ordinal);
@@ -542,7 +542,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
 
         Assert.Contains("export type ListItemsResult =", content, StringComparison.Ordinal);
         Assert.Contains("status: 'ok'", content, StringComparison.Ordinal);
@@ -583,7 +583,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
 
         Assert.Contains("status: 'ok'", content, StringComparison.Ordinal);
         Assert.Contains("status: 'badRequest'", content, StringComparison.Ordinal);
@@ -617,7 +617,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
 
         // 202 maps to a dedicated 'accepted' discriminator so consumers can distinguish
         // it from 'ok' (200) when the spec uses both.
@@ -644,7 +644,7 @@ public class TypeScriptClientExtractorTests
         Assert.NotNull(document);
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(
-            document!,
+            document,
             headerContent: null,
             httpClient: TypeScriptHttpClient.Axios));
 
@@ -690,9 +690,9 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var writableSchemas = TypeScriptModelExtractor.CollectSchemasWithWritableVariant(document!);
+        var writableSchemas = TypeScriptModelExtractor.CollectSchemasWithWritableVariant(document);
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(
-            document!,
+            document,
             headerContent: null,
             writableSchemas: writableSchemas));
 
@@ -736,9 +736,9 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var writableSchemas = TypeScriptModelExtractor.CollectSchemasWithWritableVariant(document!);
+        var writableSchemas = TypeScriptModelExtractor.CollectSchemasWithWritableVariant(document);
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(
-            document!,
+            document,
             headerContent: null,
             writableSchemas: writableSchemas));
 
@@ -767,7 +767,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
 
         // Multi-line block: summary + @deprecated.
         Assert.Contains("* List all pets", content, StringComparison.Ordinal);
@@ -797,7 +797,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
 
         Assert.Contains("/** List all pets */", content, StringComparison.Ordinal);
         Assert.DoesNotContain("@deprecated", content, StringComparison.Ordinal);
@@ -820,7 +820,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
 
         // Per-op result type alias is emitted with the file header — that's the only /**
         // (the file header) — the method should NOT have a leading JSDoc.
@@ -864,7 +864,7 @@ public class TypeScriptClientExtractorTests
         Assert.NotNull(doc);
 
         var results = TypeScriptClientExtractor.Extract(
-            doc!,
+            doc,
             headerContent: null,
             brandedIds: true);
         var contentByClass = results.ToDictionary(r => r.ClassName, r => r.Content, StringComparer.Ordinal);
@@ -898,7 +898,7 @@ public class TypeScriptClientExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc!, headerContent: null, brandedIds: false));
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc, headerContent: null, brandedIds: false));
 
         Assert.Contains("getPet(petId: string)", content, StringComparison.Ordinal);
         Assert.DoesNotContain("BrandedIds", content, StringComparison.Ordinal);
@@ -936,7 +936,7 @@ public class TypeScriptClientExtractorTests
         Assert.NotNull(doc);
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(
-            doc!,
+            doc,
             headerContent: null,
             zodRuntimeValidate: true));
 
@@ -979,7 +979,7 @@ public class TypeScriptClientExtractorTests
         Assert.NotNull(doc);
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(
-            doc!,
+            doc,
             headerContent: null,
             zodRuntimeValidate: true));
 
@@ -1018,7 +1018,7 @@ public class TypeScriptClientExtractorTests
         Assert.NotNull(doc);
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(
-            doc!,
+            doc,
             headerContent: null,
             zodRuntimeValidate: false));
 
@@ -1067,7 +1067,7 @@ public class TypeScriptClientExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc, headerContent: null));
 
         Assert.DoesNotContain("'x-continuation'?: string; 'x-continuation'?: string", content, StringComparison.Ordinal);
 
@@ -1106,7 +1106,7 @@ public class TypeScriptClientExtractorTests
         Assert.NotNull(doc);
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(
-            doc!,
+            doc,
             headerContent: null,
             httpClient: TypeScriptHttpClient.Axios));
 
@@ -1154,7 +1154,7 @@ public class TypeScriptClientExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc, headerContent: null));
 
         Assert.Contains("PaginationResult<InsightDevice>", content, StringComparison.Ordinal);
         Assert.Contains("import type { InsightDevice, PaginationResult } from '../models';", content, StringComparison.Ordinal);
@@ -1200,7 +1200,7 @@ public class TypeScriptClientExtractorTests
         Assert.NotNull(doc);
 
         var enumNames = new HashSet<string>(StringComparer.Ordinal) { "ConnectionType" };
-        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc!, headerContent: null, enumNames: enumNames));
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc, headerContent: null, enumNames: enumNames));
 
         Assert.DoesNotContain("ConnectionType", content, StringComparison.Ordinal);
         Assert.DoesNotContain("from '../enums'", content, StringComparison.Ordinal);
@@ -1243,7 +1243,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null);
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null);
         var (_, content) = Assert.Single(clients);
 
         // The inline query type must carry the array type.
@@ -1305,7 +1305,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null);
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null);
 
         var (_, content) = Assert.Single(clients);
         Assert.Contains("AsyncGenerator<Event>", content, StringComparison.Ordinal);
@@ -1349,7 +1349,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null);
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null);
         var (_, content) = Assert.Single(clients);
 
         Assert.Contains("rawFilter?: string", content, StringComparison.Ordinal);
@@ -1390,7 +1390,7 @@ public class TypeScriptClientExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var clients = TypeScriptClientExtractor.Extract(document!, headerContent: null);
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null);
         var (_, content) = Assert.Single(clients);
 
         Assert.Contains("cookies?: { session?: string }", content, StringComparison.Ordinal);

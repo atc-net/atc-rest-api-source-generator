@@ -17,7 +17,7 @@ public class OpenApiRetryExtensionsTests
         var doc = ParseYaml(YamlWithDocumentRetryPolicy);
 
         Assert.NotNull(doc);
-        Assert.True(doc!.HasRetryConfiguration());
+        Assert.True(doc.HasRetryConfiguration());
     }
 
     [Fact]
@@ -26,7 +26,7 @@ public class OpenApiRetryExtensionsTests
         var doc = ParseYaml(YamlWithOperationRetryPolicy);
 
         Assert.NotNull(doc);
-        Assert.True(doc!.HasRetryConfiguration());
+        Assert.True(doc.HasRetryConfiguration());
     }
 
     // ========== ExtractRetryConfiguration Tests ==========
@@ -36,7 +36,7 @@ public class OpenApiRetryExtensionsTests
         var doc = ParseYaml(YamlWithNoRetry);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractRetryConfiguration(
@@ -52,7 +52,7 @@ public class OpenApiRetryExtensionsTests
         var doc = ParseYaml(YamlWithOperationRetryPolicy);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractRetryConfiguration(
@@ -60,7 +60,7 @@ public class OpenApiRetryExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.True(result!.Enabled);
+        Assert.True(result.Enabled);
         Assert.Equal("PetsRetry", result.Policy);
     }
 
@@ -70,7 +70,7 @@ public class OpenApiRetryExtensionsTests
         var doc = ParseYaml(YamlWithDocumentRetryPolicy);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractRetryConfiguration(
@@ -78,7 +78,7 @@ public class OpenApiRetryExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.Equal("GlobalRetry", result!.Policy);
+        Assert.Equal("GlobalRetry", result.Policy);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public class OpenApiRetryExtensionsTests
         var doc = ParseYaml(YamlWithOperationRetryPolicy);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractRetryConfiguration(
@@ -95,8 +95,8 @@ public class OpenApiRetryExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.Equal(3, result!.MaxAttempts);
-        Assert.Equal(1.0, result.DelaySeconds);
+        Assert.Equal(3, result.MaxAttempts);
+        Assert.Equal(1.0, result.DelaySeconds, precision: 5);
         Assert.True(result.UseJitter);
         Assert.True(result.Handle429);
         Assert.False(result.CircuitBreakerEnabled);
@@ -111,7 +111,7 @@ public class OpenApiRetryExtensionsTests
         var doc = ParseYaml(YamlWithFullOperationRetryConfig);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractRetryConfiguration(
@@ -119,8 +119,8 @@ public class OpenApiRetryExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.Equal(5, result!.MaxAttempts);
-        Assert.Equal(2.5, result.DelaySeconds);
+        Assert.Equal(5, result.MaxAttempts);
+        Assert.Equal(2.5, result.DelaySeconds, precision: 5);
     }
 
     // ========== Extension Value Extraction Tests ==========

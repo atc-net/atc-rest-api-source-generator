@@ -15,7 +15,7 @@ public class DiagnosticBuilderTests
         Assert.Contains("MissingSchema", result.Message, StringComparison.Ordinal);
         Assert.Equal("spec.yaml", result.FilePath);
         Assert.NotNull(result.Suggestions);
-        Assert.True(result.Suggestions!.Count >= 2);
+        Assert.True(result.Suggestions.Count >= 2);
     }
 
     // ========== OperationIdCasingWarning Tests ==========
@@ -32,9 +32,9 @@ public class DiagnosticBuilderTests
         Assert.Equal(DiagnosticSeverity.Warning, result.Severity);
         Assert.Contains("ListPets", result.Message, StringComparison.Ordinal);
         Assert.Contains("camelCase", result.Message, StringComparison.Ordinal);
-        Assert.Contains("GET /pets", result.Context!, StringComparison.Ordinal);
+        Assert.Contains("GET /pets", result.Context, StringComparison.Ordinal);
         Assert.NotNull(result.Suggestions);
-        Assert.Contains(result.Suggestions!, s => s.Contains("listPets", StringComparison.Ordinal));
+        Assert.Contains(result.Suggestions, s => s.Contains("listPets", StringComparison.Ordinal));
     }
 
     // ========== ParsingError Tests ==========
@@ -49,7 +49,7 @@ public class DiagnosticBuilderTests
         Assert.Equal(DiagnosticSeverity.Error, result.Severity);
         Assert.Contains("Invalid type", result.Message, StringComparison.Ordinal);
         Assert.NotNull(result.Suggestions);
-        Assert.Contains(result.Suggestions!, s => s.Contains("#/components/schemas/Pet", StringComparison.Ordinal));
+        Assert.Contains(result.Suggestions, s => s.Contains("#/components/schemas/Pet", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public class DiagnosticBuilderTests
 
         Assert.Equal(DiagnosticSeverity.Error, result.Severity);
         Assert.NotNull(result.Suggestions);
-        Assert.DoesNotContain(result.Suggestions!, s => s.Contains("JSON path", StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Suggestions, s => s.Contains("JSON path", StringComparison.Ordinal));
     }
 
     // ========== MissingRequiredField Tests ==========
@@ -80,7 +80,7 @@ public class DiagnosticBuilderTests
         Assert.Equal(DiagnosticSeverity.Warning, result.Severity);
         Assert.Contains("operationId", result.Message, StringComparison.Ordinal);
         Assert.NotNull(result.Suggestions);
-        Assert.Equal(2, result.Suggestions!.Count);
+        Assert.Equal(2, result.Suggestions.Count);
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public class DiagnosticBuilderTests
             "spec.yaml");
 
         Assert.NotNull(result.Suggestions);
-        Assert.Single(result.Suggestions!);
+        Assert.Single(result.Suggestions);
     }
 
     // ========== Documentation URL Tests ==========

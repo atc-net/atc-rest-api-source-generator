@@ -68,8 +68,8 @@ public class PathSegmentHelperTests
         var result = PathSegmentHelper.GetUniquePathSegments(doc);
 
         Assert.Equal(2, result.Count);
-        Assert.Contains("Pets", result);
-        Assert.Contains("Users", result);
+        Assert.Contains("Pets", result, StringComparer.Ordinal);
+        Assert.Contains("Users", result, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -83,9 +83,9 @@ public class PathSegmentHelperTests
         var result = PathSegmentHelper.GetUniquePathSegments(doc);
 
         Assert.Equal(3, result.Count);
-        Assert.Equal("Accounts", result[0]);
-        Assert.Equal("Pets", result[1]);
-        Assert.Equal("Zebras", result[2]);
+        Assert.Equal("Accounts", result[0], StringComparer.Ordinal);
+        Assert.Equal("Pets", result[1], StringComparer.Ordinal);
+        Assert.Equal("Zebras", result[2], StringComparer.Ordinal);
     }
 
     // ========== GetOperationsForSegment Tests ==========
@@ -630,10 +630,10 @@ paths:
         var result = PathSegmentHelper.GetSegmentUsings("MyProject", "Pets", namespaces).ToList();
 
         Assert.Equal(4, result.Count);
-        Assert.Contains("using MyProject.Generated.Pets.Handlers;", result);
-        Assert.Contains("using MyProject.Generated.Pets.Models;", result);
-        Assert.Contains("using MyProject.Generated.Pets.Parameters;", result);
-        Assert.Contains("using MyProject.Generated.Pets.Results;", result);
+        Assert.Contains("using MyProject.Generated.Pets.Handlers;", result, StringComparer.Ordinal);
+        Assert.Contains("using MyProject.Generated.Pets.Models;", result, StringComparer.Ordinal);
+        Assert.Contains("using MyProject.Generated.Pets.Parameters;", result, StringComparer.Ordinal);
+        Assert.Contains("using MyProject.Generated.Pets.Results;", result, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -663,8 +663,8 @@ paths:
             "MyProject", "Pets", namespaces, isGlobalUsing: true).ToList();
 
         Assert.Equal(2, result.Count);
-        Assert.Contains("global using MyProject.Generated.Pets.Handlers;", result);
-        Assert.Contains("global using MyProject.Generated.Pets.Results;", result);
+        Assert.Contains("global using MyProject.Generated.Pets.Handlers;", result, StringComparer.Ordinal);
+        Assert.Contains("global using MyProject.Generated.Pets.Results;", result, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -680,10 +680,10 @@ paths:
             "MyProject", "Pets", namespaces, includeHandlers: false).ToList();
 
         Assert.Equal(3, result.Count);
-        Assert.DoesNotContain("using MyProject.Generated.Pets.Handlers;", result);
-        Assert.Contains("using MyProject.Generated.Pets.Models;", result);
-        Assert.Contains("using MyProject.Generated.Pets.Parameters;", result);
-        Assert.Contains("using MyProject.Generated.Pets.Results;", result);
+        Assert.DoesNotContain("using MyProject.Generated.Pets.Handlers;", result, StringComparer.Ordinal);
+        Assert.Contains("using MyProject.Generated.Pets.Models;", result, StringComparer.Ordinal);
+        Assert.Contains("using MyProject.Generated.Pets.Parameters;", result, StringComparer.Ordinal);
+        Assert.Contains("using MyProject.Generated.Pets.Results;", result, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -699,10 +699,10 @@ paths:
             "MyProject", "Pets", namespaces, includeModels: false).ToList();
 
         Assert.Equal(3, result.Count);
-        Assert.Contains("using MyProject.Generated.Pets.Handlers;", result);
-        Assert.DoesNotContain("using MyProject.Generated.Pets.Models;", result);
-        Assert.Contains("using MyProject.Generated.Pets.Parameters;", result);
-        Assert.Contains("using MyProject.Generated.Pets.Results;", result);
+        Assert.Contains("using MyProject.Generated.Pets.Handlers;", result, StringComparer.Ordinal);
+        Assert.DoesNotContain("using MyProject.Generated.Pets.Models;", result, StringComparer.Ordinal);
+        Assert.Contains("using MyProject.Generated.Pets.Parameters;", result, StringComparer.Ordinal);
+        Assert.Contains("using MyProject.Generated.Pets.Results;", result, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -717,8 +717,8 @@ paths:
         var result = PathSegmentHelper.GetSegmentUsings("MyProject", null, namespaces).ToList();
 
         Assert.Equal(2, result.Count);
-        Assert.Contains("using MyProject.Generated.Handlers;", result);
-        Assert.Contains("using MyProject.Generated.Results;", result);
+        Assert.Contains("using MyProject.Generated.Handlers;", result, StringComparer.Ordinal);
+        Assert.Contains("using MyProject.Generated.Results;", result, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -733,8 +733,8 @@ paths:
         var result = PathSegmentHelper.GetSegmentUsings("MyProject", "", namespaces).ToList();
 
         Assert.Equal(2, result.Count);
-        Assert.Contains("using MyProject.Generated.Handlers;", result);
-        Assert.Contains("using MyProject.Generated.Results;", result);
+        Assert.Contains("using MyProject.Generated.Handlers;", result, StringComparer.Ordinal);
+        Assert.Contains("using MyProject.Generated.Results;", result, StringComparer.Ordinal);
     }
 
     // ========== Helper Methods ==========

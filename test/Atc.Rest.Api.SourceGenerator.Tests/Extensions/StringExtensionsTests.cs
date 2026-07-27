@@ -73,7 +73,7 @@ public class StringExtensionsTests
         string? input = null;
 
         // Act
-        var result = input!.SplitIntoLinesPreserveEmpty();
+        var result = input.SplitIntoLinesPreserveEmpty();
 
         // Assert
         Assert.Empty(result);
@@ -170,7 +170,7 @@ public class StringExtensionsTests
         string? input = null;
 
         // Act
-        var result = input!.ToHeaderPropertyName();
+        var result = input.ToHeaderPropertyName();
 
         // Assert
         Assert.Null(result);
@@ -207,7 +207,7 @@ public class StringExtensionsTests
         string? input = null;
 
         // Act
-        var result = input!.ToPascalCaseForDotNet();
+        var result = input.ToPascalCaseForDotNet();
 
         // Assert
         Assert.Null(result);

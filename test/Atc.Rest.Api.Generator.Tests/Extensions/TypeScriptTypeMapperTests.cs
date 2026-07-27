@@ -176,11 +176,11 @@ public class TypeScriptTypeMapperTests
         var doc = ParseYaml(YamlWithStringProperty);
         Assert.NotNull(doc);
 
-        var schema = GetSchemaProperty(doc!, "TestModel", "name");
+        var schema = GetSchemaProperty(doc, "TestModel", "name");
         Assert.NotNull(schema);
 
         // Act
-        var result = schema!.ToTypeScriptTypeForModel(isRequired: true);
+        var result = schema.ToTypeScriptTypeForModel(isRequired: true);
 
         // Assert
         Assert.Equal("string", result);
@@ -193,11 +193,11 @@ public class TypeScriptTypeMapperTests
         var doc = ParseYaml(YamlWithNullableProperty);
         Assert.NotNull(doc);
 
-        var schema = GetSchemaProperty(doc!, "TestModel", "description");
+        var schema = GetSchemaProperty(doc, "TestModel", "description");
         Assert.NotNull(schema);
 
         // Act
-        var result = schema!.ToTypeScriptTypeForModel(isRequired: false);
+        var result = schema.ToTypeScriptTypeForModel(isRequired: false);
 
         // Assert
         Assert.Equal("string | null", result);
@@ -210,11 +210,11 @@ public class TypeScriptTypeMapperTests
         var doc = ParseYaml(YamlWithRefProperty);
         Assert.NotNull(doc);
 
-        var schema = GetSchemaProperty(doc!, "Device", "owner");
+        var schema = GetSchemaProperty(doc, "Device", "owner");
         Assert.NotNull(schema);
 
         // Act
-        var result = schema!.ToTypeScriptTypeForModel(isRequired: true);
+        var result = schema.ToTypeScriptTypeForModel(isRequired: true);
 
         // Assert
         Assert.Equal("User", result);
@@ -227,11 +227,11 @@ public class TypeScriptTypeMapperTests
         var doc = ParseYaml(YamlWithArrayProperty);
         Assert.NotNull(doc);
 
-        var schema = GetSchemaProperty(doc!, "TestModel", "tags");
+        var schema = GetSchemaProperty(doc, "TestModel", "tags");
         Assert.NotNull(schema);
 
         // Act
-        var result = schema!.ToTypeScriptTypeForModel(isRequired: true);
+        var result = schema.ToTypeScriptTypeForModel(isRequired: true);
 
         // Assert
         Assert.Equal("string[]", result);
@@ -244,11 +244,11 @@ public class TypeScriptTypeMapperTests
         var doc = ParseYaml(YamlWithOneOfProperty);
         Assert.NotNull(doc);
 
-        var schema = GetSchemaProperty(doc!, "Device", "customer");
+        var schema = GetSchemaProperty(doc, "Device", "customer");
         Assert.NotNull(schema);
 
         // Act
-        var result = schema!.ToTypeScriptTypeForModel(isRequired: false);
+        var result = schema.ToTypeScriptTypeForModel(isRequired: false);
 
         // Assert
         Assert.Equal("IdValue | null", result);
@@ -261,11 +261,11 @@ public class TypeScriptTypeMapperTests
         var doc = ParseYaml(YamlWithAllOfProperty);
         Assert.NotNull(doc);
 
-        var schema = GetSchemaProperty(doc!, "Device", "settings");
+        var schema = GetSchemaProperty(doc, "Device", "settings");
         Assert.NotNull(schema);
 
         // Act
-        var result = schema!.ToTypeScriptTypeForModel(isRequired: false);
+        var result = schema.ToTypeScriptTypeForModel(isRequired: false);
 
         // Assert
         Assert.Equal("DeviceSettings | null", result);
@@ -279,11 +279,11 @@ public class TypeScriptTypeMapperTests
         var doc = ParseYaml(YamlWithStringProperty);
         Assert.NotNull(doc);
 
-        var schema = GetSchemaProperty(doc!, "TestModel", "name");
+        var schema = GetSchemaProperty(doc, "TestModel", "name");
         Assert.NotNull(schema);
 
         // Act
-        var result = schema!.ToTypeScriptReturnType();
+        var result = schema.ToTypeScriptReturnType();
 
         // Assert
         Assert.Equal("string", result);
@@ -296,11 +296,11 @@ public class TypeScriptTypeMapperTests
         var doc = ParseYaml(YamlWithRefProperty);
         Assert.NotNull(doc);
 
-        var schema = GetSchemaProperty(doc!, "Device", "owner");
+        var schema = GetSchemaProperty(doc, "Device", "owner");
         Assert.NotNull(schema);
 
         // Act
-        var result = schema!.ToTypeScriptReturnType();
+        var result = schema.ToTypeScriptReturnType();
 
         // Assert
         Assert.Equal("User", result);
@@ -314,10 +314,10 @@ public class TypeScriptTypeMapperTests
         // After the fix: "[number, number]".
         var doc = ParseYaml(YamlWithPrefixItemsCoordinate);
         Assert.NotNull(doc);
-        var schema = GetSchema(doc!, "Coordinate");
+        var schema = GetSchema(doc, "Coordinate");
         Assert.NotNull(schema);
 
-        var result = schema!.ToTypeScriptReturnType();
+        var result = schema.ToTypeScriptReturnType();
 
         Assert.Equal("[number, number]", result);
     }
@@ -328,10 +328,10 @@ public class TypeScriptTypeMapperTests
         // RgbColor pattern — three integers (red, green, blue).
         var doc = ParseYaml(YamlWithPrefixItemsRgb);
         Assert.NotNull(doc);
-        var schema = GetSchema(doc!, "RgbColor");
+        var schema = GetSchema(doc, "RgbColor");
         Assert.NotNull(schema);
 
-        var result = schema!.ToTypeScriptReturnType();
+        var result = schema.ToTypeScriptReturnType();
 
         Assert.Equal("[number, number, number]", result);
     }
@@ -342,10 +342,10 @@ public class TypeScriptTypeMapperTests
         // [string, number] — heterogeneous tuple. Each prefix item has its own type.
         var doc = ParseYaml(YamlWithPrefixItemsMixed);
         Assert.NotNull(doc);
-        var schema = GetSchema(doc!, "NamedScore");
+        var schema = GetSchema(doc, "NamedScore");
         Assert.NotNull(schema);
 
-        var result = schema!.ToTypeScriptReturnType();
+        var result = schema.ToTypeScriptReturnType();
 
         Assert.Equal("[string, number]", result);
     }
@@ -357,10 +357,10 @@ public class TypeScriptTypeMapperTests
         // beyond the prefix must be the `items` type. TS tuple syntax: [..., ...string[]].
         var doc = ParseYaml(YamlWithPrefixItemsOpenTuple);
         Assert.NotNull(doc);
-        var schema = GetSchema(doc!, "RowWithLabels");
+        var schema = GetSchema(doc, "RowWithLabels");
         Assert.NotNull(schema);
 
-        var result = schema!.ToTypeScriptReturnType();
+        var result = schema.ToTypeScriptReturnType();
 
         Assert.Equal("[number, number, ...string[]]", result);
     }

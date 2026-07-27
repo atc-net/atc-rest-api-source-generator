@@ -9,7 +9,7 @@ public class TypeScriptBarrelExportExtractorTests
 
         // Stable ordinal ordering keeps the index.ts diff-noise free across runs.
         Assert.NotNull(result.Exports);
-        var modules = result.Exports!.Select(e => e.ModulePath).ToList();
+        var modules = result.Exports.Select(e => e.ModulePath).ToList();
         Assert.Equal(["./Apple", "./Banana", "./Cherry"], modules);
     }
 
@@ -19,7 +19,7 @@ public class TypeScriptBarrelExportExtractorTests
         var result = TypeScriptBarrelExportExtractor.Create(headerContent: null, ["Apple"]);
 
         Assert.NotNull(result.Exports);
-        Assert.All(result.Exports!, export => Assert.True(export.IsTypeOnly));
+        Assert.All(result.Exports, export => Assert.True(export.IsTypeOnly));
     }
 
     [Fact]
@@ -28,7 +28,7 @@ public class TypeScriptBarrelExportExtractorTests
         var result = TypeScriptBarrelExportExtractor.Create(headerContent: null, ["Apple"], isTypeOnly: false);
 
         Assert.NotNull(result.Exports);
-        Assert.All(result.Exports!, export => Assert.False(export.IsTypeOnly));
+        Assert.All(result.Exports, export => Assert.False(export.IsTypeOnly));
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class TypeScriptBarrelExportExtractorTests
         var result = TypeScriptBarrelExportExtractor.CreateWithZod(headerContent: null, ["Account", "User"]);
 
         Assert.NotNull(result.Exports);
-        var modules = result.Exports!.Select(e => e.ModulePath).ToList();
+        var modules = result.Exports.Select(e => e.ModulePath).ToList();
         Assert.Equal(["./Account", "./Account.zod", "./User", "./User.zod"], modules);
     }
 
@@ -49,7 +49,7 @@ public class TypeScriptBarrelExportExtractorTests
         var result = TypeScriptBarrelExportExtractor.CreateWithZod(headerContent: null, ["Account"]);
 
         Assert.NotNull(result.Exports);
-        var zodExport = result.Exports!.Single(e => e.ModulePath.EndsWith(".zod", StringComparison.Ordinal));
+        var zodExport = result.Exports.Single(e => e.ModulePath.EndsWith(".zod", StringComparison.Ordinal));
         Assert.False(zodExport.IsTypeOnly);
     }
 
@@ -59,9 +59,9 @@ public class TypeScriptBarrelExportExtractorTests
         var result = TypeScriptBarrelExportExtractor.CreateForSubdirectories(headerContent: null, ["models", "enums", "client"]);
 
         Assert.NotNull(result.Exports);
-        var modules = result.Exports!.Select(e => e.ModulePath).ToList();
+        var modules = result.Exports.Select(e => e.ModulePath).ToList();
         Assert.Equal(["./client", "./enums", "./models"], modules);
-        Assert.All(result.Exports!, export => Assert.False(export.IsTypeOnly));
+        Assert.All(result.Exports, export => Assert.False(export.IsTypeOnly));
     }
 
     [Fact]
@@ -89,10 +89,10 @@ public class TypeScriptBarrelExportExtractorTests
         var result = TypeScriptBarrelExportExtractor.CreateWithSummaries(headerContent: null, items, isTypeOnly: false);
 
         Assert.NotNull(result.Exports);
-        var petsExport = result.Exports!.First(e => e.ModulePath == "./PetsClient");
-        var ownersExport = result.Exports!.First(e => e.ModulePath == "./OwnersClient");
+        var petsExport = result.Exports.First(e => e.ModulePath == "./PetsClient");
+        var ownersExport = result.Exports.First(e => e.ModulePath == "./OwnersClient");
         Assert.NotNull(petsExport.DocumentationTags);
-        Assert.Equal("Manages pet operations", petsExport.DocumentationTags!.Description);
+        Assert.Equal("Manages pet operations", petsExport.DocumentationTags.Description);
         Assert.Null(ownersExport.DocumentationTags);
     }
 
@@ -108,7 +108,7 @@ public class TypeScriptBarrelExportExtractorTests
         var result = TypeScriptBarrelExportExtractor.CreateWithSummaries(headerContent: null, items, isTypeOnly: false);
 
         Assert.NotNull(result.Exports);
-        var modules = result.Exports!.Select(e => e.ModulePath).ToList();
+        var modules = result.Exports.Select(e => e.ModulePath).ToList();
         Assert.Equal(["./AppleClient", "./ZebraClient"], modules);
     }
 }

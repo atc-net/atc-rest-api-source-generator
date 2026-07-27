@@ -17,7 +17,7 @@ public class OpenApiRateLimitExtensionsTests
         var doc = ParseYaml(YamlWithDocumentRateLimitPolicy);
 
         Assert.NotNull(doc);
-        Assert.True(doc!.HasRateLimiting());
+        Assert.True(doc.HasRateLimiting());
     }
 
     [Fact]
@@ -26,7 +26,7 @@ public class OpenApiRateLimitExtensionsTests
         var doc = ParseYaml(YamlWithOperationRateLimitPolicy);
 
         Assert.NotNull(doc);
-        Assert.True(doc!.HasRateLimiting());
+        Assert.True(doc.HasRateLimiting());
     }
 
     // ========== ExtractRateLimitConfiguration Tests ==========
@@ -36,7 +36,7 @@ public class OpenApiRateLimitExtensionsTests
         var doc = ParseYaml(YamlWithNoRateLimit);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractRateLimitConfiguration(
@@ -52,7 +52,7 @@ public class OpenApiRateLimitExtensionsTests
         var doc = ParseYaml(YamlWithOperationRateLimitPolicy);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractRateLimitConfiguration(
@@ -60,7 +60,7 @@ public class OpenApiRateLimitExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.True(result!.Enabled);
+        Assert.True(result.Enabled);
         Assert.Equal("PetsPolicy", result.Policy);
     }
 
@@ -70,7 +70,7 @@ public class OpenApiRateLimitExtensionsTests
         var doc = ParseYaml(YamlWithDocumentRateLimitPolicy);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractRateLimitConfiguration(
@@ -78,7 +78,7 @@ public class OpenApiRateLimitExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.Equal("GlobalPolicy", result!.Policy);
+        Assert.Equal("GlobalPolicy", result.Policy);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public class OpenApiRateLimitExtensionsTests
         var doc = ParseYaml(YamlWithOperationRateLimitPolicy);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractRateLimitConfiguration(
@@ -95,7 +95,7 @@ public class OpenApiRateLimitExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.Equal(100, result!.PermitLimit);
+        Assert.Equal(100, result.PermitLimit);
         Assert.Equal(60, result.WindowSeconds);
         Assert.Equal(0, result.QueueLimit);
         Assert.Equal(RateLimitAlgorithm.Fixed, result.Algorithm);
@@ -107,7 +107,7 @@ public class OpenApiRateLimitExtensionsTests
         var doc = ParseYaml(YamlWithFullOperationRateLimitConfig);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractRateLimitConfiguration(
@@ -115,7 +115,7 @@ public class OpenApiRateLimitExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.Equal("LogsRead", result!.Policy);
+        Assert.Equal("LogsRead", result.Policy);
         Assert.Equal(30, result.PermitLimit);
         Assert.Equal(60, result.WindowSeconds);
         Assert.Equal(0, result.QueueLimit);
@@ -128,7 +128,7 @@ public class OpenApiRateLimitExtensionsTests
         var doc = ParseYaml(YamlWithPathAndOperationRateLimitOverrides);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractRateLimitConfiguration(
@@ -136,7 +136,7 @@ public class OpenApiRateLimitExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.Equal("PetsStrict", result!.Policy);
+        Assert.Equal("PetsStrict", result.Policy);
         Assert.Equal(10, result.PermitLimit);
         Assert.Equal(30, result.WindowSeconds);
     }
@@ -150,7 +150,7 @@ public class OpenApiRateLimitExtensionsTests
         var doc = ParseYaml(YamlWithPathLevelNumericValues);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractRateLimitConfiguration(
@@ -158,7 +158,7 @@ public class OpenApiRateLimitExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.Equal("PetsPath", result!.Policy);
+        Assert.Equal("PetsPath", result.Policy);
         Assert.Equal(50, result.PermitLimit);
         Assert.Equal(120, result.WindowSeconds);
     }
@@ -169,7 +169,7 @@ public class OpenApiRateLimitExtensionsTests
         var doc = ParseYaml(YamlWithRateLimitDisabledOnOperation);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractRateLimitConfiguration(
@@ -177,7 +177,7 @@ public class OpenApiRateLimitExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.False(result!.Enabled);
+        Assert.False(result.Enabled);
         Assert.Null(result.Policy);
     }
 
@@ -196,7 +196,7 @@ public class OpenApiRateLimitExtensionsTests
         var doc = ParseYaml(YamlWithAlgorithm(algorithmValue));
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractRateLimitConfiguration(
@@ -204,7 +204,7 @@ public class OpenApiRateLimitExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.Equal(expected, result!.Algorithm);
+        Assert.Equal(expected, result.Algorithm);
     }
 
     [Fact]
@@ -213,7 +213,7 @@ public class OpenApiRateLimitExtensionsTests
         var doc = ParseYaml(YamlWithOperationRateLimitPolicy);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractRateLimitConfiguration(
@@ -221,7 +221,7 @@ public class OpenApiRateLimitExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.Equal(RateLimitAlgorithm.Fixed, result!.Algorithm);
+        Assert.Equal(RateLimitAlgorithm.Fixed, result.Algorithm);
     }
 
     // ========== Extension Value Extraction Tests ==========

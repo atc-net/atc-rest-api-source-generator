@@ -6,7 +6,7 @@ public class TypeScriptSwrHookExtractorTests
     public void Extract_NullDocument_Throws()
     {
         Assert.Throws<ArgumentNullException>(
-            () => TypeScriptSwrHookExtractor.Extract(openApiDoc: null!, headerContent: null));
+            () => TypeScriptSwrHookExtractor.Extract(openApiDoc: null, headerContent: null));
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public class TypeScriptSwrHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptSwrHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
         var (fileName, content) = Assert.Single(result);
 
         Assert.Equal("usePets", fileName);
@@ -68,7 +68,7 @@ public class TypeScriptSwrHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptSwrHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         Assert.Contains("useSWRMutation", content, StringComparison.Ordinal);
@@ -90,7 +90,7 @@ public class TypeScriptSwrHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptSwrHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         Assert.Contains("from 'swr'", content, StringComparison.Ordinal);
@@ -129,7 +129,7 @@ public class TypeScriptSwrHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptSwrHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         // No "is skipped" placeholder.
@@ -183,7 +183,7 @@ public class TypeScriptSwrHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptSwrHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         Assert.Contains("import { useCallback, useEffect, useRef, useState } from 'react';", content, StringComparison.Ordinal);
@@ -214,7 +214,7 @@ public class TypeScriptSwrHookExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var (_, content) = Assert.Single(TypeScriptSwrHookExtractor.Extract(document!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptSwrHookExtractor.Extract(document, headerContent: null));
 
         Assert.Contains("* List all items", content, StringComparison.Ordinal);
         Assert.Contains("* @deprecated", content, StringComparison.Ordinal);
@@ -252,7 +252,7 @@ public class TypeScriptSwrHookExtractorTests
         Assert.NotNull(doc);
 
         var result = TypeScriptSwrHookExtractor.Extract(
-            doc!,
+            doc,
             headerContent: null,
             brandedIds: true);
         var (_, content) = Assert.Single(result);

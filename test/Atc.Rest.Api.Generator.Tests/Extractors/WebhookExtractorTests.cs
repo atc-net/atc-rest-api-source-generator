@@ -81,7 +81,7 @@ public class WebhookExtractorTests
         // Assert
         Assert.NotNull(result);
         var heartbeatHandler = result.First(h => h.InterfaceTypeName == "IOnSystemHeartbeatWebhookHandler");
-        var method = heartbeatHandler.Methods![0];
+        var method = heartbeatHandler.Methods[0];
 
         // Heartbeat has no requestBody -> only CancellationToken parameter
         Assert.NotNull(method.Parameters);

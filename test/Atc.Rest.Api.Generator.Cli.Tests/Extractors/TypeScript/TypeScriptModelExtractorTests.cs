@@ -38,7 +38,7 @@ public class TypeScriptModelExtractorTests
         // The results property should be T[]
         var resultsProp = parameters.Properties?.FirstOrDefault(p => p.Name == "results");
         Assert.NotNull(resultsProp);
-        Assert.Equal("T[]", resultsProp!.TypeAnnotation);
+        Assert.Equal("T[]", resultsProp.TypeAnnotation);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public class TypeScriptModelExtractorTests
 
         var usersProp = parameters.Properties?.FirstOrDefault(p => p.Name == "users");
         Assert.NotNull(usersProp);
-        Assert.Equal("string[]", usersProp!.TypeAnnotation);
+        Assert.Equal("string[]", usersProp.TypeAnnotation);
     }
 
     [Fact]
@@ -266,22 +266,22 @@ public class TypeScriptModelExtractorTests
         // Response variant: readOnly + neutral properties, no writeOnly.
         var (responseName, responseParams) = Assert.Single(models, m => m.Name == "User");
         Assert.Equal("User", responseName);
-        var responseProps = responseParams.Properties!.Select(p => p.Name).ToList();
-        Assert.Contains("id", responseProps);
-        Assert.Contains("createdAt", responseProps);
-        Assert.Contains("email", responseProps);
-        Assert.Contains("displayName", responseProps);
-        Assert.DoesNotContain("password", responseProps);
+        var responseProps = responseParams.Properties.Select(p => p.Name).ToList();
+        Assert.Contains("id", responseProps, StringComparer.Ordinal);
+        Assert.Contains("createdAt", responseProps, StringComparer.Ordinal);
+        Assert.Contains("email", responseProps, StringComparer.Ordinal);
+        Assert.Contains("displayName", responseProps, StringComparer.Ordinal);
+        Assert.DoesNotContain("password", responseProps, StringComparer.Ordinal);
 
         // Writable variant: writeOnly + neutral properties, no readOnly.
         var (writableName, writableParams) = Assert.Single(models, m => m.Name == "UserWritable");
         Assert.Equal("UserWritable", writableName);
-        var writableProps = writableParams.Properties!.Select(p => p.Name).ToList();
-        Assert.Contains("password", writableProps);
-        Assert.Contains("email", writableProps);
-        Assert.Contains("displayName", writableProps);
-        Assert.DoesNotContain("id", writableProps);
-        Assert.DoesNotContain("createdAt", writableProps);
+        var writableProps = writableParams.Properties.Select(p => p.Name).ToList();
+        Assert.Contains("password", writableProps, StringComparer.Ordinal);
+        Assert.Contains("email", writableProps, StringComparer.Ordinal);
+        Assert.Contains("displayName", writableProps, StringComparer.Ordinal);
+        Assert.DoesNotContain("id", writableProps, StringComparer.Ordinal);
+        Assert.DoesNotContain("createdAt", writableProps, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -363,15 +363,15 @@ public class TypeScriptModelExtractorTests
         var config = new TypeScriptClientConfig { BrandedIds = true };
         var (_, parameters) = Assert.Single(TypeScriptModelExtractor.Extract(document, config));
 
-        var idProp = parameters.Properties!.Single(p => p.Name == "id");
-        var ownerIdProp = parameters.Properties!.Single(p => p.Name == "ownerId");
-        var nameProp = parameters.Properties!.Single(p => p.Name == "name");
+        var idProp = parameters.Properties.Single(p => p.Name == "id");
+        var ownerIdProp = parameters.Properties.Single(p => p.Name == "ownerId");
+        var nameProp = parameters.Properties.Single(p => p.Name == "name");
 
         Assert.Equal("PetId", idProp.TypeAnnotation);
         Assert.Equal("OwnerId", ownerIdProp.TypeAnnotation);
         Assert.Equal("string", nameProp.TypeAnnotation);
 
-        var brandImport = Assert.Single(parameters.ImportStatements!, s => s.Contains("BrandedIds", StringComparison.Ordinal));
+        var brandImport = Assert.Single(parameters.ImportStatements, s => s.Contains("BrandedIds", StringComparison.Ordinal));
         Assert.Equal("import type { OwnerId, PetId } from '../types/BrandedIds';", brandImport);
     }
 
@@ -396,7 +396,7 @@ public class TypeScriptModelExtractorTests
         var config = new TypeScriptClientConfig { BrandedIds = false };
         var (_, parameters) = Assert.Single(TypeScriptModelExtractor.Extract(document, config));
 
-        var idProp = parameters.Properties!.Single(p => p.Name == "id");
+        var idProp = parameters.Properties.Single(p => p.Name == "id");
         Assert.Equal("string", idProp.TypeAnnotation);
         Assert.DoesNotContain(parameters.ImportStatements ?? new List<string>(), s => s.Contains("BrandedIds", StringComparison.Ordinal));
     }
@@ -432,8 +432,8 @@ public class TypeScriptModelExtractorTests
         var (_, parameters) = results[0];
         var nameProp = parameters.Properties?.FirstOrDefault(p => p.Name == "name");
         Assert.NotNull(nameProp);
-        Assert.NotNull(nameProp!.DocumentationTags);
-        Assert.NotNull(nameProp.DocumentationTags!.Example);
+        Assert.NotNull(nameProp.DocumentationTags);
+        Assert.NotNull(nameProp.DocumentationTags.Example);
         Assert.Contains("Fido", nameProp.DocumentationTags.Example, StringComparison.Ordinal);
     }
 
@@ -470,8 +470,8 @@ public class TypeScriptModelExtractorTests
         var (_, parameters) = results[0];
         var valueProp = parameters.Properties?.FirstOrDefault(p => p.Name == "value");
         Assert.NotNull(valueProp);
-        Assert.NotNull(valueProp!.DocumentationTags);
-        Assert.NotNull(valueProp.DocumentationTags!.Example);
+        Assert.NotNull(valueProp.DocumentationTags);
+        Assert.NotNull(valueProp.DocumentationTags.Example);
         Assert.Contains("hello", valueProp.DocumentationTags.Example, StringComparison.Ordinal);
     }
 }

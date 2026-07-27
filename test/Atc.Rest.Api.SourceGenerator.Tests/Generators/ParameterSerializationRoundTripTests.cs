@@ -27,29 +27,30 @@ public class ParameterSerializationRoundTripTests
         var handler = new CapturingHandler(req =>
         {
             capturedUri = req.RequestUri;
-            return new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
             {
-                Content = new System.Net.Http.StringContent("[]", Encoding.UTF8, "application/json"),
+                Content = new StringContent("[]", Encoding.UTF8, "application/json"),
             };
         });
-        using var httpClient = new System.Net.Http.HttpClient(handler) { BaseAddress = new Uri("http://localhost") };
 
-        var client = Activator.CreateInstance(clientType, httpClient)!;
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("http://localhost") };
+
+        var client = Activator.CreateInstance(clientType, httpClient);
 
         // ListItemsParameters(List<string>? Tags, string? Q, List<string>? Legacy, <ids> Ids).
         // Build positional args matching the primary constructor's parameter order/types.
         var ctor = parametersType.GetConstructors().OrderByDescending(c => c.GetParameters().Length).First();
         var ctorArgs = ctor.GetParameters()
-            .Select(p => BuildArgFor(p.Name!, p.ParameterType))
+            .Select(p => BuildArgFor(p.Name, p.ParameterType))
             .ToArray();
         var parameters = ctor.Invoke(ctorArgs);
 
-        var method = clientType.GetMethod("ListItemsAsync")!;
-        var task = (Task)method.Invoke(client, [parameters, CancellationToken.None])!;
+        var method = clientType.GetMethod("ListItemsAsync");
+        var task = (Task)method.Invoke(client, [parameters, CancellationToken.None]);
         await task;
 
         Assert.NotNull(capturedUri);
-        var query = capturedUri!.Query;
+        var query = capturedUri.Query;
 
         // Form-explode repeated keys for both the inline array (tags) and the $ref array (ids).
         Assert.Contains("tags=a&tags=b", query, StringComparison.Ordinal);
@@ -86,7 +87,7 @@ public class ParameterSerializationRoundTripTests
         params string[] values)
     {
         var concrete = Nullable.GetUnderlyingType(listType) ?? listType;
-        var list = (System.Collections.IList)Activator.CreateInstance(concrete)!;
+        var list = (System.Collections.IList)Activator.CreateInstance(concrete);
         foreach (var v in values)
         {
             list.Add(v);

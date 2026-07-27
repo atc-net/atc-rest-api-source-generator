@@ -41,7 +41,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "devices",
             registry: null,
@@ -96,7 +96,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "devices",
             registry: null,
@@ -169,7 +169,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "devices",
             registry: null,
@@ -236,7 +236,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "devices",
             registry: null,
@@ -310,7 +310,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "users",
             registry: null,
@@ -370,7 +370,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "items",
             registry: null,
@@ -432,7 +432,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "devices",
             registry: null,
@@ -558,7 +558,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act - default is ProblemDetails format
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "items",
             registry: null,
@@ -613,7 +613,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "items",
             registry: null,
@@ -677,7 +677,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act - PlainText format
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "items",
             registry: null,
@@ -732,7 +732,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act - PlainTextOnly format
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "items",
             registry: null,
@@ -788,7 +788,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act - Custom format with custom error type name
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "items",
             registry: null,
@@ -842,7 +842,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act - Custom format but no custom type name (fallback)
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "items",
             registry: null,
@@ -895,7 +895,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "items",
             registry: null,
@@ -954,7 +954,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "items",
             registry: null,
@@ -1013,7 +1013,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "items",
             registry: null,
@@ -1067,7 +1067,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "items",
             registry: null,
@@ -1136,7 +1136,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "items",
             registry: null,
@@ -1219,7 +1219,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "items",
             registry: null,
@@ -1272,7 +1272,7 @@ public class EndpointPerOperationExtractorTests
 
         // Act
         var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
-            document!,
+            document,
             "TestApi",
             "events",
             registry: null,

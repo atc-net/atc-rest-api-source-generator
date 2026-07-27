@@ -40,7 +40,7 @@ public class OpenApiDocumentHelperTests
     public void ParseYaml_NullContent_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => OpenApiDocumentHelper.ParseYaml(null!));
+        Assert.Throws<ArgumentNullException>(() => OpenApiDocumentHelper.ParseYaml(null));
     }
 
     // ========== TryParseYaml Tests ==========
@@ -53,7 +53,7 @@ public class OpenApiDocumentHelperTests
         // Assert
         Assert.True(success);
         Assert.NotNull(document);
-        Assert.Equal("Test API", document!.Info?.Title);
+        Assert.Equal("Test API", document.Info.Title);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class OpenApiDocumentHelperTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            OpenApiDocumentHelper.TryParseYaml(null!, "test.yaml", out _));
+            OpenApiDocumentHelper.TryParseYaml(null, "test.yaml", out _));
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class OpenApiDocumentHelperTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            OpenApiDocumentHelper.TryParseYaml(MinimalValidYaml, null!, out _));
+            OpenApiDocumentHelper.TryParseYaml(MinimalValidYaml, null, out _));
     }
 
     // ========== TryParseYamlWithDiagnostic Tests ==========
@@ -84,7 +84,7 @@ public class OpenApiDocumentHelperTests
         // Assert
         Assert.NotNull(document);
         Assert.NotNull(diagnostic);
-        Assert.Equal("Test API", document!.Info?.Title);
+        Assert.Equal("Test API", document.Info?.Title);
         Assert.Equal("1.0.0", document.Info?.Version);
     }
 
@@ -93,7 +93,7 @@ public class OpenApiDocumentHelperTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            OpenApiDocumentHelper.TryParseYamlWithDiagnostic(null!, "test.yaml"));
+            OpenApiDocumentHelper.TryParseYamlWithDiagnostic(null, "test.yaml"));
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public class OpenApiDocumentHelperTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            OpenApiDocumentHelper.TryParseYamlWithDiagnostic(MinimalValidYaml, null!));
+            OpenApiDocumentHelper.TryParseYamlWithDiagnostic(MinimalValidYaml, null));
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public class OpenApiDocumentHelperTests
 
         // Assert
         Assert.NotNull(document);
-        Assert.NotNull(document!.Paths);
+        Assert.NotNull(document.Paths);
         Assert.True(document.Paths.ContainsKey("/pets"));
     }
 
@@ -180,8 +180,8 @@ public class OpenApiDocumentHelperTests
 
         // Assert
         Assert.NotSame(doc1, doc2);
-        Assert.Equal("Cache Test API One", doc1!.Info?.Title);
-        Assert.Equal("Cache Test API Two", doc2!.Info?.Title);
+        Assert.Equal("Cache Test API One", doc1.Info.Title);
+        Assert.Equal("Cache Test API Two", doc2.Info.Title);
     }
 
     [Fact]

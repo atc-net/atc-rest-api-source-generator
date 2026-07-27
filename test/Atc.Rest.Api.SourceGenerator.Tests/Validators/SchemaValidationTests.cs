@@ -764,7 +764,7 @@ public class SchemaValidationTests
         // Act
         var diagnostics = OpenApiDocumentValidator.Validate(
             ValidateSpecificationStrategy.Standard,
-            document!,
+            document,
             [],
             TestFilePath);
 
@@ -805,7 +805,7 @@ public class SchemaValidationTests
         // Act
         var diagnostics = OpenApiDocumentValidator.Validate(
             ValidateSpecificationStrategy.Standard,
-            document!,
+            document,
             [],
             TestFilePath);
 

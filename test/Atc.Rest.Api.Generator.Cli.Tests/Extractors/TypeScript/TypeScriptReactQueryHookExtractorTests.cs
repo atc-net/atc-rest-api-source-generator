@@ -6,7 +6,7 @@ public class TypeScriptReactQueryHookExtractorTests
     public void Extract_NullDocument_Throws()
     {
         Assert.Throws<ArgumentNullException>(
-            () => TypeScriptReactQueryHookExtractor.Extract(openApiDoc: null!, headerContent: null));
+            () => TypeScriptReactQueryHookExtractor.Extract(openApiDoc: null, headerContent: null));
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
         var (fileName, content) = Assert.Single(result);
 
         Assert.Equal("usePets", fileName);
@@ -70,7 +70,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         Assert.Contains("useMutation", content, StringComparison.Ordinal);
@@ -96,7 +96,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
         var (fileName, _) = Assert.Single(result);
 
         Assert.Equal("useAccounts", fileName);
@@ -118,7 +118,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         Assert.Contains("@tanstack/react-query", content, StringComparison.Ordinal);
@@ -168,7 +168,7 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.NotNull(doc);
 
         var enumNames = new HashSet<string>(StringComparer.Ordinal) { "BusinessLine" };
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null, enumNames);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null, enumNames);
         var (_, content) = Assert.Single(result);
 
         Assert.Contains("businessLine?: BusinessLine", content, StringComparison.Ordinal);
@@ -207,7 +207,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         // The hook function signature includes a headers arg.
@@ -248,7 +248,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         // The hook name carries the `Stream` suffix to signal the different return shape
@@ -289,7 +289,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         // O(1) push instead of O(n²) spread.
@@ -334,7 +334,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         Assert.Contains(
@@ -361,7 +361,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         Assert.DoesNotContain("from 'react';", content, StringComparison.Ordinal);
@@ -397,7 +397,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         Assert.Contains("query?: { filter?: string }", content, StringComparison.Ordinal);
@@ -435,7 +435,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         Assert.DoesNotContain("import { ApiError }", content, StringComparison.Ordinal);
@@ -476,7 +476,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         Assert.Contains("import { ApiError } from '../errors/ApiError';", content, StringComparison.Ordinal);
@@ -516,7 +516,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         // Key factory signature must accept both path and query bag.
@@ -552,7 +552,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
 
         // The client call inside the hook body must reference the sanitized method name —
         // otherwise it would try to call `api.items.delete(...)` which collides with the
@@ -582,7 +582,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
 
         Assert.Contains("api.items._1stPage(", content, StringComparison.Ordinal);
     }
@@ -623,7 +623,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
 
         Assert.Contains("import type { UseQueryOptions } from '@tanstack/react-query';", content, StringComparison.Ordinal);
         Assert.Contains(
@@ -668,7 +668,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
 
         Assert.Contains("import type { UseMutationOptions } from '@tanstack/react-query';", content, StringComparison.Ordinal);
         Assert.Contains(
@@ -714,7 +714,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
 
         Assert.Contains(
             "options?: Omit<UseMutationOptions<void, ApiError, string>, 'mutationFn'>",
@@ -758,7 +758,7 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.NotNull(doc);
 
         var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(
-            doc!,
+            doc,
             headerContent: null,
             hooksMode: TypeScriptHooksMode.Suspense));
 
@@ -808,7 +808,7 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.NotNull(doc);
 
         var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(
-            doc!,
+            doc,
             headerContent: null,
             hooksMode: TypeScriptHooksMode.Both));
 
@@ -867,7 +867,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
 
         // Streaming hook stays (Option A) for the "show everything as it arrives" UX.
         Assert.Contains("export function useListItemPagesStream(", content, StringComparison.Ordinal);
@@ -926,7 +926,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc, headerContent: null));
 
         // Streaming async-generator stays.
         Assert.Contains("async *listItemPages(", content, StringComparison.Ordinal);
@@ -958,7 +958,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(document!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(document, headerContent: null));
 
         Assert.Contains("* List all items", content, StringComparison.Ordinal);
         Assert.Contains("* @deprecated", content, StringComparison.Ordinal);
@@ -986,7 +986,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(document!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(document, headerContent: null));
 
         var fnIdx = content.IndexOf("export function useListItems", StringComparison.Ordinal);
         var before = content[..fnIdx];
@@ -1020,7 +1020,7 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.NotNull(doc);
 
         var result = TypeScriptReactQueryHookExtractor.Extract(
-            doc!,
+            doc,
             headerContent: null,
             brandedIds: true);
         var (_, content) = Assert.Single(result);
@@ -1052,7 +1052,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null));
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
 
         Assert.Contains("onSuccess: (data, variables, onMutateResult, context) => {", content, StringComparison.Ordinal);
         Assert.Contains("options?.onSuccess?.(data, variables, onMutateResult, context);", content, StringComparison.Ordinal);
@@ -1083,7 +1083,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
         var (fileName, content) = Assert.Single(result);
 
         Assert.Equal("useFoundry", fileName);
@@ -1129,7 +1129,7 @@ public class TypeScriptReactQueryHookExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptReactQueryHookExtractor.Extract(doc!, headerContent: null);
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
         // `query` must appear as a hook-level parameter so the mutationFn closure can reference it.

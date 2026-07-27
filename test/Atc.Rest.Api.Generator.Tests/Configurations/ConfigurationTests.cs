@@ -35,7 +35,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(expected, config!.InlineParameterEnums);
+        Assert.Equal(expected, config.InlineParameterEnums);
     }
 
     [Fact]
@@ -54,7 +54,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.True(config!.Generate);
+        Assert.True(config.Generate);
         Assert.Equal(ValidateSpecificationStrategy.Standard, config.ValidateSpecificationStrategy);
         Assert.True(config.IncludeDeprecated);
         Assert.Equal("MyApi", config.Namespace);
@@ -74,7 +74,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(ValidateSpecificationStrategy.Standard, config!.ValidateSpecificationStrategy);
+        Assert.Equal(ValidateSpecificationStrategy.Standard, config.ValidateSpecificationStrategy);
         Assert.Equal(SubFolderStrategyType.FirstPathSegment, config.SubFolderStrategy);
     }
 
@@ -109,7 +109,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ClientConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.False(config!.Generate);
+        Assert.False(config.Generate);
         Assert.Equal(ValidateSpecificationStrategy.None, config.ValidateSpecificationStrategy);
         Assert.Equal(GenerationModeType.EndpointPerOperation, config.GenerationMode);
         Assert.Equal("ApiClient", config.ClientSuffix);
@@ -127,7 +127,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ClientConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(GenerationModeType.EndpointPerOperation, config!.GenerationMode);
+        Assert.Equal(GenerationModeType.EndpointPerOperation, config.GenerationMode);
     }
 
     // ========== ServerDomainConfig Tests ==========
@@ -163,7 +163,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ServerDomainConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.True(config!.Generate);
+        Assert.True(config.Generate);
         Assert.Equal("Handlers", config.GenerateHandlersOutput);
         Assert.Equal(SubFolderStrategyType.FirstPathSegment, config.SubFolderStrategy);
         Assert.Equal("RequestHandler", config.HandlerSuffix);
@@ -185,7 +185,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ServerDomainConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal("MyApp.Api.Domain", config!.Namespace);
+        Assert.Equal("MyApp.Api.Domain", config.Namespace);
         Assert.Equal("Contoso.IoT.Api.Contracts", config.ContractsNamespace);
         Assert.Equal("ApiHandlers", config.GenerateHandlersOutput);
         Assert.Equal(SubFolderStrategyType.FirstPathSegment, config.SubFolderStrategy);
@@ -207,7 +207,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(expected, config!.ValidateSpecificationStrategy);
+        Assert.Equal(expected, config.ValidateSpecificationStrategy);
     }
 
     // ========== SubFolderStrategyType Enum Tests ==========
@@ -226,7 +226,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(expected, config!.SubFolderStrategy);
+        Assert.Equal(expected, config.SubFolderStrategy);
     }
 
     // ========== GenerationModeType Enum Tests ==========
@@ -243,7 +243,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ClientConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(expected, config!.GenerationMode);
+        Assert.Equal(expected, config.GenerationMode);
     }
 
     // ========== ErrorResponseFormatType Enum Tests ==========
@@ -267,7 +267,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ClientConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(expected, config!.ErrorResponseFormat);
+        Assert.Equal(expected, config.ErrorResponseFormat);
     }
 
     [Fact]
@@ -277,7 +277,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ClientConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(ErrorResponseFormatType.ProblemDetails, config!.ErrorResponseFormat);
+        Assert.Equal(ErrorResponseFormatType.ProblemDetails, config.ErrorResponseFormat);
     }
 
     [Fact]
@@ -293,7 +293,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ClientConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(GenerationModeType.EndpointPerOperation, config!.GenerationMode);
+        Assert.Equal(GenerationModeType.EndpointPerOperation, config.GenerationMode);
         Assert.Equal(ErrorResponseFormatType.PlainText, config.ErrorResponseFormat);
     }
 
@@ -318,12 +318,12 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ClientConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(ErrorResponseFormatType.Custom, config!.ErrorResponseFormat);
+        Assert.Equal(ErrorResponseFormatType.Custom, config.ErrorResponseFormat);
         Assert.NotNull(config.CustomErrorResponseModel);
-        Assert.Equal("ApiError", config.CustomErrorResponseModel!.Name);
+        Assert.Equal("ApiError", config.CustomErrorResponseModel.Name);
         Assert.Equal("Custom error response", config.CustomErrorResponseModel.Description);
         Assert.NotNull(config.CustomErrorResponseModel.Schema);
-        Assert.Equal(2, config.CustomErrorResponseModel.Schema!.Count);
+        Assert.Equal(2, config.CustomErrorResponseModel.Schema.Count);
     }
 
     // ========== MinimalApiPackageMode Enum Tests ==========
@@ -342,7 +342,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(expected, config!.UseMinimalApiPackage);
+        Assert.Equal(expected, config.UseMinimalApiPackage);
     }
 
     [Fact]
@@ -352,7 +352,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(MinimalApiPackageMode.Enabled, config!.UseMinimalApiPackage);
+        Assert.Equal(MinimalApiPackageMode.Enabled, config.UseMinimalApiPackage);
     }
 
     [Fact]
@@ -362,7 +362,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(MinimalApiPackageMode.Disabled, config!.UseMinimalApiPackage);
+        Assert.Equal(MinimalApiPackageMode.Disabled, config.UseMinimalApiPackage);
     }
 
     [Theory]
@@ -375,7 +375,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(MinimalApiPackageMode.Enabled, config!.UseMinimalApiPackage);
+        Assert.Equal(MinimalApiPackageMode.Enabled, config.UseMinimalApiPackage);
     }
 
     [Theory]
@@ -388,7 +388,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(MinimalApiPackageMode.Disabled, config!.UseMinimalApiPackage);
+        Assert.Equal(MinimalApiPackageMode.Disabled, config.UseMinimalApiPackage);
     }
 
     [Fact]
@@ -398,7 +398,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.Equal(MinimalApiPackageMode.Auto, config!.UseMinimalApiPackage);
+        Assert.Equal(MinimalApiPackageMode.Auto, config.UseMinimalApiPackage);
     }
 
     [Fact]
@@ -415,7 +415,7 @@ public class ConfigurationTests
         var config = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(config);
-        Assert.True(config!.Generate);
+        Assert.True(config.Generate);
         Assert.Equal(ValidateSpecificationStrategy.Standard, config.ValidateSpecificationStrategy);
         Assert.Equal(MinimalApiPackageMode.Enabled, config.UseMinimalApiPackage);
     }

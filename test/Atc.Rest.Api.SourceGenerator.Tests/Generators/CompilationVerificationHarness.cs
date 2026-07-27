@@ -50,7 +50,7 @@ internal static class CompilationVerificationHarness
         var yamlContent = File.ReadAllText(yamlPath);
 
         var markerPath = Path.Combine(
-            Path.GetDirectoryName(yamlPath)!,
+            Path.GetDirectoryName(yamlPath),
             masterFolder,
             markerFileName);
         var markerContent = File.Exists(markerPath) ? File.ReadAllText(markerPath) : "{}";
@@ -157,7 +157,7 @@ internal static class CompilationVerificationHarness
     public static List<MetadataReference> GetMinimalReferences()
     {
         var references = new List<MetadataReference>();
-        var assemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+        var assemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location);
 
         references.Add(MetadataReference.CreateFromFile(typeof(object).Assembly.Location));
         references.Add(MetadataReference.CreateFromFile(Path.Combine(assemblyPath, "System.Runtime.dll")));
@@ -175,7 +175,7 @@ internal static class CompilationVerificationHarness
     /// </summary>
     public static List<MetadataReference> GetFullFrameworkReferences()
     {
-        var tpa = (string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!;
+        var tpa = (string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES");
         return tpa
             .Split(Path.PathSeparator)
             .Where(p => p.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))

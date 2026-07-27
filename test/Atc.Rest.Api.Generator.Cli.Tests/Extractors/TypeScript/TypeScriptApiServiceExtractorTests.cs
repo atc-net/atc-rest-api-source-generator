@@ -6,7 +6,7 @@ public class TypeScriptApiServiceExtractorTests
     public void Generate_NullClientList_Throws()
     {
         Assert.Throws<ArgumentNullException>(
-            () => TypeScriptApiServiceExtractor.Generate(headerContent: null, clientClassNames: null!));
+            () => TypeScriptApiServiceExtractor.Generate(headerContent: null, clientClassNames: null));
     }
 
     [Fact]

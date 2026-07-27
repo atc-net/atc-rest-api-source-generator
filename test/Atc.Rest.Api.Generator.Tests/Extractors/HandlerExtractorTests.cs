@@ -27,7 +27,7 @@ public class HandlerExtractorTests
         var resolver = new SystemTypeConflictResolver([]);
 
         // Act
-        var result = HandlerExtractor.Extract(document!, "TestProject", resolver);
+        var result = HandlerExtractor.Extract(document, "TestProject", resolver);
 
         // Assert
         Assert.NotNull(result);
@@ -78,17 +78,17 @@ public class HandlerExtractorTests
         var resolver = new SystemTypeConflictResolver([]);
 
         // Act
-        var result = HandlerExtractor.Extract(document!, "TestProject", resolver);
+        var result = HandlerExtractor.Extract(document, "TestProject", resolver);
 
         // Assert
         Assert.NotNull(result);
         Assert.Single(result);
 
         var handler = result[0];
-        var method = handler.Methods![0];
+        var method = handler.Methods[0];
 
         // Should have a parameters parameter (for request body) plus CancellationToken
-        Assert.Equal(2, method.Parameters!.Count);
+        Assert.Equal(2, method.Parameters.Count);
         Assert.Equal("CreatePetParameters", method.Parameters[0].TypeName);
         Assert.Equal("CancellationToken", method.Parameters[1].TypeName);
     }
@@ -118,7 +118,7 @@ public class HandlerExtractorTests
         var resolver = new SystemTypeConflictResolver([]);
 
         // Act
-        var result = HandlerExtractor.Extract(document!, "TestProject", resolver);
+        var result = HandlerExtractor.Extract(document, "TestProject", resolver);
 
         // Assert
         Assert.Null(result);
@@ -149,7 +149,7 @@ public class HandlerExtractorTests
         var resolver = new SystemTypeConflictResolver([]);
 
         // Act
-        var result = HandlerExtractor.Extract(document!, "TestProject", resolver, includeDeprecated: true);
+        var result = HandlerExtractor.Extract(document, "TestProject", resolver, includeDeprecated: true);
 
         // Assert
         Assert.NotNull(result);
@@ -164,7 +164,7 @@ public class HandlerExtractorTests
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            HandlerExtractor.Extract(null!, "TestProject", resolver));
+            HandlerExtractor.Extract(null, "TestProject", resolver));
     }
 
     [Fact]
@@ -185,7 +185,7 @@ public class HandlerExtractorTests
         var resolver = new SystemTypeConflictResolver([]);
 
         // Act
-        var result = HandlerExtractor.Extract(document!, "TestProject", resolver);
+        var result = HandlerExtractor.Extract(document, "TestProject", resolver);
 
         // Assert
         Assert.Null(result);
@@ -221,7 +221,7 @@ public class HandlerExtractorTests
         var resolver = new SystemTypeConflictResolver([]);
 
         // Act — filter to only "Pets" segment
-        var result = HandlerExtractor.Extract(document!, "TestProject", "Pets", resolver);
+        var result = HandlerExtractor.Extract(document, "TestProject", "Pets", resolver);
 
         // Assert
         Assert.NotNull(result);
