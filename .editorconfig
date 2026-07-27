@@ -584,6 +584,10 @@ dotnet_diagnostic.S1481.severity = none             # Remove the unused local va
 dotnet_diagnostic.S2325.severity = none             # Make 'IsArrayType' a static method
 dotnet_diagnostic.S3267.severity = none             # Loop should be simplified by calling Select
 
+dotnet_diagnostic.S8969.severity = none             # Remove this null-forgiving operator; the compiler already knows this expression is not null here
+dotnet_diagnostic.S8970.severity = none             # Remove this null-forgiving operator; nullable warnings are disabled here
+
+
 ## TEMPORARY DISABLED RULES - REMOVE WHEN FIXED IN CODEBASE
 dotnet_diagnostic.CA1062.severity = none            # In externally visible method
 dotnet_diagnostic.MA0051.severity = none            # Method is too long
