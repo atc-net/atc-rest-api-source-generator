@@ -24,7 +24,7 @@ public class ServerUrlHelperTests
         string? expected)
     {
         // Act
-        var result = ServerUrlHelper.ExtractPathFromServerUrl(serverUrl!);
+        var result = ServerUrlHelper.ExtractPathFromServerUrl(serverUrl);
 
         // Assert
         Assert.Equal(expected, result);

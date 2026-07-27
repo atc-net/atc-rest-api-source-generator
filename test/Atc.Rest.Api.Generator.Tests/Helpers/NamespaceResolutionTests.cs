@@ -387,7 +387,7 @@ public sealed class NamespaceResolutionTests : IDisposable
     {
         // Act & Assert
         Assert.Null(TryGetServerNamespace(string.Empty));
-        Assert.Null(TryGetServerNamespace(null!));
+        Assert.Null(TryGetServerNamespace(null));
     }
 
     /// <summary>

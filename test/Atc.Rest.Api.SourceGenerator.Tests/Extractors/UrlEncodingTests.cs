@@ -157,6 +157,6 @@ public class UrlEncodingTests
 
         // Assert - Should be percent-encoded (UTF-8 bytes)
         Assert.Contains("%", result, StringComparison.Ordinal);
-        Assert.NotEqual(unicode, result);
+        Assert.NotEqual(unicode, result, StringComparer.Ordinal);
     }
 }

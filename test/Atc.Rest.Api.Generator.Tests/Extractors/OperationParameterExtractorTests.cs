@@ -39,7 +39,7 @@ public class OperationParameterExtractorTests
 
         // Act
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Devices",
             registry: null,
@@ -95,7 +95,7 @@ public class OperationParameterExtractorTests
 
         // Act
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Devices",
             registry: null,
@@ -103,7 +103,7 @@ public class OperationParameterExtractorTests
 
         // Assert
         Assert.NotNull(recordsParams);
-        var param = recordsParams.Parameters[0].Parameters![0];
+        var param = recordsParams.Parameters[0].Parameters[0];
         Assert.Equal("Status", param.Name);
         Assert.Equal("Status", param.TypeName);
         Assert.False(param.IsNullableType); // Required, so not nullable
@@ -145,7 +145,7 @@ public class OperationParameterExtractorTests
 
         // Act
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Search",  // /search preserved as Search (no pluralization)
             registry: null,
@@ -153,7 +153,7 @@ public class OperationParameterExtractorTests
 
         // Assert
         Assert.NotNull(recordsParams);
-        var param = recordsParams.Parameters[0].Parameters![0];
+        var param = recordsParams.Parameters[0].Parameters[0];
         Assert.Equal("Request", param.Name);
         Assert.Equal("SearchRequest", param.TypeName);
     }
@@ -206,7 +206,7 @@ public class OperationParameterExtractorTests
 
         // Act
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Devices",
             registry: null,
@@ -214,7 +214,7 @@ public class OperationParameterExtractorTests
 
         // Assert
         Assert.NotNull(recordsParams);
-        var parameters = recordsParams.Parameters[0].Parameters!;
+        var parameters = recordsParams.Parameters[0].Parameters;
         Assert.Equal(3, parameters.Count);
 
         Assert.Equal("Filter", parameters[0].Name);
@@ -265,7 +265,7 @@ public class OperationParameterExtractorTests
 
         // Act - includeSharedModelsUsing = true simulates having shared schemas
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Devices",
             registry: null,
@@ -311,7 +311,7 @@ public class OperationParameterExtractorTests
 
         // Act - includeSharedModelsUsing = false (default)
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Devices",
             registry: null,
@@ -357,7 +357,7 @@ public class OperationParameterExtractorTests
 
         // Act - includeSegmentModelsUsing = false (no segment-specific models exist)
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Accounts",
             registry: null,
@@ -411,7 +411,7 @@ public class OperationParameterExtractorTests
 
         // Act - includeSegmentModelsUsing = true (default, segment has its own models)
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Devices",
             registry: null,
@@ -458,7 +458,7 @@ public class OperationParameterExtractorTests
 
         // Act - both flags disabled
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Items",
             registry: null,
@@ -513,7 +513,7 @@ public class OperationParameterExtractorTests
 
         // Act - both flags enabled
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Devices",
             registry: null,
@@ -574,7 +574,7 @@ public class OperationParameterExtractorTests
 
         // Act
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Devices",
             registry: null,
@@ -582,7 +582,7 @@ public class OperationParameterExtractorTests
 
         // Assert
         Assert.NotNull(recordsParams);
-        var param = recordsParams.Parameters[0].Parameters![0];
+        var param = recordsParams.Parameters[0].Parameters[0];
         Assert.Equal("Types", param.Name);
 
         // For server-side query arrays, TypeName is ParsableList (supports TryParse for [AsParameters])
@@ -640,7 +640,7 @@ public class OperationParameterExtractorTests
 
         // Act
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Items",
             registry: null,
@@ -648,7 +648,7 @@ public class OperationParameterExtractorTests
 
         // Assert
         Assert.NotNull(recordsParams);
-        var param = recordsParams.Parameters[0].Parameters![0];
+        var param = recordsParams.Parameters[0].Parameters[0];
         Assert.Equal("Ids", param.Name);
         Assert.Equal(expectedTypeName, param.TypeName);
         Assert.False(param.IsNullableType);
@@ -701,7 +701,7 @@ public class OperationParameterExtractorTests
 
         // Act
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Items",
             registry: null,
@@ -709,7 +709,7 @@ public class OperationParameterExtractorTests
 
         // Assert
         Assert.NotNull(recordsParams);
-        var param = recordsParams.Parameters[0].Parameters![0];
+        var param = recordsParams.Parameters[0].Parameters[0];
         Assert.Equal("Ids", param.Name);
         Assert.Equal(expectedTypeName, param.TypeName);
         Assert.True(param.IsNullableType);
@@ -748,7 +748,7 @@ public class OperationParameterExtractorTests
 
         // Act
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Items",
             registry: null,
@@ -756,7 +756,7 @@ public class OperationParameterExtractorTests
 
         // Assert - required but nullable should still be nullable
         Assert.NotNull(recordsParams);
-        var param = recordsParams.Parameters[0].Parameters![0];
+        var param = recordsParams.Parameters[0].Parameters[0];
         Assert.Equal("TeamIds", param.Name);
         Assert.Equal("ParsableList<long>", param.TypeName);
         Assert.True(param.IsNullableType);
@@ -798,7 +798,7 @@ public class OperationParameterExtractorTests
 
         // Act
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Items",
             registry: null,
@@ -806,7 +806,7 @@ public class OperationParameterExtractorTests
 
         // Assert
         Assert.NotNull(recordsParams);
-        var param = recordsParams.Parameters[0].Parameters![0];
+        var param = recordsParams.Parameters[0].Parameters[0];
         Assert.Equal("Request", param.Name);
         Assert.Equal("CreateItemRequest", param.TypeName);
         Assert.False(param.IsNullableType); // Should NOT be nullable (required by default)
@@ -853,7 +853,7 @@ public class OperationParameterExtractorTests
 
         // Act
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Items",
             registry: null,
@@ -861,7 +861,7 @@ public class OperationParameterExtractorTests
 
         // Assert - request bodies are always required, even if spec says required: false
         Assert.NotNull(recordsParams);
-        var param = recordsParams.Parameters[0].Parameters![0];
+        var param = recordsParams.Parameters[0].Parameters[0];
         Assert.Equal("Request", param.Name);
         Assert.Equal("CreateItemRequest", param.TypeName);
         Assert.False(param.IsNullableType); // Always non-nullable (required)
@@ -910,7 +910,7 @@ public class OperationParameterExtractorTests
 
         // Act
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Items",
             registry: null,
@@ -918,7 +918,7 @@ public class OperationParameterExtractorTests
 
         // Assert
         Assert.NotNull(recordsParams);
-        var param = recordsParams.Parameters[0].Parameters![0];
+        var param = recordsParams.Parameters[0].Parameters[0];
         Assert.Equal("Value", param.Name);
         Assert.Equal(expectedTypeName, param.TypeName);
         Assert.False(param.IsNullableType);
@@ -959,7 +959,7 @@ public class OperationParameterExtractorTests
         Assert.NotNull(document);
 
         var (recordsParams, inlineEnums) = OperationParameterExtractor.ExtractIndividualWithInlineEnums(
-            document!,
+            document,
             projectName: "Demo",
             pathSegment: "Pet",
             registry: null,
@@ -968,7 +968,7 @@ public class OperationParameterExtractorTests
 
         Assert.NotNull(recordsParams);
         var record = Assert.Single(recordsParams);
-        var param = Assert.Single(record.Parameters!);
+        var param = Assert.Single(record.Parameters);
 
         // Parameter type is the generated enum, not "string".
         Assert.Equal("FindPetsByStatusParametersStatus", param.TypeName);
@@ -1008,7 +1008,7 @@ public class OperationParameterExtractorTests
         Assert.NotNull(document);
 
         var (recordsParams, inlineEnums) = OperationParameterExtractor.ExtractIndividualWithInlineEnums(
-            document!,
+            document,
             projectName: "Demo",
             pathSegment: "Things",
             registry: null,
@@ -1016,7 +1016,7 @@ public class OperationParameterExtractorTests
             namespaceSubFolder: "Parameters");
 
         Assert.NotNull(recordsParams);
-        var param = recordsParams.Single().Parameters![0];
+        var param = recordsParams.Single().Parameters[0];
 
         Assert.Equal("GetThingParametersTier", param.TypeName);
         var inlineEnum = Assert.Single(inlineEnums);
@@ -1056,7 +1056,7 @@ public class OperationParameterExtractorTests
         Assert.NotNull(document);
 
         var (recordsParams, inlineEnums) = OperationParameterExtractor.ExtractIndividualWithInlineEnums(
-            document!,
+            document,
             projectName: "Demo",
             pathSegment: "Users",
             registry: null,
@@ -1064,7 +1064,7 @@ public class OperationParameterExtractorTests
             namespaceSubFolder: "Parameters");
 
         Assert.NotNull(recordsParams);
-        var param = recordsParams.Single().Parameters![0];
+        var param = recordsParams.Single().Parameters[0];
 
         // Server-side query arrays are wrapped with ParsableList<T> so [AsParameters]
         // binding gets a TryParse — that's pre-existing behavior; the new bit is that
@@ -1111,28 +1111,28 @@ public class OperationParameterExtractorTests
 
         // Opt-out: parameter is string, no inline enum emitted.
         var (optOut, optOutEnums) = OperationParameterExtractor.ExtractWithInlineEnums(
-            document!,
+            document,
             "Demo",
             "Github",
             registry: null,
             emitInlineEnums: false);
 
         Assert.NotNull(optOut);
-        var optOutRecord = Assert.Single(optOut.Parameters!);
-        var stateParam = Assert.Single(optOutRecord.Parameters!, p => p.Name == "State");
+        var optOutRecord = Assert.Single(optOut.Parameters);
+        var stateParam = Assert.Single(optOutRecord.Parameters, p => p.Name == "State");
         Assert.Equal("string", stateParam.TypeName);
         Assert.Empty(optOutEnums);
 
         // Default (opt-in): parameter is the generated enum type.
         var (optIn, optInEnums) = OperationParameterExtractor.ExtractWithInlineEnums(
-            document!,
+            document,
             "Demo",
             "Github",
             registry: null);
 
         Assert.NotNull(optIn);
-        var optInRecord = Assert.Single(optIn.Parameters!);
-        var stateEnumParam = Assert.Single(optInRecord.Parameters!, p => p.Name == "State");
+        var optInRecord = Assert.Single(optIn.Parameters);
+        var stateEnumParam = Assert.Single(optInRecord.Parameters, p => p.Name == "State");
         Assert.Equal("GetIssuesByRepositoryNameAndStateParametersState", stateEnumParam.TypeName);
         Assert.Single(optInEnums);
     }
@@ -1170,14 +1170,14 @@ public class OperationParameterExtractorTests
         Assert.NotNull(document);
 
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Search",
             registry: null,
             includeDeprecated: false);
 
         Assert.NotNull(recordsParams);
-        var param = recordsParams.Parameters[0].Parameters![0];
+        var param = recordsParams.Parameters[0].Parameters[0];
 
         Assert.Equal("RawFilter", param.Name);
         Assert.Equal("string", param.TypeName);  // NOT "object"
@@ -1214,14 +1214,14 @@ public class OperationParameterExtractorTests
         Assert.NotNull(document);
 
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Search",
             registry: null,
             includeDeprecated: false);
 
         Assert.NotNull(recordsParams);
-        var param = recordsParams.Parameters[0].Parameters![0];
+        var param = recordsParams.Parameters[0].Parameters[0];
 
         Assert.Equal("RawFilter", param.Name);
         Assert.Equal("string", param.TypeName);
@@ -1261,14 +1261,14 @@ public class OperationParameterExtractorTests
         Assert.NotNull(document);
 
         var recordsParams = OperationParameterExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             "Items",
             registry: null,
             includeDeprecated: false);
 
         Assert.NotNull(recordsParams);
-        var param = recordsParams.Parameters[0].Parameters![0];
+        var param = recordsParams.Parameters[0].Parameters[0];
 
         Assert.Equal("Session", param.Name);
         Assert.Equal("string", param.TypeName);

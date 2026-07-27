@@ -6,14 +6,14 @@ public class TypeScriptEnumExtractorTests
     public void Extract_NullDocument_Throws()
     {
         Assert.Throws<ArgumentNullException>(
-            () => TypeScriptEnumExtractor.Extract(openApiDoc: null!, new TypeScriptClientConfig()));
+            () => TypeScriptEnumExtractor.Extract(openApiDoc: null, new TypeScriptClientConfig()));
     }
 
     [Fact]
     public void Extract_NullConfig_Throws()
     {
         Assert.Throws<ArgumentNullException>(
-            () => TypeScriptEnumExtractor.Extract(new OpenApiDocument(), config: null!));
+            () => TypeScriptEnumExtractor.Extract(new OpenApiDocument(), config: null));
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public class TypeScriptEnumExtractorTests
         Assert.NotNull(doc);
         var config = new TypeScriptClientConfig { EnumStyle = TypeScriptEnumStyle.Union };
 
-        var result = TypeScriptEnumExtractor.Extract(doc!, config);
+        var result = TypeScriptEnumExtractor.Extract(doc, config);
 
         var (name, content) = Assert.Single(result);
         Assert.Equal("Status", name);
@@ -73,7 +73,7 @@ public class TypeScriptEnumExtractorTests
         Assert.NotNull(doc);
         var config = new TypeScriptClientConfig { EnumStyle = TypeScriptEnumStyle.Enum };
 
-        var result = TypeScriptEnumExtractor.Extract(doc!, config);
+        var result = TypeScriptEnumExtractor.Extract(doc, config);
 
         var (name, content) = Assert.Single(result);
         Assert.Equal("Color", name);
@@ -107,7 +107,7 @@ public class TypeScriptEnumExtractorTests
             EnumRuntimeValues = true,
         };
 
-        var result = TypeScriptEnumExtractor.Extract(doc!, config);
+        var result = TypeScriptEnumExtractor.Extract(doc, config);
 
         var (name, content) = Assert.Single(result);
         Assert.Equal("Status", name);
@@ -142,7 +142,7 @@ public class TypeScriptEnumExtractorTests
             EnumRuntimeValues = false,
         };
 
-        var result = TypeScriptEnumExtractor.Extract(doc!, config);
+        var result = TypeScriptEnumExtractor.Extract(doc, config);
 
         var (_, content) = Assert.Single(result);
         Assert.DoesNotContain("StatusValues", content, StringComparison.Ordinal);
@@ -174,7 +174,7 @@ public class TypeScriptEnumExtractorTests
             EnumRuntimeValues = true,
         };
 
-        var result = TypeScriptEnumExtractor.Extract(doc!, config);
+        var result = TypeScriptEnumExtractor.Extract(doc, config);
 
         var (_, content) = Assert.Single(result);
         Assert.Contains("enum Color", content, StringComparison.Ordinal);
@@ -204,7 +204,7 @@ public class TypeScriptEnumExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptEnumExtractor.Extract(doc!, new TypeScriptClientConfig());
+        var result = TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig());
 
         Assert.Empty(result);
     }
@@ -228,10 +228,10 @@ public class TypeScriptEnumExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var defaultResult = TypeScriptEnumExtractor.Extract(doc!, new TypeScriptClientConfig { IncludeDeprecated = false });
+        var defaultResult = TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig { IncludeDeprecated = false });
         Assert.Empty(defaultResult);
 
-        var includedResult = TypeScriptEnumExtractor.Extract(doc!, new TypeScriptClientConfig { IncludeDeprecated = true });
+        var includedResult = TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig { IncludeDeprecated = true });
         Assert.Single(includedResult);
     }
 

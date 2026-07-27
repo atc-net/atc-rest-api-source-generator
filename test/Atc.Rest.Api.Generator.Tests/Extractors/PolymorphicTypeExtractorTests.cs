@@ -43,11 +43,11 @@ public class PolymorphicTypeExtractorTests
         Assert.NotNull(document);
 
         // Act
-        var configs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document!);
+        var configs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document);
 
         // Assert
         Assert.NotNull(configs);
-        Assert.True(configs!.ContainsKey("Shape"));
+        Assert.True(configs.ContainsKey("Shape"));
 
         var config = configs["Shape"];
         Assert.Equal("Shape", config.BaseTypeName);
@@ -96,11 +96,11 @@ public class PolymorphicTypeExtractorTests
         Assert.NotNull(document);
 
         // Act
-        var configs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document!);
+        var configs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document);
 
         // Assert
         Assert.NotNull(configs);
-        Assert.True(configs!.ContainsKey("Notification"));
+        Assert.True(configs.ContainsKey("Notification"));
 
         var config = configs["Notification"];
         Assert.Equal("Notification", config.BaseTypeName);
@@ -148,11 +148,11 @@ public class PolymorphicTypeExtractorTests
         Assert.NotNull(document);
 
         // Act
-        var configs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document!);
+        var configs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document);
 
         // Assert
         Assert.NotNull(configs);
-        var config = configs!["Notification"];
+        var config = configs["Notification"];
         Assert.False(config.IsDiscriminatorExplicit);
 
         var email = config.Variants.First(v => string.Equals(v.TypeName, "EmailNotification", StringComparison.Ordinal));
@@ -193,11 +193,11 @@ public class PolymorphicTypeExtractorTests
         Assert.NotNull(document);
 
         // Act
-        var configs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document!);
+        var configs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document);
 
         // Assert
         Assert.NotNull(configs);
-        Assert.True(configs!.ContainsKey("PaymentResult"));
+        Assert.True(configs.ContainsKey("PaymentResult"));
 
         var config = configs["PaymentResult"];
         Assert.True(config.UsesCustomConverter);
@@ -222,7 +222,7 @@ public class PolymorphicTypeExtractorTests
         Assert.NotNull(document);
 
         // Act
-        var configs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document!);
+        var configs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document);
 
         // Assert
         Assert.Null(configs);
@@ -256,7 +256,7 @@ public class PolymorphicTypeExtractorTests
         Assert.NotNull(document);
 
         // Act
-        var configs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document!);
+        var configs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document);
 
         // Assert
         Assert.Null(configs);

@@ -41,7 +41,7 @@ public class EnumExtractorTests
         Assert.NotNull(document);
 
         // Act
-        var result = EnumExtractor.Extract(document!, "TestProject", "Pets");
+        var result = EnumExtractor.Extract(document, "TestProject", "Pets");
 
         // Assert
         Assert.NotNull(result);
@@ -73,7 +73,7 @@ public class EnumExtractorTests
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "NonExistent" };
 
         // Act
-        var result = EnumExtractor.ExtractForSchemas(document!, "TestProject", schemaNames, null);
+        var result = EnumExtractor.ExtractForSchemas(document, "TestProject", schemaNames, null);
 
         // Assert
         Assert.Null(result);
@@ -127,7 +127,7 @@ public class EnumExtractorTests
     public void NeedsEnumMemberAttribute_NullOrEmpty_ReturnsFalse(string? value)
     {
         // Act
-        var result = EnumExtractor.NeedsEnumMemberAttribute(value!);
+        var result = EnumExtractor.NeedsEnumMemberAttribute(value);
 
         // Assert
         Assert.False(result);
@@ -157,7 +157,7 @@ public class EnumExtractorTests
         Assert.NotNull(document);
 
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Color" };
-        var result = EnumExtractor.ExtractForSchemas(document!, "TestProject", schemaNames, null);
+        var result = EnumExtractor.ExtractForSchemas(document, "TestProject", schemaNames, null);
         Assert.NotNull(result);
         Assert.Single(result);
 
@@ -195,7 +195,7 @@ public class EnumExtractorTests
         Assert.NotNull(document);
 
         var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "HttpMethod" };
-        var result = EnumExtractor.ExtractForSchemas(document!, "TestProject", schemaNames, null);
+        var result = EnumExtractor.ExtractForSchemas(document, "TestProject", schemaNames, null);
         Assert.NotNull(result);
         Assert.Single(result);
 

@@ -48,8 +48,8 @@ public class CustomErrorResponseExtractorTests
         // Assert
         Assert.NotNull(result.Properties);
         var propertyNames = result.Properties.Select(p => p.Name).ToList();
-        Assert.Contains("ErrorCode", propertyNames);
-        Assert.Contains("ErrorMessage", propertyNames);
+        Assert.Contains("ErrorCode", propertyNames, StringComparer.Ordinal);
+        Assert.Contains("ErrorMessage", propertyNames, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class CustomErrorResponseExtractorTests
             Name = "ErrorResponse",
             Schema = new Dictionary<string, CustomErrorPropertyConfig>(StringComparer.Ordinal)
             {
-                ["code"] = new() { DataType = null! }, // No data type specified
+                ["code"] = new() { DataType = null }, // No data type specified
             },
         };
 
@@ -197,7 +197,7 @@ public class CustomErrorResponseExtractorTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            CustomErrorResponseExtractor.Extract(null!, "TestApi.Generated"));
+            CustomErrorResponseExtractor.Extract(null, "TestApi.Generated"));
     }
 
     [Fact]

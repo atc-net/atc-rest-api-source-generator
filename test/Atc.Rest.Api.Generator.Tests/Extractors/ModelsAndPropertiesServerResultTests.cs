@@ -44,7 +44,7 @@ public class ModelsAndPropertiesServerResultTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -103,7 +103,7 @@ public class ModelsAndPropertiesServerResultTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -162,7 +162,7 @@ public class ModelsAndPropertiesServerResultTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -238,7 +238,7 @@ public class ModelsAndPropertiesServerResultTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -304,7 +304,7 @@ public class ModelsAndPropertiesServerResultTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -368,7 +368,7 @@ public class ModelsAndPropertiesServerResultTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -432,7 +432,7 @@ public class ModelsAndPropertiesServerResultTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -504,7 +504,7 @@ public class ModelsAndPropertiesServerResultTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -563,7 +563,7 @@ public class ModelsAndPropertiesServerResultTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -618,7 +618,7 @@ public class ModelsAndPropertiesServerResultTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -678,7 +678,7 @@ public class ModelsAndPropertiesServerResultTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -737,7 +737,7 @@ public class ModelsAndPropertiesServerResultTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -796,7 +796,7 @@ public class ModelsAndPropertiesServerResultTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -855,7 +855,7 @@ public class ModelsAndPropertiesServerResultTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -926,7 +926,7 @@ public class ModelsAndPropertiesServerResultTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),

@@ -204,7 +204,7 @@ public class CasingHelperTests
         string? expected)
     {
         // Act
-        var result = CasingHelper.SuggestCamelCase(value!);
+        var result = CasingHelper.SuggestCamelCase(value);
 
         // Assert
         Assert.Equal(expected, result);
@@ -222,7 +222,7 @@ public class CasingHelperTests
         string? expected)
     {
         // Act
-        var result = CasingHelper.SuggestPascalCase(value!);
+        var result = CasingHelper.SuggestPascalCase(value);
 
         // Assert
         Assert.Equal(expected, result);
@@ -249,7 +249,7 @@ public class CasingHelperTests
         string? expected)
     {
         // Act
-        var result = CasingHelper.SuggestKebabCase(value!);
+        var result = CasingHelper.SuggestKebabCase(value);
 
         // Assert
         Assert.Equal(expected, result);
@@ -268,7 +268,7 @@ public class CasingHelperTests
         string? expected)
     {
         // Act
-        var result = CasingHelper.ToPascalCase(value!);
+        var result = CasingHelper.ToPascalCase(value);
 
         // Assert
         Assert.Equal(expected, result);

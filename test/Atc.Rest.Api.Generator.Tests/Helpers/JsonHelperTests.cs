@@ -15,7 +15,7 @@ public class JsonHelperTests
         var result = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(result);
-        Assert.True(result!.Generate);
+        Assert.True(result.Generate);
         Assert.Equal("Test", result.Namespace);
     }
 
@@ -26,7 +26,7 @@ public class JsonHelperTests
         var result = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(result);
-        Assert.True(result!.Generate);
+        Assert.True(result.Generate);
         Assert.Equal("Test", result.Namespace);
     }
 
@@ -37,7 +37,7 @@ public class JsonHelperTests
         var result = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
 
         Assert.NotNull(result);
-        Assert.True(result!.Generate);
+        Assert.True(result.Generate);
         Assert.Equal("Test", result.Namespace);
     }
 }

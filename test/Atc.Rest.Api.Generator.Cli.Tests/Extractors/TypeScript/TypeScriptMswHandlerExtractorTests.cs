@@ -38,7 +38,7 @@ public class TypeScriptMswHandlerExtractorTests
     public void Extract_NullDocument_Throws()
     {
         Assert.Throws<ArgumentNullException>(
-            () => TypeScriptMswHandlerExtractor.Extract(openApiDoc: null!, headerContent: null, baseUrl: "/api", TypeScriptNamingStrategy.CamelCase));
+            () => TypeScriptMswHandlerExtractor.Extract(openApiDoc: null, headerContent: null, baseUrl: "/api", TypeScriptNamingStrategy.CamelCase));
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public class TypeScriptMswHandlerExtractorTests
         var doc = ParseYaml(PetStoreYaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptMswHandlerExtractor.Extract(doc!, headerContent: null, baseUrl: "/api", TypeScriptNamingStrategy.CamelCase);
+        var result = TypeScriptMswHandlerExtractor.Extract(doc, headerContent: null, baseUrl: "/api", TypeScriptNamingStrategy.CamelCase);
 
         // Two segments + one combined "handlers" index file = 3 outputs.
         Assert.Equal(3, result.Count);
@@ -70,7 +70,7 @@ public class TypeScriptMswHandlerExtractorTests
         var doc = ParseYaml(PetStoreYaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptMswHandlerExtractor.Extract(doc!, headerContent: null, baseUrl: "/api", TypeScriptNamingStrategy.CamelCase);
+        var result = TypeScriptMswHandlerExtractor.Extract(doc, headerContent: null, baseUrl: "/api", TypeScriptNamingStrategy.CamelCase);
 
         var (_, content) = result.First(x => x.SegmentName == "Pets");
         Assert.Contains("from 'msw'", content, StringComparison.Ordinal);
@@ -82,7 +82,7 @@ public class TypeScriptMswHandlerExtractorTests
         var doc = ParseYaml(PetStoreYaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptMswHandlerExtractor.Extract(doc!, headerContent: null, baseUrl: "/api/v1", TypeScriptNamingStrategy.CamelCase);
+        var result = TypeScriptMswHandlerExtractor.Extract(doc, headerContent: null, baseUrl: "/api/v1", TypeScriptNamingStrategy.CamelCase);
 
         var (_, content) = result.First(x => x.SegmentName == "Pets");
         Assert.Contains("/api/v1", content, StringComparison.Ordinal);
@@ -95,7 +95,7 @@ public class TypeScriptMswHandlerExtractorTests
         var doc = ParseYaml(PetStoreYaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptMswHandlerExtractor.Extract(doc!, header, baseUrl: "/api", TypeScriptNamingStrategy.CamelCase);
+        var result = TypeScriptMswHandlerExtractor.Extract(doc, header, baseUrl: "/api", TypeScriptNamingStrategy.CamelCase);
 
         Assert.All(result, x => Assert.StartsWith(header, x.Content, StringComparison.Ordinal));
     }

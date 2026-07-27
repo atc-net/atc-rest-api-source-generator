@@ -34,10 +34,10 @@ public class OpenApiSchemaExtensionsTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var deviceSchema = document!.Components!.Schemas["Device"] as OpenApiSchema;
+        var deviceSchema = document.Components.Schemas["Device"] as OpenApiSchema;
         Assert.NotNull(deviceSchema);
 
-        var customerProperty = deviceSchema!.Properties["customer"];
+        var customerProperty = deviceSchema.Properties["customer"];
         Assert.NotNull(customerProperty);
 
         // Act
@@ -75,8 +75,8 @@ public class OpenApiSchemaExtensionsTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var deviceSchema = document!.Components!.Schemas["Device"] as OpenApiSchema;
-        var ownerProperty = deviceSchema!.Properties["owner"];
+        var deviceSchema = document.Components.Schemas["Device"] as OpenApiSchema;
+        var ownerProperty = deviceSchema.Properties["owner"];
 
         // Act
         var typeName = ownerProperty.ToCSharpTypeForModel(isRequired: true);
@@ -120,8 +120,8 @@ public class OpenApiSchemaExtensionsTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var vehicleSchema = document!.Components!.Schemas["Vehicle"] as OpenApiSchema;
-        var ownerProperty = vehicleSchema!.Properties["owner"];
+        var vehicleSchema = document.Components.Schemas["Vehicle"] as OpenApiSchema;
+        var ownerProperty = vehicleSchema.Properties["owner"];
 
         // Act
         var typeName = ownerProperty.ToCSharpTypeForModel(isRequired: true);
@@ -162,8 +162,8 @@ public class OpenApiSchemaExtensionsTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var deviceSchema = document!.Components!.Schemas["Device"] as OpenApiSchema;
-        var settingsProperty = deviceSchema!.Properties["settings"];
+        var deviceSchema = document.Components.Schemas["Device"] as OpenApiSchema;
+        var settingsProperty = deviceSchema.Properties["settings"];
 
         // Act
         var typeName = settingsProperty.ToCSharpTypeForModel(isRequired: false);
@@ -199,8 +199,8 @@ public class OpenApiSchemaExtensionsTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var deviceSchema = document!.Components!.Schemas["Device"] as OpenApiSchema;
-        var deviceTypeProperty = deviceSchema!.Properties["deviceType"];
+        var deviceSchema = document.Components.Schemas["Device"] as OpenApiSchema;
+        var deviceTypeProperty = deviceSchema.Properties["deviceType"];
 
         // Act
         var typeName = deviceTypeProperty.ToCSharpTypeForModel(isRequired: true);
@@ -238,8 +238,8 @@ public class OpenApiSchemaExtensionsTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var deviceSchema = document!.Components!.Schemas["Device"] as OpenApiSchema;
-        var suggestedTypeProperty = deviceSchema!.Properties["suggestedType"];
+        var deviceSchema = document.Components.Schemas["Device"] as OpenApiSchema;
+        var suggestedTypeProperty = deviceSchema.Properties["suggestedType"];
 
         // Act
         var typeName = suggestedTypeProperty.ToCSharpTypeForModel(isRequired: false);
@@ -308,7 +308,7 @@ public class OpenApiSchemaExtensionsTests
 
         // Act - use overload without pathSegment to extract all component schemas
         var recordsParams = SchemaExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             includeDeprecated: false);
 
@@ -360,7 +360,7 @@ public class OpenApiSchemaExtensionsTests
     [Fact]
     public void SanitizeSchemaName_NullInput_ReturnsNull()
     {
-        var result = OpenApiSchemaExtensions.SanitizeSchemaName(null!);
+        var result = OpenApiSchemaExtensions.SanitizeSchemaName(null);
         Assert.Null(result);
     }
 
@@ -699,7 +699,7 @@ public class OpenApiSchemaExtensionsTests
     {
         var schema = new OpenApiSchema { Type = JsonSchemaType.String };
         var attrs = schema.GetValidationAttributes(isRequired: true);
-        Assert.Contains("Required", attrs);
+        Assert.Contains("Required", attrs, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -707,7 +707,7 @@ public class OpenApiSchemaExtensionsTests
     {
         var schema = new OpenApiSchema { Type = JsonSchemaType.String };
         var attrs = schema.GetValidationAttributes(isRequired: false);
-        Assert.DoesNotContain("Required", attrs);
+        Assert.DoesNotContain("Required", attrs, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -720,7 +720,7 @@ public class OpenApiSchemaExtensionsTests
             Maximum = "100",
         };
         var attrs = schema.GetValidationAttributes(isRequired: false);
-        Assert.Contains("Range(0, 100)", attrs);
+        Assert.Contains("Range(0, 100)", attrs, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -733,8 +733,8 @@ public class OpenApiSchemaExtensionsTests
             MaxLength = 255,
         };
         var attrs = schema.GetValidationAttributes(isRequired: false);
-        Assert.Contains("MinLength(1)", attrs);
-        Assert.Contains("MaxLength(255)", attrs);
+        Assert.Contains("MinLength(1)", attrs, StringComparer.Ordinal);
+        Assert.Contains("MaxLength(255)", attrs, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -758,7 +758,7 @@ public class OpenApiSchemaExtensionsTests
             Format = "email",
         };
         var attrs = schema.GetValidationAttributes(isRequired: false);
-        Assert.Contains("EmailAddress", attrs);
+        Assert.Contains("EmailAddress", attrs, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -783,7 +783,7 @@ public class OpenApiSchemaExtensionsTests
             MinItems = 1,
         };
         var attrs = schema.GetValidationAttributes(isRequired: false);
-        Assert.Contains("MinLength(1)", attrs);
+        Assert.Contains("MinLength(1)", attrs, StringComparer.Ordinal);
     }
 
     // ========== ToCSharpType (Parameter) Tests ==========
@@ -1007,7 +1007,7 @@ public class OpenApiSchemaExtensionsTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var dogSchema = document!.Components!.Schemas["Dog"];
+        var dogSchema = document.Components.Schemas["Dog"];
         Assert.Equal("Animal", dogSchema.GetAllOfBaseSchemaName());
     }
 
@@ -1043,11 +1043,11 @@ public class OpenApiSchemaExtensionsTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var petSchema = document!.Components!.Schemas["Pet"];
+        var petSchema = document.Components.Schemas["Pet"];
         var interfaces = petSchema.GetImplementedInterfaces();
 
-        Assert.Contains("IEntity", interfaces);
-        Assert.Contains("IAuditable", interfaces);
+        Assert.Contains("IEntity", interfaces, StringComparer.Ordinal);
+        Assert.Contains("IAuditable", interfaces, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -1085,10 +1085,10 @@ public class OpenApiSchemaExtensionsTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var parentSchema = document!.Components!.Schemas["Parent"] as OpenApiSchema;
+        var parentSchema = document.Components.Schemas["Parent"] as OpenApiSchema;
         Assert.NotNull(parentSchema);
 
-        var childProperty = parentSchema!.Properties["child"];
+        var childProperty = parentSchema.Properties["child"];
         Assert.Equal("Child", childProperty.GetReferenceId());
     }
 

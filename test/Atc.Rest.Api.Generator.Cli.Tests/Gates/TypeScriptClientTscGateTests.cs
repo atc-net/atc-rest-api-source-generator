@@ -58,7 +58,7 @@ public sealed class TypeScriptClientTscGateTests
 
         try
         {
-            TypeScriptClientGenerationService.Generate(doc!, workDir, config);
+            TypeScriptClientGenerationService.Generate(doc, workDir, config);
 
             File.WriteAllText(Path.Combine(workDir, "package.json"), PackageJson);
             File.WriteAllText(Path.Combine(workDir, "tsconfig.json"), TsConfig);

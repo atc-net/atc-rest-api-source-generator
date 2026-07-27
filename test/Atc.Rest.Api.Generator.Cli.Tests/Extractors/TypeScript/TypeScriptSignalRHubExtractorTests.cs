@@ -27,7 +27,7 @@ public class TypeScriptSignalRHubExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var results = TypeScriptSignalRHubExtractor.Extract(doc!, headerContent: null);
+        var results = TypeScriptSignalRHubExtractor.Extract(doc, headerContent: null);
         var (fileName, content) = Assert.Single(results);
 
         Assert.Equal("useNotificationsHub", fileName);
@@ -65,7 +65,7 @@ public class TypeScriptSignalRHubExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var results = TypeScriptSignalRHubExtractor.Extract(doc!, headerContent: null);
+        var results = TypeScriptSignalRHubExtractor.Extract(doc, headerContent: null);
 
         Assert.Empty(results);
     }
@@ -97,7 +97,7 @@ public class TypeScriptSignalRHubExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var results = TypeScriptSignalRHubExtractor.Extract(doc!, headerContent: null);
+        var results = TypeScriptSignalRHubExtractor.Extract(doc, headerContent: null);
 
         Assert.Equal(2, results.Count);
         Assert.Contains(results, r => r.FileName == "useChatHub");
@@ -123,7 +123,7 @@ public class TypeScriptSignalRHubExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var results = TypeScriptSignalRHubExtractor.Extract(doc!, headerContent: null);
+        var results = TypeScriptSignalRHubExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(results);
 
         Assert.Contains("onPing?: (event: unknown) => void;", content, StringComparison.Ordinal);

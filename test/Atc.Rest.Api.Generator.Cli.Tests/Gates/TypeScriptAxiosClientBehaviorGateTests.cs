@@ -47,8 +47,8 @@ public sealed class TypeScriptAxiosClientBehaviorGateTests
             // Emit the same client in both convertDates modes so we prove the sentinel /
             // transformResponse exists regardless of the date-revival posture (edge case 1:
             // convertDates == false must still emit transformResponse).
-            GenerateClient(doc!, Path.Combine(workDir, "convertDatesOff"), convertDates: false);
-            GenerateClient(doc!, Path.Combine(workDir, "convertDatesOn"), convertDates: true);
+            GenerateClient(doc, Path.Combine(workDir, "convertDatesOff"), convertDates: false);
+            GenerateClient(doc, Path.Combine(workDir, "convertDatesOn"), convertDates: true);
 
             File.WriteAllText(Path.Combine(workDir, "package.json"), PackageJson);
             File.WriteAllText(Path.Combine(workDir, "tsconfig.json"), TsConfig);

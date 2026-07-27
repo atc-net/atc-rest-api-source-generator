@@ -417,9 +417,9 @@ public class JsonSchemaTypeExtensionsTests
         var result = type.GetNonNullTypeNames();
 
         Assert.Equal(3, result.Count);
-        Assert.Contains("string", result);
-        Assert.Contains("integer", result);
-        Assert.Contains("boolean", result);
+        Assert.Contains("string", result, StringComparer.Ordinal);
+        Assert.Contains("integer", result, StringComparer.Ordinal);
+        Assert.Contains("boolean", result, StringComparer.Ordinal);
     }
 
     [Fact]

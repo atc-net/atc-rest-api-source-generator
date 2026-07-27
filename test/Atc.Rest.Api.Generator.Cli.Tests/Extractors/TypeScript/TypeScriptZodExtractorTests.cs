@@ -7,14 +7,14 @@ public class TypeScriptZodExtractorTests
     public void ZodEnum_NullDocument_Throws()
     {
         Assert.Throws<ArgumentNullException>(
-            () => TypeScriptZodEnumExtractor.Extract(openApiDoc: null!, new TypeScriptClientConfig()));
+            () => TypeScriptZodEnumExtractor.Extract(openApiDoc: null, new TypeScriptClientConfig()));
     }
 
     [Fact]
     public void ZodEnum_NullConfig_Throws()
     {
         Assert.Throws<ArgumentNullException>(
-            () => TypeScriptZodEnumExtractor.Extract(new OpenApiDocument(), config: null!));
+            () => TypeScriptZodEnumExtractor.Extract(new OpenApiDocument(), config: null));
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public class TypeScriptZodExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptZodEnumExtractor.Extract(doc!, new TypeScriptClientConfig());
+        var result = TypeScriptZodEnumExtractor.Extract(doc, new TypeScriptClientConfig());
         var (name, content) = Assert.Single(result);
 
         Assert.Equal("Status", name);
@@ -66,7 +66,7 @@ public class TypeScriptZodExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptZodEnumExtractor.Extract(doc!, new TypeScriptClientConfig());
+        var result = TypeScriptZodEnumExtractor.Extract(doc, new TypeScriptClientConfig());
 
         Assert.Empty(result);
     }
@@ -76,14 +76,14 @@ public class TypeScriptZodExtractorTests
     public void ZodModel_NullDocument_Throws()
     {
         Assert.Throws<ArgumentNullException>(
-            () => TypeScriptZodModelExtractor.Extract(openApiDoc: null!, new TypeScriptClientConfig()));
+            () => TypeScriptZodModelExtractor.Extract(openApiDoc: null, new TypeScriptClientConfig()));
     }
 
     [Fact]
     public void ZodModel_NullConfig_Throws()
     {
         Assert.Throws<ArgumentNullException>(
-            () => TypeScriptZodModelExtractor.Extract(new OpenApiDocument(), config: null!));
+            () => TypeScriptZodModelExtractor.Extract(new OpenApiDocument(), config: null));
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public class TypeScriptZodExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var result = TypeScriptZodModelExtractor.Extract(doc!, new TypeScriptClientConfig());
+        var result = TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig());
         var (name, content) = Assert.Single(result);
 
         Assert.Equal("Pet", name);
@@ -142,10 +142,10 @@ public class TypeScriptZodExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var defaultResult = TypeScriptZodModelExtractor.Extract(doc!, new TypeScriptClientConfig { IncludeDeprecated = false });
+        var defaultResult = TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig { IncludeDeprecated = false });
         Assert.Empty(defaultResult);
 
-        var includedResult = TypeScriptZodModelExtractor.Extract(doc!, new TypeScriptClientConfig { IncludeDeprecated = true });
+        var includedResult = TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig { IncludeDeprecated = true });
         Assert.Single(includedResult);
     }
 
@@ -176,7 +176,7 @@ public class TypeScriptZodExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc!, new TypeScriptClientConfig()));
+        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig()));
 
         // Explicit type annotation on the const — without this the recursive ref types
         // as `any` and zod's inference can't recover.
@@ -208,7 +208,7 @@ public class TypeScriptZodExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc!, new TypeScriptClientConfig()));
+        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig()));
 
         Assert.Contains("z.lazy(() => TreeNodeSchema", content, StringComparison.Ordinal);
         Assert.Contains("export const TreeNodeSchema: z.ZodType<TreeNode>", content, StringComparison.Ordinal);
@@ -235,7 +235,7 @@ public class TypeScriptZodExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc!, new TypeScriptClientConfig()));
+        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig()));
 
         Assert.DoesNotContain("z.lazy(", content, StringComparison.Ordinal);
         Assert.DoesNotContain("z.ZodType<", content, StringComparison.Ordinal);
@@ -268,7 +268,7 @@ public class TypeScriptZodExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var results = TypeScriptZodModelExtractor.Extract(doc!, new TypeScriptClientConfig());
+        var results = TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig());
 
         var (_, categoryContent) = Assert.Single(results, r => r.Name == "Category");
         Assert.Contains("export const CategorySchema: z.ZodType<Category>", categoryContent, StringComparison.Ordinal);
@@ -305,7 +305,7 @@ public class TypeScriptZodExtractorTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var results = TypeScriptZodModelExtractor.Extract(doc!, new TypeScriptClientConfig());
+        var results = TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig());
 
         var (_, orderContent) = Assert.Single(results, r => r.Name == "Order");
         Assert.DoesNotContain("z.lazy(", orderContent, StringComparison.Ordinal);

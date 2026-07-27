@@ -27,10 +27,10 @@ public class InlineEnumExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var testSchema = document!.Components!.Schemas!["TestSchema"] as OpenApiSchema;
+        var testSchema = document.Components.Schemas["TestSchema"] as OpenApiSchema;
         Assert.NotNull(testSchema);
 
-        var statusProperty = testSchema!.Properties!["status"];
+        var statusProperty = testSchema.Properties["status"];
 
         // Act
         var result = InlineEnumExtractor.IsInlineEnumSchema(statusProperty);
@@ -66,10 +66,10 @@ public class InlineEnumExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var testSchema = document!.Components!.Schemas!["TestSchema"] as OpenApiSchema;
+        var testSchema = document.Components.Schemas["TestSchema"] as OpenApiSchema;
         Assert.NotNull(testSchema);
 
-        var statusProperty = testSchema!.Properties!["status"];
+        var statusProperty = testSchema.Properties["status"];
 
         // Act
         var result = InlineEnumExtractor.IsInlineEnumSchema(statusProperty);
@@ -100,10 +100,10 @@ public class InlineEnumExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var testSchema = document!.Components!.Schemas!["TestSchema"] as OpenApiSchema;
+        var testSchema = document.Components.Schemas["TestSchema"] as OpenApiSchema;
         Assert.NotNull(testSchema);
 
-        var nameProperty = testSchema!.Properties!["name"];
+        var nameProperty = testSchema.Properties["name"];
 
         // Act
         var result = InlineEnumExtractor.IsInlineEnumSchema(nameProperty);
@@ -134,10 +134,10 @@ public class InlineEnumExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var testSchema = document!.Components!.Schemas!["TestSchema"] as OpenApiSchema;
+        var testSchema = document.Components.Schemas["TestSchema"] as OpenApiSchema;
         Assert.NotNull(testSchema);
 
-        var countProperty = testSchema!.Properties!["count"];
+        var countProperty = testSchema.Properties["count"];
 
         // Act
         var result = InlineEnumExtractor.IsInlineEnumSchema(countProperty);
@@ -223,19 +223,19 @@ public class InlineEnumExtractorTests
         Assert.NotNull(document1);
         Assert.NotNull(document2);
 
-        var schema1 = document1!.Components!.Schemas!["Schema1"] as OpenApiSchema;
-        var schema2 = document2!.Components!.Schemas!["Schema2"] as OpenApiSchema;
+        var schema1 = document1.Components.Schemas["Schema1"] as OpenApiSchema;
+        var schema2 = document2.Components.Schemas["Schema2"] as OpenApiSchema;
         Assert.NotNull(schema1);
         Assert.NotNull(schema2);
 
-        var status = schema1!.Properties!["status"] as OpenApiSchema;
-        var state = schema2!.Properties!["state"] as OpenApiSchema;
+        var status = schema1.Properties["status"] as OpenApiSchema;
+        var state = schema2.Properties["state"] as OpenApiSchema;
         Assert.NotNull(status);
         Assert.NotNull(state);
 
         // Act
-        var key1 = InlineEnumExtractor.GetEnumValuesKey(status!);
-        var key2 = InlineEnumExtractor.GetEnumValuesKey(state!);
+        var key1 = InlineEnumExtractor.GetEnumValuesKey(status);
+        var key2 = InlineEnumExtractor.GetEnumValuesKey(state);
 
         // Assert
         Assert.Equal(key1, key2);
@@ -271,20 +271,20 @@ public class InlineEnumExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var testSchema = document!.Components!.Schemas!["TestSchema"] as OpenApiSchema;
+        var testSchema = document.Components.Schemas["TestSchema"] as OpenApiSchema;
         Assert.NotNull(testSchema);
 
-        var status1 = testSchema!.Properties!["status1"] as OpenApiSchema;
-        var status2 = testSchema!.Properties!["status2"] as OpenApiSchema;
+        var status1 = testSchema.Properties["status1"] as OpenApiSchema;
+        var status2 = testSchema.Properties["status2"] as OpenApiSchema;
         Assert.NotNull(status1);
         Assert.NotNull(status2);
 
         // Act
-        var key1 = InlineEnumExtractor.GetEnumValuesKey(status1!);
-        var key2 = InlineEnumExtractor.GetEnumValuesKey(status2!);
+        var key1 = InlineEnumExtractor.GetEnumValuesKey(status1);
+        var key2 = InlineEnumExtractor.GetEnumValuesKey(status2);
 
         // Assert
-        Assert.NotEqual(key1, key2);
+        Assert.NotEqual(key1, key2, StringComparer.Ordinal);
     }
 
     // ========== ExtractEnumFromInlineSchema Tests ==========
@@ -315,15 +315,15 @@ public class InlineEnumExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var testSchema = document!.Components!.Schemas!["TestSchema"] as OpenApiSchema;
+        var testSchema = document.Components.Schemas["TestSchema"] as OpenApiSchema;
         Assert.NotNull(testSchema);
 
-        var resourceType = testSchema!.Properties!["resourceType"] as OpenApiSchema;
+        var resourceType = testSchema.Properties["resourceType"] as OpenApiSchema;
         Assert.NotNull(resourceType);
 
         // Act
         var result = InlineEnumExtractor.ExtractEnumFromInlineSchema(
-            resourceType!,
+            resourceType,
             "TestSchemaResourceType",
             "Test.Generated.Models");
 
@@ -364,15 +364,15 @@ public class InlineEnumExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var testSchema = document!.Components!.Schemas!["TestSchema"] as OpenApiSchema;
+        var testSchema = document.Components.Schemas["TestSchema"] as OpenApiSchema;
         Assert.NotNull(testSchema);
 
-        var status = testSchema!.Properties!["status"] as OpenApiSchema;
+        var status = testSchema.Properties["status"] as OpenApiSchema;
         Assert.NotNull(status);
 
         // Act
         var result = InlineEnumExtractor.ExtractEnumFromInlineSchema(
-            status!,
+            status,
             "TestSchemaStatus",
             "Test.Generated.Models");
 
@@ -414,15 +414,15 @@ public class InlineEnumExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var testSchema = document!.Components!.Schemas!["TestSchema"] as OpenApiSchema;
+        var testSchema = document.Components.Schemas["TestSchema"] as OpenApiSchema;
         Assert.NotNull(testSchema);
 
-        var status = testSchema!.Properties!["status"] as OpenApiSchema;
+        var status = testSchema.Properties["status"] as OpenApiSchema;
         Assert.NotNull(status);
 
         // Act
         var result = InlineEnumExtractor.ExtractEnumFromInlineSchema(
-            status!,
+            status,
             "TestSchemaStatus",
             "Test.Generated.Models");
 
@@ -491,7 +491,7 @@ public class InlineEnumExtractorTests
 
         // Act
         var (records, inlineEnums) = SchemaExtractor.ExtractForSchemasWithInlineEnums(
-            document!,
+            document,
             "TestApi",
             schemaNames,
             "Events",
@@ -555,7 +555,7 @@ public class InlineEnumExtractorTests
 
         // Act
         var (records, inlineEnums) = SchemaExtractor.ExtractForSchemasWithInlineEnums(
-            document!,
+            document,
             "TestApi",
             schemaNames,
             "Test",
@@ -613,7 +613,7 @@ public class InlineEnumExtractorTests
 
         // Act
         var (records, inlineEnums) = SchemaExtractor.ExtractForSchemasWithInlineEnums(
-            document!,
+            document,
             "TestApi",
             schemaNames,
             "Test",
@@ -666,7 +666,7 @@ public class InlineEnumExtractorTests
 
         // Act
         var (records, inlineEnums) = SchemaExtractor.ExtractForSchemasWithInlineEnums(
-            document!,
+            document,
             "TestApi",
             schemaNames,
             "Test",
@@ -711,8 +711,10 @@ public class InlineEnumExtractorTests
                             """;
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
-        var userSchema = (OpenApiSchema)document!.Components!.Schemas!["User"];
-        var rolesProp = userSchema.Properties!["roles"];
+        var userSchema = document.Components.Schemas["User"] as OpenApiSchema;
+
+        Assert.NotNull(userSchema);
+        var rolesProp = userSchema.Properties["roles"];
 
         var result = InlineEnumExtractor.TryGetInlineEnumArrayItems(rolesProp, out var itemSchema);
 
@@ -740,8 +742,10 @@ public class InlineEnumExtractorTests
                             """;
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
-        var userSchema = (OpenApiSchema)document!.Components!.Schemas!["User"];
-        var roleProp = userSchema.Properties!["role"];
+        var userSchema = document.Components.Schemas["User"] as OpenApiSchema;
+
+        Assert.NotNull(userSchema);
+        var roleProp = userSchema.Properties["role"];
 
         Assert.False(InlineEnumExtractor.TryGetInlineEnumArrayItems(roleProp, out _));
     }
@@ -765,8 +769,9 @@ public class InlineEnumExtractorTests
                             """;
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
-        var schema = document!.Components!.Schemas!["Severity"];
 
+        var schema = document.Components.Schemas["Severity"] as OpenApiSchema;
+        Assert.NotNull(schema);
         Assert.True(InlineEnumExtractor.IsInlineEnumSchema(schema));
     }
 
@@ -788,12 +793,13 @@ public class InlineEnumExtractorTests
                             """;
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
-        var schema = (OpenApiSchema)document!.Components!.Schemas!["Severity"];
+
+        var schema = document.Components.Schemas["Severity"] as OpenApiSchema;
+        Assert.NotNull(schema);
 
         var enumParams = InlineEnumExtractor.ExtractEnumFromInlineSchema(schema, "Severity", "Demo.Models");
-
         Assert.NotNull(enumParams);
-        Assert.Equal(3, enumParams!.Values.Count);
+        Assert.Equal(3, enumParams.Values.Count);
         Assert.Contains(enumParams.Values, v => v.Value == 1);
         Assert.Contains(enumParams.Values, v => v.Value == 2);
         Assert.Contains(enumParams.Values, v => v.Value == 5);

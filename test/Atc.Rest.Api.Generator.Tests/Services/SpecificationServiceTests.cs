@@ -120,12 +120,12 @@ public class SpecificationServiceTests
                                           description: OK
                                 """;
         var baseFile = SpecificationService.ReadFromContent(baseYaml, "SpecVersionBase.yaml");
-        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, baseFile.Document!.GetOpenApiSpecVersion());
+        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, baseFile.Document.GetOpenApiSpecVersion());
 
         var result = SpecificationService.MergeSpecifications(baseFile, new List<SpecificationFile>());
 
         Assert.NotNull(result.Document);
-        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, result.Document!.GetOpenApiSpecVersion());
+        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, result.Document.GetOpenApiSpecVersion());
     }
 
     [Fact]
@@ -148,9 +148,9 @@ public class SpecificationServiceTests
                                       description: OK
                             """;
         var file = SpecificationService.ReadFromContent(yaml, "SpecVersionLeak.yaml");
-        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, file.Document!.GetOpenApiSpecVersion());
+        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, file.Document.GetOpenApiSpecVersion());
 
-        var serialized = SpecificationService.SerializeToYaml(file.Document!);
+        var serialized = SpecificationService.SerializeToYaml(file.Document);
 
         Assert.DoesNotContain("x-atc-openapi-spec-version", serialized, StringComparison.Ordinal);
     }
@@ -913,8 +913,8 @@ public class SpecificationServiceTests
         var file = SpecificationFile.FromContent("test.yaml", yaml);
 
         Assert.Equal(2, file.GetTags().Count);
-        Assert.Contains("Pets", file.GetTags());
-        Assert.Contains("Users", file.GetTags());
+        Assert.Contains("Pets", file.GetTags(), StringComparer.Ordinal);
+        Assert.Contains("Users", file.GetTags(), StringComparer.Ordinal);
     }
 
     [Fact]

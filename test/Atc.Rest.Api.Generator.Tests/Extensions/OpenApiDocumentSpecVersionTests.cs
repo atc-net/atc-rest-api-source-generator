@@ -21,7 +21,7 @@ public class OpenApiDocumentSpecVersionTests
             "specversion-32.yaml");
 
         Assert.NotNull(document);
-        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, document!.GetOpenApiSpecVersion());
+        Assert.Equal(OpenApiSpecVersion.OpenApi3_2, document.GetOpenApiSpecVersion());
     }
 
     [Fact]
@@ -32,7 +32,7 @@ public class OpenApiDocumentSpecVersionTests
             "specversion-31.yaml");
 
         Assert.NotNull(document);
-        Assert.Equal(OpenApiSpecVersion.OpenApi3_1, document!.GetOpenApiSpecVersion());
+        Assert.Equal(OpenApiSpecVersion.OpenApi3_1, document.GetOpenApiSpecVersion());
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public class OpenApiDocumentSpecVersionTests
             "specversion-30.yaml");
 
         Assert.NotNull(document);
-        Assert.Equal(OpenApiSpecVersion.OpenApi3_0, document!.GetOpenApiSpecVersion());
+        Assert.Equal(OpenApiSpecVersion.OpenApi3_0, document.GetOpenApiSpecVersion());
     }
 
     [Fact]

@@ -455,7 +455,7 @@ public class EndpointDefinitionExtractorTests
                             """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
-        var resolver = new SystemTypeConflictResolver(Array.Empty<string>());
+        var resolver = new SystemTypeConflictResolver([]);
 
         // Act
         var (_, classes) = EndpointDefinitionExtractor.Extract(
@@ -466,12 +466,12 @@ public class EndpointDefinitionExtractorTests
 
         // Assert
         Assert.NotNull(classes);
-        var defineEndpoints = classes!
+        var defineEndpoints = classes
             .SelectMany(c => c.Methods ?? [])
             .FirstOrDefault(m => m.Name == "DefineEndpoints");
 
         Assert.NotNull(defineEndpoints);
-        Assert.Contains(".RequireRateLimiting(RateLimitPolicies.OrdersStandard)", defineEndpoints!.Content, StringComparison.Ordinal);
+        Assert.Contains(".RequireRateLimiting(RateLimitPolicies.OrdersStandard)", defineEndpoints.Content, StringComparison.Ordinal);
         Assert.DoesNotContain("\"orders-standard\"", defineEndpoints.Content, StringComparison.Ordinal);
     }
 
@@ -520,12 +520,12 @@ public class EndpointDefinitionExtractorTests
 
         // Assert
         Assert.NotNull(classes);
-        var defineEndpoints = classes!
+        var defineEndpoints = classes
             .SelectMany(c => c.Methods ?? [])
             .FirstOrDefault(m => m.Name == "DefineEndpoints");
 
         Assert.NotNull(defineEndpoints);
-        Assert.Contains(".RequireRateLimiting(RateLimitPolicies.OrdersStandard)", defineEndpoints!.Content, StringComparison.Ordinal);
+        Assert.Contains(".RequireRateLimiting(RateLimitPolicies.OrdersStandard)", defineEndpoints.Content, StringComparison.Ordinal);
         Assert.Contains(".RequireRateLimiting(RateLimitPolicies.OrdersStrict)", defineEndpoints.Content, StringComparison.Ordinal);
         Assert.DoesNotContain("\"orders-strict\"", defineEndpoints.Content, StringComparison.Ordinal);
     }

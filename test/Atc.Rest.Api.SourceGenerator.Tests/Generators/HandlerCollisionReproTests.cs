@@ -134,7 +134,7 @@ public class HandlerCollisionReproTests
                 new InMemoryText(Path.Combine(tempDir, "Atc.Api.yaml"), Yaml),
                 new InMemoryText(Path.Combine(tempDir, ".atc-rest-api-server-handlers"), "{}"));
 
-            var asmDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+            var asmDir = Path.GetDirectoryName(typeof(object).Assembly.Location);
             var refs = new List<MetadataReference>
             {
                 MetadataReference.CreateFromFile(typeof(object).Assembly.Location),

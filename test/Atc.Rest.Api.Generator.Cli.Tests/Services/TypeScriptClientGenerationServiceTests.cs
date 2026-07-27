@@ -30,7 +30,7 @@ public class TypeScriptClientGenerationServiceTests
 
         var config = new TypeScriptClientConfig { DryRun = true };
 
-        var result = TypeScriptClientGenerationService.Generate(document!, outputPath: "n/a", config);
+        var result = TypeScriptClientGenerationService.Generate(document, outputPath: "n/a", config);
 
         // Cookie params are deliberately not emitted in the TS client, but silent skipping
         // is bad DX — the warning surfaces the skip so spec authors know what to expect.
@@ -67,7 +67,7 @@ public class TypeScriptClientGenerationServiceTests
 
         var config = new TypeScriptClientConfig { DryRun = true };
 
-        var result = TypeScriptClientGenerationService.Generate(document!, outputPath: "n/a", config);
+        var result = TypeScriptClientGenerationService.Generate(document, outputPath: "n/a", config);
 
         var warning = Assert.Single(result.Warnings);
         Assert.Contains("tenantId", warning, StringComparison.Ordinal);
@@ -93,7 +93,7 @@ public class TypeScriptClientGenerationServiceTests
 
         var config = new TypeScriptClientConfig { DryRun = true };
 
-        var result = TypeScriptClientGenerationService.Generate(document!, outputPath: "n/a", config);
+        var result = TypeScriptClientGenerationService.Generate(document, outputPath: "n/a", config);
 
         Assert.Empty(result.Warnings);
     }
@@ -130,7 +130,7 @@ public class TypeScriptClientGenerationServiceTests
 
         var config = new TypeScriptClientConfig { DryRun = true };
 
-        var result = TypeScriptClientGenerationService.Generate(document!, outputPath: "n/a", config);
+        var result = TypeScriptClientGenerationService.Generate(document, outputPath: "n/a", config);
 
         var warning = Assert.Single(result.Warnings);
         Assert.Contains("sessionId", warning, StringComparison.Ordinal);
@@ -164,7 +164,7 @@ public class TypeScriptClientGenerationServiceTests
             GenerateMswHandlers = true,
         };
 
-        TypeScriptClientGenerationService.Generate(document!, output.Path, config);
+        TypeScriptClientGenerationService.Generate(document, output.Path, config);
 
         var mocksIndex = Path.Combine(output.Path, "mocks", "index.ts");
         Assert.True(File.Exists(mocksIndex), $"Expected mocks/index.ts to be emitted at {mocksIndex}");

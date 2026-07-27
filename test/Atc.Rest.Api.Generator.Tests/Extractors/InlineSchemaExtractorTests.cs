@@ -36,8 +36,8 @@ public class InlineSchemaExtractorTests
                             """;
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
-        var op = document!.Paths!.First().Value.Operations![HttpMethod.Get];
-        var responseSchema = (OpenApiSchema)op.Responses!["200"].Content!["application/json"].Schema!;
+        var op = document.Paths.First().Value.Operations[HttpMethod.Get];
+        var responseSchema = op.Responses["200"].Content["application/json"].Schema as OpenApiSchema;
 
         var inlineEnums = new Dictionary<string, InlineEnumInfo>(StringComparer.Ordinal);
         var record = InlineSchemaExtractor.ExtractRecordFromInlineSchemaWithInlineEnums(
@@ -47,7 +47,7 @@ public class InlineSchemaExtractorTests
             pathSegment: "Reports",
             inlineEnumsByValuesKey: inlineEnums);
 
-        var statusProp = record.Parameters!.Single(p => p.Name == "Status");
+        var statusProp = record.Parameters.Single(p => p.Name == "Status");
         Assert.Equal("GetReportResponseStatus", statusProp.TypeName);
 
         var inlineEnum = Assert.Single(inlineEnums.Values);
@@ -84,8 +84,8 @@ public class InlineSchemaExtractorTests
                             """;
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
-        var op = document!.Paths!.First().Value.Operations![HttpMethod.Get];
-        var responseSchema = (OpenApiSchema)op.Responses!["200"].Content!["application/json"].Schema!;
+        var op = document.Paths.First().Value.Operations[HttpMethod.Get];
+        var responseSchema = op.Responses["200"].Content["application/json"].Schema as OpenApiSchema;
 
         var inlineEnums = new Dictionary<string, InlineEnumInfo>(StringComparer.Ordinal);
         var record = InlineSchemaExtractor.ExtractRecordFromInlineSchemaWithInlineEnums(
@@ -95,7 +95,7 @@ public class InlineSchemaExtractorTests
             pathSegment: "Users",
             inlineEnumsByValuesKey: inlineEnums);
 
-        var rolesProp = record.Parameters!.Single(p => p.Name == "Roles");
+        var rolesProp = record.Parameters.Single(p => p.Name == "Roles");
         Assert.Equal("List<ListUsersResponseRoles>", rolesProp.TypeName);
 
         var inlineEnum = Assert.Single(inlineEnums.Values);

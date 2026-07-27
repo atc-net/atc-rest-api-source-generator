@@ -11,7 +11,7 @@ public class OpenApiParameterExtensionsTests
         var result = param.Resolve();
 
         Assert.NotNull(result.Parameter);
-        Assert.Equal("id", result.Parameter!.Name);
+        Assert.Equal("id", result.Parameter.Name);
         Assert.Null(result.ReferenceId);
     }
 
@@ -211,10 +211,10 @@ public class OpenApiParameterExtensionsTests
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var operation = document.Paths["/items"].Operations.Values.First();
-        var param = operation.Parameters![0].Resolve().Parameter;
+        var param = operation.Parameters[0].Resolve().Parameter;
 
         Assert.NotNull(param);
-        var s = param!.GetParameterSerialization();
+        var s = param.GetParameterSerialization();
 
         Assert.Equal(ParameterStyle.Form, s.Style);
         Assert.True(s.Explode);
@@ -255,10 +255,10 @@ public class OpenApiParameterExtensionsTests
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var operation = document.Paths["/items"].Operations.Values.First();
-        var param = operation.Parameters![0].Resolve().Parameter;
+        var param = operation.Parameters[0].Resolve().Parameter;
 
         Assert.NotNull(param);
-        var s = param!.GetParameterSerialization();
+        var s = param.GetParameterSerialization();
 
         Assert.Equal(ParameterValueKind.Array, s.ValueKind);
         Assert.True(s.IsSupported);
@@ -298,10 +298,10 @@ public class OpenApiParameterExtensionsTests
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var operation = document.Paths["/items"].Operations.Values.First();
-        var param = operation.Parameters![0].Resolve().Parameter;
+        var param = operation.Parameters[0].Resolve().Parameter;
 
         Assert.NotNull(param);
-        var s = param!.GetParameterSerialization();
+        var s = param.GetParameterSerialization();
 
         Assert.Equal(ParameterValueKind.Object, s.ValueKind);
         Assert.False(s.IsSupported);
@@ -373,10 +373,10 @@ public class OpenApiParameterExtensionsTests
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
         var operation = document.Paths["/items"].Operations.Values.First();
-        var param = operation.Parameters![0].Resolve().Parameter;
+        var param = operation.Parameters[0].Resolve().Parameter;
 
         Assert.NotNull(param);
-        var s = param!.GetParameterSerialization();
+        var s = param.GetParameterSerialization();
 
         Assert.Equal(ParameterStyle.Cookie, s.Style);
         Assert.True(s.IsSupported);

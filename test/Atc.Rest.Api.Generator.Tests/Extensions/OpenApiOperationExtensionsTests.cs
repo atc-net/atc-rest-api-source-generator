@@ -27,7 +27,7 @@ public class OpenApiOperationExtensionsTests
         var item = op.GetStreamingItemSchema();
 
         Assert.NotNull(item);
-        Assert.Equal("Event", item!.Title);
+        Assert.Equal("Event", item.Title);
     }
 
     [Fact]
@@ -602,7 +602,7 @@ public class OpenApiOperationExtensionsTests
     [InlineData(null)]
     public void Classify_EmptyOrNull_ReturnsJsonArray(string? mediaType)
     {
-        Assert.Equal(StreamingFraming.JsonArray, StreamingMediaType.Classify(mediaType!));
+        Assert.Equal(StreamingFraming.JsonArray, StreamingMediaType.Classify(mediaType));
     }
 
     [Fact]

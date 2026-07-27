@@ -17,7 +17,7 @@ public class OpenApiCacheExtensionsTests
         var doc = ParseYaml(YamlWithDocumentCachePolicy);
 
         Assert.NotNull(doc);
-        Assert.True(doc!.HasCaching());
+        Assert.True(doc.HasCaching());
     }
 
     [Fact]
@@ -26,7 +26,7 @@ public class OpenApiCacheExtensionsTests
         var doc = ParseYaml(YamlWithOperationCachePolicy);
 
         Assert.NotNull(doc);
-        Assert.True(doc!.HasCaching());
+        Assert.True(doc.HasCaching());
     }
 
     // ========== ExtractCacheConfiguration Tests ==========
@@ -36,7 +36,7 @@ public class OpenApiCacheExtensionsTests
         var doc = ParseYaml(YamlWithNoCaching);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractCacheConfiguration(
@@ -52,7 +52,7 @@ public class OpenApiCacheExtensionsTests
         var doc = ParseYaml(YamlWithOperationCachePolicy);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractCacheConfiguration(
@@ -60,7 +60,7 @@ public class OpenApiCacheExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.True(result!.Enabled);
+        Assert.True(result.Enabled);
         Assert.Equal("GetPets", result.Policy);
     }
 
@@ -70,7 +70,7 @@ public class OpenApiCacheExtensionsTests
         var doc = ParseYaml(YamlWithDocumentCachePolicy);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractCacheConfiguration(
@@ -78,7 +78,7 @@ public class OpenApiCacheExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.Equal("GlobalCache", result!.Policy);
+        Assert.Equal("GlobalCache", result.Policy);
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public class OpenApiCacheExtensionsTests
         var doc = ParseYaml(YamlWithExpirationSeconds);
         Assert.NotNull(doc);
 
-        var pathItem = GetFirstPathItem(doc!);
+        var pathItem = GetFirstPathItem(doc);
         var operation = GetFirstOperation(pathItem);
 
         var result = operation.ExtractCacheConfiguration(
@@ -97,7 +97,7 @@ public class OpenApiCacheExtensionsTests
             doc);
 
         Assert.NotNull(result);
-        Assert.Equal(45, result!.ExpirationSeconds);
+        Assert.Equal(45, result.ExpirationSeconds);
     }
 
     // ========== HasOutputCaching / HasHybridCaching Tests ==========
@@ -107,7 +107,7 @@ public class OpenApiCacheExtensionsTests
         var doc = ParseYaml(YamlWithDocumentCachePolicy);
         Assert.NotNull(doc);
 
-        Assert.True(doc!.HasOutputCaching());
+        Assert.True(doc.HasOutputCaching());
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public class OpenApiCacheExtensionsTests
         var doc = ParseYaml(YamlWithDocumentCachePolicy);
         Assert.NotNull(doc);
 
-        Assert.False(doc!.HasHybridCaching());
+        Assert.False(doc.HasHybridCaching());
     }
 
     // ========== Extension Value Extraction Tests ==========

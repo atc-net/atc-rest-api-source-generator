@@ -6,7 +6,7 @@ public class TypeScriptPackageScaffoldExtractorTests
     public void GeneratePackageJson_NullConfig_Throws()
     {
         Assert.Throws<ArgumentNullException>(
-            () => TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, config: null!));
+            () => TypeScriptPackageScaffoldExtractor.GeneratePackageJson("pkg", "1.0.0", description: null, config: null));
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public class TypeScriptPackageScaffoldExtractorTests
         // to dist/cjs/*.js too without this sub-package.json override. The script must
         // mkdir the target (in case CJS tsc emitted into a fresh dir) and write the
         // {"type":"commonjs"} stamp.
-        var script = TypeScriptPackageScaffoldExtractor.GeneratePostbuildCjsScript();
+        var script = TypeScriptPackageScaffoldExtractor.GeneratePostBuildCjsScript();
 
         Assert.Contains("mkdirSync('dist/cjs'", script, StringComparison.Ordinal);
         Assert.Contains("'dist/cjs/package.json'", script, StringComparison.Ordinal);

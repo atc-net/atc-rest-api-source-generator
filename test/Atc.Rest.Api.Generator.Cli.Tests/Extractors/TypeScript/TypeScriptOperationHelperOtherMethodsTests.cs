@@ -150,11 +150,11 @@ public class TypeScriptOperationHelperOtherMethodsTests
                             """;
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
-        var (_, pathItem) = doc!.Paths!.First();
-        var op = pathItem.Operations![HttpMethod.Get];
+        var (_, pathItem) = doc.Paths.First();
+        var op = pathItem.Operations[HttpMethod.Get];
 
-        var pathParams = TypeScriptOperationHelper.GetMergedParameters(op, doc!, "/pets/{petId}", ParameterLocation.Path);
-        var queryParams = TypeScriptOperationHelper.GetMergedParameters(op, doc!, "/pets/{petId}", ParameterLocation.Query);
+        var pathParams = TypeScriptOperationHelper.GetMergedParameters(op, doc, "/pets/{petId}", ParameterLocation.Path);
+        var queryParams = TypeScriptOperationHelper.GetMergedParameters(op, doc, "/pets/{petId}", ParameterLocation.Query);
 
         Assert.Contains(pathParams, p => p.Name == "petId");
         Assert.Contains(queryParams, p => p.Name == "include");
@@ -188,7 +188,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
                             """;
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
-        var op = doc!.Paths!.Values.First().Operations![HttpMethod.Get];
+        var op = doc.Paths.Values.First().Operations[HttpMethod.Get];
 
         var imports = new HashSet<string>(StringComparer.Ordinal);
         TypeScriptOperationHelper.CollectImportTypes(op, imports);
@@ -226,7 +226,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
                             """;
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
-        var op = doc!.Paths!.Values.First().Operations![HttpMethod.Get];
+        var op = doc.Paths.Values.First().Operations[HttpMethod.Get];
 
         var imports = new HashSet<string>(StringComparer.Ordinal);
         TypeScriptOperationHelper.CollectImportTypes(op, imports);
@@ -263,7 +263,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
                             """;
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
-        var op = doc!.Paths!.Values.First().Operations![HttpMethod.Get];
+        var op = doc.Paths.Values.First().Operations[HttpMethod.Get];
 
         var imports = new HashSet<string>(StringComparer.Ordinal);
         TypeScriptOperationHelper.CollectImportTypes(op, imports);
@@ -300,7 +300,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
                             """;
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
-        var op = doc!.Paths!.Values.First().Operations![HttpMethod.Get];
+        var op = doc.Paths.Values.First().Operations[HttpMethod.Get];
 
         var imports = new HashSet<string>(StringComparer.Ordinal);
         TypeScriptOperationHelper.CollectImportTypes(op, imports);
@@ -338,7 +338,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
                             """;
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
-        var op = doc!.Paths!.Values.First().Operations![HttpMethod.Get];
+        var op = doc.Paths.Values.First().Operations[HttpMethod.Get];
 
         var imports = new HashSet<string>(StringComparer.Ordinal);
         TypeScriptOperationHelper.CollectImportTypes(op, imports);
@@ -382,7 +382,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
                             """;
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
-        var op = doc!.Paths!.Values.First().Operations![HttpMethod.Get];
+        var op = doc.Paths.Values.First().Operations[HttpMethod.Get];
 
         var imports = new HashSet<string>(StringComparer.Ordinal);
         TypeScriptOperationHelper.CollectImportTypes(op, imports);
@@ -422,8 +422,8 @@ public class TypeScriptOperationHelperOtherMethodsTests
                             """;
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
-        var (path, pathItem) = doc!.Paths!.First();
-        var op = pathItem.Operations![HttpMethod.Get];
+        var (path, pathItem) = doc.Paths.First();
+        var op = pathItem.Operations[HttpMethod.Get];
 
         var imports = new HashSet<string>(StringComparer.Ordinal);
         TypeScriptOperationHelper.CollectImportTypes(op, imports, doc, path);
@@ -465,7 +465,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
                             """;
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
-        var op = doc!.Paths!.Values.First().Operations![HttpMethod.Get];
+        var op = doc.Paths.Values.First().Operations[HttpMethod.Get];
 
         var imports = new HashSet<string>(StringComparer.Ordinal);
         TypeScriptOperationHelper.CollectImportTypes(op, imports);
@@ -815,7 +815,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
                             """;
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
-        var op = doc!.Paths!.Values.First().Operations![HttpMethod.Get];
+        var op = doc.Paths.Values.First().Operations[HttpMethod.Get];
 
         var imports = new HashSet<string>(StringComparer.Ordinal);
         TypeScriptOperationHelper.CollectImportTypes(op, imports);
@@ -860,7 +860,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
                             """;
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
-        var op = doc!.Paths!.Values.First().Operations![HttpMethod.Get];
+        var op = doc.Paths.Values.First().Operations[HttpMethod.Get];
 
         var imports = new HashSet<string>(StringComparer.Ordinal);
         TypeScriptOperationHelper.CollectImportTypes(op, imports);
@@ -1006,11 +1006,11 @@ public class TypeScriptOperationHelperOtherMethodsTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var operation = ((OpenApiPathItem)doc!.Paths!["/items"]).Operations!.Values.First();
+        var operation = ((OpenApiPathItem)doc.Paths["/items"]).Operations.Values.First();
 
         var discriminators = TypeScriptOperationHelper.CollectDeclared2xxDiscriminators(operation);
 
-        Assert.Equal(new[] { "created", "accepted" }, discriminators);
+        Assert.Equal(["created", "accepted"], discriminators, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -1032,11 +1032,11 @@ public class TypeScriptOperationHelperOtherMethodsTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var operation = ((OpenApiPathItem)doc!.Paths!["/items"]).Operations!.Values.First();
+        var operation = ((OpenApiPathItem)doc.Paths["/items"]).Operations.Values.First();
 
         var discriminators = TypeScriptOperationHelper.CollectDeclared2xxDiscriminators(operation);
 
-        Assert.Equal(new[] { "ok" }, discriminators);
+        Assert.Equal(["ok"], discriminators, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -1055,7 +1055,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var operation = ((OpenApiPathItem)doc!.Paths!["/noop"]).Operations!.Values.First();
+        var operation = ((OpenApiPathItem)doc.Paths["/noop"]).Operations.Values.First();
 
         var (declaration, imports) = TypeScriptOperationHelper.BuildPerOperationResultType(
             operation,
@@ -1103,7 +1103,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
-        var operation = ((OpenApiPathItem)doc!.Paths!["/events-sse"]).Operations!.Values.First();
+        var operation = ((OpenApiPathItem)doc.Paths["/events-sse"]).Operations.Values.First();
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
 
         TypeScriptOperationHelper.CollectImportTypes(operation, importTypes, doc, "/events-sse");

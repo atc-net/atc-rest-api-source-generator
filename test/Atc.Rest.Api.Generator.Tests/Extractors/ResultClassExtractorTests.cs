@@ -32,7 +32,7 @@ public class ResultClassExtractorTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -99,7 +99,7 @@ public class ResultClassExtractorTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -151,7 +151,7 @@ public class ResultClassExtractorTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -221,7 +221,7 @@ public class ResultClassExtractorTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -285,7 +285,7 @@ public class ResultClassExtractorTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -343,7 +343,7 @@ public class ResultClassExtractorTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -405,7 +405,7 @@ public class ResultClassExtractorTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -471,7 +471,7 @@ public class ResultClassExtractorTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -519,7 +519,7 @@ public class ResultClassExtractorTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -588,7 +588,7 @@ public class ResultClassExtractorTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -660,7 +660,7 @@ public class ResultClassExtractorTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -714,7 +714,7 @@ public class ResultClassExtractorTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -784,11 +784,11 @@ public class ResultClassExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var registry = TypeConflictRegistry.Build(document!, "KL.IoT.Device.Management", "Devices");
+        var registry = TypeConflictRegistry.Build(document, "KL.IoT.Device.Management", "Devices");
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "KL.IoT.Device.Management",
             registry: registry,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -843,7 +843,7 @@ public class ResultClassExtractorTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -851,10 +851,10 @@ public class ResultClassExtractorTests
 
         // Assert
         Assert.NotNull(resultClasses);
-        var resultClass = resultClasses!.Single();
+        var resultClass = resultClasses.Single();
         var okMethod = resultClass.Methods?.FirstOrDefault(m => m.Name == "Ok");
         Assert.NotNull(okMethod);
-        var param = okMethod!.Parameters![0];
+        var param = okMethod.Parameters[0];
         Assert.Equal("IAsyncEnumerable<Event>", param.TypeName);
 
         // text/event-stream framing emits the first-party SSE writer, not TypedResults.Ok.
@@ -888,7 +888,7 @@ public class ResultClassExtractorTests
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -898,7 +898,7 @@ public class ResultClassExtractorTests
         Assert.NotNull(resultClasses);
         var acceptedMethod = resultClasses[0].Methods?.FirstOrDefault(m => m.Name == "Accepted");
         Assert.NotNull(acceptedMethod);
-        Assert.Null(acceptedMethod!.Parameters);
+        Assert.Null(acceptedMethod.Parameters);
         Assert.Contains("TypedResults.StatusCode(StatusCodes.Status202Accepted)", acceptedMethod.Content, StringComparison.Ordinal);
         Assert.DoesNotContain("TypedResults.Accepted()", acceptedMethod.Content, StringComparison.Ordinal);
     }

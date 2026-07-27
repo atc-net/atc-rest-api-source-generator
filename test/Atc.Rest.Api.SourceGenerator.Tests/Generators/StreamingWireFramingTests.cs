@@ -11,7 +11,9 @@ public class StreamingWireFramingTests
     public async Task StreamReaders_ServerSentEvents_ReadsItems()
     {
         var streamReaders = LoadGeneratedType("StreamReaders");
-        var read = streamReaders.GetMethod("ReadServerSentEventsAsync")!.MakeGenericMethod(typeof(JsonElement));
+        var read = streamReaders
+            .GetMethod("ReadServerSentEventsAsync")
+            .MakeGenericMethod(typeof(JsonElement));
 
         const string sse = "data: {\"id\":\"a\",\"type\":\"x\"}\n\ndata: {\"id\":\"b\",\"type\":\"y\"}\n\n";
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(sse));
@@ -47,7 +49,9 @@ public class StreamingWireFramingTests
         Assert.DoesNotContain("[", text, StringComparison.Ordinal); // not a JSON array
 
         using var readStream = new MemoryStream(bytes);
-        var read = readerType.GetMethod("ReadJsonLinesAsync")!.MakeGenericMethod(typeof(JsonElement));
+        var read = readerType
+            .GetMethod("ReadJsonLinesAsync")
+            .MakeGenericMethod(typeof(JsonElement));
         var items = await EnumerateAsync<JsonElement>(read, readStream, options);
         Assert.Equal(2, items.Count);
         Assert.Equal("a", items[0].GetProperty("id").GetString());
@@ -66,7 +70,7 @@ public class StreamingWireFramingTests
         // Build an IAsyncEnumerable<Event> of one item via reflection.
         var eventId = Guid.NewGuid();
         var items = BuildAsyncEnumerable(eventType, [CreateEvent(eventType, eventId, "x")]);
-        var result = Activator.CreateInstance(jsonLinesResultType, items)!;
+        var result = Activator.CreateInstance(jsonLinesResultType, items);
 
         // RequestServices configured exactly like a real API: camelCase + enum-as-string via
         // ConfigureHttpJsonOptions (registered through IOptions<JsonOptions>, NOT a direct service).
@@ -87,8 +91,8 @@ public class StreamingWireFramingTests
         httpContext.Response.Body = new ThrowOnSyncWriteStream(innerStream);
 
         // C1: must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
-        var executeAsync = jsonLinesResultType.GetMethod("ExecuteAsync")!;
-        await (Task)executeAsync.Invoke(result, [httpContext])!;
+        var executeAsync = jsonLinesResultType.GetMethod("ExecuteAsync");
+        await (Task)executeAsync.Invoke(result, [httpContext]);
 
         Assert.Equal("application/jsonl", httpContext.Response.ContentType);
 
@@ -128,7 +132,9 @@ public class StreamingWireFramingTests
         Assert.Equal(2, bytes.Count(b => b == 0x1E));
 
         using var readStream = new MemoryStream(bytes);
-        var read = readerType.GetMethod("ReadJsonSequenceAsync")!.MakeGenericMethod(typeof(JsonElement));
+        var read = readerType
+            .GetMethod("ReadJsonSequenceAsync")
+            .MakeGenericMethod(typeof(JsonElement));
         var items = await EnumerateAsync<JsonElement>(read, readStream, options);
         Assert.Equal(2, items.Count);
         Assert.Equal("a", items[0].GetProperty("id").GetString());
@@ -139,7 +145,9 @@ public class StreamingWireFramingTests
     public async Task JsonSequence_Reader_HandlesEmbeddedNewlines()
     {
         var readerType = LoadGeneratedType("StreamReaders");
-        var read = readerType.GetMethod("ReadJsonSequenceAsync")!.MakeGenericMethod(typeof(JsonElement));
+        var read = readerType
+            .GetMethod("ReadJsonSequenceAsync")
+            .MakeGenericMethod(typeof(JsonElement));
         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
         // RFC 7464: records are RS(0x1E)-delimited and MAY contain embedded LFs (pretty-printed JSON
@@ -170,7 +178,7 @@ public class StreamingWireFramingTests
         // Build an IAsyncEnumerable<Event> of one item via reflection.
         var eventId = Guid.NewGuid();
         var items = BuildAsyncEnumerable(eventType, [CreateEvent(eventType, eventId, "x")]);
-        var result = Activator.CreateInstance(jsonSequenceResultType, items)!;
+        var result = Activator.CreateInstance(jsonSequenceResultType, items);
 
         // RequestServices configured exactly like a real API: camelCase + enum-as-string via
         // ConfigureHttpJsonOptions (registered through IOptions<JsonOptions>, NOT a direct service).
@@ -191,8 +199,8 @@ public class StreamingWireFramingTests
         httpContext.Response.Body = new ThrowOnSyncWriteStream(innerStream);
 
         // C1: must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
-        var executeAsync = jsonSequenceResultType.GetMethod("ExecuteAsync")!;
-        await (Task)executeAsync.Invoke(result, [httpContext])!;
+        var executeAsync = jsonSequenceResultType.GetMethod("ExecuteAsync");
+        await (Task)executeAsync.Invoke(result, [httpContext]);
 
         Assert.Equal("application/json-seq", httpContext.Response.ContentType);
 
@@ -236,7 +244,9 @@ public class StreamingWireFramingTests
         Assert.EndsWith("--" + boundary + "--\r\n", text, StringComparison.Ordinal);
 
         using var readStream = new MemoryStream(bytes);
-        var read = readerType.GetMethod("ReadMultipartMixedAsync")!.MakeGenericMethod(typeof(JsonElement));
+        var read = readerType
+            .GetMethod("ReadMultipartMixedAsync")
+            .MakeGenericMethod(typeof(JsonElement));
         var items = await EnumerateWithArgsAsync<JsonElement>(read, [readStream, boundary, options, CancellationToken.None]);
         Assert.Equal(2, items.Count);
         Assert.Equal("a", items[0].GetProperty("id").GetString());
@@ -247,7 +257,9 @@ public class StreamingWireFramingTests
     public async Task MultipartMixed_Reader_HandlesMultiLineParts()
     {
         var readerType = LoadGeneratedType("StreamReaders");
-        var read = readerType.GetMethod("ReadMultipartMixedAsync")!.MakeGenericMethod(typeof(JsonElement));
+        var read = readerType
+            .GetMethod("ReadMultipartMixedAsync")
+            .MakeGenericMethod(typeof(JsonElement));
         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
         const string boundary = "atc-stream-boundary";
 
@@ -278,7 +290,7 @@ public class StreamingWireFramingTests
         // Build an IAsyncEnumerable<Event> of one item via reflection.
         var eventId = Guid.NewGuid();
         var items = BuildAsyncEnumerable(eventType, [CreateEvent(eventType, eventId, "x")]);
-        var result = Activator.CreateInstance(multipartResultType, items)!;
+        var result = Activator.CreateInstance(multipartResultType, items);
 
         // RequestServices configured exactly like a real API: camelCase + enum-as-string via
         // ConfigureHttpJsonOptions (registered through IOptions<JsonOptions>, NOT a direct service).
@@ -299,8 +311,8 @@ public class StreamingWireFramingTests
         httpContext.Response.Body = new ThrowOnSyncWriteStream(innerStream);
 
         // C1: must NOT throw (the writer uses WriteAsync, not the sync WriteByte that Kestrel rejects).
-        var executeAsync = multipartResultType.GetMethod("ExecuteAsync")!;
-        await (Task)executeAsync.Invoke(result, [httpContext])!;
+        var executeAsync = multipartResultType.GetMethod("ExecuteAsync");
+        await (Task)executeAsync.Invoke(result, [httpContext]);
 
         Assert.StartsWith("multipart/mixed; boundary=", httpContext.Response.ContentType, StringComparison.Ordinal);
 
@@ -342,9 +354,9 @@ public class StreamingWireFramingTests
         object[] items)
     {
         var generic = typeof(StreamingWireFramingTests)
-            .GetMethod(nameof(ToAsyncEnumerableTyped), BindingFlags.NonPublic | BindingFlags.Static)!
+            .GetMethod(nameof(ToAsyncEnumerableTyped), BindingFlags.NonPublic | BindingFlags.Static)
             .MakeGenericMethod(elementType);
-        return generic.Invoke(null, [items])!;
+        return generic.Invoke(null, [items]);
     }
 
     private static async IAsyncEnumerable<T> ToAsyncEnumerableTyped<T>(
@@ -398,8 +410,10 @@ public class StreamingWireFramingTests
             }
         }
 
-        var write = writerType.GetMethod(methodName)!.MakeGenericMethod(typeof(JsonElement));
-        return (Task)write.Invoke(null, [ToAsyncEnumerable(), stream, options, CancellationToken.None])!;
+        var write = writerType
+            .GetMethod(methodName)
+            .MakeGenericMethod(typeof(JsonElement));
+        return (Task)write.Invoke(null, [ToAsyncEnumerable(), stream, options, CancellationToken.None]);
     }
 
     /// <summary>
@@ -422,8 +436,10 @@ public class StreamingWireFramingTests
             }
         }
 
-        var write = writerType.GetMethod("WriteMultipartMixedAsync")!.MakeGenericMethod(typeof(JsonElement));
-        return (Task)write.Invoke(null, [ToAsyncEnumerable(), stream, boundary, options, CancellationToken.None])!;
+        var write = writerType
+            .GetMethod("WriteMultipartMixedAsync")
+            .MakeGenericMethod(typeof(JsonElement));
+        return (Task)write.Invoke(null, [ToAsyncEnumerable(), stream, boundary, options, CancellationToken.None]);
     }
 
     /// <summary>
@@ -445,7 +461,7 @@ public class StreamingWireFramingTests
         MethodInfo read,
         object?[] readerArgs)
     {
-        var asyncEnumerable = read.Invoke(null, readerArgs)!;
+        var asyncEnumerable = read.Invoke(null, readerArgs);
 
         // Drive the IAsyncEnumerable<T?> via its IAsyncEnumerator over reflection — the emitted
         // type lives in a dynamically-loaded assembly, so we can't bind it statically. The
@@ -456,21 +472,21 @@ public class StreamingWireFramingTests
             .GetType()
             .GetInterfaces()
             .Single(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IAsyncEnumerable<>));
-        var getEnumerator = enumerableInterface.GetMethod("GetAsyncEnumerator")!;
-        var enumerator = getEnumerator.Invoke(asyncEnumerable, [CancellationToken.None])!;
+        var getEnumerator = enumerableInterface.GetMethod("GetAsyncEnumerator");
+        var enumerator = getEnumerator.Invoke(asyncEnumerable, [CancellationToken.None]);
         var enumeratorInterface = enumerator
             .GetType()
             .GetInterfaces()
             .Single(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IAsyncEnumerator<>));
-        var moveNextAsync = enumeratorInterface.GetMethod("MoveNextAsync")!;
-        var currentProperty = enumeratorInterface.GetProperty("Current")!;
+        var moveNextAsync = enumeratorInterface.GetMethod("MoveNextAsync");
+        var currentProperty = enumeratorInterface.GetProperty("Current");
 
         var items = new List<T>();
         try
         {
             while (true)
             {
-                var moveNextTask = (ValueTask<bool>)moveNextAsync.Invoke(enumerator, [])!;
+                var moveNextTask = (ValueTask<bool>)moveNextAsync.Invoke(enumerator, []);
                 if (!await moveNextTask)
                 {
                     break;

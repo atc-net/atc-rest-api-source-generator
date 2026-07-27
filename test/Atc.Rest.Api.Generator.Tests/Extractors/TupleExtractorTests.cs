@@ -48,7 +48,7 @@ public class TupleExtractorTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Single(result!.PrefixItems);
+        Assert.Single(result.PrefixItems);
         Assert.False(string.IsNullOrWhiteSpace(result.PrefixItems[0].CSharpType));
         Assert.Equal("object", result.PrefixItems[0].CSharpType);
     }
@@ -76,7 +76,7 @@ public class TupleExtractorTests
         Assert.NotNull(document);
 
         // Act
-        var result = TupleExtractor.Extract(document!, "TestProject");
+        var result = TupleExtractor.Extract(document, "TestProject");
 
         // Assert
         Assert.Null(result);
@@ -98,7 +98,7 @@ public class TupleExtractorTests
         Assert.NotNull(document);
 
         // Act
-        var result = TupleExtractor.Extract(document!, "TestProject");
+        var result = TupleExtractor.Extract(document, "TestProject");
 
         // Assert
         Assert.Null(result);
@@ -148,7 +148,7 @@ public class TupleExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var schema = document!.Components!.Schemas!["Names"];
+        var schema = document.Components.Schemas["Names"];
 
         // Act
         var result = TupleExtractor.IsTupleSchema(schema);

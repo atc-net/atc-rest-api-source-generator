@@ -61,9 +61,9 @@ public class UnifiedExtractorsNamingTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.NotNull(result!.Methods);
-        Assert.Contains(result.Methods!, m => string.Equals(m.Name, expectedMethodName, StringComparison.Ordinal));
-        Assert.DoesNotContain(result.Methods!, m => string.Equals(m.Name, "UseApiApi", StringComparison.Ordinal));
+        Assert.NotNull(result.Methods);
+        Assert.Contains(result.Methods, m => string.Equals(m.Name, expectedMethodName, StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Methods, m => string.Equals(m.Name, "UseApiApi", StringComparison.Ordinal));
     }
 
     // ========== VersioningDependencyInjectionExtractor.Extract ==========
@@ -87,9 +87,9 @@ public class UnifiedExtractorsNamingTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.NotNull(result!.Methods);
-        Assert.Contains(result.Methods!, m => string.Equals(m.Name, expectedMethodName, StringComparison.Ordinal));
-        Assert.DoesNotContain(result.Methods!, m => string.Equals(m.Name, "AddApiApiVersioning", StringComparison.Ordinal));
+        Assert.NotNull(result.Methods);
+        Assert.Contains(result.Methods, m => string.Equals(m.Name, expectedMethodName, StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Methods, m => string.Equals(m.Name, "AddApiApiVersioning", StringComparison.Ordinal));
     }
 
     // ========== UnifiedServiceCollectionExtractor.Extract ==========

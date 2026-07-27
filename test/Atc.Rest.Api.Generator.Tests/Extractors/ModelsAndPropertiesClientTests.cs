@@ -44,7 +44,7 @@ public class ModelsAndPropertiesClientTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -99,7 +99,7 @@ public class ModelsAndPropertiesClientTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -154,7 +154,7 @@ public class ModelsAndPropertiesClientTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -226,7 +226,7 @@ public class ModelsAndPropertiesClientTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -291,7 +291,7 @@ public class ModelsAndPropertiesClientTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -355,7 +355,7 @@ public class ModelsAndPropertiesClientTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -421,7 +421,7 @@ public class ModelsAndPropertiesClientTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -483,7 +483,7 @@ public class ModelsAndPropertiesClientTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -538,7 +538,7 @@ public class ModelsAndPropertiesClientTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -589,7 +589,7 @@ public class ModelsAndPropertiesClientTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -645,7 +645,7 @@ public class ModelsAndPropertiesClientTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -700,7 +700,7 @@ public class ModelsAndPropertiesClientTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -755,7 +755,7 @@ public class ModelsAndPropertiesClientTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -810,7 +810,7 @@ public class ModelsAndPropertiesClientTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),
@@ -877,7 +877,7 @@ public class ModelsAndPropertiesClientTests
 
         // Act
         var clientClass = HttpClientExtractor.Extract(
-            document!,
+            document,
             "TestApi",
             registry: null,
             systemTypeResolver: new SystemTypeConflictResolver([]),

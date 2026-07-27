@@ -166,7 +166,7 @@ public class ScenarioTests
     {
         // From test/Atc.Rest.Api.Generator.IntegrationTests/ScenarioTests.cs
         // Navigate to test/Scenarios/
-        var testProjectDir = Path.GetDirectoryName(sourceFilePath)!;
+        var testProjectDir = Path.GetDirectoryName(sourceFilePath);
         var scenariosPath = Path.Combine(testProjectDir, "..", "Scenarios");
         var outputPath = Path.GetFullPath(scenariosPath);
         return Path.Combine(outputPath, scenarioName, masterFolder);
@@ -182,7 +182,7 @@ public class ScenarioTests
         [CallerFilePath] string sourceFilePath = "")
     {
         // Check Server folder first for validation strategy
-        var testProjectDir = Path.GetDirectoryName(sourceFilePath)!;
+        var testProjectDir = Path.GetDirectoryName(sourceFilePath);
         var scenariosPath = Path.GetFullPath(Path.Combine(testProjectDir, "..", "Scenarios"));
         var markerPath = Path.Combine(
             scenariosPath,
