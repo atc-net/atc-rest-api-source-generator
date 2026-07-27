@@ -102,6 +102,27 @@ public class OpenApiRetryExtensionsTests
         Assert.False(result.CircuitBreakerEnabled);
     }
 
+    [Fact]
+    public void ExtractRetryConfiguration_ReadsConfiguredIntAndDoubleValues()
+    {
+        // Arrange - x-retry-max-attempts is int-typed, x-retry-delay-seconds is
+        // double-typed; both are boxed as decimal by the YAML reader, exercising the
+        // same ExtractIntValue/ExtractDoubleValue code paths as RateLimit's Finding #0.
+        var doc = ParseYaml(YamlWithFullOperationRetryConfig);
+        Assert.NotNull(doc);
+
+        var pathItem = GetFirstPathItem(doc!);
+        var operation = GetFirstOperation(pathItem);
+
+        var result = operation.ExtractRetryConfiguration(
+            pathItem,
+            doc);
+
+        Assert.NotNull(result);
+        Assert.Equal(5, result!.MaxAttempts);
+        Assert.Equal(2.5, result.DelaySeconds);
+    }
+
     // ========== Extension Value Extraction Tests ==========
     [Fact]
     public void ExtractRetryPolicy_NullExtensions_ReturnsNull()
@@ -197,6 +218,23 @@ public class OpenApiRetryExtensionsTests
             get:
               operationId: getPets
               x-retry-policy: PetsRetry
+              responses:
+                '200':
+                  description: OK
+        """;
+
+    private const string YamlWithFullOperationRetryConfig = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            get:
+              operationId: getPets
+              x-retry-policy: PetsRetry
+              x-retry-max-attempts: 5
+              x-retry-delay-seconds: 2.5
               responses:
                 '200':
                   description: OK

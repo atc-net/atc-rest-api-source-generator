@@ -81,6 +81,25 @@ public class OpenApiCacheExtensionsTests
         Assert.Equal("GlobalCache", result!.Policy);
     }
 
+    [Fact]
+    public void ExtractCacheConfiguration_ReadsConfiguredExpirationSeconds()
+    {
+        // Arrange - x-cache-expiration-seconds is boxed as decimal by the YAML reader,
+        // exercising the same ExtractIntValue code path as RateLimit's Finding #0.
+        var doc = ParseYaml(YamlWithExpirationSeconds);
+        Assert.NotNull(doc);
+
+        var pathItem = GetFirstPathItem(doc!);
+        var operation = GetFirstOperation(pathItem);
+
+        var result = operation.ExtractCacheConfiguration(
+            pathItem,
+            doc);
+
+        Assert.NotNull(result);
+        Assert.Equal(45, result!.ExpirationSeconds);
+    }
+
     // ========== HasOutputCaching / HasHybridCaching Tests ==========
     [Fact]
     public void HasOutputCaching_DefaultType_ReturnsTrue()
@@ -195,6 +214,22 @@ public class OpenApiCacheExtensionsTests
             get:
               operationId: getPets
               x-cache-policy: GetPets
+              responses:
+                '200':
+                  description: OK
+        """;
+
+    private const string YamlWithExpirationSeconds = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            get:
+              operationId: getPets
+              x-cache-policy: GetPets
+              x-cache-expiration-seconds: 45
               responses:
                 '200':
                   description: OK
