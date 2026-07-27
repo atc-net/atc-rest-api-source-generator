@@ -29,7 +29,7 @@ public sealed class SendNotificationResult : IResult
     /// 202 Accepted - Notification queued.
     /// </summary>
     public static SendNotificationResult Accepted()
-        => new(TypedResults.Accepted());
+        => new(TypedResults.StatusCode(StatusCodes.Status202Accepted));
 
     /// <summary>
     /// 400 Bad Request - Invalid notification.
