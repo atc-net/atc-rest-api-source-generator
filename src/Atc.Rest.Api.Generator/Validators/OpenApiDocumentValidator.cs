@@ -122,6 +122,9 @@ public static class OpenApiDocumentValidator
         // ATC_API_RL001/RL002: Warn on rate-limit partitioning that is silently ignored
         ValidateRateLimitPartitioning(diagnostics, sourceFilePath, document);
 
+        // ATC_API_RL003: Warn when one policy name is declared with conflicting settings
+        ValidateRateLimitPolicyConflicts(diagnostics, sourceFilePath, document);
+
         return diagnostics;
     }
 
@@ -2773,6 +2776,187 @@ public static class OpenApiDocumentValidator
                 Severity: DiagnosticSeverity.Info,
                 FilePath: sourceFilePath));
         }
+    }
+
+    /// <summary>
+    /// Emits ATC_API_RL003 (Warning) when a single rate limit policy name is declared with conflicting
+    /// settings at more than one site.
+    /// </summary>
+    /// <remarks>
+    /// A policy name is the unit of limiter registration in <c>RateLimiterOptions</c>, so one name maps
+    /// to exactly one limiter. <c>RateLimitPoliciesExtractor.CollectPolicies</c> is first-wins, so the
+    /// losing declarations are silently discarded. Only settings that are <b>explicitly declared</b> at
+    /// a site are compared - re-declaring a policy name on a sub-path without repeating every setting is
+    /// idiomatic and contradicts nothing, so it must not warn.
+    /// </remarks>
+    private static void ValidateRateLimitPolicyConflicts(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        OpenApiDocument document)
+    {
+        var sitesByPolicy = new Dictionary<string, List<(string Location, Dictionary<string, string> Declared)>>(StringComparer.Ordinal);
+
+        var documentPolicy = document.Extensions.ExtractRateLimitPolicy();
+        AddRateLimitDeclarationSite(sitesByPolicy, documentPolicy, "document", document.Extensions);
+
+        if (document.Paths != null)
+        {
+            foreach (var pathEntry in document.Paths)
+            {
+                var pathItem = pathEntry.Value;
+                var pathPolicy = pathItem.Extensions.ExtractRateLimitPolicy() ?? documentPolicy;
+
+                AddRateLimitDeclarationSite(sitesByPolicy, pathPolicy, $"path '{pathEntry.Key}'", pathItem.Extensions);
+
+                if (pathItem.Operations == null)
+                {
+                    continue;
+                }
+
+                foreach (var operationEntry in pathItem.Operations)
+                {
+                    var operation = operationEntry.Value;
+                    if (operation == null || operation.Extensions.ExtractRateLimitEnabled() == false)
+                    {
+                        continue;
+                    }
+
+                    var operationPolicy = operation.Extensions.ExtractRateLimitPolicy() ?? pathPolicy;
+                    var location = $"operation '{operation.OperationId ?? operationEntry.Key.ToString()}'";
+
+                    AddRateLimitDeclarationSite(sitesByPolicy, operationPolicy, location, operation.Extensions);
+                }
+            }
+        }
+
+        foreach (var policyEntry in sitesByPolicy.OrderBy(x => x.Key, StringComparer.Ordinal))
+        {
+            if (policyEntry.Value.Count < 2)
+            {
+                continue;
+            }
+
+            var conflictingKeys = policyEntry.Value
+                .SelectMany(site => site.Declared.Select(setting => setting.Key))
+                .Distinct(StringComparer.Ordinal)
+                .Where(key => policyEntry.Value
+                    .Where(site => site.Declared.ContainsKey(key))
+                    .Select(site => site.Declared[key])
+                    .Distinct(StringComparer.Ordinal)
+                    .Count() > 1)
+                .OrderBy(key => key, StringComparer.Ordinal)
+                .ToList();
+
+            foreach (var key in conflictingKeys)
+            {
+                var declarations = policyEntry.Value
+                    .Where(site => site.Declared.ContainsKey(key))
+                    .Select(site => $"'{site.Declared[key]}' at {site.Location}")
+                    .ToList();
+
+                diagnostics.Add(new DiagnosticMessage(
+                    RuleId: RuleIdentifiers.RateLimitPolicyConflictingSettings,
+                    Message: $"Rate limit policy '{policyEntry.Key}' is declared with conflicting '{key}' values: " +
+                             $"{string.Join(", ", declarations)}. A policy name maps to a single limiter " +
+                             "registration, so only the first declaration is used and the rest are ignored. " +
+                             "Use identical values at every site, or split into separate policy names if the " +
+                             "endpoints genuinely need different settings.",
+                    Severity: DiagnosticSeverity.Warning,
+                    FilePath: sourceFilePath));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Records the rate limit settings explicitly declared at a single site, keyed by effective policy name.
+    /// Sites that declare no settings contribute nothing and cannot conflict.
+    /// </summary>
+    private static void AddRateLimitDeclarationSite(
+        Dictionary<string, List<(string Location, Dictionary<string, string> Declared)>> sitesByPolicy,
+        string? policyName,
+        string location,
+        IDictionary<string, IOpenApiExtension>? extensions)
+    {
+        if (string.IsNullOrEmpty(policyName))
+        {
+            return;
+        }
+
+        var declared = GetDeclaredRateLimitSettings(extensions);
+        if (declared.Count == 0)
+        {
+            return;
+        }
+
+        if (!sitesByPolicy.TryGetValue(policyName!, out var sites))
+        {
+            sites = [];
+            sitesByPolicy[policyName!] = sites;
+        }
+
+        sites.Add((location, declared));
+    }
+
+    /// <summary>
+    /// Extracts the rate limit settings explicitly declared in the given extensions, normalized for
+    /// comparison. Values parsed case-insensitively are lower-cased so that, for example,
+    /// <c>user</c> and <c>User</c> do not read as a conflict.
+    /// </summary>
+    private static Dictionary<string, string> GetDeclaredRateLimitSettings(
+        IDictionary<string, IOpenApiExtension>? extensions)
+    {
+        var declared = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (extensions == null)
+        {
+            return declared;
+        }
+
+        var permitLimit = extensions.ExtractPermitLimit();
+        if (permitLimit.HasValue)
+        {
+            declared[RateLimitExtensionNameConstants.PermitLimit] = permitLimit.Value.ToString(NumberFormatInfo.InvariantInfo);
+        }
+
+        var windowSeconds = extensions.ExtractWindowSeconds();
+        if (windowSeconds.HasValue)
+        {
+            declared[RateLimitExtensionNameConstants.WindowSeconds] = windowSeconds.Value.ToString(NumberFormatInfo.InvariantInfo);
+        }
+
+        var queueLimit = extensions.ExtractQueueLimit();
+        if (queueLimit.HasValue)
+        {
+            declared[RateLimitExtensionNameConstants.QueueLimit] = queueLimit.Value.ToString(NumberFormatInfo.InvariantInfo);
+        }
+
+        var algorithm = extensions.ExtractRateLimitAlgorithm();
+        if (!string.IsNullOrEmpty(algorithm))
+        {
+            declared[RateLimitExtensionNameConstants.Algorithm] = algorithm!.ToLowerInvariant();
+        }
+
+        var partition = extensions.ExtractRateLimitPartition();
+        if (!string.IsNullOrEmpty(partition))
+        {
+            declared[RateLimitExtensionNameConstants.Partition] = partition!.ToLowerInvariant();
+        }
+
+        // Claim names are case-sensitive, so this one is compared verbatim.
+        var partitionClaim = extensions.ExtractRateLimitPartitionClaim();
+        if (!string.IsNullOrEmpty(partitionClaim))
+        {
+            declared[RateLimitExtensionNameConstants.PartitionClaim] = partitionClaim!;
+        }
+
+        var emitRetryAfter = extensions.ExtractRateLimitEmitRetryAfter();
+        if (emitRetryAfter.HasValue)
+        {
+            declared[RateLimitExtensionNameConstants.EmitRetryAfter] = emitRetryAfter.Value
+                ? "true"
+                : "false";
+        }
+
+        return declared;
     }
 
     /// <summary>
