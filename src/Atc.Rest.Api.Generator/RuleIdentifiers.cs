@@ -7,7 +7,8 @@ namespace Atc.Rest.Api.Generator;
 /// Rule ID format: ATC_API_[3-letter category][3-digit number]
 /// Categories: GEN (generation), DEP (dependencies), VAL (validation),
 ///             NAM (naming), SEC (security), SRV (server), SCH (schema),
-///             PTH (path), OPR (operation)
+///             PTH (path), OPR (operation), RL (rate limiting),
+///             STREAM (streaming)
 /// </summary>
 public static class RuleIdentifiers
 {
