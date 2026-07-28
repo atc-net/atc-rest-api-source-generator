@@ -12,6 +12,9 @@ namespace Atc.OpenApi;
 /// - x-ratelimit-window-seconds: Time window in seconds
 /// - x-ratelimit-queue-limit: Maximum queued requests
 /// - x-ratelimit-algorithm: Rate limiting algorithm (fixed, sliding, token-bucket, concurrency)
+/// - x-ratelimit-emit-retry-after: Emits a Retry-After header on rejection
+/// - x-ratelimit-partition: Partitioning strategy (global, ip, user)
+/// - x-ratelimit-partition-claim: Claim type used when partitioning by user
 /// </remarks>
 public static class RateLimitExtensionNameConstants
 {
@@ -56,4 +59,25 @@ public static class RateLimitExtensionNameConstants
     /// Example: x-ratelimit-algorithm: "sliding"
     /// </summary>
     public const string Algorithm = "x-ratelimit-algorithm";
+
+    /// <summary>
+    /// Extension tag for emitting a Retry-After header when a request is rejected.
+    /// Type: boolean
+    /// Example: x-ratelimit-emit-retry-after: false
+    /// </summary>
+    public const string EmitRetryAfter = "x-ratelimit-emit-retry-after";
+
+    /// <summary>
+    /// Extension tag for specifying the rate limit partitioning strategy.
+    /// Type: string (global, ip, user)
+    /// Example: x-ratelimit-partition: "ip"
+    /// </summary>
+    public const string Partition = "x-ratelimit-partition";
+
+    /// <summary>
+    /// Extension tag for specifying the claim type used when partitioning by user.
+    /// Type: string
+    /// Example: x-ratelimit-partition-claim: "oid"
+    /// </summary>
+    public const string PartitionClaim = "x-ratelimit-partition-claim";
 }

@@ -53,6 +53,27 @@ public static class OpenApiRateLimitExtensions
         /// <returns>The algorithm name, or null if not specified.</returns>
         public string? ExtractRateLimitAlgorithm()
             => ExtractStringValue(extensions, RateLimitExtensionNameConstants.Algorithm);
+
+        /// <summary>
+        /// Extracts the x-ratelimit-emit-retry-after value from extensions.
+        /// </summary>
+        /// <returns>True if the Retry-After header should be emitted, false if explicitly disabled, null if not specified.</returns>
+        public bool? ExtractRateLimitEmitRetryAfter()
+            => ExtractBoolValue(extensions, RateLimitExtensionNameConstants.EmitRetryAfter);
+
+        /// <summary>
+        /// Extracts the x-ratelimit-partition value from extensions.
+        /// </summary>
+        /// <returns>The partition strategy name, or null if not specified.</returns>
+        public string? ExtractRateLimitPartition()
+            => ExtractStringValue(extensions, RateLimitExtensionNameConstants.Partition);
+
+        /// <summary>
+        /// Extracts the x-ratelimit-partition-claim value from extensions.
+        /// </summary>
+        /// <returns>The claim type, or null if not specified.</returns>
+        public string? ExtractRateLimitPartitionClaim()
+            => ExtractStringValue(extensions, RateLimitExtensionNameConstants.PartitionClaim);
     }
 
     /// <summary>
@@ -108,6 +129,21 @@ public static class OpenApiRateLimitExtensions
 
         var algorithm = ParseAlgorithm(algorithmString);
 
+        var emitRetryAfter = operation.Extensions.ExtractRateLimitEmitRetryAfter()
+                             ?? pathItem.Extensions.ExtractRateLimitEmitRetryAfter()
+                             ?? document.Extensions.ExtractRateLimitEmitRetryAfter()
+                             ?? true;
+
+        var partitionString = operation.Extensions.ExtractRateLimitPartition()
+                              ?? pathItem.Extensions.ExtractRateLimitPartition()
+                              ?? document.Extensions.ExtractRateLimitPartition();
+
+        var partition = ParsePartitionStrategy(partitionString);
+
+        var partitionClaim = operation.Extensions.ExtractRateLimitPartitionClaim()
+                             ?? pathItem.Extensions.ExtractRateLimitPartitionClaim()
+                             ?? document.Extensions.ExtractRateLimitPartitionClaim();
+
         return new RateLimitConfiguration
         {
             Enabled = true,
@@ -116,6 +152,9 @@ public static class OpenApiRateLimitExtensions
             WindowSeconds = windowSeconds,
             QueueLimit = queueLimit,
             Algorithm = algorithm,
+            EmitRetryAfter = emitRetryAfter,
+            Partition = partition,
+            PartitionClaim = partitionClaim,
         };
     }
 
@@ -295,6 +334,25 @@ public static class OpenApiRateLimitExtensions
             "token-bucket" or "tokenbucket" => RateLimitAlgorithm.TokenBucket,
             "concurrency" => RateLimitAlgorithm.Concurrency,
             _ => RateLimitAlgorithm.Fixed,
+        };
+    }
+
+    /// <summary>
+    /// Parses a rate limit partition strategy string to the enum value.
+    /// Unknown or empty values fall back to <see cref="RateLimitPartitionStrategy.Global"/>.
+    /// </summary>
+    public static RateLimitPartitionStrategy ParsePartitionStrategy(string? partitionString)
+    {
+        if (string.IsNullOrEmpty(partitionString))
+        {
+            return RateLimitPartitionStrategy.Global;
+        }
+
+        return partitionString.ToLowerInvariant() switch
+        {
+            "ip" => RateLimitPartitionStrategy.Ip,
+            "user" => RateLimitPartitionStrategy.User,
+            _ => RateLimitPartitionStrategy.Global,
         };
     }
 }

@@ -224,6 +224,108 @@ public class OpenApiRateLimitExtensionsTests
         Assert.Equal(RateLimitAlgorithm.Fixed, result.Algorithm);
     }
 
+    // ========== EmitRetryAfter Tests ==========
+    [Fact]
+    public void ExtractRateLimitConfiguration_EmitRetryAfter_DefaultsToTrue_WhenAbsent()
+    {
+        var doc = ParseYaml(YamlWithOperationRateLimitPolicy);
+        Assert.NotNull(doc);
+
+        var pathItem = GetFirstPathItem(doc);
+        var operation = GetFirstOperation(pathItem);
+
+        var result = operation.ExtractRateLimitConfiguration(
+            pathItem,
+            doc);
+
+        Assert.NotNull(result);
+        Assert.True(result.EmitRetryAfter);
+    }
+
+    [Fact]
+    public void ExtractRateLimitConfiguration_EmitRetryAfterFalseAtDocumentLevel_IsHonoured()
+    {
+        var doc = ParseYaml(YamlWithDocumentLevelEmitRetryAfterFalse);
+        Assert.NotNull(doc);
+
+        var pathItem = GetFirstPathItem(doc);
+        var operation = GetFirstOperation(pathItem);
+
+        var result = operation.ExtractRateLimitConfiguration(
+            pathItem,
+            doc);
+
+        Assert.NotNull(result);
+        Assert.False(result.EmitRetryAfter);
+    }
+
+    // ========== Partition Tests ==========
+    [Fact]
+    public void ExtractRateLimitConfiguration_Partition_DefaultsToGlobal_WhenAbsent()
+    {
+        var doc = ParseYaml(YamlWithOperationRateLimitPolicy);
+        Assert.NotNull(doc);
+
+        var pathItem = GetFirstPathItem(doc);
+        var operation = GetFirstOperation(pathItem);
+
+        var result = operation.ExtractRateLimitConfiguration(
+            pathItem,
+            doc);
+
+        Assert.NotNull(result);
+        Assert.Equal(RateLimitPartitionStrategy.Global, result.Partition);
+    }
+
+    [Fact]
+    public void ExtractRateLimitConfiguration_PartitionIpAtPathLevel_ResolvesToIp()
+    {
+        var doc = ParseYaml(YamlWithPathLevelPartitionIp);
+        Assert.NotNull(doc);
+
+        var pathItem = GetFirstPathItem(doc);
+        var operation = GetFirstOperation(pathItem);
+
+        var result = operation.ExtractRateLimitConfiguration(
+            pathItem,
+            doc);
+
+        Assert.NotNull(result);
+        Assert.Equal(RateLimitPartitionStrategy.Ip, result.Partition);
+    }
+
+    [Fact]
+    public void ExtractRateLimitConfiguration_PartitionUserWithClaimAtOperationLevel_OverridesPathLevel()
+    {
+        var doc = ParseYaml(YamlWithOperationPartitionUserOverridingPathIp);
+        Assert.NotNull(doc);
+
+        var pathItem = GetFirstPathItem(doc);
+        var operation = GetFirstOperation(pathItem);
+
+        var result = operation.ExtractRateLimitConfiguration(
+            pathItem,
+            doc);
+
+        Assert.NotNull(result);
+        Assert.Equal(RateLimitPartitionStrategy.User, result.Partition);
+        Assert.Equal("oid", result.PartitionClaim);
+    }
+
+    // ========== ParsePartitionStrategy Tests ==========
+    [Theory]
+    [InlineData("global", RateLimitPartitionStrategy.Global)]
+    [InlineData("ip", RateLimitPartitionStrategy.Ip)]
+    [InlineData("user", RateLimitPartitionStrategy.User)]
+    [InlineData("USER", RateLimitPartitionStrategy.User)]
+    [InlineData("", RateLimitPartitionStrategy.Global)]
+    [InlineData(null, RateLimitPartitionStrategy.Global)]
+    [InlineData("bogus", RateLimitPartitionStrategy.Global)]
+    public void ParsePartitionStrategy_ReturnsExpectedResult(
+        string? partitionValue,
+        RateLimitPartitionStrategy expected)
+        => Assert.Equal(expected, OpenApiRateLimitExtensions.ParsePartitionStrategy(partitionValue));
+
     // ========== Extension Value Extraction Tests ==========
     [Fact]
     public void ExtractRateLimitPolicy_NullExtensions_ReturnsNull()
@@ -398,6 +500,57 @@ public class OpenApiRateLimitExtensionsTests
             get:
               operationId: getPets
               x-ratelimit-enabled: false
+              responses:
+                '200':
+                  description: OK
+        """;
+
+    private const string YamlWithDocumentLevelEmitRetryAfterFalse = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        x-ratelimit-policy: GlobalPolicy
+        x-ratelimit-emit-retry-after: false
+        paths:
+          /pets:
+            get:
+              operationId: getPets
+              responses:
+                '200':
+                  description: OK
+        """;
+
+    private const string YamlWithPathLevelPartitionIp = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            x-ratelimit-policy: PetsPath
+            x-ratelimit-partition: ip
+            get:
+              operationId: getPets
+              responses:
+                '200':
+                  description: OK
+        """;
+
+    private const string YamlWithOperationPartitionUserOverridingPathIp = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            x-ratelimit-policy: PetsPath
+            x-ratelimit-partition: ip
+            get:
+              operationId: getPets
+              x-ratelimit-policy: PetsStrict
+              x-ratelimit-partition: user
+              x-ratelimit-partition-claim: oid
               responses:
                 '200':
                   description: OK

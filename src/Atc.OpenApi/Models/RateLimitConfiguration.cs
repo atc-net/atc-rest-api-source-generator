@@ -34,4 +34,21 @@ public record RateLimitConfiguration
     /// Gets the rate limiting algorithm.
     /// </summary>
     public RateLimitAlgorithm Algorithm { get; init; } = RateLimitAlgorithm.Fixed;
+
+    /// <summary>
+    /// Gets a value indicating whether a Retry-After header is emitted when a request is rejected.
+    /// </summary>
+    public bool EmitRetryAfter { get; init; } = true;
+
+    /// <summary>
+    /// Gets the rate limit partitioning strategy.
+    /// </summary>
+    public RateLimitPartitionStrategy Partition { get; init; } = RateLimitPartitionStrategy.Global;
+
+    /// <summary>
+    /// Gets the claim type used when <see cref="Partition"/> is <see cref="RateLimitPartitionStrategy.User"/>.
+    /// Only meaningful when <see cref="Partition"/> is <see cref="RateLimitPartitionStrategy.User"/>.
+    /// A null value means the default claim "sub" is used.
+    /// </summary>
+    public string? PartitionClaim { get; init; }
 }
