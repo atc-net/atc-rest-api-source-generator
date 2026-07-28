@@ -7,6 +7,7 @@ env:
   ATC_EMAIL: 'atcnet.org@gmail.com'
   ATC_NAME: 'Atc-Net'
   NUGET_REPO_URL: 'https://api.nuget.org/v3/index.json'
+  BRANCH_NAME: ${{ github.ref_name }}
 
 jobs:
   release:
@@ -14,21 +15,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 🛒 Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.PAT_WORKFLOWS }}
 
-      - name: ⚛️ Set branch name
-        uses: nelonoel/branch-name@v1.0.1
-
       - name: ⚛️ Setup Nerdbank.GitVersioning
-        uses: dotnet/nbgv@master
+        uses: dotnet/nbgv@v0.5.2
         with:
           setAllVars: true
 
       - name: ⚙️ Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
@@ -78,7 +76,6 @@ jobs:
             --no-symbols
 
       - name: 🌩️ ATC-API invalidate cache for CLI-Tool
-        uses: satak/webrequest-action@master
-        with:
-          url: https://atcnet-api-prod-api-ca-01.greenhill-862ffb7c.swedencentral.azurecontainerapps.io/nuget-search/package?packageId=atc-rest-api-gen&invalidateCache=true
-          method: GET
+        run: |
+          curl --fail --silent --show-error --location --retry 3 --max-time 60 \
+            'https://atcnet-api-prod-api-ca-01.greenhill-862ffb7c.swedencentral.azurecontainerapps.io/nuget-search/package?packageId=atc-rest-api-gen&invalidateCache=true'
