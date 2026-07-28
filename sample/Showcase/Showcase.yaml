@@ -103,6 +103,9 @@ paths:
     x-ratelimit-policy: accounts
     x-ratelimit-permit-limit: 100
     x-ratelimit-window-seconds: 60
+    # Partition per authenticated user, keyed by the "oid" claim
+    x-ratelimit-partition: user
+    x-ratelimit-partition-claim: oid
     # Path-level resilience - fast retry for account operations
     x-retry-policy: accounts-fast
     x-retry-max-attempts: 2
@@ -162,6 +165,9 @@ paths:
   /accounts/{accountId}:
     # Inherit accounts policy
     x-ratelimit-policy: accounts
+    # Partition per authenticated user, keyed by the "oid" claim (must match /accounts above)
+    x-ratelimit-partition: user
+    x-ratelimit-partition-claim: oid
     x-retry-policy: accounts-fast
     get:
       summary: Get a specific account
@@ -381,6 +387,8 @@ paths:
     x-ratelimit-permit-limit: 50
     x-ratelimit-window-seconds: 60
     x-ratelimit-algorithm: fixed
+    # Partition by caller IP
+    x-ratelimit-partition: ip
     # Path-level resilience
     x-retry-policy: users
     x-retry-max-attempts: 3
@@ -481,6 +489,8 @@ paths:
   /users/{userId}:
     # Inherit users policy
     x-ratelimit-policy: users
+    # Partition by caller IP (must match /users above)
+    x-ratelimit-partition: ip
     x-retry-policy: users
     # HybridCache - specific policy for user detail with sliding expiration
     x-cache-type: hybrid
