@@ -262,6 +262,13 @@ public static class RuleIdentifiers
     /// </summary>
     public const string RateLimitPartitionClaimWithoutUserPartition = "ATC_API_RL002";
 
+    /// <summary>
+    /// ATC_API_RL003: One rate limit policy name is declared with conflicting settings at several sites.
+    /// A policy name maps to a single limiter registration, so the first declaration wins and the rest
+    /// are silently discarded.
+    /// </summary>
+    public const string RateLimitPolicyConflictingSettings = "ATC_API_RL003";
+
     // ========== Server Rules (SRV) ==========
 
     /// <summary>
