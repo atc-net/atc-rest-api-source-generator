@@ -119,6 +119,9 @@ public static class OpenApiDocumentValidator
         // ATC_API_STREAM001: Info when a streaming media type has unsupported prefixEncoding
         ValidateStreamingEncodings(diagnostics, sourceFilePath, document);
 
+        // ATC_API_RL001/RL002: Warn on rate-limit partitioning that is silently ignored
+        ValidateRateLimitPartitioning(diagnostics, sourceFilePath, document);
+
         return diagnostics;
     }
 
@@ -2770,6 +2773,138 @@ public static class OpenApiDocumentValidator
                 Severity: DiagnosticSeverity.Info,
                 FilePath: sourceFilePath));
         }
+    }
+
+    /// <summary>
+    /// Emits ATC_API_RL001 (Warning) for every <c>x-ratelimit-partition</c> declaration whose value is
+    /// not <c>global</c>, <c>ip</c> or <c>user</c>, and ATC_API_RL002 (Warning) for every
+    /// <c>x-ratelimit-partition-claim</c> declaration that no operation in its scope can actually use.
+    /// </summary>
+    /// <remarks>
+    /// Both fall back silently today: an unrecognized partition value degrades to <c>global</c> - one
+    /// shared bucket for every caller, which is the exact failure mode partitioning exists to prevent -
+    /// and a claim is only read when the effective partition is <c>user</c>.
+    /// </remarks>
+    private static void ValidateRateLimitPartitioning(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        OpenApiDocument document)
+    {
+        ValidatePartitionValue(diagnostics, sourceFilePath, document.Extensions, "document");
+
+        var documentPartition = document.Extensions.ExtractRateLimitPartition();
+        var documentClaim = document.Extensions.ExtractRateLimitPartitionClaim();
+
+        // Collects whether any operation anywhere resolves to user partitioning, which decides
+        // whether a document-level claim is actually reachable.
+        var anyOperationUsesUserPartition = false;
+
+        if (document.Paths != null)
+        {
+            foreach (var pathEntry in document.Paths)
+            {
+                var pathItem = pathEntry.Value;
+
+                ValidatePartitionValue(diagnostics, sourceFilePath, pathItem.Extensions, $"path '{pathEntry.Key}'");
+
+                var pathPartition = pathItem.Extensions.ExtractRateLimitPartition() ?? documentPartition;
+                var pathClaim = pathItem.Extensions.ExtractRateLimitPartitionClaim();
+
+                var anyOperationInPathUsesUserPartition = false;
+
+                if (pathItem.Operations != null)
+                {
+                    foreach (var operationEntry in pathItem.Operations)
+                    {
+                        var operation = operationEntry.Value;
+                        if (operation == null)
+                        {
+                            continue;
+                        }
+
+                        var location = $"operation '{operation.OperationId ?? operationEntry.Key.ToString()}'";
+
+                        ValidatePartitionValue(diagnostics, sourceFilePath, operation.Extensions, location);
+
+                        var effectivePartition = operation.Extensions.ExtractRateLimitPartition() ?? pathPartition;
+                        var usesUserPartition = OpenApiRateLimitExtensions.ParsePartitionStrategy(effectivePartition)
+                                                == RateLimitPartitionStrategy.User;
+
+                        anyOperationInPathUsesUserPartition |= usesUserPartition;
+                        anyOperationUsesUserPartition |= usesUserPartition;
+
+                        // An operation-level claim is scoped to exactly this operation.
+                        if (!string.IsNullOrEmpty(operation.Extensions.ExtractRateLimitPartitionClaim()) && !usesUserPartition)
+                        {
+                            AddPartitionClaimIgnoredDiagnostic(diagnostics, sourceFilePath, location, effectivePartition);
+                        }
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(pathClaim) && !anyOperationInPathUsesUserPartition)
+                {
+                    AddPartitionClaimIgnoredDiagnostic(diagnostics, sourceFilePath, $"path '{pathEntry.Key}'", pathPartition);
+                }
+            }
+        }
+
+        if (!string.IsNullOrEmpty(documentClaim) && !anyOperationUsesUserPartition)
+        {
+            AddPartitionClaimIgnoredDiagnostic(diagnostics, sourceFilePath, "document", documentPartition);
+        }
+    }
+
+    /// <summary>
+    /// Emits ATC_API_RL001 when the extensions declare an <c>x-ratelimit-partition</c> value that the
+    /// generator does not recognize.
+    /// </summary>
+    private static void ValidatePartitionValue(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        IDictionary<string, IOpenApiExtension>? extensions,
+        string location)
+    {
+        var declaredValue = extensions.ExtractRateLimitPartition();
+        if (string.IsNullOrEmpty(declaredValue))
+        {
+            return;
+        }
+
+        var normalized = declaredValue!.ToLowerInvariant();
+        if (normalized is "global" or "ip" or "user")
+        {
+            return;
+        }
+
+        diagnostics.Add(new DiagnosticMessage(
+            RuleId: RuleIdentifiers.RateLimitPartitionValueUnrecognized,
+            Message: $"Unrecognized '{RateLimitExtensionNameConstants.Partition}' value '{declaredValue}' on {location}. " +
+                     "Expected 'global', 'ip' or 'user'. The value falls back to 'global', which means one shared " +
+                     "rate-limit bucket for all callers.",
+            Severity: DiagnosticSeverity.Warning,
+            FilePath: sourceFilePath));
+    }
+
+    /// <summary>
+    /// Emits ATC_API_RL002 for a <c>x-ratelimit-partition-claim</c> declaration that cannot take effect.
+    /// </summary>
+    private static void AddPartitionClaimIgnoredDiagnostic(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        string location,
+        string? effectivePartition)
+    {
+        var effective = string.IsNullOrEmpty(effectivePartition)
+            ? "global"
+            : effectivePartition;
+
+        diagnostics.Add(new DiagnosticMessage(
+            RuleId: RuleIdentifiers.RateLimitPartitionClaimWithoutUserPartition,
+            Message: $"'{RateLimitExtensionNameConstants.PartitionClaim}' is declared on {location} but the effective " +
+                     $"'{RateLimitExtensionNameConstants.Partition}' is '{effective}', so the claim is ignored. " +
+                     $"Set '{RateLimitExtensionNameConstants.Partition}: user' to partition by claim.",
+            Severity: DiagnosticSeverity.Warning,
+            FilePath: sourceFilePath));
     }
 
     /// <summary>
