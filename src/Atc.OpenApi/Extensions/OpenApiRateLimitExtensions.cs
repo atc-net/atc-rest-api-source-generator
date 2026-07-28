@@ -320,8 +320,9 @@ public static class OpenApiRateLimitExtensions
 
     /// <summary>
     /// Parses a rate limit algorithm string to the enum value.
+    /// Unknown or empty values fall back to <see cref="RateLimitAlgorithm.Fixed"/>.
     /// </summary>
-    private static RateLimitAlgorithm ParseAlgorithm(string? algorithmString)
+    public static RateLimitAlgorithm ParseAlgorithm(string? algorithmString)
     {
         if (string.IsNullOrEmpty(algorithmString))
         {
