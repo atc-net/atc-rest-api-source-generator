@@ -3,7 +3,10 @@
 
 using System;
 using System.CodeDom.Compiler;
+using System.Globalization;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
@@ -23,18 +26,41 @@ public static class RateLimitingServiceCollectionExtensions
     /// Registers rate limiting policies for the API based on OpenAPI extensions.
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configure">Optional callback for customizing the rate limiter options. Invoked last, so it can override any generated configuration.</param>
     /// <returns>The service collection for method chaining.</returns>
-    public static IServiceCollection AddApiRateLimiting(this IServiceCollection services)
+    public static IServiceCollection AddApiRateLimiting(
+        this IServiceCollection services,
+        Action<RateLimiterOptions>? configure = null)
     {
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            options.AddConcurrencyLimiter(RateLimitPolicies.ExportsConcurrent, opt =>
+            options.OnRejected = static (context, cancellationToken) =>
             {
-                opt.PermitLimit = 5;
-                opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                opt.QueueLimit = 0;
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                {
+                    context.HttpContext.Response.Headers.RetryAfter =
+                        ((int)retryAfter.TotalSeconds).ToString(NumberFormatInfo.InvariantInfo);
+                }
+
+                return ValueTask.CompletedTask;
+            };
+
+            options.AddPolicy(RateLimitPolicies.ExportsConcurrent, httpContext =>
+            {
+                var partitionKey =
+                    httpContext.User.FindFirst("sub")?.Value
+                    ?? httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                    ?? "anonymous";
+
+                return RateLimitPartition.GetConcurrencyLimiter(partitionKey, _ => new ConcurrencyLimiterOptions
+                {
+                    PermitLimit = 5,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 0,
+                });
             });
 
             options.AddFixedWindowLimiter(RateLimitPolicies.Global, opt =>
@@ -45,39 +71,69 @@ public static class RateLimitingServiceCollectionExtensions
                 opt.QueueLimit = 0;
             });
 
-            options.AddTokenBucketLimiter(RateLimitPolicies.NotificationsBurst, opt =>
+            options.AddPolicy(RateLimitPolicies.NotificationsBurst, httpContext =>
             {
-                opt.TokenLimit = 200;
-                opt.ReplenishmentPeriod = TimeSpan.FromSeconds(60);
-                opt.TokensPerPeriod = 200;
-                opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                opt.QueueLimit = 20;
+                var partitionKey = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+                return RateLimitPartition.GetTokenBucketLimiter(partitionKey, _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 200,
+                    ReplenishmentPeriod = TimeSpan.FromSeconds(60),
+                    TokensPerPeriod = 200,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 20,
+                });
             });
 
-            options.AddFixedWindowLimiter(RateLimitPolicies.OrdersStandard, opt =>
+            options.AddPolicy(RateLimitPolicies.OrdersStandard, httpContext =>
             {
-                opt.PermitLimit = 100;
-                opt.Window = TimeSpan.FromSeconds(60);
-                opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                opt.QueueLimit = 0;
+                var partitionKey = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+                return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 100,
+                    Window = TimeSpan.FromSeconds(60),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 0,
+                });
             });
 
-            options.AddFixedWindowLimiter(RateLimitPolicies.OrdersStrict, opt =>
+            options.AddPolicy(RateLimitPolicies.OrdersStrict, httpContext =>
             {
-                opt.PermitLimit = 10;
-                opt.Window = TimeSpan.FromSeconds(60);
-                opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                opt.QueueLimit = 0;
+                var partitionKey =
+                    httpContext.User.FindFirst("oid")?.Value
+                    ?? httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                    ?? "anonymous";
+
+                return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromSeconds(60),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 0,
+                });
             });
 
-            options.AddSlidingWindowLimiter(RateLimitPolicies.ReportsSliding, opt =>
+            options.AddPolicy(RateLimitPolicies.ReportsSliding, httpContext =>
             {
-                opt.PermitLimit = 50;
-                opt.Window = TimeSpan.FromSeconds(120);
-                opt.SegmentsPerWindow = 12;
-                opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                opt.QueueLimit = 0;
+                var partitionKey =
+                    httpContext.User.FindFirst("sub")?.Value
+                    ?? httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                    ?? "anonymous";
+
+                return RateLimitPartition.GetSlidingWindowLimiter(partitionKey, _ => new SlidingWindowRateLimiterOptions
+                {
+                    PermitLimit = 50,
+                    Window = TimeSpan.FromSeconds(120),
+                    SegmentsPerWindow = 12,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 0,
+                });
             });
+
+            configure?.Invoke(options);
         });
 
         return services;

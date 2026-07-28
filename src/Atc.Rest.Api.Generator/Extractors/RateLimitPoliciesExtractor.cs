@@ -159,6 +159,19 @@ public static class RateLimitPoliciesExtractor
                               ?? documentExtensions.ExtractRateLimitAlgorithm()
                               ?? "fixed";
 
+        var emitRetryAfter = operationExtensions.ExtractRateLimitEmitRetryAfter()
+                             ?? pathExtensions.ExtractRateLimitEmitRetryAfter()
+                             ?? documentExtensions.ExtractRateLimitEmitRetryAfter()
+                             ?? true;
+
+        var partitionString = operationExtensions.ExtractRateLimitPartition()
+                              ?? pathExtensions.ExtractRateLimitPartition()
+                              ?? documentExtensions.ExtractRateLimitPartition();
+
+        var partitionClaim = operationExtensions.ExtractRateLimitPartitionClaim()
+                             ?? pathExtensions.ExtractRateLimitPartitionClaim()
+                             ?? documentExtensions.ExtractRateLimitPartitionClaim();
+
         return new RateLimitConfiguration
         {
             Enabled = true,
@@ -167,6 +180,9 @@ public static class RateLimitPoliciesExtractor
             WindowSeconds = windowSeconds,
             QueueLimit = queueLimit,
             Algorithm = ParseAlgorithm(algorithmString),
+            EmitRetryAfter = emitRetryAfter,
+            Partition = OpenApiRateLimitExtensions.ParsePartitionStrategy(partitionString),
+            PartitionClaim = partitionClaim,
         };
     }
 
