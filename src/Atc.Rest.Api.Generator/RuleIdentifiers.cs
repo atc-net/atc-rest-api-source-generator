@@ -248,6 +248,20 @@ public static class RuleIdentifiers
     /// </summary>
     public const string StreamingPrefixEncodingUnsupported = "ATC_API_STREAM001";
 
+    // ========== Rate Limiting Rules (RL) ==========
+
+    /// <summary>
+    /// ATC_API_RL001: Unrecognized `x-ratelimit-partition` value.
+    /// The value falls back to `global`, which means one shared bucket for all callers.
+    /// </summary>
+    public const string RateLimitPartitionValueUnrecognized = "ATC_API_RL001";
+
+    /// <summary>
+    /// ATC_API_RL002: `x-ratelimit-partition-claim` declared without an effective `x-ratelimit-partition: user`.
+    /// The claim is only read when partitioning by user, so it is silently ignored.
+    /// </summary>
+    public const string RateLimitPartitionClaimWithoutUserPartition = "ATC_API_RL002";
+
     // ========== Server Rules (SRV) ==========
 
     /// <summary>
