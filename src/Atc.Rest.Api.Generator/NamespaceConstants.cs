@@ -38,6 +38,11 @@ public static class NamespaceConstants
     public const string SystemDiagnosticsCodeAnalysis = "System.Diagnostics.CodeAnalysis";
 
     /// <summary>
+    /// System.Globalization - Required for culture-invariant formatting.
+    /// </summary>
+    public const string SystemGlobalization = "System.Globalization";
+
+    /// <summary>
     /// System.IO - Required for stream types.
     /// </summary>
     public const string SystemIO = "System.IO";
@@ -71,6 +76,11 @@ public static class NamespaceConstants
     /// System.Runtime.Serialization - Required for [EnumMember] attribute.
     /// </summary>
     public const string SystemRuntimeSerialization = "System.Runtime.Serialization";
+
+    /// <summary>
+    /// System.Security.Claims - Required for claim-based rate limit partitioning.
+    /// </summary>
+    public const string SystemSecurityClaims = "System.Security.Claims";
 
     /// <summary>
     /// System.Text.Json - Required for JSON serialization.

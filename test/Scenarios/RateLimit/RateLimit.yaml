@@ -31,6 +31,8 @@ paths:
     x-ratelimit-policy: orders-standard
     x-ratelimit-permit-limit: 100
     x-ratelimit-window-seconds: 60
+    # Partition by caller IP (must match /orders/{orderId} below - orders-standard is declared at both sites)
+    x-ratelimit-partition: ip
     get:
       operationId: listOrders
       summary: List orders (orders-standard policy)
@@ -67,6 +69,8 @@ paths:
   # 3. Operation-level rate limit override
   /orders/{orderId}:
     x-ratelimit-policy: orders-standard
+    # Partition by caller IP (must match /orders above - orders-standard is declared at both sites)
+    x-ratelimit-partition: ip
     parameters:
       - name: orderId
         in: path
@@ -96,6 +100,9 @@ paths:
       x-ratelimit-policy: orders-strict
       x-ratelimit-permit-limit: 10
       x-ratelimit-window-seconds: 60
+      # Partition per authenticated user, keyed by the "oid" claim
+      x-ratelimit-partition: user
+      x-ratelimit-partition-claim: oid
       responses:
         '204':
           description: No Content
@@ -108,6 +115,8 @@ paths:
     x-ratelimit-permit-limit: 50
     x-ratelimit-window-seconds: 120
     x-ratelimit-algorithm: sliding
+    # Partition per authenticated user (no claim override - falls back to the default "sub" claim)
+    x-ratelimit-partition: user
     get:
       operationId: listReports
       summary: List reports (sliding window)
@@ -130,6 +139,8 @@ paths:
     x-ratelimit-window-seconds: 60
     x-ratelimit-queue-limit: 20
     x-ratelimit-algorithm: token-bucket
+    # Partition by caller IP
+    x-ratelimit-partition: ip
     post:
       operationId: sendNotification
       summary: Send notification (token bucket with queue)
@@ -150,6 +161,8 @@ paths:
     x-ratelimit-policy: exports-concurrent
     x-ratelimit-permit-limit: 5
     x-ratelimit-algorithm: concurrency
+    # Partition per authenticated user (no claim override - falls back to the default "sub" claim)
+    x-ratelimit-partition: user
     post:
       operationId: createExport
       summary: Create export (concurrency limited)
