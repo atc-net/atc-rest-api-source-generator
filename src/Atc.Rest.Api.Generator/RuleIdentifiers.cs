@@ -270,6 +270,38 @@ public static class RuleIdentifiers
     /// </summary>
     public const string RateLimitPolicyConflictingSettings = "ATC_API_RL003";
 
+    /// <summary>
+    /// ATC_API_RL004: Two or more distinct rate limit policy names sanitize to the same C# identifier,
+    /// which emits duplicate constants in the generated RateLimitPolicies class and breaks compilation.
+    /// </summary>
+    public const string RateLimitPolicyNameCollision = "ATC_API_RL004";
+
+    /// <summary>
+    /// ATC_API_RL005: A rate limit value is outside the range the limiter accepts. The limiter
+    /// constructor throws <see cref="ArgumentException"/> during DI setup, so the application
+    /// fails to start.
+    /// </summary>
+    public const string RateLimitValueOutOfRange = "ATC_API_RL005";
+
+    /// <summary>
+    /// ATC_API_RL006: `x-ratelimit-enabled` is only honoured at operation level; declaring it at
+    /// document or path level is silently ignored and the endpoints stay rate limited.
+    /// </summary>
+    public const string RateLimitEnabledIgnoredOutsideOperation = "ATC_API_RL006";
+
+    /// <summary>
+    /// ATC_API_RL007: The policy's algorithm does not put a Retry-After value on its rejection lease,
+    /// so no Retry-After header is emitted even though `x-ratelimit-emit-retry-after` is enabled.
+    /// Applies to `sliding` and `concurrency`.
+    /// </summary>
+    public const string RateLimitRetryAfterUnsupportedByAlgorithm = "ATC_API_RL007";
+
+    /// <summary>
+    /// ATC_API_RL008: `x-ratelimit-window-seconds` is ignored by the concurrency limiter, which has
+    /// no time component.
+    /// </summary>
+    public const string RateLimitWindowIgnoredForConcurrency = "ATC_API_RL008";
+
     // ========== Server Rules (SRV) ==========
 
     /// <summary>
