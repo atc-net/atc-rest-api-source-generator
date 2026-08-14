@@ -57,6 +57,32 @@ public static class DiagnosticBuilder
         };
 
     /// <summary>
+    /// Creates a warning for a missing operationId (Standard mode).
+    /// Reports the synthetic name the generator will use so the developer
+    /// understands the downstream impact before the spec is fixed.
+    /// </summary>
+    public static DiagnosticMessage MissingOperationIdWarning(
+        string httpMethod,
+        string path,
+        string syntheticClassName,
+        string suggestedOperationId,
+        string filePath)
+        => new(
+            RuleId: RuleIdentifiers.OperationIdMissing,
+            Message: $"Operation '{httpMethod.ToUpperInvariant()} {path}' is missing 'operationId'. " +
+                     $"The generator will use the auto-generated name '{syntheticClassName}'. " +
+                     $"This may produce long or unreadable class names.",
+            Severity: DiagnosticSeverity.Warning,
+            FilePath: filePath,
+            Context: $"{httpMethod.ToUpperInvariant()} {path}",
+            Suggestions:
+            [
+                $"Add 'operationId: {suggestedOperationId}' to this operation",
+                "Explicit operationIds produce shorter, clearer generated class names",
+            ],
+            DocumentationUrl: GetDocUrl(RuleIdentifiers.OperationIdMissing));
+
+    /// <summary>
     /// Creates an operationId naming convention warning.
     /// </summary>
     public static DiagnosticMessage OperationIdCasingWarning(
