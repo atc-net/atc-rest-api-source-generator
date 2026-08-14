@@ -53,7 +53,7 @@ public static class OpenApiDocumentValidator
         // Standard validation: Report Microsoft.OpenApi parsing errors + schema reference validation
         if (strategy >= ValidateSpecificationStrategy.Standard)
         {
-            diagnostics.AddRange(ValidateStandard(diagnosticErrors, document, sourceFilePath));
+            diagnostics.AddRange(ValidateStandard(strategy, diagnosticErrors, document, sourceFilePath));
         }
 
         // Strict validation: Standard + custom ATC rules
@@ -69,6 +69,7 @@ public static class OpenApiDocumentValidator
     /// Validates using Microsoft.OpenApi library errors (Standard level).
     /// </summary>
     private static List<DiagnosticMessage> ValidateStandard(
+        ValidateSpecificationStrategy strategy,
         IList<OpenApiError> diagnosticErrors,
         OpenApiDocument document,
         string sourceFilePath)
@@ -133,6 +134,78 @@ public static class OpenApiDocumentValidator
 
         // ATC_API_RL007: Info when the algorithm cannot supply a Retry-After value
         ValidateRateLimitRetryAfterSupport(diagnostics, sourceFilePath, document);
+
+        // ATC_API_OPR001: Warn when operationId is missing (Standard only — Strict mode reports it as an Error per-operation)
+        if (strategy == ValidateSpecificationStrategy.Standard)
+        {
+            diagnostics.AddRange(ValidateMissingOperationIds(document, sourceFilePath));
+        }
+
+        return diagnostics;
+    }
+
+    /// <summary>
+    /// Warns (Standard level) when an operation does not declare an <c>operationId</c>.
+    /// The generator synthesises a name from the HTTP method and path, which tends to be
+    /// long and unreadable. This warning surfaces the issue before the user encounters
+    /// cryptic CS0234/CS0246 compilation errors in the generated code.
+    /// </summary>
+    private static List<DiagnosticMessage> ValidateMissingOperationIds(
+        OpenApiDocument document,
+        string sourceFilePath)
+    {
+        var diagnostics = new List<DiagnosticMessage>();
+
+        if (document.Paths == null)
+        {
+            return diagnostics;
+        }
+
+        foreach (var pathEntry in document.Paths)
+        {
+            var pathKey = pathEntry.Key;
+
+            if (pathEntry.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            {
+                continue;
+            }
+
+            foreach (var operationEntry in pathItem.Operations)
+            {
+                var opValue = operationEntry.Value;
+                if (opValue == null || !string.IsNullOrEmpty(opValue.OperationId))
+                {
+                    continue;
+                }
+
+                var httpMethodLower = operationEntry.Key.ToString().ToLowerInvariant();
+                var httpMethodUpper = httpMethodLower.ToUpperInvariant();
+
+                // Compute the synthetic class name the generator will use
+                // (mirrors EndpointPerOperationExtractor / HttpClientExtractor logic)
+                var normalizedPath = pathKey
+                    .Replace("/", "_")
+                    .Replace("{", string.Empty)
+                    .Replace("}", string.Empty);
+                var syntheticId = $"{httpMethodLower}{normalizedPath}";
+                var syntheticClassName = CasingHelper.ToPascalCase(syntheticId);
+
+                // Build a concise suggested operationId from the last non-parameter path segment
+                var lastSegment = pathKey
+                    .Split('/')
+                    .LastOrDefault(s => s.Length > 0 && !s.StartsWith("{", StringComparison.Ordinal));
+                var suggestedId = lastSegment is not null
+                    ? $"{httpMethodLower}{CasingHelper.ToPascalCase(lastSegment)}"
+                    : syntheticId;
+
+                diagnostics.Add(DiagnosticBuilder.MissingOperationIdWarning(
+                    httpMethodUpper,
+                    pathKey,
+                    syntheticClassName,
+                    suggestedId,
+                    sourceFilePath));
+            }
+        }
 
         return diagnostics;
     }
@@ -212,11 +285,15 @@ public static class OpenApiDocumentValidator
 
         foreach (var (path, httpMethod, operation) in allOperations)
         {
-            // ATCAPI_NAM001: OperationId must start with lowercase letter (camelCase)
-            var operationId = operation.GetOperationId(path, httpMethod);
+            // ATCAPI_NAM001: OperationId must start with lowercase letter (camelCase).
+            // Only validate when the user explicitly declared an operationId — do NOT run this
+            // check against synthetic names produced by GetOperationId(), because those start
+            // with the uppercase HTTP method (e.g. "GET_...") and would fire a spurious NAM001
+            // warning that masks the real OPR001 error emitted by ValidateOperation().
+            var operationId = operation.OperationId;
             if (!string.IsNullOrWhiteSpace(operationId))
             {
-                var firstChar = operationId[0];
+                var firstChar = operationId![0];
                 if (char.IsLetter(firstChar) && char.IsUpper(firstChar))
                 {
                     var suggestedName = $"{char.ToLowerInvariant(firstChar)}{operationId.Substring(1)}";

@@ -52,6 +52,74 @@ public class OperationValidationTests
         Assert.Null(opr001);
     }
 
+    [Fact]
+    public void Validate_MissingOperationId_StandardMode_ReportsOPR001Warning()
+    {
+        // Arrange
+        var document = ParseYaml(CreateOperationYaml(operationId: null));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Standard,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert: Standard mode reports OPR001 as Warning (not Error) so generation can still proceed
+        var opr001 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdMissing);
+        Assert.NotNull(opr001);
+        Assert.Equal(Atc.Rest.Api.Generator.Models.DiagnosticSeverity.Warning, opr001.Severity);
+        Assert.Contains("missing 'operationId'", opr001.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Validate_MissingOperationId_StandardMode_MessageContainsSyntheticName()
+    {
+        // Arrange — the synthetic name for GET /pets is "GetPets"
+        var document = ParseYaml(CreateOperationYaml(operationId: null));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Standard,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert: warning message tells the developer what name the generator will use
+        var opr001 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdMissing);
+        Assert.NotNull(opr001);
+        Assert.Contains("GetPets", opr001.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_MissingOperationId_StrictMode_DoesNotReportSpuriousNAM001()
+    {
+        // Arrange
+        var document = ParseYaml(CreateOperationYaml(operationId: null));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert: the synthetic operationId (e.g. "GET_pets") must NOT trigger NAM001 —
+        // only OPR001 should be reported for a missing operationId
+        var nam001 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdMustBeCamelCase);
+        Assert.Null(nam001);
+
+        var opr001 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdMissing);
+        Assert.NotNull(opr001);
+    }
+
     // ========== OPR002: OperationId not using valid casing style ==========
 
     [Fact]
