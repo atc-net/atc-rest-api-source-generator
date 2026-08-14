@@ -60,7 +60,7 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
         var baseFile = filesToMerge[0];
         var baseSpec = SpecificationService.ReadFromFile(baseFile);
 
-        if (baseSpec.Document == null)
+        if (baseSpec.Document is null)
         {
             AnsiConsole.MarkupLine($"[red]✗[/] Failed to parse base specification: {Path.GetFileName(baseFile)}");
             return 1;
@@ -72,7 +72,7 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
         foreach (var partFile in filesToMerge.Skip(1))
         {
             var spec = SpecificationService.ReadFromFile(partFile);
-            if (spec.Document == null)
+            if (spec.Document is null)
             {
                 AnsiConsole.MarkupLine($"[yellow]Warning:[/] Failed to parse part file: {Path.GetFileName(partFile)}");
                 continue;
@@ -123,7 +123,7 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
             AnsiConsole.WriteLine();
         }
 
-        if (!mergeResult.IsSuccess || mergeResult.Document == null)
+        if (!mergeResult.IsSuccess || mergeResult.Document is null)
         {
             AnsiConsole.MarkupLine("[red]✗ Merge failed.[/]");
             return 1;

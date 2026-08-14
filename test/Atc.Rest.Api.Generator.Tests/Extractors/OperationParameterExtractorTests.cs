@@ -612,7 +612,7 @@ public class OperationParameterExtractorTests
         string expectedTypeName)
     {
         // Arrange - required array query parameter
-        var formatLine = itemFormat != null ? $"\n              format: {itemFormat}" : string.Empty;
+        var formatLine = itemFormat is not null ? $"\n              format: {itemFormat}" : string.Empty;
         var yaml = $"""
                     openapi: 3.0.0
                     info:
@@ -674,7 +674,7 @@ public class OperationParameterExtractorTests
         string expectedTypeName)
     {
         // Arrange - optional array query parameter (required: false / not specified)
-        var formatLine = itemFormat != null ? $"\n              format: {itemFormat}" : string.Empty;
+        var formatLine = itemFormat is not null ? $"\n              format: {itemFormat}" : string.Empty;
         var yaml = $"""
                     openapi: 3.0.0
                     info:

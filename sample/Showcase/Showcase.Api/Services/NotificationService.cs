@@ -99,7 +99,7 @@ public sealed class NotificationService : INotificationService
 
         var result = subscriptionIds
             .Select(id => subscriptions.GetValueOrDefault(id))
-            .Where(s => s != null)
+            .Where(s => s is not null)
             .Cast<SubscriptionInfo>()
             .ToList();
 
@@ -133,7 +133,7 @@ public sealed class NotificationService : INotificationService
                 .SendAsync("SystemNotification", notification);
         }
 
-        if (notification.Metrics != null)
+        if (notification.Metrics is not null)
         {
             await hubContext.Clients
                 .Group("Metric")

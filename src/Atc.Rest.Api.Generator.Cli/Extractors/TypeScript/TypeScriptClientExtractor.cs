@@ -85,7 +85,7 @@ public static class TypeScriptClientExtractor
             if (bodySchema is OpenApiSchemaReference bodyRef)
             {
                 var refName = bodyRef.Reference.Id ?? bodyRef.Id;
-                if (refName != null && writableSchemas.Contains(refName))
+                if (refName is not null && writableSchemas.Contains(refName))
                 {
                     importTypes.Add(refName + TypeScriptModelExtractor.WritableSuffix);
                 }
@@ -114,7 +114,7 @@ public static class TypeScriptClientExtractor
 
                     // Check if any non-streaming operation also uses this wrapper type
                     var usedByNonStreaming = false;
-                    if (wrapperName != null)
+                    if (wrapperName is not null)
                     {
                         foreach (var (otherPath, _, otherOp) in operations)
                         {
@@ -142,7 +142,7 @@ public static class TypeScriptClientExtractor
                     if (resolvedSchema.Items is OpenApiSchemaReference itemRef)
                     {
                         var itemName = itemRef.Reference.Id ?? itemRef.Id;
-                        if (itemName != null)
+                        if (itemName is not null)
                         {
                             importTypes.Add(itemName);
                         }
@@ -247,7 +247,7 @@ public static class TypeScriptClientExtractor
             foreach (var (_, _, operation) in operations)
             {
                 var spec = TypeScriptOperationHelper.TryGetResponseZodSchemaSpec(operation);
-                if (spec == null)
+                if (spec is null)
                 {
                     continue;
                 }
@@ -300,7 +300,7 @@ public static class TypeScriptClientExtractor
         var bodyText = bodySb.ToString();
 
         // Write header
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }
@@ -334,7 +334,7 @@ public static class TypeScriptClientExtractor
                 }
 
                 var brand = TypeScriptBrandedIdExtractor.ResolveParamBrand(path, param.Name, param.Schema);
-                if (brand != null)
+                if (brand is not null)
                 {
                     brands.Add(brand);
                 }
@@ -381,7 +381,7 @@ public static class TypeScriptClientExtractor
                 continue;
             }
 
-            if (enumNames != null && enumNames.Contains(typeName))
+            if (enumNames is not null && enumNames.Contains(typeName))
             {
                 enumImports.Add(typeName);
             }
@@ -489,7 +489,7 @@ public static class TypeScriptClientExtractor
             // returns one page of results for useInfiniteQuery to consume. The page return
             // type is the full response schema (PaginationResult<Item>), not the streaming
             // item type, so re-compute via the non-streaming path of GetReturnType.
-            if (perOpPageResultTypeName != null)
+            if (perOpPageResultTypeName is not null)
             {
                 var pageDataType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming: false, isFileDownload: false);
                 AppendOperationJsDoc(sb, operation);
@@ -719,17 +719,17 @@ public static class TypeScriptClientExtractor
         // Build request options
         var hasQuery = queryParams.Count > 0;
         var hasHeaders = headerParams.Count > 0 || cookieParams.Count > 0;
-        var hasBody = bodySchema != null;
+        var hasBody = bodySchema is not null;
 
         // Cast suffix narrows the generic ApiResult<T> returned by ApiClient.request to the
         // per-op union — sound because handleResponse emits the same discriminator names.
-        var castSuffix = perOpResultTypeName != null
+        var castSuffix = perOpResultTypeName is not null
             ? " as Promise<" + perOpResultTypeName + ">"
             : string.Empty;
 
         // The Zod schema only validates JSON bodies. File/text downloads carry no
         // structured payload, so skip emission even when the spec is non-null.
-        var emitParseSchema = zodSpec != null && !isFileDownload && !isTextDownload;
+        var emitParseSchema = zodSpec is not null && !isFileDownload && !isTextDownload;
 
         var urlArg = hasQuerystring ? "_url" : interpolatedPath;
 
@@ -880,7 +880,7 @@ public static class TypeScriptClientExtractor
         }
 
         // Request body
-        if (bodySchema != null)
+        if (bodySchema is not null)
         {
             if (isFileUpload)
             {
@@ -895,7 +895,7 @@ public static class TypeScriptClientExtractor
                 if (bodySchema is OpenApiSchemaReference bodyRef)
                 {
                     var refName = bodyRef.Reference.Id ?? bodyRef.Id;
-                    if (refName != null && writableSchemas.Contains(refName))
+                    if (refName is not null && writableSchemas.Contains(refName))
                     {
                         bodyType = refName + TypeScriptModelExtractor.WritableSuffix;
                     }

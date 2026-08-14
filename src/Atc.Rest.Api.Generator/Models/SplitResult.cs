@@ -47,7 +47,7 @@ public sealed class SplitResult
         {
             var files = new List<SplitFileContent> { BaseFile };
             files.AddRange(PartFiles);
-            if (CommonFile != null)
+            if (CommonFile is not null)
             {
                 files.Add(CommonFile);
             }

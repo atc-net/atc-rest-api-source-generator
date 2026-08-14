@@ -64,7 +64,7 @@ public static class GeneratorTestHelper
 
         // Generate ParsableList<T> helper type when any query parameter uses array types
         var parsableList = CodeGenerationService.GenerateParsableList(openApiDoc, scenarioName);
-        if (parsableList != null)
+        if (parsableList is not null)
         {
             yield return parsableList;
         }
@@ -77,7 +77,7 @@ public static class GeneratorTestHelper
         // Server-side SequentialResults helper (JSON Lines writer + IResult wrapper) when an
         // operation uses a writer-based sequential framing (jsonl today).
         var sequentialResults = CodeGenerationService.GenerateSequentialResults(openApiDoc, scenarioName);
-        if (sequentialResults != null)
+        if (sequentialResults is not null)
         {
             yield return sequentialResults;
         }
@@ -94,14 +94,14 @@ public static class GeneratorTestHelper
         }
 
         var di = CodeGenerationService.GenerateDependencyInjection(openApiDoc, scenarioName, generatorType);
-        if (di != null)
+        if (di is not null)
         {
             yield return di;
         }
 
         // Output Caching generation
         var outputCachePolicies = CodeGenerationService.GenerateOutputCachePolicies(openApiDoc, scenarioName);
-        if (outputCachePolicies != null)
+        if (outputCachePolicies is not null)
         {
             yield return new GeneratedType(
                 TypeName: "OutputCachePolicies",
@@ -114,7 +114,7 @@ public static class GeneratorTestHelper
         }
 
         var outputCacheDi = CodeGenerationService.GenerateOutputCacheDependencyInjection(openApiDoc, scenarioName);
-        if (outputCacheDi != null)
+        if (outputCacheDi is not null)
         {
             yield return new GeneratedType(
                 TypeName: "OutputCachingServiceCollectionExtensions",
@@ -128,7 +128,7 @@ public static class GeneratorTestHelper
 
         // Rate Limiting generation
         var rateLimitPolicies = CodeGenerationService.GenerateRateLimitPolicies(openApiDoc, scenarioName);
-        if (rateLimitPolicies != null)
+        if (rateLimitPolicies is not null)
         {
             yield return new GeneratedType(
                 TypeName: "RateLimitPolicies",
@@ -141,7 +141,7 @@ public static class GeneratorTestHelper
         }
 
         var rateLimitDi = CodeGenerationService.GenerateRateLimitDependencyInjection(openApiDoc, scenarioName);
-        if (rateLimitDi != null)
+        if (rateLimitDi is not null)
         {
             yield return new GeneratedType(
                 TypeName: "RateLimitingServiceCollectionExtensions",
@@ -155,7 +155,7 @@ public static class GeneratorTestHelper
 
         // HybridCache generation
         var hybridCachePolicies = CodeGenerationService.GenerateHybridCachePolicies(openApiDoc, scenarioName);
-        if (hybridCachePolicies != null)
+        if (hybridCachePolicies is not null)
         {
             yield return new GeneratedType(
                 TypeName: "CachePolicies",
@@ -168,7 +168,7 @@ public static class GeneratorTestHelper
         }
 
         var hybridCacheDi = CodeGenerationService.GenerateHybridCacheDependencyInjection(openApiDoc, scenarioName);
-        if (hybridCacheDi != null)
+        if (hybridCacheDi is not null)
         {
             yield return new GeneratedType(
                 TypeName: "HybridCachingServiceCollectionExtensions",
@@ -198,13 +198,13 @@ public static class GeneratorTestHelper
 
         var webhookServerConfig = new ServerConfig();
         var webhookEndpoints = CodeGenerationService.GenerateWebhookEndpoints(openApiDoc, scenarioName, webhookServerConfig);
-        if (webhookEndpoints != null)
+        if (webhookEndpoints is not null)
         {
             yield return webhookEndpoints;
         }
 
         var webhookDi = CodeGenerationService.GenerateWebhookDependencyInjection(openApiDoc, scenarioName);
-        if (webhookDi != null)
+        if (webhookDi is not null)
         {
             yield return webhookDi;
         }
@@ -260,7 +260,7 @@ public static class GeneratorTestHelper
 
             // Yield DI extension for EndpointPerOperation
             var di = CodeGenerationService.GenerateEndpointPerOperationDI(openApiDoc, scenarioName, generatorType);
-            if (di != null)
+            if (di is not null)
             {
                 yield return di;
             }
@@ -286,12 +286,12 @@ public static class GeneratorTestHelper
         var generatorType = CodeGenerationService.GeneratorType.ServerDomain;
 
         // Generate handler scaffolds
-        if (openApiDoc.Paths != null)
+        if (openApiDoc.Paths is not null)
         {
             foreach (var pathKvp in openApiDoc.Paths)
             {
                 var pathKey = pathKvp.Key;
-                if (pathKvp.Value is not OpenApiPathItem pathItem || pathItem.Operations == null)
+                if (pathKvp.Value is not OpenApiPathItem pathItem || pathItem.Operations is null)
                 {
                     continue;
                 }
@@ -299,7 +299,7 @@ public static class GeneratorTestHelper
                 foreach (var operationKvp in pathItem.Operations)
                 {
                     var operation = operationKvp.Value;
-                    if (operation == null)
+                    if (operation is null)
                     {
                         continue;
                     }
@@ -536,11 +536,11 @@ public sealed class {handlerName} : {interfaceName}
         sb.AppendLine("    public static IServiceCollection AddApiHandlersFromDomain(this IServiceCollection services)");
         sb.AppendLine("    {");
 
-        if (openApiDoc?.Paths != null)
+        if (openApiDoc?.Paths is not null)
         {
             foreach (var pathKvp in openApiDoc.Paths)
             {
-                if (pathKvp.Value is not OpenApiPathItem pathItem || pathItem.Operations == null)
+                if (pathKvp.Value is not OpenApiPathItem pathItem || pathItem.Operations is null)
                 {
                     continue;
                 }
@@ -548,7 +548,7 @@ public sealed class {handlerName} : {interfaceName}
                 foreach (var operationKvp in pathItem.Operations)
                 {
                     var operation = operationKvp.Value;
-                    if (operation == null)
+                    if (operation is null)
                     {
                         continue;
                     }

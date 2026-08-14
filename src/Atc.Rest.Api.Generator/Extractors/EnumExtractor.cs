@@ -17,7 +17,7 @@ public static class EnumExtractor
         string projectName,
         string pathSegment)
     {
-        if (openApiDoc.Components?.Schemas == null ||
+        if (openApiDoc.Components?.Schemas is null ||
             openApiDoc.Components.Schemas.Count == 0)
         {
             return null;
@@ -46,9 +46,9 @@ public static class EnumExtractor
         HashSet<string> schemaNames,
         string? pathSegment)
     {
-        if (openApiDoc.Components?.Schemas == null ||
+        if (openApiDoc.Components?.Schemas is null ||
             openApiDoc.Components.Schemas.Count == 0 ||
-            schemaNames == null ||
+            schemaNames is null ||
             schemaNames.Count == 0)
         {
             return null;
@@ -77,7 +77,7 @@ public static class EnumExtractor
             var schemaValue = schema.Value;
 
             // Apply schema filter if provided (uses original name from OpenAPI spec)
-            if (schemaFilter != null && !schemaFilter.Contains(originalSchemaName))
+            if (schemaFilter is not null && !schemaFilter.Contains(originalSchemaName))
             {
                 continue;
             }
@@ -94,7 +94,7 @@ public static class EnumExtractor
                 // Sanitize schema name - replace dots with underscores for valid C# identifiers
                 var schemaName = OpenApiSchemaExtensions.SanitizeSchemaName(originalSchemaName);
                 var enumParams = ExtractEnumFromSchema(schemaName, actualSchema, ns);
-                if (enumParams != null)
+                if (enumParams is not null)
                 {
                     enumParametersList.Add(enumParams);
                 }
@@ -130,13 +130,13 @@ public static class EnumExtractor
         string ns)
     {
         var enumValues = ExtractEnumValues(schema.Enum);
-        if (enumValues == null)
+        if (enumValues is null)
         {
             return null;
         }
 
         // Check if any value needs EnumMember attribute
-        var hasEnumMemberValues = enumValues.Any(v => v.EnumMemberValue != null);
+        var hasEnumMemberValues = enumValues.Any(v => v.EnumMemberValue is not null);
 
         // Build header content with appropriate usings
         var headerContent = BuildEnumHeaderContent(hasEnumMemberValues);
@@ -211,7 +211,7 @@ public static class EnumExtractor
     internal static List<EnumValueParameters>? ExtractEnumValues(
         IList<JsonNode>? enumValues)
     {
-        if (enumValues == null || enumValues.Count == 0)
+        if (enumValues is null || enumValues.Count == 0)
         {
             return null;
         }

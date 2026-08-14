@@ -42,7 +42,7 @@ internal static class EndpointInjectionExtractor
                 continue;
             }
 
-            if (pathItem.Operations == null)
+            if (pathItem.Operations is null)
             {
                 continue;
             }
@@ -52,7 +52,7 @@ internal static class EndpointInjectionExtractor
                 var httpMethod = operation.Key.ToString();
                 var operationValue = operation.Value;
 
-                if (operationValue == null)
+                if (operationValue is null)
                 {
                     continue;
                 }

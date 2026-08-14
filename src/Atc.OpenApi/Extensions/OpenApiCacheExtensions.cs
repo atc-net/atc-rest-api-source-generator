@@ -204,7 +204,7 @@ public static class OpenApiCacheExtensions
         }
 
         // Check path and operation levels
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             return false;
         }
@@ -223,7 +223,7 @@ public static class OpenApiCacheExtensions
             }
 
             // Check operation-level
-            if (pathItem.Operations == null)
+            if (pathItem.Operations is null)
             {
                 continue;
             }
@@ -275,7 +275,7 @@ public static class OpenApiCacheExtensions
         }
 
         // Check path and operation levels
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             return false;
         }
@@ -301,7 +301,7 @@ public static class OpenApiCacheExtensions
             }
 
             // Check operation-level
-            if (pathItem.Operations == null)
+            if (pathItem.Operations is null)
             {
                 continue;
             }
@@ -337,7 +337,7 @@ public static class OpenApiCacheExtensions
     {
         var merged = new HashSet<string>(StringComparer.Ordinal);
 
-        if (documentTags != null)
+        if (documentTags is not null)
         {
             foreach (var tag in documentTags)
             {
@@ -345,7 +345,7 @@ public static class OpenApiCacheExtensions
             }
         }
 
-        if (pathTags != null)
+        if (pathTags is not null)
         {
             foreach (var tag in pathTags)
             {
@@ -353,7 +353,7 @@ public static class OpenApiCacheExtensions
             }
         }
 
-        if (operationTags != null)
+        if (operationTags is not null)
         {
             foreach (var tag in operationTags)
             {
@@ -416,7 +416,7 @@ public static class OpenApiCacheExtensions
         // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
         var extensionType = extension.GetType();
         var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty == null)
+        if (nodeProperty is null)
         {
             return null;
         }
@@ -447,7 +447,7 @@ public static class OpenApiCacheExtensions
         // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
         var extensionType = extension.GetType();
         var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty == null)
+        if (nodeProperty is null)
         {
             return null;
         }
@@ -478,7 +478,7 @@ public static class OpenApiCacheExtensions
         // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
         var extensionType = extension.GetType();
         var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty == null)
+        if (nodeProperty is null)
         {
             return null;
         }
@@ -526,7 +526,7 @@ public static class OpenApiCacheExtensions
         // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
         var extensionType = extension.GetType();
         var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty == null)
+        if (nodeProperty is null)
         {
             return null;
         }

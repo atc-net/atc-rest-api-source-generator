@@ -53,7 +53,7 @@ public static class TypeScriptSignalRHubExtractor
     private static List<HubDefinition> ParseHubs(OpenApiDocument openApiDoc)
     {
         var hubs = new List<HubDefinition>();
-        if (openApiDoc.Extensions == null ||
+        if (openApiDoc.Extensions is null ||
             !openApiDoc.Extensions.TryGetValue("x-signalr-hubs", out var extension) ||
             extension is not JsonNodeExtension jsonNodeExt ||
             jsonNodeExt.Node is not JsonObject hubsObject)
@@ -112,7 +112,7 @@ public static class TypeScriptSignalRHubExtractor
         string? headerContent)
     {
         var sb = new StringBuilder();
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }
@@ -124,7 +124,7 @@ public static class TypeScriptSignalRHubExtractor
         var payloadImports = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var ev in hub.Events)
         {
-            if (ev.PayloadType != null)
+            if (ev.PayloadType is not null)
             {
                 payloadImports.Add(ev.PayloadType);
             }

@@ -27,7 +27,7 @@ internal static class MarkerFileHelper
                          File.Exists(serverMarkerJsonPath) ? serverMarkerJsonPath : null;
 
         // If not in same directory, search sibling directories
-        if (markerPath == null)
+        if (markerPath is null)
         {
             var parentDirectory = Path.GetDirectoryName(markerDirectory);
             if (!string.IsNullOrEmpty(parentDirectory) && Directory.Exists(parentDirectory))
@@ -60,7 +60,7 @@ internal static class MarkerFileHelper
                 // Fall back to scanning siblings for a marker file. Succeed only when
                 // exactly ONE sibling has a marker — anything else is ambiguous and the
                 // caller is expected to require explicit `contractsNamespace` configuration.
-                if (markerPath == null)
+                if (markerPath is null)
                 {
                     var siblingMarkers = new List<string>();
                     foreach (var siblingDir in Directory.GetDirectories(parentDirectory))
@@ -91,7 +91,7 @@ internal static class MarkerFileHelper
             }
         }
 
-        if (markerPath == null)
+        if (markerPath is null)
         {
             return null;
         }

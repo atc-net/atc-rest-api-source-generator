@@ -17,7 +17,7 @@ public static class ResilienceDependencyInjectionExtractor
         string projectName,
         bool includeDeprecated = false)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }

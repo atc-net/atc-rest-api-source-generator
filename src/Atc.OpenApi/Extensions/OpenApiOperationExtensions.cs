@@ -24,12 +24,12 @@ public static class OpenApiOperationExtensions
             string path,
             string httpMethod)
         {
-            if (operation == null)
+            if (operation is null)
             {
                 throw new ArgumentNullException(nameof(operation));
             }
 
-            if (path == null)
+            if (path is null)
             {
                 throw new ArgumentNullException(nameof(path));
             }
@@ -89,7 +89,7 @@ public static class OpenApiOperationExtensions
         {
             if (operation is { Responses: not null } &&
                 operation.Responses.TryGetValue(statusCode, out var response) &&
-                response.Content != null &&
+                response.Content is not null &&
                 response.Content.TryGetValue(contentType, out var mediaType))
             {
                 return mediaType.Schema;
@@ -142,7 +142,7 @@ public static class OpenApiOperationExtensions
         /// <returns>True if the operation has a file upload request body.</returns>
         public bool HasFileUpload()
         {
-            if (operation.RequestBody?.Content == null)
+            if (operation.RequestBody?.Content is null)
             {
                 return false;
             }
@@ -171,7 +171,7 @@ public static class OpenApiOperationExtensions
         /// <returns>A tuple containing the schema and content type.</returns>
         public (IOpenApiSchema? Schema, string ContentType) GetRequestBodySchemaWithContentType()
         {
-            if (operation.RequestBody?.Content == null)
+            if (operation.RequestBody?.Content is null)
             {
                 return (null, string.Empty);
             }
@@ -202,7 +202,7 @@ public static class OpenApiOperationExtensions
         /// <returns>"single", "array", or null when the annotation is absent or invalid.</returns>
         public string? GetResponseCardinalityAnnotation()
         {
-            if (operation.Extensions == null ||
+            if (operation.Extensions is null ||
                 !operation.Extensions.TryGetValue("x-operation-response-cardinality", out var extension) ||
                 extension is not JsonNodeExtension jsonNodeExt ||
                 jsonNodeExt.Node is not JsonValue jsonValue ||
@@ -231,7 +231,7 @@ public static class OpenApiOperationExtensions
         /// <returns>True if the operation should return IAsyncEnumerable.</returns>
         public bool IsAsyncEnumerableOperation()
         {
-            if (operation.Extensions == null ||
+            if (operation.Extensions is null ||
                 !operation.Extensions.TryGetValue("x-return-async-enumerable", out var extension) ||
                 extension is not JsonNodeExtension jsonNodeExt)
             {
@@ -250,7 +250,7 @@ public static class OpenApiOperationExtensions
         /// </summary>
         public (string MediaType, IOpenApiSchema ItemSchema)? GetStreamingResponse()
         {
-            if (operation.Responses == null)
+            if (operation.Responses is null)
             {
                 return null;
             }
@@ -258,14 +258,14 @@ public static class OpenApiOperationExtensions
             foreach (var statusCode in new[] { "200", "201" })
             {
                 if (!operation.Responses.TryGetValue(statusCode, out var response) ||
-                    response.Content == null)
+                    response.Content is null)
                 {
                     continue;
                 }
 
                 foreach (var kvp in response.Content)
                 {
-                    if (kvp.Value.ItemSchema != null)
+                    if (kvp.Value.ItemSchema is not null)
                     {
                         return (kvp.Key, kvp.Value.ItemSchema);
                     }
@@ -310,7 +310,7 @@ public static class OpenApiOperationExtensions
         /// </summary>
         /// <returns>True if the response should be streamed.</returns>
         public bool IsStreamingResponse()
-            => operation.IsAsyncEnumerableOperation() || operation.GetStreamingItemSchema() != null;
+            => operation.IsAsyncEnumerableOperation() || operation.GetStreamingItemSchema() is not null;
 
         /// <summary>
         /// Checks if the operation is a paginated-streaming operation: it has
@@ -338,7 +338,7 @@ public static class OpenApiOperationExtensions
                 if (part is OpenApiSchemaReference partRef)
                 {
                     var name = partRef.Reference.Id ?? partRef.Id;
-                    if (name != null && IsPaginationWrapperName(name))
+                    if (name is not null && IsPaginationWrapperName(name))
                     {
                         return true;
                     }
@@ -377,7 +377,7 @@ public static class OpenApiOperationExtensions
         /// <returns>True if the operation response is a file download.</returns>
         public bool HasFileDownload()
         {
-            if (operation.Responses == null)
+            if (operation.Responses is null)
             {
                 return false;
             }
@@ -387,7 +387,7 @@ public static class OpenApiOperationExtensions
                 return false;
             }
 
-            if (response.Content == null)
+            if (response.Content is null)
             {
                 return false;
             }
@@ -409,7 +409,7 @@ public static class OpenApiOperationExtensions
         /// </summary>
         /// <returns>True when the success response should be surfaced as a raw <see cref="string"/>.</returns>
         public bool HasTextResponse()
-            => operation.Responses != null &&
+            => operation.Responses is not null &&
                operation.Responses.TryGetValue("200", out var response) &&
                response.TryGetTextResponseMediaType(out _, out _);
 
@@ -419,7 +419,7 @@ public static class OpenApiOperationExtensions
         /// </summary>
         /// <returns>The textual response media type or null when none matches.</returns>
         public string? GetTextResponseMediaType()
-            => operation.Responses != null &&
+            => operation.Responses is not null &&
                operation.Responses.TryGetValue("200", out var response) &&
                response.TryGetTextResponseMediaType(out var mediaType, out _)
                 ? mediaType
@@ -431,7 +431,7 @@ public static class OpenApiOperationExtensions
         /// <returns>The file download content type or null if not found.</returns>
         public string? GetFileDownloadContentType()
         {
-            if (operation.Responses == null)
+            if (operation.Responses is null)
             {
                 return null;
             }
@@ -453,7 +453,7 @@ public static class OpenApiOperationExtensions
         /// <returns>True if the request body requires form binding flattening.</returns>
         public bool RequiresFormBindingFlattening()
         {
-            if (operation.RequestBody?.Content == null)
+            if (operation.RequestBody?.Content is null)
             {
                 return false;
             }
@@ -465,7 +465,7 @@ public static class OpenApiOperationExtensions
             }
 
             var schema = mediaType.Schema;
-            if (schema == null)
+            if (schema is null)
             {
                 return false;
             }
@@ -480,7 +480,7 @@ public static class OpenApiOperationExtensions
 
             // Check if schema has properties - if it's a reference, resolve it
             var properties = schema.Properties;
-            if (properties == null || properties.Count == 0)
+            if (properties is null || properties.Count == 0)
             {
                 return false;
             }
@@ -496,7 +496,7 @@ public static class OpenApiOperationExtensions
         /// <returns>The schema reference name and its properties, or null if not applicable.</returns>
         public (string? SchemaName, IDictionary<string, IOpenApiSchema>? Properties) GetMultipartFormDataSchemaInfo()
         {
-            if (operation.RequestBody?.Content == null)
+            if (operation.RequestBody?.Content is null)
             {
                 return (null, null);
             }
@@ -507,7 +507,7 @@ public static class OpenApiOperationExtensions
             }
 
             var schema = mediaType.Schema;
-            if (schema == null)
+            if (schema is null)
             {
                 return (null, null);
             }
@@ -525,7 +525,7 @@ public static class OpenApiOperationExtensions
         private IEnumerable<OpenApiParameter> GetParametersByLocationIterator(
             ParameterLocation location)
         {
-            if (operation.Parameters == null)
+            if (operation.Parameters is null)
             {
                 yield break;
             }
@@ -594,7 +594,7 @@ public static class OpenApiOperationExtensions
             mediaType = null;
             media = null;
 
-            if (response?.Content == null || response.Content.Count == 0)
+            if (response?.Content is null || response.Content.Count == 0)
             {
                 return false;
             }
@@ -609,7 +609,7 @@ public static class OpenApiOperationExtensions
             {
                 var candidate = response.Content[key];
                 var schema = candidate?.Schema;
-                if (schema == null)
+                if (schema is null)
                 {
                     continue;
                 }

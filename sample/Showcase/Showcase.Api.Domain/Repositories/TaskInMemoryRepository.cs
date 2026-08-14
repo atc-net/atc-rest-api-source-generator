@@ -97,7 +97,7 @@ public sealed class TaskInMemoryRepository
 
         // Check if task with this ID already exists
         var existing = tasks.FirstOrDefault(t => t.Id == id);
-        if (existing != null)
+        if (existing is not null)
         {
             return existing;
         }

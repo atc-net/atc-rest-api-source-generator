@@ -20,7 +20,7 @@ public static class WebhookResultExtractor
         string projectName,
         bool includeDeprecated = false)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
@@ -46,7 +46,7 @@ public static class WebhookResultExtractor
                 operation,
                 namespaceValue);
 
-            if (result != null)
+            if (result is not null)
             {
                 resultsList.Add(result.Value);
             }
@@ -88,14 +88,14 @@ public static class WebhookResultExtractor
         sb.AppendLine(4, "}");
 
         // Generate factory methods based on responses defined in the webhook
-        if (operation.Responses != null)
+        if (operation.Responses is not null)
         {
             foreach (var response in operation.Responses)
             {
                 var statusCode = response.Key;
                 var responseObj = response.Value;
 
-                if (responseObj == null)
+                if (responseObj is null)
                 {
                     continue;
                 }
@@ -165,7 +165,7 @@ public static class WebhookResultExtractor
     /// That means for most non-trivial status codes there is no idiomatic parameter-only
     /// <c>TypedResults.X()</c> overload whose semantics match a webhook ack. We deliberately
     /// emit <c>TypedResults.StatusCode(code)</c> in those cases, which mirrors the safe-fallback
-    /// pattern in <c>ResultClassExtractor.cs</c> (see its <c>Created</c> handler: <c>uri != null
+    /// pattern in <c>ResultClassExtractor.cs</c> (see its <c>Created</c> handler: <c>uri is not null
     /// ? TypedResults.Created(uri) : TypedResults.StatusCode(201)</c>).
     /// </para>
     /// <para>

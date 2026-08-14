@@ -44,7 +44,7 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
         var specPath = Path.GetFullPath(settings.SpecificationPath);
         var spec = SpecificationService.ReadFromFile(specPath);
 
-        if (spec.Document == null)
+        if (spec.Document is null)
         {
             AnsiConsole.MarkupLine($"[red]✗[/] Failed to parse specification: {Path.GetFileName(specPath)}");
             return 1;
@@ -150,7 +150,7 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
         // Summary
         AnsiConsole.MarkupLine($"[blue]Total files:[/] {splitResult.AllFiles.Count.ToString(CultureInfo.InvariantCulture)}");
         AnsiConsole.MarkupLine($"[blue]Part files:[/] {splitResult.PartFiles.Count.ToString(CultureInfo.InvariantCulture)}");
-        if (splitResult.CommonFile != null)
+        if (splitResult.CommonFile is not null)
         {
             AnsiConsole.MarkupLine("[blue]Common file:[/] Yes");
         }

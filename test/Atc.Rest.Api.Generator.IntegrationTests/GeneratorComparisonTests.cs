@@ -179,7 +179,7 @@ public class GeneratorComparisonTests
         var yamlPath = ScenarioDiscovery.GetYamlPath(scenario);
         var markerFile = ScenarioDiscovery.GetMarkerFileForGenerator(generator);
 
-        if (markerFile == null)
+        if (markerFile is null)
         {
             return [];
         }

@@ -60,7 +60,7 @@ public sealed partial class WebhookDemo : IAsyncDisposable
     {
         var subscriptionId = await HubService.SubscribeAsync(
             ["System", "User", "Data", "Alert", "Metric"]);
-        isSubscribed = subscriptionId != null;
+        isSubscribed = subscriptionId is not null;
     }
 
     private async Task TriggerSystemNotification()

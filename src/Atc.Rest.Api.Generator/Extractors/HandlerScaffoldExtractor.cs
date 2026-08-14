@@ -206,7 +206,7 @@ public static class HandlerScaffoldExtractor
             ?.FirstOrDefault(c => c.Key.Equals("application/json", StringComparison.OrdinalIgnoreCase))
             .Value;
 
-        if (mediaType == null)
+        if (mediaType is null)
         {
             return null;
         }
@@ -215,12 +215,12 @@ public static class HandlerScaffoldExtractor
         if (mediaType.Examples is { Count: > 0 })
         {
             var firstExample = mediaType.Examples.Values.First();
-            if (firstExample.DataValue != null)
+            if (firstExample.DataValue is not null)
             {
                 return firstExample.DataValue.ToJsonString();
             }
 
-            if (firstExample.Value != null)
+            if (firstExample.Value is not null)
             {
                 return firstExample.Value.ToJsonString();
             }
@@ -232,7 +232,7 @@ public static class HandlerScaffoldExtractor
         }
 
         // Inline example: on the media type object
-        if (mediaType.Example != null)
+        if (mediaType.Example is not null)
         {
             return mediaType.Example.ToJsonString();
         }
@@ -258,7 +258,7 @@ public static class HandlerScaffoldExtractor
         }
 
         var param = methodParams[0];
-        var defaultSuffix = param.DefaultValue != null ? $" = {param.DefaultValue}" : string.Empty;
+        var defaultSuffix = param.DefaultValue is not null ? $" = {param.DefaultValue}" : string.Empty;
 
         // "public Task<Result> ExecuteAsync(Type name = default)"
         var lineLength = indentLength

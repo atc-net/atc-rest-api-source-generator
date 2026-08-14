@@ -61,7 +61,7 @@ public static class WebApplicationExtensionsExtractor
         string projectName,
         ServerConfig config)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }

@@ -13,7 +13,7 @@ public static class PolymorphicTypeExtractor
     public static Dictionary<string, PolymorphicConfig>? ExtractPolymorphicConfigs(
         OpenApiDocument openApiDoc)
     {
-        if (openApiDoc.Components?.Schemas == null ||
+        if (openApiDoc.Components?.Schemas is null ||
             openApiDoc.Components.Schemas.Count == 0)
         {
             return null;
@@ -39,7 +39,7 @@ public static class PolymorphicTypeExtractor
             }
 
             var config = GetPolymorphicConfig(schemaName, schemaValue, openApiDoc);
-            if (config != null)
+            if (config is not null)
             {
                 configs[schemaName] = config;
             }
@@ -80,7 +80,7 @@ public static class PolymorphicTypeExtractor
             sb.AppendLine("/// Note: Discriminator was auto-detected from common properties.");
         }
 
-        if (config.DefaultVariantTypeName != null)
+        if (config.DefaultVariantTypeName is not null)
         {
             var reason = config.IsDiscriminatorExplicit
                 ? "'discriminator.defaultMapping' is set"
@@ -92,7 +92,7 @@ public static class PolymorphicTypeExtractor
 
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
 
-        if (config.DefaultVariantTypeName != null)
+        if (config.DefaultVariantTypeName is not null)
         {
             sb.AppendLine($"[JsonConverter(typeof({config.BaseTypeName}JsonConverter))]");
         }
@@ -244,7 +244,7 @@ public static class PolymorphicTypeExtractor
         // on every variant. STJ [JsonPolymorphic] throws InvalidOperationException when
         // TypeDiscriminatorPropertyName matches an actual property on a derived type (.NET 10+).
         // Route through the custom converter instead, using the first variant as fallback.
-        if (!isExplicit && defaultVariantTypeName == null)
+        if (!isExplicit && defaultVariantTypeName is null)
         {
             defaultVariantTypeName = variantNames[0];
         }
@@ -286,7 +286,7 @@ public static class PolymorphicTypeExtractor
     {
         var result = new HashSet<string>(StringComparer.Ordinal);
 
-        if (configs == null)
+        if (configs is null)
         {
             return result;
         }
@@ -312,7 +312,7 @@ public static class PolymorphicTypeExtractor
         string schemaName,
         Dictionary<string, PolymorphicConfig>? configs)
     {
-        if (configs == null)
+        if (configs is null)
         {
             return null;
         }
@@ -466,7 +466,7 @@ public static class PolymorphicTypeExtractor
         IDictionary<string, string>? explicitMapping)
     {
         // Check explicit mapping (value is schema name, key is discriminator value)
-        if (explicitMapping != null)
+        if (explicitMapping is not null)
         {
             foreach (var kvp in explicitMapping)
             {

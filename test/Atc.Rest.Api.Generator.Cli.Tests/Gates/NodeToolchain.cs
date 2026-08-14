@@ -71,7 +71,7 @@ internal static class NodeToolchain
 
         process.OutputDataReceived += (_, e) =>
         {
-            if (e.Data != null)
+            if (e.Data is not null)
             {
                 lock (sync)
                 {
@@ -81,7 +81,7 @@ internal static class NodeToolchain
         };
         process.ErrorDataReceived += (_, e) =>
         {
-            if (e.Data != null)
+            if (e.Data is not null)
             {
                 lock (sync)
                 {

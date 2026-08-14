@@ -17,7 +17,7 @@ public static class SecurityPoliciesExtractor
         string projectName,
         bool includeDeprecated = false)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
@@ -47,14 +47,14 @@ public static class SecurityPoliciesExtractor
         var mutualTlsPolicies = new HashSet<string>(StringComparer.Ordinal);
         var metadataUrls = CollectMetadataUrls(openApiDoc);
 
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return (policies, deprecatedPolicies, mutualTlsPolicies, metadataUrls);
         }
 
         foreach (var pathPair in openApiDoc.Paths)
         {
-            if (pathPair.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathPair.Value is not IOpenApiPathItem pathItem || pathItem.Operations is null)
             {
                 continue;
             }
@@ -69,7 +69,7 @@ public static class SecurityPoliciesExtractor
                     continue;
                 }
 
-                if (operation == null)
+                if (operation is null)
                 {
                     continue;
                 }
@@ -77,7 +77,7 @@ public static class SecurityPoliciesExtractor
                 // Extract security requirements for this operation
                 var securityRequirements = operation.ExtractSecurityRequirements(openApiDoc);
 
-                if (securityRequirements == null || securityRequirements.Count == 0)
+                if (securityRequirements is null || securityRequirements.Count == 0)
                 {
                     continue;
                 }
@@ -135,7 +135,7 @@ public static class SecurityPoliciesExtractor
                     }
 
                     var isSchemeDeprecated =
-                        openApiDoc.Components?.SecuritySchemes != null &&
+                        openApiDoc.Components?.SecuritySchemes is not null &&
                         openApiDoc.Components.SecuritySchemes.TryGetValue(schemeName, out var schemeEntry) &&
                         schemeEntry.Deprecated;
 
@@ -284,7 +284,7 @@ public static class SecurityPoliciesExtractor
     {
         var result = new Dictionary<string, Uri>(StringComparer.Ordinal);
 
-        if (openApiDoc.Components?.SecuritySchemes == null)
+        if (openApiDoc.Components?.SecuritySchemes is null)
         {
             return result;
         }
@@ -292,7 +292,7 @@ public static class SecurityPoliciesExtractor
         foreach (var kvp in openApiDoc.Components.SecuritySchemes)
         {
             if (kvp.Value is OpenApiSecurityScheme scheme &&
-                scheme.OAuth2MetadataUrl != null)
+                scheme.OAuth2MetadataUrl is not null)
             {
                 result[kvp.Key] = scheme.OAuth2MetadataUrl;
             }
@@ -367,7 +367,7 @@ public static class SecurityPoliciesExtractor
     private static bool IsMutualTlsScheme(
         OpenApiDocument openApiDoc,
         string schemeName)
-        => openApiDoc.Components?.SecuritySchemes != null &&
+        => openApiDoc.Components?.SecuritySchemes is not null &&
            openApiDoc.Components.SecuritySchemes.TryGetValue(schemeName, out var scheme) &&
            scheme.Type == Microsoft.OpenApi.SecuritySchemeType.MutualTLS;
 }

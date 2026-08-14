@@ -14,7 +14,7 @@ public static class OpenIdConnectDependencyInjectionExtractor
     public static string? Extract(
         OpenIdConnectConfig? oidcConfig,
         string projectName)
-        => oidcConfig == null
+        => oidcConfig is null
             ? null
             : GenerateFileContent(oidcConfig, projectName);
 

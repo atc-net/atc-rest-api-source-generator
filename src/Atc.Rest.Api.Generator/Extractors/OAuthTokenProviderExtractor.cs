@@ -135,7 +135,7 @@ public static class OAuthTokenProviderExtractor
         OAuthConfig? oauthConfig,
         string projectName)
     {
-        if (oauthConfig == null)
+        if (oauthConfig is null)
         {
             return null;
         }
@@ -253,7 +253,7 @@ public static class OAuthTokenProviderExtractor
         }
 
         builder.AppendLine();
-        builder.AppendLine(12, "if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))");
+        builder.AppendLine(12, "if (tokenResponse is null || string.IsNullOrEmpty(tokenResponse.AccessToken))");
         builder.AppendLine(12, "{");
         builder.AppendLine(16, "throw new InvalidOperationException(\"Failed to acquire OAuth2 access token.\");");
         builder.AppendLine(12, "}");

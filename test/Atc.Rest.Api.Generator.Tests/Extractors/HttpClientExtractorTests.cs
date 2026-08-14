@@ -870,7 +870,7 @@ public class HttpClientExtractorTests
         Assert.NotNull(method.Content);
 
         // Should have null guard before the foreach
-        Assert.Contains("parameters.Tags != null", method.Content, StringComparison.Ordinal);
+        Assert.Contains("parameters.Tags is not null", method.Content, StringComparison.Ordinal);
 
         // Should emit repeated-key foreach inside the guard
         Assert.Contains("foreach (var item in parameters.Tags)", method.Content, StringComparison.Ordinal);

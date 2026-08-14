@@ -139,7 +139,7 @@ public static class OpenApiSchemaExtensions
             }
 
             var schemaType = openApiSchema.Type;
-            if (schemaType == null)
+            if (schemaType is null)
             {
                 return false;
             }
@@ -152,7 +152,7 @@ public static class OpenApiSchemaExtensions
 
             // Fallback: Check if the type string representation contains "null"
             var typeString = schemaType.ToString();
-            return typeString != null && typeString.Contains("Null", StringComparison.OrdinalIgnoreCase);
+            return typeString is not null && typeString.Contains("Null", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -169,7 +169,7 @@ public static class OpenApiSchemaExtensions
             }
 
             var schemaType = openApiSchema.Type;
-            if (schemaType == null)
+            if (schemaType is null)
             {
                 return false;
             }
@@ -317,7 +317,7 @@ public static class OpenApiSchemaExtensions
             if (schema is OpenApiSchemaReference schemaRef)
             {
                 // Check if the reference has a sibling default
-                if (schemaRef.Default != null)
+                if (schemaRef.Default is not null)
                 {
                     return schemaRef.Default;
                 }
@@ -351,7 +351,7 @@ public static class OpenApiSchemaExtensions
             // Check for common sibling properties
             return !string.IsNullOrEmpty(schemaRef.Description) ||
                    schemaRef.Deprecated ||
-                   schemaRef.Default != null;
+                   schemaRef.Default is not null;
         }
 
         // ========== JSON Schema 2020-12 Support ==========
@@ -432,7 +432,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // Check UnrecognizedKeywords for contentEncoding (not a first-class property in Microsoft.OpenApi)
-            if (actualSchema.UnrecognizedKeywords != null &&
+            if (actualSchema.UnrecognizedKeywords is not null &&
                 actualSchema.UnrecognizedKeywords.TryGetValue("contentEncoding", out var value))
             {
                 return value?.ToString();
@@ -454,7 +454,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // Check UnrecognizedKeywords for contentMediaType
-            if (actualSchema.UnrecognizedKeywords != null &&
+            if (actualSchema.UnrecognizedKeywords is not null &&
                 actualSchema.UnrecognizedKeywords.TryGetValue("contentMediaType", out var value))
             {
                 return value?.ToString();
@@ -517,9 +517,9 @@ public static class OpenApiSchemaExtensions
             // and older specs that work around the parser put it under Extensions (with or
             // without the "x-" prefix). Accept both so the helper works regardless of how
             // the spec was written.
-            return (actualSchema.UnrecognizedKeywords != null &&
+            return (actualSchema.UnrecognizedKeywords is not null &&
                     actualSchema.UnrecognizedKeywords.ContainsKey("prefixItems")) ||
-                   (actualSchema.Extensions != null &&
+                   (actualSchema.Extensions is not null &&
                     actualSchema.Extensions.ContainsKey("prefixItems"));
         }
 
@@ -542,7 +542,7 @@ public static class OpenApiSchemaExtensions
 
             // items: false is represented as a boolean false in extensions
             // or Items being null with no additional items schema
-            if (actualSchema.Extensions != null &&
+            if (actualSchema.Extensions is not null &&
                 actualSchema.Extensions.TryGetValue("items", out var itemsExt))
             {
                 // Check if items is explicitly false
@@ -550,7 +550,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // If no items extension and Items schema is null, treat as strict
-            return actualSchema.Items == null;
+            return actualSchema.Items is null;
         }
 
         /// <summary>
@@ -568,7 +568,7 @@ public static class OpenApiSchemaExtensions
                 return null;
             }
 
-            if (actualSchema.Extensions == null ||
+            if (actualSchema.Extensions is null ||
                 !actualSchema.Extensions.TryGetValue("prefixItems", out var extension))
             {
                 return null;
@@ -584,7 +584,7 @@ public static class OpenApiSchemaExtensions
             string? additionalItemsType = null;
 
             // If not strict and has items schema, get the additional items type
-            if (!isStrictTuple && actualSchema.Items != null)
+            if (!isStrictTuple && actualSchema.Items is not null)
             {
                 additionalItemsType = actualSchema.Items.ToCSharpType(true, registry);
             }
@@ -748,18 +748,18 @@ public static class OpenApiSchemaExtensions
         /// <returns>The resolved OpenApiSchema or null.</returns>
         public OpenApiSchema? ResolveSchema(OpenApiDocument document)
         {
-            if (document == null)
+            if (document is null)
             {
                 throw new ArgumentNullException(nameof(document));
             }
 
             var refId = schema.GetReferenceId();
-            if (refId == null)
+            if (refId is null)
             {
                 return schema as OpenApiSchema;
             }
 
-            if (document.Components?.Schemas != null &&
+            if (document.Components?.Schemas is not null &&
                 document.Components.Schemas.TryGetValue(refId, out var resolvedSchema))
             {
                 return resolvedSchema as OpenApiSchema;
@@ -1017,7 +1017,7 @@ public static class OpenApiSchemaExtensions
                         // Polymorphic base types are not currently generated by the generators,
                         // so we fall back to object to maintain compatibility
                         var targetSchema = allOfRef.Target;
-                        if (targetSchema != null && targetSchema.HasPolymorphicComposition())
+                        if (targetSchema is not null && targetSchema.HasPolymorphicComposition())
                         {
                             return isNullable
                                 ? "object?"
@@ -1120,7 +1120,7 @@ public static class OpenApiSchemaExtensions
         /// propertyName omitted" from "no discriminator at all".
         /// </summary>
         public bool HasDiscriminatorBlock()
-            => schema is OpenApiSchema actualSchema && actualSchema.Discriminator != null;
+            => schema is OpenApiSchema actualSchema && actualSchema.Discriminator is not null;
 
         /// <summary>
         /// Gets the discriminator property name from a polymorphic schema.
@@ -1143,7 +1143,7 @@ public static class OpenApiSchemaExtensions
             }
 
             var defaultMapping = actualSchema.Discriminator?.DefaultMapping;
-            if (defaultMapping == null)
+            if (defaultMapping is null)
             {
                 return null;
             }
@@ -1164,7 +1164,7 @@ public static class OpenApiSchemaExtensions
             }
 
             var mapping = actualSchema.Discriminator?.Mapping;
-            if (mapping == null || mapping.Count == 0)
+            if (mapping is null || mapping.Count == 0)
             {
                 return null;
             }
@@ -1200,7 +1200,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // Collect from oneOf
-            if (actualSchema.OneOf != null)
+            if (actualSchema.OneOf is not null)
             {
                 foreach (var subSchema in actualSchema.OneOf)
                 {
@@ -1216,7 +1216,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // Collect from anyOf
-            if (actualSchema.AnyOf != null)
+            if (actualSchema.AnyOf is not null)
             {
                 foreach (var subSchema in actualSchema.AnyOf)
                 {
@@ -1242,7 +1242,7 @@ public static class OpenApiSchemaExtensions
         /// <returns>The detected discriminator property name, or null if not found.</returns>
         public string? DetectDiscriminatorProperty(OpenApiDocument document)
         {
-            if (document == null)
+            if (document is null)
             {
                 throw new ArgumentNullException(nameof(document));
             }
@@ -1260,13 +1260,13 @@ public static class OpenApiSchemaExtensions
             var variantProperties = new List<HashSet<string>>();
             foreach (var variantName in variantNames)
             {
-                if (document.Components?.Schemas == null ||
+                if (document.Components?.Schemas is null ||
                     !document.Components.Schemas.TryGetValue(variantName, out var variantSchema))
                 {
                     continue;
                 }
 
-                if (variantSchema is not OpenApiSchema actualVariant || actualVariant.Properties == null)
+                if (variantSchema is not OpenApiSchema actualVariant || actualVariant.Properties is null)
                 {
                     continue;
                 }
@@ -1330,7 +1330,7 @@ public static class OpenApiSchemaExtensions
                 return false;
             }
 
-            return actualSchema.AdditionalProperties != null;
+            return actualSchema.AdditionalProperties is not null;
         }
 
         /// <summary>
@@ -1350,7 +1350,7 @@ public static class OpenApiSchemaExtensions
             {
                 // No type means "any" (additionalProperties: true)
                 // Also check for empty object schema
-                return addPropsSchema.Type == null ||
+                return addPropsSchema.Type is null ||
                        addPropsSchema.Type == JsonSchemaType.Null ||
                        (addPropsSchema.Type.Value == default && addPropsSchema.Properties?.Count is null or 0);
             }
@@ -1371,7 +1371,7 @@ public static class OpenApiSchemaExtensions
                 return "object";
             }
 
-            if (actualSchema.AdditionalProperties == null)
+            if (actualSchema.AdditionalProperties is null)
             {
                 return "object";
             }
@@ -1387,7 +1387,7 @@ public static class OpenApiSchemaExtensions
             if (actualSchema.AdditionalProperties is OpenApiSchema addPropsSchema)
             {
                 // Untyped (additionalProperties: true) or empty schema
-                if (addPropsSchema.Type == null ||
+                if (addPropsSchema.Type is null ||
                     addPropsSchema.Type == JsonSchemaType.Null ||
                     (addPropsSchema.Type.Value == default && addPropsSchema.Properties?.Count is null or 0))
                 {
@@ -1434,7 +1434,7 @@ public static class OpenApiSchemaExtensions
                 return null;
             }
 
-            if (actualSchema.AllOf == null || actualSchema.AllOf.Count == 0)
+            if (actualSchema.AllOf is null || actualSchema.AllOf.Count == 0)
             {
                 return null;
             }
@@ -1468,7 +1468,7 @@ public static class OpenApiSchemaExtensions
                 return null;
             }
 
-            if (actualSchema.AllOf == null)
+            if (actualSchema.AllOf is null)
             {
                 return null;
             }
@@ -1487,7 +1487,7 @@ public static class OpenApiSchemaExtensions
                     continue;
                 }
 
-                if (inlineSchema.Properties == null)
+                if (inlineSchema.Properties is null)
                 {
                     continue;
                 }
@@ -1522,7 +1522,7 @@ public static class OpenApiSchemaExtensions
             OpenApiDocument document,
             TypeConflictRegistry? registry = null)
         {
-            if (document.Components?.Schemas == null)
+            if (document.Components?.Schemas is null)
             {
                 return typeName;
             }
@@ -1564,10 +1564,10 @@ public static class OpenApiSchemaExtensions
                 if (!string.IsNullOrEmpty(refId))
                 {
                     // Check if this reference points to an array schema (array alias)
-                    if (document.Components?.Schemas != null &&
+                    if (document.Components?.Schemas is not null &&
                         document.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
                         resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema &&
-                        arraySchema.Items != null)
+                        arraySchema.Items is not null)
                     {
                         // It's an array alias - resolve to actual array type with type conflict resolution
                         var itemType = arraySchema.GetArrayItemType(registry);
@@ -1640,7 +1640,7 @@ public static class OpenApiSchemaExtensions
             // Remove nullable marker for lookup
             var baseTypeName = typeName.TrimEnd('?');
 
-            if (document.Components?.Schemas == null)
+            if (document.Components?.Schemas is null)
             {
                 return typeName;
             }
@@ -1677,7 +1677,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // Look for x-implements extension
-            if (actualSchema.Extensions == null ||
+            if (actualSchema.Extensions is null ||
                 !actualSchema.Extensions.TryGetValue("x-implements", out var extension))
             {
                 return result;
@@ -1686,7 +1686,7 @@ public static class OpenApiSchemaExtensions
             // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
             var extensionType = extension.GetType();
             var nodeProperty = extensionType.GetProperty("Node");
-            if (nodeProperty == null)
+            if (nodeProperty is null)
             {
                 return result;
             }
@@ -1735,7 +1735,7 @@ public static class OpenApiSchemaExtensions
                 return null;
             }
 
-            if (actualSchema.Extensions == null ||
+            if (actualSchema.Extensions is null ||
                 !actualSchema.Extensions.TryGetValue("x-pagination", out var extension) ||
                 extension is not JsonNodeExtension jsonNodeExt)
             {
@@ -1760,7 +1760,7 @@ public static class OpenApiSchemaExtensions
         /// <returns>The full array type name with brackets.</returns>
         public string GetArrayTypeName()
         {
-            if (schema.Items == null)
+            if (schema.Items is null)
             {
                 return "object[]";
             }

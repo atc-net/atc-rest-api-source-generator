@@ -130,7 +130,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         stopwatch.Stop();
 
         // Report results
-        if (generationResult != null)
+        if (generationResult is not null)
         {
             WriteReport(generationResult, outputPath, stopwatch.Elapsed, config.DryRun);
         }
@@ -368,11 +368,11 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         {
             var (parsedDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, specPath);
 
-            if (parsedDoc == null)
+            if (parsedDoc is null)
             {
                 AnsiConsole.MarkupLine("[red]\u2717[/] Failed to parse OpenAPI specification");
 
-                if (openApiDiagnostic?.Errors != null)
+                if (openApiDiagnostic?.Errors is not null)
                 {
                     foreach (var error in openApiDiagnostic.Errors)
                     {

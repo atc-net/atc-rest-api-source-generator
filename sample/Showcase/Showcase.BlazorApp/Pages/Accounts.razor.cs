@@ -48,7 +48,7 @@ public partial class Accounts
         {
             var account = new Account(0, newAccountName, newAccountTag ?? string.Empty);
             var created = await Gateway.CreateAccountAsync(account);
-            if (created != null)
+            if (created is not null)
             {
                 Snackbar.Add($"Created account: {created.Name} (ID: {created.Id})", Severity.Success);
                 newAccountName = string.Empty;

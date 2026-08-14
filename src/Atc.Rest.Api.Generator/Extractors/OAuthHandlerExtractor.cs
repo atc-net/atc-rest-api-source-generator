@@ -101,7 +101,7 @@ public static class OAuthHandlerExtractor
         builder.AppendLine(8, "}");
         builder.AppendLine();
         builder.AppendLine(8, "// Copy content if present");
-        builder.AppendLine(8, "if (request.Content != null)");
+        builder.AppendLine(8, "if (request.Content is not null)");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "var contentBytes = await request.Content.ReadAsByteArrayAsync();");
         builder.AppendLine(12, "clone.Content = new ByteArrayContent(contentBytes);");

@@ -824,7 +824,7 @@ public class SchemaValidationTests
 
     private static string CreateArraySchemaYaml(string? title)
     {
-        var titleLine = title != null ? $"title: {title}" : string.Empty;
+        var titleLine = title is not null ? $"title: {title}" : string.Empty;
         return $$"""
 
                  openapi: 3.0.0
@@ -845,7 +845,7 @@ public class SchemaValidationTests
 
     private static string CreateObjectSchemaYaml(string? title)
     {
-        var titleLine = title != null ? $"title: {title}" : string.Empty;
+        var titleLine = title is not null ? $"title: {title}" : string.Empty;
         return $$"""
 
                  openapi: 3.0.0

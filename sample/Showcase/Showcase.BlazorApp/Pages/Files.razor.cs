@@ -41,7 +41,7 @@ public partial class Files
         try
         {
             var result = await Gateway.GetFileByIdAsync(fileId);
-            if (result == null)
+            if (result is null)
             {
                 Snackbar.Add("File not found", Severity.Warning);
                 return;
@@ -73,7 +73,7 @@ public partial class Files
         try
         {
             var result = await Gateway.GetFileByIdAsync(fileId);
-            if (result == null)
+            if (result is null)
             {
                 Snackbar.Add("File not found", Severity.Warning);
                 return;
@@ -143,7 +143,7 @@ public partial class Files
 
     private async Task DownloadPreviewedFileAsync()
     {
-        if (previewContent == null || previewFileName == null || previewContentType == null)
+        if (previewContent is null || previewFileName is null || previewContentType is null)
         {
             return;
         }

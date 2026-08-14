@@ -19,7 +19,7 @@ public static class TypeScriptTypeMapper
         string? format = null,
         bool convertDates = false)
     {
-        if (schemaType == null)
+        if (schemaType is null)
         {
             return "unknown";
         }
@@ -111,7 +111,7 @@ public static class TypeScriptTypeMapper
             }
 
             // Handle additionalProperties (Dictionary/Record types)
-            if (actualSchema.AdditionalProperties != null)
+            if (actualSchema.AdditionalProperties is not null)
             {
                 var valueType = actualSchema.AdditionalProperties.ToTypeScriptTypeForModel(isRequired: true, convertDates);
                 return isNullable ? $"Record<string, {valueType}> | null" : $"Record<string, {valueType}>";
@@ -123,7 +123,7 @@ public static class TypeScriptTypeMapper
             if (actualSchema.HasPrefixItems())
             {
                 var tupleType = BuildTupleTypeForTypeScript(actualSchema, convertDates);
-                if (tupleType != null)
+                if (tupleType is not null)
                 {
                     return isNullable ? $"{tupleType} | null" : tupleType;
                 }
@@ -193,7 +193,7 @@ public static class TypeScriptTypeMapper
                     }
                 }
 
-                if (refTypeName != null && arrayItemType != null)
+                if (refTypeName is not null && arrayItemType is not null)
                 {
                     return $"{refTypeName}<{arrayItemType}>";
                 }
@@ -206,7 +206,7 @@ public static class TypeScriptTypeMapper
             if (actualSchema.HasPrefixItems())
             {
                 var tupleType = BuildTupleTypeForTypeScript(actualSchema, convertDates: false);
-                if (tupleType != null)
+                if (tupleType is not null)
                 {
                     return tupleType;
                 }
@@ -254,7 +254,7 @@ public static class TypeScriptTypeMapper
         bool convertDates)
     {
         var jsonArray = GetPrefixItemsArray(schema);
-        if (jsonArray == null)
+        if (jsonArray is null)
         {
             return null;
         }
@@ -279,7 +279,7 @@ public static class TypeScriptTypeMapper
         // empty schema the parser materializes when the YAML writer typed `items: false`
         // (no Type, no $ref, no Items, no Properties — nothing meaningful to map).
         if (schema.IsStrictTuple() ||
-            schema.Items == null ||
+            schema.Items is null ||
             IsEffectivelyEmptySchema(schema.Items))
         {
             return "[" + string.Join(", ", prefixTypes) + "]";
@@ -307,12 +307,12 @@ public static class TypeScriptTypeMapper
             return true;
         }
 
-        return actualItems.Type == null &&
-               (actualItems.Properties == null || actualItems.Properties.Count == 0) &&
-               actualItems.Items == null &&
-               (actualItems.AllOf == null || actualItems.AllOf.Count == 0) &&
-               (actualItems.OneOf == null || actualItems.OneOf.Count == 0) &&
-               (actualItems.AnyOf == null || actualItems.AnyOf.Count == 0);
+        return actualItems.Type is null &&
+               (actualItems.Properties is null || actualItems.Properties.Count == 0) &&
+               actualItems.Items is null &&
+               (actualItems.AllOf is null || actualItems.AllOf.Count == 0) &&
+               (actualItems.OneOf is null || actualItems.OneOf.Count == 0) &&
+               (actualItems.AnyOf is null || actualItems.AnyOf.Count == 0);
     }
 
     /// <summary>
@@ -325,7 +325,7 @@ public static class TypeScriptTypeMapper
         bool convertDates)
     {
         var refStr = schemaObj["$ref"]?.GetValue<string>();
-        if (refStr != null)
+        if (refStr is not null)
         {
             return ExtractRefName(refStr);
         }
@@ -351,14 +351,14 @@ public static class TypeScriptTypeMapper
     /// </summary>
     private static JsonArray? GetPrefixItemsArray(OpenApiSchema schema)
     {
-        if (schema.UnrecognizedKeywords != null &&
+        if (schema.UnrecognizedKeywords is not null &&
             schema.UnrecognizedKeywords.TryGetValue("prefixItems", out var unrecognizedNode) &&
             unrecognizedNode is JsonArray unrecognizedArray)
         {
             return unrecognizedArray;
         }
 
-        if (schema.Extensions != null &&
+        if (schema.Extensions is not null &&
             schema.Extensions.TryGetValue("prefixItems", out var extension) &&
             extension is JsonNodeExtension jsonNodeExt &&
             jsonNodeExt.Node is JsonArray extensionArray)
@@ -383,7 +383,7 @@ public static class TypeScriptTypeMapper
     /// </summary>
     private static string GetArrayItemTypeScript(OpenApiSchema arraySchema)
     {
-        if (arraySchema.Items == null)
+        if (arraySchema.Items is null)
         {
             return "unknown";
         }

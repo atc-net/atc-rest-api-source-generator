@@ -44,19 +44,19 @@ public sealed class ListItemsEndpoint : IListItemsEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/items");
-        if (parameters.Tags != null)
+        if (parameters.Tags is not null)
         {
             requestBuilder.WithQueryParameter("tags", parameters.Tags);
         }
-        if (parameters.Q != null)
+        if (parameters.Q is not null)
         {
             requestBuilder.WithQueryParameter("q", parameters.Q);
         }
-        if (parameters.Legacy != null)
+        if (parameters.Legacy is not null)
         {
             requestBuilder.WithQueryParameter("legacy", parameters.Legacy);
         }
-        if (parameters.Ids != null)
+        if (parameters.Ids is not null)
         {
             requestBuilder.WithQueryParameter("ids", parameters.Ids);
         }

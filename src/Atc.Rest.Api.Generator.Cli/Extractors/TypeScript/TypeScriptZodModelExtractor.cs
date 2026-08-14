@@ -22,7 +22,7 @@ public static class TypeScriptZodModelExtractor
 
         var results = new List<(string Name, string Content)>();
 
-        if (openApiDoc.Components?.Schemas == null || openApiDoc.Components.Schemas.Count == 0)
+        if (openApiDoc.Components?.Schemas is null || openApiDoc.Components.Schemas.Count == 0)
         {
             return results;
         }
@@ -78,7 +78,7 @@ public static class TypeScriptZodModelExtractor
 
             cycleMembers.TryGetValue(schemaName, out var cyclePeers);
             var content = GenerateZodObject(schemaName, actualSchema, headerContent, enumNames, config.NamingStrategy, cyclePeers);
-            if (content != null)
+            if (content is not null)
             {
                 results.Add((schemaName, content));
             }
@@ -138,7 +138,7 @@ public static class TypeScriptZodModelExtractor
         OpenApiDocument openApiDoc)
     {
         var graph = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        if (openApiDoc.Components?.Schemas == null)
+        if (openApiDoc.Components?.Schemas is null)
         {
             return graph;
         }
@@ -166,7 +166,7 @@ public static class TypeScriptZodModelExtractor
         OpenApiSchema schema,
         HashSet<string> edges)
     {
-        if (schema.Properties != null)
+        if (schema.Properties is not null)
         {
             foreach (var (_, propValue) in schema.Properties)
             {
@@ -174,7 +174,7 @@ public static class TypeScriptZodModelExtractor
             }
         }
 
-        if (schema.AllOf != null)
+        if (schema.AllOf is not null)
         {
             foreach (var sub in schema.AllOf)
             {
@@ -182,7 +182,7 @@ public static class TypeScriptZodModelExtractor
             }
         }
 
-        if (schema.OneOf != null)
+        if (schema.OneOf is not null)
         {
             foreach (var sub in schema.OneOf)
             {
@@ -190,7 +190,7 @@ public static class TypeScriptZodModelExtractor
             }
         }
 
-        if (schema.AnyOf != null)
+        if (schema.AnyOf is not null)
         {
             foreach (var sub in schema.AnyOf)
             {
@@ -206,7 +206,7 @@ public static class TypeScriptZodModelExtractor
         if (schema is OpenApiSchemaReference schemaRef)
         {
             var refName = schemaRef.Reference.Id ?? schemaRef.Id;
-            if (refName != null)
+            if (refName is not null)
             {
                 edges.Add(refName);
             }
@@ -219,17 +219,17 @@ public static class TypeScriptZodModelExtractor
             return;
         }
 
-        if (actual.Items != null)
+        if (actual.Items is not null)
         {
             CollectRefsFromSchema(actual.Items, edges);
         }
 
-        if (actual.AdditionalProperties != null)
+        if (actual.AdditionalProperties is not null)
         {
             CollectRefsFromSchema(actual.AdditionalProperties, edges);
         }
 
-        if (actual.AllOf != null)
+        if (actual.AllOf is not null)
         {
             foreach (var sub in actual.AllOf)
             {
@@ -237,7 +237,7 @@ public static class TypeScriptZodModelExtractor
             }
         }
 
-        if (actual.OneOf != null)
+        if (actual.OneOf is not null)
         {
             foreach (var sub in actual.OneOf)
             {
@@ -245,7 +245,7 @@ public static class TypeScriptZodModelExtractor
             }
         }
 
-        if (actual.AnyOf != null)
+        if (actual.AnyOf is not null)
         {
             foreach (var sub in actual.AnyOf)
             {
@@ -323,7 +323,7 @@ public static class TypeScriptZodModelExtractor
 
         var results = new List<(string Name, string Content)>();
 
-        if (openApiDoc.Components?.Schemas == null || openApiDoc.Components.Schemas.Count == 0)
+        if (openApiDoc.Components?.Schemas is null || openApiDoc.Components.Schemas.Count == 0)
         {
             return results;
         }
@@ -380,7 +380,7 @@ public static class TypeScriptZodModelExtractor
                 if (subSchema is OpenApiSchemaReference allOfRef)
                 {
                     extendsTypeName = allOfRef.Reference.Id ?? allOfRef.Id;
-                    if (extendsTypeName != null)
+                    if (extendsTypeName is not null)
                     {
                         importTypes.Add(extendsTypeName);
                     }
@@ -407,11 +407,11 @@ public static class TypeScriptZodModelExtractor
         // CategorySchema binding before it has resolved. cyclePeers contains the full
         // strongly-connected component; any property referencing a sibling needs the
         // same z.lazy + type-annotation treatment as a direct self-reference.
-        var isCyclic = hasSelfReference || (cyclePeers != null && cyclePeers.Count > 0);
+        var isCyclic = hasSelfReference || (cyclePeers is not null && cyclePeers.Count > 0);
 
         var sb = new StringBuilder();
 
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }
@@ -440,7 +440,7 @@ public static class TypeScriptZodModelExtractor
 
         var typeAnnotation = isCyclic ? ": z.ZodType<" + schemaName + ">" : string.Empty;
 
-        if (extendsTypeName != null)
+        if (extendsTypeName is not null)
         {
             // Use BaseSchema.extend({...})
             sb.Append("export const ").Append(schemaName).Append("Schema").Append(typeAnnotation).Append(" = ").Append(extendsTypeName).AppendLine("Schema.extend({");
@@ -492,12 +492,12 @@ public static class TypeScriptZodModelExtractor
             return false;
         }
 
-        if (actualSchema.Items != null && SchemaReferencesType(actualSchema.Items, targetName))
+        if (actualSchema.Items is not null && SchemaReferencesType(actualSchema.Items, targetName))
         {
             return true;
         }
 
-        if (actualSchema.AdditionalProperties != null &&
+        if (actualSchema.AdditionalProperties is not null &&
             SchemaReferencesType(actualSchema.AdditionalProperties, targetName))
         {
             return true;
@@ -546,7 +546,7 @@ public static class TypeScriptZodModelExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }
@@ -558,7 +558,7 @@ public static class TypeScriptZodModelExtractor
         if (arraySchema.Items is OpenApiSchemaReference itemRef)
         {
             itemSchemaName = itemRef.Reference.Id ?? itemRef.Id;
-            if (itemSchemaName != null)
+            if (itemSchemaName is not null)
             {
                 sb.AppendLine();
                 sb.Append("import { ").Append(itemSchemaName).Append("Schema } from './").Append(itemSchemaName).AppendLine(".zod';");
@@ -569,7 +569,7 @@ public static class TypeScriptZodModelExtractor
 
         sb.Append("export const ").Append(schemaName).Append("Schema = z.array(");
 
-        if (itemSchemaName != null)
+        if (itemSchemaName is not null)
         {
             sb.Append(itemSchemaName).Append("Schema");
         }
@@ -638,12 +638,12 @@ public static class TypeScriptZodModelExtractor
         string? parentSchemaName,
         HashSet<string>? cyclePeers)
     {
-        if (parentSchemaName != null && SchemaReferencesType(schema, parentSchemaName))
+        if (parentSchemaName is not null && SchemaReferencesType(schema, parentSchemaName))
         {
             return true;
         }
 
-        if (cyclePeers == null || cyclePeers.Count == 0)
+        if (cyclePeers is null || cyclePeers.Count == 0)
         {
             return false;
         }
@@ -762,7 +762,7 @@ public static class TypeScriptZodModelExtractor
         }
 
         // Handle additionalProperties (Record types)
-        if (actualSchema.AdditionalProperties != null)
+        if (actualSchema.AdditionalProperties is not null)
         {
             sb.Append("z.record(z.string(), ");
             var valueZod = MapPropertyToZod(actualSchema.AdditionalProperties, isRequired: true, enumNames, parentSchemaName, cyclePeers);
@@ -935,10 +935,10 @@ public static class TypeScriptZodModelExtractor
             sb.Append(".optional()");
         }
 
-        if (defaultValue != null)
+        if (defaultValue is not null)
         {
             var defaultStr = FormatDefaultValue(defaultValue);
-            if (defaultStr != null)
+            if (defaultStr is not null)
             {
                 sb.Append(".default(").Append(defaultStr).Append(')');
             }
@@ -983,7 +983,7 @@ public static class TypeScriptZodModelExtractor
         if (schema is OpenApiSchemaReference schemaRef)
         {
             var refName = schemaRef.Reference.Id ?? schemaRef.Id;
-            if (refName != null)
+            if (refName is not null)
             {
                 importTypes.Add(refName);
             }
@@ -1004,7 +1004,7 @@ public static class TypeScriptZodModelExtractor
                 if (subSchema is OpenApiSchemaReference allOfRef)
                 {
                     var refName = allOfRef.Reference.Id ?? allOfRef.Id;
-                    if (refName != null)
+                    if (refName is not null)
                     {
                         importTypes.Add(refName);
                     }
@@ -1020,7 +1020,7 @@ public static class TypeScriptZodModelExtractor
                 if (subSchema is OpenApiSchemaReference oneOfRef)
                 {
                     var refName = oneOfRef.Reference.Id ?? oneOfRef.Id;
-                    if (refName != null)
+                    if (refName is not null)
                     {
                         importTypes.Add(refName);
                     }
@@ -1032,7 +1032,7 @@ public static class TypeScriptZodModelExtractor
         if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true && actualSchema.Items is OpenApiSchemaReference itemRef)
         {
             var refName = itemRef.Reference.Id ?? itemRef.Id;
-            if (refName != null)
+            if (refName is not null)
             {
                 importTypes.Add(refName);
             }
@@ -1042,7 +1042,7 @@ public static class TypeScriptZodModelExtractor
         if (actualSchema.AdditionalProperties is OpenApiSchemaReference addPropRef)
         {
             var refName = addPropRef.Reference.Id ?? addPropRef.Id;
-            if (refName != null)
+            if (refName is not null)
             {
                 importTypes.Add(refName);
             }
@@ -1068,7 +1068,7 @@ public static class TypeScriptZodModelExtractor
             }
 
             // Use correct relative path based on whether the type is an enum or model
-            var importPath = enumNames != null && enumNames.Contains(typeName)
+            var importPath = enumNames is not null && enumNames.Contains(typeName)
                 ? $"../enums/{typeName}.zod"
                 : $"./{typeName}.zod";
 

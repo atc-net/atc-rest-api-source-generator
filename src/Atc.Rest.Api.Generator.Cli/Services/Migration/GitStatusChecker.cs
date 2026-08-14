@@ -39,7 +39,7 @@ internal static class GitStatusChecker
             };
 
             using var process = Process.Start(processStartInfo);
-            if (process == null)
+            if (process is null)
             {
                 result.GitCommandFailed = true;
                 result.ErrorMessage = "Failed to start git process.";

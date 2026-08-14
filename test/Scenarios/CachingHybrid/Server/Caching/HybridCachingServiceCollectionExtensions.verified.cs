@@ -116,7 +116,7 @@ public static class HybridCachingServiceCollectionExtensions
 
         // Add vary-by-query parameters
         var varyByQuery = GetVaryByQuery(policyName);
-        if (varyByQuery.Length > 0 && queryParams != null)
+        if (varyByQuery.Length > 0 && queryParams is not null)
         {
             foreach (var param in varyByQuery.OrderBy(p => p, StringComparer.Ordinal))
             {
@@ -132,7 +132,7 @@ public static class HybridCachingServiceCollectionExtensions
 
         // Add vary-by-header values
         var varyByHeader = GetVaryByHeader(policyName);
-        if (varyByHeader.Length > 0 && headers != null)
+        if (varyByHeader.Length > 0 && headers is not null)
         {
             foreach (var header in varyByHeader.OrderBy(h => h, StringComparer.Ordinal))
             {

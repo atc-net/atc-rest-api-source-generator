@@ -223,7 +223,7 @@ public static class TypeScriptClientGenerationService
     private static IReadOnlyList<string> CollectCookieParameterWarnings(
         OpenApiDocument openApiDoc)
     {
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return Array.Empty<string>();
         }
@@ -239,7 +239,7 @@ public static class TypeScriptClientGenerationService
 
             var pathLevelCookieNames = CollectCookieParameterNames(pathItem.Parameters);
 
-            if (pathItem.Operations == null)
+            if (pathItem.Operations is null)
             {
                 continue;
             }
@@ -278,7 +278,7 @@ public static class TypeScriptClientGenerationService
     private static List<string> CollectCookieParameterNames(
         IList<IOpenApiParameter>? parameters)
     {
-        if (parameters == null || parameters.Count == 0)
+        if (parameters is null || parameters.Count == 0)
         {
             return [];
         }
@@ -698,7 +698,7 @@ public static class TypeScriptClientGenerationService
         }
 
         var content = TypeScriptBrandedIdExtractor.Generate(brands, headerContent);
-        if (content == null)
+        if (content is null)
         {
             return false;
         }
@@ -723,7 +723,7 @@ public static class TypeScriptClientGenerationService
         bool dryRun)
     {
         var content = TypeScriptServersExtractor.Generate(openApiDoc, headerContent);
-        if (content == null)
+        if (content is null)
         {
             return false;
         }
@@ -751,7 +751,7 @@ public static class TypeScriptClientGenerationService
         bool dryRun)
     {
         var content = TypeScriptWebhookExtractor.Generate(openApiDoc, headerContent);
-        if (content == null)
+        if (content is null)
         {
             return false;
         }
@@ -907,7 +907,7 @@ public static class TypeScriptClientGenerationService
         }
 
         var directory = Path.GetDirectoryName(filePath);
-        if (directory != null && !Directory.Exists(directory))
+        if (directory is not null && !Directory.Exists(directory))
         {
             Directory.CreateDirectory(directory);
         }
@@ -917,7 +917,7 @@ public static class TypeScriptClientGenerationService
 
     private static bool HasPaginationSchemas(OpenApiDocument openApiDoc)
     {
-        if (openApiDoc.Components?.Schemas == null)
+        if (openApiDoc.Components?.Schemas is null)
         {
             return false;
         }
@@ -932,7 +932,7 @@ public static class TypeScriptClientGenerationService
             }
 
             // Heuristic fallback: check schema name convention
-            if (annotation == null &&
+            if (annotation is null &&
                 (schemaPair.Key.StartsWith("PaginationResult", StringComparison.Ordinal) ||
                  schemaPair.Key.StartsWith("PaginatedResult", StringComparison.Ordinal) ||
                  schemaPair.Key.StartsWith("PagedResult", StringComparison.Ordinal)))

@@ -41,7 +41,7 @@ internal static class ParameterNameMigrator
         }
 
         var openApiDoc = ParseOpenApiDocument(specFilePath);
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             result.Error = "Failed to parse OpenAPI specification";
             return result;
@@ -99,14 +99,14 @@ internal static class ParameterNameMigrator
     {
         var mapping = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        if (doc.Paths == null)
+        if (doc.Paths is null)
         {
             return mapping;
         }
 
         foreach (var path in doc.Paths)
         {
-            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations is null)
             {
                 continue;
             }
@@ -114,14 +114,14 @@ internal static class ParameterNameMigrator
             // Collect all parameters: path-level + operation-level
             var allParameters = new List<IOpenApiParameter>();
 
-            if (pathItem.Parameters != null)
+            if (pathItem.Parameters is not null)
             {
                 allParameters.AddRange(pathItem.Parameters);
             }
 
             foreach (var operation in pathItem.Operations)
             {
-                if (operation.Value?.Parameters != null)
+                if (operation.Value?.Parameters is not null)
                 {
                     allParameters.AddRange(operation.Value.Parameters);
                 }
@@ -133,7 +133,7 @@ internal static class ParameterNameMigrator
                 var parameter = resolved.Parameter;
                 var referenceId = resolved.ReferenceId;
 
-                if (parameter == null || string.IsNullOrEmpty(parameter.Name))
+                if (parameter is null || string.IsNullOrEmpty(parameter.Name))
                 {
                     continue;
                 }

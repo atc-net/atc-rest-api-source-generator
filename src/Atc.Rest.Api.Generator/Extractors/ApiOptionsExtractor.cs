@@ -18,7 +18,7 @@ public static class ApiOptionsExtractor
         string projectName,
         ServerConfig config)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
@@ -40,7 +40,7 @@ public static class ApiOptionsExtractor
         OpenApiDocument openApiDoc,
         string projectName)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }

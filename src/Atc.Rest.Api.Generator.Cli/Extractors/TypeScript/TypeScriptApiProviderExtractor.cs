@@ -14,7 +14,7 @@ public static class TypeScriptApiProviderExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }
@@ -61,7 +61,7 @@ public static class TypeScriptApiProviderExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }

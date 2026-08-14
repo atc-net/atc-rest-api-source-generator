@@ -96,7 +96,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         // Identify the base file (non-part file or the first file that is not a part file)
         var baseFile = YamlFileHelper.IdentifyBaseFile(yamlFiles.Values);
-        if (baseFile == null)
+        if (baseFile is null)
         {
             return;
         }
@@ -154,7 +154,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         }
 
         // Stop if merge failed
-        if (!mergeResult.IsSuccess || mergeResult.Document == null)
+        if (!mergeResult.IsSuccess || mergeResult.Document is null)
         {
             return;
         }
@@ -186,7 +186,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Parse the OpenAPI YAML content
         var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
 
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             DiagnosticHelpers.ReportClientParsingError(context, yamlPath);
             return;
@@ -275,7 +275,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             GenerateConstants(generatedContext, projectName, config.HttpClientName);
 
             // Generate custom error response model if configured
-            if (config.CustomErrorResponseModel != null)
+            if (config.CustomErrorResponseModel is not null)
             {
                 GenerateCustomErrorResponse(generatedContext, config.CustomErrorResponseModel, projectName);
             }
@@ -324,7 +324,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
                 // If customErrorResponseModel is configured and errorResponseFormat is default (ProblemDetails),
                 // automatically use Custom format for backward compatibility
-                var effectiveErrorFormat = config.CustomErrorResponseModel != null &&
+                var effectiveErrorFormat = config.CustomErrorResponseModel is not null &&
                                            config.ErrorResponseFormat == ErrorResponseFormatType.ProblemDetails
                     ? ErrorResponseFormatType.Custom
                     : config.ErrorResponseFormat;
@@ -432,7 +432,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool includeDeprecated)
     {
         var content = ResiliencePoliciesExtractor.Extract(openApiDoc, projectName, includeDeprecated);
-        if (content != null)
+        if (content is not null)
         {
             context.AddSource(
                 $"{projectName}.Resilience.Policies.g.cs",
@@ -447,7 +447,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool includeDeprecated)
     {
         var content = ResilienceDependencyInjectionExtractor.Extract(openApiDoc, projectName, includeDeprecated);
-        if (content != null)
+        if (content is not null)
         {
             context.AddSource(
                 $"{projectName}.Resilience.DependencyInjection.g.cs",
@@ -462,14 +462,14 @@ public class ApiClientGenerator : IIncrementalGenerator
     {
         // Extract OAuth configuration from OpenAPI document
         var oauthConfig = OAuthConfigExtractor.Extract(openApiDoc);
-        if (oauthConfig == null)
+        if (oauthConfig is null)
         {
             return;
         }
 
         // Generate OAuthClientOptions (IOptions<T> configuration)
         var optionsContent = OAuthOptionsExtractor.Extract(oauthConfig, projectName);
-        if (optionsContent != null)
+        if (optionsContent is not null)
         {
             context.AddSource(
                 $"{projectName}.OAuth.OAuthClientOptions.g.cs",
@@ -490,7 +490,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         // Generate OAuthTokenProvider implementation
         var implementationContent = OAuthTokenProviderExtractor.ExtractImplementation(oauthConfig, projectName);
-        if (implementationContent != null)
+        if (implementationContent is not null)
         {
             context.AddSource(
                 $"{projectName}.OAuth.OAuthTokenProvider.g.cs",
@@ -505,7 +505,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         // Generate OAuth DI extensions
         var diContent = OAuthDependencyInjectionExtractor.Extract(oauthConfig, projectName);
-        if (diContent != null)
+        if (diContent is not null)
         {
             context.AddSource(
                 $"{projectName}.OAuth.DependencyInjection.g.cs",
@@ -554,7 +554,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
-        if (recordsParameters == null || recordsParameters.Parameters.Count == 0)
+        if (recordsParameters is null || recordsParameters.Parameters.Count == 0)
         {
             return;
         }
@@ -614,7 +614,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             schemaNames,
             pathSegment);
 
-        if (enumParametersList == null || enumParametersList.Count == 0)
+        if (enumParametersList is null || enumParametersList.Count == 0)
         {
             return;
         }
@@ -653,7 +653,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             schemaNames,
             pathSegment);
 
-        if (tupleParametersList == null || tupleParametersList.Count == 0)
+        if (tupleParametersList is null || tupleParametersList.Count == 0)
         {
             return;
         }
@@ -794,7 +794,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         // This also extracts inline schemas for type generation
         var (classParameters, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, useServersBasePath, hasSegmentModels, hasSharedModels);
 
-        if (classParameters == null)
+        if (classParameters is null)
         {
             return;
         }
@@ -1251,7 +1251,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             "System.ComponentModel.DataAnnotations",
         };
 
-        if (paramRecord != null && UsingStatementHelper.RecordUsesSystemTypes(paramRecord))
+        if (paramRecord is not null && UsingStatementHelper.RecordUsesSystemTypes(paramRecord))
         {
             usings.Add("System");
         }

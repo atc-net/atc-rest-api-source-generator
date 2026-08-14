@@ -20,7 +20,7 @@ public static class TypeScriptWebhookExtractor
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return null;
         }
@@ -30,14 +30,14 @@ public static class TypeScriptWebhookExtractor
 
         foreach (var (path, pathValue) in openApiDoc.Paths)
         {
-            if (pathValue is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathValue is not IOpenApiPathItem pathItem || pathItem.Operations is null)
             {
                 continue;
             }
 
             foreach (var (verb, operation) in pathItem.Operations)
             {
-                if (operation.Callbacks == null || operation.Callbacks.Count == 0)
+                if (operation.Callbacks is null || operation.Callbacks.Count == 0)
                 {
                     continue;
                 }
@@ -66,7 +66,7 @@ public static class TypeScriptWebhookExtractor
         }
 
         var sb = new StringBuilder();
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }
@@ -92,7 +92,7 @@ public static class TypeScriptWebhookExtractor
         List<(string Alias, string TargetType)> entries,
         SortedSet<string> imports)
     {
-        if (callback is not OpenApiCallback concreteCallback || concreteCallback.PathItems == null)
+        if (callback is not OpenApiCallback concreteCallback || concreteCallback.PathItems is null)
         {
             return;
         }
@@ -101,7 +101,7 @@ public static class TypeScriptWebhookExtractor
 
         foreach (var (_, pathItem) in concreteCallback.PathItems)
         {
-            if (pathItem.Operations == null)
+            if (pathItem.Operations is null)
             {
                 continue;
             }
@@ -118,7 +118,7 @@ public static class TypeScriptWebhookExtractor
                 }
 
                 var refName = bodyRef.Reference.Id ?? bodyRef.Id;
-                if (refName == null)
+                if (refName is null)
                 {
                     continue;
                 }

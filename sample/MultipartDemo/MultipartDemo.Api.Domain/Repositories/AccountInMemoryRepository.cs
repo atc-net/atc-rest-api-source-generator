@@ -71,7 +71,7 @@ public sealed class AccountInMemoryRepository
         await Task.Delay(1).ConfigureAwait(false);
 
         var existing = accounts.FirstOrDefault(a => a.Id == id);
-        if (existing != null)
+        if (existing is not null)
         {
             return existing;
         }

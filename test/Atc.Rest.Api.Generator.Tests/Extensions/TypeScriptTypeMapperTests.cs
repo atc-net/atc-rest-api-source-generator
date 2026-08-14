@@ -369,7 +369,7 @@ public class TypeScriptTypeMapperTests
         OpenApiDocument doc,
         string schemaName)
     {
-        if (doc.Components?.Schemas == null)
+        if (doc.Components?.Schemas is null)
         {
             return null;
         }
@@ -459,7 +459,7 @@ public class TypeScriptTypeMapperTests
         string schemaName,
         string propertyName)
     {
-        if (doc.Components?.Schemas == null)
+        if (doc.Components?.Schemas is null)
         {
             return null;
         }

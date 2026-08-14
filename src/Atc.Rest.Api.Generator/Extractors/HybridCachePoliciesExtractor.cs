@@ -17,7 +17,7 @@ public static class HybridCachePoliciesExtractor
         string projectName,
         bool includeDeprecated = false)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
@@ -49,13 +49,13 @@ public static class HybridCachePoliciesExtractor
         if (!string.IsNullOrEmpty(documentPolicy) && ParseCacheType(documentType) == CacheType.Hybrid)
         {
             var config = CreateConfigFromExtensions(openApiDoc.Extensions, null, null);
-            if (config != null && config.Type == CacheType.Hybrid)
+            if (config is not null && config.Type == CacheType.Hybrid)
             {
                 policies[documentPolicy!] = config;
             }
         }
 
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return policies;
         }
@@ -72,13 +72,13 @@ public static class HybridCachePoliciesExtractor
             if (!string.IsNullOrEmpty(pathPolicy) && !policies.ContainsKey(pathPolicy!))
             {
                 var config = CreateConfigFromExtensions(openApiDoc.Extensions, pathItem.Extensions, null);
-                if (config != null && config.Type == CacheType.Hybrid)
+                if (config is not null && config.Type == CacheType.Hybrid)
                 {
                     policies[pathPolicy!] = config;
                 }
             }
 
-            if (pathItem.Operations == null)
+            if (pathItem.Operations is null)
             {
                 continue;
             }
@@ -93,7 +93,7 @@ public static class HybridCachePoliciesExtractor
                     continue;
                 }
 
-                if (operation == null)
+                if (operation is null)
                 {
                     continue;
                 }
@@ -106,7 +106,7 @@ public static class HybridCachePoliciesExtractor
                         openApiDoc.Extensions,
                         pathItem.Extensions,
                         operation.Extensions);
-                    if (config != null && config.Type == CacheType.Hybrid)
+                    if (config is not null && config.Type == CacheType.Hybrid)
                     {
                         policies[operationPolicy!] = config;
                     }
@@ -209,7 +209,7 @@ public static class HybridCachePoliciesExtractor
     {
         var merged = new HashSet<string>(StringComparer.Ordinal);
 
-        if (documentTags != null)
+        if (documentTags is not null)
         {
             foreach (var tag in documentTags)
             {
@@ -217,7 +217,7 @@ public static class HybridCachePoliciesExtractor
             }
         }
 
-        if (pathTags != null)
+        if (pathTags is not null)
         {
             foreach (var tag in pathTags)
             {
@@ -225,7 +225,7 @@ public static class HybridCachePoliciesExtractor
             }
         }
 
-        if (operationTags != null)
+        if (operationTags is not null)
         {
             foreach (var tag in operationTags)
             {

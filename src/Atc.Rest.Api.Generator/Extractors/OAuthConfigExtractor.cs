@@ -13,7 +13,7 @@ public static class OAuthConfigExtractor
     /// <returns>OAuth2 configuration if found, null otherwise.</returns>
     public static OAuthConfig? Extract(OpenApiDocument openApiDoc)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
@@ -37,13 +37,13 @@ public static class OAuthConfigExtractor
 
         // Check for Client Credentials flow
         var clientCredentialsFlow = openApiDoc.GetOAuth2ClientCredentialsFlow();
-        if (clientCredentialsFlow != null)
+        if (clientCredentialsFlow is not null)
         {
             config.HasClientCredentials = true;
             config.ClientCredentialsTokenUrl = clientCredentialsFlow.TokenUrl;
 
             // Collect scopes from this flow
-            if (clientCredentialsFlow.Scopes != null)
+            if (clientCredentialsFlow.Scopes is not null)
             {
                 foreach (var scope in clientCredentialsFlow.Scopes)
                 {
@@ -57,14 +57,14 @@ public static class OAuthConfigExtractor
 
         // Check for Authorization Code flow (for refresh token support)
         var authCodeFlow = openApiDoc.GetOAuth2AuthorizationCodeFlow();
-        if (authCodeFlow != null)
+        if (authCodeFlow is not null)
         {
             config.HasAuthorizationCode = true;
             config.AuthorizationCodeTokenUrl = authCodeFlow.TokenUrl;
             config.AuthorizationCodeRefreshUrl = authCodeFlow.RefreshUrl;
 
             // Collect scopes from this flow
-            if (authCodeFlow.Scopes != null)
+            if (authCodeFlow.Scopes is not null)
             {
                 foreach (var scope in authCodeFlow.Scopes)
                 {
@@ -96,7 +96,7 @@ public static class OAuthConfigExtractor
     /// <returns>True if OAuth2 code should be generated.</returns>
     public static bool HasOAuth2Security(OpenApiDocument openApiDoc)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             return false;
         }

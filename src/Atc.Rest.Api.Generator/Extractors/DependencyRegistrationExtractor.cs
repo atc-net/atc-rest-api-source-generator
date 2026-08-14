@@ -21,7 +21,7 @@ public static class DependencyRegistrationExtractor
         string handlerSuffix,
         List<string>? handlerInterfaceNamespaces = null)
     {
-        if (handlers == null || handlers.Count == 0)
+        if (handlers is null || handlers.Count == 0)
         {
             return null;
         }

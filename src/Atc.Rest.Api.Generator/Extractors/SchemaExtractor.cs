@@ -36,7 +36,7 @@ public static class SchemaExtractor
     {
         var recordParametersList = ExtractIndividual(openApiDoc, includeDeprecated: includeDeprecated, generatePartialModels: generatePartialModels);
 
-        if (recordParametersList == null || recordParametersList.Count == 0)
+        if (recordParametersList is null || recordParametersList.Count == 0)
         {
             return null;
         }
@@ -73,7 +73,7 @@ public static class SchemaExtractor
     {
         var recordParametersList = ExtractIndividual(openApiDoc, pathSegment, registry, includeDeprecated, generatePartialModels: generatePartialModels);
 
-        if (recordParametersList == null || recordParametersList.Count == 0)
+        if (recordParametersList is null || recordParametersList.Count == 0)
         {
             return null;
         }
@@ -112,14 +112,14 @@ public static class SchemaExtractor
         bool generatePartialModels = false,
         bool includeSharedModelsUsing = false)
     {
-        if (schemaNames == null || schemaNames.Count == 0)
+        if (schemaNames is null || schemaNames.Count == 0)
         {
             return null;
         }
 
         var recordParametersList = ExtractIndividual(openApiDoc, schemaNames, registry, includeDeprecated, generatePartialModels: generatePartialModels);
 
-        if (recordParametersList == null || recordParametersList.Count == 0)
+        if (recordParametersList is null || recordParametersList.Count == 0)
         {
             return null;
         }
@@ -167,7 +167,7 @@ public static class SchemaExtractor
     {
         var inlineEnums = new List<InlineEnumInfo>();
 
-        if (schemaNames == null || schemaNames.Count == 0)
+        if (schemaNames is null || schemaNames.Count == 0)
         {
             return (null, inlineEnums);
         }
@@ -186,7 +186,7 @@ public static class SchemaExtractor
             includeDeprecated,
             generatePartialModels: generatePartialModels);
 
-        if (recordParametersList == null || recordParametersList.Count == 0)
+        if (recordParametersList is null || recordParametersList.Count == 0)
         {
             return (null, inlineEnums);
         }
@@ -317,12 +317,12 @@ public static class SchemaExtractor
         Dictionary<string, PolymorphicConfig>? polymorphicConfigs = null,
         bool generatePartialModels = false)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        if (openApiDoc.Components?.Schemas == null || openApiDoc.Components.Schemas.Count == 0)
+        if (openApiDoc.Components?.Schemas is null || openApiDoc.Components.Schemas.Count == 0)
         {
             return null;
         }
@@ -338,7 +338,7 @@ public static class SchemaExtractor
             var schemaValue = schema.Value;
 
             // Apply schema filter if provided (uses original name from OpenAPI spec)
-            if (schemaFilter != null && !schemaFilter.Contains(originalSchemaName))
+            if (schemaFilter is not null && !schemaFilter.Contains(originalSchemaName))
             {
                 continue;
             }
@@ -384,7 +384,7 @@ public static class SchemaExtractor
                 // Detect allOf base reference for inheritance
                 var allOfBaseName = DetectAllOfBaseName(actualSchema);
 
-                if (actualSchema.Type == JsonSchemaType.Object || allOfBaseName != null)
+                if (actualSchema.Type == JsonSchemaType.Object || allOfBaseName is not null)
                 {
                     // Sanitize schema name - replace dots with underscores for valid C# identifiers
                     var schemaName = OpenApiSchemaExtensions.SanitizeSchemaName(originalSchemaName);
@@ -403,7 +403,7 @@ public static class SchemaExtractor
                     if (IsPaginationBaseSchema(actualSchema))
                     {
                         var genericRecordParams = ExtractGenericPaginatedRecord(schemaName, actualSchema, registry, generatePartialModels);
-                        if (genericRecordParams != null)
+                        if (genericRecordParams is not null)
                         {
                             recordParametersList.Add(genericRecordParams);
                         }
@@ -411,14 +411,14 @@ public static class SchemaExtractor
                     else
                     {
                         // For allOf schemas, merge properties from all sub-schemas
-                        var effectiveSchema = allOfBaseName != null
+                        var effectiveSchema = allOfBaseName is not null
                             ? MergeAllOfProperties(actualSchema)
                             : actualSchema;
 
                         var recordParams = ExtractRecordFromSchema(schemaName, effectiveSchema, registry, baseTypeName, generatePartialModels, declarationModifier);
 
                         // Add allOf inheritance info (only if not already a polymorphic variant)
-                        if (recordParams != null && allOfBaseName != null && string.IsNullOrEmpty(baseTypeName))
+                        if (recordParams is not null && allOfBaseName is not null && string.IsNullOrEmpty(baseTypeName))
                         {
                             var baseName = OpenApiSchemaExtensions.SanitizeSchemaName(allOfBaseName);
                             var baseArgs = GetBaseConstructorArguments(openApiDoc, allOfBaseName);
@@ -429,7 +429,7 @@ public static class SchemaExtractor
                             };
                         }
 
-                        if (recordParams != null)
+                        if (recordParams is not null)
                         {
                             recordParametersList.Add(recordParams);
                         }
@@ -454,12 +454,12 @@ public static class SchemaExtractor
         bool includeDeprecated = false,
         bool generatePartialModels = false)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        if (openApiDoc.Components?.Schemas == null || openApiDoc.Components.Schemas.Count == 0)
+        if (openApiDoc.Components?.Schemas is null || openApiDoc.Components.Schemas.Count == 0)
         {
             return null;
         }
@@ -478,7 +478,7 @@ public static class SchemaExtractor
             var schemaValue = schema.Value;
 
             // Apply schema filter if provided (uses original name from OpenAPI spec)
-            if (schemaFilter != null && !schemaFilter.Contains(originalSchemaName))
+            if (schemaFilter is not null && !schemaFilter.Contains(originalSchemaName))
             {
                 continue;
             }
@@ -524,7 +524,7 @@ public static class SchemaExtractor
                 // Detect allOf base reference for inheritance
                 var allOfBaseName = DetectAllOfBaseName(actualSchema);
 
-                if (actualSchema.Type == JsonSchemaType.Object || allOfBaseName != null)
+                if (actualSchema.Type == JsonSchemaType.Object || allOfBaseName is not null)
                 {
                     // Sanitize schema name - replace dots with underscores for valid C# identifiers
                     var schemaName = OpenApiSchemaExtensions.SanitizeSchemaName(originalSchemaName);
@@ -540,7 +540,7 @@ public static class SchemaExtractor
                     if (IsPaginationBaseSchema(actualSchema))
                     {
                         var genericRecordParams = ExtractGenericPaginatedRecord(schemaName, actualSchema, registry, generatePartialModels);
-                        if (genericRecordParams != null)
+                        if (genericRecordParams is not null)
                         {
                             recordParametersList.Add(genericRecordParams);
                         }
@@ -548,7 +548,7 @@ public static class SchemaExtractor
                     else
                     {
                         // For allOf schemas, merge properties from all sub-schemas
-                        var effectiveSchema = allOfBaseName != null
+                        var effectiveSchema = allOfBaseName is not null
                             ? MergeAllOfProperties(actualSchema)
                             : actualSchema;
 
@@ -563,7 +563,7 @@ public static class SchemaExtractor
                             declarationModifier);
 
                         // Add allOf inheritance info
-                        if (recordParams != null && allOfBaseName != null)
+                        if (recordParams is not null && allOfBaseName is not null)
                         {
                             var baseName = OpenApiSchemaExtensions.SanitizeSchemaName(allOfBaseName);
                             var baseArgs = GetBaseConstructorArguments(openApiDoc, allOfBaseName);
@@ -574,7 +574,7 @@ public static class SchemaExtractor
                             };
                         }
 
-                        if (recordParams != null)
+                        if (recordParams is not null)
                         {
                             recordParametersList.Add(recordParams);
                         }
@@ -594,7 +594,7 @@ public static class SchemaExtractor
     /// </summary>
     private static bool IsPaginationBaseSchema(OpenApiSchema schema)
     {
-        if (schema.Properties == null)
+        if (schema.Properties is null)
         {
             return false;
         }
@@ -627,7 +627,7 @@ public static class SchemaExtractor
             null => true,
 
             // Check if items schema has no type defined (empty schema)
-            OpenApiSchema itemSchema => itemSchema.Type == null ||
+            OpenApiSchema itemSchema => itemSchema.Type is null ||
                                         itemSchema.Type == JsonSchemaType.Null,
             _ => false,
         };
@@ -836,7 +836,7 @@ public static class SchemaExtractor
         // C# records require parameters with default values to come after all required parameters
         // Sort: required without defaults first, then non-required without defaults, then parameters with defaults
         var sortedParameters = parametersList
-            .OrderBy(p => p.DefaultValue != null ? 1 : 0)
+            .OrderBy(p => p.DefaultValue is not null ? 1 : 0)
             .ToList();
 
         // Build record name with inheritance if this is a polymorphic variant
@@ -883,7 +883,7 @@ public static class SchemaExtractor
         var hasDescription = schemaSummary is not null || !string.IsNullOrWhiteSpace(schema.Description);
         var example = ExtractExampleString(schema);
 
-        if (!hasDescription && example == null)
+        if (!hasDescription && example is null)
         {
             return null;
         }
@@ -908,12 +908,12 @@ public static class SchemaExtractor
     /// </summary>
     private static string? ExtractExampleString(OpenApiSchema schema)
     {
-        if (schema.Example != null)
+        if (schema.Example is not null)
         {
             return schema.Example.ToJsonString();
         }
 
-        if (schema.Examples != null && schema.Examples.Count > 0)
+        if (schema.Examples is not null && schema.Examples.Count > 0)
         {
             return schema.Examples[0].ToJsonString();
         }
@@ -998,7 +998,7 @@ public static class SchemaExtractor
                 // map so identical value sets collapse to one type.
                 var actualArraySchema = (OpenApiSchema)prop.Value;
                 var enumTypeName = ResolveOrRegisterInlineEnum(arrayItemSchema!, schemaName, propName, ns, pathSegment, inlineEnumsByValuesKey);
-                csharpType = enumTypeName != null
+                csharpType = enumTypeName is not null
                     ? $"List<{enumTypeName}>"
                     : prop.Value.ToCSharpTypeForModel(isRequired, registry);
 
@@ -1062,7 +1062,7 @@ public static class SchemaExtractor
 
         // C# records require parameters with default values to come after all required parameters
         var sortedParameters = parametersList
-            .OrderBy(p => p.DefaultValue != null ? 1 : 0)
+            .OrderBy(p => p.DefaultValue is not null ? 1 : 0)
             .ToList();
 
         // Append x-implements interfaces
@@ -1178,7 +1178,7 @@ public static class SchemaExtractor
     {
         var allOfBaseSchemas = new HashSet<string>(StringComparer.Ordinal);
 
-        if (openApiDoc.Components?.Schemas == null)
+        if (openApiDoc.Components?.Schemas is null)
         {
             return allOfBaseSchemas;
         }
@@ -1220,7 +1220,7 @@ public static class SchemaExtractor
         var mergedRequired = new HashSet<string>(StringComparer.Ordinal);
 
         // Copy any top-level properties first
-        if (schema.Properties != null)
+        if (schema.Properties is not null)
         {
             foreach (var prop in schema.Properties)
             {
@@ -1228,7 +1228,7 @@ public static class SchemaExtractor
             }
         }
 
-        if (schema.Required != null)
+        if (schema.Required is not null)
         {
             foreach (var req in schema.Required)
             {
@@ -1237,16 +1237,16 @@ public static class SchemaExtractor
         }
 
         // Merge from each allOf sub-schema
-        if (schema.AllOf != null)
+        if (schema.AllOf is not null)
         {
             foreach (var sub in schema.AllOf)
             {
                 // Resolve references to get the actual schema
-                var actualSub = sub is OpenApiSchemaReference subRef && subRef.Target != null
+                var actualSub = sub is OpenApiSchemaReference subRef && subRef.Target is not null
                     ? subRef.Target
                     : sub;
 
-                if (actualSub.Properties != null)
+                if (actualSub.Properties is not null)
                 {
                     foreach (var prop in actualSub.Properties)
                     {
@@ -1258,7 +1258,7 @@ public static class SchemaExtractor
                     }
                 }
 
-                if (actualSub.Required != null)
+                if (actualSub.Required is not null)
                 {
                     foreach (var req in actualSub.Required)
                     {
@@ -1308,7 +1308,7 @@ public static class SchemaExtractor
         OpenApiDocument doc,
         string baseSchemaName)
     {
-        if (doc.Components?.Schemas == null)
+        if (doc.Components?.Schemas is null)
         {
             return [];
         }
@@ -1318,7 +1318,7 @@ public static class SchemaExtractor
             return [];
         }
 
-        if (baseSchema.Properties == null || baseSchema.Properties.Count == 0)
+        if (baseSchema.Properties is null || baseSchema.Properties.Count == 0)
         {
             return [];
         }

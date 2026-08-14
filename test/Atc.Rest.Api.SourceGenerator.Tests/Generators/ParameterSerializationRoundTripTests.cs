@@ -19,7 +19,7 @@ public class ParameterSerializationRoundTripTests
 
         // The Roslyn typed-client generator emits a per-segment client (ItemsClient) carrying the
         // ListItemsAsync method; locate it by the method rather than a fixed class name.
-        var clientType = assembly.GetTypes().Single(t => t.GetMethod("ListItemsAsync") != null);
+        var clientType = assembly.GetTypes().Single(t => t.GetMethod("ListItemsAsync") is not null);
         var parametersType = assembly.GetTypes().Single(t => t.Name == "ListItemsParameters");
 
         // Capture the outgoing request URI without a real server.

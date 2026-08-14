@@ -31,11 +31,11 @@ internal static class SpecificationValidationHelper
         {
             var (parsedDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, specPath);
 
-            if (parsedDoc == null)
+            if (parsedDoc is null)
             {
                 AnsiConsole.MarkupLine("[red]✗[/] Failed to parse OpenAPI specification");
 
-                if (openApiDiagnostic?.Errors != null)
+                if (openApiDiagnostic?.Errors is not null)
                 {
                     foreach (var error in openApiDiagnostic.Errors)
                     {

@@ -31,7 +31,7 @@ public static class EndpointRegistrationExtractor
         string? pathSegment,
         List<string> endpointDefinitionClassNames)
     {
-        if (endpointDefinitionClassNames == null || endpointDefinitionClassNames.Count == 0)
+        if (endpointDefinitionClassNames is null || endpointDefinitionClassNames.Count == 0)
         {
             return null;
         }
@@ -119,12 +119,12 @@ public static class EndpointRegistrationExtractor
         OpenApiDocument openApiDoc,
         string projectName)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return null;
         }
@@ -205,7 +205,7 @@ public static class EndpointRegistrationExtractor
                 continue;
             }
 
-            if (pathItem.Operations != null)
+            if (pathItem.Operations is not null)
             {
                 foreach (var operation in pathItem.Operations)
                 {
@@ -234,7 +234,7 @@ public static class EndpointRegistrationExtractor
         OpenApiOperation? operation,
         bool isFirst)
     {
-        if (operation == null)
+        if (operation is null)
         {
             return;
         }
@@ -360,7 +360,7 @@ public static class EndpointRegistrationExtractor
         // Track which status codes are already defined
         var definedStatusCodes = new HashSet<string>(StringComparer.Ordinal);
 
-        if (operation.Responses != null)
+        if (operation.Responses is not null)
         {
             foreach (var response in operation.Responses)
             {
@@ -369,7 +369,7 @@ public static class EndpointRegistrationExtractor
         }
 
         // Process explicitly defined responses
-        if (operation.Responses != null)
+        if (operation.Responses is not null)
         {
             foreach (var response in operation.Responses)
             {
@@ -392,7 +392,7 @@ public static class EndpointRegistrationExtractor
                 string? contentType = null;
                 if (response.Value is OpenApiResponse openApiResponse &&
                     openApiResponse.Content?.TryGetValue("application/json", out var mediaType) == true &&
-                    mediaType.Schema != null)
+                    mediaType.Schema is not null)
                 {
                     // Use ToCSharpType directly on the schema - it handles schema references
                     // correctly and returns the reference name (e.g., "Pet") for schema references

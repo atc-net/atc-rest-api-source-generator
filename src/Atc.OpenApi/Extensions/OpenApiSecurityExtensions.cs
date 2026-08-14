@@ -32,7 +32,7 @@ public static class OpenApiSecurityExtensions
             // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
             var extensionType = extension.GetType();
             var nodeProperty = extensionType.GetProperty("Node");
-            if (nodeProperty == null)
+            if (nodeProperty is null)
             {
                 return null;
             }
@@ -143,7 +143,7 @@ public static class OpenApiSecurityExtensions
         // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
         var extensionType = extension.GetType();
         var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty == null)
+        if (nodeProperty is null)
         {
             return [];
         }
@@ -176,7 +176,7 @@ public static class OpenApiSecurityExtensions
     {
         var schemes = new Dictionary<string, SecuritySchemeInfo>(StringComparer.Ordinal);
 
-        if (document.Components?.SecuritySchemes == null)
+        if (document.Components?.SecuritySchemes is null)
         {
             return schemes;
         }
@@ -220,7 +220,7 @@ public static class OpenApiSecurityExtensions
         // Operation-level security overrides document-level
         var securityRequirements = operation.Security ?? document.Security;
 
-        if (securityRequirements == null)
+        if (securityRequirements is null)
         {
             return null;
         }
@@ -277,7 +277,7 @@ public static class OpenApiSecurityExtensions
 
         // Determine security source
         var hasAtcSecurity = atcSecurity.HasValue;
-        var hasStandardSecurity = standardRequirements != null;
+        var hasStandardSecurity = standardRequirements is not null;
 
         // Build unified config
         var config = new UnifiedSecurityConfig();
@@ -376,7 +376,7 @@ public static class OpenApiSecurityExtensions
     /// <returns>True if JWT Bearer authentication is used.</returns>
     public static bool HasJwtBearerSecurity(this OpenApiDocument document)
     {
-        if (document.Components?.SecuritySchemes == null)
+        if (document.Components?.SecuritySchemes is null)
         {
             return false;
         }
@@ -426,7 +426,7 @@ public static class OpenApiSecurityExtensions
     /// </summary>
     private static OAuthFlowsInfo? ExtractOAuthFlows(OpenApiOAuthFlows? flows)
     {
-        if (flows == null)
+        if (flows is null)
         {
             return null;
         }
@@ -445,13 +445,13 @@ public static class OpenApiSecurityExtensions
     /// </summary>
     private static OAuthFlowInfo? ExtractOAuthFlow(OpenApiOAuthFlow? flow)
     {
-        if (flow == null)
+        if (flow is null)
         {
             return null;
         }
 
         var scopes = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (flow.Scopes != null)
+        if (flow.Scopes is not null)
         {
             foreach (var kvp in flow.Scopes)
             {
@@ -475,7 +475,7 @@ public static class OpenApiSecurityExtensions
     /// <returns>True if OAuth2 Client Credentials flow is configured.</returns>
     public static bool HasOAuth2ClientCredentials(this OpenApiDocument document)
     {
-        if (document.Components?.SecuritySchemes == null)
+        if (document.Components?.SecuritySchemes is null)
         {
             return false;
         }
@@ -485,7 +485,7 @@ public static class OpenApiSecurityExtensions
             var scheme = kvp.Value;
 
             if (scheme.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2 &&
-                scheme.Flows?.ClientCredentials != null &&
+                scheme.Flows?.ClientCredentials is not null &&
                 !string.IsNullOrEmpty(scheme.Flows.ClientCredentials.TokenUrl?.ToString()))
             {
                 return true;
@@ -502,7 +502,7 @@ public static class OpenApiSecurityExtensions
     /// <returns>True if OAuth2 Authorization Code flow is configured.</returns>
     public static bool HasOAuth2AuthorizationCode(this OpenApiDocument document)
     {
-        if (document.Components?.SecuritySchemes == null)
+        if (document.Components?.SecuritySchemes is null)
         {
             return false;
         }
@@ -512,7 +512,7 @@ public static class OpenApiSecurityExtensions
             var scheme = kvp.Value;
 
             if (scheme.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2 &&
-                scheme.Flows?.AuthorizationCode != null &&
+                scheme.Flows?.AuthorizationCode is not null &&
                 !string.IsNullOrEmpty(scheme.Flows.AuthorizationCode.TokenUrl?.ToString()))
             {
                 return true;
@@ -538,7 +538,7 @@ public static class OpenApiSecurityExtensions
     /// <returns>OAuthFlowInfo for Client Credentials, or null if not configured.</returns>
     public static OAuthFlowInfo? GetOAuth2ClientCredentialsFlow(this OpenApiDocument document)
     {
-        if (document.Components?.SecuritySchemes == null)
+        if (document.Components?.SecuritySchemes is null)
         {
             return null;
         }
@@ -548,7 +548,7 @@ public static class OpenApiSecurityExtensions
             var scheme = kvp.Value;
 
             if (scheme.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2 &&
-                scheme.Flows?.ClientCredentials != null)
+                scheme.Flows?.ClientCredentials is not null)
             {
                 return ExtractOAuthFlow(scheme.Flows.ClientCredentials);
             }
@@ -564,7 +564,7 @@ public static class OpenApiSecurityExtensions
     /// <returns>OAuthFlowInfo for Authorization Code, or null if not configured.</returns>
     public static OAuthFlowInfo? GetOAuth2AuthorizationCodeFlow(this OpenApiDocument document)
     {
-        if (document.Components?.SecuritySchemes == null)
+        if (document.Components?.SecuritySchemes is null)
         {
             return null;
         }
@@ -574,7 +574,7 @@ public static class OpenApiSecurityExtensions
             var scheme = kvp.Value;
 
             if (scheme.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2 &&
-                scheme.Flows?.AuthorizationCode != null)
+                scheme.Flows?.AuthorizationCode is not null)
             {
                 return ExtractOAuthFlow(scheme.Flows.AuthorizationCode);
             }
@@ -592,7 +592,7 @@ public static class OpenApiSecurityExtensions
     {
         var scopes = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        if (document.Components?.SecuritySchemes == null)
+        if (document.Components?.SecuritySchemes is null)
         {
             return scopes;
         }
@@ -601,7 +601,7 @@ public static class OpenApiSecurityExtensions
         {
             var scheme = kvp.Value;
 
-            if (scheme.Type != Microsoft.OpenApi.SecuritySchemeType.OAuth2 || scheme.Flows == null)
+            if (scheme.Type != Microsoft.OpenApi.SecuritySchemeType.OAuth2 || scheme.Flows is null)
             {
                 continue;
             }
@@ -624,7 +624,7 @@ public static class OpenApiSecurityExtensions
     public static bool HasOperationsRequiringOAuth2(this OpenApiDocument document)
     {
         // Check document-level security first
-        if (document.Security != null)
+        if (document.Security is not null)
         {
             foreach (var requirement in document.Security)
             {
@@ -640,14 +640,14 @@ public static class OpenApiSecurityExtensions
         }
 
         // Check operation-level security
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             return false;
         }
 
         foreach (var pathPair in document.Paths)
         {
-            if (pathPair.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathPair.Value is not IOpenApiPathItem pathItem || pathItem.Operations is null)
             {
                 continue;
             }
@@ -655,7 +655,7 @@ public static class OpenApiSecurityExtensions
             foreach (var operationPair in pathItem.Operations)
             {
                 var operation = operationPair.Value;
-                if (operation?.Security == null)
+                if (operation?.Security is null)
                 {
                     continue;
                 }
@@ -684,7 +684,7 @@ public static class OpenApiSecurityExtensions
     /// <returns>The scheme name, or null if not found.</returns>
     public static string? GetOAuth2SchemeName(this OpenApiDocument document)
     {
-        if (document.Components?.SecuritySchemes == null)
+        if (document.Components?.SecuritySchemes is null)
         {
             return null;
         }
@@ -707,7 +707,7 @@ public static class OpenApiSecurityExtensions
         OpenApiDocument document,
         string schemeName)
     {
-        if (string.IsNullOrEmpty(schemeName) || document.Components?.SecuritySchemes == null)
+        if (string.IsNullOrEmpty(schemeName) || document.Components?.SecuritySchemes is null)
         {
             return false;
         }
@@ -723,7 +723,7 @@ public static class OpenApiSecurityExtensions
     /// <returns>True if OpenID Connect authentication is configured.</returns>
     public static bool HasOpenIdConnectSecurity(this OpenApiDocument document)
     {
-        if (document.Components?.SecuritySchemes == null)
+        if (document.Components?.SecuritySchemes is null)
         {
             return false;
         }
@@ -748,7 +748,7 @@ public static class OpenApiSecurityExtensions
     /// <returns>The scheme name, or null if not found.</returns>
     public static string? GetOpenIdConnectSchemeName(this OpenApiDocument document)
     {
-        if (document.Components?.SecuritySchemes == null)
+        if (document.Components?.SecuritySchemes is null)
         {
             return null;
         }
@@ -772,7 +772,7 @@ public static class OpenApiSecurityExtensions
     [SuppressMessage("Design", "CA1055:URI-like properties should not be strings", Justification = "Used for code generation")]
     public static string? GetOpenIdConnectUrl(this OpenApiDocument document)
     {
-        if (document.Components?.SecuritySchemes == null)
+        if (document.Components?.SecuritySchemes is null)
         {
             return null;
         }
@@ -780,7 +780,7 @@ public static class OpenApiSecurityExtensions
         foreach (var kvp in document.Components.SecuritySchemes)
         {
             if (kvp.Value.Type == Microsoft.OpenApi.SecuritySchemeType.OpenIdConnect &&
-                kvp.Value.OpenIdConnectUrl != null)
+                kvp.Value.OpenIdConnectUrl is not null)
             {
                 return kvp.Value.OpenIdConnectUrl.ToString();
             }
@@ -796,7 +796,7 @@ public static class OpenApiSecurityExtensions
         Dictionary<string, string> scopes,
         OpenApiOAuthFlow? flow)
     {
-        if (flow?.Scopes == null)
+        if (flow?.Scopes is null)
         {
             return;
         }

@@ -106,7 +106,7 @@ internal static class ProjectStructureValidator
         var apiGeneratedProject = projects.FirstOrDefault(p =>
             p.EndsWith(".Api.Generated.csproj", StringComparison.OrdinalIgnoreCase));
 
-        if (apiGeneratedProject != null)
+        if (apiGeneratedProject is not null)
         {
             // Remove ".Api.Generated" suffix to get the base project name
             var fileName = Path.GetFileNameWithoutExtension(apiGeneratedProject);
@@ -119,7 +119,7 @@ internal static class ProjectStructureValidator
             p.EndsWith(".Domain.csproj", StringComparison.OrdinalIgnoreCase) &&
             !p.Contains("Test", StringComparison.OrdinalIgnoreCase));
 
-        if (domainProject != null)
+        if (domainProject is not null)
         {
             var fileName = Path.GetFileNameWithoutExtension(domainProject);
             var projectName = fileName.Replace(".Domain", string.Empty, StringComparison.OrdinalIgnoreCase);
@@ -132,7 +132,7 @@ internal static class ProjectStructureValidator
             !p.Contains("Generated", StringComparison.OrdinalIgnoreCase) &&
             !p.Contains("Test", StringComparison.OrdinalIgnoreCase));
 
-        if (apiProject != null)
+        if (apiProject is not null)
         {
             var fileName = Path.GetFileNameWithoutExtension(apiProject);
             var projectName = fileName.Replace(".Api", string.Empty, StringComparison.OrdinalIgnoreCase);

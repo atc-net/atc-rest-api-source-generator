@@ -101,7 +101,7 @@ public static class TypeScriptReactQueryHookExtractor
                     }
 
                     var brand = TypeScriptBrandedIdExtractor.ResolveParamBrand(info.Path, param.Name, param.Schema);
-                    if (brand != null)
+                    if (brand is not null)
                     {
                         brandImports.Add(brand);
                     }
@@ -117,7 +117,7 @@ public static class TypeScriptReactQueryHookExtractor
             if (bodySchema is OpenApiSchemaReference bodyRef)
             {
                 var refName = bodyRef.Reference.Id ?? bodyRef.Id;
-                if (refName != null && writableSchemas.Contains(refName))
+                if (refName is not null && writableSchemas.Contains(refName))
                 {
                     importTypes.Add(refName + TypeScriptModelExtractor.WritableSuffix);
                 }
@@ -213,7 +213,7 @@ public static class TypeScriptReactQueryHookExtractor
         var bodyText = bodySb.ToString();
 
         // Write header
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }
@@ -338,7 +338,7 @@ public static class TypeScriptReactQueryHookExtractor
                 continue;
             }
 
-            if (enumNames != null && enumNames.Contains(typeName))
+            if (enumNames is not null && enumNames.Contains(typeName))
             {
                 enumImports.Add(typeName);
             }
@@ -1205,7 +1205,7 @@ public static class TypeScriptReactQueryHookExtractor
         var returnType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming, isFileDownload);
 
         var (bodySchema, bodyContentType) = operation.GetRequestBodySchemaWithContentType();
-        var hasBody = bodySchema != null && !isFileUpload;
+        var hasBody = bodySchema is not null && !isFileUpload;
         var bodyType = hasBody ? bodySchema!.ToTypeScriptReturnType() : string.Empty;
 
         // Mirror the client extractor: a body that's a $ref to a schema with the
@@ -1214,7 +1214,7 @@ public static class TypeScriptReactQueryHookExtractor
         if (hasBody && bodySchema is OpenApiSchemaReference bodyRef)
         {
             var bodyRefName = bodyRef.Reference.Id ?? bodyRef.Id;
-            if (bodyRefName != null && writableSchemas.Contains(bodyRefName))
+            if (bodyRefName is not null && writableSchemas.Contains(bodyRefName))
             {
                 bodyType = bodyRefName + TypeScriptModelExtractor.WritableSuffix;
             }
@@ -1224,7 +1224,7 @@ public static class TypeScriptReactQueryHookExtractor
         var hasFileUploadArg = false;
         var fileUploadParam = string.Empty;
         var fileUploadArgName = string.Empty;
-        if (isFileUpload && bodySchema != null)
+        if (isFileUpload && bodySchema is not null)
         {
             (hasFileUploadArg, fileUploadParam, fileUploadArgName) = GetFileUploadInfo(bodySchema, bodyContentType, namingStrategy);
         }
@@ -1323,7 +1323,7 @@ public static class TypeScriptReactQueryHookExtractor
         {
             var formParts = new List<string>();
             var required = new HashSet<string>(StringComparer.Ordinal);
-            if (bodySchema is OpenApiSchema actualSchema && actualSchema.Required != null)
+            if (bodySchema is OpenApiSchema actualSchema && actualSchema.Required is not null)
             {
                 foreach (var r in actualSchema.Required)
                 {

@@ -16,7 +16,7 @@ public static class OAuthOptionsExtractor
         OAuthConfig? oauthConfig,
         string projectName)
     {
-        if (oauthConfig == null)
+        if (oauthConfig is null)
         {
             return null;
         }

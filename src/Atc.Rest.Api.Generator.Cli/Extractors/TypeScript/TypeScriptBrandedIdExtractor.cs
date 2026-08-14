@@ -28,7 +28,7 @@ public static class TypeScriptBrandedIdExtractor
         var brands = new SortedSet<string>(StringComparer.Ordinal);
 
         // Pass 1: property-level brands across all named schemas.
-        if (openApiDoc.Components?.Schemas != null)
+        if (openApiDoc.Components?.Schemas is not null)
         {
             foreach (var schema in openApiDoc.Components.Schemas)
             {
@@ -38,7 +38,7 @@ public static class TypeScriptBrandedIdExtractor
 
         // Pass 2: path parameter brands. Operation-level params and path-level
         // params both flow through — they share the same naming conventions.
-        if (openApiDoc.Paths != null)
+        if (openApiDoc.Paths is not null)
         {
             foreach (var path in openApiDoc.Paths)
             {
@@ -139,7 +139,7 @@ public static class TypeScriptBrandedIdExtractor
             return;
         }
 
-        if (actual.Properties == null)
+        if (actual.Properties is null)
         {
             return;
         }
@@ -147,7 +147,7 @@ public static class TypeScriptBrandedIdExtractor
         foreach (var prop in actual.Properties)
         {
             var brand = ResolvePropertyBrand(schemaName, prop.Key, prop.Value);
-            if (brand != null)
+            if (brand is not null)
             {
                 brands.Add(brand);
             }
@@ -159,7 +159,7 @@ public static class TypeScriptBrandedIdExtractor
         string path,
         IOpenApiPathItem pathItem)
     {
-        if (pathItem.Parameters != null)
+        if (pathItem.Parameters is not null)
         {
             foreach (var param in pathItem.Parameters)
             {
@@ -167,14 +167,14 @@ public static class TypeScriptBrandedIdExtractor
             }
         }
 
-        if (pathItem.Operations == null)
+        if (pathItem.Operations is null)
         {
             return;
         }
 
         foreach (var op in pathItem.Operations.Values)
         {
-            if (op.Parameters == null)
+            if (op.Parameters is null)
             {
                 continue;
             }
@@ -203,7 +203,7 @@ public static class TypeScriptBrandedIdExtractor
         }
 
         var brand = ResolveParamBrand(path, name, parameter.Schema);
-        if (brand != null)
+        if (brand is not null)
         {
             brands.Add(brand);
         }

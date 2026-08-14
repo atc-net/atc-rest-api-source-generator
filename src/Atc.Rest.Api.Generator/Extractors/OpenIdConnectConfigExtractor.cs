@@ -12,7 +12,7 @@ public static class OpenIdConnectConfigExtractor
     /// <returns>OpenID Connect configuration if found, null otherwise.</returns>
     public static OpenIdConnectConfig? Extract(OpenApiDocument openApiDoc)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
@@ -30,7 +30,7 @@ public static class OpenIdConnectConfigExtractor
         config.OpenIdConnectUrl = openApiDoc.GetOpenIdConnectUrl();
 
         // Get description from the security scheme
-        if (openApiDoc.Components?.SecuritySchemes != null &&
+        if (openApiDoc.Components?.SecuritySchemes is not null &&
             openApiDoc.Components.SecuritySchemes.TryGetValue(config.SchemeName, out var scheme))
         {
             config.Description = scheme.Description;
@@ -50,7 +50,7 @@ public static class OpenIdConnectConfigExtractor
         OpenIdConnectConfig config)
     {
         // Check document-level security requirements
-        if (openApiDoc.Security != null)
+        if (openApiDoc.Security is not null)
         {
             foreach (var requirement in openApiDoc.Security)
             {
@@ -72,14 +72,14 @@ public static class OpenIdConnectConfigExtractor
         }
 
         // Check operation-level security requirements
-        if (openApiDoc.Paths == null)
+        if (openApiDoc.Paths is null)
         {
             return;
         }
 
         foreach (var pathPair in openApiDoc.Paths)
         {
-            if (pathPair.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathPair.Value is not IOpenApiPathItem pathItem || pathItem.Operations is null)
             {
                 continue;
             }
@@ -87,7 +87,7 @@ public static class OpenIdConnectConfigExtractor
             foreach (var operationPair in pathItem.Operations)
             {
                 var operation = operationPair.Value;
-                if (operation?.Security == null)
+                if (operation?.Security is null)
                 {
                     continue;
                 }
@@ -120,7 +120,7 @@ public static class OpenIdConnectConfigExtractor
     /// <returns>True if OpenID Connect code should be generated.</returns>
     public static bool HasOpenIdConnectSecurity(OpenApiDocument openApiDoc)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             return false;
         }

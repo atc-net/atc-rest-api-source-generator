@@ -39,7 +39,7 @@ public sealed class MergeResult
     {
         get
         {
-            if (BaseFile == null)
+            if (BaseFile is null)
             {
                 return PartFiles;
             }
@@ -59,7 +59,7 @@ public sealed class MergeResult
     /// Whether the merge was successful (no errors).
     /// </summary>
     public bool IsSuccess
-        => Document != null && !Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+        => Document is not null && !Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
 
     /// <summary>
     /// Whether this was a multi-part merge (more than one file).

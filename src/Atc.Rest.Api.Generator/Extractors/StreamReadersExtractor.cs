@@ -21,14 +21,14 @@ public static class StreamReadersExtractor
     /// <returns>True when at least one operation requires the StreamReaders helper.</returns>
     public static bool DocumentRequiresStreamReaders(OpenApiDocument openApiDoc)
     {
-        if (openApiDoc?.Paths == null)
+        if (openApiDoc?.Paths is null)
         {
             return false;
         }
 
         foreach (var path in openApiDoc.Paths)
         {
-            if (path.Value?.Operations == null)
+            if (path.Value?.Operations is null)
             {
                 continue;
             }
@@ -148,7 +148,7 @@ public static class StreamReadersExtractor
             sb.AppendLine("    {");
             sb.AppendLine("        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);");
             sb.AppendLine("        string? line;");
-            sb.AppendLine("        while ((line = await reader.ReadLineAsync(cancellationToken)) != null)");
+            sb.AppendLine("        while ((line = await reader.ReadLineAsync(cancellationToken)) is not null)");
             sb.AppendLine("        {");
             sb.AppendLine("            if (line.Length == 0)");
             sb.AppendLine("            {");
@@ -260,7 +260,7 @@ public static class StreamReadersExtractor
         sb.AppendLine("        var inHeaders = false;");
         sb.AppendLine("        var body = new StringBuilder();");
         sb.AppendLine("        string? line;");
-        sb.AppendLine("        while ((line = await reader.ReadLineAsync(cancellationToken)) != null)");
+        sb.AppendLine("        while ((line = await reader.ReadLineAsync(cancellationToken)) is not null)");
         sb.AppendLine("        {");
         sb.AppendLine("            if (line.StartsWith(delimiter, StringComparison.Ordinal))");
         sb.AppendLine("            {");

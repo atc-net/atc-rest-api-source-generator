@@ -101,7 +101,7 @@ internal static class TargetFrameworkValidator
     {
         var version = result.TargetFrameworkVersion;
 
-        if (version == null)
+        if (version is null)
         {
             // Couldn't determine version, assume compatible but needs upgrade
             result.IsTargetFrameworkCompatible = true;
@@ -121,11 +121,11 @@ internal static class TargetFrameworkValidator
     {
         var version = result.LangVersionNumber;
 
-        if (version == null)
+        if (version is null)
         {
             // If no explicit LangVersion, infer from TargetFramework
             var tfmVersion = result.TargetFrameworkVersion;
-            if (tfmVersion != null)
+            if (tfmVersion is not null)
             {
                 // .NET version roughly corresponds to C# version
                 // net8.0 -> C# 12, net9.0 -> C# 13, net10.0 -> C# 14

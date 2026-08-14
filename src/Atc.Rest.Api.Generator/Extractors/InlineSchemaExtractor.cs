@@ -26,7 +26,7 @@ public static class InlineSchemaExtractor
         }
 
         return actualSchema.Type?.HasFlag(JsonSchemaType.Object) == true &&
-               actualSchema.Properties != null &&
+               actualSchema.Properties is not null &&
                actualSchema.Properties.Count > 0;
     }
 
@@ -129,7 +129,7 @@ public static class InlineSchemaExtractor
 
         // Sort: required without defaults first, then parameters with defaults
         var sortedParameters = parametersList
-            .OrderBy(p => p.DefaultValue != null ? 1 : 0)
+            .OrderBy(p => p.DefaultValue is not null ? 1 : 0)
             .ToList();
 
         return new RecordParameters(
@@ -194,7 +194,7 @@ public static class InlineSchemaExtractor
             else if (InlineEnumExtractor.TryGetInlineEnumArrayItems(prop.Value, out var arrayItemSchema))
             {
                 var enumTypeName = ResolveOrRegisterInlineEnum(arrayItemSchema!, typeName, propName, ns, pathSegment, inlineEnumsByValuesKey);
-                csharpType = enumTypeName != null
+                csharpType = enumTypeName is not null
                     ? $"List<{enumTypeName}>"
                     : prop.Value.ToCSharpTypeForModel(isRequired, registry);
 
@@ -240,7 +240,7 @@ public static class InlineSchemaExtractor
         }
 
         var sortedParameters = parametersList
-            .OrderBy(p => p.DefaultValue != null ? 1 : 0)
+            .OrderBy(p => p.DefaultValue is not null ? 1 : 0)
             .ToList();
 
         return new RecordParameters(

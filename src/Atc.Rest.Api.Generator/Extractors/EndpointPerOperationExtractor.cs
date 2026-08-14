@@ -45,7 +45,7 @@ public static class EndpointPerOperationExtractor
     /// </remarks>
     private static bool IsBinaryEndpoint(OpenApiOperation operation)
     {
-        if (operation.Responses == null)
+        if (operation.Responses is null)
         {
             return false;
         }
@@ -64,7 +64,7 @@ public static class EndpointPerOperationExtractor
                 continue;
             }
 
-            if (response.Value?.Content != null &&
+            if (response.Value?.Content is not null &&
                 response.Value.Content.ContainsKey("application/octet-stream"))
             {
                 return true;
@@ -148,7 +148,7 @@ public static class EndpointPerOperationExtractor
         var result = new List<OperationFiles>();
         var inlineSchemas = new Dictionary<string, InlineSchemaInfo>(StringComparer.Ordinal);
 
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return (result, inlineSchemas);
         }
@@ -172,7 +172,7 @@ public static class EndpointPerOperationExtractor
                 continue;
             }
 
-            if (pathItem.Operations == null)
+            if (pathItem.Operations is null)
             {
                 continue;
             }
@@ -191,7 +191,7 @@ public static class EndpointPerOperationExtractor
                 var httpMethod = operation.Key.ToString();
                 var operationValue = operation.Value;
 
-                if (operationValue == null)
+                if (operationValue is null)
                 {
                     continue;
                 }
@@ -214,7 +214,7 @@ public static class EndpointPerOperationExtractor
                     inlineSchemas,
                     useServersBasePath);
 
-                if (files != null)
+                if (files is not null)
                 {
                     result.Add(files);
                 }
@@ -339,7 +339,7 @@ public static class EndpointPerOperationExtractor
         if (isAsyncEnumerable)
         {
             var streamingItemSchema = operation.GetStreamingItemSchema();
-            streamingItemType = streamingItemSchema != null
+            streamingItemType = streamingItemSchema is not null
                 ? GetSchemaTypeName(streamingItemSchema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas, isAsyncEnumerable: false)
                 : ExtractStreamingItemType(responses);
         }
@@ -447,7 +447,7 @@ public static class EndpointPerOperationExtractor
     {
         var responses = new List<ResponseInfo>();
 
-        if (operation.Responses == null)
+        if (operation.Responses is null)
         {
             return responses;
         }
@@ -470,7 +470,7 @@ public static class EndpointPerOperationExtractor
 
             // Check for JSON content
             // Note: Binary/octet-stream endpoints are handled by IsBinaryEndpoint() and skip result class generation
-            if (response.Value?.Content != null &&
+            if (response.Value?.Content is not null &&
                 response.Value.Content.TryGetValue("application/json", out var mediaType))
             {
                 // Use "Response" context for direct response objects
@@ -495,7 +495,7 @@ public static class EndpointPerOperationExtractor
             }
 
             // Determine error content type based on ErrorResponseFormatType
-            if (!isSuccess && contentType == null)
+            if (!isSuccess && contentType is null)
             {
                 contentType = GetErrorContentType(errorResponseFormat, customErrorTypeName, statusCodeStr);
             }
@@ -963,29 +963,29 @@ public static class EndpointPerOperationExtractor
         var serverBasePath = useServersBasePath ? ServerUrlHelper.GetServersBasePath(openApiDoc) : null;
 
         // Build URL template with path parameters (optionally prepend server base path)
-        var templatePath = serverBasePath != null ? $"{serverBasePath}{path}" : path;
+        var templatePath = serverBasePath is not null ? $"{serverBasePath}{path}" : path;
         sb.AppendLine($"var requestBuilder = httpMessageFactory.FromTemplate(\"{templatePath}\");");
 
         // Add path parameters
         var allParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
-        if (pathLevelParameters != null)
+        if (pathLevelParameters is not null)
         {
             foreach (var p in pathLevelParameters)
             {
                 var resolved = p.Resolve();
-                if (resolved.Parameter != null)
+                if (resolved.Parameter is not null)
                 {
                     allParams.Add((resolved.Parameter, resolved.ReferenceId));
                 }
             }
         }
 
-        if (operation.Parameters != null)
+        if (operation.Parameters is not null)
         {
             foreach (var p in operation.Parameters)
             {
                 var resolved = p.Resolve();
-                if (resolved.Parameter != null)
+                if (resolved.Parameter is not null)
                 {
                     allParams.Add((resolved.Parameter, resolved.ReferenceId));
                 }
@@ -1008,7 +1008,7 @@ public static class EndpointPerOperationExtractor
             }
             else
             {
-                sb.AppendLine($"if (parameters.{propName} != null)");
+                sb.AppendLine($"if (parameters.{propName} is not null)");
                 sb.AppendLine("{");
                 sb.AppendLine(4, $"requestBuilder.WithQueryParameter(\"{param.Name}\", parameters.{propName});");
                 sb.AppendLine("}");
@@ -1031,7 +1031,7 @@ public static class EndpointPerOperationExtractor
             }
             else
             {
-                sb.AppendLine($"if (parameters.{propName} != null)");
+                sb.AppendLine($"if (parameters.{propName} is not null)");
                 sb.AppendLine("{");
                 sb.AppendLine(4, $"requestBuilder.WithHeaderParameter(\"{headerName}\", parameters.{propName});");
                 sb.AppendLine("}");
@@ -1039,7 +1039,7 @@ public static class EndpointPerOperationExtractor
         }
 
         // Add request body
-        if (operation.RequestBody?.Content != null)
+        if (operation.RequestBody?.Content is not null)
         {
             // Check if this is a file upload
             var isFileUpload = operation.HasFileUpload();
@@ -1064,14 +1064,14 @@ public static class EndpointPerOperationExtractor
                         // Schema-based multipart - generate WithFile/WithFormField calls for each property
                         GenerateMultipartFormDataCode(sb, schemaRef, openApiDoc);
                     }
-                    else if (mediaType.Schema != null)
+                    else if (mediaType.Schema is not null)
                     {
                         // Raw file(s) multipart - check if single or array
                         var (isFile, isCollection) = mediaType.Schema.GetFileUploadInfo();
                         if (isFile && isCollection)
                         {
                             // Array of files - iterate and add each with WithFile using IFileContent
-                            sb.AppendLine("if (parameters.File != null)");
+                            sb.AppendLine("if (parameters.File is not null)");
                             sb.AppendLine("{");
                             sb.AppendLine(4, "for (var i = 0; i < parameters.File.Length; i++)");
                             sb.AppendLine(4, "{");
@@ -1196,7 +1196,7 @@ public static class EndpointPerOperationExtractor
                         // Raw text body (text/plain, text/csv, ...) — bypass the JSON contract serializer.
                         sb.AppendLine($"responseBuilder.AddSuccessTextResponse(HttpStatusCode.{responseInfo.StatusEnumName});");
                     }
-                    else if (responseInfo.ContentType == null)
+                    else if (responseInfo.ContentType is null)
                     {
                         // Empty response - use non-generic AddSuccessResponse
                         sb.AppendLine($"responseBuilder.AddSuccessResponse(HttpStatusCode.{responseInfo.StatusEnumName});");
@@ -1272,7 +1272,7 @@ public static class EndpointPerOperationExtractor
         }
 
         // Only generate content properties for responses that have content
-        foreach (var response in responses.Where(r => r.ContentType != null))
+        foreach (var response in responses.Where(r => r.ContentType is not null))
         {
             sb.AppendLine(4, $"{response.ContentType} {response.PropertyName}Content {{ get; }}");
             sb.AppendLine();
@@ -1350,7 +1350,7 @@ public static class EndpointPerOperationExtractor
         }
 
         // {PropertyName}Content properties - only generate for responses that have content
-        foreach (var response in responses.Where(r => r.ContentType != null))
+        foreach (var response in responses.Where(r => r.ContentType is not null))
         {
             sb.AppendLine(4, $"public {response.ContentType} {response.PropertyName}Content");
             sb.AppendLine(8, $"=> Is{response.PropertyName} && ContentObject is {response.ContentType} result");
@@ -1443,7 +1443,7 @@ public static class EndpointPerOperationExtractor
         Dictionary<string, InlineSchemaInfo>? inlineSchemas,
         bool isAsyncEnumerable)
     {
-        if (schema == null)
+        if (schema is null)
         {
             return "object";
         }
@@ -1457,7 +1457,7 @@ public static class EndpointPerOperationExtractor
                 return "object";
             }
 
-            if (openApiDoc.Components?.Schemas != null &&
+            if (openApiDoc.Components?.Schemas is not null &&
                 openApiDoc.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
                 resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema)
             {
@@ -1492,7 +1492,7 @@ public static class EndpointPerOperationExtractor
                 !string.IsNullOrEmpty(operationId) &&
                 !string.IsNullOrEmpty(pathSegment) &&
                 !string.IsNullOrEmpty(context) &&
-                inlineSchemas != null)
+                inlineSchemas is not null)
             {
                 var typeName = InlineSchemaExtractor.GenerateInlineTypeName(operationId!, context!);
 
@@ -1523,7 +1523,7 @@ public static class EndpointPerOperationExtractor
         Dictionary<string, InlineSchemaInfo>? inlineSchemas,
         bool isAsyncEnumerable)
     {
-        if (schema.Items == null)
+        if (schema.Items is null)
         {
             return isAsyncEnumerable ? "IAsyncEnumerable<object>" : "IEnumerable<object>";
         }
@@ -1599,7 +1599,7 @@ public static class EndpointPerOperationExtractor
         }
 
         // If we found PaginationResult<T> or PaginatedResult<T> pattern, return it
-        if (baseType != null && HttpClientExtractor.IsPaginationBaseType(baseType) && itemType != null)
+        if (baseType is not null && HttpClientExtractor.IsPaginationBaseType(baseType) && itemType is not null)
         {
             return $"{baseType}<{itemType}>";
         }
@@ -1616,7 +1616,7 @@ public static class EndpointPerOperationExtractor
         OpenApiDocument openApiDoc,
         TypeConflictRegistry? registry)
     {
-        if (arraySchema.Items == null)
+        if (arraySchema.Items is null)
         {
             return "object";
         }
@@ -1664,8 +1664,8 @@ public static class EndpointPerOperationExtractor
         List<ResponseInfo> responses)
     {
         // Find the success response with IAsyncEnumerable content type
-        var successResponse = responses.FirstOrDefault(r => r.IsSuccess && r.ContentType != null);
-        if (successResponse?.ContentType == null)
+        var successResponse = responses.FirstOrDefault(r => r.IsSuccess && r.ContentType is not null);
+        if (successResponse?.ContentType is null)
         {
             return null;
         }
@@ -1708,7 +1708,7 @@ public static class EndpointPerOperationExtractor
             return;
         }
 
-        if (openApiDoc.Components?.Schemas == null ||
+        if (openApiDoc.Components?.Schemas is null ||
             !openApiDoc.Components.Schemas.TryGetValue(schemaId!, out var schema))
         {
             // Fallback to simple body if schema can't be resolved
@@ -1738,7 +1738,7 @@ public static class EndpointPerOperationExtractor
             if (isBinary)
             {
                 // Single file property - use WithFile with IFileContent
-                sb.AppendLine($"if (parameters.Request?.{pascalPropName} != null)");
+                sb.AppendLine($"if (parameters.Request?.{pascalPropName} is not null)");
                 sb.AppendLine("{");
                 sb.AppendLine(4, $"requestBuilder.WithFile(parameters.Request.{pascalPropName}.OpenReadStream(), \"{propName}\", parameters.Request.{pascalPropName}.FileName);");
                 sb.AppendLine("}");
@@ -1747,7 +1747,7 @@ public static class EndpointPerOperationExtractor
             else if (isArrayOfBinary)
             {
                 // Array of files - use WithFile for each IFileContent
-                sb.AppendLine($"if (parameters.Request?.{pascalPropName} != null)");
+                sb.AppendLine($"if (parameters.Request?.{pascalPropName} is not null)");
                 sb.AppendLine("{");
                 sb.AppendLine(4, $"foreach (var (fileItem, index) in parameters.Request.{pascalPropName}.Select((f, i) => (f, i)))");
                 sb.AppendLine(4, "{");
@@ -1759,7 +1759,7 @@ public static class EndpointPerOperationExtractor
             else if (isArray)
             {
                 // Array of non-binary values - serialize as JSON or comma-separated
-                sb.AppendLine($"if (parameters.Request?.{pascalPropName} != null)");
+                sb.AppendLine($"if (parameters.Request?.{pascalPropName} is not null)");
                 sb.AppendLine("{");
                 sb.AppendLine(4, $"foreach (var item in parameters.Request.{pascalPropName})");
                 sb.AppendLine(4, "{");
@@ -1771,7 +1771,7 @@ public static class EndpointPerOperationExtractor
             else
             {
                 // Simple value - use WithFormField
-                sb.AppendLine($"if (parameters.Request?.{pascalPropName} != null)");
+                sb.AppendLine($"if (parameters.Request?.{pascalPropName} is not null)");
                 sb.AppendLine("{");
                 sb.AppendLine(4, $"requestBuilder.WithFormField(\"{propName}\", parameters.Request.{pascalPropName}.ToString()!);");
                 sb.AppendLine("}");

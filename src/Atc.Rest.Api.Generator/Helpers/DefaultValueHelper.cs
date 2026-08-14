@@ -21,7 +21,7 @@ public static class DefaultValueHelper
         }
 
         var defaultValue = schema.Default;
-        if (defaultValue == null)
+        if (defaultValue is null)
         {
             return null;
         }

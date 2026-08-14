@@ -21,7 +21,7 @@ public static class WebhookHandlerExtractor
         SystemTypeConflictResolver systemTypeResolver,
         bool includeDeprecated = false)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
@@ -50,7 +50,7 @@ public static class WebhookHandlerExtractor
                 namespaceValue,
                 systemTypeResolver);
 
-            if (interfaceParams != null)
+            if (interfaceParams is not null)
             {
                 interfacesList.Add(interfaceParams);
             }
@@ -67,7 +67,7 @@ public static class WebhookHandlerExtractor
         string namespaceValue,
         SystemTypeConflictResolver systemTypeResolver)
     {
-        if (operation == null)
+        if (operation is null)
         {
             return null;
         }
@@ -81,13 +81,13 @@ public static class WebhookHandlerExtractor
         var resultTypeName = $"{handlerName}WebhookResult";
 
         // Determine parameter type
-        var hasParameters = operation.RequestBody != null;
+        var hasParameters = operation.RequestBody is not null;
         var parameterTypeName = hasParameters ? $"{handlerName}WebhookParameters" : null;
 
         // Build the method signature
         var methodParams = new List<ParameterBaseParameters>();
 
-        if (parameterTypeName != null)
+        if (parameterTypeName is not null)
         {
             methodParams.Add(new ParameterBaseParameters(
                 Attributes: null,

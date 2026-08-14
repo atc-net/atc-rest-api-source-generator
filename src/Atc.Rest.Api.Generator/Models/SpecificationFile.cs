@@ -73,7 +73,7 @@ public sealed class SpecificationFile
     /// <returns>The list of tag names.</returns>
     public IReadOnlyList<string> GetTags()
     {
-        if (Document?.Tags == null)
+        if (Document?.Tags is null)
         {
             return [];
         }
@@ -122,7 +122,7 @@ public sealed class SpecificationFile
         string? baseName = null)
     {
         var fileName = Path.GetFileNameWithoutExtension(filePath);
-        var isBase = baseName == null || fileName.Equals(baseName, StringComparison.OrdinalIgnoreCase);
+        var isBase = baseName is null || fileName.Equals(baseName, StringComparison.OrdinalIgnoreCase);
         var isPart = !isBase && fileName.StartsWith($"{baseName}_", StringComparison.OrdinalIgnoreCase);
         var partName = isPart ? fileName.Substring(baseName!.Length + 1) : null;
 

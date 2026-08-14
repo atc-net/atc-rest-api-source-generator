@@ -60,7 +60,7 @@ public static class TypeScriptMswHandlerExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }
@@ -89,7 +89,7 @@ public static class TypeScriptMswHandlerExtractor
 
             sb.Append("  http.").Append(httpMethod).Append("('").Append(fullPath).AppendLine("', () => {");
 
-            if (mockBody != null)
+            if (mockBody is not null)
             {
                 if (statusCode != 200)
                 {
@@ -128,7 +128,7 @@ public static class TypeScriptMswHandlerExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }
@@ -184,7 +184,7 @@ public static class TypeScriptMswHandlerExtractor
     private static (int StatusCode, bool HasBody) GetPrimaryResponse(
         OpenApiOperation operation)
     {
-        if (operation.Responses == null)
+        if (operation.Responses is null)
         {
             return (200, false);
         }
@@ -214,7 +214,7 @@ public static class TypeScriptMswHandlerExtractor
         TypeScriptNamingStrategy namingStrategy)
     {
         var schema = operation.GetResponseSchema("200") ?? operation.GetResponseSchema("201");
-        if (schema == null)
+        if (schema is null)
         {
             return null;
         }
@@ -230,7 +230,7 @@ public static class TypeScriptMswHandlerExtractor
         if (schema is OpenApiSchemaReference schemaRef)
         {
             var resolved = schemaRef.Target;
-            if (resolved != null)
+            if (resolved is not null)
             {
                 return GenerateMockObject(resolved, openApiDoc, namingStrategy);
             }
@@ -245,7 +245,7 @@ public static class TypeScriptMswHandlerExtractor
         TypeScriptNamingStrategy namingStrategy,
         int depth = 0)
     {
-        if (schema == null || depth > 3)
+        if (schema is null || depth > 3)
         {
             return "{}";
         }
@@ -254,7 +254,7 @@ public static class TypeScriptMswHandlerExtractor
         if (schema is OpenApiSchemaReference schemaRef)
         {
             var target = schemaRef.Target;
-            return target != null
+            return target is not null
                 ? GenerateMockObject(target, openApiDoc, namingStrategy, depth)
                 : "{}";
         }
@@ -271,7 +271,7 @@ public static class TypeScriptMswHandlerExtractor
             foreach (var sub in actualSchema.AllOf)
             {
                 var resolved = sub is OpenApiSchemaReference r ? r.Target : sub;
-                if (resolved is OpenApiSchema s && s.Properties != null)
+                if (resolved is OpenApiSchema s && s.Properties is not null)
                 {
                     foreach (var p in s.Properties)
                     {
@@ -283,7 +283,7 @@ public static class TypeScriptMswHandlerExtractor
             return GenerateMockFromProperties(mergedProps, openApiDoc, namingStrategy, depth);
         }
 
-        if (actualSchema.Properties == null || actualSchema.Properties.Count == 0)
+        if (actualSchema.Properties is null || actualSchema.Properties.Count == 0)
         {
             return "{}";
         }
@@ -334,10 +334,10 @@ public static class TypeScriptMswHandlerExtractor
             {
                 // Return first enum value
                 var firstValue = enumSchema.Enum.FirstOrDefault();
-                return firstValue != null ? $"'{firstValue}'" : "'unknown'";
+                return firstValue is not null ? $"'{firstValue}'" : "'unknown'";
             }
 
-            return target != null
+            return target is not null
                 ? GenerateMockObject(target, openApiDoc, namingStrategy, depth)
                 : "{}";
         }
@@ -351,7 +351,7 @@ public static class TypeScriptMswHandlerExtractor
         if (actualSchema is { Type: JsonSchemaType.String, Enum.Count: > 0 })
         {
             var firstValue = actualSchema.Enum.FirstOrDefault();
-            return firstValue != null ? $"'{firstValue}'" : "'unknown'";
+            return firstValue is not null ? $"'{firstValue}'" : "'unknown'";
         }
 
         // Handle by type
@@ -391,7 +391,7 @@ public static class TypeScriptMswHandlerExtractor
                 return "[]";
             }
 
-            var itemMock = actualSchema.Items != null
+            var itemMock = actualSchema.Items is not null
                 ? GenerateMockValue(actualSchema.Items, propertyName, openApiDoc, namingStrategy, depth + 1)
                 : "null";
             return $"[{itemMock}]";

@@ -88,7 +88,7 @@ public class ScenarioTests
         var yamlPath = ScenarioDiscovery.GetYamlPath(scenarioName);
         var markerFile = ScenarioDiscovery.GetMarkerFileForGenerator(generator);
 
-        if (markerFile == null)
+        if (markerFile is null)
         {
             Assert.Fail($"Unknown generator type: {generator}");
             return;

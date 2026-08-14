@@ -32,7 +32,7 @@ public sealed class NotificationHubService : IAsyncDisposable
 
     public async Task ConnectAsync()
     {
-        if (hubConnection != null)
+        if (hubConnection is not null)
         {
             return;
         }
@@ -85,7 +85,7 @@ public sealed class NotificationHubService : IAsyncDisposable
 
     public async Task<string?> SubscribeAsync(string[] topics)
     {
-        if (hubConnection == null || hubConnection.State != HubConnectionState.Connected)
+        if (hubConnection is null || hubConnection.State != HubConnectionState.Connected)
         {
             return null;
         }
@@ -96,7 +96,7 @@ public sealed class NotificationHubService : IAsyncDisposable
 
     public async Task UnsubscribeAsync()
     {
-        if (hubConnection == null || currentSubscriptionId == null)
+        if (hubConnection is null || currentSubscriptionId is null)
         {
             return;
         }
@@ -107,7 +107,7 @@ public sealed class NotificationHubService : IAsyncDisposable
 
     public async Task DisconnectAsync()
     {
-        if (hubConnection != null)
+        if (hubConnection is not null)
         {
             await hubConnection.StopAsync();
             await hubConnection.DisposeAsync();

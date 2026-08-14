@@ -17,7 +17,7 @@ public static class ValidatorDependencyRegistrationExtractor
         string assemblyName,
         List<(string ValidatorName, string ValidatorNamespace, string ModelType)> validators)
     {
-        if (validators == null || validators.Count == 0)
+        if (validators is null || validators.Count == 0)
         {
             return null;
         }
