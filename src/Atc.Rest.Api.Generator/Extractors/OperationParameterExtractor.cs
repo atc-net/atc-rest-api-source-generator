@@ -27,7 +27,7 @@ public static class OperationParameterExtractor
     {
         var recordsList = ExtractIndividual(openApiDoc, projectName, pathSegment: null, registry: registry, includeBindingAttributes: true, namespaceSubFolder: "Parameters", includeDeprecated: includeDeprecated);
 
-        if (recordsList == null || recordsList.Count == 0)
+        if (recordsList is null || recordsList.Count == 0)
         {
             return null;
         }
@@ -70,7 +70,7 @@ public static class OperationParameterExtractor
     {
         var recordsList = ExtractIndividual(openApiDoc, projectName, pathSegment, registry: registry, includeBindingAttributes: true, namespaceSubFolder: "Parameters", includeDeprecated: includeDeprecated);
 
-        if (recordsList == null || recordsList.Count == 0)
+        if (recordsList is null || recordsList.Count == 0)
         {
             return null;
         }
@@ -136,7 +136,7 @@ public static class OperationParameterExtractor
             includeDeprecated: includeDeprecated,
             inlineEnumsByValuesKey: inlineEnumsByValuesKey);
 
-        if (recordsList == null || recordsList.Count == 0)
+        if (recordsList is null || recordsList.Count == 0)
         {
             return (null, ToInlineEnumList(inlineEnumsByValuesKey));
         }
@@ -228,12 +228,12 @@ public static class OperationParameterExtractor
         bool includeDeprecated = false,
         Dictionary<string, InlineEnumInfo>? inlineEnumsByValuesKey = null)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        if (openApiDoc.Paths == null)
+        if (openApiDoc.Paths is null)
         {
             return null;
         }
@@ -254,7 +254,7 @@ public static class OperationParameterExtractor
                 }
             }
 
-            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations is null)
             {
                 continue;
             }
@@ -300,7 +300,7 @@ public static class OperationParameterExtractor
                     pathSegment,
                     inlineEnumsByValuesKey);
 
-                if (recordParams != null)
+                if (recordParams is not null)
                 {
                     recordsList.Add(recordParams);
                 }
@@ -378,7 +378,7 @@ public static class OperationParameterExtractor
             usings.Add("Atc.Rest.Client");
         }
 
-        if (records != null && UsingStatementHelper.RecordsUseSystemTypes(records))
+        if (records is not null && UsingStatementHelper.RecordsUseSystemTypes(records))
         {
             usings.Add("System");
         }
@@ -444,12 +444,12 @@ public static class OperationParameterExtractor
         // Combine path-level and operation-level parameters
         // Path parameters are processed first, then operation parameters
         var allParameters = new List<IOpenApiParameter>();
-        if (pathParameters != null)
+        if (pathParameters is not null)
         {
             allParameters.AddRange(pathParameters);
         }
 
-        if (operation.Parameters != null)
+        if (operation.Parameters is not null)
         {
             // Operation parameters can override path parameters with the same name
             foreach (var opParam in operation.Parameters)
@@ -476,7 +476,7 @@ public static class OperationParameterExtractor
                 var referenceId = resolved.ReferenceId;
 
                 // Skip if we couldn't resolve the parameter or it has no name
-                if (parameter == null || string.IsNullOrEmpty(parameter.Name))
+                if (parameter is null || string.IsNullOrEmpty(parameter.Name))
                 {
                     continue;
                 }
@@ -526,7 +526,7 @@ public static class OperationParameterExtractor
                         pathSegment,
                         inlineEnumsByValuesKey,
                         out var isArrayOfInlineEnum);
-                    if (inlineEnumTypeName != null)
+                    if (inlineEnumTypeName is not null)
                     {
                         var rendered = isArrayOfInlineEnum ? $"List<{inlineEnumTypeName}>" : inlineEnumTypeName;
                         paramType = parameter.Required ? rendered : rendered + "?";
@@ -593,7 +593,7 @@ public static class OperationParameterExtractor
                 var schemaDefault = ExtractSchemaDefault(parameter.Schema, cleanTypeName);
 
                 // Add DefaultValue attribute when schema has a default (for OpenAPI/Scalar UI)
-                if (schemaDefault != null)
+                if (schemaDefault is not null)
                 {
                     var defaultAttrValue = FormatDefaultValueForAttribute(schemaDefault, cleanTypeName);
                     attributes.Add(new AttributeParameters("DefaultValue", defaultAttrValue));
@@ -619,7 +619,7 @@ public static class OperationParameterExtractor
         if (operation.HasRequestBody())
         {
             var (requestBodySchema, contentType) = operation.GetRequestBodySchemaWithContentType();
-            if (requestBodySchema != null)
+            if (requestBodySchema is not null)
             {
                 var (isFile, isCollection) = requestBodySchema.GetFileUploadInfo();
 
@@ -732,7 +732,7 @@ public static class OperationParameterExtractor
         // Sort parameters: required (no default value) first, then optional (with default value)
         // This is required by C# record syntax: optional parameters must appear after required ones
         var sortedParameters = parameters
-            .OrderBy(p => p.DefaultValue != null)
+            .OrderBy(p => p.DefaultValue is not null)
             .ToList();
 
         return new RecordParameters(
@@ -882,7 +882,7 @@ public static class OperationParameterExtractor
         IOpenApiSchema schema,
         TypeConflictRegistry? registry = null)
     {
-        if (schema.Items == null)
+        if (schema.Items is null)
         {
             return "List<object>";
         }
@@ -944,7 +944,7 @@ public static class OperationParameterExtractor
         string? schemaDefault)
     {
         // If schema has a default value, always use it (even for nullable types)
-        if (schemaDefault != null)
+        if (schemaDefault is not null)
         {
             return schemaDefault;
         }

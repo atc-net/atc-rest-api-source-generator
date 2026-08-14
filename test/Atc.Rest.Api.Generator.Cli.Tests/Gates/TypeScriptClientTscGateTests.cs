@@ -33,7 +33,7 @@ public sealed class TypeScriptClientTscGateTests
         }
 
         var yamlPath = ResolveScenarioYaml();
-        if (yamlPath == null)
+        if (yamlPath is null)
         {
             Assert.Skip("StrictTscClient.yaml scenario spec could not be located.");
         }
@@ -143,7 +143,7 @@ public sealed class TypeScriptClientTscGateTests
 
         // Fallback: walk up to the repo and read the source spec directly.
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir != null)
+        while (dir is not null)
         {
             var candidate = Path.Combine(dir.FullName, "test", "Scenarios", "StrictTscClient", "StrictTscClient.yaml");
             if (File.Exists(candidate))

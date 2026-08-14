@@ -20,7 +20,7 @@ public static class TypeScriptZodEnumExtractor
 
         var results = new List<(string Name, string Content)>();
 
-        if (openApiDoc.Components?.Schemas == null || openApiDoc.Components.Schemas.Count == 0)
+        if (openApiDoc.Components?.Schemas is null || openApiDoc.Components.Schemas.Count == 0)
         {
             return results;
         }
@@ -56,7 +56,7 @@ public static class TypeScriptZodEnumExtractor
             }
 
             var enumValues = ExtractEnumValues(actualSchema.Enum);
-            if (enumValues == null || enumValues.Count == 0)
+            if (enumValues is null || enumValues.Count == 0)
             {
                 continue;
             }
@@ -75,7 +75,7 @@ public static class TypeScriptZodEnumExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }
@@ -102,7 +102,7 @@ public static class TypeScriptZodEnumExtractor
 
     private static List<string>? ExtractEnumValues(IList<JsonNode>? enumValues)
     {
-        if (enumValues == null || enumValues.Count == 0)
+        if (enumValues is null || enumValues.Count == 0)
         {
             return null;
         }

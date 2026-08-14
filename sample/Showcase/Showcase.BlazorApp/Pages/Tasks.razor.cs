@@ -54,7 +54,7 @@ public partial class Tasks
                 .CreateTaskAsync(task)
                 .ConfigureAwait(false);
 
-            if (created != null)
+            if (created is not null)
             {
                 Snackbar.Add($"Created task: {created.Name} (ID: {created.Id})", Severity.Success);
                 newTaskName = string.Empty;

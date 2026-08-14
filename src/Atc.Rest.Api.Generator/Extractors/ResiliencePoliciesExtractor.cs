@@ -17,7 +17,7 @@ public static class ResiliencePoliciesExtractor
         string projectName,
         bool includeDeprecated = false)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
@@ -51,13 +51,13 @@ public static class ResiliencePoliciesExtractor
                 openApiDoc.Extensions,
                 null,
                 null);
-            if (config != null)
+            if (config is not null)
             {
                 policies[documentPolicy!] = config;
             }
         }
 
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return policies;
         }
@@ -77,13 +77,13 @@ public static class ResiliencePoliciesExtractor
                     openApiDoc.Extensions,
                     pathItem.Extensions,
                     null);
-                if (config != null)
+                if (config is not null)
                 {
                     policies[pathPolicy!] = config;
                 }
             }
 
-            if (pathItem.Operations == null)
+            if (pathItem.Operations is null)
             {
                 continue;
             }
@@ -98,7 +98,7 @@ public static class ResiliencePoliciesExtractor
                     continue;
                 }
 
-                if (operation == null)
+                if (operation is null)
                 {
                     continue;
                 }
@@ -111,7 +111,7 @@ public static class ResiliencePoliciesExtractor
                         openApiDoc.Extensions,
                         pathItem.Extensions,
                         operation.Extensions);
-                    if (config != null)
+                    if (config is not null)
                     {
                         policies[operationPolicy!] = config;
                     }

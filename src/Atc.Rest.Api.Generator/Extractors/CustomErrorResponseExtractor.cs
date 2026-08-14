@@ -16,14 +16,14 @@ public static class CustomErrorResponseExtractor
         CustomErrorResponseModelConfig config,
         string namespaceName)
     {
-        if (config == null)
+        if (config is null)
         {
             throw new ArgumentNullException(nameof(config));
         }
 
         var propertyList = new List<PropertyParameters>();
 
-        if (config.Schema != null)
+        if (config.Schema is not null)
         {
             foreach (var prop in config.Schema)
             {

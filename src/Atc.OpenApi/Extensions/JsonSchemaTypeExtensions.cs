@@ -32,7 +32,7 @@ public static class JsonSchemaTypeExtensions
         string? format = null,
         bool includeIFormFile = false)
     {
-        if (schemaType == null)
+        if (schemaType is null)
         {
             return "object";
         }
@@ -87,7 +87,7 @@ public static class JsonSchemaTypeExtensions
         string? format = null,
         bool includeIFormFile = false)
     {
-        if (schemaType == null)
+        if (schemaType is null)
         {
             return "object";
         }

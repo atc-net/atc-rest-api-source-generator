@@ -16,7 +16,7 @@ public static class OAuthDependencyInjectionExtractor
         OAuthConfig? oauthConfig,
         string projectName)
     {
-        if (oauthConfig == null)
+        if (oauthConfig is null)
         {
             return null;
         }
@@ -90,7 +90,7 @@ public static class OAuthDependencyInjectionExtractor
         builder.AppendLine(12, $".BindConfiguration(\"{configSection}\");");
         builder.AppendLine();
         builder.AppendLine(8, "// Apply additional configuration if provided");
-        builder.AppendLine(8, "if (configure != null)");
+        builder.AppendLine(8, "if (configure is not null)");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "optionsBuilder.Configure(configure);");
         builder.AppendLine(8, "}");

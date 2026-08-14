@@ -151,7 +151,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Identify the base file (non-part file or the first file that is not a part file)
         // Part files follow the naming convention: {BaseName}_{PartName}.yaml
         var baseFile = YamlFileHelper.IdentifyBaseFile(yamlFiles.Values);
-        if (baseFile == null)
+        if (baseFile is null)
         {
             return;
         }
@@ -229,7 +229,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         }
 
         // Stop if merge failed
-        if (!mergeResult.IsSuccess || mergeResult.Document == null)
+        if (!mergeResult.IsSuccess || mergeResult.Document is null)
         {
             return;
         }
@@ -263,7 +263,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Parse the OpenAPI YAML content
         var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
 
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             DiagnosticHelpers.ReportServerParsingError(context, yamlPath);
             return;
@@ -499,7 +499,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // when an operation uses one of those framings. Uses the shared CodeGenerationService
         // producer (parallel to the client-side StreamReaders emission).
         var sequentialResults = CodeGenerationService.GenerateSequentialResults(openApiDoc, projectName);
-        if (sequentialResults != null)
+        if (sequentialResults is not null)
         {
             generatedContext.AddSource(
                 $"{projectName}.Streaming.SequentialResults.g.cs",
@@ -571,7 +571,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             // Check for conflict: health paths in both config and OpenAPI spec
             var healthPath = config.HealthChecks.Path.TrimEnd('/');
-            if (openApiDoc.Paths != null &&
+            if (openApiDoc.Paths is not null &&
                 openApiDoc.Paths.Keys.Any(p => p.StartsWith(healthPath, StringComparison.OrdinalIgnoreCase)))
             {
                 DiagnosticHelpers.ReportHealthCheckPathConflict(context, healthPath);
@@ -660,7 +660,7 @@ public class ApiServerGenerator : IIncrementalGenerator
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
-        if (recordsParameters == null || recordsParameters.Parameters.Count == 0)
+        if (recordsParameters is null || recordsParameters.Parameters.Count == 0)
         {
             return;
         }
@@ -708,7 +708,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Use EnumExtractor.ExtractForSchemas to extract only specific enums
         var enumParametersList = EnumExtractor.ExtractForSchemas(openApiDoc, projectName, schemaNames, pathSegment);
 
-        if (enumParametersList == null || enumParametersList.Count == 0)
+        if (enumParametersList is null || enumParametersList.Count == 0)
         {
             return;
         }
@@ -745,7 +745,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             schemaNames,
             pathSegment);
 
-        if (tupleParametersList == null || tupleParametersList.Count == 0)
+        if (tupleParametersList is null || tupleParametersList.Count == 0)
         {
             return;
         }
@@ -776,7 +776,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Use HandlerExtractor to extract operations into InterfaceParameters list filtered by path segment
         var interfacesList = HandlerExtractor.Extract(openApiDoc, projectName, pathSegment, systemTypeResolver, includeDeprecated);
 
-        if (interfacesList == null || interfacesList.Count == 0)
+        if (interfacesList is null || interfacesList.Count == 0)
         {
             return;
         }
@@ -856,7 +856,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Use EndpointDefinitionExtractor to extract interface and class parameters filtered by path segment
         var (interfaceParams, classParameters) = EndpointDefinitionExtractor.Extract(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, subFolderStrategy, includeDeprecated, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion, useServersBasePath);
 
-        if (interfaceParams == null && (classParameters == null || classParameters.Count == 0))
+        if (interfaceParams is null && (classParameters is null || classParameters.Count == 0))
         {
             return;
         }
@@ -938,7 +938,7 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         // Generate each endpoint definition class and collect class names for the extension method
         var endpointDefinitionClassNames = new List<string>();
-        if (classParameters != null)
+        if (classParameters is not null)
         {
             foreach (var classParams in classParameters)
             {
@@ -974,7 +974,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             pathSegment,
             endpointDefinitionClassNames);
 
-        if (extensionParams != null)
+        if (extensionParams is not null)
         {
             var extensionGenerator = new GenerateContentForClass(
                 codeDocGenerator,
@@ -1078,7 +1078,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Use ServerDependencyInjectionExtractor to extract class parameters with path segments
         var classParameters = ServerDependencyInjectionExtractor.Extract(openApiDoc, projectName, pathSegments, includeDeprecated);
 
-        if (classParameters == null)
+        if (classParameters is null)
         {
             return;
         }
@@ -1104,7 +1104,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Use WebApplicationExtensionsExtractor to generate middleware setup helpers
         var classParameters = WebApplicationExtensionsExtractor.Extract(projectName, useGlobalErrorHandler);
 
-        if (classParameters == null)
+        if (classParameters is null)
         {
             return;
         }
@@ -1155,7 +1155,7 @@ public class ApiServerGenerator : IIncrementalGenerator
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
-        if (recordsParams == null || recordsParams.Parameters.Count == 0)
+        if (recordsParams is null || recordsParams.Parameters.Count == 0)
         {
             return;
         }
@@ -1184,7 +1184,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // This also extracts inline schemas for type generation
         var (classesList, inlineSchemas) = ResultClassExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated);
 
-        if (classesList == null || classesList.Count == 0)
+        if (classesList is null || classesList.Count == 0)
         {
             return;
         }
@@ -1274,7 +1274,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Use SecurityPoliciesExtractor to extract security policy constants
         var generatedContent = SecurityPoliciesExtractor.Extract(openApiDoc, projectName, includeDeprecated);
 
-        if (generatedContent == null)
+        if (generatedContent is null)
         {
             return;
         }
@@ -1293,7 +1293,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Use SecurityDependencyInjectionExtractor to extract security DI extension
         var generatedContent = SecurityDependencyInjectionExtractor.Extract(openApiDoc, projectName, includeDeprecated);
 
-        if (generatedContent == null)
+        if (generatedContent is null)
         {
             return;
         }
@@ -1312,7 +1312,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Use RateLimitPoliciesExtractor to extract rate limit policy constants
         var generatedContent = RateLimitPoliciesExtractor.Extract(openApiDoc, projectName, includeDeprecated);
 
-        if (generatedContent == null)
+        if (generatedContent is null)
         {
             return;
         }
@@ -1331,7 +1331,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Use RateLimitDependencyInjectionExtractor to extract rate limit DI extension
         var generatedContent = RateLimitDependencyInjectionExtractor.Extract(openApiDoc, projectName, includeDeprecated);
 
-        if (generatedContent == null)
+        if (generatedContent is null)
         {
             return;
         }
@@ -1350,7 +1350,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Use OutputCachePoliciesExtractor to extract output cache policy constants
         var generatedContent = OutputCachePoliciesExtractor.Extract(openApiDoc, projectName, includeDeprecated);
 
-        if (generatedContent == null)
+        if (generatedContent is null)
         {
             return;
         }
@@ -1369,7 +1369,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Use OutputCacheDependencyInjectionExtractor to extract output caching DI extension
         var generatedContent = OutputCacheDependencyInjectionExtractor.Extract(openApiDoc, projectName, includeDeprecated);
 
-        if (generatedContent == null)
+        if (generatedContent is null)
         {
             return;
         }
@@ -1388,7 +1388,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Use HybridCachePoliciesExtractor to extract HybridCache policy constants
         var generatedContent = HybridCachePoliciesExtractor.Extract(openApiDoc, projectName, includeDeprecated);
 
-        if (generatedContent == null)
+        if (generatedContent is null)
         {
             return;
         }
@@ -1407,7 +1407,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Use HybridCacheDependencyInjectionExtractor to extract HybridCache DI extension
         var generatedContent = HybridCacheDependencyInjectionExtractor.Extract(openApiDoc, projectName, includeDeprecated);
 
-        if (generatedContent == null)
+        if (generatedContent is null)
         {
             return;
         }
@@ -1425,7 +1425,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Extract OpenID Connect configuration
         var oidcConfig = OpenIdConnectConfigExtractor.Extract(openApiDoc);
 
-        if (oidcConfig == null)
+        if (oidcConfig is null)
         {
             return;
         }
@@ -1433,7 +1433,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Generate OpenID Connect DI extension
         var generatedContent = OpenIdConnectDependencyInjectionExtractor.Extract(oidcConfig, projectName);
 
-        if (generatedContent == null)
+        if (generatedContent is null)
         {
             return;
         }
@@ -1451,7 +1451,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Use VersioningDependencyInjectionExtractor to extract versioning DI extension
         var classParameters = VersioningDependencyInjectionExtractor.Extract(projectName, config);
 
-        if (classParameters == null)
+        if (classParameters is null)
         {
             return;
         }
@@ -1588,7 +1588,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         ServerConfig config)
     {
         var generatedType = CodeGenerationService.GenerateWebhookEndpoints(openApiDoc, projectName, config);
-        if (generatedType != null)
+        if (generatedType is not null)
         {
             var formattedCode = CodeGenerationService.FormatAsFile(generatedType);
             context.AddSource(
@@ -1607,7 +1607,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool includeDeprecated)
     {
         var generatedType = CodeGenerationService.GenerateWebhookDependencyInjection(openApiDoc, projectName, includeDeprecated);
-        if (generatedType != null)
+        if (generatedType is not null)
         {
             var formattedCode = CodeGenerationService.FormatAsFile(generatedType);
             context.AddSource(

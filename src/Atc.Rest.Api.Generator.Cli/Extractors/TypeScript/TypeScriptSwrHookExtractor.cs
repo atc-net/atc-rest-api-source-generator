@@ -127,7 +127,7 @@ public static class TypeScriptSwrHookExtractor
                     }
 
                     var brand = TypeScriptBrandedIdExtractor.ResolveParamBrand(info.Path, param.Name, param.Schema);
-                    if (brand != null)
+                    if (brand is not null)
                     {
                         brandImports.Add(brand);
                     }
@@ -135,7 +135,7 @@ public static class TypeScriptSwrHookExtractor
             }
         }
 
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }

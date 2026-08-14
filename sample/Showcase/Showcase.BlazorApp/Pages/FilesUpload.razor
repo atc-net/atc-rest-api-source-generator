@@ -12,7 +12,7 @@
                 <MudChip T="string" Color="Color.Dark" Text="@context?.Name" />
             </SelectedTemplate>
         </MudFileUpload>
-        @if (singleFile != null)
+        @if (singleFile is not null)
         {
             <MudAlert Severity="Severity.Info" Class="mt-4">
                 Selected: @singleFile.Name (@singleFile.Size bytes, @singleFile.ContentType)
@@ -31,7 +31,7 @@
         <MudText Typo="Typo.h6" Class="mb-4">Upload Multiple Files</MudText>
         <MudFileUpload T="IReadOnlyList<IBrowserFile>" @bind-Files="multipleFiles" @bind-Files:after="OnMultipleFilesSelected" SuppressOnChangeWhenInvalid="false">
             <SelectedTemplate>
-                @if (context != null && context.Count > 0)
+                @if (context is not null && context.Count > 0)
                 {
                     <MudChip T="string" Color="Color.Dark" Text="@($"{context.Count} file(s) selected")" />
                 }
@@ -41,7 +41,7 @@
                 }
             </SelectedTemplate>
         </MudFileUpload>
-        @if (multipleFilesData != null && multipleFilesData.Count > 0)
+        @if (multipleFilesData is not null && multipleFilesData.Count > 0)
         {
             <MudList T="string" Dense="true" Class="mt-4">
                 @foreach (var (_, name, _, size) in multipleFilesData)
@@ -76,7 +76,7 @@
                 <MudChip T="string" Color="Color.Dark" Text="@context?.Name" />
             </SelectedTemplate>
         </MudFileUpload>
-        @if (metadataFile != null)
+        @if (metadataFile is not null)
         {
             <MudAlert Severity="Severity.Info" Class="mt-4">
                 Selected: @metadataFile.Name (@metadataFile.Size bytes)
@@ -103,7 +103,7 @@
         </MudGrid>
         <MudFileUpload T="IReadOnlyList<IBrowserFile>" @bind-Files="batchFiles" Class="mt-4" SuppressOnChangeWhenInvalid="false">
             <SelectedTemplate>
-                @if (context != null && context.Count > 0)
+                @if (context is not null && context.Count > 0)
                 {
                     <MudChip T="string" Color="Color.Dark" Text="@($"{context.Count} file(s) selected")" />
                 }
@@ -113,7 +113,7 @@
                 }
             </SelectedTemplate>
         </MudFileUpload>
-        @if (batchFiles != null && batchFiles.Count > 0)
+        @if (batchFiles is not null && batchFiles.Count > 0)
         {
             <MudList T="string" Dense="true" Class="mt-4">
                 @foreach (var file in batchFiles)

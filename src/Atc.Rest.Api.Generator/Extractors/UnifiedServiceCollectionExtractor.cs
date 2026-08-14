@@ -20,7 +20,7 @@ public static class UnifiedServiceCollectionExtractor
         ServerConfig config,
         List<string>? pathSegments = null)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }

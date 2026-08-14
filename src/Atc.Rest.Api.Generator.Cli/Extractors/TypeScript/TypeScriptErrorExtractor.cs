@@ -17,7 +17,7 @@ public static class TypeScriptErrorExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }
@@ -59,7 +59,7 @@ public static class TypeScriptErrorExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }

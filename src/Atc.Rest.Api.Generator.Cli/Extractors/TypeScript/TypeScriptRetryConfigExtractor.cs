@@ -20,7 +20,7 @@ public static class TypeScriptRetryConfigExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }
@@ -104,14 +104,14 @@ public static class TypeScriptRetryConfigExtractor
         if (!string.IsNullOrEmpty(docPolicy))
         {
             var config = ExtractDocumentLevelConfig(document);
-            if (config != null && seen.Add(docPolicy))
+            if (config is not null && seen.Add(docPolicy))
             {
                 policies.Add((docPolicy, config));
             }
         }
 
         // Path and operation-level policies
-        if (document.Paths != null)
+        if (document.Paths is not null)
         {
             foreach (var pathPair in document.Paths)
             {
@@ -124,13 +124,13 @@ public static class TypeScriptRetryConfigExtractor
                 if (!string.IsNullOrEmpty(pathPolicy) && seen.Add(pathPolicy))
                 {
                     var config = BuildRetryConfigFromExtensions(pathItem.Extensions, document.Extensions);
-                    if (config != null)
+                    if (config is not null)
                     {
                         policies.Add((pathPolicy, config));
                     }
                 }
 
-                if (pathItem.Operations == null)
+                if (pathItem.Operations is null)
                 {
                     continue;
                 }
@@ -138,7 +138,7 @@ public static class TypeScriptRetryConfigExtractor
                 foreach (var operationPair in pathItem.Operations)
                 {
                     var op = operationPair.Value;
-                    if (op == null)
+                    if (op is null)
                     {
                         continue;
                     }

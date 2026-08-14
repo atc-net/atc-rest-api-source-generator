@@ -168,7 +168,7 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
             // Parse the OpenAPI spec
             var (openApiDoc, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(matchingYaml.Content, matchingYaml.Path);
 
-            if (openApiDoc == null)
+            if (openApiDoc is null)
             {
                 DiagnosticHelpers.ReportNoEndpointsFoundForInjection(context, classInfo.ProjectName);
                 return;

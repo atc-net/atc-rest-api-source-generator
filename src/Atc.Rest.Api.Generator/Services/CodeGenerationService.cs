@@ -189,7 +189,7 @@ public static class CodeGenerationService
         OpenApiDocument openApiDoc,
         string schemaName)
     {
-        if (openApiDoc.Paths == null)
+        if (openApiDoc.Paths is null)
         {
             return null;
         }
@@ -198,7 +198,7 @@ public static class CodeGenerationService
         foreach (var path in openApiDoc.Paths)
         {
             var pathKey = path.Key;
-            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations is null)
             {
                 continue;
             }
@@ -206,13 +206,13 @@ public static class CodeGenerationService
             foreach (var operation in pathItem.Operations)
             {
                 var op = operation.Value;
-                if (op == null)
+                if (op is null)
                 {
                     continue;
                 }
 
                 // Check request body
-                if (op.RequestBody?.Content != null)
+                if (op.RequestBody?.Content is not null)
                 {
                     foreach (var mediaType in op.RequestBody.Content.Values)
                     {
@@ -224,11 +224,11 @@ public static class CodeGenerationService
                 }
 
                 // Check responses
-                if (op.Responses != null)
+                if (op.Responses is not null)
                 {
                     foreach (var response in op.Responses.Values)
                     {
-                        if (response is OpenApiResponse resp && resp.Content != null)
+                        if (response is OpenApiResponse resp && resp.Content is not null)
                         {
                             foreach (var mediaType in resp.Content.Values)
                             {
@@ -242,7 +242,7 @@ public static class CodeGenerationService
                 }
 
                 // Check parameters
-                if (op.Parameters != null)
+                if (op.Parameters is not null)
                 {
                     foreach (var param in op.Parameters)
                     {
@@ -296,7 +296,7 @@ public static class CodeGenerationService
         IOpenApiSchema? schema,
         string schemaName)
     {
-        if (schema == null)
+        if (schema is null)
         {
             return false;
         }
@@ -331,14 +331,14 @@ public static class CodeGenerationService
         OpenApiDocument openApiDoc,
         string operationId)
     {
-        if (openApiDoc.Paths == null || string.IsNullOrEmpty(operationId))
+        if (openApiDoc.Paths is null || string.IsNullOrEmpty(operationId))
         {
             return null;
         }
 
         foreach (var path in openApiDoc.Paths)
         {
-            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations is null)
             {
                 continue;
             }
@@ -346,7 +346,7 @@ public static class CodeGenerationService
             foreach (var operation in pathItem.Operations)
             {
                 var op = operation.Value;
-                if (op == null)
+                if (op is null)
                 {
                     continue;
                 }
@@ -413,7 +413,7 @@ public static class CodeGenerationService
         // Use polymorphism-aware extraction so variant types get inheritance
         var records = SchemaExtractor.ExtractIndividualWithPolymorphism(openApiDoc, polymorphicConfigs, generatePartialModels: generatePartialModels);
 
-        if (records == null || records.Count == 0)
+        if (records is null || records.Count == 0)
         {
             return result;
         }
@@ -470,7 +470,7 @@ public static class CodeGenerationService
 
         var tupleRecords = TupleExtractor.Extract(openApiDoc, projectName);
 
-        if (tupleRecords == null || tupleRecords.Count == 0)
+        if (tupleRecords is null || tupleRecords.Count == 0)
         {
             return result;
         }
@@ -564,7 +564,7 @@ public static class CodeGenerationService
     {
         var result = new List<GeneratedType>();
 
-        if (inlineSchemas == null || inlineSchemas.Count == 0)
+        if (inlineSchemas is null || inlineSchemas.Count == 0)
         {
             return result;
         }
@@ -618,7 +618,7 @@ public static class CodeGenerationService
         var result = new List<GeneratedType>();
         var polymorphicConfigs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(openApiDoc);
 
-        if (polymorphicConfigs == null || polymorphicConfigs.Count == 0)
+        if (polymorphicConfigs is null || polymorphicConfigs.Count == 0)
         {
             return result;
         }
@@ -668,7 +668,7 @@ public static class CodeGenerationService
                     GroupName: groupName,
                     SubFolder: subFolder));
 
-                if (config.DefaultVariantTypeName != null)
+                if (config.DefaultVariantTypeName is not null)
                 {
                     var converterContent = PolymorphicTypeExtractor.GenerateDiscriminatorFallbackConverter(config, projectName);
                     result.Add(new GeneratedType(
@@ -736,7 +736,7 @@ public static class CodeGenerationService
         var result = new List<GeneratedType>();
         var records = OperationParameterExtractor.ExtractIndividual(openApiDoc, projectName);
 
-        if (records == null || records.Count == 0)
+        if (records is null || records.Count == 0)
         {
             return result;
         }
@@ -813,7 +813,7 @@ public static class CodeGenerationService
             result.AddRange(inlineTypes);
         }
 
-        if (classes == null || classes.Count == 0)
+        if (classes is null || classes.Count == 0)
         {
             return result;
         }
@@ -866,7 +866,7 @@ public static class CodeGenerationService
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
         var interfaces = HandlerExtractor.Extract(openApiDoc, projectName, systemTypeResolver);
 
-        if (interfaces == null || interfaces.Count == 0)
+        if (interfaces is null || interfaces.Count == 0)
         {
             return result;
         }
@@ -912,7 +912,7 @@ public static class CodeGenerationService
     {
         var classParams = EndpointRegistrationExtractor.Extract(openApiDoc, projectName);
 
-        if (classParams == null)
+        if (classParams is null)
         {
             return null;
         }
@@ -954,7 +954,7 @@ public static class CodeGenerationService
         string projectName,
         GeneratorType generatorType = GeneratorType.Server)
     {
-        if (openApiDoc?.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc?.Paths is null || openApiDoc.Paths.Count == 0)
         {
             yield break;
         }
@@ -1044,7 +1044,7 @@ public static class CodeGenerationService
             defaultApiVersion: null,
             useServersBasePath: false);
 
-        if (interfaceParams == null && (classParameters == null || classParameters.Count == 0))
+        if (interfaceParams is null && (classParameters is null || classParameters.Count == 0))
         {
             return string.Empty;
         }
@@ -1096,7 +1096,7 @@ public static class CodeGenerationService
         builder.AppendLine();
 
         // Generate IEndpointDefinition interface
-        if (interfaceParams != null)
+        if (interfaceParams is not null)
         {
             var interfaceContent = GenerateInterfaceContentOnly(codeDocGenerator, interfaceParams);
             builder.AppendLine(interfaceContent);
@@ -1105,7 +1105,7 @@ public static class CodeGenerationService
 
         // Generate endpoint definition classes and collect class names
         var endpointDefinitionClassNames = new List<string>();
-        if (classParameters != null)
+        if (classParameters is not null)
         {
             foreach (var classParams in classParameters)
             {
@@ -1122,7 +1122,7 @@ public static class CodeGenerationService
             pathSegment,
             endpointDefinitionClassNames);
 
-        if (extensionParams != null)
+        if (extensionParams is not null)
         {
             var extensionContent = GenerateClassContentOnly(codeDocGenerator, extensionParams);
             builder.Append(extensionContent);
@@ -1199,7 +1199,7 @@ public static class CodeGenerationService
     {
         var classParams = ServerDependencyInjectionExtractor.Extract(openApiDoc, projectName);
 
-        if (classParams == null)
+        if (classParams is null)
         {
             return null;
         }
@@ -1255,7 +1255,7 @@ public static class CodeGenerationService
             result.AddRange(inlineTypes);
         }
 
-        if (classParams == null)
+        if (classParams is null)
         {
             return result;
         }
@@ -1385,7 +1385,7 @@ public static class CodeGenerationService
     {
         var result = new List<GeneratedType>();
 
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return result;
         }
@@ -1440,7 +1440,7 @@ public static class CodeGenerationService
                     SubFolder: $"Endpoints\\{pathSegment}"));
 
                 // Result Interface (null for binary endpoints that use BinaryEndpointResponse)
-                if (opFiles.ResultInterfaceContent != null)
+                if (opFiles.ResultInterfaceContent is not null)
                 {
                     result.Add(new GeneratedType(
                         TypeName: $"I{opFiles.OperationName}EndpointResult",
@@ -1453,7 +1453,7 @@ public static class CodeGenerationService
                 }
 
                 // Result Class (null for binary endpoints that use BinaryEndpointResponse)
-                if (opFiles.ResultClassContent != null)
+                if (opFiles.ResultClassContent is not null)
                 {
                     result.Add(new GeneratedType(
                         TypeName: $"{opFiles.OperationName}EndpointResult",
@@ -1480,7 +1480,7 @@ public static class CodeGenerationService
         string projectName,
         GeneratorType generatorType = GeneratorType.Client)
     {
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return null;
         }
@@ -1941,19 +1941,19 @@ public static class CodeGenerationService
     /// </summary>
     public static bool HasQueryArrayParameters(OpenApiDocument openApiDoc)
     {
-        if (openApiDoc.Paths == null)
+        if (openApiDoc.Paths is null)
         {
             return false;
         }
 
         foreach (var path in openApiDoc.Paths)
         {
-            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations is null)
             {
                 continue;
             }
 
-            if (pathItem.Parameters != null)
+            if (pathItem.Parameters is not null)
             {
                 foreach (var param in pathItem.Parameters)
                 {
@@ -1966,7 +1966,7 @@ public static class CodeGenerationService
 
             foreach (var operation in pathItem.Operations)
             {
-                if (operation.Value?.Parameters == null)
+                if (operation.Value?.Parameters is null)
                 {
                     continue;
                 }
@@ -2007,7 +2007,7 @@ public static class CodeGenerationService
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
         var interfaces = WebhookHandlerExtractor.Extract(openApiDoc, projectName, systemTypeResolver, includeDeprecated);
 
-        if (interfaces == null || interfaces.Count == 0)
+        if (interfaces is null || interfaces.Count == 0)
         {
             return result;
         }
@@ -2063,7 +2063,7 @@ public static class CodeGenerationService
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
         var webhookParameters = WebhookParameterExtractor.Extract(openApiDoc, projectName, systemTypeResolver, includeDeprecated);
 
-        if (webhookParameters == null || webhookParameters.Count == 0)
+        if (webhookParameters is null || webhookParameters.Count == 0)
         {
             return result;
         }
@@ -2107,7 +2107,7 @@ public static class CodeGenerationService
 
         var webhookResults = WebhookResultExtractor.Extract(openApiDoc, projectName, includeDeprecated);
 
-        if (webhookResults == null || webhookResults.Count == 0)
+        if (webhookResults is null || webhookResults.Count == 0)
         {
             return result;
         }
@@ -2149,7 +2149,7 @@ public static class CodeGenerationService
 
         var classParams = WebhookEndpointExtractor.Extract(openApiDoc, projectName, config);
 
-        if (classParams == null)
+        if (classParams is null)
         {
             return null;
         }
@@ -2195,7 +2195,7 @@ public static class CodeGenerationService
 
         var classParams = WebhookDependencyInjectionExtractor.Extract(openApiDoc, projectName, includeDeprecated);
 
-        if (classParams == null)
+        if (classParams is null)
         {
             return null;
         }
@@ -2228,7 +2228,7 @@ public static class CodeGenerationService
         var resolved = parameterOrRef.Resolve();
         var parameter = resolved.Parameter;
 
-        if (parameter == null)
+        if (parameter is null)
         {
             return false;
         }

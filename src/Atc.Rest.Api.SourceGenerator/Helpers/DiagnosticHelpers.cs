@@ -1858,7 +1858,7 @@ internal static class DiagnosticHelpers
             diagnostics.Add(Diagnostic.Create(LinksNotSupported, Location.None));
         }
 
-        if (openApiDoc.Servers != null && openApiDoc.Servers.Count > 1)
+        if (openApiDoc.Servers is not null && openApiDoc.Servers.Count > 1)
         {
             diagnostics.Add(Diagnostic.Create(
                 MultipleServersIgnored,
@@ -1872,7 +1872,7 @@ internal static class DiagnosticHelpers
     private static bool HasReadOnlyOrWriteOnlyProperties(
         OpenApiDocument openApiDoc)
     {
-        if (openApiDoc.Components?.Schemas == null)
+        if (openApiDoc.Components?.Schemas is null)
         {
             return false;
         }
@@ -1899,7 +1899,7 @@ internal static class DiagnosticHelpers
     {
         foreach (var path in openApiDoc.Paths)
         {
-            if (path.Value?.Operations == null)
+            if (path.Value?.Operations is null)
             {
                 continue;
             }
@@ -1920,14 +1920,14 @@ internal static class DiagnosticHelpers
     {
         foreach (var path in openApiDoc.Paths)
         {
-            if (path.Value?.Operations == null)
+            if (path.Value?.Operations is null)
             {
                 continue;
             }
 
             foreach (var operation in path.Value.Operations.Values)
             {
-                if (operation.Responses == null)
+                if (operation.Responses is null)
                 {
                     continue;
                 }

@@ -81,7 +81,7 @@ public sealed class AccountInMemoryRepository
 
         // Check if account with this ID already exists
         var existing = accounts.FirstOrDefault(a => a.Id == id);
-        if (existing != null)
+        if (existing is not null)
         {
             return existing;
         }

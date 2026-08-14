@@ -17,7 +17,7 @@ public static class OutputCachePoliciesExtractor
         string projectName,
         bool includeDeprecated = false)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
@@ -49,13 +49,13 @@ public static class OutputCachePoliciesExtractor
         if (!string.IsNullOrEmpty(documentPolicy) && ParseCacheType(documentType) == CacheType.Output)
         {
             var config = CreateConfigFromExtensions(openApiDoc.Extensions, null, null);
-            if (config != null && config.Type == CacheType.Output)
+            if (config is not null && config.Type == CacheType.Output)
             {
                 policies[documentPolicy!] = config;
             }
         }
 
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return policies;
         }
@@ -72,13 +72,13 @@ public static class OutputCachePoliciesExtractor
             if (!string.IsNullOrEmpty(pathPolicy) && !policies.ContainsKey(pathPolicy!))
             {
                 var config = CreateConfigFromExtensions(openApiDoc.Extensions, pathItem.Extensions, null);
-                if (config != null && config.Type == CacheType.Output)
+                if (config is not null && config.Type == CacheType.Output)
                 {
                     policies[pathPolicy!] = config;
                 }
             }
 
-            if (pathItem.Operations == null)
+            if (pathItem.Operations is null)
             {
                 continue;
             }
@@ -93,7 +93,7 @@ public static class OutputCachePoliciesExtractor
                     continue;
                 }
 
-                if (operation == null)
+                if (operation is null)
                 {
                     continue;
                 }
@@ -106,7 +106,7 @@ public static class OutputCachePoliciesExtractor
                         openApiDoc.Extensions,
                         pathItem.Extensions,
                         operation.Extensions);
-                    if (config != null && config.Type == CacheType.Output)
+                    if (config is not null && config.Type == CacheType.Output)
                     {
                         policies[operationPolicy!] = config;
                     }
@@ -196,7 +196,7 @@ public static class OutputCachePoliciesExtractor
     {
         var merged = new HashSet<string>(StringComparer.Ordinal);
 
-        if (documentTags != null)
+        if (documentTags is not null)
         {
             foreach (var tag in documentTags)
             {
@@ -204,7 +204,7 @@ public static class OutputCachePoliciesExtractor
             }
         }
 
-        if (pathTags != null)
+        if (pathTags is not null)
         {
             foreach (var tag in pathTags)
             {
@@ -212,7 +212,7 @@ public static class OutputCachePoliciesExtractor
             }
         }
 
-        if (operationTags != null)
+        if (operationTags is not null)
         {
             foreach (var tag in operationTags)
             {

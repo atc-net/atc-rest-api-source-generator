@@ -23,7 +23,7 @@ public static class TypeScriptServersExtractor
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
-        if (openApiDoc.Servers == null || openApiDoc.Servers.Count < 2)
+        if (openApiDoc.Servers is null || openApiDoc.Servers.Count < 2)
         {
             return null;
         }
@@ -34,7 +34,7 @@ public static class TypeScriptServersExtractor
         for (var i = 0; i < openApiDoc.Servers.Count; i++)
         {
             var server = openApiDoc.Servers[i];
-            if (server.Url == null)
+            if (server.Url is null)
             {
                 continue;
             }
@@ -66,7 +66,7 @@ public static class TypeScriptServersExtractor
 
         var sb = new StringBuilder();
 
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }

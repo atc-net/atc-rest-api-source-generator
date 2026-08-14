@@ -27,7 +27,7 @@ public static class TypeScriptModelExtractor
 
         var results = new List<(string Name, TypeScriptInterfaceParameters Parameters)>();
 
-        if (openApiDoc.Components?.Schemas == null || openApiDoc.Components.Schemas.Count == 0)
+        if (openApiDoc.Components?.Schemas is null || openApiDoc.Components.Schemas.Count == 0)
         {
             return results;
         }
@@ -81,7 +81,7 @@ public static class TypeScriptModelExtractor
             {
                 // Response variant keeps the schema's canonical name; writeOnly props drop.
                 var responseParams = ExtractInterfaceFromSchema(originalSchemaName, actualSchema, headerContent, enumNames, config.NamingStrategy, config.ConvertDates, config.MutableModels, config.BrandedIds, SchemaVariant.Response);
-                if (responseParams != null)
+                if (responseParams is not null)
                 {
                     results.Add((originalSchemaName, responseParams));
                 }
@@ -91,7 +91,7 @@ public static class TypeScriptModelExtractor
                 // schema is in the writable set (see TypeScriptClientExtractor).
                 var writableName = originalSchemaName + WritableSuffix;
                 var requestParams = ExtractInterfaceFromSchema(writableName, actualSchema, headerContent, enumNames, config.NamingStrategy, config.ConvertDates, config.MutableModels, config.BrandedIds, SchemaVariant.Request);
-                if (requestParams != null)
+                if (requestParams is not null)
                 {
                     results.Add((writableName, requestParams));
                 }
@@ -99,7 +99,7 @@ public static class TypeScriptModelExtractor
             else
             {
                 var interfaceParams = ExtractInterfaceFromSchema(originalSchemaName, actualSchema, headerContent, enumNames, config.NamingStrategy, config.ConvertDates, config.MutableModels, config.BrandedIds, SchemaVariant.Combined);
-                if (interfaceParams != null)
+                if (interfaceParams is not null)
                 {
                     results.Add((originalSchemaName, interfaceParams));
                 }
@@ -120,7 +120,7 @@ public static class TypeScriptModelExtractor
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
         var result = new HashSet<string>(StringComparer.Ordinal);
-        if (openApiDoc.Components?.Schemas == null)
+        if (openApiDoc.Components?.Schemas is null)
         {
             return result;
         }
@@ -166,7 +166,7 @@ public static class TypeScriptModelExtractor
         OpenApiSchema schema,
         bool readOnly)
     {
-        if (schema.Properties == null)
+        if (schema.Properties is null)
         {
             return false;
         }
@@ -201,7 +201,7 @@ public static class TypeScriptModelExtractor
 
         var results = new List<(string Name, string Content)>();
 
-        if (openApiDoc.Components?.Schemas == null || openApiDoc.Components.Schemas.Count == 0)
+        if (openApiDoc.Components?.Schemas is null || openApiDoc.Components.Schemas.Count == 0)
         {
             return results;
         }
@@ -226,7 +226,7 @@ public static class TypeScriptModelExtractor
             // properties stay as interfaces and have the oneOf folded into a member type
             // by ExtractInterfaceFromSchema.
             var hasOwnObject = actualSchema.Type?.HasFlag(JsonSchemaType.Object) == true ||
-                               (actualSchema.Properties != null && actualSchema.Properties.Count > 0);
+                               (actualSchema.Properties is not null && actualSchema.Properties.Count > 0);
             if (hasOwnObject)
             {
                 continue;
@@ -239,7 +239,7 @@ public static class TypeScriptModelExtractor
             }
 
             var sb = new StringBuilder();
-            if (headerContent != null)
+            if (headerContent is not null)
             {
                 sb.Append(headerContent);
             }
@@ -267,7 +267,7 @@ public static class TypeScriptModelExtractor
 
         void Visit(IList<IOpenApiSchema>? variants)
         {
-            if (variants == null)
+            if (variants is null)
             {
                 return;
             }
@@ -280,7 +280,7 @@ public static class TypeScriptModelExtractor
                 }
 
                 var refName = variantRef.Reference.Id ?? variantRef.Id;
-                if (refName != null && seen.Add(refName))
+                if (refName is not null && seen.Add(refName))
                 {
                     result.Add(refName);
                 }
@@ -309,7 +309,7 @@ public static class TypeScriptModelExtractor
 
         var results = new List<(string Name, string Content)>();
 
-        if (openApiDoc.Components?.Schemas == null || openApiDoc.Components.Schemas.Count == 0)
+        if (openApiDoc.Components?.Schemas is null || openApiDoc.Components.Schemas.Count == 0)
         {
             return results;
         }
@@ -339,7 +339,7 @@ public static class TypeScriptModelExtractor
 
             var sb = new StringBuilder();
 
-            if (headerContent != null)
+            if (headerContent is not null)
             {
                 sb.Append(headerContent);
             }
@@ -423,7 +423,7 @@ public static class TypeScriptModelExtractor
                 if (subSchema is OpenApiSchemaReference allOfRef)
                 {
                     extendsTypeName = allOfRef.Reference.Id ?? allOfRef.Id;
-                    if (extendsTypeName != null)
+                    if (extendsTypeName is not null)
                     {
                         importTypes.Add(extendsTypeName);
                     }
@@ -435,7 +435,7 @@ public static class TypeScriptModelExtractor
 
         // Detect generic pagination pattern: array property with empty items (items: {})
         var genericArrayPropName = DetectGenericArrayProperty(properties);
-        var isGeneric = genericArrayPropName != null;
+        var isGeneric = genericArrayPropName is not null;
 
         foreach (var prop in properties)
         {
@@ -454,7 +454,7 @@ public static class TypeScriptModelExtractor
             if (brandedIds && tsType.StartsWith("string", StringComparison.Ordinal))
             {
                 var brand = TypeScriptBrandedIdExtractor.ResolvePropertyBrand(schemaName, prop.Key, prop.Value);
-                if (brand != null)
+                if (brand is not null)
                 {
                     // Preserve the original suffix (`""` for required, `" | undefined"` for optional)
                     // by substring-replacing only the leading `string` token.
@@ -474,7 +474,7 @@ public static class TypeScriptModelExtractor
             {
                 var propDoc = propSchema.GetSchemaSummary() ?? propSchema.Description;
                 var propExample = GetSchemaExampleString(propSchema);
-                if (!string.IsNullOrEmpty(propDoc) || propSchema.Deprecated || propExample != null)
+                if (!string.IsNullOrEmpty(propDoc) || propSchema.Deprecated || propExample is not null)
                 {
                     docTags = new JsDocComment(
                         description: propDoc,
@@ -544,9 +544,9 @@ public static class TypeScriptModelExtractor
         {
             // Empty items ({}) or null items means this is a generic array placeholder
             if (prop.Value is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema &&
-                (arraySchema.Items == null ||
+                (arraySchema.Items is null ||
                  (arraySchema.Items is OpenApiSchema itemSchema &&
-                  itemSchema.Type == null &&
+                  itemSchema.Type is null &&
                   itemSchema.Properties?.Count is null or 0)))
             {
                 return prop.Key;
@@ -566,7 +566,7 @@ public static class TypeScriptModelExtractor
         if (schema is OpenApiSchemaReference schemaRef)
         {
             var refName = schemaRef.Reference.Id ?? schemaRef.Id;
-            if (refName != null)
+            if (refName is not null)
             {
                 importTypes.Add(refName);
             }
@@ -587,7 +587,7 @@ public static class TypeScriptModelExtractor
                 if (subSchema is OpenApiSchemaReference allOfRef)
                 {
                     var refName = allOfRef.Reference.Id ?? allOfRef.Id;
-                    if (refName != null)
+                    if (refName is not null)
                     {
                         importTypes.Add(refName);
                     }
@@ -603,7 +603,7 @@ public static class TypeScriptModelExtractor
                 if (subSchema is OpenApiSchemaReference oneOfRef)
                 {
                     var refName = oneOfRef.Reference.Id ?? oneOfRef.Id;
-                    if (refName != null)
+                    if (refName is not null)
                     {
                         importTypes.Add(refName);
                     }
@@ -615,7 +615,7 @@ public static class TypeScriptModelExtractor
         if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true && actualSchema.Items is OpenApiSchemaReference itemRef)
         {
             var refName = itemRef.Reference.Id ?? itemRef.Id;
-            if (refName != null)
+            if (refName is not null)
             {
                 importTypes.Add(refName);
             }
@@ -625,7 +625,7 @@ public static class TypeScriptModelExtractor
         if (actualSchema.AdditionalProperties is OpenApiSchemaReference addPropRef)
         {
             var refName = addPropRef.Reference.Id ?? addPropRef.Id;
-            if (refName != null)
+            if (refName is not null)
             {
                 importTypes.Add(refName);
             }
@@ -648,7 +648,7 @@ public static class TypeScriptModelExtractor
         }
 
         // OAS 3.0-style scalar example on the schema
-        if (schema.Example != null)
+        if (schema.Example is not null)
         {
             return schema.Example.ToJsonString();
         }
@@ -672,7 +672,7 @@ public static class TypeScriptModelExtractor
             }
 
             // Use correct relative path based on whether the type is an enum or model
-            var importPath = enumNames != null && enumNames.Contains(typeName)
+            var importPath = enumNames is not null && enumNames.Contains(typeName)
                 ? $"../enums/{typeName}"
                 : $"./{typeName}";
 

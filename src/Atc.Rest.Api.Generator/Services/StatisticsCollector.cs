@@ -133,7 +133,7 @@ public static class StatisticsCollector
 
     private static int CountOperations(OpenApiDocument document)
     {
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             return 0;
         }
@@ -144,7 +144,7 @@ public static class StatisticsCollector
 
     private static int CountWebhookOperations(OpenApiDocument document)
     {
-        if (document.Webhooks == null)
+        if (document.Webhooks is null)
         {
             return 0;
         }
@@ -155,7 +155,7 @@ public static class StatisticsCollector
 
     private static int CountEnums(OpenApiDocument document)
     {
-        if (document.Components?.Schemas == null)
+        if (document.Components?.Schemas is null)
         {
             return 0;
         }
@@ -167,7 +167,7 @@ public static class StatisticsCollector
 
     private static int CountPathSegments(OpenApiDocument document)
     {
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             return 0;
         }

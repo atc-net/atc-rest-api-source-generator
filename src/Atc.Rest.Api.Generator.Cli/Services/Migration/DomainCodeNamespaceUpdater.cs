@@ -40,7 +40,7 @@ internal static class DomainCodeNamespaceUpdater
             foreach (var filePath in csFiles)
             {
                 var fileUpdate = ProcessFile(filePath, projectName, dryRun);
-                if (fileUpdate != null && fileUpdate.Replacements.Count > 0)
+                if (fileUpdate is not null && fileUpdate.Replacements.Count > 0)
                 {
                     result.UpdatedFiles.Add(fileUpdate);
                     result.TotalReplacements += fileUpdate.Replacements.Count;

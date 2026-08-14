@@ -65,7 +65,7 @@ public sealed class TypeConflictRegistry
     {
         var conflicts = new HashSet<string>(StringComparer.Ordinal);
 
-        if (doc.Components?.Schemas == null)
+        if (doc.Components?.Schemas is null)
         {
             return conflicts;
         }
@@ -141,7 +141,7 @@ public sealed class TypeConflictRegistry
         }
 
         // Compute namespace on-demand
-        return pathSegment != null
+        return pathSegment is not null
             ? $"{projectName}.Generated.{pathSegment}.Models.{typeName}"
             : $"{projectName}.Generated.Models.{typeName}";
     }

@@ -85,12 +85,12 @@ public static class HttpClientExtractor
         bool? hasSegmentModels = null,
         bool? hasSharedModels = null)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return null;
         }
@@ -184,7 +184,7 @@ public static class HttpClientExtractor
                 continue;
             }
 
-            if (pathItem.Operations != null)
+            if (pathItem.Operations is not null)
             {
                 // Get path-level parameters (defined on the path, not the operation)
                 var pathLevelParameters = pathItem.Parameters;
@@ -205,7 +205,7 @@ public static class HttpClientExtractor
                     var currentPathSegment = PathSegmentHelper.GetFirstPathSegment(pathKey);
                     var methodParams = ExtractMethod(pathKey, httpMethod, operation.Value, pathLevelParameters, openApiDoc, registry, systemTypeResolver, currentPathSegment, inlineSchemas, useServersBasePath);
 
-                    if (methodParams != null)
+                    if (methodParams is not null)
                     {
                         methods.Add(methodParams);
                     }
@@ -226,12 +226,12 @@ public static class HttpClientExtractor
             contentPreview.AppendLine(method.ReturnTypeName);
             contentPreview.AppendLine(method.ReturnGenericTypeName);
             contentPreview.AppendLine(method.Content);
-            if (method.Parameters != null)
+            if (method.Parameters is not null)
             {
                 foreach (var param in method.Parameters)
                 {
                     contentPreview.AppendLine(param.TypeName);
-                    if (param.Attributes != null)
+                    if (param.Attributes is not null)
                     {
                         foreach (var attr in param.Attributes)
                         {
@@ -380,7 +380,7 @@ public static class HttpClientExtractor
         Dictionary<string, HttpClientInlineSchemaInfo>? inlineSchemas,
         bool useServersBasePath = true)
     {
-        if (operation == null)
+        if (operation is null)
         {
             return null;
         }
@@ -402,14 +402,14 @@ public static class HttpClientExtractor
 
         // Try 200 first, then 201 for created responses
         IOpenApiResponse? response = null;
-        if (operation.Responses != null &&
+        if (operation.Responses is not null &&
             !operation.Responses.TryGetValue("200", out response))
         {
             operation.Responses.TryGetValue("201", out response);
         }
 
         // Check for JSON content first
-        if (response?.Content != null && response.Content.TryGetValue("application/json", out var mediaType1))
+        if (response?.Content is not null && response.Content.TryGetValue("application/json", out var mediaType1))
         {
             var contentType = GetSchemaTypeName(mediaType1.Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
             if (!string.IsNullOrEmpty(contentType))
@@ -423,18 +423,18 @@ public static class HttpClientExtractor
                 }
             }
         }
-        else if (response?.Content != null && IsBinaryResponseContent(response.Content))
+        else if (response?.Content is not null && IsBinaryResponseContent(response.Content))
         {
             // Binary content (application/octet-stream, image/*, etc.) returns byte[]
             returnType = "byte[]";
         }
-        else if (response?.Content != null && IsTextResponseContent(response.Content))
+        else if (response?.Content is not null && IsTextResponseContent(response.Content))
         {
             // Plain text content returns string
             returnType = "string";
         }
         else if (response is OpenApiResponse openApiResp &&
-                 openApiResp.Headers != null &&
+                 openApiResp.Headers is not null &&
                  openApiResp.Headers.TryGetValue("Location", out var locationHeader) &&
                  locationHeader.Schema is OpenApiSchema { Format: "uri" })
         {
@@ -444,10 +444,10 @@ public static class HttpClientExtractor
 
         // OpenAPI 3.2 streaming: when the response declares an itemSchema, the element
         // type comes from it directly (not from an application/json array body).
-        if (isAsyncEnumerable && streamingItemType == null)
+        if (isAsyncEnumerable && streamingItemType is null)
         {
             var streamingItemSchema = operation.GetStreamingItemSchema();
-            if (streamingItemSchema != null)
+            if (streamingItemSchema is not null)
             {
                 streamingItemType = GetSchemaTypeName(streamingItemSchema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
             }
@@ -477,7 +477,7 @@ public static class HttpClientExtractor
 
         // Add [EnumeratorCancellation] attribute only for methods that actually return IAsyncEnumerable<T>
         // (requires both the x-return-async-enumerable extension AND a streaming item type from an array response)
-        var willReturnAsyncEnumerable = isAsyncEnumerable && streamingItemType != null;
+        var willReturnAsyncEnumerable = isAsyncEnumerable && streamingItemType is not null;
         var cancellationTokenAttrs = willReturnAsyncEnumerable
             ? new List<AttributeParameters> { new("EnumeratorCancellation", null) }
             : null;
@@ -497,7 +497,7 @@ public static class HttpClientExtractor
         var methodContent = GenerateMethodBody(path, httpMethod, operation, pathLevelParameters, openApiDoc, returnType, hasParameters, isAsyncEnumerable, streamingItemType, hasReturnType, hasLocationHeader, useServersBasePath, parametersClassName);
 
         // For async enumerable methods, return IAsyncEnumerable<T> directly
-        if (isAsyncEnumerable && streamingItemType != null)
+        if (isAsyncEnumerable && streamingItemType is not null)
         {
             return new MethodParameters(
                 DocumentationTags: null,
@@ -561,16 +561,16 @@ public static class HttpClientExtractor
         var serverBasePath = useServersBasePath ? ServerUrlHelper.GetServersBasePath(openApiDoc) : null;
 
         // Build the URL - optionally prepend server base path, then replace path parameters
-        var urlBuilder = serverBasePath != null ? $"{serverBasePath}{path}" : path;
+        var urlBuilder = serverBasePath is not null ? $"{serverBasePath}{path}" : path;
 
         // Process path-level parameters first
-        if (pathLevelParameters != null)
+        if (pathLevelParameters is not null)
         {
             foreach (var paramInterface in pathLevelParameters)
             {
                 var resolved = paramInterface.Resolve();
                 var (param, _) = (resolved.Parameter, resolved.ReferenceId);
-                if (param == null || string.IsNullOrEmpty(param.Name))
+                if (param is null || string.IsNullOrEmpty(param.Name))
                 {
                     continue;
                 }
@@ -586,14 +586,14 @@ public static class HttpClientExtractor
         }
 
         // Then process operation-level parameters
-        if (operation.Parameters != null)
+        if (operation.Parameters is not null)
         {
             foreach (var paramInterface in operation.Parameters)
             {
                 // Resolve parameter reference if needed
                 var resolved = paramInterface.Resolve();
                 var (param, _) = (resolved.Parameter, resolved.ReferenceId);
-                if (param == null || string.IsNullOrEmpty(param.Name))
+                if (param is null || string.IsNullOrEmpty(param.Name))
                 {
                     continue;
                 }
@@ -618,7 +618,7 @@ public static class HttpClientExtractor
         var headerParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
         var cookieParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
         var querystringParams = new List<(OpenApiParameter Param, string? ReferenceId)>();
-        if (operation.Parameters != null)
+        if (operation.Parameters is not null)
         {
             foreach (var paramInterface in operation.Parameters)
             {
@@ -696,7 +696,7 @@ public static class HttpClientExtractor
                     // T[] that reaches this scalar path (not the form-explode foreach above) keeps
                     // its length guard; everything else delegates to the shared BuildNullCheck.
                     var nullCheck = paramType.EndsWith("[]", StringComparison.Ordinal)
-                        ? $"{paramAccess} != null && {paramAccess}.Length > 0"
+                        ? $"{paramAccess} is not null && {paramAccess}.Length > 0"
                         : BuildNullCheck(paramAccess, paramType);
 
                     var valueExpression = BuildEncodedExpression(paramAccess, paramType);
@@ -817,7 +817,7 @@ public static class HttpClientExtractor
             }
 
             builder.AppendLine("{");
-            builder.AppendLine(4, "if (item != null)");
+            builder.AppendLine(4, "if (item is not null)");
             builder.AppendLine(4, "{");
             builder.AppendLine(8, "yield return item;");
             builder.AppendLine(4, "}");
@@ -991,7 +991,7 @@ public static class HttpClientExtractor
                     builder.AppendLine(4, "var fileItem = parameters.File[i];");
                     builder.AppendLine(4, "var streamContent = new StreamContent(fileItem.OpenReadStream());");
                     builder.AppendLine();
-                    builder.AppendLine(4, "if (fileItem.ContentType != null)");
+                    builder.AppendLine(4, "if (fileItem.ContentType is not null)");
                     builder.AppendLine(4, "{");
                     builder.AppendLine(8, "streamContent.Headers.ContentType = new MediaTypeHeaderValue(fileItem.ContentType);");
                     builder.AppendLine(4, "}");
@@ -1004,7 +1004,7 @@ public static class HttpClientExtractor
                     // Single file upload
                     builder.AppendLine("var streamContent = new StreamContent(parameters.File!.OpenReadStream());");
                     builder.AppendLine();
-                    builder.AppendLine("if (parameters.File!.ContentType != null)");
+                    builder.AppendLine("if (parameters.File!.ContentType is not null)");
                     builder.AppendLine("{");
                     builder.AppendLine(4, "streamContent.Headers.ContentType = new MediaTypeHeaderValue(parameters.File.ContentType);");
                     builder.AppendLine("}");
@@ -1022,7 +1022,7 @@ public static class HttpClientExtractor
             builder.AppendLine();
             builder.AppendLine("var response = await httpClient.PostAsync(url, content, cancellationToken);");
         }
-        else if (schemaBasedMultipartSchema != null && hasParameters)
+        else if (schemaBasedMultipartSchema is not null && hasParameters)
         {
             // Schema-based multipart/form-data with object containing file properties
             GenerateSchemaBasedMultipartFormData(builder, schemaBasedMultipartSchema, requestAccess);
@@ -1113,7 +1113,7 @@ public static class HttpClientExtractor
         OpenApiParameter param,
         OpenApiDocument openApiDoc)
     {
-        if (param.Schema == null)
+        if (param.Schema is null)
         {
             return "string";
         }
@@ -1163,7 +1163,7 @@ public static class HttpClientExtractor
         string? context,
         Dictionary<string, HttpClientInlineSchemaInfo>? inlineSchemas)
     {
-        if (schema == null)
+        if (schema is null)
         {
             return "object";
         }
@@ -1180,10 +1180,10 @@ public static class HttpClientExtractor
             // Check if this reference points to an array alias (type: array with items but no prefixItems)
             // Array aliases like "Pets" (type: array, items: $ref Pet) should resolve to Pet[]
             // But tuple types with prefixItems (like Coordinate) should keep their type name
-            if (openApiDoc.Components?.Schemas != null &&
+            if (openApiDoc.Components?.Schemas is not null &&
                 openApiDoc.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
                 resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema &&
-                arraySchema.Items != null &&
+                arraySchema.Items is not null &&
                 !arraySchema.HasPrefixItems())
             {
                 // This is a simple array alias - resolve to the underlying array type
@@ -1221,7 +1221,7 @@ public static class HttpClientExtractor
                 !string.IsNullOrEmpty(operationId) &&
                 !string.IsNullOrEmpty(pathSegment) &&
                 !string.IsNullOrEmpty(context) &&
-                inlineSchemas != null)
+                inlineSchemas is not null)
             {
                 var typeName = InlineSchemaExtractor.GenerateInlineTypeName(operationId!, context!);
                 if (!inlineSchemas.ContainsKey(typeName))
@@ -1292,7 +1292,7 @@ public static class HttpClientExtractor
         }
 
         // If we found PaginationResult<T> or PaginatedResult<T> pattern, return it
-        if (baseType != null && IsPaginationBaseType(baseType) && itemType != null)
+        if (baseType is not null && IsPaginationBaseType(baseType) && itemType is not null)
         {
             return $"{baseType}<{itemType}>";
         }
@@ -1315,7 +1315,7 @@ public static class HttpClientExtractor
         OpenApiDocument openApiDoc,
         TypeConflictRegistry? registry = null)
     {
-        if (arraySchema.Items == null)
+        if (arraySchema.Items is null)
         {
             return "object";
         }
@@ -1351,7 +1351,7 @@ public static class HttpClientExtractor
         string? pathSegment,
         Dictionary<string, HttpClientInlineSchemaInfo>? inlineSchemas)
     {
-        if (schema.Items == null)
+        if (schema.Items is null)
         {
             return "List<object>";
         }
@@ -1367,7 +1367,7 @@ public static class HttpClientExtractor
     /// </summary>
     private static bool IsDirectFileUpload(OpenApiOperation operation)
     {
-        if (operation.RequestBody?.Content == null)
+        if (operation.RequestBody?.Content is null)
         {
             return false;
         }
@@ -1493,7 +1493,7 @@ public static class HttpClientExtractor
         else
         {
             builder.AppendLine();
-            builder.AppendLine($"if ({paramAccess} != null)");
+            builder.AppendLine($"if ({paramAccess} is not null)");
             builder.AppendLine("{");
             builder.AppendLine(4, $"foreach (var item in {paramAccess})");
             builder.AppendLine(4, "{");
@@ -1534,7 +1534,7 @@ public static class HttpClientExtractor
     /// <summary>
     /// Builds the null/empty guard expression for an optional query parameter, selecting the
     /// right form for the parameter's C# type: <c>!string.IsNullOrEmpty(x)</c> for strings,
-    /// <c>x.HasValue</c> for nullable value types, and <c>x != null</c> otherwise.
+    /// <c>x.HasValue</c> for nullable value types, and <c>x is not null</c> otherwise.
     /// </summary>
     private static string BuildNullCheck(
         string paramAccess,
@@ -1550,7 +1550,7 @@ public static class HttpClientExtractor
             return $"{paramAccess}.HasValue";
         }
 
-        return $"{paramAccess} != null";
+        return $"{paramAccess} is not null";
     }
 
     public static bool NeedsUrlEncoding(string csharpType)
@@ -1595,7 +1595,7 @@ public static class HttpClientExtractor
     /// </summary>
     private static bool IsMultiFileUpload(OpenApiOperation operation)
     {
-        if (operation.RequestBody?.Content == null)
+        if (operation.RequestBody?.Content is null)
         {
             return false;
         }
@@ -1625,7 +1625,7 @@ public static class HttpClientExtractor
         OpenApiDocument openApiDoc,
         OpenApiSchema itemSchema)
     {
-        if (openApiDoc.Components?.Schemas == null)
+        if (openApiDoc.Components?.Schemas is null)
         {
             return null;
         }
@@ -1661,7 +1661,7 @@ public static class HttpClientExtractor
         OpenApiOperation operation,
         OpenApiDocument openApiDoc)
     {
-        if (operation.RequestBody?.Content == null)
+        if (operation.RequestBody?.Content is null)
         {
             return null;
         }
@@ -1677,7 +1677,7 @@ public static class HttpClientExtractor
         {
             var schemaId = schemaRef.Reference?.Id;
             if (!string.IsNullOrEmpty(schemaId) &&
-                openApiDoc.Components?.Schemas != null &&
+                openApiDoc.Components?.Schemas is not null &&
                 openApiDoc.Components.Schemas.TryGetValue(schemaId!, out var schema))
             {
                 return schema;
@@ -1720,11 +1720,11 @@ public static class HttpClientExtractor
             if (isBinary)
             {
                 // Single file property - use StreamContent with IFileContent
-                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} != null)");
+                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} is not null)");
                 builder.AppendLine("{");
                 builder.AppendLine(4, $"var fileContent = new StreamContent({requestAccess}.{pascalPropName}.OpenReadStream());");
                 builder.AppendLine();
-                builder.AppendLine(4, $"if ({requestAccess}.{pascalPropName}.ContentType != null)");
+                builder.AppendLine(4, $"if ({requestAccess}.{pascalPropName}.ContentType is not null)");
                 builder.AppendLine(4, "{");
                 builder.AppendLine(8, $"fileContent.Headers.ContentType = new MediaTypeHeaderValue({requestAccess}.{pascalPropName}.ContentType);");
                 builder.AppendLine(4, "}");
@@ -1736,14 +1736,14 @@ public static class HttpClientExtractor
             else if (isArrayOfBinary)
             {
                 // Array of files - use StreamContent with IFileContent for each
-                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} != null)");
+                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} is not null)");
                 builder.AppendLine("{");
                 builder.AppendLine(4, $"for (var i = 0; i < {requestAccess}.{pascalPropName}.Count; i++)");
                 builder.AppendLine(4, "{");
                 builder.AppendLine(8, $"var fileItem = {requestAccess}.{pascalPropName}[i];");
                 builder.AppendLine(8, "var fileContent = new StreamContent(fileItem.OpenReadStream());");
                 builder.AppendLine();
-                builder.AppendLine(8, "if (fileItem.ContentType != null)");
+                builder.AppendLine(8, "if (fileItem.ContentType is not null)");
                 builder.AppendLine(8, "{");
                 builder.AppendLine(12, "fileContent.Headers.ContentType = new MediaTypeHeaderValue(fileItem.ContentType);");
                 builder.AppendLine(8, "}");
@@ -1756,7 +1756,7 @@ public static class HttpClientExtractor
             else if (isArray)
             {
                 // Array of non-binary values - add as multiple form fields
-                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} != null)");
+                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} is not null)");
                 builder.AppendLine("{");
                 builder.AppendLine(4, $"foreach (var item in {requestAccess}.{pascalPropName})");
                 builder.AppendLine(4, "{");
@@ -1768,7 +1768,7 @@ public static class HttpClientExtractor
             else
             {
                 // Simple value - use StringContent
-                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} != null)");
+                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} is not null)");
                 builder.AppendLine("{");
                 builder.AppendLine(4, $"content.Add(new StringContent({requestAccess}.{pascalPropName}.ToString()!), \"{propName}\");");
                 builder.AppendLine("}");

@@ -1983,7 +1983,7 @@ public class OperationValidationTests
 
     private static string CreateOperationYaml(string? operationId)
     {
-        var operationIdLine = operationId != null ? $"operationId: {operationId}" : string.Empty;
+        var operationIdLine = operationId is not null ? $"operationId: {operationId}" : string.Empty;
         return $$"""
 
                  openapi: 3.0.0

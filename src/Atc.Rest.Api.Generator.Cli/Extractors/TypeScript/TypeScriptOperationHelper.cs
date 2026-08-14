@@ -28,7 +28,7 @@ public static class TypeScriptOperationHelper
             StringComparer.OrdinalIgnoreCase);
 
         // Add path-level parameters first (only those not overridden at operation level)
-        if (openApiDoc.Paths != null &&
+        if (openApiDoc.Paths is not null &&
             openApiDoc.Paths.TryGetValue(path, out var pathItemValue) &&
             pathItemValue is { Parameters: not null } pathItem)
         {
@@ -57,7 +57,7 @@ public static class TypeScriptOperationHelper
         ParameterLocation location)
     {
         var result = new List<OpenApiParameter>();
-        if (parameters == null)
+        if (parameters is null)
         {
             return result;
         }
@@ -65,7 +65,7 @@ public static class TypeScriptOperationHelper
         foreach (var paramInterface in parameters)
         {
             var resolved = paramInterface.Resolve();
-            if (resolved.Parameter != null && resolved.Parameter.In == location)
+            if (resolved.Parameter is not null && resolved.Parameter.In == location)
             {
                 result.Add(resolved.Parameter);
             }
@@ -104,7 +104,7 @@ public static class TypeScriptOperationHelper
         var schema = operation.GetResponseSchema("200")
                   ?? operation.GetResponseSchema("201")
                   ?? operation.GetResponseSchema("202");
-        if (schema == null)
+        if (schema is null)
         {
             return null;
         }
@@ -176,7 +176,7 @@ public static class TypeScriptOperationHelper
         if (isStreaming)
         {
             var itemSchema = operation.GetStreamingItemSchema();
-            if (itemSchema != null)
+            if (itemSchema is not null)
             {
                 return itemSchema.ToTypeScriptReturnType();
             }
@@ -187,8 +187,8 @@ public static class TypeScriptOperationHelper
 
         // Fall back to a textual response schema (text/plain, text/csv, application/xml, ...)
         // — the body is delivered as a raw string.
-        if (schema == null &&
-            operation.Responses != null &&
+        if (schema is null &&
+            operation.Responses is not null &&
             operation.Responses.TryGetValue("200", out var response) &&
             response.TryGetTextResponseMediaType(out _, out var textMedia) &&
             textMedia is not null)
@@ -196,7 +196,7 @@ public static class TypeScriptOperationHelper
             schema = textMedia.Schema;
         }
 
-        if (schema == null)
+        if (schema is null)
         {
             return isStreaming ? "unknown" : "void";
         }
@@ -245,7 +245,7 @@ public static class TypeScriptOperationHelper
 
         var hasDefaultResponse = false;
 
-        if (operation.Responses != null)
+        if (operation.Responses is not null)
         {
             foreach (var (statusCode, _) in operation.Responses)
             {
@@ -263,7 +263,7 @@ public static class TypeScriptOperationHelper
                     responseType,
                     imports,
                     out var discriminator);
-                if (arm != null && discriminator != null)
+                if (arm is not null && discriminator is not null)
                 {
                     AddArm(discriminator, arm);
                 }
@@ -335,7 +335,7 @@ public static class TypeScriptOperationHelper
         var discriminators = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
-        if (operation.Responses != null)
+        if (operation.Responses is not null)
         {
             foreach (var key in operation.Responses.Keys)
             {
@@ -348,7 +348,7 @@ public static class TypeScriptOperationHelper
                     _ => null,
                 };
 
-                if (discriminator != null && seen.Add(discriminator))
+                if (discriminator is not null && seen.Add(discriminator))
                 {
                     discriminators.Add(discriminator);
                 }
@@ -388,7 +388,7 @@ public static class TypeScriptOperationHelper
                 };
 
                 var dataType = ResolveSuccessDataType(statusCode, operation, isFileDownload, isTextDownload, imports);
-                return dataType == null
+                return dataType is null
                     ? $"  | {{ status: '{discriminator}'; response: {responseType} }}"
                     : $"  | {{ status: '{discriminator}'; data: {dataType}; response: {responseType} }}";
             }
@@ -436,8 +436,8 @@ public static class TypeScriptOperationHelper
         var schema = operation.GetResponseSchema(statusCode);
 
         // Fall back to text/xml on 200/201/202 — handleResponse delivers those as raw strings.
-        if (schema == null &&
-            operation.Responses != null &&
+        if (schema is null &&
+            operation.Responses is not null &&
             operation.Responses.TryGetValue(statusCode, out var response) &&
             response.TryGetTextResponseMediaType(out _, out var textMedia) &&
             textMedia is not null)
@@ -445,7 +445,7 @@ public static class TypeScriptOperationHelper
             return "string";
         }
 
-        if (schema == null)
+        if (schema is null)
         {
             return null;
         }
@@ -468,7 +468,7 @@ public static class TypeScriptOperationHelper
         bool brandedIds = false,
         string? path = null)
     {
-        if (param.Schema == null)
+        if (param.Schema is null)
         {
             return "string";
         }
@@ -479,7 +479,7 @@ public static class TypeScriptOperationHelper
         if (param.Schema is OpenApiSchema { Enum.Count: > 0 } enumSchema)
         {
             var union = BuildLiteralUnion(enumSchema);
-            if (union != null)
+            if (union is not null)
             {
                 return union;
             }
@@ -507,7 +507,7 @@ public static class TypeScriptOperationHelper
             var brand = param.In == ParameterLocation.Path
                 ? TypeScriptBrandedIdExtractor.ResolveParamBrand(path ?? string.Empty, param.Name, param.Schema)
                 : TypeScriptBrandedIdExtractor.ResolvePropertyBrand(schemaName: string.Empty, param.Name, param.Schema);
-            if (brand != null)
+            if (brand is not null)
             {
                 tsType = brand;
             }
@@ -662,7 +662,7 @@ public static class TypeScriptOperationHelper
         // params are deliberately excluded: cookies are browser-managed (document.cookie
         // and the credentials fetch option), so SDK methods do not accept a cookies arg
         // and any type they referenced would be a dead import.
-        if (operation.Parameters != null)
+        if (operation.Parameters is not null)
         {
             foreach (var paramInterface in operation.Parameters)
             {
@@ -676,8 +676,8 @@ public static class TypeScriptOperationHelper
 
         // From path-item-level parameters (shared by every operation under that path).
         // Same location filter applies: query / path / header (no cookies).
-        if (openApiDoc?.Paths != null &&
-            path != null &&
+        if (openApiDoc?.Paths is not null &&
+            path is not null &&
             openApiDoc.Paths.TryGetValue(path, out var pathItemValue) &&
             pathItemValue is { Parameters: not null } pathItem)
         {
@@ -693,7 +693,7 @@ public static class TypeScriptOperationHelper
 
         // From request body
         var (bodySchema, _) = operation.GetRequestBodySchemaWithContentType();
-        if (bodySchema != null)
+        if (bodySchema is not null)
         {
             CollectSchemaRefTypes(bodySchema, importTypes);
 
@@ -713,7 +713,7 @@ public static class TypeScriptOperationHelper
             if (isFileUpload && bodySchema is OpenApiSchemaReference fileUploadRef)
             {
                 var refName = fileUploadRef.Reference.Id ?? fileUploadRef.Id;
-                if (refName != null)
+                if (refName is not null)
                 {
                     importTypes.Remove(refName);
                 }
@@ -734,7 +734,7 @@ public static class TypeScriptOperationHelper
         IOpenApiSchema? schema,
         HashSet<string> importTypes)
     {
-        if (schema == null)
+        if (schema is null)
         {
             return;
         }
@@ -742,7 +742,7 @@ public static class TypeScriptOperationHelper
         if (schema is OpenApiSchemaReference schemaRef)
         {
             var refName = schemaRef.Reference.Id ?? schemaRef.Id;
-            if (refName == null)
+            if (refName is null)
             {
                 return;
             }
@@ -756,7 +756,7 @@ public static class TypeScriptOperationHelper
                 target.Items is OpenApiSchemaReference itemRef)
             {
                 var itemName = itemRef.Reference.Id ?? itemRef.Id;
-                if (itemName != null)
+                if (itemName is not null)
                 {
                     importTypes.Add(itemName);
                 }
@@ -778,7 +778,7 @@ public static class TypeScriptOperationHelper
                 if (subSchema is OpenApiSchemaReference allOfRef)
                 {
                     var refName = allOfRef.Reference.Id ?? allOfRef.Id;
-                    if (refName != null)
+                    if (refName is not null)
                     {
                         importTypes.Add(refName);
                     }
@@ -796,7 +796,7 @@ public static class TypeScriptOperationHelper
                             arrayProp.Items is OpenApiSchemaReference itemRefInAllOf)
                         {
                             var itemName = itemRefInAllOf.Reference.Id ?? itemRefInAllOf.Id;
-                            if (itemName != null)
+                            if (itemName is not null)
                             {
                                 importTypes.Add(itemName);
                             }
@@ -810,7 +810,7 @@ public static class TypeScriptOperationHelper
         if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true && actualSchema.Items is OpenApiSchemaReference inlineItemRef)
         {
             var refName = inlineItemRef.Reference.Id ?? inlineItemRef.Id;
-            if (refName != null)
+            if (refName is not null)
             {
                 importTypes.Add(refName);
             }
@@ -881,7 +881,7 @@ public static class TypeScriptOperationHelper
     /// </summary>
     private static string FormatDefaultComment(OpenApiParameter param)
     {
-        if (param.Schema is not OpenApiSchema schema || schema.Default == null)
+        if (param.Schema is not OpenApiSchema schema || schema.Default is null)
         {
             return string.Empty;
         }

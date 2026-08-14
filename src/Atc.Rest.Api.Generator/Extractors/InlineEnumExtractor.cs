@@ -86,7 +86,7 @@ public static class InlineEnumExtractor
     /// <returns>A key string representing the sorted enum values.</returns>
     public static string GetEnumValuesKey(OpenApiSchema schema)
     {
-        if (schema.Enum == null || schema.Enum.Count == 0)
+        if (schema.Enum is null || schema.Enum.Count == 0)
         {
             return string.Empty;
         }
@@ -112,13 +112,13 @@ public static class InlineEnumExtractor
         string ns)
     {
         var enumValues = EnumExtractor.ExtractEnumValues(schema.Enum);
-        if (enumValues == null)
+        if (enumValues is null)
         {
             return null;
         }
 
         // Check if any value needs EnumMember attribute
-        var hasEnumMemberValues = enumValues.Any(v => v.EnumMemberValue != null);
+        var hasEnumMemberValues = enumValues.Any(v => v.EnumMemberValue is not null);
 
         // Build header content with appropriate usings
         var headerContent = EnumExtractor.BuildEnumHeaderContent(hasEnumMemberValues);

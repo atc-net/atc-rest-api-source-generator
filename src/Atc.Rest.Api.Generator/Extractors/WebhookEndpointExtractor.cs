@@ -20,12 +20,12 @@ public static class WebhookEndpointExtractor
         string projectName,
         ServerConfig config)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        if (config == null)
+        if (config is null)
         {
             throw new ArgumentNullException(nameof(config));
         }
@@ -177,7 +177,7 @@ public static class WebhookEndpointExtractor
         };
 
         // Determine if webhook has parameters (request body)
-        var hasParameters = operation.RequestBody != null;
+        var hasParameters = operation.RequestBody is not null;
         var parameterTypeName = hasParameters ? $"{handlerName}WebhookParameters" : null;
 
         // Add blank line before each endpoint except the first one
@@ -255,7 +255,7 @@ public static class WebhookEndpointExtractor
         StringBuilder builder,
         OpenApiOperation operation)
     {
-        if (operation.Responses == null || operation.Responses.Count == 0)
+        if (operation.Responses is null || operation.Responses.Count == 0)
         {
             // Default to 200 OK for webhooks
             builder.Append(4, ".Produces(StatusCodes.Status200OK)");

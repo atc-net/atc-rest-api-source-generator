@@ -30,12 +30,12 @@ public static class OperationFeaturesHelper
         // Check for security requirements
         var securityConfig = operation.ExtractUnifiedSecurityConfiguration(pathItem, document);
         var hasSecurity = securityConfig is { AuthenticationRequired: true };
-        var hasRolesOrPolicies = securityConfig != null &&
+        var hasRolesOrPolicies = securityConfig is not null &&
             (securityConfig.Roles.Count > 0 || securityConfig.Policies.Count > 0 || securityConfig.Scopes.Count > 0);
 
         // Check for rate limiting
         var rateLimitConfig = operation.ExtractRateLimitConfiguration(pathItem, document);
-        var hasRateLimiting = rateLimitConfig != null;
+        var hasRateLimiting = rateLimitConfig is not null;
 
         return new Models.OperationFeatures
         {

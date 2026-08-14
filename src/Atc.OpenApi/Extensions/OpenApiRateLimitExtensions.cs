@@ -172,7 +172,7 @@ public static class OpenApiRateLimitExtensions
         }
 
         // Check path and operation levels
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             return false;
         }
@@ -191,7 +191,7 @@ public static class OpenApiRateLimitExtensions
             }
 
             // Check operation-level
-            if (pathItem.Operations == null)
+            if (pathItem.Operations is null)
             {
                 continue;
             }
@@ -225,7 +225,7 @@ public static class OpenApiRateLimitExtensions
         // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
         var extensionType = extension.GetType();
         var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty == null)
+        if (nodeProperty is null)
         {
             return null;
         }
@@ -256,7 +256,7 @@ public static class OpenApiRateLimitExtensions
         // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
         var extensionType = extension.GetType();
         var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty == null)
+        if (nodeProperty is null)
         {
             return null;
         }
@@ -287,7 +287,7 @@ public static class OpenApiRateLimitExtensions
         // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
         var extensionType = extension.GetType();
         var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty == null)
+        if (nodeProperty is null)
         {
             return null;
         }

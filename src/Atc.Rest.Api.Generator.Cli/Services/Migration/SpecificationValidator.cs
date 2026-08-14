@@ -28,10 +28,10 @@ internal static class SpecificationValidator
             var yamlContent = File.ReadAllText(specificationPath);
             var (openApiDoc, diagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, specificationPath);
 
-            if (openApiDoc == null)
+            if (openApiDoc is null)
             {
                 result.IsValid = false;
-                if (diagnostic?.Errors != null)
+                if (diagnostic?.Errors is not null)
                 {
                     foreach (var error in diagnostic.Errors)
                     {
@@ -73,7 +73,7 @@ internal static class SpecificationValidator
     {
         var count = 0;
 
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             return count;
         }

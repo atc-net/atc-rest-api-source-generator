@@ -19,7 +19,7 @@ public static class TupleExtractor
         TypeConflictRegistry? registry = null,
         bool includeDeprecated = false)
     {
-        if (openApiDoc.Components?.Schemas == null)
+        if (openApiDoc.Components?.Schemas is null)
         {
             return null;
         }
@@ -49,7 +49,7 @@ public static class TupleExtractor
             }
 
             var tupleInfo = actualSchema.GetTupleInfo(openApiDoc, registry);
-            if (tupleInfo == null || tupleInfo.PrefixItems.Count == 0)
+            if (tupleInfo is null || tupleInfo.PrefixItems.Count == 0)
             {
                 continue;
             }
@@ -80,7 +80,7 @@ public static class TupleExtractor
         TypeConflictRegistry? registry = null,
         bool includeDeprecated = false)
     {
-        if (openApiDoc.Components?.Schemas == null)
+        if (openApiDoc.Components?.Schemas is null)
         {
             return null;
         }
@@ -119,7 +119,7 @@ public static class TupleExtractor
             }
 
             var tupleInfo = actualSchema.GetTupleInfo(openApiDoc, registry);
-            if (tupleInfo == null || tupleInfo.PrefixItems.Count == 0)
+            if (tupleInfo is null || tupleInfo.PrefixItems.Count == 0)
             {
                 continue;
             }
@@ -162,7 +162,7 @@ public static class TupleExtractor
         TypeConflictRegistry? registry = null,
         bool includeDeprecated = false)
     {
-        if (openApiDoc.Components?.Schemas == null || schemaNames.Count == 0)
+        if (openApiDoc.Components?.Schemas is null || schemaNames.Count == 0)
         {
             return null;
         }
@@ -198,7 +198,7 @@ public static class TupleExtractor
             }
 
             var tupleInfo = actualSchema.GetTupleInfo(openApiDoc, registry);
-            if (tupleInfo == null || tupleInfo.PrefixItems.Count == 0)
+            if (tupleInfo is null || tupleInfo.PrefixItems.Count == 0)
             {
                 continue;
             }
@@ -265,7 +265,7 @@ public static class TupleExtractor
         }
 
         // Add trailing array for mixed mode (prefixItems + items)
-        if (!tupleInfo.IsStrictTuple && tupleInfo.AdditionalItemsType != null)
+        if (!tupleInfo.IsStrictTuple && tupleInfo.AdditionalItemsType is not null)
         {
             parameters.Add(new ParameterBaseParameters(
                 Attributes: null,

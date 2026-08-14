@@ -409,7 +409,7 @@ public sealed class NamespaceResolutionTests : IDisposable
         var markerPath = File.Exists(serverMarkerPath) ? serverMarkerPath :
                          File.Exists(serverMarkerJsonPath) ? serverMarkerJsonPath : null;
 
-        if (markerPath == null)
+        if (markerPath is null)
         {
             var parentDirectory = Path.GetDirectoryName(markerDirectory);
             if (!string.IsNullOrEmpty(parentDirectory) && Directory.Exists(parentDirectory))
@@ -440,7 +440,7 @@ public sealed class NamespaceResolutionTests : IDisposable
                 }
 
                 // Strict fallback: succeed only when exactly one sibling has a marker.
-                if (markerPath == null)
+                if (markerPath is null)
                 {
                     var siblingMarkers = new List<string>();
                     foreach (var siblingDir in Directory.GetDirectories(parentDirectory))
@@ -471,7 +471,7 @@ public sealed class NamespaceResolutionTests : IDisposable
             }
         }
 
-        if (markerPath == null)
+        if (markerPath is null)
         {
             return null;
         }

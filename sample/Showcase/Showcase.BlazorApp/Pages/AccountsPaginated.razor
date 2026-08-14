@@ -43,7 +43,7 @@
     </MudCardActions>
 </MudCard>
 
-@if (result != null)
+@if (result is not null)
 {
     <MudAlert Severity="Severity.Info" Class="mb-4">
         Page @(result.PageIndex + 1) | Page Size: @result.PageSize |

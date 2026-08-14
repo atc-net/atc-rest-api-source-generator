@@ -30,14 +30,14 @@ public static class SequentialResultsExtractor
     public static bool DocumentRequiresSequentialResults(
         OpenApiDocument openApiDoc)
     {
-        if (openApiDoc?.Paths == null)
+        if (openApiDoc?.Paths is null)
         {
             return false;
         }
 
         foreach (var path in openApiDoc.Paths)
         {
-            if (path.Value?.Operations == null)
+            if (path.Value?.Operations is null)
             {
                 continue;
             }

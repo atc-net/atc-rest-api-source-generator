@@ -38,12 +38,12 @@ public static class HandlerExtractor
         SystemTypeConflictResolver systemTypeResolver,
         bool includeDeprecated = false)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return null;
         }
@@ -95,7 +95,7 @@ public static class HandlerExtractor
                         namespaceValue,
                         systemTypeResolver);
 
-                    if (interfaceParams != null)
+                    if (interfaceParams is not null)
                     {
                         interfacesList.Add(interfaceParams);
                     }
@@ -127,7 +127,7 @@ public static class HandlerExtractor
         string namespaceValue,
         SystemTypeConflictResolver systemTypeResolver)
     {
-        if (operation == null)
+        if (operation is null)
         {
             return null;
         }

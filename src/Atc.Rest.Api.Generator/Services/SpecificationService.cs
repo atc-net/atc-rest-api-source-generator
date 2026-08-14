@@ -53,7 +53,7 @@ public static class SpecificationService
     /// <returns>YAML string representation of the document.</returns>
     public static string SerializeToYaml(OpenApiDocument document)
     {
-        if (document == null)
+        if (document is null)
         {
             throw new ArgumentNullException(nameof(document));
         }
@@ -71,7 +71,7 @@ public static class SpecificationService
     /// <returns>JSON string representation of the document.</returns>
     public static string SerializeToJson(OpenApiDocument document)
     {
-        if (document == null)
+        if (document is null)
         {
             throw new ArgumentNullException(nameof(document));
         }
@@ -137,7 +137,7 @@ public static class SpecificationService
         }
 
         var baseFile = SpecificationFile.FromFile(baseFilePath);
-        if (baseFile.Document == null)
+        if (baseFile.Document is null)
         {
             return MergeResult.Failed(
                 RuleIdentifiers.ServerParsingError,
@@ -147,7 +147,7 @@ public static class SpecificationService
 
         // Check for x-multipart extension in base file
         var docConfig = ExtractMultiPartConfig(baseFile.Document);
-        if (docConfig != null)
+        if (docConfig is not null)
         {
             config = docConfig;
         }
@@ -188,7 +188,7 @@ public static class SpecificationService
         config ??= MultiPartConfiguration.Default;
         var diagnostics = new List<DiagnosticMessage>();
 
-        if (baseFile.Document == null)
+        if (baseFile.Document is null)
         {
             return MergeResult.Failed(
                 RuleIdentifiers.ServerParsingError,
@@ -208,7 +208,7 @@ public static class SpecificationService
         // Merge each part file
         foreach (var partFile in partFiles)
         {
-            if (partFile.Document == null)
+            if (partFile.Document is null)
             {
                 diagnostics.Add(DiagnosticMessage.Error(
                     RuleIdentifiers.ServerParsingError,
@@ -352,12 +352,12 @@ public static class SpecificationService
         var tagAnalysis = new Dictionary<string, TagAnalysis>(StringComparer.OrdinalIgnoreCase);
         var pathSegmentAnalysis = new Dictionary<string, PathSegmentAnalysis>(StringComparer.OrdinalIgnoreCase);
 
-        if (document.Paths != null)
+        if (document.Paths is not null)
         {
             foreach (var path in document.Paths)
             {
                 var segment = GetFirstPathSegment(path.Key);
-                if (path.Value?.Operations == null)
+                if (path.Value?.Operations is null)
                 {
                     continue;
                 }
@@ -378,7 +378,7 @@ public static class SpecificationService
                 // Track tags
                 foreach (var operation in path.Value.Operations.Values)
                 {
-                    if (operation.Tags == null)
+                    if (operation.Tags is null)
                     {
                         continue;
                     }
@@ -465,13 +465,13 @@ public static class SpecificationService
     {
         var diagnostics = new List<DiagnosticMessage>();
 
-        if (partFile.Document == null)
+        if (partFile.Document is null)
         {
             return diagnostics;
         }
 
         // Part files should not have info section with version
-        if (partFile.Document.Info?.Version != null)
+        if (partFile.Document.Info?.Version is not null)
         {
             diagnostics.Add(DiagnosticMessage.Warning(
                 RuleIdentifiers.PartFileMissingOpenApiVersion,
@@ -506,7 +506,7 @@ public static class SpecificationService
     /// <param name="mergeResult">The merge result.</param>
     /// <returns>The merged YAML content.</returns>
     public static string GenerateMergedYaml(MergeResult mergeResult)
-        => mergeResult.Document == null
+        => mergeResult.Document is null
             ? string.Empty
             : SerializeToYaml(mergeResult.Document);
 
@@ -533,7 +533,7 @@ public static class SpecificationService
     private static MultiPartConfiguration? ExtractMultiPartConfig(
         OpenApiDocument document)
     {
-        if (document.Extensions == null ||
+        if (document.Extensions is null ||
             !document.Extensions.TryGetValue(MultiPartExtensionKey, out var extensionValue))
         {
             return null;
@@ -557,7 +557,7 @@ public static class SpecificationService
         // Create a new document with copied properties
         var clone = new OpenApiDocument
         {
-            Info = source.Info != null
+            Info = source.Info is not null
                 ? new OpenApiInfo
                 {
                     Title = source.Info.Title,
@@ -571,13 +571,13 @@ public static class SpecificationService
         };
 
         // Copy servers
-        if (source.Servers != null)
+        if (source.Servers is not null)
         {
             clone.Servers = new List<OpenApiServer>(source.Servers);
         }
 
         // Copy paths (shallow copy of the dictionary, but each path item is shared)
-        if (source.Paths != null)
+        if (source.Paths is not null)
         {
             clone.Paths = new OpenApiPaths();
             foreach (var path in source.Paths)
@@ -587,39 +587,39 @@ public static class SpecificationService
         }
 
         // Copy components
-        if (source.Components != null)
+        if (source.Components is not null)
         {
             clone.Components = new OpenApiComponents();
 
-            if (source.Components.Schemas != null)
+            if (source.Components.Schemas is not null)
             {
                 clone.Components.Schemas = new Dictionary<string, IOpenApiSchema>(
                     source.Components.Schemas,
                     StringComparer.Ordinal);
             }
 
-            if (source.Components.Parameters != null)
+            if (source.Components.Parameters is not null)
             {
                 clone.Components.Parameters = new Dictionary<string, IOpenApiParameter>(
                     source.Components.Parameters,
                     StringComparer.Ordinal);
             }
 
-            if (source.Components.SecuritySchemes != null)
+            if (source.Components.SecuritySchemes is not null)
             {
                 clone.Components.SecuritySchemes = new Dictionary<string, IOpenApiSecurityScheme>(
                     source.Components.SecuritySchemes,
                     StringComparer.Ordinal);
             }
 
-            if (source.Components.RequestBodies != null)
+            if (source.Components.RequestBodies is not null)
             {
                 clone.Components.RequestBodies = new Dictionary<string, IOpenApiRequestBody>(
                     source.Components.RequestBodies,
                     StringComparer.Ordinal);
             }
 
-            if (source.Components.Responses != null)
+            if (source.Components.Responses is not null)
             {
                 clone.Components.Responses = new Dictionary<string, IOpenApiResponse>(
                     source.Components.Responses,
@@ -628,19 +628,19 @@ public static class SpecificationService
         }
 
         // Copy tags
-        if (source.Tags != null)
+        if (source.Tags is not null)
         {
             clone.Tags = new HashSet<OpenApiTag>(source.Tags);
         }
 
         // Copy security requirements
-        if (source.Security != null)
+        if (source.Security is not null)
         {
             clone.Security = new List<OpenApiSecurityRequirement>(source.Security);
         }
 
         // Copy extensions
-        if (source.Extensions != null)
+        if (source.Extensions is not null)
         {
             clone.Extensions = new Dictionary<string, IOpenApiExtension>(
                 source.Extensions,
@@ -649,7 +649,7 @@ public static class SpecificationService
 
         // Copy metadata (non-serialized annotation bag) so the parsed OpenAPI spec
         // version stamped at parse time survives into the merged document.
-        if (source.Metadata != null)
+        if (source.Metadata is not null)
         {
             clone.Metadata = new Dictionary<string, object>(
                 source.Metadata,
@@ -666,7 +666,7 @@ public static class SpecificationService
         MultiPartConfiguration config,
         List<DiagnosticMessage> diagnostics)
     {
-        if (source.Paths == null)
+        if (source.Paths is null)
         {
             return;
         }
@@ -720,7 +720,7 @@ public static class SpecificationService
         MultiPartConfiguration config,
         List<DiagnosticMessage> diagnostics)
     {
-        if (source.Components?.Schemas == null)
+        if (source.Components?.Schemas is null)
         {
             return;
         }
@@ -774,7 +774,7 @@ public static class SpecificationService
         MultiPartConfiguration config,
         List<DiagnosticMessage> diagnostics)
     {
-        if (source.Components?.Parameters == null)
+        if (source.Components?.Parameters is null)
         {
             return;
         }
@@ -825,17 +825,17 @@ public static class SpecificationService
         OpenApiDocument target,
         OpenApiDocument source)
     {
-        if (source.Tags == null || source.Tags.Count == 0)
+        if (source.Tags is null || source.Tags.Count == 0)
         {
             return;
         }
 
-        var existingTags = target.Tags != null
+        var existingTags = target.Tags is not null
             ? new HashSet<string>(
                 target
                     .Tags
                     .Select(t => t.Name)
-                    .Where(n => n != null)
+                    .Where(n => n is not null)
                     .Cast<string>(),
                 StringComparer.OrdinalIgnoreCase)
             : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -874,16 +874,16 @@ public static class SpecificationService
         OpenApiDocument document)
     {
         var unresolvedRefs = new List<string>();
-        var validSchemaNames = document.Components?.Schemas?.Keys != null
+        var validSchemaNames = document.Components?.Schemas?.Keys is not null
             ? new HashSet<string>(document.Components.Schemas.Keys, StringComparer.Ordinal)
             : new HashSet<string>(StringComparer.Ordinal);
 
         // Check for unresolved schema references in paths
-        if (document.Paths != null)
+        if (document.Paths is not null)
         {
             foreach (var path in document.Paths)
             {
-                if (path.Value?.Operations == null)
+                if (path.Value?.Operations is null)
                 {
                     continue;
                 }
@@ -891,7 +891,7 @@ public static class SpecificationService
                 foreach (var operation in path.Value.Operations.Values)
                 {
                     // Check request body
-                    if (operation.RequestBody?.Content != null)
+                    if (operation.RequestBody?.Content is not null)
                     {
                         foreach (var content in operation.RequestBody.Content.Values)
                         {
@@ -900,11 +900,11 @@ public static class SpecificationService
                     }
 
                     // Check responses
-                    if (operation.Responses != null)
+                    if (operation.Responses is not null)
                     {
                         foreach (var response in operation.Responses.Values)
                         {
-                            if (response.Content != null)
+                            if (response.Content is not null)
                             {
                                 foreach (var content in response.Content.Values)
                                 {
@@ -929,7 +929,7 @@ public static class SpecificationService
         HashSet<string> validSchemaNames,
         List<string> unresolvedRefs)
     {
-        if (schema == null)
+        if (schema is null)
         {
             return;
         }
@@ -956,14 +956,14 @@ public static class SpecificationService
     {
         var groups = new Dictionary<string, List<(string, OpenApiOperation)>>(StringComparer.OrdinalIgnoreCase);
 
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             return groups;
         }
 
         foreach (var path in document.Paths)
         {
-            if (path.Value?.Operations == null)
+            if (path.Value?.Operations is null)
             {
                 continue;
             }
@@ -1065,7 +1065,7 @@ public static class SpecificationService
         var schemas = new HashSet<string>(StringComparer.Ordinal);
 
         // Check request body
-        if (operation.RequestBody?.Content != null)
+        if (operation.RequestBody?.Content is not null)
         {
             foreach (var content in operation.RequestBody.Content.Values)
             {
@@ -1074,11 +1074,11 @@ public static class SpecificationService
         }
 
         // Check responses
-        if (operation.Responses != null)
+        if (operation.Responses is not null)
         {
             foreach (var response in operation.Responses.Values)
             {
-                if (response.Content != null)
+                if (response.Content is not null)
                 {
                     foreach (var content in response.Content.Values)
                     {
@@ -1095,7 +1095,7 @@ public static class SpecificationService
         IOpenApiSchema? schema,
         HashSet<string> schemas)
     {
-        if (schema == null)
+        if (schema is null)
         {
             return;
         }
@@ -1109,13 +1109,13 @@ public static class SpecificationService
         if (schema is OpenApiSchema actualSchema)
         {
             // Check array items
-            if (actualSchema.Items != null)
+            if (actualSchema.Items is not null)
             {
                 AddSchemaReferences(actualSchema.Items, schemas);
             }
 
             // Check allOf/oneOf/anyOf
-            if (actualSchema.AllOf != null)
+            if (actualSchema.AllOf is not null)
             {
                 foreach (var item in actualSchema.AllOf)
                 {
@@ -1170,7 +1170,7 @@ public static class SpecificationService
         }
 
         var schemaCount = 0;
-        if (usedSchemas.Count <= 0 || document.Components?.Schemas == null)
+        if (usedSchemas.Count <= 0 || document.Components?.Schemas is null)
         {
             return (sb.ToString(), pathCount, schemaCount, 0);
         }
@@ -1293,7 +1293,7 @@ public static class SpecificationService
         IOpenApiPathItem pathItem,
         string indent)
     {
-        if (pathItem.Operations == null)
+        if (pathItem.Operations is null)
         {
             return;
         }
@@ -1345,7 +1345,7 @@ public static class SpecificationService
                     sb.AppendLine($"{indent}    required: true");
                 }
 
-                if (param.Schema != null)
+                if (param.Schema is not null)
                 {
                     sb.AppendLine($"{indent}    schema:");
                     SerializeSchema(sb, param.Schema, indent + "      ");
@@ -1353,7 +1353,7 @@ public static class SpecificationService
             }
         }
 
-        if (operation.RequestBody != null)
+        if (operation.RequestBody is not null)
         {
             sb.AppendLine($"{indent}requestBody:");
             if (operation.RequestBody.Required)
@@ -1399,7 +1399,7 @@ public static class SpecificationService
         IOpenApiSchema? schema,
         string indent)
     {
-        if (schema == null)
+        if (schema is null)
         {
             return;
         }
@@ -1415,7 +1415,7 @@ public static class SpecificationService
             return;
         }
 
-        if (actualSchema.Type != null)
+        if (actualSchema.Type is not null)
         {
             sb.AppendLine($"{indent}type: {actualSchema.Type}");
         }
@@ -1430,7 +1430,7 @@ public static class SpecificationService
             sb.AppendLine($"{indent}title: {actualSchema.Title}");
         }
 
-        if (actualSchema.Items != null)
+        if (actualSchema.Items is not null)
         {
             sb.AppendLine($"{indent}items:");
             SerializeSchema(sb, actualSchema.Items, indent + "  ");
@@ -1544,14 +1544,14 @@ public static class SpecificationService
     {
         var schemaUsage = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
 
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             return [];
         }
 
         foreach (var path in document.Paths)
         {
-            if (path.Value?.Operations == null)
+            if (path.Value?.Operations is null)
             {
                 continue;
             }

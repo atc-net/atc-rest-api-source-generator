@@ -72,7 +72,7 @@ public sealed class TaskInMemoryRepository
         await Task.Delay(1).ConfigureAwait(false);
 
         var existing = tasks.FirstOrDefault(t => t.Id == id);
-        if (existing != null)
+        if (existing is not null)
         {
             return existing;
         }

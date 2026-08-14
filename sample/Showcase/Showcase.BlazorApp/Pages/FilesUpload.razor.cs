@@ -29,13 +29,13 @@ public partial class FilesUpload
 
     private async Task OnMultipleFilesSelected()
     {
-        if (multipleFiles == null || multipleFiles.Count == 0)
+        if (multipleFiles is null || multipleFiles.Count == 0)
         {
             return;
         }
 
         // Dispose previous files if any
-        if (multipleFilesData != null)
+        if (multipleFilesData is not null)
         {
             foreach (var (stream, _, _, _) in multipleFilesData)
             {
@@ -59,7 +59,7 @@ public partial class FilesUpload
 
     private async Task UploadSingleFileAsync()
     {
-        if (singleFile == null)
+        if (singleFile is null)
         {
             return;
         }
@@ -88,7 +88,7 @@ public partial class FilesUpload
 
     private async Task UploadMultipleFilesAsync()
     {
-        if (multipleFilesData == null || multipleFilesData.Count == 0)
+        if (multipleFilesData is null || multipleFilesData.Count == 0)
         {
             return;
         }
@@ -127,7 +127,7 @@ public partial class FilesUpload
 
     private async Task UploadFileWithMetadataAsync()
     {
-        if (metadataFile == null)
+        if (metadataFile is null)
         {
             return;
         }
@@ -166,7 +166,7 @@ public partial class FilesUpload
 
     private async Task UploadBatchWithMetadataAsync()
     {
-        if (batchFiles == null || batchFiles.Count == 0)
+        if (batchFiles is null || batchFiles.Count == 0)
         {
             return;
         }

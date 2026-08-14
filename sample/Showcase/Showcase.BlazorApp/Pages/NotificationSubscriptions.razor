@@ -120,7 +120,7 @@ else
 
             var subscription = await Gateway.CreateSubscriptionAsync(request);
 
-            if (subscription != null)
+            if (subscription is not null)
             {
                 subscriptions.Add(subscription);
                 newSubscriptionName = null;

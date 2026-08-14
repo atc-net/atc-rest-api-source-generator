@@ -18,7 +18,7 @@ public static class TypeScriptApiResultExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }

@@ -23,7 +23,7 @@ internal static class GeneratorOptionsAnalyzer
 
         // Find options file
         var optionsFile = FindOptionsFile(rootDirectory);
-        if (optionsFile == null)
+        if (optionsFile is null)
         {
             result.Found = false;
             return result;

@@ -156,7 +156,7 @@ public static class OpenApiDocumentValidator
     {
         var diagnostics = new List<DiagnosticMessage>();
 
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             return diagnostics;
         }
@@ -165,7 +165,7 @@ public static class OpenApiDocumentValidator
         {
             var pathKey = pathEntry.Key;
 
-            if (pathEntry.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathEntry.Value is not IOpenApiPathItem pathItem || pathItem.Operations is null)
             {
                 continue;
             }
@@ -173,7 +173,7 @@ public static class OpenApiDocumentValidator
             foreach (var operationEntry in pathItem.Operations)
             {
                 var opValue = operationEntry.Value;
-                if (opValue == null || !string.IsNullOrEmpty(opValue.OperationId))
+                if (opValue is null || !string.IsNullOrEmpty(opValue.OperationId))
                 {
                     continue;
                 }
@@ -308,7 +308,7 @@ public static class OpenApiDocumentValidator
 
             // ATCAPI_NAM004: Parameter name must use camelCase
             // Note: Header parameters are excluded because HTTP headers traditionally use hyphenated names (e.g., X-Continuation, Content-Type)
-            if (operation.Parameters != null)
+            if (operation.Parameters is not null)
             {
                 foreach (var parameter in operation.Parameters)
                 {
@@ -335,7 +335,7 @@ public static class OpenApiDocumentValidator
             }
 
             // ATCAPI_NAM006: Tag name must use kebab-case
-            if (operation.Tags != null)
+            if (operation.Tags is not null)
             {
                 foreach (var tag in operation.Tags)
                 {
@@ -376,7 +376,7 @@ public static class OpenApiDocumentValidator
     {
         var diagnostics = new List<DiagnosticMessage>();
 
-        if (document.Components?.Schemas == null)
+        if (document.Components?.Schemas is null)
         {
             return diagnostics;
         }
@@ -408,7 +408,7 @@ public static class OpenApiDocumentValidator
             }
 
             // ATCAPI_NAM003: Property name must use camelCase
-            if (actualSchema.Properties != null)
+            if (actualSchema.Properties is not null)
             {
                 foreach (var propertyEntry in actualSchema.Properties)
                 {
@@ -464,7 +464,7 @@ public static class OpenApiDocumentValidator
     {
         var diagnostics = new List<DiagnosticMessage>();
 
-        if (document.Tags == null)
+        if (document.Tags is null)
         {
             return diagnostics;
         }
@@ -508,7 +508,7 @@ public static class OpenApiDocumentValidator
             globalAuthenticationSchemes.AddRange(ExtractAuthenticationSchemes(document.Extensions));
         }
 
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             return diagnostics;
         }
@@ -528,7 +528,7 @@ public static class OpenApiDocumentValidator
                 globalAuthenticationSchemes);
 
             // Validate operation-level security
-            if (pathItem.Operations != null)
+            if (pathItem.Operations is not null)
             {
                 foreach (var operationEntry in pathItem.Operations)
                 {
@@ -558,7 +558,7 @@ public static class OpenApiDocumentValidator
         List<string> globalAuthorizeRoles,
         List<string> globalAuthenticationSchemes)
     {
-        if (pathItem.Extensions == null || pathItem.Extensions.Count == 0)
+        if (pathItem.Extensions is null || pathItem.Extensions.Count == 0)
         {
             return;
         }
@@ -642,7 +642,7 @@ public static class OpenApiDocumentValidator
         List<string> globalAuthorizeRoles,
         List<string> globalAuthenticationSchemes)
     {
-        if (operation.Extensions == null || operation.Extensions.Count == 0)
+        if (operation.Extensions is null || operation.Extensions.Count == 0)
         {
             return;
         }
@@ -725,7 +725,7 @@ public static class OpenApiDocumentValidator
     {
         const string extensionKey = "x-authentication-required";
 
-        if (!extensions.TryGetValue(extensionKey, out var extension) || extension == null)
+        if (!extensions.TryGetValue(extensionKey, out var extension) || extension is null)
         {
             return null;
         }
@@ -733,7 +733,7 @@ public static class OpenApiDocumentValidator
         // Try to get the value using reflection on Node property (JsonNodeExtension)
         var extensionType = extension.GetType();
         var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty != null)
+        if (nodeProperty is not null)
         {
             var node = nodeProperty.GetValue(extension);
             if (node is JsonValue jsonValue && jsonValue.TryGetValue<bool>(out var boolValue))
@@ -771,7 +771,7 @@ public static class OpenApiDocumentValidator
     {
         var result = new List<string>();
 
-        if (!extensions.TryGetValue(extensionKey, out var extension) || extension == null)
+        if (!extensions.TryGetValue(extensionKey, out var extension) || extension is null)
         {
             return result;
         }
@@ -779,7 +779,7 @@ public static class OpenApiDocumentValidator
         // Try to get the value using reflection on Node property (JsonNodeExtension)
         var extensionType = extension.GetType();
         var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty == null)
+        if (nodeProperty is null)
         {
             return result;
         }
@@ -812,7 +812,7 @@ public static class OpenApiDocumentValidator
     {
         var diagnostics = new List<DiagnosticMessage>();
 
-        if (document.Components?.Schemas == null)
+        if (document.Components?.Schemas is null)
         {
             return diagnostics;
         }
@@ -971,7 +971,7 @@ public static class OpenApiDocumentValidator
                     siblingProps.Add("deprecated");
                 }
 
-                if (schemaRef.Default != null)
+                if (schemaRef.Default is not null)
                 {
                     siblingProps.Add("default");
                 }
@@ -1018,7 +1018,7 @@ public static class OpenApiDocumentValidator
                             siblingProps.Add("deprecated");
                         }
 
-                        if (propRef.Default != null)
+                        if (propRef.Default is not null)
                         {
                             siblingProps.Add("default");
                         }
@@ -1212,7 +1212,7 @@ public static class OpenApiDocumentValidator
         }
 
         // Validate properties
-        if (actualSchema.Properties != null)
+        if (actualSchema.Properties is not null)
         {
             foreach (var propertyEntry in actualSchema.Properties)
             {
@@ -1269,7 +1269,7 @@ public static class OpenApiDocumentValidator
         if (propertyType == "object")
         {
             if (!propertySchema.IsSchemaReference() &&
-                actualPropertySchema.AdditionalProperties == null)
+                actualPropertySchema.AdditionalProperties is null)
             {
                 diagnostics.Add(new DiagnosticMessage(
                     RuleIdentifiers.ImplicitObjectNotSupported,
@@ -1295,7 +1295,7 @@ public static class OpenApiDocumentValidator
         var items = actualPropertySchema.Items;
 
         // ATCAPI_SCH011: Array property missing items specification
-        if (items == null)
+        if (items is null)
         {
             diagnostics.Add(new DiagnosticMessage(
                 RuleIdentifiers.ArrayPropertyMissingItems,
@@ -1526,7 +1526,7 @@ public static class OpenApiDocumentValidator
     {
         var diagnostics = new List<DiagnosticMessage>();
 
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             return diagnostics;
         }
@@ -1558,7 +1558,7 @@ public static class OpenApiDocumentValidator
             // Get parameters from path
             var pathParametersFromRoute = GetParametersFromPath(pathKey);
 
-            if (pathItem.Operations == null)
+            if (pathItem.Operations is null)
             {
                 continue;
             }
@@ -1719,7 +1719,7 @@ public static class OpenApiDocumentValidator
         ValidateResponseStatusCodes(diagnostics, sourceFilePath, operation, operationId);
 
         // ATCAPI_OPR026: Parameter serialization not supported
-        if (operation.Parameters != null)
+        if (operation.Parameters is not null)
         {
             foreach (var parameter in operation.Parameters)
             {
@@ -1826,7 +1826,7 @@ public static class OpenApiDocumentValidator
         string httpMethod)
     {
         var responseSchema = GetSuccessResponseSchema(operation);
-        if (responseSchema == null)
+        if (responseSchema is null)
         {
             return;
         }
@@ -1891,7 +1891,7 @@ public static class OpenApiDocumentValidator
         }
 
         var hasParameters = (operation.Parameters?.Count > 0) ||
-                           (operation.RequestBody != null) ||
+                           (operation.RequestBody is not null) ||
                            (pathItem.Parameters?.Count > 0);
 
         // ATCAPI_OPR010: Has BadRequest response but no parameters
@@ -1954,7 +1954,7 @@ public static class OpenApiDocumentValidator
         }
 
         var securityConfig = operation.ExtractUnifiedSecurityConfiguration(pathItem, document);
-        var hasRolesOrPolicies = securityConfig != null &&
+        var hasRolesOrPolicies = securityConfig is not null &&
             (securityConfig.Roles.Count > 0 ||
              securityConfig.Policies.Count > 0 ||
              securityConfig.Scopes.Count > 0);
@@ -2054,7 +2054,7 @@ public static class OpenApiDocumentValidator
         }
 
         var rateLimitConfig = operation.ExtractRateLimitConfiguration(pathItem, document);
-        var hasRateLimiting = rateLimitConfig != null;
+        var hasRateLimiting = rateLimitConfig is not null;
 
         // ATCAPI_OPR025: Has 429 TooManyRequests but no rate limiting configured
         if (!hasRateLimiting)
@@ -2075,7 +2075,7 @@ public static class OpenApiDocumentValidator
         string sourceFilePath,
         OpenApiOperation operation)
     {
-        if (operation.Parameters == null)
+        if (operation.Parameters is null)
         {
             return;
         }
@@ -2113,7 +2113,7 @@ public static class OpenApiDocumentValidator
         OpenApiOperation operation,
         string operationId)
     {
-        if (operation.RequestBody?.Content == null)
+        if (operation.RequestBody?.Content is null)
         {
             return;
         }
@@ -2121,7 +2121,7 @@ public static class OpenApiDocumentValidator
         foreach (var contentEntry in operation.RequestBody.Content)
         {
             var schema = contentEntry.Value.Schema;
-            if (schema == null)
+            if (schema is null)
             {
                 continue;
             }
@@ -2155,7 +2155,7 @@ public static class OpenApiDocumentValidator
         OpenApiOperation operation,
         string operationId)
     {
-        if (operation.Responses == null)
+        if (operation.Responses is null)
         {
             return;
         }
@@ -2205,7 +2205,7 @@ public static class OpenApiDocumentValidator
     private static IOpenApiSchema? GetSuccessResponseSchema(
         OpenApiOperation operation)
     {
-        if (operation.Responses == null)
+        if (operation.Responses is null)
         {
             return null;
         }
@@ -2395,7 +2395,7 @@ public static class OpenApiDocumentValidator
         // Heuristic fallback: check direct properties if it's an object type
         if (openApiSchema.Type.HasValue &&
             openApiSchema.Type.Value.HasFlag(JsonSchemaType.Object) &&
-            openApiSchema.Properties != null)
+            openApiSchema.Properties is not null)
         {
             foreach (var prop in openApiSchema.Properties)
             {
@@ -2444,7 +2444,7 @@ public static class OpenApiDocumentValidator
 
         if (openApiSchema.Type.HasValue &&
             openApiSchema.Type.Value.HasFlag(JsonSchemaType.Object) &&
-            openApiSchema.Properties != null)
+            openApiSchema.Properties is not null)
         {
             foreach (var prop in openApiSchema.Properties)
             {
@@ -2643,7 +2643,7 @@ public static class OpenApiDocumentValidator
             }
 
             // ATC_API_WBH002: Missing request body
-            if (operation.RequestBody == null || operation.RequestBody.Content == null || operation.RequestBody.Content.Count == 0)
+            if (operation.RequestBody is null || operation.RequestBody.Content is null || operation.RequestBody.Content.Count == 0)
             {
                 diagnostics.Add(new DiagnosticMessage(
                     RuleIdentifiers.WebhookMissingRequestBody,
@@ -2675,7 +2675,7 @@ public static class OpenApiDocumentValidator
     {
         var diagnostics = new List<DiagnosticMessage>();
 
-        if (document.Components?.Schemas == null)
+        if (document.Components?.Schemas is null)
         {
             return diagnostics;
         }
@@ -2722,7 +2722,7 @@ public static class OpenApiDocumentValidator
         string sourceFilePath,
         OpenApiDocument document)
     {
-        if (document.Components?.MediaTypes == null)
+        if (document.Components?.MediaTypes is null)
         {
             return;
         }
@@ -2730,7 +2730,7 @@ public static class OpenApiDocumentValidator
         foreach (var mediaType in document.Components.MediaTypes)
         {
             var schema = mediaType.Value?.Schema;
-            if (schema == null)
+            if (schema is null)
             {
                 continue;
             }
@@ -2791,7 +2791,7 @@ public static class OpenApiDocumentValidator
         string sourceFilePath,
         OpenApiDocument document)
     {
-        if (document.Components?.Schemas == null)
+        if (document.Components?.Schemas is null)
         {
             return;
         }
@@ -2843,7 +2843,7 @@ public static class OpenApiDocumentValidator
         string sourceFilePath,
         OpenApiDocument document)
     {
-        if (document.Components?.SecuritySchemes == null)
+        if (document.Components?.SecuritySchemes is null)
         {
             return;
         }
@@ -2900,14 +2900,14 @@ public static class OpenApiDocumentValidator
 
         Collect(document.Extensions.ExtractRateLimitPolicy());
 
-        if (document.Paths != null)
+        if (document.Paths is not null)
         {
             foreach (var pathEntry in document.Paths)
             {
                 var pathItem = pathEntry.Value;
                 Collect(pathItem.Extensions.ExtractRateLimitPolicy());
 
-                if (pathItem.Operations == null)
+                if (pathItem.Operations is null)
                 {
                     continue;
                 }
@@ -2953,7 +2953,7 @@ public static class OpenApiDocumentValidator
         ValidateRateLimitSite(diagnostics, sourceFilePath, document.Extensions, "document", documentAlgorithm);
         ValidateRateLimitEnabledPlacement(diagnostics, sourceFilePath, document.Extensions, "document", documentPolicy);
 
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             return;
         }
@@ -2968,7 +2968,7 @@ public static class OpenApiDocumentValidator
             ValidateRateLimitSite(diagnostics, sourceFilePath, pathItem.Extensions, pathLocation, pathAlgorithm);
             ValidateRateLimitEnabledPlacement(diagnostics, sourceFilePath, pathItem.Extensions, pathLocation, pathPolicy);
 
-            if (pathItem.Operations == null)
+            if (pathItem.Operations is null)
             {
                 continue;
             }
@@ -2976,7 +2976,7 @@ public static class OpenApiDocumentValidator
             foreach (var operationEntry in pathItem.Operations)
             {
                 var operation = operationEntry.Value;
-                if (operation == null)
+                if (operation is null)
                 {
                     continue;
                 }
@@ -3000,7 +3000,7 @@ public static class OpenApiDocumentValidator
         string location,
         string? effectiveAlgorithm)
     {
-        if (extensions == null)
+        if (extensions is null)
         {
             return;
         }
@@ -3131,7 +3131,7 @@ public static class OpenApiDocumentValidator
                 _ => null,
             };
 
-            if (algorithmName == null)
+            if (algorithmName is null)
             {
                 continue;
             }
@@ -3172,7 +3172,7 @@ public static class OpenApiDocumentValidator
         var documentPolicy = document.Extensions.ExtractRateLimitPolicy();
         AddRateLimitDeclarationSite(sitesByPolicy, documentPolicy, "document", document.Extensions);
 
-        if (document.Paths != null)
+        if (document.Paths is not null)
         {
             foreach (var pathEntry in document.Paths)
             {
@@ -3181,7 +3181,7 @@ public static class OpenApiDocumentValidator
 
                 AddRateLimitDeclarationSite(sitesByPolicy, pathPolicy, $"path '{pathEntry.Key}'", pathItem.Extensions);
 
-                if (pathItem.Operations == null)
+                if (pathItem.Operations is null)
                 {
                     continue;
                 }
@@ -3189,7 +3189,7 @@ public static class OpenApiDocumentValidator
                 foreach (var operationEntry in pathItem.Operations)
                 {
                     var operation = operationEntry.Value;
-                    if (operation == null || operation.Extensions.ExtractRateLimitEnabled() == false)
+                    if (operation is null || operation.Extensions.ExtractRateLimitEnabled() == false)
                     {
                         continue;
                     }
@@ -3279,7 +3279,7 @@ public static class OpenApiDocumentValidator
         IDictionary<string, IOpenApiExtension>? extensions)
     {
         var declared = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (extensions == null)
+        if (extensions is null)
         {
             return declared;
         }
@@ -3356,7 +3356,7 @@ public static class OpenApiDocumentValidator
         // whether a document-level claim is actually reachable.
         var anyOperationUsesUserPartition = false;
 
-        if (document.Paths != null)
+        if (document.Paths is not null)
         {
             foreach (var pathEntry in document.Paths)
             {
@@ -3369,12 +3369,12 @@ public static class OpenApiDocumentValidator
 
                 var anyOperationInPathUsesUserPartition = false;
 
-                if (pathItem.Operations != null)
+                if (pathItem.Operations is not null)
                 {
                     foreach (var operationEntry in pathItem.Operations)
                     {
                         var operation = operationEntry.Value;
-                        if (operation == null)
+                        if (operation is null)
                         {
                             continue;
                         }
@@ -3473,7 +3473,7 @@ public static class OpenApiDocumentValidator
         string sourceFilePath,
         OpenApiDocument document)
     {
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             return;
         }
@@ -3481,7 +3481,7 @@ public static class OpenApiDocumentValidator
         foreach (var pathEntry in document.Paths)
         {
             var pathItem = pathEntry.Value;
-            if (pathItem.Operations == null)
+            if (pathItem.Operations is null)
             {
                 continue;
             }
@@ -3489,14 +3489,14 @@ public static class OpenApiDocumentValidator
             foreach (var operationEntry in pathItem.Operations)
             {
                 var operation = operationEntry.Value;
-                if (operation.Responses == null)
+                if (operation.Responses is null)
                 {
                     continue;
                 }
 
                 foreach (var response in operation.Responses.Values)
                 {
-                    if (response.Content == null)
+                    if (response.Content is null)
                     {
                         continue;
                     }
@@ -3532,7 +3532,7 @@ public static class OpenApiDocumentValidator
     {
         var diagnostics = new List<DiagnosticMessage>();
 
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             return diagnostics;
         }
@@ -3543,7 +3543,7 @@ public static class OpenApiDocumentValidator
             var pathKey = pathEntry.Key;
             var pathItem = pathEntry.Value;
 
-            if (pathItem.Operations == null)
+            if (pathItem.Operations is null)
             {
                 continue;
             }
@@ -3558,14 +3558,14 @@ public static class OpenApiDocumentValidator
                 var operation = operationEntry.Value;
 
                 // Check response schemas
-                if (operation.Responses != null)
+                if (operation.Responses is not null)
                 {
                     foreach (var responseEntry in operation.Responses)
                     {
                         var statusCode = responseEntry.Key;
                         var response = responseEntry.Value;
 
-                        if (response.Content == null)
+                        if (response.Content is null)
                         {
                             continue;
                         }
@@ -3585,7 +3585,7 @@ public static class OpenApiDocumentValidator
                 }
 
                 // Check request body schemas
-                if (operation.RequestBody?.Content != null)
+                if (operation.RequestBody?.Content is not null)
                 {
                     foreach (var contentEntry in operation.RequestBody.Content)
                     {
@@ -3601,7 +3601,7 @@ public static class OpenApiDocumentValidator
                 }
 
                 // Check parameter schemas
-                if (operation.Parameters != null)
+                if (operation.Parameters is not null)
                 {
                     foreach (var parameter in operation.Parameters)
                     {
@@ -3616,7 +3616,7 @@ public static class OpenApiDocumentValidator
         }
 
         // Check component schema properties for invalid references
-        if (document.Components?.Schemas != null)
+        if (document.Components?.Schemas is not null)
         {
             foreach (var schemaEntry in document.Components.Schemas)
             {
@@ -3643,7 +3643,7 @@ public static class OpenApiDocumentValidator
         string sourceFilePath,
         string path)
     {
-        if (schema == null)
+        if (schema is null)
         {
             return;
         }
@@ -3680,7 +3680,7 @@ public static class OpenApiDocumentValidator
             ? schemaRef.Target
             : schema as OpenApiSchema;
 
-        if (actualSchema?.Properties == null)
+        if (actualSchema?.Properties is null)
         {
             return;
         }

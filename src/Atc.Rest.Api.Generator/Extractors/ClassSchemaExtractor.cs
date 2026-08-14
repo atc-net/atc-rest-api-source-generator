@@ -56,7 +56,7 @@ public static class ClassSchemaExtractor
         TypeConflictRegistry? registry = null,
         bool includeDeprecated = false)
     {
-        if (openApiDoc.Components?.Schemas == null || openApiDoc.Components.Schemas.Count == 0)
+        if (openApiDoc.Components?.Schemas is null || openApiDoc.Components.Schemas.Count == 0)
         {
             return null;
         }
@@ -69,7 +69,7 @@ public static class ClassSchemaExtractor
             var schemaValue = schema.Value;
 
             // Apply schema filter if provided
-            if (schemaFilter != null && !schemaFilter.Contains(schemaName))
+            if (schemaFilter is not null && !schemaFilter.Contains(schemaName))
             {
                 continue;
             }
@@ -109,7 +109,7 @@ public static class ClassSchemaExtractor
                 if (actualSchema.Type == JsonSchemaType.Object)
                 {
                     var classParams = ExtractClassFromSchema(schemaName, actualSchema, registry);
-                    if (classParams != null)
+                    if (classParams is not null)
                     {
                         classParametersList.Add(classParams);
                     }
@@ -230,7 +230,7 @@ public static class ClassSchemaExtractor
         }
 
         var defaultValue = schema.Default;
-        if (defaultValue == null)
+        if (defaultValue is null)
         {
             return null;
         }

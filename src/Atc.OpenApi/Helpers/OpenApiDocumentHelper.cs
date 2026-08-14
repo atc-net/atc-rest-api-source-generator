@@ -33,7 +33,7 @@ public static class OpenApiDocumentHelper
     public static OpenApiDocument ParseYaml(
         string yamlContent)
     {
-        if (yamlContent == null)
+        if (yamlContent is null)
         {
             throw new ArgumentNullException(nameof(yamlContent));
         }
@@ -55,12 +55,12 @@ public static class OpenApiDocumentHelper
         string yamlPath,
         out OpenApiDocument? openApiDocument)
     {
-        if (yamlContent == null)
+        if (yamlContent is null)
         {
             throw new ArgumentNullException(nameof(yamlContent));
         }
 
-        if (yamlPath == null)
+        if (yamlPath is null)
         {
             throw new ArgumentNullException(nameof(yamlPath));
         }
@@ -69,7 +69,7 @@ public static class OpenApiDocumentHelper
         {
             var (document, _) = TryParseYamlWithDiagnostic(yamlContent, yamlPath);
             openApiDocument = document;
-            return openApiDocument != null;
+            return openApiDocument is not null;
         }
         catch (Exception)
         {
@@ -89,12 +89,12 @@ public static class OpenApiDocumentHelper
         string yamlContent,
         string yamlPath)
     {
-        if (yamlContent == null)
+        if (yamlContent is null)
         {
             throw new ArgumentNullException(nameof(yamlContent));
         }
 
-        if (yamlPath == null)
+        if (yamlPath is null)
         {
             throw new ArgumentNullException(nameof(yamlPath));
         }

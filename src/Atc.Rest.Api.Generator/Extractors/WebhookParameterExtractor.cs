@@ -20,7 +20,7 @@ public static class WebhookParameterExtractor
         SystemTypeConflictResolver systemTypeResolver,
         bool includeDeprecated = false)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
@@ -42,7 +42,7 @@ public static class WebhookParameterExtractor
             }
 
             // Only create parameter class if webhook has a request body
-            if (operation.RequestBody == null)
+            if (operation.RequestBody is null)
             {
                 continue;
             }
@@ -55,7 +55,7 @@ public static class WebhookParameterExtractor
                 namespaceValue,
                 systemTypeResolver);
 
-            if (result != null)
+            if (result is not null)
             {
                 parametersList.Add(result.Value);
             }
@@ -72,7 +72,7 @@ public static class WebhookParameterExtractor
         string namespaceValue,
         SystemTypeConflictResolver systemTypeResolver)
     {
-        if (operation.RequestBody?.Content == null || operation.RequestBody.Content.Count == 0)
+        if (operation.RequestBody?.Content is null || operation.RequestBody.Content.Count == 0)
         {
             return null;
         }
@@ -83,7 +83,7 @@ public static class WebhookParameterExtractor
 
         // Get the schema from the request body content
         var contentType = operation.RequestBody.Content.Keys.FirstOrDefault() ?? "application/json";
-        if (!operation.RequestBody.Content.TryGetValue(contentType, out var mediaType) || mediaType?.Schema == null)
+        if (!operation.RequestBody.Content.TryGetValue(contentType, out var mediaType) || mediaType?.Schema is null)
         {
             return null;
         }
@@ -91,7 +91,7 @@ public static class WebhookParameterExtractor
         var schema = mediaType.Schema;
         var resolvedSchema = schema.ResolveSchema(openApiDoc);
 
-        if (resolvedSchema == null)
+        if (resolvedSchema is null)
         {
             return null;
         }

@@ -208,7 +208,7 @@ internal static class GlobalUsingsModifier
         try
         {
             var openApiDoc = ParseOpenApiDocument(specFilePath);
-            if (openApiDoc == null)
+            if (openApiDoc is null)
             {
                 result.Error = "Failed to parse OpenAPI specification";
                 return result;
@@ -369,12 +369,12 @@ internal static class GlobalUsingsModifier
             }
 
             // Merge with required namespaces
-            var allNamespaces = requiredNamespaces != null
+            var allNamespaces = requiredNamespaces is not null
                 ? filteredNamespaces.Union(requiredNamespaces, StringComparer.Ordinal).ToList()
                 : filteredNamespaces;
 
             // Track added namespaces
-            if (requiredNamespaces != null)
+            if (requiredNamespaces is not null)
             {
                 foreach (var ns in requiredNamespaces)
                 {

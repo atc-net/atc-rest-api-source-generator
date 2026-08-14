@@ -102,7 +102,7 @@ public static class PathSegmentHelper
     /// <returns>A list of unique path segments in PascalCase.</returns>
     public static List<string> GetUniquePathSegments(OpenApiDocument openApiDoc)
     {
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return [];
         }
@@ -132,7 +132,7 @@ public static class PathSegmentHelper
     {
         var operations = new List<(string Path, string Method, OpenApiOperation Operation)>();
 
-        if (openApiDoc.Paths == null)
+        if (openApiDoc.Paths is null)
         {
             return operations;
         }
@@ -147,7 +147,7 @@ public static class PathSegmentHelper
                 continue;
             }
 
-            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            if (path.Value is not IOpenApiPathItem pathItem || pathItem.Operations is null)
             {
                 continue;
             }
@@ -195,7 +195,7 @@ public static class PathSegmentHelper
         foreach (var (_, _, operation) in operations)
         {
             // Collect schemas from parameters
-            if (operation.Parameters != null)
+            if (operation.Parameters is not null)
             {
                 foreach (var parameter in operation.Parameters)
                 {
@@ -204,7 +204,7 @@ public static class PathSegmentHelper
             }
 
             // Collect schemas from request body (Schema and OpenAPI 3.2 ItemSchema)
-            if (operation.RequestBody?.Content != null)
+            if (operation.RequestBody?.Content is not null)
             {
                 foreach (var content in operation.RequestBody.Content)
                 {
@@ -214,7 +214,7 @@ public static class PathSegmentHelper
             }
 
             // Collect schemas from responses (Schema and OpenAPI 3.2 ItemSchema)
-            if (operation.Responses != null)
+            if (operation.Responses is not null)
             {
                 foreach (var response in operation.Responses)
                 {
@@ -231,7 +231,7 @@ public static class PathSegmentHelper
         }
 
         // Recursively add schemas referenced by collected schemas
-        if (openApiDoc.Components?.Schemas != null)
+        if (openApiDoc.Components?.Schemas is not null)
         {
             var processedSchemas = new HashSet<string>(StringComparer.Ordinal);
             var schemasToProcess = new Queue<string>(schemaNames);
@@ -351,11 +351,11 @@ public static class PathSegmentHelper
         foreach (var (_, _, operation) in openApiDoc.GetAllWebhookOperations())
         {
             // Collect schemas from request body
-            if (operation.RequestBody?.Content != null)
+            if (operation.RequestBody?.Content is not null)
             {
                 foreach (var content in operation.RequestBody.Content.Values)
                 {
-                    if (content?.Schema != null)
+                    if (content?.Schema is not null)
                     {
                         CollectSchemaNames(content.Schema, schemas);
                     }
@@ -363,15 +363,15 @@ public static class PathSegmentHelper
             }
 
             // Collect schemas from responses
-            if (operation.Responses != null)
+            if (operation.Responses is not null)
             {
                 foreach (var response in operation.Responses.Values)
                 {
-                    if (response?.Content != null)
+                    if (response?.Content is not null)
                     {
                         foreach (var content in response.Content.Values)
                         {
-                            if (content?.Schema != null)
+                            if (content?.Schema is not null)
                             {
                                 CollectSchemaNames(content.Schema, schemas);
                             }
@@ -456,11 +456,11 @@ public static class PathSegmentHelper
         var schemaNames = new HashSet<string>(StringComparer.Ordinal);
 
         // Collect schemas from request body
-        if (webhookOperation.RequestBody?.Content != null)
+        if (webhookOperation.RequestBody?.Content is not null)
         {
             foreach (var content in webhookOperation.RequestBody.Content.Values)
             {
-                if (content?.Schema != null)
+                if (content?.Schema is not null)
                 {
                     CollectSchemaNames(content.Schema, schemaNames);
                 }
@@ -468,15 +468,15 @@ public static class PathSegmentHelper
         }
 
         // Collect schemas from responses
-        if (webhookOperation.Responses != null)
+        if (webhookOperation.Responses is not null)
         {
             foreach (var response in webhookOperation.Responses.Values)
             {
-                if (response?.Content != null)
+                if (response?.Content is not null)
                 {
                     foreach (var content in response.Content.Values)
                     {
-                        if (content?.Schema != null)
+                        if (content?.Schema is not null)
                         {
                             CollectSchemaNames(content.Schema, schemaNames);
                         }
@@ -528,7 +528,7 @@ public static class PathSegmentHelper
         HashSet<string> schemaNames,
         HashSet<object> visited)
     {
-        if (schema == null)
+        if (schema is null)
         {
             return;
         }
@@ -553,13 +553,13 @@ public static class PathSegmentHelper
         if (schema is OpenApiSchema actualSchema)
         {
             // Handle array items (use HasFlag since JsonSchemaType is a flags enum in OpenAPI 3.1.x)
-            if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true && actualSchema.Items != null)
+            if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true && actualSchema.Items is not null)
             {
                 CollectSchemaNames(actualSchema.Items, schemaNames, visited);
             }
 
             // Handle object properties
-            if (actualSchema.Properties != null)
+            if (actualSchema.Properties is not null)
             {
                 foreach (var property in actualSchema.Properties)
                 {
@@ -568,13 +568,13 @@ public static class PathSegmentHelper
             }
 
             // Handle additionalProperties
-            if (actualSchema.AdditionalProperties != null)
+            if (actualSchema.AdditionalProperties is not null)
             {
                 CollectSchemaNames(actualSchema.AdditionalProperties, schemaNames, visited);
             }
 
             // Handle allOf
-            if (actualSchema.AllOf != null)
+            if (actualSchema.AllOf is not null)
             {
                 foreach (var allOfSchema in actualSchema.AllOf)
                 {
@@ -583,7 +583,7 @@ public static class PathSegmentHelper
             }
 
             // Handle oneOf
-            if (actualSchema.OneOf != null)
+            if (actualSchema.OneOf is not null)
             {
                 foreach (var oneOfSchema in actualSchema.OneOf)
                 {
@@ -592,7 +592,7 @@ public static class PathSegmentHelper
             }
 
             // Handle anyOf
-            if (actualSchema.AnyOf != null)
+            if (actualSchema.AnyOf is not null)
             {
                 foreach (var anyOfSchema in actualSchema.AnyOf)
                 {
@@ -612,7 +612,7 @@ public static class PathSegmentHelper
         OpenApiDocument openApiDoc,
         string pathSegment)
     {
-        if (openApiDoc.Paths == null)
+        if (openApiDoc.Paths is null)
         {
             return false;
         }
@@ -643,7 +643,7 @@ public static class PathSegmentHelper
         OpenApiDocument openApiDoc,
         string pathSegment)
     {
-        if (openApiDoc.Paths == null)
+        if (openApiDoc.Paths is null)
         {
             return false;
         }
@@ -667,11 +667,11 @@ public static class PathSegmentHelper
             }
 
             // Check each operation
-            if (pathItem.Operations != null)
+            if (pathItem.Operations is not null)
             {
                 foreach (var operation in pathItem.Operations)
                 {
-                    if (operation.Value == null)
+                    if (operation.Value is null)
                     {
                         continue;
                     }

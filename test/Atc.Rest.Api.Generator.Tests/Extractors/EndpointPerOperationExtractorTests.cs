@@ -914,7 +914,7 @@ public class EndpointPerOperationExtractorTests
 
         // Should NOT have null check for required parameter
         Assert.DoesNotContain(
-            "if (parameters.CorrelationId != null)",
+            "if (parameters.CorrelationId is not null)",
             operationFile.EndpointClassContent,
             StringComparison.Ordinal);
     }
@@ -967,7 +967,7 @@ public class EndpointPerOperationExtractorTests
 
         // Optional header should have null check
         Assert.Contains(
-            "if (parameters.Continuation != null)",
+            "if (parameters.Continuation is not null)",
             operationFile.EndpointClassContent,
             StringComparison.Ordinal);
 
@@ -1155,7 +1155,7 @@ public class EndpointPerOperationExtractorTests
 
         // Query parameter with null check (optional)
         Assert.Contains(
-            "if (parameters.Limit != null)",
+            "if (parameters.Limit is not null)",
             operationFile.EndpointClassContent,
             StringComparison.Ordinal);
         Assert.Contains(
@@ -1171,7 +1171,7 @@ public class EndpointPerOperationExtractorTests
 
         // Optional header parameter (with null check)
         Assert.Contains(
-            "if (parameters.RequestId != null)",
+            "if (parameters.RequestId is not null)",
             operationFile.EndpointClassContent,
             StringComparison.Ordinal);
         Assert.Contains(

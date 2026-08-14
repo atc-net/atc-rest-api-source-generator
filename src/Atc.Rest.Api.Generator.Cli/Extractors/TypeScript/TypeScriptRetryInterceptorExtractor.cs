@@ -16,7 +16,7 @@ public static class TypeScriptRetryInterceptorExtractor
     {
         var sb = new StringBuilder();
 
-        if (headerContent != null)
+        if (headerContent is not null)
         {
             sb.Append(headerContent);
         }

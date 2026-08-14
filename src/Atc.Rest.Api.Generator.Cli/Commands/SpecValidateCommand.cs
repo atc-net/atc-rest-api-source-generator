@@ -76,11 +76,11 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
 
         var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, specPath);
 
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             AnsiConsole.MarkupLine("[red]✗[/] Failed to parse OpenAPI specification");
 
-            if (openApiDiagnostic?.Errors != null)
+            if (openApiDiagnostic?.Errors is not null)
             {
                 foreach (var error in openApiDiagnostic.Errors)
                 {
@@ -131,7 +131,7 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
         var baseFile = filesToValidate[0];
         var baseSpec = SpecificationService.ReadFromFile(baseFile);
 
-        if (baseSpec.Document == null)
+        if (baseSpec.Document is null)
         {
             AnsiConsole.MarkupLine($"[red]✗[/] Failed to parse base specification: {Path.GetFileName(baseFile)}");
             return 1;
@@ -154,7 +154,7 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
         foreach (var partFile in filesToValidate.Skip(1))
         {
             var spec = SpecificationService.ReadFromFile(partFile);
-            if (spec.Document == null)
+            if (spec.Document is null)
             {
                 AnsiConsole.MarkupLine($"[yellow]Warning:[/] Failed to parse part file: {Path.GetFileName(partFile)}");
                 continue;
@@ -189,7 +189,7 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
             return 1;
         }
 
-        if (!mergeResult.IsSuccess || mergeResult.Document == null)
+        if (!mergeResult.IsSuccess || mergeResult.Document is null)
         {
             AnsiConsole.MarkupLine("[red]✗ Merge failed - cannot validate.[/]");
             return 1;

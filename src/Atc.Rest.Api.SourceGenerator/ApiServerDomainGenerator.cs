@@ -98,7 +98,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
             // Identify base file and part files for multi-part spec support
             var baseFile = YamlFileHelper.IdentifyBaseFile(yamlFiles.Values);
-            if (baseFile == null)
+            if (baseFile is null)
             {
                 return;
             }
@@ -126,7 +126,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                         productionContext.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
                     }
 
-                    if (!mergeResult.IsSuccess || mergeResult.Document == null)
+                    if (!mergeResult.IsSuccess || mergeResult.Document is null)
                     {
                         return;
                     }
@@ -200,7 +200,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // Parse the OpenAPI YAML content
         var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
 
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             DiagnosticHelpers.ReportDomainParsingError(context, yamlPath);
             return;
@@ -441,7 +441,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             config.HandlerSuffix,
             handlerInterfaceNamespaces);
 
-        if (classParameters == null)
+        if (classParameters is null)
         {
             return;
         }
@@ -479,7 +479,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             assemblyName,
             validators);
 
-        if (classParameters == null)
+        if (classParameters is null)
         {
             return;
         }
@@ -563,7 +563,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             {
                 // Verify it's a user-defined class (has source location in the current project)
                 var syntaxRef = typeSymbol.DeclaringSyntaxReferences.FirstOrDefault();
-                if (syntaxRef != null)
+                if (syntaxRef is not null)
                 {
                     var filePath = syntaxRef.SyntaxTree.FilePath;
 
@@ -598,7 +598,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         {
             // Walk up the inheritance hierarchy to find AbstractValidator<T>
             var baseType = typeSymbol.BaseType;
-            while (baseType != null)
+            while (baseType is not null)
             {
                 // Check if this is AbstractValidator<T> from FluentValidation
                 if (baseType.Name == "AbstractValidator" &&
@@ -854,7 +854,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         // Check for path-level parameters
         var hasPathParams = false;
-        if (openApiDoc.Paths != null &&
+        if (openApiDoc.Paths is not null &&
             openApiDoc.Paths.TryGetValue(path, out var pathItemInterface) &&
             pathItemInterface is { } pathItem)
         {

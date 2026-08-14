@@ -32,12 +32,12 @@ public static class ServerDependencyInjectionExtractor
         List<string>? pathSegments,
         bool includeDeprecated = false)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return null;
         }
@@ -47,7 +47,7 @@ public static class ServerDependencyInjectionExtractor
         foreach (var path in openApiDoc.Paths)
         {
             var pathItemInterface = path.Value;
-            if (pathItemInterface is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathItemInterface is not IOpenApiPathItem pathItem || pathItem.Operations is null)
             {
                 continue;
             }
@@ -55,7 +55,7 @@ public static class ServerDependencyInjectionExtractor
             foreach (var operation in pathItem.Operations)
             {
                 var operationValue = operation.Value;
-                if (operationValue == null)
+                if (operationValue is null)
                 {
                     continue;
                 }

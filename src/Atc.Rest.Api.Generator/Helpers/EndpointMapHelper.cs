@@ -32,7 +32,7 @@ public static class EndpointMapHelper
     /// <param name="httpMethod">The HTTP method (case-insensitive).</param>
     /// <returns><see langword="true"/> for standard verbs; otherwise <see langword="false"/>.</returns>
     public static bool IsStandardMappableMethod(string httpMethod)
-        => httpMethod != null && StandardMappableMethods.Contains(httpMethod);
+        => httpMethod is not null && StandardMappableMethods.Contains(httpMethod);
 
     /// <summary>
     /// Builds the minimal-API route registration call for a single-line endpoint

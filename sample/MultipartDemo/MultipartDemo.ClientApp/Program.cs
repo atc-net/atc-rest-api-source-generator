@@ -45,7 +45,7 @@ try
             CancellationToken.None)
         .ConfigureAwait(false);
 
-    if (createdAccount != null)
+    if (createdAccount is not null)
     {
         Console.WriteLine($"   Created account successfully:");
         Console.WriteLine($"   - ID: {createdAccount.Id}");
@@ -67,7 +67,7 @@ try
             CancellationToken.None)
         .ConfigureAwait(false);
 
-    if (retrievedAccount != null)
+    if (retrievedAccount is not null)
     {
         Console.WriteLine($"   Retrieved account:");
         Console.WriteLine($"   - ID: {retrievedAccount.Id}");
@@ -94,7 +94,7 @@ try
             CancellationToken.None)
         .ConfigureAwait(false);
 
-    if (updatedAccount != null)
+    if (updatedAccount is not null)
     {
         Console.WriteLine($"   Updated account successfully:");
         Console.WriteLine($"   - ID: {updatedAccount.Id}");
@@ -116,7 +116,7 @@ try
             CancellationToken.None)
         .ConfigureAwait(false);
 
-    if (accounts != null)
+    if (accounts is not null)
     {
         Console.WriteLine($"   Found {accounts.Count} accounts:");
         foreach (var account in accounts.Take(5))
@@ -154,7 +154,7 @@ try
                 CancellationToken.None)
             .ConfigureAwait(false);
 
-        if (shouldBeNull != null)
+        if (shouldBeNull is not null)
         {
             Console.WriteLine("   Warning: Account still exists after delete!");
         }

@@ -17,7 +17,7 @@ public static class HybridCacheDependencyInjectionExtractor
         string projectName,
         bool includeDeprecated = false)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
@@ -198,7 +198,7 @@ public static class HybridCacheDependencyInjectionExtractor
         builder.AppendLine();
         builder.AppendLine(8, "// Add vary-by-query parameters");
         builder.AppendLine(8, "var varyByQuery = GetVaryByQuery(policyName);");
-        builder.AppendLine(8, "if (varyByQuery.Length > 0 && queryParams != null)");
+        builder.AppendLine(8, "if (varyByQuery.Length > 0 && queryParams is not null)");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "foreach (var param in varyByQuery.OrderBy(p => p, StringComparer.Ordinal))");
         builder.AppendLine(12, "{");
@@ -214,7 +214,7 @@ public static class HybridCacheDependencyInjectionExtractor
         builder.AppendLine();
         builder.AppendLine(8, "// Add vary-by-header values");
         builder.AppendLine(8, "var varyByHeader = GetVaryByHeader(policyName);");
-        builder.AppendLine(8, "if (varyByHeader.Length > 0 && headers != null)");
+        builder.AppendLine(8, "if (varyByHeader.Length > 0 && headers is not null)");
         builder.AppendLine(8, "{");
         builder.AppendLine(12, "foreach (var header in varyByHeader.OrderBy(h => h, StringComparer.Ordinal))");
         builder.AppendLine(12, "{");

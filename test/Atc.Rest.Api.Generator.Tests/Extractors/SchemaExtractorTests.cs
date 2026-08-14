@@ -516,7 +516,7 @@ public class SchemaExtractorTests
         Assert.False(emailParam.IsNullableType, "Non-writeOnly required property should remain required");
     }
 
-    // ========== Nullable Property Tests ==========
+    // ========is nullable Property Tests ==========
     [Fact]
     public void ExtractForSchemas_WithNullableProperty_SetsNullableFlag()
     {
@@ -574,7 +574,7 @@ public class SchemaExtractorTests
         string? format,
         string expectedCSharpType)
     {
-        var formatLine = format != null ? $"\n          format: {format}" : string.Empty;
+        var formatLine = format is not null ? $"\n          format: {format}" : string.Empty;
         var yaml = "openapi: 3.0.0\n" +
                    "info:\n  title: Test\n  version: 1.0.0\n" +
                    "paths: {}\n" +

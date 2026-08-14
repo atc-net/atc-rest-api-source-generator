@@ -72,12 +72,12 @@ public static class OpenApiParameterExtensions
         /// <returns>A C# type string representation.</returns>
         public string ToCSharpType()
         {
-            if (parameter == null)
+            if (parameter is null)
             {
                 throw new ArgumentNullException(nameof(parameter));
             }
 
-            if (parameter.Schema == null)
+            if (parameter.Schema is null)
             {
                 return "string";
             }
@@ -92,7 +92,7 @@ public static class OpenApiParameterExtensions
         /// <returns>The attribute name (FromQuery, FromRoute, FromHeader), or null for Cookie.</returns>
         public string? GetBindingAttributeName()
         {
-            if (parameter == null)
+            if (parameter is null)
             {
                 throw new ArgumentNullException(nameof(parameter));
             }
@@ -113,12 +113,12 @@ public static class OpenApiParameterExtensions
         /// <returns>True if the parameter is a value type.</returns>
         public bool IsValueType()
         {
-            if (parameter == null)
+            if (parameter is null)
             {
                 throw new ArgumentNullException(nameof(parameter));
             }
 
-            if (parameter.Schema is not OpenApiSchema schema || schema.Type == null)
+            if (parameter.Schema is not OpenApiSchema schema || schema.Type is null)
             {
                 return false;
             }
@@ -176,7 +176,7 @@ public static class OpenApiParameterExtensions
         /// <returns>The default value string or null.</returns>
         public string? GetDefaultValue()
         {
-            if (parameter == null)
+            if (parameter is null)
             {
                 throw new ArgumentNullException(nameof(parameter));
             }
@@ -191,7 +191,7 @@ public static class OpenApiParameterExtensions
 
             // Check if schema has a default value
             var schemaDefault = ExtractSchemaDefault(parameter.Schema, csharpType);
-            if (schemaDefault != null)
+            if (schemaDefault is not null)
             {
                 return schemaDefault;
             }
@@ -224,7 +224,7 @@ public static class OpenApiParameterExtensions
             }
 
             var defaultValue = schema.Default;
-            if (defaultValue == null)
+            if (defaultValue is null)
             {
                 return null;
             }

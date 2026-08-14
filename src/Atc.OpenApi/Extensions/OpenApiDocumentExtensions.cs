@@ -88,14 +88,14 @@ public static class OpenApiDocumentExtensions
     private static IEnumerable<(string Path, string Method, OpenApiOperation Operation)> GetAllOperationsIterator(
         OpenApiDocument document)
     {
-        if (document.Paths == null)
+        if (document.Paths is null)
         {
             yield break;
         }
 
         foreach (var path in document.Paths)
         {
-            if (path.Value?.Operations == null)
+            if (path.Value?.Operations is null)
             {
                 continue;
             }
@@ -113,14 +113,14 @@ public static class OpenApiDocumentExtensions
     private static IEnumerable<(string Name, IOpenApiPathItem PathItem)> GetAllWebhooksIterator(
         OpenApiDocument document)
     {
-        if (document.Webhooks == null)
+        if (document.Webhooks is null)
         {
             yield break;
         }
 
         foreach (var webhook in document.Webhooks)
         {
-            if (webhook.Value != null)
+            if (webhook.Value is not null)
             {
                 yield return (webhook.Key, webhook.Value);
             }
@@ -130,14 +130,14 @@ public static class OpenApiDocumentExtensions
     private static IEnumerable<(string WebhookName, string Method, OpenApiOperation Operation)> GetAllWebhookOperationsIterator(
         OpenApiDocument document)
     {
-        if (document.Webhooks == null)
+        if (document.Webhooks is null)
         {
             yield break;
         }
 
         foreach (var webhook in document.Webhooks)
         {
-            if (webhook.Value?.Operations == null)
+            if (webhook.Value?.Operations is null)
             {
                 continue;
             }

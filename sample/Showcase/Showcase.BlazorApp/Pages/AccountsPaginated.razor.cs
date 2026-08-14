@@ -37,7 +37,7 @@ public partial class AccountsPaginated
 
     private async Task LoadNextPageAsync()
     {
-        if (result?.Continuation != null)
+        if (result?.Continuation is not null)
         {
             continuation = result.Continuation;
             await LoadPaginatedAsync();

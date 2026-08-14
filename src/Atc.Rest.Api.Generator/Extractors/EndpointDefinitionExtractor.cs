@@ -72,12 +72,12 @@ public static class EndpointDefinitionExtractor
         string? defaultApiVersion = null,
         bool useServersBasePath = true)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return (null, null);
         }
@@ -104,7 +104,7 @@ public static class EndpointDefinitionExtractor
             var groupName = kvp.Key;
             var operations = kvp.Value;
             var classParams = GenerateEndpointDefinitionClass(openApiDoc, projectName, pathSegment, groupName, operations, registry, systemTypeResolver, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion, useServersBasePath);
-            if (classParams != null)
+            if (classParams is not null)
             {
                 classes.Add(classParams);
             }
@@ -150,7 +150,7 @@ public static class EndpointDefinitionExtractor
             var pathKey = path.Key;
             var pathItemInterface = path.Value;
 
-            if (pathItemInterface is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathItemInterface is not IOpenApiPathItem pathItem || pathItem.Operations is null)
             {
                 continue;
             }
@@ -194,7 +194,7 @@ public static class EndpointDefinitionExtractor
             var pathKey = path.Key;
             var pathItemInterface = path.Value;
 
-            if (pathItemInterface is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathItemInterface is not IOpenApiPathItem pathItem || pathItem.Operations is null)
             {
                 continue;
             }
@@ -243,7 +243,7 @@ public static class EndpointDefinitionExtractor
             var pathKey = path.Key;
             var pathItemInterface = path.Value;
 
-            if (pathItemInterface is not IOpenApiPathItem pathItem || pathItem.Operations == null)
+            if (pathItemInterface is not IOpenApiPathItem pathItem || pathItem.Operations is null)
             {
                 continue;
             }
@@ -402,7 +402,7 @@ using Microsoft.AspNetCore.Builder;
         foreach (var (path, httpMethod, operation, pathParameters) in operations)
         {
             var endpointMethod = GenerateEndpointMethod(path, httpMethod, operation, pathParameters, systemTypeResolver);
-            if (endpointMethod != null)
+            if (endpointMethod is not null)
             {
                 methods.Add(endpointMethod);
             }
@@ -548,7 +548,7 @@ using Microsoft.AspNetCore.Builder;
         if (operations.Count == 0)
         {
             var segmentPath = $"/{segment.ToLowerInvariant()}";
-            var fullPath = serverBasePath != null ? $"{serverBasePath}{segmentPath}" : segmentPath;
+            var fullPath = serverBasePath is not null ? $"{serverBasePath}{segmentPath}" : segmentPath;
             return (fullPath, segmentPath);
         }
 
@@ -563,11 +563,11 @@ using Microsoft.AspNetCore.Builder;
         if (string.IsNullOrEmpty(commonPrefix) || commonPrefix == "/")
         {
             var segmentPath = $"/{segment.ToLowerInvariant()}";
-            var fullPath = serverBasePath != null ? $"{serverBasePath}{segmentPath}" : segmentPath;
+            var fullPath = serverBasePath is not null ? $"{serverBasePath}{segmentPath}" : segmentPath;
             return (fullPath, segmentPath);
         }
 
-        var routeBase = serverBasePath != null ? $"{serverBasePath}{commonPrefix}" : commonPrefix;
+        var routeBase = serverBasePath is not null ? $"{serverBasePath}{commonPrefix}" : commonPrefix;
         return (routeBase, commonPrefix);
     }
 
@@ -685,7 +685,7 @@ using Microsoft.AspNetCore.Builder;
 
         // Check for group-level security (common to all operations in this segment)
         var groupSecurity = GetGroupLevelSecurity(openApiDoc, operations);
-        if (groupSecurity != null && groupSecurity.AuthenticationRequired && !groupSecurity.AllowAnonymous)
+        if (groupSecurity is not null && groupSecurity.AuthenticationRequired && !groupSecurity.AllowAnonymous)
         {
             builder.AppendLine();
             builder.Append(4, ".RequireAuthorization()");
@@ -693,7 +693,7 @@ using Microsoft.AspNetCore.Builder;
 
         // Check for group-level rate limiting (common to all operations in this segment)
         var groupRateLimit = GetGroupLevelRateLimiting(openApiDoc, operations);
-        if (groupRateLimit != null && groupRateLimit.Enabled && !string.IsNullOrEmpty(groupRateLimit.Policy))
+        if (groupRateLimit is not null && groupRateLimit.Enabled && !string.IsNullOrEmpty(groupRateLimit.Policy))
         {
             builder.AppendLine();
             builder.Append(4, $".RequireRateLimiting(RateLimitPolicies.{RateLimitPoliciesExtractor.GenerateConstantName(groupRateLimit.Policy!)})");
@@ -701,7 +701,7 @@ using Microsoft.AspNetCore.Builder;
 
         // Check for group-level output caching (common to all operations in this segment)
         var groupOutputCache = GetGroupLevelOutputCaching(openApiDoc, operations);
-        if (groupOutputCache != null && groupOutputCache.Enabled && !string.IsNullOrEmpty(groupOutputCache.Policy))
+        if (groupOutputCache is not null && groupOutputCache.Enabled && !string.IsNullOrEmpty(groupOutputCache.Policy))
         {
             builder.AppendLine();
             builder.Append(4, $".CacheOutput(OutputCachePolicies.{OutputCachePoliciesExtractor.GenerateConstantName(groupOutputCache.Policy!)})");
@@ -812,7 +812,7 @@ using Microsoft.AspNetCore.Builder;
         var firstRateLimit = firstOp.Operation.ExtractRateLimitConfiguration(firstPathItem, openApiDoc);
 
         // If first operation doesn't have rate limiting, no group-level rate limiting
-        if (firstRateLimit == null || !firstRateLimit.Enabled || string.IsNullOrEmpty(firstRateLimit.Policy))
+        if (firstRateLimit is null || !firstRateLimit.Enabled || string.IsNullOrEmpty(firstRateLimit.Policy))
         {
             return null;
         }
@@ -834,7 +834,7 @@ using Microsoft.AspNetCore.Builder;
             var opRateLimit = operation.ExtractRateLimitConfiguration(pathItem, openApiDoc);
 
             // If any operation has different rate limit policy, can't use group-level
-            if (opRateLimit == null ||
+            if (opRateLimit is null ||
                 !opRateLimit.Enabled ||
                 string.IsNullOrEmpty(opRateLimit.Policy) ||
                 !string.Equals(opRateLimit.Policy, firstRateLimit.Policy, StringComparison.Ordinal))
@@ -882,7 +882,7 @@ using Microsoft.AspNetCore.Builder;
         var firstOutputCache = firstOp.Operation.ExtractCacheConfiguration(firstPathItem, openApiDoc);
 
         // If first operation doesn't have output caching enabled, no group-level caching
-        if (firstOutputCache == null || !firstOutputCache.Enabled || string.IsNullOrEmpty(firstOutputCache.Policy))
+        if (firstOutputCache is null || !firstOutputCache.Enabled || string.IsNullOrEmpty(firstOutputCache.Policy))
         {
             return null;
         }
@@ -910,7 +910,7 @@ using Microsoft.AspNetCore.Builder;
             var opOutputCache = operation.ExtractCacheConfiguration(pathItem, openApiDoc);
 
             // If any GET operation has different output cache policy, can't use group-level
-            if (opOutputCache == null ||
+            if (opOutputCache is null ||
                 !opOutputCache.Enabled ||
                 opOutputCache.Type != CacheType.Output ||
                 string.IsNullOrEmpty(opOutputCache.Policy) ||
@@ -975,19 +975,19 @@ using Microsoft.AspNetCore.Builder;
         }
 
         // Add security metadata if needed (only if different from group-level)
-        if (pathItem != null)
+        if (pathItem is not null)
         {
             GenerateSecurityMetadata(builder, operation, pathItem, openApiDoc, groupSecurity);
         }
 
         // Add rate limiting metadata if needed (only if different from group-level)
-        if (pathItem != null)
+        if (pathItem is not null)
         {
             GenerateRateLimitingMetadata(builder, operation, pathItem, openApiDoc, groupRateLimit);
         }
 
         // Add output caching metadata if needed (only if different from group-level)
-        if (pathItem != null)
+        if (pathItem is not null)
         {
             GenerateOutputCachingMetadata(builder, httpMethod, operation, pathItem, openApiDoc, groupOutputCache);
         }
@@ -1037,7 +1037,7 @@ using Microsoft.AspNetCore.Builder;
         }
 
         // If group-level security is already applied, only generate operation-specific overrides
-        if (groupSecurity != null && groupSecurity.AuthenticationRequired && !groupSecurity.AllowAnonymous)
+        if (groupSecurity is not null && groupSecurity.AuthenticationRequired && !groupSecurity.AllowAnonymous)
         {
             // Only generate if this operation has additional requirements (roles, schemes, policies)
             var hasRoles = security.Roles.Count > 0;
@@ -1074,7 +1074,7 @@ using Microsoft.AspNetCore.Builder;
         var rateLimit = operation.ExtractRateLimitConfiguration(pathItem, openApiDoc);
 
         // If no rate limiting configured, nothing to generate
-        if (rateLimit == null)
+        if (rateLimit is null)
         {
             return;
         }
@@ -1088,7 +1088,7 @@ using Microsoft.AspNetCore.Builder;
         }
 
         // If group-level rate limiting is already applied with the same policy, skip
-        if (groupRateLimit != null &&
+        if (groupRateLimit is not null &&
             groupRateLimit.Enabled &&
             string.Equals(groupRateLimit.Policy, rateLimit.Policy, StringComparison.Ordinal))
         {
@@ -1120,7 +1120,7 @@ using Microsoft.AspNetCore.Builder;
         var cacheConfig = operation.ExtractCacheConfiguration(pathItem, openApiDoc);
 
         // If no caching configured, nothing to generate
-        if (cacheConfig == null)
+        if (cacheConfig is null)
         {
             return;
         }
@@ -1138,7 +1138,7 @@ using Microsoft.AspNetCore.Builder;
         }
 
         // If group-level output caching is already applied with the same policy, skip
-        if (groupOutputCache != null &&
+        if (groupOutputCache is not null &&
             groupOutputCache.Enabled &&
             groupOutputCache.Type == CacheType.Output &&
             string.Equals(groupOutputCache.Policy, cacheConfig.Policy, StringComparison.Ordinal))
@@ -1169,8 +1169,8 @@ using Microsoft.AspNetCore.Builder;
         }
 
         // Determine if operation has parameters (operation-level OR path-level)
-        var hasOperationParams = operation.Parameters != null && operation.Parameters.Count > 0;
-        var hasPathParams = pathItem?.Parameters != null && pathItem.Parameters.Count > 0;
+        var hasOperationParams = operation.Parameters is not null && operation.Parameters.Count > 0;
+        var hasPathParams = pathItem?.Parameters is not null && pathItem.Parameters.Count > 0;
         var hasParameters = hasOperationParams || hasPathParams;
         var hasRequestBody = operation.HasRequestBody();
 
@@ -1258,7 +1258,7 @@ using Microsoft.AspNetCore.Builder;
         // Track which response codes are defined in the spec
         var definedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (operation.Responses != null)
+        if (operation.Responses is not null)
         {
             foreach (var response in operation.Responses)
             {
@@ -1287,7 +1287,7 @@ using Microsoft.AspNetCore.Builder;
                 // Get response content type - handle inline schemas properly
                 string? contentType = null;
                 string? textResponseMediaType = null;
-                if (openApiResponse.Content != null && openApiResponse.Content.TryGetValue("application/json", out var mediaType))
+                if (openApiResponse.Content is not null && openApiResponse.Content.TryGetValue("application/json", out var mediaType))
                 {
                     contentType = GetResponseContentType(mediaType.Schema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry);
                 }
@@ -1445,8 +1445,8 @@ using Microsoft.AspNetCore.Builder;
         var resultClassName = $"{methodName}Result";
 
         // Determine if operation has parameters (operation-level OR path-level)
-        var hasOperationParams = operation.Parameters != null && operation.Parameters.Count > 0;
-        var hasPathParams = pathParameters != null && pathParameters.Count > 0;
+        var hasOperationParams = operation.Parameters is not null && operation.Parameters.Count > 0;
+        var hasPathParams = pathParameters is not null && pathParameters.Count > 0;
         var hasParameters = hasOperationParams || hasPathParams;
         var hasRequestBody = operation.HasRequestBody();
 
@@ -1473,7 +1473,7 @@ using Microsoft.AspNetCore.Builder;
         if (requiresFormFlattening)
         {
             var (schemaName, properties) = operation.GetMultipartFormDataSchemaInfo();
-            if (properties != null)
+            if (properties is not null)
             {
                 foreach (var kvp in properties)
                 {
@@ -1524,12 +1524,12 @@ using Microsoft.AspNetCore.Builder;
 
             // Also add path-level and operation-level parameters (e.g., {pizzaId}) to the method signature
             var allNonFormParameters = new List<IOpenApiParameter>();
-            if (pathParameters != null)
+            if (pathParameters is not null)
             {
                 allNonFormParameters.AddRange(pathParameters);
             }
 
-            if (operation.Parameters != null)
+            if (operation.Parameters is not null)
             {
                 foreach (var opParam in operation.Parameters)
                 {
@@ -1547,7 +1547,7 @@ using Microsoft.AspNetCore.Builder;
             {
                 var resolved = paramOrRef.Resolve();
                 var parameter = resolved.Parameter;
-                if (parameter == null || string.IsNullOrEmpty(parameter.Name))
+                if (parameter is null || string.IsNullOrEmpty(parameter.Name))
                 {
                     continue;
                 }
@@ -1732,7 +1732,7 @@ using Microsoft.AspNetCore.Builder;
         SystemTypeConflictResolver systemTypeResolver,
         TypeConflictRegistry? registry)
     {
-        if (schema == null)
+        if (schema is null)
         {
             return null;
         }
@@ -1741,7 +1741,7 @@ using Microsoft.AspNetCore.Builder;
         var schemaType = schema.GetSchemaType();
 
         // Handle array types
-        if (schemaType == "array" && schema.Items != null)
+        if (schemaType == "array" && schema.Items is not null)
         {
             var itemType = GetSchemaItemType(schema.Items, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry);
             return $"List<{itemType}>";
@@ -1764,7 +1764,7 @@ using Microsoft.AspNetCore.Builder;
         }
 
         // Handle inline object schema
-        if (schemaType == "object" && schema.Properties != null && schema.Properties.Count > 0)
+        if (schemaType == "object" && schema.Properties is not null && schema.Properties.Count > 0)
         {
             // Generate inline type name using the same pattern as ResultClassExtractor
             return InlineSchemaExtractor.GenerateInlineTypeName(operationId, "Response");
@@ -1772,7 +1772,7 @@ using Microsoft.AspNetCore.Builder;
 
         // Fall back to ToCSharpTypeWithGenericSupport for other cases (allOf, primitives, etc.)
         var fallbackType = schema.ToCSharpTypeWithGenericSupport(openApiDoc, isRequired: true, registry);
-        if (fallbackType != null)
+        if (fallbackType is not null)
         {
             return ResolveModelTypeConflict(fallbackType, projectName, segment, systemTypeResolver);
         }
@@ -1831,7 +1831,7 @@ using Microsoft.AspNetCore.Builder;
         var itemSchemaType = itemSchema.GetSchemaType();
 
         // Handle inline object - use "ResponseItem" suffix for array items
-        if (itemSchemaType == "object" && itemSchema.Properties != null && itemSchema.Properties.Count > 0)
+        if (itemSchemaType == "object" && itemSchema.Properties is not null && itemSchema.Properties.Count > 0)
         {
             return InlineSchemaExtractor.GenerateInlineTypeName(operationId, "ResponseItem");
         }
@@ -1840,7 +1840,7 @@ using Microsoft.AspNetCore.Builder;
         if (itemSchema is OpenApiSchema openApiSchema && !string.IsNullOrEmpty(openApiSchema.Title))
         {
             var schemas = openApiDoc.Components?.Schemas;
-            if (schemas != null)
+            if (schemas is not null)
             {
                 foreach (var kvp in schemas)
                 {

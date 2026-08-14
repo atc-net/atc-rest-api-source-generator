@@ -75,12 +75,12 @@ public static class ResultClassExtractor
         bool includeDeprecated,
         Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
     {
-        if (openApiDoc == null)
+        if (openApiDoc is null)
         {
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        if (openApiDoc.Paths == null || openApiDoc.Paths.Count == 0)
+        if (openApiDoc.Paths is null || openApiDoc.Paths.Count == 0)
         {
             return null;
         }
@@ -98,7 +98,7 @@ public static class ResultClassExtractor
                 continue;
             }
 
-            if (path.Value?.Operations == null)
+            if (path.Value?.Operations is null)
             {
                 continue;
             }
@@ -121,8 +121,18 @@ public static class ResultClassExtractor
                 }
 
                 var currentPathSegment = PathSegmentHelper.GetFirstPathSegment(pathKey);
-                var classParams = ExtractResultClass(openApiDoc, projectName, operationId!, operationValue!, namespaceValue, registry, systemTypeResolver, currentPathSegment, inlineSchemas);
-                if (classParams != null)
+                var classParams = ExtractResultClass(
+                    openApiDoc,
+                    projectName,
+                    operationId!,
+                    operationValue!,
+                    namespaceValue,
+                    registry,
+                    systemTypeResolver,
+                    currentPathSegment,
+                    inlineSchemas);
+
+                if (classParams is not null)
                 {
                     resultClasses.Add(classParams);
                 }
@@ -158,7 +168,7 @@ public static class ResultClassExtractor
         // Auto-apply rules (for 400, 500, etc.) apply to EndpointDefinition (.Produces) and
         // Client EndpointResult only - NOT to server Result classes. This enforces type safety:
         // handlers can only return responses explicitly defined in the spec.
-        if (operationValue.Responses != null)
+        if (operationValue.Responses is not null)
         {
             foreach (var response in operationValue.Responses)
             {
@@ -307,7 +317,7 @@ public static class ResultClassExtractor
         // Check for binary file download response first
         var isFileDownload = false;
 
-        if (responseValue.Content != null)
+        if (responseValue.Content is not null)
         {
             foreach (var contentEntry in responseValue.Content)
             {
@@ -321,18 +331,18 @@ public static class ResultClassExtractor
 
         // Determine response type - use generic support for allOf patterns like PaginatedResult<T>
         string? contentType = null;
-        if (!isFileDownload && responseValue.Content != null && responseValue.Content.TryGetValue("application/json", out var mediaType))
+        if (!isFileDownload && responseValue.Content is not null && responseValue.Content.TryGetValue("application/json", out var mediaType))
         {
             contentType = GetSchemaTypeName(mediaType.Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
         }
 
         // OpenAPI 3.2 streaming: when a response media type declares an itemSchema, the
         // streamed element type comes from it directly (wrapped as IAsyncEnumerable<T> below).
-        if (!isFileDownload && contentType is null && isAsyncEnumerable && responseValue.Content != null)
+        if (!isFileDownload && contentType is null && isAsyncEnumerable && responseValue.Content is not null)
         {
             foreach (var mt in responseValue.Content.Values)
             {
-                if (mt.ItemSchema != null)
+                if (mt.ItemSchema is not null)
                 {
                     contentType = GetSchemaTypeName(mt.ItemSchema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
                     break;
@@ -750,7 +760,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: "new(uri != null ? TypedResults.Created(uri) : TypedResults.StatusCode(201))");
+                Content: "new(uri is not null ? TypedResults.Created(uri) : TypedResults.StatusCode(201))");
             methods.Add(createdNoContent);
         }
 
@@ -1201,7 +1211,7 @@ public static class ResultClassExtractor
         string context,
         Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
     {
-        if (schema == null)
+        if (schema is null)
         {
             return "object";
         }
@@ -1219,7 +1229,7 @@ public static class ResultClassExtractor
             // Check if this reference points to an array alias (type: array with items but no prefixItems)
             // Array aliases like "Pets" (type: array, items: $ref Pet) should resolve to Pet[]
             // But tuple types with prefixItems (like Coordinate) should keep their type name
-            if (openApiDoc.Components?.Schemas != null &&
+            if (openApiDoc.Components?.Schemas is not null &&
                 openApiDoc.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
                 resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array, Items: not null } arraySchema &&
                 !arraySchema.HasPrefixItems())
@@ -1259,7 +1269,7 @@ public static class ResultClassExtractor
                 !string.IsNullOrEmpty(operationId) &&
                 !string.IsNullOrEmpty(pathSegment) &&
                 !string.IsNullOrEmpty(context) &&
-                inlineSchemas != null)
+                inlineSchemas is not null)
             {
                 var typeName = InlineSchemaExtractor.GenerateInlineTypeName(operationId, context);
                 if (!inlineSchemas.ContainsKey(typeName))
@@ -1286,7 +1296,7 @@ public static class ResultClassExtractor
         OpenApiDocument openApiDoc,
         OpenApiSchema itemSchema)
     {
-        if (openApiDoc.Components?.Schemas == null)
+        if (openApiDoc.Components?.Schemas is null)
         {
             return null;
         }
@@ -1321,7 +1331,7 @@ public static class ResultClassExtractor
         string pathSegment,
         Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
     {
-        if (schema.Items == null)
+        if (schema.Items is null)
         {
             return "List<object>";
         }
