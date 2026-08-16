@@ -1625,6 +1625,49 @@ public class OperationParameterExtractorTests
             result.Parameters[0].Name);
     }
 
+    [Fact]
+    public void Extract_WithNoOperationId_StringDefaultWithNumericLookingValue_EmitsQuotedStringDefault()
+    {
+        // Regression: api-version header with default: "1.0" must produce string ApiVersion = "1.0"
+        // NOT double ApiVersion = 1.0 (CS1750).
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /thirdpartyapi/api/isalive:
+                                get:
+                                  summary: Get IsAlive status
+                                  parameters:
+                                    - name: api-version
+                                      in: header
+                                      schema:
+                                        type: string
+                                        default: "1.0"
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var result = OperationParameterExtractor.Extract(
+            document,
+            "TestApi",
+            "Thirdpartyapi",
+            validateStrategy: ValidateSpecificationStrategy.Standard);
+
+        Assert.NotNull(result);
+        Assert.Single(result.Parameters);
+        var record = result.Parameters[0];
+        Assert.Single(record.Parameters);
+        var param = record.Parameters[0];
+        Assert.Equal("string", param.TypeName);
+        Assert.Equal("1.0", param.DefaultValue);
+    }
+
     // ========== Strict mode: no synthesis — operations without operationId are skipped ==========
     [Fact]
     public void Extract_WithNoOperationId_StrictMode_ReturnsNull()

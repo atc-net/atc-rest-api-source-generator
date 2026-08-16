@@ -6,6 +6,8 @@ public class DefaultValueHelperTests
     [Theory]
     [InlineData("hello", "string", "hello")]
     [InlineData("\"hello\"", "string", "hello")] // strips quotes
+    [InlineData("\"1.0\"", "string", "1.0")] // numeric-looking version string keeps raw value
+    [InlineData("1.0", "string", "1.0")] // unquoted numeric string treated as string value
     [InlineData("true", "bool", "true")]
     [InlineData("True", "bool", "true")] // lowercased
     [InlineData("False", "bool", "false")]
