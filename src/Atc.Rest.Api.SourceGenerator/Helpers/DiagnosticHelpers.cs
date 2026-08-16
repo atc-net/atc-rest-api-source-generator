@@ -1976,7 +1976,29 @@ internal static class DiagnosticHelpers
             isEnabledByDefault: true,
             helpLinkUri: message.DocumentationUrl);
 
-        return Diagnostic.Create(descriptor, Location.None);
+        return Diagnostic.Create(descriptor, CreateLocation(message));
+    }
+
+    /// <summary>
+    /// Builds a file-based <see cref="Location"/> from a <see cref="GeneratorDiagnosticMessage"/>,
+    /// falling back to <see cref="Location.None"/> when no file path is available.
+    /// Diagnostics without a file-based location are not subject to `.editorconfig`
+    /// severity overrides (e.g. dotnet_diagnostic.ATC_API_OPR001.severity), because
+    /// Roslyn resolves those overrides based on the diagnostic's source file path.
+    /// </summary>
+    private static Location CreateLocation(GeneratorDiagnosticMessage message)
+    {
+        if (string.IsNullOrEmpty(message.FilePath))
+        {
+            return Location.None;
+        }
+
+        var line = System.Math.Max(0, (message.LineNumber ?? 1) - 1);
+        var column = System.Math.Max(0, (message.ColumnNumber ?? 1) - 1);
+        var linePosition = new LinePosition(line, column);
+        var lineSpan = new LinePositionSpan(linePosition, linePosition);
+
+        return Location.Create(message.FilePath!, new TextSpan(0, 0), lineSpan);
     }
 
     /// <summary>

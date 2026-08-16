@@ -49,10 +49,16 @@
     <Project Path="sample/NexusSample/NexusSample.ApiClient/NexusSample.ApiClient.csproj" />
   </Folder>
   <Folder Name="/sample/" />
-  <Folder Name="/sample/MontaClient/">
-    <File Path="sample/MontaClient/Monta.yaml" />
-    <File Path="sample/MontaClient/.atc-rest-api-client" />
-    <Project Path="sample/MontaClient/MontaClient.csproj" />
+  <Folder Name="/sample/ThirdParty-Clients/EloverblikCustomerApiClient/">
+    <Project Path="sample/ThirdParty-Clients/EloverblikCustomerApiClient/EloverblikCustomerApiClient.csproj" />
+  </Folder>
+  <Folder Name="/sample/ThirdParty-Clients/EloverblikThirdPartyApiClient/">
+    <Project Path="sample/ThirdParty-Clients/EloverblikThirdPartyApiClient/EloverblikThirdPartyApiClient.csproj" />
+  </Folder>
+  <Folder Name="/sample/ThirdParty-Clients/MontaClient/">
+    <File Path="sample/ThirdParty-Clients/MontaClient/Monta.yaml" />
+    <File Path="sample/ThirdParty-Clients/MontaClient/.atc-rest-api-client" />
+    <Project Path="sample/ThirdParty-Clients/MontaClient/MontaClient.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Atc.Rest.Api.Generator.Cli/Atc.Rest.Api.Generator.Cli.csproj" />
@@ -65,11 +71,11 @@
     <Project Path="src/Atc.Rest.Api.Generator/Atc.Rest.Api.Generator.csproj" />
   </Folder>
   <Folder Name="/test/">
-    <Project Path="test/Atc.Rest.Api.SourceGenerator.Tests/Atc.Rest.Api.SourceGenerator.Tests.csproj" />
+    <Project Path="test/Atc.CodeGeneration.CSharp.Tests/Atc.CodeGeneration.CSharp.Tests.csproj" />
+    <Project Path="test/Atc.CodeGeneration.TypeScript.Tests/Atc.CodeGeneration.TypeScript.Tests.csproj" />
     <Project Path="test/Atc.Rest.Api.Generator.Cli.Tests/Atc.Rest.Api.Generator.Cli.Tests.csproj" />
     <Project Path="test/Atc.Rest.Api.Generator.IntegrationTests/Atc.Rest.Api.Generator.IntegrationTests.csproj" />
     <Project Path="test/Atc.Rest.Api.Generator.Tests/Atc.Rest.Api.Generator.Tests.csproj" />
-    <Project Path="test/Atc.CodeGeneration.TypeScript.Tests/Atc.CodeGeneration.TypeScript.Tests.csproj" />
-    <Project Path="test/Atc.CodeGeneration.CSharp.Tests/Atc.CodeGeneration.CSharp.Tests.csproj" />
+    <Project Path="test/Atc.Rest.Api.SourceGenerator.Tests/Atc.Rest.Api.SourceGenerator.Tests.csproj" />
   </Folder>
 </Solution>
