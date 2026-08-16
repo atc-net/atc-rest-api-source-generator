@@ -447,7 +447,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                 config.IncludeDeprecated,
                 includeSharedModelsUsing: sharedSchemas.Count > 0,
                 includeSegmentModelsUsing: hasSegmentModels,
-                emitInlineParameterEnums: config.InlineParameterEnums == InlineParameterEnumMode.Enum);
+                emitInlineParameterEnums: config.InlineParameterEnums == InlineParameterEnumMode.Enum,
+                validateStrategy: config.ValidateSpecificationStrategy);
 
             // Generate result classes
             GenerateResultClasses(
@@ -1131,7 +1132,8 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool includeDeprecated,
         bool includeSharedModelsUsing = false,
         bool includeSegmentModelsUsing = true,
-        bool emitInlineParameterEnums = true)
+        bool emitInlineParameterEnums = true,
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
     {
         // Use OperationParameterExtractor inline-enum-aware variant so inline enums on
         // parameter schemas produce dedicated enum files alongside the parameter record.
@@ -1144,7 +1146,8 @@ public class ApiServerGenerator : IIncrementalGenerator
             includeDeprecated,
             includeSharedModelsUsing,
             includeSegmentModelsUsing,
-            emitInlineEnums: emitInlineParameterEnums);
+            emitInlineEnums: emitInlineParameterEnums,
+            validateStrategy: validateStrategy);
 
         // Emit inline enum files first so the parameter record's type references resolve.
         foreach (var inlineEnum in inlineEnums)
