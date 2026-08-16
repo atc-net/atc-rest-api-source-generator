@@ -326,6 +326,13 @@ public static class StringBuilderExtensions
             return false;
         }
 
+        // A valid C# identifier segment must start with a letter or underscore, not a digit.
+        // This prevents numeric literals like "1.0" from being mistaken for qualified identifiers.
+        if (!char.IsLetter(value[0]) && value[0] != '_')
+        {
+            return false;
+        }
+
         for (var i = 0; i < value.Length; i++)
         {
             var c = value[i];
