@@ -1,0 +1,9 @@
+{
+    "generate": true,
+    "validateSpecificationStrategy": "Standard",
+    "includeDeprecated": false,
+    "generationMode": "EndpointPerOperation",
+    "namespace": "Eloverblik.Api.ThirdPartyApi",
+    "clientSuffix": "Client",
+    "httpClientName": "Eloverblik-ApiClient"
+}

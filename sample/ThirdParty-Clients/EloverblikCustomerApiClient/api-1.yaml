@@ -1,0 +1,2361 @@
+openapi: 3.0.4
+info:
+  title: Eloverblik.Api.CustomerApi
+  description: >-
+    
+    <p>This API enables you to access your own data.
+
+    There are two requirements to fulfill in order to get data:
+
+    1) You need to be authorized.
+
+    2) You need to create a relation to the metering points that you will
+    access.
+
+
+    Authorization is handled by using tokens. At first you will need a refresh
+    token. You can generate a refresh token in the portal.
+
+    Having a refresh token you can then access the /token endpoint and get a
+    short lived access token. Using the access token all the below endpoints are
+    accessible.
+
+
+    Relations to metering points. In order to access data from a metering point
+    you need to add a relation to the metering point.
+
+    Check out the description of the different endpoints below on how to manage
+    these relations.
+
+
+    Correlation id. It is possible to set a correlation id in the request
+    header. Using the 'X-User-Correlation-ID' (with an UUID).
+
+    When provided this id will follow the request and finally end in the
+    response header. This id can be used for tracking the request.
+
+    Parallel to this id there is another internally id (Also a UUID), which is
+    also returned in the response header as 'X-Correlation-ID'.</p>
+
+
+    <p>Please be aware that it is only possible to get time series data for the
+    previous 5 years + current year.</p>
+
+
+    <b><p>Please note: Submission of meter readings to DataHub is no longer
+    mandatory since end of 2021. Therefore, data may not be available for all
+    metering points.</p></b>
+
+
+    <h3>Limitations</h3>
+
+    <p>At times, we may experience higher loads than our underlying data
+    provider, DataHub, can handle. Therefore we have enforced some limitations
+    on the usage of this API:</p>
+
+
+    <ul style="list-style-type:disc;">
+        <li>Calls to GetToken are restricted to 2 per minute per IP address.</li>
+        <li>The total number of calls per IP address is restricted to 120 per minute.</li>
+        <li>The total number of calls for <b>all</b> users is restricted to 1200 per minute.</li>
+        <li>You can request data for a maximum period of 730 days at a time</li>
+    </ul>
+
+
+    <p>If you exceed any one of these limits, you will get an http error 429 -
+    Too many requests.</br>
+
+    If DataHub is not able to keep up with the demand - even if the above limits
+    are not exceeded - you may get an http error 503 - DataHub unavailable.</p>
+
+
+    <h3>Usage recommendations</h3>
+
+    <ul style="list-style-type:disc;">
+        <li>Bundle requests for 10 metering points at a time.</li>
+        <li>Spread out multiple requests over a longer period.</li>
+        <li>Don't request data for periods of several years repeatedly.</li>
+        <li>If you get an error 429 or 503, wait 1min. before retrying.</li>
+        <li>If you get an error, then try to reduce the amount of metering points or reduce the date period of the request.</li>
+        <li>The Data Access token is active for 24h and should not need to be refreshed more than once a day.</li>
+    </ul>
+
+
+    <h3>Possible system error codes</h3>
+
+
+    <h4>General Error Codes</h4>
+
+
+    <table>
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>10000</td>
+                <td>NoError</td>
+                <td>No error - the operation succeeded.</td>
+            </tr>
+            <tr>
+                <td>10001</td>
+                <td>WrongNumberOfArguments</td>
+                <td>The number of arguments is incorrect.</td>
+            </tr>
+            <tr>
+                <td>10007</td>
+                <td>NoCprConsent</td>
+                <td>Missing consent for CPR lookup.</td>
+            </tr>
+        </tbody>
+    </table>
+
+
+    <h4>Metering Point</h4>
+
+
+    <table>
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>20000</td>
+                <td>WrongMeteringPointIdOrWebAccessCode</td>
+                <td>
+                    Invalid metering point ID or webaccess code.
+                </td>
+            </tr>
+            <tr>
+                <td>20001</td>
+                <td>MeteringPointBlocked</td>
+                <td>The metering point is blocked.</td>
+            </tr>
+            <tr>
+                <td>20002</td>
+                <td>MeteringPointRelationAlreadyExist</td>
+                <td>
+                    Relation to the metering pointalready exists.
+                </td>
+            </tr>
+            <tr>
+                <td>20003</td>
+                <td>MeteringPointIdNot18CharsLong</td>
+                <td>
+                    Metering point ID must be 18characters long.
+                </td>
+            </tr>
+            <tr>
+                <td>20005</td>
+                <td>MeteringPointAliasTooLong</td>
+                <td>Alias for metering point is toolong.</td>
+            </tr>
+            <tr>
+                <td>20006</td>
+                <td>WebAccessCodeNot8CharsLong</td>
+                <td>Web access code must be 8characters long.</td>
+            </tr>
+            <tr>
+                <td>20007</td>
+                <td>WebAccessCodeContainsIllegalChars</td>
+                <td>
+                    Web access code contains invalidcharacters.
+                </td>
+            </tr>
+            <tr>
+                <td>20008</td>
+                <td>MeteringPointNotFound</td>
+                <td>The metering point was not found.</td>
+            </tr>
+            <tr>
+                <td>20009</td>
+                <td>MeteringPointIsChild</td>
+                <td>The metering point is a childpoint.</td>
+            </tr>
+            <tr>
+                <td>20010</td>
+                <td>RelationNotFound</td>
+                <td>Relationwas not found.</td>
+            </tr>
+            <tr>
+                <td>20011</td>
+                <td>UnknownError</td>
+                <td>Unknownerror.</td>
+            </tr>
+            <tr>
+                <td>20012</td>
+                <td>Unauthorized</td>
+                <td>Unauthorizedaccess.</td>
+            </tr>
+            <tr>
+                <td>20013</td>
+                <td>NoValidMeteringPointsInList</td>
+                <td>No valid metering points in thelist.</td>
+            </tr>
+        </tbody>
+    </table>
+
+
+    <h4>MeterData</h4>
+
+
+    <table>
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>30000</td>
+                <td>FromDateIsGreaterThanToday</td>
+                <td>From-date is later than todays date.</td>
+            </tr>
+            <tr>
+                <td>30001</td>
+                <td>FromDateIsGreaterThanToDate</td>
+                <td>From-date is later than to-date.</td>
+            </tr>
+            <tr>
+                <td>30002</td>
+                <td>ToDateCanNotBeEqualToFromDate</td>
+                <td>To-date cannot be equal to from-date.</td>
+            </tr>
+            <tr>
+                <td>30003</td>
+                <td>ToDateIsGreaterThanToday</td>
+                <td>To-date is later than todays date.</td>
+            </tr>
+            <tr>
+                <td>30004</td>
+                <td>InvalidDateFormat</td>
+                <td>Invalid date format.</td>
+            </tr>
+            <tr>
+                <td>30008</td>
+                <td>RequestedAggregationUnavailable</td>
+                <td>The requested aggregation is not available.</td>
+            </tr>
+            <tr>
+                <td>30011</td>
+                <td>InternalServerError</td>
+                <td>Internal server error.</td>
+            </tr>
+            <tr>
+                <td>20009</td>
+                <td>MeteringPointIsChild</td>
+                <td>The metering point is a child point.</td>
+            </tr>
+            <tr>
+                <td>20013</td>
+                <td>NoValidMeteringPointsInList</td>
+                <td>No valid metering points in the list.</td>
+            </tr>
+            <tr>
+                <td>20010</td>
+                <td>RelationNotFound</td>
+                <td>Relation was not found.</td>
+            </tr>
+            <tr>
+                <td>20011</td>
+                <td>UnknownError</td>
+                <td>Unknown error.</td>
+            </tr>
+            <tr>
+                <td>20012</td>
+                <td>Unauthorized</td>
+                <td>Unauthorized access.</td>
+            </tr>
+            <tr>
+                <td>20013</td>
+                <td>NoValidMeteringPointsInList</td>
+                <td>No valid metering points in the list.</td>
+            </tr>
+        </tbody>
+    </table>
+
+
+    <h4>Token</h4>
+
+
+    <table>
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>50000</td>
+                <td>WrongTokenType</td>
+                <td>Invalid token type.</td>
+            </tr>
+            <tr>
+                <td>50001</td>
+                <td>TokenNotValid</td>
+                <td>Token is not valid.</td>
+            </tr>
+            <tr>
+                <td>50002</td>
+                <td>ErrorCreatingToken</td>
+                <td>Error occurred while creating token.</td>
+            </tr>
+            <tr>
+                <td>50003</td>
+                <td>TokenRegistrationFailed</td>
+                <td>Token registration failed.</td>
+            </tr>
+            <tr>
+                <td>50004</td>
+                <td>TokenAlreadyActive</td>
+                <td>Token is already active.</td>
+            </tr>
+            <tr>
+                <td>50005</td>
+                <td>TokenAlreadyDeactivated</td>
+                <td>Token is already deactivated.</td>
+            </tr>
+        </tbody>
+    </table>
+
+
+    <h4>ThirdParty</h4>
+
+
+    <table>
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>60000</td>
+                <td>ThirdPartyNotFound</td>
+                <td>Third party was not found.</td>
+            </tr>
+        </tbody>
+    </table>
+  contact:
+    name: Datahub support
+    email: datahub@energinet.dk
+  version: V1.0
+paths:
+  /customerapi/api/isalive:
+    get:
+      tags:
+        - IsAlive
+      summary: Get IsAlive status
+      description: >-
+        Call this endpoint to verify whether we are currently operating
+        normally.
+                    
+        If we are experiencing more traffic than we can handle, this endpoint
+        may return HTTP 503.
+
+        The status currently refreshes every 60 seconds.
+      parameters:
+        - name: api-version
+          in: header
+          schema:
+            type: string
+            default: "1.0"
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: boolean
+            application/json:
+              schema:
+                type: boolean
+            text/json:
+              schema:
+                type: boolean
+            application/xml:
+              schema:
+                type: boolean
+            text/xml:
+              schema:
+                type: boolean
+        "400":
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            text/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "503":
+          description: Service Unavailable
+  /customerapi/api/meterdata/gettimeseries/{dateFrom}/{dateTo}/{aggregation}:
+    post:
+      tags:
+        - MeterData
+      summary: Get timeseries
+      description: >-
+        This request is used for querying time series data for one or more
+        linked or related metering points,
+
+        for a specified period and with a specified aggregation level.
+                    
+        Please note that it is only possible to retrieve time series data for
+        the previous five years plus the current year.
+      parameters:
+        - name: dateFrom
+          in: path
+          description: "Date from filter in format: 'YYYY-MM-DD'"
+          required: true
+          schema:
+            type: string
+        - name: dateTo
+          in: path
+          description: "Date to filter in format: 'YYYY-MM-DD'"
+          required: true
+          schema:
+            type: string
+        - name: aggregation
+          in: path
+          description: "Time aggregation. Possible values are: 'Actual', 'Quarter',
+            'Hour', 'Day', 'Month', 'Year'"
+          required: true
+          schema:
+            type: string
+        - name: api-version
+          in: header
+          schema:
+            type: string
+            default: "1.0"
+      requestBody:
+        description: List of metering point ids.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeteringPointsRequest"
+          application/xml:
+            schema:
+              $ref: "#/components/schemas/MeteringPointsRequest"
+      responses:
+        "200":
+          description: When successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyEnergyDataMarketDocumentResponseListApiResponse"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/MyEnergyDataMarketDocumentResponseListApiResponse"
+        "400":
+          description: If you do not have access to one or more of the listed metering
+            point id(s)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+  /customerapi/api/meterdata/timeseries/export/{dateFrom}/{dateTo}/{aggregation}:
+    post:
+      tags:
+        - MeterData
+      summary: Returns a csv file containing a timeseries for each metering point in
+        list.
+      parameters:
+        - name: dateFrom
+          in: path
+          description: "Date from filter in format: 'YYYY-MM-DD'"
+          required: true
+          schema:
+            type: string
+        - name: dateTo
+          in: path
+          description: "Date to filter in format: 'YYYY-MM-DD'"
+          required: true
+          schema:
+            type: string
+        - name: aggregation
+          in: path
+          description: "Time aggregation. Possible values are: 'Actual', 'Quarter',
+            'Hour', 'Day', 'Month', 'Year'"
+          required: true
+          schema:
+            type: string
+        - name: api-version
+          in: header
+          schema:
+            type: string
+            default: "1.0"
+      requestBody:
+        description: List of metering point ids.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeteringPointsRequest"
+          application/xml:
+            schema:
+              $ref: "#/components/schemas/MeteringPointsRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            text/csv: {}
+  /customerapi/api/meteringpoints/meteringpoints:
+    get:
+      tags:
+        - MeteringPoints
+      summary: Get metering points
+      description: >-
+        This request is used for retrieving a list of metering points associated
+        with a specific user,
+
+        either a private or business customer.
+                    
+        If the parameter `includeAll` is `false` (default), only metering points
+        actively linked or related to the user
+
+        (i.e., metering points with existing relations) are returned.
+                    
+        If `includeAll` is `true`, the list of actively linked metering points
+        is merged with additional non-linked
+
+        metering points registered in DataHub to the CPR or CVR number of the
+        user.
+                    
+        The CPR (for private customers) or CVR (for business customers) is
+        retrieved using the supplied token.
+                    
+        For private customers, non-linked metering points are only returned if
+        both the CPR and the user's name (as stated in the token)
+
+        match the data registered to metering points in DataHub.
+      parameters:
+        - name: includeAll
+          in: query
+          description: When includeAll is false, only the metering points with relations
+            are returned. When includeAll is true the list will be a merge of
+            the related metering points with a lookup using CPR or CVR. CPR is
+            used if you are private user. CVR is used if you access as an
+            employee.
+          schema:
+            type: boolean
+            default: false
+        - name: api-version
+          in: header
+          schema:
+            type: string
+            default: "1.0"
+      responses:
+        "200":
+          description: When successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeteringPointApiDtoListApiResponse"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/MeteringPointApiDtoListApiResponse"
+        "401":
+          description: When the provided token dont meet the requirements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+  /customerapi/api/meteringpoints/meteringpoint/relation/add:
+    post:
+      tags:
+        - MeteringPoints
+      summary: Add relation based on CPR/CVR
+      description: >-
+        This request is used for linking one or more metering points to a user
+        when the metering points are registered
+
+        to the user’s CPR or CVR in DataHub.
+                    
+        The system retrieves the CPR or CVR number associated with the supplied
+        token and verifies whether the supplied
+
+        metering points are registered in DataHub to that CPR/CVR.
+                    
+        If the token is issued to a private customer, both the CPR and the
+        user's name (as stated in the token) must match
+
+        the data registered to the supplied metering points in DataHub. If the
+        match is successful, the relations are created;
+
+        otherwise, the request is rejected.
+                    
+        The logical flow is as follows:
+
+        First, use the /customerapi/api/meteringpoints/meteringpoints endpoint
+        to retrieve a list of linked and non-linked metering points
+
+        (i.e., metering points with and without relations).
+                    
+        Then, use the Add Relation endpoint to link (i.e., create relations for)
+        all or some of the non-linked metering points.
+      parameters:
+        - name: api-version
+          in: header
+          schema:
+            type: string
+            default: "1.0"
+      requestBody:
+        description: ""
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeteringPointsRequest"
+          application/xml:
+            schema:
+              $ref: "#/components/schemas/MeteringPointsRequest"
+      responses:
+        "200":
+          description: When successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StringResponseListApiResponse"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/StringResponseListApiResponse"
+        "401":
+          description: When the provided token dont meet the requirements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+  /customerapi/api/meteringpoints/meteringpoint/relation/add/{meteringPointId}/{webAccessCode}:
+    put:
+      tags:
+        - MeteringPoints
+      summary: Add relation with web access code
+      description: >-
+        This request is used for linking a metering point to a user by using the
+        Web Access Code (WAC) for the metering point.
+                    
+        The WAC is provided by the electricity supplier and can typically be
+        found on the electricity bill.
+                    
+        Adding relations using WAC is especially relevant for metering points
+        associated with private users,
+
+        as many such metering points do not yet have CPR numbers registered in
+        DataHub.
+      parameters:
+        - name: meteringPointId
+          in: path
+          description: The id of the metering point
+          required: true
+          schema:
+            type: string
+        - name: webAccessCode
+          in: path
+          description: The web access code is provided by the distribution company
+          required: true
+          schema:
+            type: string
+        - name: api-version
+          in: header
+          schema:
+            type: string
+            default: "1.0"
+      responses:
+        "200":
+          description: When successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StringApiResponse"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/StringApiResponse"
+        "401":
+          description: When the provided token dont meet the requirements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "404":
+          description: If the meteringpoint is not found or the web-access-code is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+  /customerapi/api/meteringpoints/meteringpoint/getdetails:
+    post:
+      tags:
+        - MeteringPoints
+      summary: Get metering point details
+      description: This request is used for querying details (master data) for one or
+        more (linked/related) metering points.
+      parameters:
+        - name: api-version
+          in: header
+          schema:
+            type: string
+            default: "1.0"
+      requestBody:
+        description: ""
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeteringPointsRequest"
+          application/xml:
+            schema:
+              $ref: "#/components/schemas/MeteringPointsRequest"
+      responses:
+        "200":
+          description: When successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeteringPointDetailsCustomerDtoResponseListApiRespo\
+                  nse"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/MeteringPointDetailsCustomerDtoResponseListApiRespo\
+                  nse"
+        "401":
+          description: When the provided token dont meet the requirements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+  /customerapi/api/meteringpoints/meteringpoint/getcharges:
+    post:
+      tags:
+        - MeteringPoints
+      summary: Get charges
+      description: >-
+        This request is used for querying charge data—such as subscriptions,
+        tariffs, and fees—for one or more
+
+        linked or related metering points.
+                    
+        Charges that are linked to the metering point at the time of the request
+        or on any future date will be returned.
+                    
+        However, past and future changes to an existing charge are not included
+        in the response.
+      parameters:
+        - name: api-version
+          in: header
+          schema:
+            type: string
+            default: "1.0"
+      requestBody:
+        description: ""
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeteringPointsRequest"
+          application/xml:
+            schema:
+              $ref: "#/components/schemas/MeteringPointsRequest"
+      responses:
+        "200":
+          description: When successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeteringPointFeesDtoResponseListApiResponse"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/MeteringPointFeesDtoResponseListApiResponse"
+        "400":
+          description: If you do not have access to one or more of the listed metering
+            point id(s)
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+  /customerapi/api/meteringpoints/meteringpoint/getchargelinkswithcharges:
+    post:
+      tags:
+        - MeteringPoints
+      summary: Get charge links with charges
+      description: >-
+        This request is used for querying charge links, charge information, and
+        charge series for one or more
+
+        linked or related metering points and date intervals.
+      parameters:
+        - name: api-version
+          in: header
+          schema:
+            type: string
+            default: "1.0"
+      requestBody:
+        description: ""
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GetChargeLinksWithChargesRequest"
+          application/xml:
+            schema:
+              $ref: "#/components/schemas/GetChargeLinksWithChargesRequest"
+      responses:
+        "200":
+          description: When successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetChargeLinksWithChargesResponseApiResponse"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/GetChargeLinksWithChargesResponseApiResponse"
+        "401":
+          description: When the provided token dont meet the requirements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "404":
+          description: When the Charges integration feature is disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+  /customerapi/api/meteringpoints/meteringpoint/relation/{meteringPointId}:
+    delete:
+      tags:
+        - MeteringPoints
+      summary: Delete relation
+      description: This request is used for deleting an existing relation to a
+        metering point.
+      parameters:
+        - name: meteringPointId
+          in: path
+          description: The id of the metering point
+          required: true
+          schema:
+            type: string
+        - name: api-version
+          in: header
+          schema:
+            type: string
+            default: "1.0"
+      responses:
+        "200":
+          description: When successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BooleanApiResponse"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/BooleanApiResponse"
+        "400":
+          description: If you do not have access to one or more of the listed metering
+            point id(s)
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+  /customerapi/api/meteringpoints/masterdata/export:
+    post:
+      tags:
+        - MeteringPoints
+      summary: Returns a csv file with metering points details.
+      description: ""
+      parameters:
+        - name: api-version
+          in: header
+          schema:
+            type: string
+            default: "1.0"
+      requestBody:
+        description: ""
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeteringPointsRequest"
+          application/xml:
+            schema:
+              $ref: "#/components/schemas/MeteringPointsRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            text/csv: {}
+  /customerapi/api/meteringpoints/charges/export:
+    post:
+      tags:
+        - MeteringPoints
+      summary: Returns a csv file containing current charges for a list of metering
+        points.
+      description: ""
+      parameters:
+        - name: api-version
+          in: header
+          schema:
+            type: string
+            default: "1.0"
+      requestBody:
+        description: ""
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeteringPointsRequest"
+          application/xml:
+            schema:
+              $ref: "#/components/schemas/MeteringPointsRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            text/csv: {}
+  /customerapi/api/token:
+    get:
+      tags:
+        - Token
+      summary: Get data access token
+      description: >-
+        In order to get an access token you will need
+
+        a valid refresh token. This token can be fetched from the portal.
+
+        The token is a JWT token. There are tools that can read the content eg:
+        https://jwt.io/
+
+        The token must be submittet in the request header like "Authorization:
+        Bearer eyJhbGciOi..."
+      parameters:
+        - name: api-version
+          in: header
+          schema:
+            type: string
+            default: "1.0"
+      responses:
+        "200":
+          description: Else this even when errors are returned. Check the response.Success
+            and the response.ErrorCode to know if the request performed as
+            exspected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StringApiResponse"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/StringApiResponse"
+        "401":
+          description: When the provided token don't meet the requirements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+        "403":
+          description: When a non-refresh token is used
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+            application/xml:
+              schema:
+                $ref: "#/components/schemas/ProblemDetails"
+components:
+  schemas:
+    BooleanApiResponse:
+      type: object
+      properties:
+        result:
+          type: boolean
+      additionalProperties: false
+      description: Used as the 'root' class for all responses returned from the public
+        API's. We need these to have a 'root' when the result is transformed to
+        XML
+    ChargeIdentifierDto:
+      type: object
+      properties:
+        code:
+          type: string
+          nullable: true
+        owner:
+          type: string
+          nullable: true
+        type:
+          type: string
+          nullable: true
+      additionalProperties: false
+    ChargeInformationDto:
+      type: object
+      properties:
+        chargeIdentifier:
+          $ref: "#/components/schemas/ChargeIdentifierDto"
+        taxIndicator:
+          type: boolean
+        resolution:
+          type: string
+          nullable: true
+        pricingCategory:
+          type: string
+          nullable: true
+        chargeInformationPeriods:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChargeInformationPeriodDto"
+          nullable: true
+        chargeSeriesPoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChargeSeriesPointDto"
+          nullable: true
+      additionalProperties: false
+    ChargeInformationPeriodDto:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        transparentInvoicing:
+          type: boolean
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+          nullable: true
+        vatClassification:
+          type: string
+          nullable: true
+      additionalProperties: false
+    ChargeLinkDto:
+      type: object
+      properties:
+        meteringPointId:
+          type: string
+          nullable: true
+        chargeIdentifier:
+          $ref: "#/components/schemas/ChargeIdentifierDto"
+        chargeLinkPeriods:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChargeLinkPeriodDto"
+          nullable: true
+      additionalProperties: false
+    ChargeLinkPeriodDto:
+      type: object
+      properties:
+        factor:
+          type: integer
+          format: int32
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+          nullable: true
+      additionalProperties: false
+    ChargeSeriesPointDto:
+      type: object
+      properties:
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        price:
+          type: number
+          format: double
+      additionalProperties: false
+    ChildMeteringPointDto:
+      type: object
+      properties:
+        parentMeteringPointId:
+          type: string
+          nullable: true
+        meteringPointId:
+          type: string
+          nullable: true
+        typeOfMP:
+          type: string
+          nullable: true
+        meterReadingOccurrence:
+          type: string
+          nullable: true
+        meterNumber:
+          type: string
+          nullable: true
+      additionalProperties: false
+    ContactAddressDto:
+      type: object
+      properties:
+        contactName1:
+          type: string
+          description: Name of contact person 1
+          nullable: true
+        contactName2:
+          type: string
+          description: Name of contact person 2
+          nullable: true
+        addressCode:
+          type: string
+          description: |-
+            Code specifying the type of contact address
+                        
+            Possible values:
+                        
+            D01 (Technical address), D04 (Juridical address).
+          nullable: true
+        streetName:
+          type: string
+          description: Street name – part of the specific contact address.
+          nullable: true
+        buildingNumber:
+          type: string
+          description: Building number – part of the specific contact address.
+          nullable: true
+        floorId:
+          type: string
+          description: Floor id – part of the specific contact address.
+          nullable: true
+        roomId:
+          type: string
+          description: Room id – part of the specific contact address.
+          nullable: true
+        citySubDivisionName:
+          type: string
+          nullable: true
+        postcode:
+          type: string
+          description: Postcode – part of the specific contact address.
+          nullable: true
+        cityName:
+          type: string
+          description: City name – part of the specific contact address.
+          nullable: true
+        countryName:
+          type: string
+          description: Country name – part of the specific contact address.
+          nullable: true
+        contactPhoneNumber:
+          type: string
+          description: Contact phone number.
+          nullable: true
+        contactMobileNumber:
+          type: string
+          description: Contact mobile number.
+          nullable: true
+        contactEmailAddress:
+          type: string
+          description: Contact e-mail address.
+          nullable: true
+        contactType:
+          type: string
+          description: Not used. Null is retuned. Will be removed in a later version of
+            the API.
+          nullable: true
+        attention:
+          type: string
+          description: Specifies if there a person or a c/o address to attention.
+          nullable: true
+        postBox:
+          type: string
+          description: Specifies if there a postbox to attention.
+          nullable: true
+        protectedAddress:
+          type: string
+          description: Specifies if the Address is protected.
+          nullable: true
+      additionalProperties: false
+    EIC:
+      type: object
+      properties:
+        codingScheme:
+          type: string
+          description: |-
+            The coding scheme used for the sender mRID.
+            Fixed value = A10
+            This code specifies that the coding scheme used is the
+            Global Location Number (GLN 13) maintained by GS1
+          nullable: true
+        name:
+          type: string
+          description: |-
+            GLN (Global Location Number) of DataHub.
+            Fixed value = 5790001330583
+          nullable: true
+      additionalProperties: false
+    GetChargeLinksWithChargesQueryItem:
+      type: object
+      properties:
+        meteringPointId:
+          type: string
+          nullable: true
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+      additionalProperties: false
+    GetChargeLinksWithChargesRequest:
+      type: object
+      properties:
+        query:
+          type: array
+          items:
+            $ref: "#/components/schemas/GetChargeLinksWithChargesQueryItem"
+          nullable: true
+      additionalProperties: false
+    GetChargeLinksWithChargesResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/GetChargeLinksWithChargesResultDto"
+          nullable: true
+        chargeInformations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChargeInformationDto"
+          nullable: true
+      additionalProperties: false
+    GetChargeLinksWithChargesResponseApiResponse:
+      type: object
+      properties:
+        result:
+          $ref: "#/components/schemas/GetChargeLinksWithChargesResponse"
+      additionalProperties: false
+      description: Used as the 'root' class for all responses returned from the public
+        API's. We need these to have a 'root' when the result is transformed to
+        XML
+    GetChargeLinksWithChargesResultDto:
+      type: object
+      properties:
+        meteringPointId:
+          type: string
+          nullable: true
+        error:
+          type: string
+          nullable: true
+        chargeLinks:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChargeLinkDto"
+          nullable: true
+      additionalProperties: false
+    MarketEvaluationMeteringPoint:
+      type: object
+      properties:
+        codingScheme:
+          type: string
+          description: |-
+            The coding scheme used for the market evaluation
+            point mRID.
+            Fixed value = A10
+            This code specifies that the coding scheme used is the
+            Global Service Relation Number (GSRN 18) maintained
+            by GS1.
+          nullable: true
+        name:
+          type: string
+          description: Unique metering point id consisting of 18 characters.
+          nullable: true
+      additionalProperties: false
+    MarketEvaluationPoint:
+      type: object
+      properties:
+        mRID:
+          $ref: "#/components/schemas/MarketEvaluationMeteringPoint"
+      additionalProperties: false
+    MeteringPointApiDto:
+      type: object
+      properties:
+        meteringPointId:
+          type: string
+          nullable: true
+        typeOfMP:
+          type: string
+          nullable: true
+        balanceSupplierName:
+          type: string
+          nullable: true
+        postcode:
+          type: string
+          nullable: true
+        cityName:
+          type: string
+          nullable: true
+        hasRelation:
+          type: boolean
+        consumerCVR:
+          type: string
+          nullable: true
+        dataAccessCVR:
+          type: string
+          nullable: true
+        childMeteringPoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChildMeteringPointDto"
+          nullable: true
+        streetCode:
+          type: string
+          nullable: true
+        streetName:
+          type: string
+          nullable: true
+        buildingNumber:
+          type: string
+          nullable: true
+        floorId:
+          type: string
+          nullable: true
+        roomId:
+          type: string
+          nullable: true
+        citySubDivisionName:
+          type: string
+          nullable: true
+        municipalityCode:
+          type: string
+          nullable: true
+        locationDescription:
+          type: string
+          nullable: true
+        settlementMethod:
+          type: string
+          nullable: true
+        meterReadingOccurrence:
+          type: string
+          nullable: true
+        firstConsumerPartyName:
+          type: string
+          nullable: true
+        secondConsumerPartyName:
+          type: string
+          nullable: true
+        meterNumber:
+          type: string
+          nullable: true
+        consumerStartDate:
+          type: string
+          nullable: true
+      additionalProperties: false
+    MeteringPointApiDtoListApiResponse:
+      type: object
+      properties:
+        result:
+          type: array
+          items:
+            $ref: "#/components/schemas/MeteringPointApiDto"
+          nullable: true
+      additionalProperties: false
+      description: Used as the 'root' class for all responses returned from the public
+        API's. We need these to have a 'root' when the result is transformed to
+        XML
+    MeteringPointChargeDto:
+      type: object
+      properties:
+        priceId:
+          type: string
+          description: Identifier of the price/charge type.
+          nullable: true
+        name:
+          type: string
+          description: Name of the fee.
+          nullable: true
+        description:
+          type: string
+          description: Description of the fee.
+          nullable: true
+        owner:
+          type: string
+          description: Specifies a GLN (Global Location Number) representing the owner
+            (grid operator).
+          nullable: true
+        validFromDate:
+          type: string
+          description: Date the fee starts.
+          nullable: true
+        validToDate:
+          type: string
+          description: Date the fee ends.
+          nullable: true
+        periodType:
+          type: string
+          description: Type of period "DAY" or "HOUR".
+          nullable: true
+        price:
+          type: number
+          description: Price of the subscription in dkkr.
+          format: double
+        quantity:
+          type: integer
+          description: Quantity of the subscription.
+          format: int32
+      additionalProperties: false
+    MeteringPointDetailsCustomerDto:
+      type: object
+      properties:
+        meteringPointId:
+          type: string
+          description: Unique metering point id consisting of 18 characters
+          nullable: true
+        parentMeteringPointId:
+          type: string
+          description: The id of the related parent metering point. Only applicable for
+            child metering points
+          nullable: true
+        typeOfMP:
+          type: string
+          description: >-
+            Specifies the type of metering point.
+                        
+            Possible values:
+                        
+            D01 (VE Production), D02 (Analysis), D04 (Surplus production group
+            6), D05 (Net production),
+
+            D06 (Supply to grid), D07 (Consumption from grid), D08 (Wholesale
+            services), D09 (Own production),
+
+            D10 (Net from grid), D11 (Net to grid), D12 (Total consumption), D14
+            (Electrical heating),
+
+            D15 (Net consumption), D17 (Other consumption), D18 (Other
+            production), D19 (Capacity Settlement), D99 (Internal use),
+
+            E17 (Consumption measurement point), E18 (Production measurement
+            point).
+          nullable: true
+        energyTimeSeriesMeasureUnit:
+          type: string
+          description: >-
+            Specifies the energy measurement unit relevant for the metering
+            point.
+                        
+            Possible values:
+                        
+            AMP (Ampere), H87 (Count/Quantity), K3 (kVArh - KiloVolt-Ampere
+            reactive hour),
+
+            KWH (kWh - Kilowatt-hour), KWT (kW - Kilowatt), MAW (MW - Megawatt),
+
+            MWH (MWh - Megawatt-hour), TNE (Tonne - metric ton), Z03 (MVAr -
+            MegaVolt-Ampere reactive power),
+
+            Z14 (Danish Tariff Code).
+          nullable: true
+        estimatedAnnualVolume:
+          type: string
+          description: |-
+            Estimated annual consumption/production of the metering
+            point. Only required for profiled settled metering points. May
+            exist for metering points with other settlement methods, but is
+            not necessarily maintained and should therefore not be used.
+          nullable: true
+        settlementMethod:
+          type: string
+          description: >-
+            Settlement method of the metering point.
+                        
+            Possible values:
+                        
+            D01 (Flex settled), E01 (Profiled settled), E02 (Non-profiled
+            settled).
+                        
+            If a metering point is flex settled or non-profiled settled or has
+
+            no settlement method, only non-profiled energy quantities are
+
+            registered for the metering point.
+
+            If a metering point is profiled settled, profiled energy quantities
+
+            (consumption statements) as well as non-profiled energy quantities
+            can be registered for the metering point depending on
+
+            the meter reading occurrence (see further details in the section
+
+            regarding meterReadingOccurrence elsewhere in this table).
+
+            Profiled settled metering points no longer exist, since all profiled
+            settled metering points were converted to flex settled metering
+            points before 01-01-2021.
+
+            However, if a metering point used to be profiled settled, profiled
+            energy quantities will still
+
+            be registered for the metering point in the period when the
+
+            metering point was profiled settled.
+          nullable: true
+        meterNumber:
+          type: string
+          description: Meter number identifying the physical meter. Only available if the
+            metering point has a physical meter.
+          nullable: true
+        gridOperatorName:
+          type: string
+          description: Name of the grid operator
+          nullable: true
+        meteringGridAreaIdentification:
+          type: string
+          description: Id of the grid area to which the metering point belongs.
+          nullable: true
+        netSettlementGroup:
+          type: string
+          description: >-
+            Net settlement group to which the metering point belongs.
+                        
+            Possible values:
+                        
+            0 (No Net Settlement), 1 (Net Settlement Group 1), 2 (Net Settlement
+            Group 2),
+
+            3 (Net Settlement Group 3), 4 (Net Settlement Group 4), 5 (Net
+            Settlement Group 5),
+
+            6 (Net Settlement Group 6), 7 (Net Settlement Group 7), 99 (Net
+            Settlement Group 99).
+          nullable: true
+        physicalStatusOfMP:
+          type: string
+          description: |-
+            Physical status of the metering point.
+                        
+            Possible values:
+                        
+            D03 (New), E22 (Connected), E23 (Disconnected).
+          nullable: true
+        consumerCategory:
+          type: string
+          description: Applies to all consumption metering points. Specifies the
+            threedigit consumer category for the electricityconsumption category
+            which applies to the metering point.
+          nullable: true
+        powerLimitKW:
+          type: string
+          description: Specifies the actual maximum limit for power (in kW).
+          nullable: true
+        powerLimitKWDecimal:
+          type: number
+          description: Specifies the actual maximum limit for power (in kW) in decimal.
+          format: double
+          nullable: true
+        powerLimitA:
+          type: string
+          description: Specifies the actual maximum limit for current (in ampere)
+          nullable: true
+        subTypeOfMP:
+          type: string
+          description: |-
+            Specifies the sub type of the metering point.
+                        
+            Possibles values:
+                        
+            D01 (Physical - metering point has a physical meter),
+            D02 (Virtual - energy volume calculated by grid operator),
+            D03 (Calculated - energy volume calculated in DataHub).
+          nullable: true
+        productionObligation:
+          type: string
+          description: Specifies for a production metering point that a production
+            obligation applies to the metering point and that no change of
+            supplier or move-in/move-out can be carried out for the metering
+            point.
+          nullable: true
+        mpCapacity:
+          type: string
+          description: Specifies the power in kW for the production facility.
+          nullable: true
+        mpConnectionType:
+          type: string
+          description: >-
+            Specifies the connection type of a metering point for which net
+            settlement is used.
+                        
+            Possible values:
+                        
+            D01 (Direct connected), D02 (Installation connected).
+          nullable: true
+        disconnectionType:
+          type: string
+          description: >-
+            Specifies how the metering point can be disconnected by the grid
+            operator.
+                        
+            Possible values:
+                        
+            D00 (For future usage), D01 (Remote disconnection), D02 (Manual
+            disconnection).
+          nullable: true
+        product:
+          type: string
+          description: >-
+            Product Id.
+                        
+            Possible values:
+                        
+            Item5790001330590 (Tariff), Item5790001330606 (Fuel quantity),
+            Item8716867000016 (Active power),
+
+            Item8716867000023 (Reactive power), Item8716867000030 (Active
+            energy), Item8716867000047 (Reactive energy).
+          nullable: true
+        consumerCVR:
+          type: string
+          description: CVR number of the registered consumer. Only available for metering
+            points registered to business consumers.
+          nullable: true
+        dataAccessCVR:
+          type: string
+          description: Additional CVR number of the registered consumer. Only available
+            for metering points registered to business consumers.
+          nullable: true
+        consumerStartDate:
+          type: string
+          description: Date when the current consumer was registered to the metering
+            point. Not available for child metering points. The date is
+            expressed in UTC as specified in ISO 8601.
+          nullable: true
+        meterReadingOccurrence:
+          type: string
+          description: >-
+            Specifies the meter reading resolution.
+                        
+            Possibles values:
+                        
+            ANDET (Other), P1M (Monthly), PT15M (15 Minutes), PT1H (Hourly).
+                        
+            If a metering point has meter reading occurrence = Other, only
+
+            profiled energy quantities (consumption statements) can be
+
+            registered for the metering point.
+
+            If a metering point has meter reading occurrence = P1M or
+
+            PT15M, only non-profiled energy quantities can be registered
+
+            for the metering point.
+
+            If a metering point has meter reading occurrence = PT1H, profiled
+            energy quantities (consumption statements) as well as
+
+            non-profiled energy quantities can be registered for the metering
+            point depending on the settlement method (see further details
+            elsewhere in this table).
+
+            See further details regarding profiled energy quantities versus
+
+            non-profiled energy quantities in the sec
+          nullable: true
+        mpReadingCharacteristics:
+          type: string
+          description: >-
+            Specifies how the metering point is read. Only applicable for
+            profiled metering points.
+                        
+            Possible values:
+                        
+            D01 (Automatic meter reading), D02 (Manual meter reading).
+          nullable: true
+        meterCounterDigits:
+          type: string
+          description: Number of digits on the counting mechanism of a meter. Only
+            applicable for metering points with a physical meter.
+          nullable: true
+        meterCounterMultiplyFactor:
+          type: string
+          description: The conversion factor on the counting mechanism of the meter. Only
+            applicable for metering points with a physical meter.
+          nullable: true
+        meterCounterUnit:
+          type: string
+          description: |-
+            Unit in which the counting mechanism of a meter meters the
+            energy consumption. Only applicable for metering points with a
+            physical meter.
+          nullable: true
+        meterCounterType:
+          type: string
+          description: >-
+            Specifies whether the counter of a meter accumulates or balances
+            consumption. Only applicable for metering points with a physical
+            meter.
+                        
+            Possible values:
+                        
+            D01 (Accumulated), D02 (Balanced).
+          nullable: true
+        taxReduction:
+          type: string
+          description: Specifies whether the consumer is entitled to a potential
+            electricity tax reduction due to electric heating.
+          nullable: true
+        taxSettlementDate:
+          type: string
+          description: |-
+            The date specifies either the commencement or termination of
+            an electricity tax reduction. The date is expressed in UTC as
+            specified in ISO 8601.
+          nullable: true
+        mpRelationType:
+          type: string
+          description: Not used. No value is retuned. Will be removed in a later version
+            of the API.
+          nullable: true
+        firstConsumerPartyName:
+          type: string
+          description: Name of consumer 1
+          nullable: true
+        secondConsumerPartyName:
+          type: string
+          description: Name of consumer 2
+          nullable: true
+        occurrence:
+          type: string
+          description: Date of the data request.
+          nullable: true
+        meteringPointAlias:
+          type: string
+          nullable: true
+        gridOperatorID:
+          type: string
+          description: Id of the Grid Operator.
+          nullable: true
+        gridOperatorID_SchemeAgencyIdentifier:
+          type: string
+          description: >-
+            Specifies which Agency the Balance supplier Identifier is associated
+            with.
+                        
+            Possible values:
+                        
+            GLN: Global Location Number
+            (https://www.gs1.org/standards/id-keys/gln)
+                        
+            EIC: The Energy Identification Coding
+            (https://www.entsoe.eu/data/energy-identification-codes-eic/)
+          nullable: true
+        assetType:
+          type: string
+          description: >-
+            Energy type.
+                        
+            Possible values:
+                        
+            D01 (Steam backpressure turbine), D02 (Gas turbine), D03 (Combined
+            cycle),
+
+            D04 (Internal combustion engine Gas), D05 (Steam turbine
+            condensation/steam), D06 (Boiler),
+
+            D07 (Stirling engine), D08 (Permanently connected electrical energy
+            storage facilities),
+
+            D09 (Temporarily connected electrical energy storage facilities),
+            D10 (Fuel cells),
+
+            D11 (Photovoltaics), D12 (Wind turbines), D13 (Hydropower), D14
+            (Wave power),
+
+            D15 (Mixed production), D16 (Production with electrical energy
+            storage facilities),
+
+            D17 (Power-to-X), D18 (Regenerative demand facility), D19 (Internal
+            combustion engine diesel engine),
+
+            D20 (Biocombustion engine), D99 (Unknown technology).
+          nullable: true
+        mpAddressWashInstructions:
+          type: string
+          description: >-
+            Specifies if the address can be washed against the public Danish
+            address register.
+                        
+            Possible values:
+                        
+            D01 (Washable), D02 (Not washable).
+          nullable: true
+        darReference:
+          type: string
+          description: Specifies the reference id to the public Danish Address Register.
+          nullable: true
+        streetCode:
+          type: string
+          description: Street code – part of metering point location address.
+          nullable: true
+        streetName:
+          type: string
+          description: Street name – part of metering point location address
+          nullable: true
+        buildingNumber:
+          type: string
+          description: Building number – part of metering point location address
+          nullable: true
+        floorId:
+          type: string
+          description: Floor id – part of metering point location address
+          nullable: true
+        roomId:
+          type: string
+          description: Room id – part of metering point location address
+          nullable: true
+        postcode:
+          type: string
+          description: Postcode – part of metering point location address.
+          nullable: true
+        cityName:
+          type: string
+          description: City name – part of metering point location address.
+          nullable: true
+        citySubDivisionName:
+          type: string
+          description: City sub division name – part of metering point location address
+          nullable: true
+        municipalityCode:
+          type: string
+          description: Municipality code – part of metering point location address.
+          nullable: true
+        locationDescription:
+          type: string
+          description: |-
+            Comment related to the location or nature of the metering
+            point. Will most often be a description regarding the location of
+            the physical meter.
+          nullable: true
+        contactAddresses:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactAddressDto"
+          nullable: true
+        childMeteringPoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChildMeteringPointDto"
+          nullable: true
+        balanceSupplierName:
+          type: string
+          description: Name of the current balance supplier.
+          nullable: true
+        balanceSupplierId:
+          type: string
+          description: Id of the Balance supplier.
+          nullable: true
+        balanceSupplierStartDate:
+          type: string
+          description: Start date of the current balance supplier. The date is expressed
+            in UTC as specified in ISO 8601.
+          nullable: true
+        balanceSupplierId_SchemeAgencyIdentifier:
+          type: string
+          description: >-
+            Specifies which Agency the Balance supplier Identifier is associated
+            with. (This is not available in Third party API)
+                        
+            Possibles values:
+                        
+            GLN: Global Location Number
+            (https://www.gs1.org/standards/id-keys/gln)
+                        
+            EIC: The Energy Identification Coding
+            (https://www.entsoe.eu/data/energy-identification-codes-eic/)
+          nullable: true
+        protectedName:
+          type: string
+          description: Specifies if the name is protected.
+          nullable: true
+      additionalProperties: false
+    MeteringPointDetailsCustomerDtoResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: True if the request succeded, False if not
+        errorCode:
+          type: integer
+          format: int32
+          readOnly: true
+        errorText:
+          type: string
+          description: Human readable description of the error
+          nullable: true
+        id:
+          type: string
+          description: "Used to map requests to responses. Ex: data is requested for 10
+            metering points. The 'Id' will be the requested metering point id
+            for which the reponse belong."
+          nullable: true
+        stackTrace:
+          type: string
+          description: Included stacktrace from exceptions
+          nullable: true
+        result:
+          $ref: "#/components/schemas/MeteringPointDetailsCustomerDto"
+      additionalProperties: false
+    MeteringPointDetailsCustomerDtoResponseListApiResponse:
+      type: object
+      properties:
+        result:
+          type: array
+          items:
+            $ref: "#/components/schemas/MeteringPointDetailsCustomerDtoResponse"
+          nullable: true
+      additionalProperties: false
+      description: Used as the 'root' class for all responses returned from the public
+        API's. We need these to have a 'root' when the result is transformed to
+        XML
+    MeteringPointFeesDto:
+      type: object
+      properties:
+        meteringPointId:
+          type: string
+          description: Id of the metering point.
+          nullable: true
+        subscriptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/MeteringPointChargeDto"
+          description: A list of subscriptions for the metering point.
+          nullable: true
+        tariffs:
+          type: array
+          items:
+            $ref: "#/components/schemas/MeteringPointTariffDto"
+          description: A list of tariffs for the metering point.
+          nullable: true
+        fees:
+          type: array
+          items:
+            $ref: "#/components/schemas/MeteringPointChargeDto"
+          description: A list of fees for the metering point.
+          nullable: true
+      additionalProperties: false
+    MeteringPointFeesDtoResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: True if the request succeded, False if not
+        errorCode:
+          type: integer
+          format: int32
+          readOnly: true
+        errorText:
+          type: string
+          description: Human readable description of the error
+          nullable: true
+        id:
+          type: string
+          description: "Used to map requests to responses. Ex: data is requested for 10
+            metering points. The 'Id' will be the requested metering point id
+            for which the reponse belong."
+          nullable: true
+        stackTrace:
+          type: string
+          description: Included stacktrace from exceptions
+          nullable: true
+        result:
+          $ref: "#/components/schemas/MeteringPointFeesDto"
+      additionalProperties: false
+    MeteringPointFeesDtoResponseListApiResponse:
+      type: object
+      properties:
+        result:
+          type: array
+          items:
+            $ref: "#/components/schemas/MeteringPointFeesDtoResponse"
+          nullable: true
+      additionalProperties: false
+      description: Used as the 'root' class for all responses returned from the public
+        API's. We need these to have a 'root' when the result is transformed to
+        XML
+    MeteringPointTariffDto:
+      type: object
+      properties:
+        priceId:
+          type: string
+          description: Identifier of the price/charge type.
+          nullable: true
+        name:
+          type: string
+          description: Name of the fee.
+          nullable: true
+        description:
+          type: string
+          description: Description of the fee.
+          nullable: true
+        owner:
+          type: string
+          description: Specifies a GLN (Global Location Number) representing the owner
+            (grid operator).
+          nullable: true
+        validFromDate:
+          type: string
+          description: Date the fee starts.
+          nullable: true
+        validToDate:
+          type: string
+          description: Date the fee ends.
+          nullable: true
+        periodType:
+          type: string
+          description: Type of period "DAY" or "HOUR".
+          nullable: true
+        prices:
+          type: array
+          items:
+            $ref: "#/components/schemas/MeteringPointTariffPriceDto"
+          description: Price of the tariff in dkkr. and hour of tariff
+          nullable: true
+      additionalProperties: false
+    MeteringPointTariffPriceDto:
+      type: object
+      properties:
+        position:
+          type: string
+          description: Hour of tariff
+          nullable: true
+        price:
+          type: number
+          description: Price of the tariff in dkkr.
+          format: double
+      additionalProperties: false
+    MeteringPoints:
+      type: object
+      properties:
+        meteringPoint:
+          type: array
+          items:
+            type: string
+          nullable: true
+      additionalProperties: false
+    MeteringPointsRequest:
+      type: object
+      properties:
+        meteringPoints:
+          $ref: "#/components/schemas/MeteringPoints"
+      additionalProperties: false
+    MyEnergyDataMarketDocument:
+      type: object
+      properties:
+        mRID:
+          type: string
+          description: >-
+            Identification of the market document. If several MarketDocument
+            structures are contained in the same
+
+            message, then all of them will have the same id.
+          nullable: true
+        createdDateTime:
+          type: string
+          description: The date and time of the creation of the document/message. The
+            date/time is expressed in UTC as specified in ISO 8601.
+          nullable: true
+        sender_MarketParticipant.name:
+          type: string
+          description: |-
+            Sender name.
+            Fixed value = Energinet
+          nullable: true
+        sender_MarketParticipant.mRID:
+          $ref: "#/components/schemas/EIC"
+        period.timeInterval:
+          $ref: "#/components/schemas/PeriodtimeInterval"
+        TimeSeries:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeSeries"
+          nullable: true
+      additionalProperties: false
+    MyEnergyDataMarketDocumentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: True if the request succeded, False if not
+        errorCode:
+          type: integer
+          format: int32
+          readOnly: true
+        errorText:
+          type: string
+          description: Human readable description of the error
+          nullable: true
+        id:
+          type: string
+          description: "Used to map requests to responses. Ex: data is requested for 10
+            metering points. The 'Id' will be the requested metering point id
+            for which the reponse belong."
+          nullable: true
+        stackTrace:
+          type: string
+          description: Included stacktrace from exceptions
+          nullable: true
+        MyEnergyData_MarketDocument:
+          $ref: "#/components/schemas/MyEnergyDataMarketDocument"
+      additionalProperties: false
+    MyEnergyDataMarketDocumentResponseListApiResponse:
+      type: object
+      properties:
+        result:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyEnergyDataMarketDocumentResponse"
+          nullable: true
+      additionalProperties: false
+      description: Used as the 'root' class for all responses returned from the public
+        API's. We need these to have a 'root' when the result is transformed to
+        XML
+    Period:
+      type: object
+      properties:
+        resolution:
+          type: string
+          description: >-
+            Specifies the resolution that the specific period covers.
+                        
+            Possible values:
+                        
+            PT15M (Quarter of an hour), PT1H (Hour), P1D (Day), P1M (Month), P1Y
+            (Year),
+
+            PXD (X days - where X is a variable for profiled energy quantities
+            covering various period lengths).
+          nullable: true
+        timeInterval:
+          $ref: "#/components/schemas/PeriodtimeInterval"
+        Point:
+          type: array
+          items:
+            $ref: "#/components/schemas/Point"
+          nullable: true
+      additionalProperties: false
+    PeriodtimeInterval:
+      type: object
+      properties:
+        start:
+          type: string
+          description: Start date of period. The date is expressed in UTC as specified in
+            ISO 8601.
+          nullable: true
+        end:
+          type: string
+          description: End date of period. The date is expressed in UTC as specified in
+            ISO 8601.
+          nullable: true
+      additionalProperties: false
+    Point:
+      type: object
+      properties:
+        position:
+          type: string
+          description: "Possible values: 1-96"
+          nullable: true
+        out_Quantity.quantity:
+          type: string
+          description: The quantity value associated with a given point, with a maximum 3
+            decimals
+          nullable: true
+        out_Quantity.quality:
+          type: string
+          description: >-
+            The quality of the quantity associated with a given point.
+                        
+            Possible values:
+                        
+            A01 (Adjusted - will no longer be used after February 2020,
+            specifies energy quantities calculated by DataHub),
+
+            A02 (Not available - grid operator submitted missing indicator, no
+            quantity returned),
+
+            A03 (Estimated - quantity submitted as estimate by grid operator),
+
+            A04 (As provided/Measured - quantity submitted as measured by grid
+            operator),
+
+            A05 (Incomplete - aggregated quantity where at least one component
+            has missing indicator).
+          nullable: true
+      additionalProperties: false
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        status:
+          type: integer
+          format: int32
+          nullable: true
+        detail:
+          type: string
+          nullable: true
+        instance:
+          type: string
+          nullable: true
+      additionalProperties: {}
+    StringApiResponse:
+      type: object
+      properties:
+        result:
+          type: string
+          nullable: true
+      additionalProperties: false
+      description: Used as the 'root' class for all responses returned from the public
+        API's. We need these to have a 'root' when the result is transformed to
+        XML
+    StringResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: True if the request succeded, False if not
+        errorCode:
+          type: integer
+          format: int32
+          readOnly: true
+        errorText:
+          type: string
+          description: Human readable description of the error
+          nullable: true
+        id:
+          type: string
+          description: "Used to map requests to responses. Ex: data is requested for 10
+            metering points. The 'Id' will be the requested metering point id
+            for which the reponse belong."
+          nullable: true
+        stackTrace:
+          type: string
+          description: Included stacktrace from exceptions
+          nullable: true
+        result:
+          type: string
+          description: Container to the result object
+          nullable: true
+      additionalProperties: false
+    StringResponseListApiResponse:
+      type: object
+      properties:
+        result:
+          type: array
+          items:
+            $ref: "#/components/schemas/StringResponse"
+          nullable: true
+      additionalProperties: false
+      description: Used as the 'root' class for all responses returned from the public
+        API's. We need these to have a 'root' when the result is transformed to
+        XML
+    TimeSeries:
+      type: object
+      properties:
+        mRID:
+          type: string
+          description: Unique metering point id consisting of 18 characters.
+          nullable: true
+        businessType:
+          type: string
+          description: |-
+            A code specifying the nature of the time series.
+                        
+            Possible values:
+                        
+            A01 (Production), A04 (Consumption), A64 (Consumption - profiled).
+          nullable: true
+        curveType:
+          type: string
+          description: >-
+            The coded representation of the type of curve being
+
+            described. Will always be A01, specifying that the curve
+
+            is made of successive Intervals of time (blocks) of constant
+            duration (size), where the size of the blocks is
+
+            equal to the resolution of the period.
+          nullable: true
+        measurement_Unit.name:
+          type: string
+          description: The unit of measure that is applied to a quantity.
+          nullable: true
+        MarketEvaluationPoint:
+          $ref: "#/components/schemas/MarketEvaluationPoint"
+        Period:
+          type: array
+          items:
+            $ref: "#/components/schemas/Period"
+          nullable: true
+      additionalProperties: false
+  securitySchemes:
+    Bearer:
+      type: http
+      description: 'JWT Authorization header using the Bearer scheme. Example:
+        "Authorization: Bearer {token}"'
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - Bearer: []
+tags:
+  - name: IsAlive
+  - name: MeterData
+  - name: MeteringPoints
+  - name: Token

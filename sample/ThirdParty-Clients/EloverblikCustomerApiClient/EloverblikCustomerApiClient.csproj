@@ -4,18 +4,17 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>MontaPartner.ApiClient</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- OpenAPI Specification -->
-    <AdditionalFiles Include="Monta.yaml" />
+    <AdditionalFiles Include="api-1.yaml" />
     <AdditionalFiles Include=".atc-rest-api-client" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- Source Generator Reference -->
-    <ProjectReference Include="..\..\src\Atc.Rest.Api.SourceGenerator\Atc.Rest.Api.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\..\src\Atc.Rest.Api.SourceGenerator\Atc.Rest.Api.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

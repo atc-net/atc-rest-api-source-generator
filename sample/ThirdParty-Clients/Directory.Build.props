@@ -1,0 +1,15 @@
+<Project>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <!--
+      ATC_API_OPR001 is emitted by the Atc.Rest.Api.SourceGenerator source generator (Standard mode)
+      when an operation is missing 'operationId'. Generator diagnostics are not subject to
+      .editorconfig `dotnet_diagnostic.<ID>.severity` overrides (that mechanism only applies to
+      DiagnosticAnalyzers), so it must be suppressed via NoWarn instead.
+    -->
+    <NoWarn>$(NoWarn);ATC_API_OPR001</NoWarn>
+  </PropertyGroup>
+
+</Project>
