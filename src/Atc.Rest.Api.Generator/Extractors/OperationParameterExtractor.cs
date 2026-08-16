@@ -23,9 +23,10 @@ public static class OperationParameterExtractor
         OpenApiDocument openApiDoc,
         string projectName,
         TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false)
+        bool includeDeprecated = false,
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
     {
-        var recordsList = ExtractIndividual(openApiDoc, projectName, pathSegment: null, registry: registry, includeBindingAttributes: true, namespaceSubFolder: "Parameters", includeDeprecated: includeDeprecated);
+        var recordsList = ExtractIndividual(openApiDoc, projectName, pathSegment: null, registry: registry, includeBindingAttributes: true, namespaceSubFolder: "Parameters", includeDeprecated: includeDeprecated, validateStrategy: validateStrategy);
 
         if (recordsList is null || recordsList.Count == 0)
         {
@@ -66,9 +67,10 @@ public static class OperationParameterExtractor
         TypeConflictRegistry? registry = null,
         bool includeDeprecated = false,
         bool includeSharedModelsUsing = false,
-        bool includeSegmentModelsUsing = true)
+        bool includeSegmentModelsUsing = true,
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
     {
-        var recordsList = ExtractIndividual(openApiDoc, projectName, pathSegment, registry: registry, includeBindingAttributes: true, namespaceSubFolder: "Parameters", includeDeprecated: includeDeprecated);
+        var recordsList = ExtractIndividual(openApiDoc, projectName, pathSegment, registry: registry, includeBindingAttributes: true, namespaceSubFolder: "Parameters", includeDeprecated: includeDeprecated, validateStrategy: validateStrategy);
 
         if (recordsList is null || recordsList.Count == 0)
         {
@@ -103,7 +105,7 @@ public static class OperationParameterExtractor
     }
 
     /// <summary>
-    /// Inline-enum-aware variant of <see cref="Extract(OpenApiDocument, string, string?, TypeConflictRegistry?, bool, bool, bool)"/>.
+    /// Inline-enum-aware variant of <see cref="Extract(OpenApiDocument, string, string?, TypeConflictRegistry?, bool, bool, bool, ValidateSpecificationStrategy)"/>.
     /// Returns both the wrapped <see cref="RecordsParameters"/> AND any inline enums discovered
     /// on parameter schemas. Callers (typically the Roslyn source generator) are expected to
     /// emit each <see cref="InlineEnumInfo"/> as a separate <c>.g.cs</c> file alongside the
@@ -117,7 +119,8 @@ public static class OperationParameterExtractor
         bool includeDeprecated = false,
         bool includeSharedModelsUsing = false,
         bool includeSegmentModelsUsing = true,
-        bool emitInlineEnums = true)
+        bool emitInlineEnums = true,
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
     {
         // When opted out (emitInlineEnums = false), pass no accumulator so inline-enum
         // parameters fall back to `string` and no enum types are emitted — the pre-1.0.252
@@ -134,7 +137,8 @@ public static class OperationParameterExtractor
             includeBindingAttributes: true,
             namespaceSubFolder: "Parameters",
             includeDeprecated: includeDeprecated,
-            inlineEnumsByValuesKey: inlineEnumsByValuesKey);
+            inlineEnumsByValuesKey: inlineEnumsByValuesKey,
+            validateStrategy: validateStrategy);
 
         if (recordsList is null || recordsList.Count == 0)
         {
@@ -226,7 +230,8 @@ public static class OperationParameterExtractor
         bool includeBindingAttributes,
         string namespaceSubFolder,
         bool includeDeprecated = false,
-        Dictionary<string, InlineEnumInfo>? inlineEnumsByValuesKey = null)
+        Dictionary<string, InlineEnumInfo>? inlineEnumsByValuesKey = null,
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
     {
         if (openApiDoc is null)
         {
@@ -276,7 +281,20 @@ public static class OperationParameterExtractor
 
                 if (string.IsNullOrEmpty(operationId))
                 {
-                    continue;
+                    if (validateStrategy == ValidateSpecificationStrategy.Strict)
+                    {
+                        // Strict mode: operation must have an explicit operationId — skip it.
+                        continue;
+                    }
+
+                    // Standard mode: mirror the synthetic-name formula used by EndpointPerOperationExtractor
+                    // so parameter records are generated even when operationId is absent.
+                    var httpMethod = operation.Key.ToString();
+                    var normalizedPath = pathKey
+                        .Replace('/', '_')
+                        .Replace("{", string.Empty)
+                        .Replace("}", string.Empty);
+                    operationId = $"{httpMethod}{normalizedPath}";
                 }
 
                 // Check if operation has parameters (operation-level OR path-level) OR request body
@@ -327,7 +345,8 @@ public static class OperationParameterExtractor
         bool includeBindingAttributes,
         string namespaceSubFolder,
         bool includeDeprecated = false,
-        bool emitInlineEnums = true)
+        bool emitInlineEnums = true,
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
     {
         // See ExtractWithInlineEnums: emitInlineEnums = false opts back into the pre-1.0.252
         // contract where inline-enum parameters render as `string`.
@@ -342,7 +361,8 @@ public static class OperationParameterExtractor
             includeBindingAttributes,
             namespaceSubFolder,
             includeDeprecated,
-            inlineEnumsByValuesKey);
+            inlineEnumsByValuesKey,
+            validateStrategy);
 
         return (records, ToInlineEnumList(inlineEnumsByValuesKey));
     }

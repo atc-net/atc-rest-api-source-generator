@@ -329,7 +329,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                     ? ErrorResponseFormatType.Custom
                     : config.ErrorResponseFormat;
 
-                var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, config.CustomErrorResponseModel?.Name);
+                var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, config.CustomErrorResponseModel?.Name, config.ValidateSpecificationStrategy);
                 if (hasEndpoints)
                 {
                     generatedPathSegments.Add(pathSegment);
@@ -339,7 +339,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 var hasSegmentModelsTyped = segmentSchemas.Count > 0;
                 var hasSharedModelsTyped = sharedSchemas.Count > 0;
-                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath);
+                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy);
             }
         }
 
@@ -747,11 +747,12 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool includeDeprecated,
         bool hasSegmentModels,
         bool hasSharedModels,
-        bool useServersBasePath)
+        bool useServersBasePath,
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
     {
         // Generate client parameters using shared OperationParameterExtractor (without binding attributes)
         // Each parameter record is generated as a separate file to avoid multiple file-scoped namespace declarations
-        var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated);
+        var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated, validateStrategy);
 
         // Emit inline enum files for any inline enums on parameter schemas — these must
         // appear before the parameter records that reference them.
@@ -837,11 +838,12 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool useServersBasePath,
         string? httpClientName,
         ErrorResponseFormatType errorResponseFormat,
-        string? customErrorTypeName)
+        string? customErrorTypeName,
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
     {
         // Generate client parameters using shared OperationParameterExtractor (without binding attributes)
         // Parameters are shared between TypedClient and EndpointPerOperation modes
-        var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated);
+        var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated, validateStrategy);
 
         // Emit inline enum files for any inline enums on parameter schemas.
         foreach (var inlineEnum in parameterInlineEnums)

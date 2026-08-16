@@ -338,7 +338,8 @@ public static class HttpClientExtractor
         string projectName,
         string? pathSegment,
         TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false)
+        bool includeDeprecated = false,
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
         => OperationParameterExtractor.ExtractIndividual(
             openApiDoc,
             projectName,
@@ -346,7 +347,8 @@ public static class HttpClientExtractor
             registry: registry,
             includeBindingAttributes: false,
             namespaceSubFolder: "Client",
-            includeDeprecated: includeDeprecated);
+            includeDeprecated: includeDeprecated,
+            validateStrategy: validateStrategy);
 
     /// <summary>
     /// Inline-enum-aware variant of <see cref="ExtractParameters"/>. Returns both the
@@ -358,7 +360,8 @@ public static class HttpClientExtractor
         string projectName,
         string? pathSegment,
         TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false)
+        bool includeDeprecated = false,
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
         => OperationParameterExtractor.ExtractIndividualWithInlineEnums(
             openApiDoc,
             projectName,
@@ -366,7 +369,8 @@ public static class HttpClientExtractor
             registry,
             includeBindingAttributes: false,
             namespaceSubFolder: "Client",
-            includeDeprecated: includeDeprecated);
+            includeDeprecated: includeDeprecated,
+            validateStrategy: validateStrategy);
 
     private static MethodParameters? ExtractMethod(
         string path,

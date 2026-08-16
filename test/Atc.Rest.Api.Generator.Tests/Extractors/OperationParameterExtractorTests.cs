@@ -1282,4 +1282,434 @@ public class OperationParameterExtractorTests
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
             : null;
+
+    // ========== Missing operationId — synthetic name fallback ==========
+    // Each test mirrors one real Eloverblik operation that has no operationId.
+    // The extractor must synthesise: {METHOD}{path.Replace("/","_").Replace("{","").Replace("}","")}
+    // then ToPascalCaseForDotNet() → "{Name}Parameters" record.
+    [Fact]
+    public void Extract_WithNoOperationId_GetMeteringpoints_SynthesisesParameterRecord()
+    {
+        // GET /thirdpartyapi/api/authorization/authorization/meteringpoints/{scope}/{identifier}
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /thirdpartyapi/api/authorization/authorization/meteringpoints/{scope}/{identifier}:
+                                get:
+                                  summary: Get metering points
+                                  parameters:
+                                    - name: scope
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                    - name: identifier
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var result = OperationParameterExtractor.Extract(document, "TestApi", "Thirdpartyapi", validateStrategy: ValidateSpecificationStrategy.Standard);
+
+        Assert.NotNull(result);
+        Assert.Single(result.Parameters);
+        Assert.Equal(
+            "GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierParameters",
+            result.Parameters[0].Name);
+    }
+
+    [Fact]
+    public void Extract_WithNoOperationId_GetMeteringpointIds_SynthesisesParameterRecord()
+    {
+        // GET /thirdpartyapi/api/authorization/authorization/meteringpointids/{scope}/{identifier}
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /thirdpartyapi/api/authorization/authorization/meteringpointids/{scope}/{identifier}:
+                                get:
+                                  summary: Get metering point ids
+                                  parameters:
+                                    - name: scope
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                    - name: identifier
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var result = OperationParameterExtractor.Extract(document, "TestApi", "Thirdpartyapi", validateStrategy: ValidateSpecificationStrategy.Standard);
+
+        Assert.NotNull(result);
+        Assert.Single(result.Parameters);
+        Assert.Equal(
+            "GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointidsScopeIdentifierParameters",
+            result.Parameters[0].Name);
+    }
+
+    [Fact]
+    public void Extract_WithNoOperationId_GetAuthorizations_SynthesisesParameterRecord()
+    {
+        // GET /thirdpartyapi/api/authorization/authorizations  (only header param → hasParameters)
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /thirdpartyapi/api/authorization/authorizations:
+                                get:
+                                  summary: Get authorizations
+                                  parameters:
+                                    - name: api-version
+                                      in: header
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var result = OperationParameterExtractor.Extract(document, "TestApi", "Thirdpartyapi", validateStrategy: ValidateSpecificationStrategy.Standard);
+
+        Assert.NotNull(result);
+        Assert.Single(result.Parameters);
+        Assert.Equal(
+            "GetThirdpartyapiApiAuthorizationAuthorizationsParameters",
+            result.Parameters[0].Name);
+    }
+
+    [Fact]
+    public void Extract_WithNoOperationId_GetIsAlive_SynthesisesParameterRecord()
+    {
+        // GET /thirdpartyapi/api/isalive
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /thirdpartyapi/api/isalive:
+                                get:
+                                  summary: Get IsAlive status
+                                  parameters:
+                                    - name: api-version
+                                      in: header
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var result = OperationParameterExtractor.Extract(document, "TestApi", "Thirdpartyapi", validateStrategy: ValidateSpecificationStrategy.Standard);
+
+        Assert.NotNull(result);
+        Assert.Single(result.Parameters);
+        Assert.Equal(
+            "GetThirdpartyapiApiIsaliveParameters",
+            result.Parameters[0].Name);
+    }
+
+    [Fact]
+    public void Extract_WithNoOperationId_PostGetTimeSeries_SynthesisesParameterRecord()
+    {
+        // POST /thirdpartyapi/api/meterdata/gettimeseries/{dateFrom}/{dateTo}/{aggregation}
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /thirdpartyapi/api/meterdata/gettimeseries/{dateFrom}/{dateTo}/{aggregation}:
+                                post:
+                                  summary: Get time series
+                                  parameters:
+                                    - name: dateFrom
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                    - name: dateTo
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                    - name: aggregation
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var result = OperationParameterExtractor.Extract(document, "TestApi", "Thirdpartyapi", validateStrategy: ValidateSpecificationStrategy.Standard);
+
+        Assert.NotNull(result);
+        Assert.Single(result.Parameters);
+        Assert.Equal(
+            "PostThirdpartyapiApiMeterdataGettimeseriesDateFromDateToAggregationParameters",
+            result.Parameters[0].Name);
+    }
+
+    [Fact]
+    public void Extract_WithNoOperationId_PostGetDetails_SynthesisesParameterRecord()
+    {
+        // POST /thirdpartyapi/api/meteringpoint/getdetails
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /thirdpartyapi/api/meteringpoint/getdetails:
+                                post:
+                                  summary: Get details
+                                  parameters:
+                                    - name: api-version
+                                      in: header
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var result = OperationParameterExtractor.Extract(document, "TestApi", "Thirdpartyapi", validateStrategy: ValidateSpecificationStrategy.Standard);
+
+        Assert.NotNull(result);
+        Assert.Single(result.Parameters);
+        Assert.Equal(
+            "PostThirdpartyapiApiMeteringpointGetdetailsParameters",
+            result.Parameters[0].Name);
+    }
+
+    [Fact]
+    public void Extract_WithNoOperationId_PostGetCharges_SynthesisesParameterRecord()
+    {
+        // POST /thirdpartyapi/api/meteringpoint/getcharges
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /thirdpartyapi/api/meteringpoint/getcharges:
+                                post:
+                                  summary: Get charges
+                                  parameters:
+                                    - name: api-version
+                                      in: header
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var result = OperationParameterExtractor.Extract(document, "TestApi", "Thirdpartyapi", validateStrategy: ValidateSpecificationStrategy.Standard);
+
+        Assert.NotNull(result);
+        Assert.Single(result.Parameters);
+        Assert.Equal(
+            "PostThirdpartyapiApiMeteringpointGetchargesParameters",
+            result.Parameters[0].Name);
+    }
+
+    [Fact]
+    public void Extract_WithNoOperationId_PostGetChargeLinksWithCharges_SynthesisesParameterRecord()
+    {
+        // POST /thirdpartyapi/api/meteringpoint/getchargelinkswithcharges
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /thirdpartyapi/api/meteringpoint/getchargelinkswithcharges:
+                                post:
+                                  summary: Get charge links with charges
+                                  parameters:
+                                    - name: api-version
+                                      in: header
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var result = OperationParameterExtractor.Extract(document, "TestApi", "Thirdpartyapi", validateStrategy: ValidateSpecificationStrategy.Standard);
+
+        Assert.NotNull(result);
+        Assert.Single(result.Parameters);
+        Assert.Equal(
+            "PostThirdpartyapiApiMeteringpointGetchargelinkswithchargesParameters",
+            result.Parameters[0].Name);
+    }
+
+    [Fact]
+    public void Extract_WithNoOperationId_GetToken_SynthesisesParameterRecord()
+    {
+        // GET /thirdpartyapi/api/token
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /thirdpartyapi/api/token:
+                                get:
+                                  summary: Get token
+                                  parameters:
+                                    - name: api-version
+                                      in: header
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var result = OperationParameterExtractor.Extract(document, "TestApi", "Thirdpartyapi", validateStrategy: ValidateSpecificationStrategy.Standard);
+
+        Assert.NotNull(result);
+        Assert.Single(result.Parameters);
+        Assert.Equal(
+            "GetThirdpartyapiApiTokenParameters",
+            result.Parameters[0].Name);
+    }
+
+    // ========== Strict mode: no synthesis — operations without operationId are skipped ==========
+    [Fact]
+    public void Extract_WithNoOperationId_StrictMode_ReturnsNull()
+    {
+        // Strict mode must skip operations that have no operationId, returning null.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /thirdpartyapi/api/isalive:
+                                get:
+                                  summary: Get IsAlive status
+                                  parameters:
+                                    - name: api-version
+                                      in: header
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var result = OperationParameterExtractor.Extract(
+            document,
+            "TestApi",
+            "Thirdpartyapi",
+            validateStrategy: ValidateSpecificationStrategy.Strict);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void Extract_WithNoOperationId_StrictMode_MultipleOps_SkipsAllWithoutId()
+    {
+        // Strict mode: two operations without operationId — both must be skipped, result is null.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /thirdpartyapi/api/authorization/authorization/meteringpoints/{scope}/{identifier}:
+                                get:
+                                  summary: Get metering points
+                                  parameters:
+                                    - name: scope
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                    - name: identifier
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                              /thirdpartyapi/api/token:
+                                get:
+                                  summary: Get token
+                                  parameters:
+                                    - name: api-version
+                                      in: header
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var result = OperationParameterExtractor.Extract(
+            document,
+            "TestApi",
+            "Thirdpartyapi",
+            validateStrategy: ValidateSpecificationStrategy.Strict);
+
+        Assert.Null(result);
+    }
 }
