@@ -49,10 +49,15 @@
     <Project Path="sample/NexusSample/NexusSample.ApiClient/NexusSample.ApiClient.csproj" />
   </Folder>
   <Folder Name="/sample/" />
+  <Folder Name="/sample/ThirdParty-Clients/" />
   <Folder Name="/sample/ThirdParty-Clients/EloverblikCustomerApiClient/">
+    <File Path="sample/ThirdParty-Clients/EloverblikCustomerApiClient/.atc-rest-api-client" />
+    <File Path="sample/ThirdParty-Clients/EloverblikCustomerApiClient/api-1.yaml" />
     <Project Path="sample/ThirdParty-Clients/EloverblikCustomerApiClient/EloverblikCustomerApiClient.csproj" />
   </Folder>
   <Folder Name="/sample/ThirdParty-Clients/EloverblikThirdPartyApiClient/">
+    <File Path="sample/ThirdParty-Clients/EloverblikThirdPartyApiClient/.atc-rest-api-client" />
+    <File Path="sample/ThirdParty-Clients/EloverblikThirdPartyApiClient/api-1.yaml" />
     <Project Path="sample/ThirdParty-Clients/EloverblikThirdPartyApiClient/EloverblikThirdPartyApiClient.csproj" />
   </Folder>
   <Folder Name="/sample/ThirdParty-Clients/MontaClient/">
