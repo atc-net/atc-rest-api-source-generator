@@ -275,7 +275,9 @@ public static class CodeGenerationService
             (GeneratorType.Server, "Parameters") => $"Contracts\\{groupNamePart}/Parameters",
             (GeneratorType.Server, "Results") => $"Contracts\\{groupNamePart}/Results",
             (GeneratorType.Server, "Handlers") => $"Contracts\\{groupNamePart}/Interfaces",
-            (GeneratorType.Server, "Endpoints") => "Endpoints",
+            (GeneratorType.Server, "Endpoints") => string.IsNullOrEmpty(groupName)
+                ? "Endpoints"
+                : $"Endpoints\\{groupName}",
             (GeneratorType.Server, "DependencyInjection") => "Extensions",
 
             // Client paths
@@ -576,7 +578,7 @@ public static class CodeGenerationService
             var typeName = kvp.Key;
             var (pathSegment, recordParams) = kvp.Value;
 
-            var @namespace = $"{projectName}.Generated.{pathSegment}.Models";
+            var @namespace = NamespaceBuilder.ForModels(projectName, pathSegment);
             var content = GenerateRecordContentOnly(codeDocGenerator, recordParams);
             var usings = new List<string>(ModelUsings);
 
@@ -971,35 +973,87 @@ public static class CodeGenerationService
         var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
 
+        // Generate the shared IEndpointDefinition interface once
+        var sharedInterfaceContent = GenerateSharedEndpointDefinitionInterfaceContent(projectName);
+        if (!string.IsNullOrEmpty(sharedInterfaceContent))
+        {
+            yield return new GeneratedType(
+                TypeName: "IEndpointDefinition",
+                Category: "Endpoints",
+                Namespace: NamespaceBuilder.ForEndpoints(projectName),
+                Content: sharedInterfaceContent,
+                RequiredUsings: [], // Content already includes usings
+                GroupName: null,
+                SubFolder: GetSubFolder("Endpoints", null, generatorType));
+        }
+
         // Generate per-segment endpoint files
+        var effectiveSegments = new List<string>();
+        var endpointDefinitionsBySegment = new List<(string Segment, List<string> EndpointDefinitionClassNames)>();
         foreach (var pathSegment in pathSegments)
         {
-            var content = GeneratePerSegmentEndpointContent(
+            // The raw pathSegment still selects operations, while the resolved segment drives
+            // namespaces and folders so a redundant segment collapses away (matches the
+            // Roslyn generator behavior).
+            var effectiveSegment = PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, pathSegment) ?? string.Empty;
+            effectiveSegments.Add(effectiveSegment);
+
+            // Endpoint definition classes are already segment-prefixed, so they live in the flat
+            // root Endpoints folder/namespace instead of one folder per segment.
+            var subFolder = GetSubFolder("Endpoints", null, generatorType);
+            var segmentClassNames = new List<string>();
+
+            foreach (var (typeName, content) in GeneratePerSegmentEndpointFiles(
                 openApiDoc,
                 projectName,
                 pathSegment,
                 codeDocGenerator,
-                systemTypeResolver);
-
-            if (string.IsNullOrEmpty(content))
+                systemTypeResolver,
+                effectiveSegment))
             {
-                continue;
+                if (string.IsNullOrEmpty(content))
+                {
+                    continue;
+                }
+
+                segmentClassNames.Add(typeName);
+
+                yield return new GeneratedType(
+                    TypeName: typeName,
+                    Category: "Endpoints",
+                    Namespace: NamespaceBuilder.ForEndpoints(projectName),
+                    Content: content,
+                    RequiredUsings: [], // Content already includes usings
+                    GroupName: null,
+                    SubFolder: subFolder);
             }
 
-            var subFolder = GetSubFolder("Endpoints", pathSegment, generatorType);
+            if (segmentClassNames.Count > 0)
+            {
+                endpointDefinitionsBySegment.Add((effectiveSegment, segmentClassNames));
+            }
+        }
 
+        // Generate the single endpoint definition mapping extension containing one
+        // Map{Segment}Endpoints method per path segment
+        var definitionExtensionsContent = GenerateConsolidatedEndpointDefinitionExtensionsContent(
+            projectName,
+            endpointDefinitionsBySegment);
+
+        if (!string.IsNullOrEmpty(definitionExtensionsContent))
+        {
             yield return new GeneratedType(
-                TypeName: $"{pathSegment}Endpoints",
+                TypeName: "EndpointDefinitionExtensions",
                 Category: "Endpoints",
-                Namespace: $"{projectName}.Generated.{pathSegment}.Endpoints",
-                Content: content,
+                Namespace: NamespaceBuilder.ForEndpoints(projectName),
+                Content: definitionExtensionsContent,
                 RequiredUsings: [], // Content already includes usings
-                GroupName: pathSegment,
-                SubFolder: subFolder);
+                GroupName: null,
+                SubFolder: GetSubFolder("Endpoints", null, generatorType));
         }
 
         // Generate combined endpoint mapping file
-        var mappingContent = GenerateCombinedEndpointMappingContent(projectName, pathSegments);
+        var mappingContent = GenerateCombinedEndpointMappingContent(projectName, effectiveSegments);
 
         if (!string.IsNullOrEmpty(mappingContent))
         {
@@ -1017,16 +1071,19 @@ public static class CodeGenerationService
     }
 
     /// <summary>
-    /// Generates the content for a per-segment endpoint file.
-    /// Includes IEndpointDefinition interface, endpoint definition classes, and extension method.
+    /// Generates the per-segment endpoint files.
+    /// Each endpoint definition class and the mapping extension is emitted as a separate file.
     /// </summary>
-    private static string GeneratePerSegmentEndpointContent(
+    private static IEnumerable<(string TypeName, string Content)> GeneratePerSegmentEndpointFiles(
         OpenApiDocument openApiDoc,
         string projectName,
         string pathSegment,
         ICodeDocumentationTagsGenerator codeDocGenerator,
-        SystemTypeConflictResolver systemTypeResolver)
+        SystemTypeConflictResolver systemTypeResolver,
+        string? namespaceSegment = null)
     {
+        var effectiveSegment = namespaceSegment ?? pathSegment;
+
         // Extract endpoint definitions for this segment
         // Note: useServersBasePath: false for backward compatibility with CLI/test harness
         // Source generators pass the config value from marker files
@@ -1042,91 +1099,155 @@ public static class CodeGenerationService
             useValidationFilter: false,
             versioningStrategy: VersioningStrategyType.None,
             defaultApiVersion: null,
-            useServersBasePath: false);
+            useServersBasePath: false,
+            namespaceSegment: effectiveSegment);
 
         if (interfaceParams is null && (classParameters is null || classParameters.Count == 0))
         {
-            return string.Empty;
+            yield break;
         }
-
-        var builder = new StringBuilder();
-
-        // Add header
-        builder.AppendLine("// <auto-generated />");
-        builder.AppendLine("#nullable enable");
-        builder.AppendLine();
 
         // Get namespace availability for this segment
         var namespaces = PathSegmentHelper.GetPathSegmentNamespaces(openApiDoc, pathSegment);
+        var rootEndpointsNamespace = NamespaceBuilder.ForEndpoints(projectName, pathSegment: null);
+        var endpointsNamespace = rootEndpointsNamespace;
 
-        builder.AppendLine($"using {NamespaceConstants.SystemCodeDomCompiler};");
-        builder.AppendLine($"using {NamespaceConstants.SystemThreading};");
-        builder.AppendLine($"using {NamespaceConstants.SystemThreadingTasks};");
-
-        // Add output caching namespace when output caching is used
-        if (openApiDoc.HasOutputCaching())
+        // Every generated type gets its own file, so the shared header/usings block is rebuilt per file.
+        StringBuilder CreateFileBuilder()
         {
-            builder.AppendLine("using Microsoft.AspNetCore.OutputCaching;");
-            builder.AppendLine("using Microsoft.Extensions.DependencyInjection;");
-        }
-
-        builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreBuilder};");
-        builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreHttp};");
-        builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreMvc};");
-
-        // Add conditional segment namespace usings
-        builder.AppendSegmentUsings(projectName, pathSegment, namespaces);
-
-        // Add caching namespace when output caching is used (for the OutputCachePolicies
-        // const class referenced by .CacheOutput(...) calls)
-        if (openApiDoc.HasOutputCaching())
-        {
-            builder.AppendLine($"using {projectName}.Generated.Caching;");
-        }
-
-        // Add RateLimiting namespace when rate limiting is used (for the RateLimitPolicies
-        // const class referenced by .RequireRateLimiting(...) calls)
-        if (openApiDoc.HasRateLimiting())
-        {
-            builder.AppendLine($"using {projectName}.Generated.RateLimiting;");
-        }
-
-        builder.AppendLine();
-        builder.AppendLine($"namespace {projectName}.Generated.{pathSegment}.Endpoints;");
-        builder.AppendLine();
-
-        // Generate IEndpointDefinition interface
-        if (interfaceParams is not null)
-        {
-            var interfaceContent = GenerateInterfaceContentOnly(codeDocGenerator, interfaceParams);
-            builder.AppendLine(interfaceContent);
+            var builder = new StringBuilder();
+            builder.AppendLine("// <auto-generated />");
+            builder.AppendLine("#nullable enable");
             builder.AppendLine();
+
+            builder.AppendLine($"using {NamespaceConstants.SystemCodeDomCompiler};");
+            builder.AppendLine($"using {NamespaceConstants.SystemThreading};");
+            builder.AppendLine($"using {NamespaceConstants.SystemThreadingTasks};");
+
+            // The shared IEndpointDefinition lives in the root Endpoints namespace
+            if (!string.Equals(endpointsNamespace, rootEndpointsNamespace, StringComparison.Ordinal))
+            {
+                builder.AppendLine($"using {rootEndpointsNamespace};");
+            }
+
+            // Add output caching namespace when output caching is used
+            if (openApiDoc.HasOutputCaching())
+            {
+                builder.AppendLine("using Microsoft.AspNetCore.OutputCaching;");
+                builder.AppendLine("using Microsoft.Extensions.DependencyInjection;");
+            }
+
+            builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreBuilder};");
+            builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreHttp};");
+            builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreMvc};");
+
+            // Add conditional segment namespace usings
+            builder.AppendSegmentUsings(projectName, effectiveSegment, namespaces);
+
+            // Add caching namespace when output caching is used (for the OutputCachePolicies
+            // const class referenced by .CacheOutput(...) calls)
+            if (openApiDoc.HasOutputCaching())
+            {
+                builder.AppendLine($"using {projectName}.Generated.Caching;");
+            }
+
+            // Add RateLimiting namespace when rate limiting is used (for the RateLimitPolicies
+            // const class referenced by .RequireRateLimiting(...) calls)
+            if (openApiDoc.HasRateLimiting())
+            {
+                builder.AppendLine($"using {projectName}.Generated.RateLimiting;");
+            }
+
+            builder.AppendLine();
+            builder.AppendLine($"namespace {endpointsNamespace};");
+            builder.AppendLine();
+
+            return builder;
         }
 
-        // Generate endpoint definition classes and collect class names
-        var endpointDefinitionClassNames = new List<string>();
+        // Generate endpoint definition classes, one file each. The mapping extension is emitted
+        // once for all segments by GenerateConsolidatedEndpointDefinitionExtensionsContent.
         if (classParameters is not null)
         {
             foreach (var classParams in classParameters)
             {
-                endpointDefinitionClassNames.Add(classParams.ClassTypeName);
-                var classContent = GenerateClassContentOnly(codeDocGenerator, classParams);
-                builder.AppendLine(classContent);
-                builder.AppendLine();
+                var builder = CreateFileBuilder();
+                builder.Append(GenerateClassContentOnly(codeDocGenerator, classParams));
+
+                yield return (classParams.ClassTypeName, builder.ToString());
             }
         }
+    }
 
-        // Generate extension method class
-        var extensionParams = EndpointRegistrationExtractor.ExtractEndpointMappingExtension(
-            projectName,
-            pathSegment,
-            endpointDefinitionClassNames);
-
-        if (extensionParams is not null)
+    /// <summary>
+    /// Generates the single EndpointDefinitionExtensions class in the root Endpoints namespace,
+    /// containing one Map{Segment}Endpoints method per path segment.
+    /// </summary>
+    private static string GenerateConsolidatedEndpointDefinitionExtensionsContent(
+        string projectName,
+        List<(string Segment, List<string> EndpointDefinitionClassNames)> endpointDefinitionsBySegment)
+    {
+        if (endpointDefinitionsBySegment.Count == 0)
         {
-            var extensionContent = GenerateClassContentOnly(codeDocGenerator, extensionParams);
-            builder.Append(extensionContent);
+            return string.Empty;
         }
+
+        var extensionParams = EndpointRegistrationExtractor.ExtractConsolidatedEndpointMappingExtension(
+            projectName,
+            endpointDefinitionsBySegment);
+
+        if (extensionParams is null)
+        {
+            return string.Empty;
+        }
+
+        var rootEndpointsNamespace = NamespaceBuilder.ForEndpoints(projectName);
+
+        var builder = new StringBuilder();
+        builder.AppendLine("// <auto-generated />");
+        builder.AppendLine("#nullable enable");
+        builder.AppendLine();
+        builder.AppendLine($"using {NamespaceConstants.SystemCodeDomCompiler};");
+        builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreBuilder};");
+
+        // The endpoint definition classes live in the same root Endpoints namespace, so no
+        // additional usings are required here.
+        builder.AppendLine();
+        builder.AppendLine($"namespace {rootEndpointsNamespace};");
+        builder.AppendLine();
+        builder.Append(GenerateClassContentOnly(new CodeDocumentationTagsGenerator(), extensionParams));
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Generates the content for the shared IEndpointDefinition interface file
+    /// in the root Endpoints namespace.
+    /// </summary>
+    private static string GenerateSharedEndpointDefinitionInterfaceContent(
+        string projectName)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("// <auto-generated />");
+        builder.AppendLine("#nullable enable");
+        builder.AppendLine();
+        builder.AppendLine($"using {NamespaceConstants.SystemCodeDomCompiler};");
+        builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreBuilder};");
+        builder.AppendLine();
+        builder.AppendLine($"namespace {NamespaceBuilder.ForEndpoints(projectName, pathSegment: null)};");
+        builder.AppendLine();
+        builder.AppendLine("/// <summary>");
+        builder.AppendLine("/// Defines a contract for endpoint definitions.");
+        builder.AppendLine("/// </summary>");
+        builder.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
+        builder.AppendLine("public interface IEndpointDefinition");
+        builder.AppendLine("{");
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// Defines the endpoints for this definition.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "/// <param name=\"app\">The app.</param>");
+        builder.AppendLine(4, "void DefineEndpoints(WebApplication app);");
+        builder.Append('}');
 
         return builder.ToString();
     }
@@ -1152,12 +1273,8 @@ public static class CodeGenerationService
         builder.AppendLine($"using {NamespaceConstants.MicrosoftAspNetCoreBuilder};");
         builder.AppendLine();
 
-        // Add usings for each path segment's endpoints namespace
-        foreach (var segment in pathSegments.OrderBy(s => s, StringComparer.OrdinalIgnoreCase))
-        {
-            builder.AppendLine($"using {projectName}.Generated.{segment}.Endpoints;");
-        }
-
+        // The Map{Segment}Endpoints methods live on EndpointDefinitionExtensions in this same
+        // root Endpoints namespace, so no additional usings are required here.
         builder.AppendLine();
         builder.AppendLine($"namespace {projectName}.Generated.Endpoints;");
         builder.AppendLine();
@@ -1175,10 +1292,16 @@ public static class CodeGenerationService
         builder.AppendLine(4, "public static WebApplication MapEndpoints(this WebApplication app)");
         builder.AppendLine(4, "{");
 
-        // Call each path segment's endpoint mapping method
-        foreach (var segment in pathSegments.OrderBy(s => s, StringComparer.OrdinalIgnoreCase))
+        // Call each path segment's endpoint mapping method. A segment that resolved away emits
+        // "MapApiEndpoints" (see EndpointRegistrationExtractor), so mirror that naming here.
+        var mappingMethodNames = pathSegments
+            .Select(segment => string.IsNullOrEmpty(segment) ? "MapApiEndpoints" : $"Map{segment}Endpoints")
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var mappingMethodName in mappingMethodNames)
         {
-            builder.AppendLine(8, $"app.Map{segment}Endpoints();");
+            builder.AppendLine(8, $"app.{mappingMethodName}();");
         }
 
         builder.AppendLine();
@@ -1399,6 +1522,10 @@ public static class CodeGenerationService
 
         foreach (var pathSegment in pathSegments)
         {
+            // The raw pathSegment still selects operations, while the resolved segment drives
+            // namespaces and folders so a redundant segment collapses away.
+            var effectiveSegment = PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, pathSegment) ?? string.Empty;
+
             // Note: useServersBasePath: false for backward compatibility with CLI/test harness
             var (operationFiles, inlineSchemas) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
                 openApiDoc,
@@ -1408,7 +1535,8 @@ public static class CodeGenerationService
                 includeDeprecated: false,
                 customErrorTypeName: customErrorTypeName,
                 customHttpClientName: customHttpClientName,
-                useServersBasePath: false);
+                useServersBasePath: false,
+                namespaceSegment: effectiveSegment);
 
             // Add inline model types first
             if (inlineSchemas.Count > 0)
@@ -1419,25 +1547,29 @@ public static class CodeGenerationService
 
             foreach (var opFiles in operationFiles)
             {
+                var endpointsSubFolder = string.IsNullOrEmpty(effectiveSegment)
+                    ? "Endpoints"
+                    : $"Endpoints\\{effectiveSegment}";
+
                 // Endpoint Interface
                 result.Add(new GeneratedType(
                     TypeName: $"I{opFiles.OperationName}Endpoint",
                     Category: "EndpointInterface",
-                    Namespace: $"{projectName}.Generated.{pathSegment}.Endpoints.Interfaces",
+                    Namespace: NamespaceBuilder.ForEndpointInterfaces(projectName, effectiveSegment),
                     Content: opFiles.EndpointInterfaceContent,
                     RequiredUsings: [],
-                    GroupName: pathSegment,
-                    SubFolder: $"Endpoints\\{pathSegment}\\Interfaces"));
+                    GroupName: effectiveSegment,
+                    SubFolder: $"{endpointsSubFolder}\\Interfaces"));
 
                 // Endpoint Class
                 result.Add(new GeneratedType(
                     TypeName: $"{opFiles.OperationName}Endpoint",
                     Category: "EndpointClass",
-                    Namespace: $"{projectName}.Generated.{pathSegment}.Endpoints",
+                    Namespace: NamespaceBuilder.ForEndpoints(projectName, effectiveSegment),
                     Content: opFiles.EndpointClassContent,
                     RequiredUsings: [],
-                    GroupName: pathSegment,
-                    SubFolder: $"Endpoints\\{pathSegment}"));
+                    GroupName: effectiveSegment,
+                    SubFolder: endpointsSubFolder));
 
                 // Result Interface (null for binary endpoints that use BinaryEndpointResponse)
                 if (opFiles.ResultInterfaceContent is not null)
@@ -1445,11 +1577,11 @@ public static class CodeGenerationService
                     result.Add(new GeneratedType(
                         TypeName: $"I{opFiles.OperationName}EndpointResult",
                         Category: "ResultInterface",
-                        Namespace: $"{projectName}.Generated.{pathSegment}.Endpoints.Interfaces",
+                        Namespace: NamespaceBuilder.ForEndpointInterfaces(projectName, effectiveSegment),
                         Content: opFiles.ResultInterfaceContent,
                         RequiredUsings: [],
-                        GroupName: pathSegment,
-                        SubFolder: $"Endpoints\\{pathSegment}\\Interfaces"));
+                        GroupName: effectiveSegment,
+                        SubFolder: $"{endpointsSubFolder}\\Interfaces"));
                 }
 
                 // Result Class (null for binary endpoints that use BinaryEndpointResponse)
@@ -1458,11 +1590,11 @@ public static class CodeGenerationService
                     result.Add(new GeneratedType(
                         TypeName: $"{opFiles.OperationName}EndpointResult",
                         Category: "ResultClass",
-                        Namespace: $"{projectName}.Generated.{pathSegment}.Endpoints.Results",
+                        Namespace: NamespaceBuilder.ForEndpointResults(projectName, effectiveSegment),
                         Content: opFiles.ResultClassContent,
                         RequiredUsings: [],
-                        GroupName: pathSegment,
-                        SubFolder: $"Endpoints\\{pathSegment}\\Results"));
+                        GroupName: effectiveSegment,
+                        SubFolder: $"{endpointsSubFolder}\\Results"));
                 }
             }
         }
@@ -1497,8 +1629,21 @@ public static class CodeGenerationService
             return null;
         }
 
+        // Resolve segments so redundant ones collapse away. When every segment resolved away, the
+        // per-segment extension is already project-named and lives in "{projectName}.Generated",
+        // so a consolidated wrapper would be a duplicate.
+        var effectiveSegments = pathSegments
+            .Select(segment => PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, segment) ?? string.Empty)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (effectiveSegments.TrueForAll(string.IsNullOrEmpty))
+        {
+            return null;
+        }
+
         // Generate consolidated DI extension content directly
-        var diContent = GenerateConsolidatedDiExtensionContent(projectName, pathSegments);
+        var diContent = GenerateConsolidatedDiExtensionContent(projectName, effectiveSegments);
         var sanitizedProjectName = SanitizeProjectNameForIdentifier(projectName);
 
         return new GeneratedType(
@@ -1527,9 +1672,9 @@ public static class CodeGenerationService
         sb.AppendLine($"using {NamespaceConstants.MicrosoftExtensionsDependencyInjection};");
 
         // Add using statements for each path segment namespace
-        foreach (var pathSegment in pathSegments)
+        foreach (var pathSegment in pathSegments.Where(s => !string.IsNullOrEmpty(s)))
         {
-            sb.AppendLine($"using {projectName}.Generated.{pathSegment};");
+            sb.AppendLine($"using {NamespaceBuilder.Build(projectName, pathSegment)};");
         }
 
         sb.AppendLine();
@@ -1550,7 +1695,7 @@ public static class CodeGenerationService
         sb.AppendLine(4, "{");
 
         // Call each path segment's extension method
-        foreach (var pathSegment in pathSegments)
+        foreach (var pathSegment in pathSegments.Where(s => !string.IsNullOrEmpty(s)))
         {
             sb.AppendLine(8, $"services.Add{pathSegment}Endpoints();");
         }

@@ -59,10 +59,11 @@ public static class ResultClassExtractor
         string? pathSegment,
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
-        bool includeDeprecated = false)
+        bool includeDeprecated = false,
+        string? namespaceSegment = null)
     {
         var inlineSchemas = new Dictionary<string, ResultClassInlineSchemaInfo>(StringComparer.Ordinal);
-        var resultClasses = ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas);
+        var resultClasses = ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas, namespaceSegment);
         return (resultClasses, inlineSchemas);
     }
 
@@ -73,7 +74,8 @@ public static class ResultClassExtractor
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
         bool includeDeprecated,
-        Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
+        Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas,
+        string? namespaceSegment = null)
     {
         if (openApiDoc is null)
         {
@@ -86,7 +88,9 @@ public static class ResultClassExtractor
         }
 
         var resultClasses = new List<ClassParameters>();
-        var namespaceValue = NamespaceBuilder.ForResults(projectName, pathSegment);
+
+        // The raw pathSegment filters operations; namespaceSegment drives the emitted namespace.
+        var namespaceValue = NamespaceBuilder.ForResults(projectName, namespaceSegment ?? pathSegment);
 
         foreach (var path in openApiDoc.Paths)
         {

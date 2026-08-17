@@ -301,8 +301,15 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Generate files per path segment (excluding shared schemas)
         foreach (var pathSegment in pathSegments)
         {
+            // Resolve the segment used for namespaces/file names. Redundant segments (single-segment
+            // documents, or segments that merely echo the root namespace tail) resolve away so
+            // generated types land directly under "{projectName}.Generated.{Category}".
+            // Normalize to string.Empty (never null) so the extractors treat this as an explicitly
+            // resolved value instead of "not specified" and never fall back to the raw segment.
+            var effectiveSegment = PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, pathSegment) ?? string.Empty;
+
             // Create conflict registry for this path segment (lightweight: O(1))
-            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, pathSegment);
+            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment);
 
             // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
             var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
@@ -311,9 +318,9 @@ public class ApiClientGenerator : IIncrementalGenerator
             // Include shared models using directive so segment types can reference shared types
             if (segmentSchemas.Count > 0)
             {
-                GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, pathSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, includeSharedModelsUsing: sharedSchemas.Count > 0);
-                GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, pathSegment);
-                GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, pathSegment);
+                GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, includeSharedModelsUsing: sharedSchemas.Count > 0);
+                GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
+                GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
             }
 
             // Generate client code based on generation mode
@@ -329,17 +336,17 @@ public class ApiClientGenerator : IIncrementalGenerator
                     ? ErrorResponseFormatType.Custom
                     : config.ErrorResponseFormat;
 
-                var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, config.CustomErrorResponseModel?.Name, config.ValidateSpecificationStrategy);
+                var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, config.CustomErrorResponseModel?.Name, config.ValidateSpecificationStrategy);
                 if (hasEndpoints)
                 {
-                    generatedPathSegments.Add(pathSegment);
+                    generatedPathSegments.Add(effectiveSegment);
                 }
             }
             else
             {
                 var hasSegmentModelsTyped = segmentSchemas.Count > 0;
                 var hasSharedModelsTyped = sharedSchemas.Count > 0;
-                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy);
+                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy);
             }
         }
 
@@ -356,9 +363,12 @@ public class ApiClientGenerator : IIncrementalGenerator
                 SourceText.From(streamReadersContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
-        // Generate consolidated DI extension method for all path segments (EndpointPerOperation mode only)
+        // Generate consolidated DI extension method for all path segments (EndpointPerOperation mode only).
+        // When the only segment resolved away, the per-segment extension is already project-named and
+        // lives in "{projectName}.Generated", so a consolidated wrapper would be a duplicate.
         if (config.GenerationMode == GenerationModeType.EndpointPerOperation &&
-            generatedPathSegments.Count > 0)
+            generatedPathSegments.Count > 0 &&
+            !generatedPathSegments.TrueForAll(string.IsNullOrEmpty))
         {
             var consolidatedDiContent = GenerateConsolidatedDiExtension(projectName, generatedPathSegments);
             generatedContext.AddSource(
@@ -542,15 +552,15 @@ public class ApiClientGenerator : IIncrementalGenerator
             generatePartialModels,
             includeSharedModelsUsing);
 
-        // Use "Shared" for file name when no path segment
-        var fileNameSegment = pathSegment ?? "Shared";
+        // File names mirror the namespace the types are emitted into
+        var modelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
 
         // Generate inline enum files first (before records that use them)
         foreach (var inlineEnum in inlineEnums)
         {
             var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
             context.AddSource(
-                $"{projectName}.{fileNameSegment}.{inlineEnum.TypeName}.g.cs",
+                NamespaceBuilder.ToFileName(modelsNamespace, inlineEnum.TypeName),
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
@@ -585,11 +595,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             // Sanitize record name for file system (generic types have <> which are invalid)
             var sanitizedName = record.Name.SanitizeForFileName();
 
-            // Use different file name based on whether this is shared or segment-specific
-            // Format: {projectName}.{pathSegment?}.{ModelName}.g.cs
-            var fileName = string.IsNullOrEmpty(pathSegment)
-                ? $"{projectName}.{sanitizedName}.g.cs"
-                : $"{projectName}.{pathSegment}.{sanitizedName}.g.cs";
+            // File name mirrors the namespace, e.g. My.Api.Generated.Models.AuthorizationDto.g.cs
+            var fileName = NamespaceBuilder.ToFileName(modelsNamespace, sanitizedName);
 
             context.AddSource(
                 fileName,
@@ -619,15 +626,15 @@ public class ApiClientGenerator : IIncrementalGenerator
             return;
         }
 
+        var enumsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
+
         // Generate each enum as a separate file
         foreach (var enumParams in enumParametersList)
         {
             var generatedContent = EnumExtractor.GenerateEnumContent(enumParams);
 
-            // Use different file name based on whether this is shared or segment-specific
-            var fileName = string.IsNullOrEmpty(pathSegment)
-                ? $"{projectName}.{enumParams.EnumTypeName}.g.cs"
-                : $"{projectName}.{pathSegment}.{enumParams.EnumTypeName}.g.cs";
+            // File name mirrors the namespace the enum is emitted into
+            var fileName = NamespaceBuilder.ToFileName(enumsNamespace, enumParams.EnumTypeName);
 
             context.AddSource(
                 fileName,
@@ -665,10 +672,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             var generatedContent = TupleExtractor.GenerateTupleContent(tupleParams, ns);
 
-            // Use different file name based on whether this is shared or segment-specific
-            var fileName = string.IsNullOrEmpty(pathSegment)
-                ? $"{projectName}.{tupleParams.Name}.g.cs"
-                : $"{projectName}.{pathSegment}.{tupleParams.Name}.g.cs";
+            // File name mirrors the namespace the tuple is emitted into
+            var fileName = NamespaceBuilder.ToFileName(ns, tupleParams.Name);
 
             context.AddSource(
                 fileName,
@@ -742,6 +747,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         OpenApiDocument openApiDoc,
         string projectName,
         string pathSegment,
+        string? namespaceSegment,
         TypeConflictRegistry registry,
         SystemTypeConflictResolver systemTypeResolver,
         bool includeDeprecated,
@@ -750,6 +756,9 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool useServersBasePath,
         ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
     {
+        var clientNamespace = NamespaceBuilder.ForClient(projectName, namespaceSegment);
+        var modelsNamespace = NamespaceBuilder.ForModels(projectName, namespaceSegment);
+
         // Generate client parameters using shared OperationParameterExtractor (without binding attributes)
         // Each parameter record is generated as a separate file to avoid multiple file-scoped namespace declarations
         var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated, validateStrategy);
@@ -760,7 +769,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
             context.AddSource(
-                $"{projectName}.{pathSegment}.Client.{inlineEnum.TypeName}.g.cs",
+                NamespaceBuilder.ToFileName(clientNamespace, inlineEnum.TypeName),
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
@@ -772,8 +781,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 // Wrap single record in RecordsParameters container with proper header
                 var recordsContainer = new RecordsParameters(
-                    HeaderContent: BuildClientParameterHeader(projectName, pathSegment, hasSegmentModels, hasSharedModels, paramRecord),
-                    Namespace: $"{projectName}.Generated.{pathSegment}.Client",
+                    HeaderContent: BuildClientParameterHeader(projectName, namespaceSegment, hasSegmentModels, hasSharedModels, paramRecord),
+                    Namespace: clientNamespace,
                     DocumentationTags: null,
                     Attributes: null,
                     DeclarationModifier: DeclarationModifiers.Public,
@@ -786,14 +795,14 @@ public class ApiClientGenerator : IIncrementalGenerator
                 var generatedParamContent = paramContentGenerator.Generate();
 
                 context.AddSource(
-                    $"{projectName}.{pathSegment}.{paramRecord.Name}.g.cs",
+                    NamespaceBuilder.ToFileName(clientNamespace, paramRecord.Name),
                     SourceText.From(generatedParamContent.NormalizeForSourceOutput(), Encoding.UTF8));
             }
         }
 
         // Use HttpClientExtractor to extract HTTP client class parameters filtered by path segment
         // This also extracts inline schemas for type generation
-        var (classParameters, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, useServersBasePath, hasSegmentModels, hasSharedModels);
+        var (classParameters, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, useServersBasePath, hasSegmentModels, hasSharedModels, namespaceSegment);
 
         if (classParameters is null)
         {
@@ -808,8 +817,12 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         var generatedContent = contentGenerator.Generate();
 
+        var clientTypeName = string.IsNullOrEmpty(namespaceSegment)
+            ? $"{projectName}Client"
+            : $"{namespaceSegment}Client";
+
         context.AddSource(
-            $"{projectName}.{pathSegment}.Client.g.cs",
+            NamespaceBuilder.ToFileName(clientNamespace, clientTypeName),
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
 
         // Generate inline model files for any inline schemas discovered
@@ -820,7 +833,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 var inlineContent = CodeGenerationService.FormatAsFile(inlineType);
                 context.AddSource(
-                    $"{projectName}.{pathSegment}.{inlineType.TypeName}.g.cs",
+                    NamespaceBuilder.ToFileName(modelsNamespace, inlineType.TypeName),
                     SourceText.From(inlineContent.NormalizeForSourceOutput(), Encoding.UTF8));
             }
         }
@@ -831,6 +844,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         OpenApiDocument openApiDoc,
         string projectName,
         string pathSegment,
+        string? namespaceSegment,
         TypeConflictRegistry registry,
         bool includeDeprecated,
         bool hasSegmentModels,
@@ -841,6 +855,9 @@ public class ApiClientGenerator : IIncrementalGenerator
         string? customErrorTypeName,
         ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
     {
+        var clientNamespace = NamespaceBuilder.ForClient(projectName, namespaceSegment);
+        var modelsNamespace = NamespaceBuilder.ForModels(projectName, namespaceSegment);
+
         // Generate client parameters using shared OperationParameterExtractor (without binding attributes)
         // Parameters are shared between TypedClient and EndpointPerOperation modes
         var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated, validateStrategy);
@@ -850,7 +867,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
             context.AddSource(
-                $"{projectName}.{pathSegment}.Client.{inlineEnum.TypeName}.g.cs",
+                NamespaceBuilder.ToFileName(clientNamespace, inlineEnum.TypeName),
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
 
@@ -862,8 +879,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 // Wrap single record in RecordsParameters container with proper header
                 var recordsContainer = new RecordsParameters(
-                    HeaderContent: BuildClientParameterHeader(projectName, pathSegment, hasSegmentModels, hasSharedModels, paramRecord),
-                    Namespace: $"{projectName}.Generated.{pathSegment}.Client",
+                    HeaderContent: BuildClientParameterHeader(projectName, namespaceSegment, hasSegmentModels, hasSharedModels, paramRecord),
+                    Namespace: clientNamespace,
                     DocumentationTags: null,
                     Attributes: null,
                     DeclarationModifier: DeclarationModifiers.Public,
@@ -876,7 +893,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                 var generatedParamContent = paramContentGenerator.Generate();
 
                 context.AddSource(
-                    $"{projectName}.{pathSegment}.{paramRecord.Name}.g.cs",
+                    NamespaceBuilder.ToFileName(clientNamespace, paramRecord.Name),
                     SourceText.From(generatedParamContent.NormalizeForSourceOutput(), Encoding.UTF8));
             }
         }
@@ -893,7 +910,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             customHttpClientName: httpClientName,
             hasSegmentModels: hasSegmentModels,
             hasSharedModels: hasSharedModels,
-            useServersBasePath: useServersBasePath);
+            useServersBasePath: useServersBasePath,
+            namespaceSegment: namespaceSegment);
 
         // Generate inline model types if any were discovered
         if (inlineSchemas.Count > 0)
@@ -903,7 +921,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 var inlineContent = CodeGenerationService.FormatAsFile(inlineType);
                 context.AddSource(
-                    $"{projectName}.{pathSegment}.{inlineType.TypeName}.g.cs",
+                    NamespaceBuilder.ToFileName(modelsNamespace, inlineType.TypeName),
                     SourceText.From(inlineContent.NormalizeForSourceOutput(), Encoding.UTF8));
             }
         }
@@ -944,9 +962,9 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Generate DI extension method
         if (endpointNames.Count > 0)
         {
-            var diExtensionContent = GenerateEndpointDiExtension(projectName, pathSegment, endpointNames);
+            var diExtensionContent = GenerateEndpointDiExtension(projectName, namespaceSegment, endpointNames);
             context.AddSource(
-                $"{projectName}.{pathSegment}.Endpoints.DependencyInjection.g.cs",
+                NamespaceBuilder.ToFileName(NamespaceBuilder.ForEndpoints(projectName, namespaceSegment), "DependencyInjection"),
                 SourceText.From(diExtensionContent.NormalizeForSourceOutput(), Encoding.UTF8));
             return true;
         }
@@ -956,9 +974,20 @@ public class ApiClientGenerator : IIncrementalGenerator
 
     private static string GenerateEndpointDiExtension(
         string projectName,
-        string pathSegment,
+        string? pathSegment,
         List<string> endpointNames)
     {
+        // When the path segment resolves away, the registration lives directly under
+        // "{projectName}.Generated" and is named after the project instead of the segment.
+        var hasSegment = !string.IsNullOrEmpty(pathSegment);
+        var registrationName = hasSegment
+            ? pathSegment!
+            : CodeGenerationService.SanitizeProjectNameForIdentifier(projectName);
+        var displayName = hasSegment ? pathSegment! : projectName;
+        var containerNamespace = hasSegment
+            ? $"{NamespaceBuilder.BuildBase(projectName)}.{pathSegment}"
+            : NamespaceBuilder.BuildBase(projectName);
+
         var sb = new StringBuilder();
         sb.AppendLine("// <auto-generated />");
         sb.AppendLine("#nullable enable");
@@ -966,24 +995,24 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine("using System.CodeDom.Compiler;");
         sb.AppendLine("using Atc.Rest.Client.Options;");
         sb.AppendLine("using Microsoft.Extensions.DependencyInjection;");
-        sb.AppendLine($"using {projectName}.Generated.{pathSegment}.Endpoints;");
-        sb.AppendLine($"using {projectName}.Generated.{pathSegment}.Endpoints.Interfaces;");
+        sb.AppendLine($"using {NamespaceBuilder.ForEndpoints(projectName, pathSegment)};");
+        sb.AppendLine($"using {NamespaceBuilder.ForEndpointInterfaces(projectName, pathSegment)};");
         sb.AppendLine();
-        sb.AppendLine($"namespace {projectName}.Generated.{pathSegment};");
+        sb.AppendLine($"namespace {containerNamespace};");
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
-        sb.AppendLine($"/// Extension methods for registering {pathSegment} API endpoints in the dependency injection container.");
+        sb.AppendLine($"/// Extension methods for registering {displayName} API endpoints in the dependency injection container.");
         sb.AppendLine("/// </summary>");
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
         sb.AppendLine("public static class EndpointsServiceCollectionExtensions");
         sb.AppendLine("{");
         sb.AppendLine(4, "/// <summary>");
-        sb.AppendLine(4, $"/// Registers all {pathSegment} API endpoint implementations.");
+        sb.AppendLine(4, $"/// Registers all {displayName} API endpoint implementations.");
         sb.AppendLine(4, "/// Also ensures IHttpMessageFactory and IContractSerializer are registered (from Atc.Rest.Client).");
         sb.AppendLine(4, "/// </summary>");
         sb.AppendLine(4, "/// <param name=\"services\">The service collection.</param>");
         sb.AppendLine(4, "/// <returns>The service collection for method chaining.</returns>");
-        sb.AppendLine(4, $"public static IServiceCollection Add{pathSegment}Endpoints(this IServiceCollection services)");
+        sb.AppendLine(4, $"public static IServiceCollection Add{registrationName}Endpoints(this IServiceCollection services)");
         sb.AppendLine(4, "{");
         sb.AppendLine(8, "// Ensure Atc.Rest.Client core services are registered (IHttpMessageFactory, IContractSerializer)");
         sb.AppendLine(8, "services.AddAtcRestClientCore();");
@@ -1019,7 +1048,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Add using statements for each path segment namespace
         foreach (var pathSegment in pathSegments)
         {
-            sb.AppendLine($"using {projectName}.Generated.{pathSegment};");
+            sb.AppendLine($"using {NamespaceBuilder.BuildBase(projectName)}.{pathSegment};");
         }
 
         sb.AppendLine();
@@ -1234,7 +1263,7 @@ public class ApiClientGenerator : IIncrementalGenerator
     /// </summary>
     private static string BuildClientParameterHeader(
         string projectName,
-        string pathSegment,
+        string? pathSegment,
         bool hasSegmentModels,
         bool hasSharedModels,
         RecordParameters? paramRecord = null)
@@ -1258,14 +1287,19 @@ public class ApiClientGenerator : IIncrementalGenerator
             usings.Add("System");
         }
 
+        var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
+        var segmentModelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
+
         if (hasSharedModels)
         {
-            usings.Add($"{projectName}.Generated.Models");
+            usings.Add(sharedModelsNamespace);
         }
 
-        if (hasSegmentModels)
+        // When the path segment resolves away both namespaces are identical, so skip the duplicate.
+        if (hasSegmentModels &&
+            !(hasSharedModels && string.Equals(segmentModelsNamespace, sharedModelsNamespace, StringComparison.Ordinal)))
         {
-            usings.Add($"{projectName}.Generated.{pathSegment}.Models");
+            usings.Add(segmentModelsNamespace);
         }
 
         // Sort per SA1210: System.* first, then alphabetical

@@ -70,7 +70,8 @@ public static class EndpointDefinitionExtractor
         bool useValidationFilter = false,
         VersioningStrategyType versioningStrategy = VersioningStrategyType.None,
         string? defaultApiVersion = null,
-        bool useServersBasePath = true)
+        bool useServersBasePath = true,
+        string? namespaceSegment = null)
     {
         if (openApiDoc is null)
         {
@@ -81,6 +82,10 @@ public static class EndpointDefinitionExtractor
         {
             return (null, null);
         }
+
+        // Grouping/filtering keeps using the raw pathSegment, while the emitted namespaces use
+        // namespaceSegment so a redundant segment can collapse away.
+        var effectiveNamespaceSegment = namespaceSegment ?? pathSegment;
 
         // Group operations by strategy, optionally filtered by path segment
         var operationsByGroup = GroupOperationsByStrategy(openApiDoc, pathSegment, subFolderStrategy, includeDeprecated);
@@ -94,7 +99,7 @@ public static class EndpointDefinitionExtractor
         InterfaceParameters? interfaceParams = null;
         if (!useMinimalApiPackage)
         {
-            interfaceParams = GenerateInterface(projectName, pathSegment);
+            interfaceParams = GenerateInterface(projectName, effectiveNamespaceSegment);
         }
 
         // Generate endpoint definition classes for each group
@@ -103,7 +108,7 @@ public static class EndpointDefinitionExtractor
         {
             var groupName = kvp.Key;
             var operations = kvp.Value;
-            var classParams = GenerateEndpointDefinitionClass(openApiDoc, projectName, pathSegment, groupName, operations, registry, systemTypeResolver, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion, useServersBasePath);
+            var classParams = GenerateEndpointDefinitionClass(openApiDoc, projectName, effectiveNamespaceSegment, groupName, operations, registry, systemTypeResolver, useMinimalApiPackage, useValidationFilter, versioningStrategy, defaultApiVersion, useServersBasePath);
             if (classParams is not null)
             {
                 classes.Add(classParams);

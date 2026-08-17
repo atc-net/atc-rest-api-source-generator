@@ -56,6 +56,9 @@ public static class HttpClientExtractor
     /// <param name="systemTypeResolver">Resolver for system type conflicts.</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
     /// <param name="useServersBasePath">Whether to prepend the base path from OpenAPI servers[0].url to URLs. Default: true.</param>
+    /// <param name="hasSegmentModels">Whether the segment has segment-specific models.</param>
+    /// <param name="hasSharedModels">Whether there are shared models in the project.</param>
+    /// <param name="namespaceSegment">The segment used for namespaces and the client class name. When null, <paramref name="pathSegment"/> is used. Pass an explicitly resolved value (possibly empty) to omit the segment.</param>
     /// <returns>A tuple containing the ClassParameters and a dictionary of discovered inline schemas.</returns>
     public static (ClassParameters? ClientClass, Dictionary<string, HttpClientInlineSchemaInfo> InlineSchemas) ExtractWithInlineSchemas(
         OpenApiDocument openApiDoc,
@@ -66,10 +69,11 @@ public static class HttpClientExtractor
         bool includeDeprecated = false,
         bool useServersBasePath = true,
         bool? hasSegmentModels = null,
-        bool? hasSharedModels = null)
+        bool? hasSharedModels = null,
+        string? namespaceSegment = null)
     {
         var inlineSchemas = new Dictionary<string, HttpClientInlineSchemaInfo>(StringComparer.Ordinal);
-        var clientClass = ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas, useServersBasePath, hasSegmentModels, hasSharedModels);
+        var clientClass = ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas, useServersBasePath, hasSegmentModels, hasSharedModels, namespaceSegment);
         return (clientClass, inlineSchemas);
     }
 
@@ -83,7 +87,8 @@ public static class HttpClientExtractor
         Dictionary<string, HttpClientInlineSchemaInfo>? inlineSchemas,
         bool useServersBasePath = true,
         bool? hasSegmentModels = null,
-        bool? hasSharedModels = null)
+        bool? hasSharedModels = null,
+        string? namespaceSegment = null)
     {
         if (openApiDoc is null)
         {
@@ -95,11 +100,13 @@ public static class HttpClientExtractor
             return null;
         }
 
-        var className = string.IsNullOrEmpty(pathSegment)
+        var effectiveNamespaceSegment = namespaceSegment ?? pathSegment;
+
+        var className = string.IsNullOrEmpty(effectiveNamespaceSegment)
             ? $"{projectName}Client"
-            : $"{pathSegment}Client";
-        var namespaceValue = NamespaceBuilder.ForClient(projectName, pathSegment);
-        var modelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
+            : $"{effectiveNamespaceSegment}Client";
+        var namespaceValue = NamespaceBuilder.ForClient(projectName, effectiveNamespaceSegment);
+        var modelsNamespace = NamespaceBuilder.ForModels(projectName, effectiveNamespaceSegment);
 
         var additionalFieldDeclarations = new List<string>
         {
@@ -269,7 +276,7 @@ public static class HttpClientExtractor
 
             if (hasSharedModels == true)
             {
-                usings.Add($"{projectName}.Generated.Models");
+                usings.Add(NamespaceBuilder.ForModels(projectName));
             }
         }
         else
@@ -1223,7 +1230,7 @@ public static class HttpClientExtractor
             // Handle inline object schemas with properties
             if (InlineSchemaExtractor.IsInlineObjectSchema(actualSchema) &&
                 !string.IsNullOrEmpty(operationId) &&
-                !string.IsNullOrEmpty(pathSegment) &&
+                pathSegment is not null &&
                 !string.IsNullOrEmpty(context) &&
                 inlineSchemas is not null)
             {

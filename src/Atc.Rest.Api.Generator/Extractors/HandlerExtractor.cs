@@ -30,13 +30,15 @@ public static class HandlerExtractor
     /// <param name="pathSegment">The path segment to filter by (e.g., "Pets"). If null, extracts all handlers.</param>
     /// <param name="systemTypeResolver">Resolver for system type conflicts.</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
+    /// <param name="namespaceSegment">Optional segment used for the generated namespace. When null, <paramref name="pathSegment"/> is used. Pass an empty string to emit without a segment.</param>
     /// <returns>List of InterfaceParameters for each operation handler in the path segment.</returns>
     public static List<InterfaceParameters>? Extract(
         OpenApiDocument openApiDoc,
         string projectName,
         string? pathSegment,
         SystemTypeConflictResolver systemTypeResolver,
-        bool includeDeprecated = false)
+        bool includeDeprecated = false,
+        string? namespaceSegment = null)
     {
         if (openApiDoc is null)
         {
@@ -49,7 +51,7 @@ public static class HandlerExtractor
         }
 
         var interfacesList = new List<InterfaceParameters>();
-        var namespaceValue = NamespaceBuilder.ForHandlers(projectName, pathSegment);
+        var namespaceValue = NamespaceBuilder.ForHandlers(projectName, namespaceSegment ?? pathSegment);
 
         foreach (var path in openApiDoc.Paths)
         {

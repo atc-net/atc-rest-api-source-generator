@@ -131,6 +131,7 @@ public static class EndpointPerOperationExtractor
     /// <param name="hasSegmentModels">Whether the segment has segment-specific models.</param>
     /// <param name="hasSharedModels">Whether there are shared models in the project.</param>
     /// <param name="useServersBasePath">Whether to prepend the base path from OpenAPI servers[0].url to URLs. Default: true.</param>
+    /// <param name="namespaceSegment">The segment used for namespaces and file names. When null, <paramref name="pathSegment"/> is used. Pass an explicitly resolved value (possibly empty) to omit the segment from namespaces.</param>
     /// <returns>A tuple containing the operation files and a dictionary of inline schemas.</returns>
     public static (List<OperationFiles> Files, Dictionary<string, InlineSchemaInfo> InlineSchemas) ExtractWithInlineSchemas(
         OpenApiDocument openApiDoc,
@@ -143,8 +144,11 @@ public static class EndpointPerOperationExtractor
         string? customHttpClientName = null,
         bool hasSegmentModels = true,
         bool hasSharedModels = false,
-        bool useServersBasePath = true)
+        bool useServersBasePath = true,
+        string? namespaceSegment = null)
     {
+        var effectiveNamespaceSegment = namespaceSegment ?? pathSegment;
+
         var result = new List<OperationFiles>();
         var inlineSchemas = new Dictionary<string, InlineSchemaInfo>(StringComparer.Ordinal);
 
@@ -198,7 +202,7 @@ public static class EndpointPerOperationExtractor
 
                 var files = ExtractOperationFiles(
                     projectName,
-                    pathSegment,
+                    effectiveNamespaceSegment,
                     pathKey,
                     httpMethod,
                     operationValue,
@@ -397,7 +401,9 @@ public static class EndpointPerOperationExtractor
                 responses,
                 hasSegmentModels,
                 hasSharedModels);
-            resultInterfaceFileName = $"{projectName}.{pathSegment}.Endpoints.Interfaces.I{operationName}EndpointResult.g.cs";
+            resultInterfaceFileName = NamespaceBuilder.ToFileName(
+                NamespaceBuilder.ForEndpointInterfaces(projectName, pathSegment),
+                $"I{operationName}EndpointResult");
 
             // Generate result class
             resultClassContent = GenerateResultClass(
@@ -408,15 +414,21 @@ public static class EndpointPerOperationExtractor
                 responses,
                 hasSegmentModels,
                 hasSharedModels);
-            resultClassFileName = $"{projectName}.{pathSegment}.Endpoints.Results.{operationName}EndpointResult.g.cs";
+            resultClassFileName = NamespaceBuilder.ToFileName(
+                NamespaceBuilder.ForEndpointResults(projectName, pathSegment),
+                $"{operationName}EndpointResult");
         }
 
         return new OperationFiles(
             OperationName: operationName,
             PathSegment: pathSegment,
-            EndpointInterfaceFileName: $"{projectName}.{pathSegment}.Endpoints.Interfaces.I{operationName}Endpoint.g.cs",
+            EndpointInterfaceFileName: NamespaceBuilder.ToFileName(
+                NamespaceBuilder.ForEndpointInterfaces(projectName, pathSegment),
+                $"I{operationName}Endpoint"),
             EndpointInterfaceContent: endpointInterfaceContent,
-            EndpointClassFileName: $"{projectName}.{pathSegment}.Endpoints.{operationName}Endpoint.g.cs",
+            EndpointClassFileName: NamespaceBuilder.ToFileName(
+                NamespaceBuilder.ForEndpoints(projectName, pathSegment),
+                $"{operationName}Endpoint"),
             EndpointClassContent: endpointClassContent,
             ResultInterfaceFileName: resultInterfaceFileName,
             ResultInterfaceContent: resultInterfaceContent,
@@ -547,7 +559,9 @@ public static class EndpointPerOperationExtractor
         bool hasSegmentModels,
         bool hasSharedModels)
     {
-        var namespaceValue = $"{projectName}.Generated.{pathSegment}.Endpoints.Interfaces";
+        var namespaceValue = NamespaceBuilder.ForEndpointInterfaces(projectName, pathSegment);
+        var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
+        var segmentModelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
 
         // Build header with usings
         var headerBuilder = new StringBuilder();
@@ -566,13 +580,13 @@ public static class EndpointPerOperationExtractor
 
         if (hasParameters)
         {
-            headerBuilder.AppendLine($"using {projectName}.Generated.{pathSegment}.Client;");
+            headerBuilder.AppendLine($"using {NamespaceBuilder.ForClient(projectName, pathSegment)};");
         }
 
         // Add using for result type (in Endpoints.Results namespace) - only for non-binary and non-streaming endpoints
         if (!isBinaryEndpoint && !isAsyncEnumerable)
         {
-            headerBuilder.AppendLine($"using {projectName}.Generated.{pathSegment}.Endpoints.Results;");
+            headerBuilder.AppendLine($"using {NamespaceBuilder.ForEndpointResults(projectName, pathSegment)};");
         }
 
         // For streaming endpoints, add model usings for the item type
@@ -580,12 +594,15 @@ public static class EndpointPerOperationExtractor
         {
             if (hasSharedModels)
             {
-                headerBuilder.AppendLine($"using {projectName}.Generated.Models;");
+                headerBuilder.AppendLine($"using {sharedModelsNamespace};");
             }
 
-            if (hasSegmentModels)
+            // When the path segment resolves away, the segment models namespace is identical
+            // to the shared one, so avoid emitting a duplicate using directive.
+            if (hasSegmentModels &&
+                !(hasSharedModels && string.Equals(segmentModelsNamespace, sharedModelsNamespace, StringComparison.Ordinal)))
             {
-                headerBuilder.AppendLine($"using {projectName}.Generated.{pathSegment}.Models;");
+                headerBuilder.AppendLine($"using {segmentModelsNamespace};");
             }
         }
 
@@ -701,7 +718,9 @@ public static class EndpointPerOperationExtractor
         bool hasSharedModels,
         bool useServersBasePath = true)
     {
-        var namespaceValue = $"{projectName}.Generated.{pathSegment}.Endpoints";
+        var namespaceValue = NamespaceBuilder.ForEndpoints(projectName, pathSegment);
+        var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
+        var segmentModelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
 
         // SSE/JSON-Lines/JSON-seq/multipart build the StreamingEndpointResponse<T> inline using the
         // emitted StreamReaders helper, which deserializes each element via the DI-configured
@@ -756,12 +775,12 @@ public static class EndpointPerOperationExtractor
             headerBuilder.AppendLine($"using {projectName}.Generated.Streaming;");
         }
 
-        headerBuilder.AppendLine($"using {projectName}.Generated.{pathSegment}.Endpoints.Interfaces;");
+        headerBuilder.AppendLine($"using {NamespaceBuilder.ForEndpointInterfaces(projectName, pathSegment)};");
 
         // Add using for result types (in Results namespace) - only for non-binary and non-streaming endpoints
         if (!isBinaryEndpoint && !isAsyncEnumerable)
         {
-            headerBuilder.AppendLine($"using {projectName}.Generated.{pathSegment}.Endpoints.Results;");
+            headerBuilder.AppendLine($"using {NamespaceBuilder.ForEndpointResults(projectName, pathSegment)};");
         }
 
         // Add Models usings for non-binary endpoints (they use ProblemDetails etc.) or streaming endpoints (for item type)
@@ -770,19 +789,21 @@ public static class EndpointPerOperationExtractor
             // Add shared Models using if there are shared models
             if (hasSharedModels)
             {
-                headerBuilder.AppendLine($"using {projectName}.Generated.Models;");
+                headerBuilder.AppendLine($"using {sharedModelsNamespace};");
             }
 
-            // Add segment-specific Models using if there are segment-specific models
-            if (hasSegmentModels)
+            // Add segment-specific Models using if there are segment-specific models.
+            // When the path segment resolves away both namespaces are identical, so skip the duplicate.
+            if (hasSegmentModels &&
+                !(hasSharedModels && string.Equals(segmentModelsNamespace, sharedModelsNamespace, StringComparison.Ordinal)))
             {
-                headerBuilder.AppendLine($"using {projectName}.Generated.{pathSegment}.Models;");
+                headerBuilder.AppendLine($"using {segmentModelsNamespace};");
             }
         }
 
         if (hasParameters)
         {
-            headerBuilder.AppendLine($"using {projectName}.Generated.{pathSegment}.Client;");
+            headerBuilder.AppendLine($"using {NamespaceBuilder.ForClient(projectName, pathSegment)};");
         }
 
         // Add blank line before namespace
@@ -1233,28 +1254,33 @@ public static class EndpointPerOperationExtractor
         bool hasSegmentModels,
         bool hasSharedModels)
     {
+        var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
+        var segmentModelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
+
         var sb = new StringBuilder();
         sb.AppendLine("// <auto-generated />");
         sb.AppendLine("#nullable enable");
         sb.AppendLine();
         sb.AppendLine("using System.CodeDom.Compiler;");
         sb.AppendLine("using Atc.Rest.Client;");
-        sb.AppendLine($"using {projectName}.Generated;");
+        sb.AppendLine($"using {NamespaceBuilder.BuildBase(projectName)};");
 
         // Add shared Models using if there are shared models
         if (hasSharedModels)
         {
-            sb.AppendLine($"using {projectName}.Generated.Models;");
+            sb.AppendLine($"using {sharedModelsNamespace};");
         }
 
-        // Add segment-specific Models using if there are segment-specific models
-        if (hasSegmentModels)
+        // Add segment-specific Models using if there are segment-specific models.
+        // When the path segment resolves away both namespaces are identical, so skip the duplicate.
+        if (hasSegmentModels &&
+            !(hasSharedModels && string.Equals(segmentModelsNamespace, sharedModelsNamespace, StringComparison.Ordinal)))
         {
-            sb.AppendLine($"using {projectName}.Generated.{pathSegment}.Models;");
+            sb.AppendLine($"using {segmentModelsNamespace};");
         }
 
         sb.AppendLine();
-        sb.AppendLine($"namespace {projectName}.Generated.{pathSegment}.Endpoints.Interfaces;");
+        sb.AppendLine($"namespace {NamespaceBuilder.ForEndpointInterfaces(projectName, pathSegment)};");
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// Interface for Client Endpoint Result.");
@@ -1301,6 +1327,9 @@ public static class EndpointPerOperationExtractor
         bool hasSegmentModels,
         bool hasSharedModels)
     {
+        var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
+        var segmentModelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
+
         var sb = new StringBuilder();
         sb.AppendLine("// <auto-generated />");
         sb.AppendLine("#nullable enable");
@@ -1309,23 +1338,25 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine("using System.CodeDom.Compiler;");
         sb.AppendLine("using System.Net;");
         sb.AppendLine("using Atc.Rest.Client;");
-        sb.AppendLine($"using {projectName}.Generated;");
-        sb.AppendLine($"using {projectName}.Generated.{pathSegment}.Endpoints.Interfaces;");
+        sb.AppendLine($"using {NamespaceBuilder.BuildBase(projectName)};");
+        sb.AppendLine($"using {NamespaceBuilder.ForEndpointInterfaces(projectName, pathSegment)};");
 
         // Add shared Models using if there are shared models
         if (hasSharedModels)
         {
-            sb.AppendLine($"using {projectName}.Generated.Models;");
+            sb.AppendLine($"using {sharedModelsNamespace};");
         }
 
-        // Add segment-specific Models using if there are segment-specific models
-        if (hasSegmentModels)
+        // Add segment-specific Models using if there are segment-specific models.
+        // When the path segment resolves away both namespaces are identical, so skip the duplicate.
+        if (hasSegmentModels &&
+            !(hasSharedModels && string.Equals(segmentModelsNamespace, sharedModelsNamespace, StringComparison.Ordinal)))
         {
-            sb.AppendLine($"using {projectName}.Generated.{pathSegment}.Models;");
+            sb.AppendLine($"using {segmentModelsNamespace};");
         }
 
         sb.AppendLine();
-        sb.AppendLine($"namespace {projectName}.Generated.{pathSegment}.Endpoints.Results;");
+        sb.AppendLine($"namespace {NamespaceBuilder.ForEndpointResults(projectName, pathSegment)};");
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// Client Endpoint result.");
@@ -1490,7 +1521,7 @@ public static class EndpointPerOperationExtractor
             // Handle inline object schemas with properties
             if (InlineSchemaExtractor.IsInlineObjectSchema(actualSchema) &&
                 !string.IsNullOrEmpty(operationId) &&
-                !string.IsNullOrEmpty(pathSegment) &&
+                pathSegment is not null &&
                 !string.IsNullOrEmpty(context) &&
                 inlineSchemas is not null)
             {

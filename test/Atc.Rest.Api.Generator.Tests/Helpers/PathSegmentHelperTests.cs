@@ -47,6 +47,36 @@ public class PathSegmentHelperTests
         Assert.Equal("PetStore", result);
     }
 
+    // ========== GetFirstPathSegment "api"/"apis" suffix word-boundary Tests ==========
+    // Concatenated lowercase segments have no natural word-boundary signal for PascalCasing.
+    // As a narrow, low-risk heuristic we split a trailing "api"/"apis" suffix from an otherwise
+    // concatenated lowercase segment so common REST-style paths produce a readable segment.
+    [Theory]
+    [InlineData("/thirdpartyapi/authorization", "ThirdpartyApi")]
+    [InlineData("/customerapi/meteringpoints", "CustomerApi")]
+    [InlineData("/myapi", "MyApi")]
+    [InlineData("/mediaapis", "MediaApis")]
+    public void GetFirstPathSegment_ConcatenatedApiSuffix_InsertsWordBoundary(
+        string path,
+        string expected)
+    {
+        var result = PathSegmentHelper.GetFirstPathSegment(path);
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData("/api", "Default")] // "api" alone is a skipped prefix, not a suffix case
+    [InlineData("/apis", "Default")] // "apis" alone is a skipped prefix, not a suffix case
+    [InlineData("/recipes", "Recipes")] // does not end with "api"/"apis" — unaffected
+    [InlineData("/rapid", "Rapid")] // does not end with "api"/"apis" — unaffected
+    public void GetFirstPathSegment_ConcatenatedApiSuffix_DoesNotAffectUnrelatedSegments(
+        string path,
+        string expected)
+    {
+        var result = PathSegmentHelper.GetFirstPathSegment(path);
+        Assert.Equal(expected, result);
+    }
+
     // ========== GetUniquePathSegments Tests ==========
     [Fact]
     public void GetUniquePathSegments_EmptyPaths_ReturnsEmptyList()
@@ -735,6 +765,71 @@ paths:
         Assert.Equal(2, result.Count);
         Assert.Contains("using MyProject.Generated.Handlers;", result, StringComparer.Ordinal);
         Assert.Contains("using MyProject.Generated.Results;", result, StringComparer.Ordinal);
+    }
+
+    // ========== ResolveEffectivePathSegment Tests (A1 + A2) ==========
+    // A1: when a document has only one unique path segment, that segment adds no
+    // organizational value and must be dropped (null) so generated types land directly
+    // under "{root}.Generated.{Category}".
+    [Fact]
+    public void ResolveEffectivePathSegment_SingleUniqueSegment_ReturnsNull()
+    {
+        var doc = CreateOpenApiDocument(
+            "/thirdpartyapi/api/authorization/authorizations",
+            "/thirdpartyapi/api/isalive",
+            "/thirdpartyapi/api/token");
+
+        var result = PathSegmentHelper.ResolveEffectivePathSegment(doc, "Eloverblik.Api.ThirdPartyApi", "ThirdpartyApi");
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ResolveEffectivePathSegment_MultipleUniqueSegments_KeepsSegment()
+    {
+        var doc = CreateOpenApiDocument(
+            "/pets",
+            "/stores",
+            "/users");
+
+        var result = PathSegmentHelper.ResolveEffectivePathSegment(doc, "PetStoreFull", "Pets");
+
+        Assert.Equal("Pets", result, StringComparer.Ordinal);
+    }
+
+    // A2: when the segment merely echoes the last dot-part of the configured root
+    // namespace it adds no value and is dropped — but only when dropping stays collision-free.
+    [Fact]
+    public void ResolveEffectivePathSegment_SegmentDuplicatesRootNamespaceTail_ReturnsNull()
+    {
+        var doc = CreateOpenApiDocument(
+            "/thirdpartyapi/api/token",
+            "/customerapi/api/token");
+
+        var result = PathSegmentHelper.ResolveEffectivePathSegment(doc, "Eloverblik.Api.ThirdPartyApi", "ThirdpartyApi");
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ResolveEffectivePathSegment_SegmentDoesNotDuplicateRootNamespaceTail_KeepsSegment()
+    {
+        var doc = CreateOpenApiDocument(
+            "/thirdpartyapi/api/token",
+            "/customerapi/api/token");
+
+        var result = PathSegmentHelper.ResolveEffectivePathSegment(doc, "Eloverblik.Api.ThirdPartyApi", "CustomerApi");
+
+        Assert.Equal("CustomerApi", result, StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void ResolveEffectivePathSegment_NullOrEmptySegment_ReturnsNull()
+    {
+        var doc = CreateOpenApiDocument("/pets", "/stores");
+
+        Assert.Null(PathSegmentHelper.ResolveEffectivePathSegment(doc, "MyProject", null));
+        Assert.Null(PathSegmentHelper.ResolveEffectivePathSegment(doc, "MyProject", string.Empty));
     }
 
     // ========== Helper Methods ==========

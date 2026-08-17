@@ -16,7 +16,8 @@ internal static class DomainGlobalUsingsHelper
         string rootNamespace,
         List<string> pathSegments,
         OpenApiDocument openApiDoc,
-        ServerDomainConfig config)
+        ServerDomainConfig config,
+        List<string>? staleDetectionPathSegments = null)
     {
         var globalUsingsPath = Path.Combine(projectRootDirectory, "GlobalUsings.cs");
 
@@ -32,7 +33,9 @@ internal static class DomainGlobalUsingsHelper
         // anything else (hand-written usings stay untouched). Stale-detection is keyed
         // to the current OpenAPI path segments — a namespace whose middle segment isn't
         // in this project's spec cannot be stale output from this project's generator.
-        var currentPathSegments = new HashSet<string>(pathSegments, StringComparer.OrdinalIgnoreCase);
+        // The raw (unresolved) segments are used here so entries written before a segment
+        // collapsed away are still recognized as this generator's output and pruned.
+        var currentPathSegments = new HashSet<string>(staleDetectionPathSegments ?? pathSegments, StringComparer.OrdinalIgnoreCase);
         var existingUsings = new HashSet<string>(StringComparer.Ordinal);
         var staleGeneratedUsings = new HashSet<string>(StringComparer.Ordinal);
         foreach (var line in existingContent.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
