@@ -4,7 +4,6 @@
 using System.CodeDom.Compiler;
 using Microsoft.AspNetCore.Builder;
 
-using ParameterSerialization.Generated.Items.Endpoints;
 
 namespace ParameterSerialization.Generated.Endpoints;
 
@@ -21,7 +20,7 @@ public static class EndpointMappingExtensions
     /// <returns>The web application for method chaining.</returns>
     public static WebApplication MapEndpoints(this WebApplication app)
     {
-        app.MapItemsEndpoints();
+        app.MapApiEndpoints();
 
         return app;
     }
