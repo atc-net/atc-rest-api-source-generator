@@ -81,9 +81,16 @@ public static class UnifiedServiceCollectionExtractor
         // Add namespace for handlers
         if (pathSegments is { Count: > 0 })
         {
-            foreach (var segment in pathSegments.OrderBy(s => s, StringComparer.Ordinal))
+            // A segment that resolved away yields the root Handlers namespace, so dedupe to
+            // avoid emitting the same using twice.
+            var handlerNamespaces = pathSegments
+                .Select(segment => NamespaceBuilder.Build(projectName, NamespaceBuilder.Categories.Handlers, segment))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(ns => ns, StringComparer.Ordinal);
+
+            foreach (var handlerNamespace in handlerNamespaces)
             {
-                builder.AppendLine($"using {projectName}.Generated.{segment}.Handlers;");
+                builder.AppendLine($"using {handlerNamespace};");
             }
         }
         else

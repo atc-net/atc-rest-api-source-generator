@@ -92,6 +92,88 @@ public static class EndpointRegistrationExtractor
             GenerateToStringMethod: false);
     }
 
+    /// <summary>
+    /// Extracts a single endpoint definition mapping extension class containing one
+    /// Map{Segment}Endpoints method per path segment.
+    /// The class is placed in the root Endpoints namespace.
+    /// </summary>
+    /// <param name="projectName">The project name for namespace.</param>
+    /// <param name="segmentDefinitions">The endpoint definition class names grouped by resolved path segment.</param>
+    /// <returns>ClassParameters for the consolidated endpoint mapping extension class.</returns>
+    public static ClassParameters? ExtractConsolidatedEndpointMappingExtension(
+        string projectName,
+        IReadOnlyList<(string Segment, List<string> EndpointDefinitionClassNames)> segmentDefinitions)
+    {
+        if (segmentDefinitions is null || segmentDefinitions.Count == 0)
+        {
+            return null;
+        }
+
+        var methods = new List<MethodParameters>();
+
+        foreach (var (segment, endpointDefinitionClassNames) in segmentDefinitions)
+        {
+            if (endpointDefinitionClassNames is null || endpointDefinitionClassNames.Count == 0)
+            {
+                continue;
+            }
+
+            var methodName = string.IsNullOrEmpty(segment)
+                ? "MapApiEndpoints"
+                : $"Map{segment}Endpoints";
+
+            var (methodParams, _) = MethodParameterBuilder.BuildWebApplicationExtensionParameters();
+
+            var methodDocParams = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                { "app", "The web application." },
+            };
+
+            methods.Add(new MethodParameters(
+                DocumentationTags: new CodeDocumentationTags(
+                    summary: "Maps all API endpoints from the generated endpoint definitions.",
+                    parameters: methodDocParams,
+                    remark: null,
+                    code: null,
+                    example: null,
+                    exceptions: null,
+                    @return: "The web application for method chaining."),
+                Attributes: null,
+                DeclarationModifier: DeclarationModifiers.PublicStatic,
+                ReturnGenericTypeName: null,
+                ReturnTypeName: "WebApplication",
+                Name: methodName,
+                Parameters: methodParams,
+                AlwaysBreakDownParameters: false,
+                UseExpressionBody: false,
+                Content: GenerateEndpointMappingMethodContent(endpointDefinitionClassNames)));
+        }
+
+        if (methods.Count == 0)
+        {
+            return null;
+        }
+
+        return new ClassParameters(
+            HeaderContent: null,
+            Namespace: NamespaceBuilder.ForEndpoints(projectName),
+            DocumentationTags: new CodeDocumentationTags("Extension methods for mapping API endpoints."),
+            Attributes: new List<AttributeParameters>
+            {
+                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
+            },
+            DeclarationModifier: DeclarationModifiers.PublicStaticClass,
+            ClassTypeName: "EndpointDefinitionExtensions",
+            GenericTypeName: null,
+            InheritedClassTypeName: null,
+            InheritedGenericClassTypeName: null,
+            InheritedInterfaceTypeName: null,
+            Constructors: null,
+            Properties: null,
+            Methods: methods,
+            GenerateToStringMethod: false);
+    }
+
     private static string GenerateEndpointMappingMethodContent(
         List<string> endpointDefinitionClassNames)
     {

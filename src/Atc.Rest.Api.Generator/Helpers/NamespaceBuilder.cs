@@ -74,6 +74,20 @@ public static class NamespaceBuilder
         => $"{projectName}.Generated";
 
     /// <summary>
+    /// Builds a generated file name from the namespace the type is emitted into, so the
+    /// file name always mirrors the namespace (e.g. namespace
+    /// <c>My.Api.Generated.Models</c> + type <c>AuthorizationDto</c> becomes
+    /// <c>My.Api.Generated.Models.AuthorizationDto.g.cs</c>).
+    /// </summary>
+    /// <param name="namespaceValue">The namespace the type is emitted into.</param>
+    /// <param name="typeName">The generated type name.</param>
+    /// <returns>The generated file name including the <c>.g.cs</c> suffix.</returns>
+    public static string ToFileName(
+        string namespaceValue,
+        string typeName)
+        => $"{namespaceValue}.{typeName}.g.cs";
+
+    /// <summary>
     /// Builds the Models namespace.
     /// </summary>
     public static string ForModels(

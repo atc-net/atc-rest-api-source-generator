@@ -289,8 +289,17 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
 
-        // Get all path segments for GlobalUsings generation
-        var pathSegments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
+        // Get all path segments for GlobalUsings generation. These are resolved the same way the
+        // contracts generator resolves them, so the handler namespaces referenced here match the
+        // namespaces actually emitted (a redundant segment collapses away on both sides).
+        var pathSegments = PathSegmentHelper.GetUniquePathSegments(openApiDoc)
+            .Select(segment => PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, rootNamespace, segment) ?? string.Empty)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        // Raw segments are kept for stale global-using detection, so entries written before a
+        // segment collapsed away are still recognized as this generator's output.
+        var rawPathSegments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
 
         // Convert summary interface namespaces to HashSet
         var interfaceNamespaces = new HashSet<string>(summary.InterfaceNamespaces.Values, StringComparer.Ordinal);
@@ -304,7 +313,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // Ensure GlobalUsings.cs is updated at project root (markerDirectory) before generating handlers
         if (!string.IsNullOrEmpty(markerDirectory))
         {
-            DomainGlobalUsingsHelper.EnsureUpdated(markerDirectory, interfaceNamespaces, rootNamespace, pathSegments, openApiDoc, config);
+            DomainGlobalUsingsHelper.EnsureUpdated(markerDirectory, interfaceNamespaces, rootNamespace, pathSegments, openApiDoc, config, rawPathSegments);
         }
 
         // Also emit global usings as in-memory source so the current compilation can resolve types
@@ -429,7 +438,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         else
         {
             handlerInterfaceNamespaces = pathSegments
-                .Select(segment => $"{rootNamespace}.Generated.{segment}.Handlers")
+                .Select(segment => NamespaceBuilder.Build(rootNamespace, NamespaceBuilder.Categories.Handlers, segment))
+                .Distinct(StringComparer.Ordinal)
                 .ToList();
         }
 

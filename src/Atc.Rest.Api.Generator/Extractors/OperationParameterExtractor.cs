@@ -120,7 +120,8 @@ public static class OperationParameterExtractor
         bool includeSharedModelsUsing = false,
         bool includeSegmentModelsUsing = true,
         bool emitInlineEnums = true,
-        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
+        string? namespaceSegment = null)
     {
         // When opted out (emitInlineEnums = false), pass no accumulator so inline-enum
         // parameters fall back to `string` and no enum types are emitted — the pre-1.0.252
@@ -138,21 +139,29 @@ public static class OperationParameterExtractor
             namespaceSubFolder: "Parameters",
             includeDeprecated: includeDeprecated,
             inlineEnumsByValuesKey: inlineEnumsByValuesKey,
-            validateStrategy: validateStrategy);
+            validateStrategy: validateStrategy,
+            namespaceSegment: namespaceSegment);
 
         if (recordsList is null || recordsList.Count == 0)
         {
             return (null, ToInlineEnumList(inlineEnumsByValuesKey));
         }
 
-        var namespaceValue = NamespaceBuilder.ForParameters(projectName, pathSegment);
+        var effectiveNamespaceSegment = namespaceSegment ?? pathSegment;
 
-        var segmentModelsNamespace = includeSegmentModelsUsing && !string.IsNullOrEmpty(pathSegment)
-            ? NamespaceBuilder.ForModels(projectName, pathSegment)
+        var namespaceValue = NamespaceBuilder.ForParameters(projectName, effectiveNamespaceSegment);
+
+        // Models always live in a different namespace than Parameters, so the using is required
+        // even when the segment resolved away (Generated.Parameters vs Generated.Models).
+        var segmentModelsNamespace = includeSegmentModelsUsing
+            ? NamespaceBuilder.ForModels(projectName, effectiveNamespaceSegment)
             : null;
 
-        var sharedModelsNamespace = includeSharedModelsUsing && !string.IsNullOrEmpty(pathSegment)
-            ? NamespaceBuilder.ForModels(projectName)
+        // Only add the root Models using when it isn't already covered by the segment one.
+        var rootModelsNamespace = NamespaceBuilder.ForModels(projectName);
+        var sharedModelsNamespace = includeSharedModelsUsing &&
+                                    !string.Equals(segmentModelsNamespace, rootModelsNamespace, StringComparison.Ordinal)
+            ? rootModelsNamespace
             : null;
 
         var headerContent = BuildHeaderContent(
@@ -231,7 +240,8 @@ public static class OperationParameterExtractor
         string namespaceSubFolder,
         bool includeDeprecated = false,
         Dictionary<string, InlineEnumInfo>? inlineEnumsByValuesKey = null,
-        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
+        string? namespaceSegment = null)
     {
         if (openApiDoc is null)
         {
@@ -242,6 +252,10 @@ public static class OperationParameterExtractor
         {
             return null;
         }
+
+        // The raw pathSegment filters operations; namespaceSegment drives generated namespaces
+        // so a redundant segment can collapse away without changing which operations match.
+        var effectiveNamespaceSegment = namespaceSegment ?? pathSegment;
 
         var recordsList = new List<RecordParameters>();
 
@@ -315,7 +329,7 @@ public static class OperationParameterExtractor
                     registry,
                     includeBindingAttributes,
                     projectName,
-                    pathSegment,
+                    effectiveNamespaceSegment,
                     inlineEnumsByValuesKey);
 
                 if (recordParams is not null)

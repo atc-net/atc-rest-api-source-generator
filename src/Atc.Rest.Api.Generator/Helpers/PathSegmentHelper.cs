@@ -63,10 +63,122 @@ public static class PathSegmentHelper
             }
 
             // Found a meaningful segment - return in PascalCase, preserving singular/plural form
-            return segment.ToPascalCaseForDotNet();
+            return NormalizeSegmentCasing(segment);
         }
 
         return "Default";
+    }
+
+    /// <summary>
+    /// Normalizes the casing of a path segment for use in generated namespaces/file names.
+    /// Concatenated lowercase segments (e.g., "thirdpartyapi") have no natural word-boundary
+    /// signal for PascalCasing, so as a narrow, low-risk heuristic a trailing "api"/"apis"
+    /// suffix is split off before PascalCasing, producing "ThirdpartyApi" instead of
+    /// "Thirdpartyapi". This does not attempt general-purpose word splitting.
+    /// </summary>
+    private static string NormalizeSegmentCasing(string segment)
+    {
+        const string apisSuffix = "apis";
+        const string apiSuffix = "api";
+
+        if (segment.Length > apisSuffix.Length &&
+            segment.EndsWith(apisSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            var head = segment.Substring(0, segment.Length - apisSuffix.Length);
+            return $"{head.ToPascalCaseForDotNet()}Apis";
+        }
+
+        if (segment.Length > apiSuffix.Length &&
+            segment.EndsWith(apiSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            var head = segment.Substring(0, segment.Length - apiSuffix.Length);
+            return $"{head.ToPascalCaseForDotNet()}Api";
+        }
+
+        return segment.ToPascalCaseForDotNet();
+    }
+
+    /// <summary>
+    /// Resolves the effective path segment to use when building generated namespaces and file names.
+    /// Returns <see langword="null" /> when the segment is redundant, which makes consumers fall back
+    /// to the segment-less namespace shape (<c>{root}.Generated.{Category}</c>).
+    /// </summary>
+    /// <remarks>
+    /// A segment is considered redundant when either:
+    /// <list type="number">
+    /// <item>
+    /// <description>
+    /// (A1) The document exposes only one unique path segment. Grouping by segment then adds no
+    /// organizational value because every generated type would share the same segment anyway.
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// (A2) The segment merely echoes the last dot-part of the configured root namespace
+    /// (e.g. segment <c>ThirdpartyApi</c> for root namespace <c>Eloverblik.Api.ThirdPartyApi</c>).
+    /// </description>
+    /// </item>
+    /// </list>
+    /// A2 is only applied when dropping the segment stays collision-free, i.e. no other unique
+    /// segment would end up mapping onto the same segment-less namespace.
+    /// </remarks>
+    /// <param name="openApiDoc">The OpenAPI document being generated from.</param>
+    /// <param name="rootNamespace">The configured root namespace (project name).</param>
+    /// <param name="pathSegment">The PascalCased path segment to evaluate.</param>
+    /// <returns>The segment to use, or <see langword="null" /> when it is redundant.</returns>
+    public static string? ResolveEffectivePathSegment(
+        OpenApiDocument openApiDoc,
+        string rootNamespace,
+        string? pathSegment)
+    {
+        if (string.IsNullOrEmpty(pathSegment))
+        {
+            return null;
+        }
+
+        var uniqueSegments = GetUniquePathSegments(openApiDoc);
+
+        // A1: a single unique segment carries no disambiguation value.
+        if (uniqueSegments.Count <= 1)
+        {
+            return null;
+        }
+
+        // A2: the segment only echoes the root namespace tail.
+        if (!DuplicatesRootNamespaceTail(rootNamespace, pathSegment!))
+        {
+            return pathSegment;
+        }
+
+        // Collision guard: only drop when exactly one segment duplicates the root namespace tail,
+        // otherwise two distinct segments would collapse onto the same segment-less namespace.
+        var duplicateCount = uniqueSegments
+            .Count(segment => DuplicatesRootNamespaceTail(rootNamespace, segment));
+
+        return duplicateCount == 1
+            ? null
+            : pathSegment;
+    }
+
+    /// <summary>
+    /// Determines whether a path segment duplicates the last dot-part of the root namespace,
+    /// ignoring case (e.g. "ThirdpartyApi" vs. "Eloverblik.Api.ThirdPartyApi").
+    /// </summary>
+    private static bool DuplicatesRootNamespaceTail(
+        string rootNamespace,
+        string pathSegment)
+    {
+        if (string.IsNullOrEmpty(rootNamespace))
+        {
+            return false;
+        }
+
+        var lastSeparatorIndex = rootNamespace.LastIndexOf('.');
+        var tail = lastSeparatorIndex >= 0
+            ? rootNamespace.Substring(lastSeparatorIndex + 1)
+            : rootNamespace;
+
+        return string.Equals(tail, pathSegment, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

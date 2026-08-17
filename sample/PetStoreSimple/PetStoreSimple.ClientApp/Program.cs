@@ -21,8 +21,8 @@ var services = new ServiceCollection();
 // Register Atc.Rest.Client services using the generated constant for type-safe DI wiring
 services.AddAtcRestClient(Constants.HttpClientName, new Uri(apiBaseUrl), TimeSpan.FromSeconds(30));
 
-// Register all Pets API endpoints
-services.AddPetsEndpoints();
+// Register all PetStoreSimple API endpoints
+services.AddPetStoreSimpleEndpoints();
 
 await using var serviceProvider = services.BuildServiceProvider();
 

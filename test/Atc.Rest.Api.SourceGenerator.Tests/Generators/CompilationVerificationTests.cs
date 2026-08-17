@@ -187,9 +187,11 @@ public class CompilationVerificationTests
         Assert.NotNull(segmentDiExtension);
         Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", segmentDiExtension, StringComparison.Ordinal);
 
-        var consolidatedDiExtension = SourceContaining("public static class PetStoreSimpleEndpointsServiceCollectionExtensions");
-        Assert.NotNull(consolidatedDiExtension);
-        Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", consolidatedDiExtension, StringComparison.Ordinal);
+        // PetStoreSimple has a single path segment that resolves away, so the endpoint registration
+        // is already project-named and lives directly in "PetStoreSimple.Generated". No consolidated
+        // wrapper is emitted in that case, since it would duplicate the per-segment extension.
+        Assert.Contains("AddPetStoreSimpleEndpoints", segmentDiExtension, StringComparison.Ordinal);
+        Assert.Null(SourceContaining("public static class PetStoreSimpleEndpointsServiceCollectionExtensions"));
     }
 
     [Theory]
