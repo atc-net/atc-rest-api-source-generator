@@ -121,6 +121,34 @@ public class UsingStatementHelperTests
         Assert.Contains("System.CodeDom.Compiler", result);
     }
 
+    [Fact]
+    public void GetRequiredUsings_WithApiVersionParameterAccess_DoesNotReturnAspVersioning()
+    {
+        // A typed client reads an 'api-version' header from its parameters record.
+        // This must NOT pull in the Asp.Versioning namespace, which is a server-side
+        // package that client projects do not reference.
+        var content = """
+                      if (!string.IsNullOrEmpty(parameters.ApiVersion))
+                      {
+                          request.Headers.Add("api-version", parameters.ApiVersion);
+                      }
+                      """;
+
+        var result = UsingStatementHelper.GetRequiredUsings(content);
+
+        Assert.DoesNotContain("Asp.Versioning", result);
+    }
+
+    [Fact]
+    public void GetRequiredUsings_WithApiVersionConstruction_ReturnsAspVersioning()
+    {
+        var content = "options.DefaultApiVersion = new ApiVersion(1, 0);";
+
+        var result = UsingStatementHelper.GetRequiredUsings(content);
+
+        Assert.Contains("Asp.Versioning", result);
+    }
+
     // ========== AppendUsings Tests ==========
     [Fact]
     public void AppendUsings_SortsAlphabeticallyWithinGroups()

@@ -103,7 +103,7 @@ public static class HttpClientExtractor
         var effectiveNamespaceSegment = namespaceSegment ?? pathSegment;
 
         var className = string.IsNullOrEmpty(effectiveNamespaceSegment)
-            ? $"{projectName}Client"
+            ? $"{CasingHelper.GetLastNameSegment(projectName)}Client"
             : $"{effectiveNamespaceSegment}Client";
         var namespaceValue = NamespaceBuilder.ForClient(projectName, effectiveNamespaceSegment);
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, effectiveNamespaceSegment);
@@ -137,7 +137,7 @@ public static class HttpClientExtractor
             TypeName: className,
             InheritedClassTypeName: null,
             Parameters: constructor1Params,
-            AdditionalStatements: new List<string> { "this.jsonSerializerOptions = defaultJsonSerializerOptions;" });
+            AdditionalStatements: ["this.jsonSerializerOptions = defaultJsonSerializerOptions;"]);
 
         var constructor2Params = new List<ConstructorParameterBaseParameters>
         {
@@ -313,17 +313,17 @@ public static class HttpClientExtractor
             HeaderContent: headerBuilder.ToString(),
             Namespace: namespaceValue,
             DocumentationTags: null,
-            Attributes: new List<AttributeParameters>
-            {
+            Attributes:
+            [
                 new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-            },
+            ],
             DeclarationModifier: DeclarationModifiers.PublicSealedClass,
             ClassTypeName: className,
             GenericTypeName: null,
             InheritedClassTypeName: null,
             InheritedGenericClassTypeName: null,
             InheritedInterfaceTypeName: null,
-            Constructors: new List<ConstructorParameters> { constructor1, constructor2 },
+            Constructors: [constructor1, constructor2],
             Properties: null,
             Methods: methods,
             GenerateToStringMethod: false,
@@ -399,7 +399,7 @@ public static class HttpClientExtractor
         // Check if this is an async enumerable streaming operation (x-* annotation or 3.2 itemSchema)
         var isAsyncEnumerable = operation.IsStreamingResponse();
         var normalizedPath = path
-            .Replace("/", "_")
+            .Replace('/', '_')
             .Replace("{", string.Empty)
             .Replace("}", string.Empty);
         var operationId = operation.OperationId ?? $"{httpMethod}{normalizedPath}";

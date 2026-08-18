@@ -212,7 +212,10 @@ public static class UsingStatementHelper
         ["TimeoutRejectedException"] = "Polly.Timeout",
 
         // Asp.Versioning
-        ["ApiVersion"] = "Asp.Versioning",
+        // NOTE: use construction/declaration shapes rather than the bare "ApiVersion" token,
+        // otherwise client-side member access such as "parameters.ApiVersion" falsely pulls in
+        // the server-only Asp.Versioning package.
+        ["new ApiVersion("] = "Asp.Versioning",
         ["ApiVersionSet"] = "Asp.Versioning",
         ["QueryStringApiVersionReader"] = "Asp.Versioning",
         ["UrlSegmentApiVersionReader"] = "Asp.Versioning",
