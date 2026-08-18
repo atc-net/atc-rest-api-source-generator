@@ -3,7 +3,7 @@ namespace Atc.OpenApi.Models;
 /// <summary>
 /// Registry for detecting and resolving type name conflicts between OpenAPI schemas
 /// and .NET system types (e.g., "Task" vs System.Threading.Tasks.Task) or project
-/// namespace segments (e.g., schema "Device" in namespace "KL.IoT.Device.Management").
+/// namespace segments (e.g., schema "Device" in namespace "Contoso.Device.Management").
 /// </summary>
 public sealed class TypeConflictRegistry
 {
@@ -140,8 +140,9 @@ public sealed class TypeConflictRegistry
             return typeName;
         }
 
-        // Compute namespace on-demand
-        return pathSegment is not null
+        // Compute namespace on-demand. Callers normalize a redundant/collapsed segment to
+        // string.Empty, so guard on emptiness (not just null) to avoid emitting "Generated..Models".
+        return !string.IsNullOrEmpty(pathSegment)
             ? $"{projectName}.Generated.{pathSegment}.Models.{typeName}"
             : $"{projectName}.Generated.Models.{typeName}";
     }

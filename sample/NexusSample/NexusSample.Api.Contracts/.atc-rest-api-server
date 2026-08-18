@@ -1,5 +1,5 @@
 {
-    "namespace": "Contoso.IoT.Nexus.Api.Contracts",
+    "namespace": "Contoso.Data.Nexus.Api.Contracts",
     "validateSpecificationStrategy": "Strict",
     "includeDeprecated": false,
     "healthChecks": {

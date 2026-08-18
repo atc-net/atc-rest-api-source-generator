@@ -41,7 +41,7 @@ public sealed class ProjectStructureResult
     public List<string> AllProjects { get; set; } = [];
 
     /// <summary>
-    /// Gets or sets the detected project name prefix (e.g., "KL.IoT.D365").
+    /// Gets or sets the detected project name prefix (e.g., "Contoso.Data.D365").
     /// </summary>
     public string? DetectedProjectName { get; set; }
 

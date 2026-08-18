@@ -17,7 +17,7 @@ internal static class DomainCodeNamespaceUpdater
     /// Pattern: Api.Generated.Contracts.{Segment}.{Type} → {ProjectName}.Api.Contracts.Generated.{Segment}.Models.{Type}
     /// </summary>
     /// <param name="domainProjectDirectory">The directory containing the Domain project.</param>
-    /// <param name="projectName">The base project name (e.g., "KL.IoT.D365").</param>
+    /// <param name="projectName">The base project name (e.g., "Contoso.Data.D365").</param>
     /// <param name="dryRun">If true, only returns what would be modified.</param>
     /// <returns>The result of the update operation.</returns>
     public static DomainCodeUpdateResult UpdateNamespaceReferences(

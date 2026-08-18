@@ -25,7 +25,7 @@ public class UnifiedExtractorsNamingTests
 
     // ========== WebApplicationExtensionsExtractor.ExtractUnified ==========
     [Theory]
-    [InlineData("KL.IoT.Provider.Cpms.Monta.Api", "MapApi")]
+    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "MapApi")]
     [InlineData("MyCompany.Product.Api", "MapApi")]
     [InlineData("Showcase", "MapShowcaseApi")]
     [InlineData("MyCompany.Product.WebApi", "MapWebApi")]
@@ -48,7 +48,7 @@ public class UnifiedExtractorsNamingTests
 
     // ========== WebApplicationExtensionsExtractor.Extract (UseXApi) ==========
     [Theory]
-    [InlineData("KL.IoT.Provider.Cpms.Monta.Api", "UseApi")]
+    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "UseApi")]
     [InlineData("MyCompany.Product.Api", "UseApi")]
     [InlineData("Showcase", "UseShowcaseApi")]
     [InlineData("MyCompany.Product.WebApi", "UseWebApi")]
@@ -68,7 +68,7 @@ public class UnifiedExtractorsNamingTests
 
     // ========== VersioningDependencyInjectionExtractor.Extract ==========
     [Theory]
-    [InlineData("KL.IoT.Provider.Cpms.Monta.Api", "AddApiVersioning")]
+    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "AddApiVersioning")]
     [InlineData("MyCompany.Product.Api", "AddApiVersioning")]
     [InlineData("Showcase", "AddShowcaseApiVersioning")]
     [InlineData("MyCompany.Product.WebApi", "AddWebApiVersioning")]
@@ -94,7 +94,7 @@ public class UnifiedExtractorsNamingTests
 
     // ========== UnifiedServiceCollectionExtractor.Extract ==========
     [Theory]
-    [InlineData("KL.IoT.Provider.Cpms.Monta.Api", "AddApi")]
+    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "AddApi")]
     [InlineData("MyCompany.Product.Api", "AddApi")]
     [InlineData("Showcase", "AddShowcaseApi")]
     [InlineData("MyCompany.Product.WebApi", "AddWebApi")]
@@ -125,7 +125,7 @@ public class UnifiedExtractorsNamingTests
         };
 
         // Act
-        var result = UnifiedServiceCollectionExtractor.Extract(document, "KL.IoT.Provider.Cpms.Monta.Api", config);
+        var result = UnifiedServiceCollectionExtractor.Extract(document, "Contoso.Data.Provider.Cpms.Monta.Api", config);
 
         // Assert
         Assert.Contains("services.AddApiVersioning();", result, StringComparison.Ordinal);
