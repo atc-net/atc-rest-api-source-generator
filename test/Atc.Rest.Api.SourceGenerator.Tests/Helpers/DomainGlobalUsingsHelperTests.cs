@@ -215,6 +215,59 @@ public class DomainGlobalUsingsHelperTests
     }
 
     [Fact]
+    public void EnsureUpdated_CollapsedPathSegment_RewritesGeneratorOwnedUsings()
+    {
+        // Arrange — the single "devices" path segment is redundant and collapses away, so the
+        // contracts assembly now emits `{root}.Generated.{Suffix}` instead of
+        // `{root}.Generated.Devices.{Suffix}`. Entries written by an earlier generator run keep
+        // the same root, so they were never recognized as stale and left the domain project
+        // failing with CS0234 ('Devices' does not exist in '{root}.Generated').
+        var tempDir = Path.Combine(Path.GetTempPath(), "EnsureUpdatedCollapsed_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var globalUsingsPath = Path.Combine(tempDir, "GlobalUsings.cs");
+            const string initialContent = "global using System;\n" +
+                                          "global using Contoso.Contracts.Generated.Devices.Handlers;\n" +
+                                          "global using Contoso.Contracts.Generated.Devices.Models;\n" +
+                                          "global using Contoso.Contracts.Generated.Devices.Parameters;\n" +
+                                          "global using Contoso.Contracts.Generated.Devices.Results;\n" +
+                                          "global using MyCompany.HandWritten.Helpers;\n";
+            File.WriteAllText(globalUsingsPath, initialContent);
+
+            var doc = CreateOpenApiDocumentWithParameters("/devices");
+            var config = new ServerDomainConfig { Namespace = "MyApp.Api.Domain" };
+
+            // Act — effective segment is empty, raw segment is still "Devices"
+            DomainGlobalUsingsHelper.EnsureUpdated(
+                tempDir,
+                [],
+                "Contoso.Contracts",
+                [string.Empty],
+                doc,
+                config,
+                ["Devices"]);
+
+            // Assert — the collapsed entries are rewritten to the segment-less namespace,
+            // including the user-owned `.Models` entry the generator itself never emits.
+            var rewritten = File.ReadAllText(globalUsingsPath);
+            Assert.DoesNotContain("Contoso.Contracts.Generated.Devices.", rewritten, StringComparison.Ordinal);
+            Assert.Contains("global using Contoso.Contracts.Generated.Handlers;", rewritten, StringComparison.Ordinal);
+            Assert.Contains("global using Contoso.Contracts.Generated.Models;", rewritten, StringComparison.Ordinal);
+            Assert.Contains("global using Contoso.Contracts.Generated.Parameters;", rewritten, StringComparison.Ordinal);
+            Assert.Contains("global using Contoso.Contracts.Generated.Results;", rewritten, StringComparison.Ordinal);
+            Assert.Contains("MyCompany.HandWritten.Helpers", rewritten, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void EnsureUpdated_PreservesAliasAndStaticUsings()
     {
         // Arrange — alias and static usings reference {rootNamespace}.Generated.* but
