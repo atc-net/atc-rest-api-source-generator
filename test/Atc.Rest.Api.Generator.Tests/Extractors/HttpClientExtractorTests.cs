@@ -392,7 +392,7 @@ public class HttpClientExtractorTests
         // Assert
         Assert.NotNull(clientClass);
         Assert.NotNull(clientClass.AdditionalFieldDeclarations);
-        var declarations = string.Join("\n", clientClass.AdditionalFieldDeclarations);
+        var declarations = string.Join('\n', clientClass.AdditionalFieldDeclarations);
         Assert.Contains("defaultJsonSerializerOptions", declarations, StringComparison.Ordinal);
         Assert.Contains("JsonStringEnumConverter", declarations, StringComparison.Ordinal);
         Assert.Contains("PropertyNameCaseInsensitive", declarations, StringComparison.Ordinal);
@@ -926,6 +926,47 @@ public class HttpClientExtractorTests
 
         // Should NOT encode the value
         Assert.DoesNotContain("Uri.EscapeDataString(parameters.Q)", method.Content, StringComparison.Ordinal);
+    }
+
+    // ========== Client class naming Tests ==========
+    [Theory]
+    [InlineData("TestApi", "TestApiClient")]
+    [InlineData("Eloverblik.Api.ThirdPartyApi", "ThirdPartyApiClient")]
+    [InlineData("MyCompany.Product.WebApi", "WebApiClient")]
+    public void Extract_WithDottedProjectName_UsesLastNamespaceSegmentAsClassName(
+        string projectName,
+        string expectedClassName)
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /isalive:
+                                get:
+                                  operationId: getIsAlive
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var clientClass = HttpClientExtractor.Extract(
+            document,
+            projectName,
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(clientClass);
+        Assert.Equal(expectedClassName, clientClass.ClassTypeName);
+        Assert.DoesNotContain(".", clientClass.ClassTypeName, StringComparison.Ordinal);
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)

@@ -290,9 +290,9 @@ public class ApiClientGenerator : IIncrementalGenerator
             // Create conflict registry for shared types (no segment)
             var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName);
 
-            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, null, sharedRegistry, config.IncludeDeprecated, config.GeneratePartialModels);
-            GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, null);
-            GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, null);
+            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, sharedRegistry, config.IncludeDeprecated, config.GeneratePartialModels);
+            GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
+            GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
         }
 
         // Track generated path segments for consolidated DI extension
@@ -818,7 +818,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         var generatedContent = contentGenerator.Generate();
 
         var clientTypeName = string.IsNullOrEmpty(namespaceSegment)
-            ? $"{projectName}Client"
+            ? $"{CasingHelper.GetLastNameSegment(projectName)}Client"
             : $"{namespaceSegment}Client";
 
         context.AddSource(
