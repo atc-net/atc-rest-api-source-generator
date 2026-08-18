@@ -46,9 +46,17 @@ internal static class DomainGlobalUsingsHelper
                 continue;
             }
 
-            if (IsStaleGeneratedUsing(trimmed, rootNamespace, currentPathSegments))
+            if (IsStaleGeneratedUsing(trimmed, rootNamespace, currentPathSegments, openApiDoc, out var replacement))
             {
                 staleGeneratedUsings.Add(trimmed);
+
+                // A collapsed path segment yields a corrected namespace that still needs to be
+                // imported (notably `.Models`, which `BuildRequiredUsings` never emits for domain
+                // projects). Carrying it over keeps the user's model types resolvable.
+                if (replacement is not null)
+                {
+                    existingUsings.Add(replacement);
+                }
             }
             else
             {
@@ -123,8 +131,12 @@ internal static class DomainGlobalUsingsHelper
     private static bool IsStaleGeneratedUsing(
         string globalUsingLine,
         string rootNamespace,
-        HashSet<string> currentPathSegments)
+        HashSet<string> currentPathSegments,
+        OpenApiDocument openApiDoc,
+        out string? replacement)
     {
+        replacement = null;
+
         if (string.IsNullOrEmpty(rootNamespace))
         {
             return false;
@@ -202,7 +214,26 @@ internal static class DomainGlobalUsingsHelper
         }
 
         var existingRoot = ns.Substring(0, generatedIndex);
-        return !string.Equals(existingRoot, rootNamespace, StringComparison.Ordinal);
+        if (!string.Equals(existingRoot, rootNamespace, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        // Same root, so the entry is this project's own output. It is still stale when the
+        // segment has since collapsed away (a lone, redundant path segment is dropped from the
+        // emitted namespace), leaving `{root}.Generated.{Segment}.{Suffix}` pointing at a
+        // namespace the contracts assembly no longer declares.
+        var effectiveSegment = PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, rootNamespace, middle);
+        if (string.Equals(effectiveSegment, middle, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        replacement = string.IsNullOrEmpty(effectiveSegment)
+            ? $"global using {rootNamespace}.Generated{matchedSuffix};"
+            : $"global using {rootNamespace}.Generated.{effectiveSegment}{matchedSuffix};";
+
+        return true;
     }
 
     /// <summary>
