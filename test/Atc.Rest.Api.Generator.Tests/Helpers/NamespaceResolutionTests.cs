@@ -111,7 +111,7 @@ public sealed class NamespaceResolutionTests : IDisposable
     {
         // Arrange: Create NexusSample-like structure
         // Root/
-        //   Api.Contracts/.atc-rest-api-server (namespace: "Contoso.IoT.Api.Contracts")
+        //   Api.Contracts/.atc-rest-api-server (namespace: "Contoso.Data.Api.Contracts")
         //   Api.Domain/.atc-rest-api-server-handlers (namespace: "MyApp.Api.Domain")
         var rootDir = Path.Combine(testRootDirectory, "NexusSample");
         var contractsDir = Path.Combine(rootDir, "NexusSample.Api.Contracts");
@@ -123,7 +123,7 @@ public sealed class NamespaceResolutionTests : IDisposable
         // Server marker in Contracts project
         var serverMarkerContent = """
             {
-                "namespace": "Contoso.IoT.Nexus.Api.Contracts",
+                "namespace": "Contoso.Data.Nexus.Api.Contracts",
                 "validateSpecificationStrategy": "Strict"
             }
             """;
@@ -142,7 +142,7 @@ public sealed class NamespaceResolutionTests : IDisposable
         var serverNamespace = TryGetServerNamespace(domainDir);
 
         // Assert: Should discover namespace from sibling Contracts project
-        Assert.Equal("Contoso.IoT.Nexus.Api.Contracts", serverNamespace);
+        Assert.Equal("Contoso.Data.Nexus.Api.Contracts", serverNamespace);
     }
 
     [Fact]

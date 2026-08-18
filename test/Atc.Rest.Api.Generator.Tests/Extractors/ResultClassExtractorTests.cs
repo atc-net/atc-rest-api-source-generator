@@ -745,7 +745,7 @@ public class ResultClassExtractorTests
     [Fact]
     public void Extract_SchemaNameMatchingNamespaceSegment_UsesFullyQualifiedTypeName()
     {
-        // Arrange: Schema "Device" conflicts with namespace segment "Device" in "KL.IoT.Device.Management"
+        // Arrange: Schema "Device" conflicts with namespace segment "Device" in "Contoso.Data.Device.Management"
         const string yaml = """
                             openapi: "3.1.1"
                             info:
@@ -784,12 +784,12 @@ public class ResultClassExtractorTests
         var document = ParseYaml(yaml);
         Assert.NotNull(document);
 
-        var registry = TypeConflictRegistry.Build(document, "KL.IoT.Device.Management", "Devices");
+        var registry = TypeConflictRegistry.Build(document, "Contoso.Data.Device.Management", "Devices");
 
         // Act
         var resultClasses = ResultClassExtractor.Extract(
             document,
-            "KL.IoT.Device.Management",
+            "Contoso.Data.Device.Management",
             registry: registry,
             systemTypeResolver: new SystemTypeConflictResolver([]),
             includeDeprecated: false);
@@ -806,7 +806,7 @@ public class ResultClassExtractorTests
 
         // The parameter type should be fully qualified to avoid CS0118
         var param = okMethod.Parameters[0];
-        Assert.Equal("KL.IoT.Device.Management.Generated.Devices.Models.Device", param.TypeName);
+        Assert.Equal("Contoso.Data.Device.Management.Generated.Devices.Models.Device", param.TypeName);
     }
 
     [Fact]

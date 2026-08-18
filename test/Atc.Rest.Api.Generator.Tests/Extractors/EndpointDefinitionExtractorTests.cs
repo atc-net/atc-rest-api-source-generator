@@ -290,7 +290,7 @@ public class EndpointDefinitionExtractorTests
     [Fact]
     public void Extract_SchemaNameMatchingNamespaceSegment_ProducesFullyQualifiedType()
     {
-        // Arrange: Schema "Device" conflicts with namespace segment "Device" in "KL.IoT.Device.Management"
+        // Arrange: Schema "Device" conflicts with namespace segment "Device" in "Contoso.Data.Device.Management"
         const string yaml = """
                             openapi: "3.1.1"
                             info:
@@ -325,14 +325,14 @@ public class EndpointDefinitionExtractorTests
                             """;
 
         var document = OpenApiDocumentHelper.ParseYaml(yaml);
-        var registry = TypeConflictRegistry.Build(document, "KL.IoT.Device.Management", "Devices");
+        var registry = TypeConflictRegistry.Build(document, "Contoso.Data.Device.Management", "Devices");
         var modelNames = document.Components?.Schemas?.Keys ?? [];
         var systemTypeResolver = new SystemTypeConflictResolver(modelNames);
 
         // Act
         var (_, classes) = EndpointDefinitionExtractor.Extract(
             document,
-            "KL.IoT.Device.Management",
+            "Contoso.Data.Device.Management",
             "Devices",
             registry,
             systemTypeResolver);
@@ -347,7 +347,7 @@ public class EndpointDefinitionExtractorTests
             .Aggregate(string.Empty, (a, b) => a + b);
 
         // Should contain the FQN, not just "Device"
-        Assert.Contains("KL.IoT.Device.Management.Generated.Devices.Models.Device", allMethodBodies, StringComparison.Ordinal);
+        Assert.Contains("Contoso.Data.Device.Management.Generated.Devices.Models.Device", allMethodBodies, StringComparison.Ordinal);
     }
 
     // ========== Tag.Summary in namespace doc comment ==========

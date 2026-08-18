@@ -408,8 +408,10 @@ public class ApiServerGenerator : IIncrementalGenerator
             var effectiveSegment = PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, pathSegment) ?? string.Empty;
             effectiveSegments.Add(effectiveSegment);
 
-            // Create conflict registry for this path segment (lightweight: O(1))
-            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, pathSegment);
+            // Create conflict registry for this path segment (lightweight: O(1)).
+            // Uses the effective segment - the raw pathSegment would qualify conflicting types
+            // against a namespace that is never generated when the segment collapses away.
+            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment);
 
             // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
             var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);

@@ -162,7 +162,7 @@ public class DomainGlobalUsingsHelperTests
         // client packages whose namespaces contain `.Generated.` (e.g. NSwag/Refit-style
         // generated clients). These differ from the project's `rootNamespace` but are not
         // stale generator output and must be preserved. Regression for the case where
-        // `KL.IoT.Insights.ApiClient.Generated.Endpoints.Accounts` was being pruned even
+        // `Contoso.Data.Insights.ApiClient.Generated.Endpoints.Accounts` was being pruned even
         // though it never originated from this generator.
         var tempDir = Path.Combine(Path.GetTempPath(), "EnsureUpdatedThirdParty_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);

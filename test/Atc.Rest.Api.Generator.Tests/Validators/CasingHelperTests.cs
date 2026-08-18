@@ -236,7 +236,7 @@ public class CasingHelperTests
     [InlineData("LIST_PETS", "list-pets")] // Consecutive uppercase treated as single word
     [InlineData("XMLParser", "xml-parser")] // Acronym followed by word
     [InlineData("QW IoT Nexus", "qw-iot-nexus")] // Consecutive uppercase with space and acronym
-    [InlineData("Contoso IoT Nexus", "contoso-iot-nexus")] // IoT acronym preserved
+    [InlineData("Contoso Data Nexus", "contoso-data-nexus")] // IoT acronym preserved
     [InlineData("IoT Device", "iot-device")] // IoT at start
     [InlineData("MyAPI", "my-api")] // API acronym preserved
     [InlineData("OAuth Token", "oauth-token")] // OAuth acronym preserved
@@ -296,7 +296,7 @@ public class CasingHelperTests
 
     // ========== GetLastNameSegmentWithoutApiSuffix Tests ==========
     [Theory]
-    [InlineData("KL.IoT.Provider.Cpms.Monta.Api", "")] // segment "Api" stripped to empty
+    [InlineData("Contoso.Data.Provider.Cpms.Monta.Api", "")] // segment "Api" stripped to empty
     [InlineData("MyCompany.Product.Api", "")] // segment "Api" stripped to empty
     [InlineData("MyCompany.Product.WebApi", "Web")] // trailing "Api" stripped from segment
     [InlineData("MyCompany.Product.api", "")] // case-insensitive match

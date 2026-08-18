@@ -99,7 +99,7 @@ internal static class DomainGlobalUsingsHelper
     /// Suffixes this helper emits via <see cref="PathSegmentHelper.GetSegmentUsings"/>.
     /// Stale-detection is restricted to entries that match one of these shapes; any other
     /// `.Generated.*` namespace (e.g. third-party API client packages whose namespace
-    /// contains `.Generated.` — `KL.IoT.Insights.ApiClient.Generated.Endpoints.Accounts`)
+    /// contains `.Generated.` — `Contoso.Data.Insights.ApiClient.Generated.Endpoints.Accounts`)
     /// is treated as hand-written and left alone.
     /// </summary>
     private static readonly string[] GeneratedSuffixes =

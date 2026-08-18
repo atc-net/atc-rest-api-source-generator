@@ -462,7 +462,7 @@ public class EndpointPerOperationExtractorTests
     [InlineData("MyApiClient", null, "My-ApiClient")]
     [InlineData("PetStore.Client", null, "PetStore-Client-ApiClient")]
     [InlineData("MyApi", null, "MyApi-ApiClient")]
-    [InlineData("Contoso.IoT.Nexus.ApiClient", null, "Contoso-IoT-Nexus-ApiClient")]
+    [InlineData("Contoso.Data.Nexus.ApiClient", null, "Contoso-Data-Nexus-ApiClient")]
     public void GetEffectiveHttpClientName_NullConfig_ReturnsExpectedName(
         string projectName,
         string? configuredName,

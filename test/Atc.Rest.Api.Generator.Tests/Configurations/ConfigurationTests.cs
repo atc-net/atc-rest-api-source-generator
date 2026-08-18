@@ -176,7 +176,7 @@ public class ConfigurationTests
         var json = """
             {
                 "namespace": "MyApp.Api.Domain",
-                "contractsNamespace": "Contoso.IoT.Api.Contracts",
+                "contractsNamespace": "Contoso.Data.Api.Contracts",
                 "generateHandlersOutput": "ApiHandlers",
                 "subFolderStrategy": "first-path-segment"
             }
@@ -186,7 +186,7 @@ public class ConfigurationTests
 
         Assert.NotNull(config);
         Assert.Equal("MyApp.Api.Domain", config.Namespace);
-        Assert.Equal("Contoso.IoT.Api.Contracts", config.ContractsNamespace);
+        Assert.Equal("Contoso.Data.Api.Contracts", config.ContractsNamespace);
         Assert.Equal("ApiHandlers", config.GenerateHandlersOutput);
         Assert.Equal(SubFolderStrategyType.FirstPathSegment, config.SubFolderStrategy);
     }

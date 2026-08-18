@@ -56,7 +56,7 @@ public class TypeConflictRegistryTests
         var doc = OpenApiDocumentHelper.ParseYaml(MinimalYamlWithDeviceSchema);
 
         // Act
-        var conflicts = TypeConflictRegistry.ScanForConflicts(doc, "KL.IoT.Device.Management");
+        var conflicts = TypeConflictRegistry.ScanForConflicts(doc, "Contoso.Data.Device.Management");
 
         // Assert
         Assert.Contains("Device", conflicts);
@@ -65,11 +65,11 @@ public class TypeConflictRegistryTests
     [Fact]
     public void ScanForConflicts_SchemaNotMatchingNamespaceSegment_NoConflict()
     {
-        // Arrange: "Pet" schema does not match any segment of "KL.IoT.Device.Management"
+        // Arrange: "Pet" schema does not match any segment of "Contoso.Data.Device.Management"
         var doc = OpenApiDocumentHelper.ParseYaml(MinimalYamlWithDeviceSchema);
 
         // Act
-        var conflicts = TypeConflictRegistry.ScanForConflicts(doc, "KL.IoT.Device.Management");
+        var conflicts = TypeConflictRegistry.ScanForConflicts(doc, "Contoso.Data.Device.Management");
 
         // Assert
         Assert.DoesNotContain("Pet", conflicts);
@@ -106,13 +106,27 @@ public class TypeConflictRegistryTests
     {
         // Arrange: Build registry with namespace that contains "Device" segment
         var doc = OpenApiDocumentHelper.ParseYaml(MinimalYamlWithDeviceSchema);
-        var registry = TypeConflictRegistry.Build(doc, "KL.IoT.Device.Management", "Devices");
+        var registry = TypeConflictRegistry.Build(doc, "Contoso.Data.Device.Management", "Devices");
 
         // Act
         var resolved = registry.GetFullyQualifiedName("Device");
 
         // Assert
-        Assert.Equal("KL.IoT.Device.Management.Generated.Devices.Models.Device", resolved);
+        Assert.Equal("Contoso.Data.Device.Management.Generated.Devices.Models.Device", resolved);
+    }
+
+    [Fact]
+    public void GetFullyQualifiedName_EmptyPathSegment_ReturnsSegmentLessNamespace()
+    {
+        // Arrange: callers normalize a redundant/collapsed path segment to string.Empty
+        var doc = OpenApiDocumentHelper.ParseYaml(MinimalYamlWithDeviceSchema);
+        var registry = TypeConflictRegistry.Build(doc, "Contoso.Data.Device.Management", string.Empty);
+
+        // Act
+        var resolved = registry.GetFullyQualifiedName("Device");
+
+        // Assert: must not emit a double dot ("...Generated..Models.Device")
+        Assert.Equal("Contoso.Data.Device.Management.Generated.Models.Device", resolved);
     }
 
     [Fact]
@@ -120,7 +134,7 @@ public class TypeConflictRegistryTests
     {
         // Arrange
         var doc = OpenApiDocumentHelper.ParseYaml(MinimalYamlWithDeviceSchema);
-        var registry = TypeConflictRegistry.Build(doc, "KL.IoT.Device.Management", "Devices");
+        var registry = TypeConflictRegistry.Build(doc, "Contoso.Data.Device.Management", "Devices");
 
         // Act
         var resolved = registry.ResolveTypeName("Pet");
