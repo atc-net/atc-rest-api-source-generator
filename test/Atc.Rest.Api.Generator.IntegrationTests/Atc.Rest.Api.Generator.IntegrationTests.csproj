@@ -29,6 +29,12 @@
     <Compile Remove="..\Scenarios\**\*" />
   </ItemGroup>
 
+  <!-- Real-world payload sample and the matching OpenAPI specification (linked from the sample project) -->
+  <ItemGroup>
+    <Content Include="TestData\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="TestData" />
+    <Content Include="..\..\sample\ThridParty-Typed-Clients\EloverblikThirdPartyApiClient\api-1.yaml" Link="TestData\eloverblik-api-1.yaml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- Include runtime assemblies so they are properly registered in deps.json -->
   <Target Name="IncludeRuntimeAssemblies" BeforeTargets="ResolveAssemblyReferences">
     <ItemGroup>

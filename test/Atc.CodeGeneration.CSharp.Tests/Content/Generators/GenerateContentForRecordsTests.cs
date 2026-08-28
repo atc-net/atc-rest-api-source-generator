@@ -194,4 +194,95 @@ public class GenerateContentForRecordsTests
         Assert.Contains("string?", result, StringComparison.Ordinal);
         Assert.Contains("Nickname", result, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Generate_RecordWithJsonPropertyNameAttribute_ProducesPropertyTargetedAttribute()
+    {
+        // Arrange
+        var parameters = new RecordsParameters(
+            HeaderContent: null,
+            Namespace: "MyApp.Models",
+            DocumentationTags: null,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.Public,
+            Parameters:
+            [
+                new RecordParameters(
+                    DocumentationTags: null,
+                    DeclarationModifier: DeclarationModifiers.PublicRecord,
+                    Name: "MyEnergyDataMarketDocumentResponse",
+                    Parameters:
+                    [
+                        new ParameterBaseParameters(
+                            Attributes: [new AttributeParameters("JsonPropertyName", "\"MyEnergyData_MarketDocument\"")],
+                            GenericTypeName: null,
+                            IsGenericListType: false,
+                            TypeName: "MyEnergyDataMarketDocument",
+                            IsNullableType: false,
+                            IsReferenceType: true,
+                            Name: "MyEnergyDataMarketDocument",
+                            DefaultValue: null),
+                    ]),
+            ]);
+
+        // Act
+        var generator = new GenerateContentForRecords(
+            new CodeDocumentationTagsGenerator(),
+            parameters);
+
+        var result = generator.Generate();
+
+        // Assert
+        Assert.Contains(
+            "[property: JsonPropertyName(\"MyEnergyData_MarketDocument\")] MyEnergyDataMarketDocument MyEnergyDataMarketDocument",
+            result,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_RecordWithJsonPropertyNameAndValidationAttribute_ProducesCombinedAttributes()
+    {
+        // Arrange
+        var parameters = new RecordsParameters(
+            HeaderContent: null,
+            Namespace: "MyApp.Models",
+            DocumentationTags: null,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.Public,
+            Parameters:
+            [
+                new RecordParameters(
+                    DocumentationTags: null,
+                    DeclarationModifier: DeclarationModifiers.PublicRecord,
+                    Name: "Order",
+                    Parameters:
+                    [
+                        new ParameterBaseParameters(
+                            Attributes:
+                            [
+                                new AttributeParameters("JsonPropertyName", "\"error_code\""),
+                                new AttributeParameters("Required", null),
+                            ],
+                            GenericTypeName: null,
+                            IsGenericListType: false,
+                            TypeName: "string",
+                            IsNullableType: false,
+                            IsReferenceType: true,
+                            Name: "ErrorCode",
+                            DefaultValue: null),
+                    ]),
+            ]);
+
+        // Act
+        var generator = new GenerateContentForRecords(
+            new CodeDocumentationTagsGenerator(),
+            parameters);
+
+        var result = generator.Generate();
+
+        // Assert
+        Assert.Contains("JsonPropertyName(\"error_code\")", result, StringComparison.Ordinal);
+        Assert.Contains("Required", result, StringComparison.Ordinal);
+        Assert.Contains("string ErrorCode", result, StringComparison.Ordinal);
+    }
 }
