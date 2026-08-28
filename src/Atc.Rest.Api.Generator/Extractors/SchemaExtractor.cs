@@ -688,13 +688,22 @@ public static class SchemaExtractor
             var isReferenceType = cleanTypeName.IsReferenceType();
 
             // Convert validation attributes to AttributeParameters
-            IList<AttributeParameters>? attributes = null;
+            var attributesList = new List<AttributeParameters>();
+
+            var jsonPropertyNameAttribute = JsonPropertyNameHelper.CreateJsonPropertyNameAttribute(prop.Key, propName);
+            if (jsonPropertyNameAttribute is not null)
+            {
+                attributesList.Add(jsonPropertyNameAttribute);
+            }
+
             if (validationAttributes.Count > 0)
             {
-                attributes = validationAttributes
-                    .Select(attr => new AttributeParameters(attr, null))
-                    .ToList();
+                attributesList.AddRange(validationAttributes.Select(attr => new AttributeParameters(attr, null)));
             }
+
+            IList<AttributeParameters>? attributes = attributesList.Count > 0
+                ? attributesList
+                : null;
 
             parametersList.Add(new ParameterBaseParameters(
                 Attributes: attributes,
@@ -801,13 +810,22 @@ public static class SchemaExtractor
 
             // Convert validation attributes to AttributeParameters
             // Note: The code generation library handles the [property: ...] syntax for records automatically
-            IList<AttributeParameters>? attributes = null;
+            var attributesList = new List<AttributeParameters>();
+
+            var jsonPropertyNameAttribute = JsonPropertyNameHelper.CreateJsonPropertyNameAttribute(prop.Key, propName);
+            if (jsonPropertyNameAttribute is not null)
+            {
+                attributesList.Add(jsonPropertyNameAttribute);
+            }
+
             if (validationAttributes.Count > 0)
             {
-                attributes = validationAttributes
-                    .Select(attr => new AttributeParameters(attr, null))
-                    .ToList();
+                attributesList.AddRange(validationAttributes.Select(attr => new AttributeParameters(attr, null)));
             }
+
+            IList<AttributeParameters>? attributes = attributesList.Count > 0
+                ? attributesList
+                : null;
 
             // Extract default value from schema
             var defaultValue = ExtractSchemaDefault(prop.Value, cleanTypeName);
@@ -1028,13 +1046,22 @@ public static class SchemaExtractor
             var isReferenceType = cleanTypeName.IsReferenceType();
 
             // Convert validation attributes to AttributeParameters
-            IList<AttributeParameters>? attributes = null;
+            var attributesList = new List<AttributeParameters>();
+
+            var jsonPropertyNameAttribute = JsonPropertyNameHelper.CreateJsonPropertyNameAttribute(prop.Key, propName);
+            if (jsonPropertyNameAttribute is not null)
+            {
+                attributesList.Add(jsonPropertyNameAttribute);
+            }
+
             if (validationAttributes.Count > 0)
             {
-                attributes = validationAttributes
-                    .Select(attr => new AttributeParameters(attr, null))
-                    .ToList();
+                attributesList.AddRange(validationAttributes.Select(attr => new AttributeParameters(attr, null)));
             }
+
+            IList<AttributeParameters>? attributes = attributesList.Count > 0
+                ? attributesList
+                : null;
 
             // Extract default value from schema
             var defaultValue = ExtractSchemaDefault(prop.Value, cleanTypeName);
@@ -1130,6 +1157,10 @@ public static class SchemaExtractor
         // Check if any record uses System types (Guid, DateTimeOffset, DateTime, Uri, etc.)
         var usesSystemTypes = UsingStatementHelper.RecordsUseSystemTypes(records);
 
+        var usesJsonSerialization = records.Any(r =>
+            r.Parameters?.Any(p =>
+                p.Attributes?.Any(a => string.Equals(a.Name, "JsonPropertyName", StringComparison.Ordinal)) ?? false) ?? false);
+
         if (usesFileContent)
         {
             sb.AppendLine("using Atc.Rest.Client;");
@@ -1153,6 +1184,11 @@ public static class SchemaExtractor
         }
 
         sb.AppendLine("using System.ComponentModel.DataAnnotations;");
+
+        if (usesJsonSerialization)
+        {
+            sb.AppendLine("using System.Text.Json.Serialization;");
+        }
 
         // Add shared models namespace for segment-specific files that may reference shared types
         if (!string.IsNullOrEmpty(sharedModelsNamespace))

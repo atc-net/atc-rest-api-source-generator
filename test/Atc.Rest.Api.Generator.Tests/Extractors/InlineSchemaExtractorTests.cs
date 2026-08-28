@@ -102,6 +102,97 @@ public class InlineSchemaExtractorTests
         Assert.Equal("ListUsersResponseRoles", inlineEnum.TypeName);
     }
 
+    [Fact]
+    public void ExtractRecordFromInlineSchemaWithInlineEnums_UnderscoredProperty_EmitsJsonPropertyName()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /documents:
+                                get:
+                                  operationId: getDocuments
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: object
+                                            properties:
+                                              createdDateTime: { type: string }
+                                              sender_MarketParticipant.name: { type: string }
+                                              status:
+                                                type: string
+                                                enum: [draft, published]
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+        var op = document.Paths.First().Value.Operations[HttpMethod.Get];
+        var responseSchema = op.Responses["200"].Content["application/json"].Schema as OpenApiSchema;
+
+        var inlineEnums = new Dictionary<string, InlineEnumInfo>(StringComparer.Ordinal);
+        var record = InlineSchemaExtractor.ExtractRecordFromInlineSchemaWithInlineEnums(
+            responseSchema,
+            typeName: "GetDocumentsResponse",
+            ns: "Demo.Generated.Documents.Models",
+            pathSegment: "Documents",
+            inlineEnumsByValuesKey: inlineEnums);
+
+        var senderProp = record.Parameters.Single(p => p.Name == "SenderMarketParticipantName");
+        Assert.NotNull(senderProp.Attributes);
+        var attribute = senderProp.Attributes.Single(a => a.Name == "JsonPropertyName");
+        Assert.Equal("\"sender_MarketParticipant.name\"", attribute.Content);
+
+        var createdProp = record.Parameters.Single(p => p.Name == "CreatedDateTime");
+        Assert.True(
+            createdProp.Attributes is null ||
+            createdProp.Attributes.All(a => a.Name != "JsonPropertyName"));
+    }
+
+    [Fact]
+    public void ExtractRecordFromInlineSchema_UnderscoredProperty_EmitsJsonPropertyName()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /documents:
+                                post:
+                                  operationId: createDocument
+                                  requestBody:
+                                    content:
+                                      application/json:
+                                        schema:
+                                          type: object
+                                          properties:
+                                            error_code: { type: string }
+                                            name: { type: string }
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+        var op = document.Paths.First().Value.Operations[HttpMethod.Post];
+        var requestSchema = op.RequestBody!.Content["application/json"].Schema as OpenApiSchema;
+
+        var record = InlineSchemaExtractor.ExtractRecordFromInlineSchema(
+            requestSchema!,
+            typeName: "CreateDocumentRequest",
+            registry: null);
+
+        var errorCodeProp = record.Parameters.Single(p => p.Name == "ErrorCode");
+        Assert.NotNull(errorCodeProp.Attributes);
+        var attribute = errorCodeProp.Attributes.Single(a => a.Name == "JsonPropertyName");
+        Assert.Equal("\"error_code\"", attribute.Content);
+
+        var nameProp = record.Parameters.Single(p => p.Name == "Name");
+        Assert.True(
+            nameProp.Attributes is null ||
+            nameProp.Attributes.All(a => a.Name != "JsonPropertyName"));
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

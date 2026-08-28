@@ -105,13 +105,7 @@ public static class InlineSchemaExtractor
 
             var isReferenceType = cleanTypeName.IsReferenceType();
 
-            IList<AttributeParameters>? attributes = null;
-            if (validationAttributes.Count > 0)
-            {
-                attributes = validationAttributes
-                    .Select(attr => new AttributeParameters(attr, null))
-                    .ToList();
-            }
+            IList<AttributeParameters>? attributes = BuildAttributes(prop.Key, propName, validationAttributes);
 
             // Extract default value
             var defaultValue = DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName);
@@ -218,13 +212,7 @@ public static class InlineSchemaExtractor
             var validationAttributes = prop.Value.GetValidationAttributes(isRequired);
             var isReferenceType = cleanTypeName.IsReferenceType();
 
-            IList<AttributeParameters>? attributes = null;
-            if (validationAttributes.Count > 0)
-            {
-                attributes = validationAttributes
-                    .Select(attr => new AttributeParameters(attr, null))
-                    .ToList();
-            }
+            IList<AttributeParameters>? attributes = BuildAttributes(prop.Key, propName, validationAttributes);
 
             var defaultValue = DefaultValueHelper.ExtractSchemaDefault(prop.Value, cleanTypeName);
 
@@ -252,6 +240,33 @@ public static class InlineSchemaExtractor
             {
                 new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
             });
+    }
+
+    /// <summary>
+    /// Builds the attribute list for a record parameter, combining an optional
+    /// JsonPropertyName attribute with the schema validation attributes.
+    /// </summary>
+    private static IList<AttributeParameters>? BuildAttributes(
+        string jsonKey,
+        string propertyName,
+        IList<string> validationAttributes)
+    {
+        var attributesList = new List<AttributeParameters>();
+
+        var jsonPropertyNameAttribute = JsonPropertyNameHelper.CreateJsonPropertyNameAttribute(jsonKey, propertyName);
+        if (jsonPropertyNameAttribute is not null)
+        {
+            attributesList.Add(jsonPropertyNameAttribute);
+        }
+
+        if (validationAttributes.Count > 0)
+        {
+            attributesList.AddRange(validationAttributes.Select(attr => new AttributeParameters(attr, null)));
+        }
+
+        return attributesList.Count > 0
+            ? attributesList
+            : null;
     }
 
     /// <summary>
