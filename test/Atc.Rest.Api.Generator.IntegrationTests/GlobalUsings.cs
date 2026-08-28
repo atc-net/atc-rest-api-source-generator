@@ -7,11 +7,13 @@ global using System.Linq;
 global using System.Runtime.CompilerServices;
 global using System.Text;
 global using System.Text.Json;
+global using System.Text.Json.Serialization;
 global using System.Text.RegularExpressions;
 
 global using Atc.OpenApi.Helpers;
 global using Atc.Rest.Api.Generator.Cli.Services;
 global using Atc.Rest.Api.Generator.Configurations;
+global using Atc.Rest.Api.Generator.Extractors;
 global using Atc.Rest.Api.Generator.IntegrationTests.Helpers;
 global using Atc.Rest.Api.Generator.IntegrationTests.Services;
 global using Atc.Rest.Api.Generator.Services;
