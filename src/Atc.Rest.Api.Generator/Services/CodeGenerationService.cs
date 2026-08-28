@@ -440,6 +440,11 @@ public static class CodeGenerationService
                 usings.Add(NamespaceConstants.System);
             }
 
+            if (UsingStatementHelper.RecordUsesJsonPropertyName(recordParams))
+            {
+                usings.Add(NamespaceConstants.SystemTextJsonSerialization);
+            }
+
             // Determine group name from schema usage in operations
             var groupName = GetGroupNameForSchema(openApiDoc, recordParams.Name);
             var subFolder = GetSubFolder("Models", groupName, generatorType);

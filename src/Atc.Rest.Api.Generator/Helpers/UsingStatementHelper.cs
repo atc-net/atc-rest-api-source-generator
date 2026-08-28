@@ -257,6 +257,13 @@ public static class UsingStatementHelper
             p.TypeName.Contains("Uri", StringComparison.Ordinal)) ?? false;
 
     /// <summary>
+    /// Checks if a single record has one or more parameters annotated with JsonPropertyName.
+    /// </summary>
+    public static bool RecordUsesJsonPropertyName(RecordParameters record)
+        => record.Parameters?.Any(p =>
+            p.Attributes?.Any(a => string.Equals(a.Name, "JsonPropertyName", StringComparison.Ordinal)) ?? false) ?? false;
+
+    /// <summary>
     /// Checks if content contains a specific type pattern.
     /// Uses ordinal comparison for performance.
     /// </summary>
