@@ -609,4 +609,63 @@ public static class CasingHelper
 
         return segment;
     }
+
+    /// <summary>
+    /// Builds the generated HTTP client type name from a dot-separated namespace or a single path
+    /// segment, appending <paramref name="suffix"/> without duplicating it.
+    /// </summary>
+    /// <param name="name">The dot-separated namespace (e.g. "Eloverblik.ThirdPartyApi.Client") or a path segment (e.g. "Accounts").</param>
+    /// <param name="suffix">The client class name suffix. Defaults to "Client" when null or empty.</param>
+    /// <returns>The client type name, for example <c>ThirdPartyApiClient</c>.</returns>
+    /// <remarks>
+    /// The algorithm:
+    /// <list type="number">
+    /// <item><description>A trailing segment equal to the suffix is dropped, so that
+    /// "Eloverblik.ThirdPartyApi.Client" yields "ThirdPartyApi" rather than "Client".</description></item>
+    /// <item><description>The last remaining segment is taken.</description></item>
+    /// <item><description>The suffix is appended only when the segment does not already end with it,
+    /// avoiding names such as <c>ClientClient</c>.</description></item>
+    /// </list>
+    /// Examples with the default suffix:
+    /// - "Eloverblik.ThirdPartyApi.Client" → "ThirdPartyApiClient"
+    /// - "Eloverblik.Api.ThirdPartyApi" → "ThirdPartyApiClient"
+    /// - "EloverblikThirdPartyApiClient" → "EloverblikThirdPartyApiClient"
+    /// - "PetStoreSimple" → "PetStoreSimpleClient"
+    /// - "Accounts" → "AccountsClient"
+    /// </remarks>
+    public static string BuildClientTypeName(
+        string? name,
+        string? suffix)
+    {
+        var effectiveSuffix = string.IsNullOrEmpty(suffix)
+            ? "Client"
+            : suffix!;
+
+        if (string.IsNullOrEmpty(name))
+        {
+            return "Assembly" + effectiveSuffix;
+        }
+
+        var parts = name!.Split('.');
+
+        // Drop a trailing segment that is exactly the suffix, so that a namespace such as
+        // "Company.Product.Client" is named after "Product" instead of "Client".
+        var lastIndex = parts.Length - 1;
+        if (lastIndex > 0 &&
+            string.Equals(parts[lastIndex], effectiveSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            lastIndex--;
+        }
+
+        var segment = parts[lastIndex];
+
+        if (segment.Length == 0)
+        {
+            return "Assembly" + effectiveSuffix;
+        }
+
+        return segment.EndsWith(effectiveSuffix, StringComparison.OrdinalIgnoreCase)
+            ? segment
+            : segment + effectiveSuffix;
+    }
 }
