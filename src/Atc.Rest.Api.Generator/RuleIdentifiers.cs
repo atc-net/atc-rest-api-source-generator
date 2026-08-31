@@ -8,7 +8,7 @@ namespace Atc.Rest.Api.Generator;
 /// Categories: GEN (generation), DEP (dependencies), VAL (validation),
 ///             NAM (naming), SEC (security), SRV (server), SCH (schema),
 ///             PTH (path), OPR (operation), RL (rate limiting),
-///             STREAM (streaming)
+///             STREAM (streaming), CLT (client)
 /// </summary>
 public static class RuleIdentifiers
 {
@@ -622,4 +622,16 @@ public static class RuleIdentifiers
     /// ATC_API_MPT010: Non-identical duplicate found during MergeIfIdentical.
     /// </summary>
     public const string NonIdenticalMergeConflict = "ATC_API_MPT010";
+
+    // ========== Client Rules (CLT) ==========
+
+    /// <summary>
+    /// ATC_API_CLT001: Generated type name collision in single-client mode.
+    /// </summary>
+    public const string SingleClientTypeNameCollision = "ATC_API_CLT001";
+
+    /// <summary>
+    /// ATC_API_CLT002: 'clientName' is ignored when clientGranularity is PerArea.
+    /// </summary>
+    public const string ClientNameIgnoredForPerArea = "ATC_API_CLT002";
 }
