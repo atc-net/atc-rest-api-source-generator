@@ -7,8 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Atc.Console.Spectre" Version="3.0.174" />
-    <PackageReference Include="Atc.DotNet" Version="3.0.174" />
+    <PackageReference Include="Atc.Console.Spectre" Version="3.0.186" />
+    <PackageReference Include="Atc.DotNet" Version="3.0.186" />
   </ItemGroup>
 
   <ItemGroup>
