@@ -209,7 +209,7 @@ public class MeterDataGetTimeSeriesPayloadTests
 
     // The record definitions below mirror the shape emitted by the source generator for
     // the Eloverblik specification - see the generated *.g.cs output of the sample project
-    // sample/ThridParty-Typed-Clients/EloverblikThirdPartyApiClient.
+    // sample/ThirdParty-Typed-Clients/Eloverblik.ThirdPartyApi.Client.
     private sealed record MyEnergyDataMarketDocumentResponseListApiResponse(
         List<MyEnergyDataMarketDocumentResponse>? Result);
 

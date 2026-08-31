@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Verify.XunitV3" Version="31.27.0" />
+    <PackageReference Include="Verify.XunitV3" Version="32.0.0" />
     <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.7.0" />
   </ItemGroup>
 
@@ -32,7 +32,7 @@
   <!-- Real-world payload sample and the matching OpenAPI specification (linked from the sample project) -->
   <ItemGroup>
     <Content Include="TestData\**\*" CopyToOutputDirectory="PreserveNewest" LinkBase="TestData" />
-    <Content Include="..\..\sample\ThridParty-Typed-Clients\EloverblikThirdPartyApiClient\api-1.yaml" Link="TestData\eloverblik-api-1.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\sample\ThirdParty-Typed-Clients\Eloverblik.ThirdPartyApi.Client\api-1.yaml" Link="TestData\eloverblik-api-1.yaml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Include runtime assemblies so they are properly registered in deps.json -->

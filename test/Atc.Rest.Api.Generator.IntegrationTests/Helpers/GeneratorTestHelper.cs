@@ -225,27 +225,28 @@ public static class GeneratorTestHelper
         // Read client config to determine generation mode
         var config = LoadClientConfig(markerPath);
         var isEndpointPerOperation = config?.GenerationMode == GenerationModeType.EndpointPerOperation;
+        var granularity = config?.ClientGranularity ?? ClientGranularityType.PerArea;
 
         // Polymorphic base types first (oneOf/anyOf abstract records)
-        foreach (var type in CodeGenerationService.GeneratePolymorphicTypes(openApiDoc, scenarioName, generatorType))
+        foreach (var type in CodeGenerationService.GeneratePolymorphicTypes(openApiDoc, scenarioName, generatorType, granularity))
         {
             yield return type;
         }
 
         // Yield models (including variant records with inheritance)
-        foreach (var type in CodeGenerationService.GenerateModels(openApiDoc, scenarioName, generatorType))
+        foreach (var type in CodeGenerationService.GenerateModels(openApiDoc, scenarioName, generatorType, generatePartialModels: false, granularity))
         {
             yield return type;
         }
 
         // Tuple types (prefixItems schemas - OpenAPI 3.1)
-        foreach (var type in CodeGenerationService.GenerateTuples(openApiDoc, scenarioName, generatorType))
+        foreach (var type in CodeGenerationService.GenerateTuples(openApiDoc, scenarioName, generatorType, granularity))
         {
             yield return type;
         }
 
         // Yield parameters (client uses RequestParameters subfolder)
-        foreach (var type in CodeGenerationService.GenerateParameters(openApiDoc, scenarioName, generatorType))
+        foreach (var type in CodeGenerationService.GenerateParameters(openApiDoc, scenarioName, generatorType, granularity))
         {
             yield return type;
         }
@@ -268,7 +269,13 @@ public static class GeneratorTestHelper
         else
         {
             // TypedClient mode: generate HTTP client class and inline models
-            foreach (var type in CodeGenerationService.GenerateHttpClient(openApiDoc, scenarioName, generatorType))
+            foreach (var type in CodeGenerationService.GenerateHttpClient(
+                openApiDoc,
+                scenarioName,
+                generatorType,
+                granularity,
+                config?.ClientName,
+                config?.ClientSuffix))
             {
                 yield return type;
             }
