@@ -45,6 +45,8 @@ public sealed class ApiGeneratorOptions
             Namespace = Client.Namespace,
             GenerationMode = Client.GenerationMode,
             ClientSuffix = Client.ClientSuffix,
+            ClientGranularity = Client.ClientGranularity,
+            ClientName = Client.ClientName,
             GenerateOAuthTokenManagement = Client.GenerateOAuthTokenManagement,
         };
 

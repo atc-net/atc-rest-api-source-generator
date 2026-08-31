@@ -104,6 +104,8 @@ public sealed class OptionsValidateCommand : Command<OptionsCommandSettings>
         table.AddRow("client", "namespace", options.Client.Namespace ?? "(auto-detect)");
         table.AddRow("client", "generationMode", options.Client.GenerationMode.ToString());
         table.AddRow("client", "clientSuffix", options.Client.ClientSuffix);
+        table.AddRow("client", "clientGranularity", options.Client.ClientGranularity.ToString());
+        table.AddRow("client", "clientName", options.Client.ClientName ?? "(derived)");
         table.AddRow("client", "generateOAuthTokenManagement", options.Client.GenerateOAuthTokenManagement.ToString());
 
         AnsiConsole.MarkupLine("[blue]Configuration summary:[/]");

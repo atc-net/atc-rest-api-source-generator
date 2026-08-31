@@ -13,6 +13,14 @@ public sealed class GenerateClientCommandSettings : BaseGenerateCommandSettings
     [Description("Suffix for the HTTP client class name (default: 'Client').")]
     public string? ClientSuffix { get; init; }
 
+    [CommandOption("--client-granularity <GRANULARITY>")]
+    [Description("Client granularity: PerArea (default) or Single.")]
+    public string? ClientGranularity { get; init; }
+
+    [CommandOption("--client-name <NAME>")]
+    [Description("Explicit client type name, used verbatim. Only applies with --client-granularity Single.")]
+    public string? ClientName { get; init; }
+
     [CommandOption("--no-oauth")]
     [Description("Disable OAuth2 token management generation even when OAuth2 security is detected.")]
     [DefaultValue(false)]

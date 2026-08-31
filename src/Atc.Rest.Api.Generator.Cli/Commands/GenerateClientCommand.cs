@@ -228,6 +228,19 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             config.ClientSuffix = settings.ClientSuffix;
         }
 
+        // Override client granularity if specified
+        if (!string.IsNullOrWhiteSpace(settings.ClientGranularity) &&
+            Enum.TryParse<ClientGranularityType>(settings.ClientGranularity, ignoreCase: true, out var granularity))
+        {
+            config.ClientGranularity = granularity;
+        }
+
+        // Override client name if specified
+        if (!string.IsNullOrWhiteSpace(settings.ClientName))
+        {
+            config.ClientName = settings.ClientName;
+        }
+
         // Disable OAuth if --no-oauth is specified
         if (settings.DisableOAuth)
         {
