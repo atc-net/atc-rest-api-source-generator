@@ -20,6 +20,21 @@ public class ClientConfig : BaseConfig
     public string ClientSuffix { get; set; } = "Client";
 
     /// <summary>
+    /// Controls how many typed HTTP clients are generated. Default: PerArea.
+    /// PerArea: one client per API area (first path segment) - the historical behaviour.
+    /// Single: one client covering all operations across all path segments.
+    /// </summary>
+    [JsonConverter(typeof(ClientGranularityTypeConverter))]
+    public ClientGranularityType ClientGranularity { get; set; } = ClientGranularityType.PerArea;
+
+    /// <summary>
+    /// Explicit name for the generated client type. Default: null (derived from the namespace).
+    /// Only meaningful when <see cref="ClientGranularity"/> is Single, in which case the value is
+    /// used verbatim and no suffix is appended. Ignored with a warning under PerArea.
+    /// </summary>
+    public string? ClientName { get; set; }
+
+    /// <summary>
     /// The HTTP client name to use in IHttpClientFactory. Default: "{ProjectName}-ApiClient".
     /// </summary>
     public string? HttpClientName { get; set; }

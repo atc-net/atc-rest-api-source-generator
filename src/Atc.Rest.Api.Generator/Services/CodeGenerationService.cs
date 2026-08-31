@@ -261,11 +261,33 @@ public static class CodeGenerationService
     /// <summary>
     /// Calculates the subfolder path for a generated type.
     /// </summary>
+    /// <param name="category">The type category, such as Models, Parameters or Client.</param>
+    /// <param name="groupName">The per-area group name; ignored when <paramref name="granularity"/> is Single.</param>
+    /// <param name="generatorType">The generator type (Server, Client or ServerDomain).</param>
+    /// <param name="granularity">
+    /// Client granularity. Under <see cref="ClientGranularityType.Single"/> a single client covers every
+    /// path segment, so the per-area folder segment is dropped to give a flat layout matching the flat
+    /// <c>{root}.Generated.Models</c> namespace. Defaults to <see cref="ClientGranularityType.PerArea"/>
+    /// so existing output is unchanged. Only affects <see cref="GeneratorType.Client"/>.
+    /// </param>
     public static string GetSubFolder(
         string category,
         string? groupName,
-        GeneratorType generatorType)
+        GeneratorType generatorType,
+        ClientGranularityType granularity = ClientGranularityType.PerArea)
     {
+        if (generatorType == GeneratorType.Client &&
+            granularity == ClientGranularityType.Single)
+        {
+            return category switch
+            {
+                "Models" => "Contracts",
+                "Parameters" => "Contracts/RequestParameters",
+                "Client" => "Endpoints",
+                _ => category,
+            };
+        }
+
         var groupNamePart = string.IsNullOrEmpty(groupName) ? "Common" : groupName;
 
         return (generatorType, category) switch
@@ -401,11 +423,13 @@ public static class CodeGenerationService
     /// <param name="projectName">The project name for namespace generation.</param>
     /// <param name="generatorType">The generator type (Server or Client).</param>
     /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
+    /// <param name="granularity">Client granularity; under Single, models are placed in a flat folder.</param>
     public static List<GeneratedType> GenerateModels(
         OpenApiDocument openApiDoc,
         string projectName,
         GeneratorType generatorType = GeneratorType.Server,
-        bool generatePartialModels = false)
+        bool generatePartialModels = false,
+        ClientGranularityType granularity = ClientGranularityType.PerArea)
     {
         var result = new List<GeneratedType>();
 
@@ -447,7 +471,7 @@ public static class CodeGenerationService
 
             // Determine group name from schema usage in operations
             var groupName = GetGroupNameForSchema(openApiDoc, recordParams.Name);
-            var subFolder = GetSubFolder("Models", groupName, generatorType);
+            var subFolder = GetSubFolder("Models", groupName, generatorType, granularity);
 
             result.Add(new GeneratedType(
                 TypeName: recordParams.Name,
@@ -468,10 +492,12 @@ public static class CodeGenerationService
     /// <param name="openApiDoc">The OpenAPI document.</param>
     /// <param name="projectName">The project name for namespace generation.</param>
     /// <param name="generatorType">The generator type (Server or Client).</param>
+    /// <param name="granularity">Client granularity; under Single, tuples are placed in a flat folder.</param>
     public static List<GeneratedType> GenerateTuples(
         OpenApiDocument openApiDoc,
         string projectName,
-        GeneratorType generatorType = GeneratorType.Server)
+        GeneratorType generatorType = GeneratorType.Server,
+        ClientGranularityType granularity = ClientGranularityType.PerArea)
     {
         var result = new List<GeneratedType>();
 
@@ -491,7 +517,7 @@ public static class CodeGenerationService
 
             // Determine group name from schema usage in operations
             var groupName = GetGroupNameForSchema(openApiDoc, tupleParams.Name);
-            var subFolder = GetSubFolder("Models", groupName, generatorType);
+            var subFolder = GetSubFolder("Models", groupName, generatorType, granularity);
 
             result.Add(new GeneratedType(
                 TypeName: tupleParams.Name,
@@ -532,18 +558,21 @@ public static class CodeGenerationService
     /// <param name="inlineSchemas">The dictionary of inline schemas discovered during extraction.</param>
     /// <param name="projectName">The project name for namespace.</param>
     /// <param name="generatorType">The generator type (Server or Client).</param>
+    /// <param name="granularity">Client granularity; under Single, inline models are placed flat.</param>
     /// <returns>List of generated types for inline schemas.</returns>
     public static List<GeneratedType> GenerateInlineModels(
         Dictionary<string, HttpClientInlineSchemaInfo> inlineSchemas,
         string projectName,
-        GeneratorType generatorType = GeneratorType.Client)
+        GeneratorType generatorType = GeneratorType.Client,
+        ClientGranularityType granularity = ClientGranularityType.PerArea)
         => GenerateInlineModelsInternal(
             inlineSchemas.ToDictionary(
                 kvp => kvp.Key,
                 kvp => (kvp.Value.PathSegment, kvp.Value.RecordParameters),
                 StringComparer.Ordinal),
             projectName,
-            generatorType);
+            generatorType,
+            granularity);
 
     /// <summary>
     /// Generates record types for inline schemas from ResultClassExtractor.
@@ -555,19 +584,22 @@ public static class CodeGenerationService
     public static List<GeneratedType> GenerateInlineModels(
         Dictionary<string, ResultClassInlineSchemaInfo> inlineSchemas,
         string projectName,
-        GeneratorType generatorType = GeneratorType.Server)
+        GeneratorType generatorType = GeneratorType.Server,
+        ClientGranularityType granularity = ClientGranularityType.PerArea)
         => GenerateInlineModelsInternal(
             inlineSchemas.ToDictionary(
                 kvp => kvp.Key,
                 kvp => (kvp.Value.PathSegment, kvp.Value.RecordParameters),
                 StringComparer.Ordinal),
             projectName,
-            generatorType);
+            generatorType,
+            granularity);
 
     private static List<GeneratedType> GenerateInlineModelsInternal(
         Dictionary<string, (string PathSegment, RecordParameters RecordParameters)> inlineSchemas,
         string projectName,
-        GeneratorType generatorType)
+        GeneratorType generatorType,
+        ClientGranularityType granularity = ClientGranularityType.PerArea)
     {
         var result = new List<GeneratedType>();
 
@@ -583,7 +615,13 @@ public static class CodeGenerationService
             var typeName = kvp.Key;
             var (pathSegment, recordParams) = kvp.Value;
 
-            var @namespace = NamespaceBuilder.ForModels(projectName, pathSegment);
+            // Under Single granularity every inline model shares one flat namespace/folder,
+            // matching the flat {root}.Generated.Models placement of component schemas.
+            var isSingle = generatorType == GeneratorType.Client &&
+                           granularity == ClientGranularityType.Single;
+            var effectivePathSegment = isSingle ? null : pathSegment;
+
+            var @namespace = NamespaceBuilder.ForModels(projectName, effectivePathSegment);
             var content = GenerateRecordContentOnly(codeDocGenerator, recordParams);
             var usings = new List<string>(ModelUsings);
 
@@ -599,7 +637,7 @@ public static class CodeGenerationService
                 usings.Add(NamespaceConstants.System);
             }
 
-            var subFolder = GetSubFolder("Models", pathSegment, generatorType);
+            var subFolder = GetSubFolder("Models", effectivePathSegment, generatorType, granularity);
 
             result.Add(new GeneratedType(
                 TypeName: typeName,
@@ -607,7 +645,7 @@ public static class CodeGenerationService
                 Namespace: @namespace,
                 Content: content,
                 RequiredUsings: usings,
-                GroupName: pathSegment,
+                GroupName: effectivePathSegment,
                 SubFolder: subFolder));
         }
 
@@ -620,7 +658,8 @@ public static class CodeGenerationService
     public static List<GeneratedType> GeneratePolymorphicTypes(
         OpenApiDocument openApiDoc,
         string projectName,
-        GeneratorType generatorType = GeneratorType.Server)
+        GeneratorType generatorType = GeneratorType.Server,
+        ClientGranularityType granularity = ClientGranularityType.PerArea)
     {
         var result = new List<GeneratedType>();
         var polymorphicConfigs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(openApiDoc);
@@ -639,7 +678,7 @@ public static class CodeGenerationService
 
             // Determine group name from schema usage in operations
             var groupName = GetGroupNameForSchema(openApiDoc, schemaName);
-            var subFolder = GetSubFolder("Models", groupName, generatorType);
+            var subFolder = GetSubFolder("Models", groupName, generatorType, granularity);
 
             if (config.UsesCustomConverter)
             {
@@ -735,10 +774,15 @@ public static class CodeGenerationService
     /// <summary>
     /// Generates parameter types from OpenAPI operations.
     /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="projectName">The project name for namespace generation.</param>
+    /// <param name="generatorType">The generator type (Server or Client).</param>
+    /// <param name="granularity">Client granularity; under Single, parameters are placed in a flat folder.</param>
     public static List<GeneratedType> GenerateParameters(
         OpenApiDocument openApiDoc,
         string projectName,
-        GeneratorType generatorType = GeneratorType.Server)
+        GeneratorType generatorType = GeneratorType.Server,
+        ClientGranularityType granularity = ClientGranularityType.PerArea)
     {
         var result = new List<GeneratedType>();
         var records = OperationParameterExtractor.ExtractIndividual(openApiDoc, projectName);
@@ -774,7 +818,7 @@ public static class CodeGenerationService
             // Extract operation ID from type name to look up group name
             var operationId = ExtractOperationIdFromTypeName(recordParams.Name, "Parameters");
             var groupName = GetGroupNameForOperationId(openApiDoc, operationId ?? string.Empty);
-            var subFolder = GetSubFolder("Parameters", groupName, generatorType);
+            var subFolder = GetSubFolder("Parameters", groupName, generatorType, granularity);
 
             result.Add(new GeneratedType(
                 TypeName: recordParams.Name,
@@ -1356,10 +1400,19 @@ public static class CodeGenerationService
     /// <summary>
     /// Generates HTTP client class from OpenAPI operations, including inline model types.
     /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="projectName">The project name for namespace generation.</param>
+    /// <param name="generatorType">The generator type.</param>
+    /// <param name="granularity">Client granularity; under Single the client is emitted flat into {root}.Generated.</param>
+    /// <param name="clientName">Optional explicit client type name, used verbatim.</param>
+    /// <param name="clientSuffix">Optional client type name suffix; defaults to Client.</param>
     public static List<GeneratedType> GenerateHttpClient(
         OpenApiDocument openApiDoc,
         string projectName,
-        GeneratorType generatorType = GeneratorType.Client)
+        GeneratorType generatorType = GeneratorType.Client,
+        ClientGranularityType granularity = ClientGranularityType.PerArea,
+        string? clientName = null,
+        string? clientSuffix = null)
     {
         var result = new List<GeneratedType>();
         var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
@@ -1374,12 +1427,14 @@ public static class CodeGenerationService
             registry: null,
             systemTypeResolver,
             includeDeprecated: false,
-            useServersBasePath: false);
+            useServersBasePath: false,
+            clientSuffix: clientSuffix,
+            clientName: clientName);
 
         // Add inline model types first (they may be referenced by the client class)
         if (inlineSchemas.Count > 0)
         {
-            var inlineTypes = GenerateInlineModels(inlineSchemas, projectName, generatorType);
+            var inlineTypes = GenerateInlineModels(inlineSchemas, projectName, generatorType, granularity);
             result.AddRange(inlineTypes);
         }
 
@@ -1388,7 +1443,15 @@ public static class CodeGenerationService
             return result;
         }
 
-        var @namespace = $"{projectName}.Generated.Client";
+        var isSingle = generatorType == GeneratorType.Client &&
+                       granularity == ClientGranularityType.Single;
+
+        // Single granularity emits the one client into {root}.Generated rather than a nested
+        // per-area Client namespace.
+        var @namespace = isSingle
+            ? $"{projectName}.Generated"
+            : $"{projectName}.Generated.Client";
+
         var codeDocGenerator = new CodeDocumentationTagsGenerator();
         var content = GenerateClassContentOnly(codeDocGenerator, classParams);
 
@@ -1397,11 +1460,16 @@ public static class CodeGenerationService
             $"{projectName}.Generated.Models",
         };
 
-        // Add using for inline models namespace if any
-        var inlineNamespaces = inlineSchemas.Values
-            .Select(s => $"{projectName}.Generated.{s.PathSegment}.Models")
-            .Distinct(StringComparer.Ordinal);
-        usings.AddRange(inlineNamespaces);
+        // Add using for inline models namespace if any.
+        // Under Single the inline models are flattened into {root}.Generated.Models, which is
+        // already imported above.
+        if (!isSingle)
+        {
+            var inlineNamespaces = inlineSchemas.Values
+                .Select(s => $"{projectName}.Generated.{s.PathSegment}.Models")
+                .Distinct(StringComparer.Ordinal);
+            usings.AddRange(inlineNamespaces);
+        }
 
         // Reference the emitted StreamReaders helper namespace when the client body uses it
         // (Server-Sent Events and other wire-framed streaming reads).
@@ -1417,7 +1485,7 @@ public static class CodeGenerationService
             usings.Add(NamespaceConstants.SystemLinq);
         }
 
-        var subFolder = GetSubFolder("Client", null, generatorType);
+        var subFolder = GetSubFolder("Client", null, generatorType, granularity);
 
         result.Add(new GeneratedType(
             TypeName: classParams.ClassTypeName,

@@ -59,6 +59,8 @@ public static class HttpClientExtractor
     /// <param name="hasSegmentModels">Whether the segment has segment-specific models.</param>
     /// <param name="hasSharedModels">Whether there are shared models in the project.</param>
     /// <param name="namespaceSegment">The segment used for namespaces and the client class name. When null, <paramref name="pathSegment"/> is used. Pass an explicitly resolved value (possibly empty) to omit the segment.</param>
+    /// <param name="clientSuffix">The client class name suffix. Defaults to "Client" when null or empty.</param>
+    /// <param name="clientName">Explicit client type name, used verbatim when supplied.</param>
     /// <returns>A tuple containing the ClassParameters and a dictionary of discovered inline schemas.</returns>
     public static (ClassParameters? ClientClass, Dictionary<string, HttpClientInlineSchemaInfo> InlineSchemas) ExtractWithInlineSchemas(
         OpenApiDocument openApiDoc,
@@ -70,10 +72,12 @@ public static class HttpClientExtractor
         bool useServersBasePath = true,
         bool? hasSegmentModels = null,
         bool? hasSharedModels = null,
-        string? namespaceSegment = null)
+        string? namespaceSegment = null,
+        string? clientSuffix = null,
+        string? clientName = null)
     {
         var inlineSchemas = new Dictionary<string, HttpClientInlineSchemaInfo>(StringComparer.Ordinal);
-        var clientClass = ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas, useServersBasePath, hasSegmentModels, hasSharedModels, namespaceSegment);
+        var clientClass = ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas, useServersBasePath, hasSegmentModels, hasSharedModels, namespaceSegment, clientSuffix, clientName);
         return (clientClass, inlineSchemas);
     }
 
@@ -88,7 +92,9 @@ public static class HttpClientExtractor
         bool useServersBasePath = true,
         bool? hasSegmentModels = null,
         bool? hasSharedModels = null,
-        string? namespaceSegment = null)
+        string? namespaceSegment = null,
+        string? clientSuffix = null,
+        string? clientName = null)
     {
         if (openApiDoc is null)
         {
@@ -102,10 +108,18 @@ public static class HttpClientExtractor
 
         var effectiveNamespaceSegment = namespaceSegment ?? pathSegment;
 
-        var className = string.IsNullOrEmpty(effectiveNamespaceSegment)
-            ? $"{CasingHelper.GetLastNameSegment(projectName)}Client"
-            : $"{effectiveNamespaceSegment}Client";
-        var namespaceValue = NamespaceBuilder.ForClient(projectName, effectiveNamespaceSegment);
+        // An explicit client name is the author stating the full type name, so it wins outright.
+        var className = !string.IsNullOrWhiteSpace(clientName)
+            ? clientName!.Trim()
+            : string.IsNullOrEmpty(effectiveNamespaceSegment)
+                ? CasingHelper.BuildClientTypeName(projectName, clientSuffix)
+                : CasingHelper.BuildClientTypeName(effectiveNamespaceSegment, clientSuffix);
+
+        // An empty namespace segment means Single granularity: the client is flattened into
+        // "{projectName}.Generated" rather than the per-area "{projectName}.Generated.Client".
+        var namespaceValue = string.IsNullOrEmpty(effectiveNamespaceSegment)
+            ? NamespaceBuilder.BuildBase(projectName)
+            : NamespaceBuilder.ForClient(projectName, effectiveNamespaceSegment);
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, effectiveNamespaceSegment);
 
         var additionalFieldDeclarations = new List<string>

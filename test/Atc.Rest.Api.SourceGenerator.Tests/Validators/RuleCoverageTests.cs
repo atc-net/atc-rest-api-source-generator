@@ -61,6 +61,10 @@ public class RuleCoverageTests
         ["ATC_API_OPR023"] = "NotFoundOnPostOperation - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
         ["ATC_API_OPR024"] = "ConflictOnNonMutatingOperation - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
         ["ATC_API_OPR025"] = "TooManyRequestsWithoutRateLimiting - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
+
+        // ========== Client Rules (CLT) ==========
+        ["ATC_API_CLT001"] = "SingleClientTypeNameCollision - Tested in Atc.Rest.Api.Generator.Tests.Validators.SingleClientCollisionValidatorTests",
+        ["ATC_API_CLT002"] = "ClientNameIgnoredForPerArea - Emitted by ApiClientGenerator, requires a Roslyn generator run with a clientName under PerArea",
     };
 
     [Fact]
