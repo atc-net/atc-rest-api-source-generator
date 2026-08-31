@@ -137,7 +137,6 @@ public class ApiClientGenerator : IIncrementalGenerator
         ClientPackageReferences packages)
     {
         // Convert to SpecificationFile objects
-        var baseName = Path.GetFileNameWithoutExtension(baseFile.Path);
         var baseSpec = SpecificationService.ReadFromContent(baseFile.Content, baseFile.Path);
         var partSpecs = partFiles
             .Select(p => SpecificationService.ReadFromContent(p.Content, p.Path))
@@ -159,8 +158,11 @@ public class ApiClientGenerator : IIncrementalGenerator
             return;
         }
 
-        // Extract project name from base file path (or use config namespace)
-        var projectName = config.Namespace ?? baseName;
+        // Resolve the root namespace: marker namespace, qualifying info.title, then base file name.
+        var projectName = NamespaceResolver.Resolve(
+            config.Namespace,
+            mergeResult.Document.Info?.Title,
+            baseFile.Path);
 
         // Continue with normal generation using merged document
         GenerateApiClientFromDocument(context, baseFile.Path, mergeResult.Document, config, packages, projectName);
@@ -211,8 +213,11 @@ public class ApiClientGenerator : IIncrementalGenerator
             return;
         }
 
-        // Extract project name from YAML file path (or use config namespace)
-        var projectName = config.Namespace ?? GetProjectNameFromPath(yamlPath);
+        // Resolve the root namespace: marker namespace, qualifying info.title, then file name.
+        var projectName = NamespaceResolver.Resolve(
+            config.Namespace,
+            openApiDoc.Info?.Title,
+            yamlPath);
 
         // Continue with generation from the parsed document
         GenerateApiClientFromDocument(context, yamlPath, openApiDoc, config, packages, projectName);
@@ -284,6 +289,29 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Detect shared schemas (used by multiple path segments) for deduplication
         var sharedSchemas = PathSegmentHelper.GetSharedSchemas(openApiDoc);
 
+        // Single-client mode: emit one client covering every operation, with all models flattened
+        // into "{projectName}.Generated.Models". Handled before the per-area loop because the two
+        // layouts are mutually exclusive.
+        if (config.GenerationMode != GenerationModeType.EndpointPerOperation &&
+            config.ClientGranularity == ClientGranularityType.Single)
+        {
+            GenerateSingleTypedClient(context, generatedContext, openApiDoc, projectName, config, conflicts, systemTypeResolver, yamlPath);
+            return;
+        }
+
+        // 'clientName' only names the one client produced by Single mode; under PerArea each area
+        // names its own client, so the value cannot be applied and is ignored.
+        if (!string.IsNullOrWhiteSpace(config.ClientName))
+        {
+            context.ReportDiagnostic(
+                DiagnosticHelpers.ToRoslynDiagnostic(
+                    GeneratorDiagnosticMessage.Warning(
+                        RuleIdentifiers.ClientNameIgnoredForPerArea,
+                        $"'clientName' ('{config.ClientName}') is ignored because 'clientGranularity' is 'PerArea', " +
+                        "which generates one client per API area. Set \"clientGranularity\": \"Single\" to use it.",
+                        yamlPath)));
+        }
+
         // Generate shared models/enums first (under common namespace without segment suffix)
         if (sharedSchemas.Count > 0)
         {
@@ -346,7 +374,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 var hasSegmentModelsTyped = segmentSchemas.Count > 0;
                 var hasSharedModelsTyped = sharedSchemas.Count > 0;
-                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy);
+                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy, config.ClientSuffix);
             }
         }
 
@@ -522,9 +550,6 @@ public class ApiClientGenerator : IIncrementalGenerator
                 SourceText.From(diContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
     }
-
-    private static string GetProjectNameFromPath(string yamlPath)
-        => Path.GetFileNameWithoutExtension(yamlPath);
 
     /// <summary>
     /// Generates models for specific schemas (used for shared or segment-specific types).
@@ -742,6 +767,84 @@ public class ApiClientGenerator : IIncrementalGenerator
             Parameters: convertedRecords);
     }
 
+    /// <summary>
+    /// Generates a single typed client covering every operation in the document, with all models
+    /// flattened into "{projectName}.Generated.Models".
+    /// </summary>
+    /// <remarks>
+    /// Reuses the per-area code paths with an empty segment, which is the established way of saying
+    /// "no segment qualifier" (see <c>ResolveEffectivePathSegment</c>). Because every model lands in
+    /// one namespace, schema keys that normalise to the same C# identifier would collide, so
+    /// <see cref="SingleClientCollisionValidator"/> gates generation first.
+    /// </remarks>
+    private static void GenerateSingleTypedClient(
+        SourceProductionContext context,
+        GeneratedSourceContext generatedContext,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        ClientConfig config,
+        ISet<string> conflicts,
+        SystemTypeConflictResolver systemTypeResolver,
+        string yamlPath)
+    {
+        // Flattening removes the per-area namespaces that would otherwise keep colliding type names
+        // apart. Report and stop, rather than emitting code that fails with an opaque CS0101.
+        var collisions = SingleClientCollisionValidator.Validate(
+            openApiDoc,
+            config.ClientGranularity,
+            yamlPath);
+
+        if (collisions.Count > 0)
+        {
+            foreach (var collision in collisions)
+            {
+                context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(collision));
+            }
+
+            return;
+        }
+
+        // Empty segment => everything is emitted directly under "{projectName}.Generated[.Models]".
+        const string NoSegment = "";
+
+        var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, NoSegment);
+
+        var allSchemas = openApiDoc.Components?.Schemas?.Keys is { } keys
+            ? new HashSet<string>(keys, StringComparer.Ordinal)
+            : [];
+
+        if (allSchemas.Count > 0)
+        {
+            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels);
+            GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
+            GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
+        }
+
+        GenerateTypedClient(
+            generatedContext,
+            openApiDoc,
+            projectName,
+            pathSegment: NoSegment,
+            namespaceSegment: NoSegment,
+            registry,
+            systemTypeResolver,
+            config.IncludeDeprecated,
+            hasSegmentModels: allSchemas.Count > 0,
+            hasSharedModels: false,
+            config.UseServersBasePath,
+            config.ValidateSpecificationStrategy,
+            config.ClientSuffix,
+            config.ClientName);
+
+        if (StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
+        {
+            var streamReadersContent = StreamReadersExtractor.GenerateContent(projectName, perOperation: false);
+            generatedContext.AddSource(
+                $"{projectName}.Streaming.StreamReaders.g.cs",
+                SourceText.From(streamReadersContent.NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+    }
+
     private static void GenerateTypedClient(
         GeneratedSourceContext context,
         OpenApiDocument openApiDoc,
@@ -754,9 +857,16 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool hasSegmentModels,
         bool hasSharedModels,
         bool useServersBasePath,
-        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
+        string? clientSuffix = null,
+        string? clientName = null)
     {
-        var clientNamespace = NamespaceBuilder.ForClient(projectName, namespaceSegment);
+        // An empty namespace segment means Single granularity: the client and its parameter
+        // records are flattened into "{projectName}.Generated" rather than the per-area
+        // "{projectName}.Generated.Client". Models keep their own ".Models" suffix either way.
+        var clientNamespace = string.IsNullOrEmpty(namespaceSegment)
+            ? NamespaceBuilder.BuildBase(projectName)
+            : NamespaceBuilder.ForClient(projectName, namespaceSegment);
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, namespaceSegment);
 
         // Generate client parameters using shared OperationParameterExtractor (without binding attributes)
@@ -802,7 +912,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         // Use HttpClientExtractor to extract HTTP client class parameters filtered by path segment
         // This also extracts inline schemas for type generation
-        var (classParameters, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, useServersBasePath, hasSegmentModels, hasSharedModels, namespaceSegment);
+        var (classParameters, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, useServersBasePath, hasSegmentModels, hasSharedModels, namespaceSegment, clientSuffix, clientName);
 
         if (classParameters is null)
         {
@@ -817,9 +927,13 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         var generatedContent = contentGenerator.Generate();
 
-        var clientTypeName = string.IsNullOrEmpty(namespaceSegment)
-            ? $"{CasingHelper.GetLastNameSegment(projectName)}Client"
-            : $"{namespaceSegment}Client";
+        // An explicit 'clientName' is the author stating the full type name, so it is used verbatim
+        // with no suffix appended.
+        var clientTypeName = !string.IsNullOrWhiteSpace(clientName)
+            ? clientName!.Trim()
+            : string.IsNullOrEmpty(namespaceSegment)
+                ? CasingHelper.BuildClientTypeName(projectName, clientSuffix)
+                : CasingHelper.BuildClientTypeName(namespaceSegment, clientSuffix);
 
         context.AddSource(
             NamespaceBuilder.ToFileName(clientNamespace, clientTypeName),
