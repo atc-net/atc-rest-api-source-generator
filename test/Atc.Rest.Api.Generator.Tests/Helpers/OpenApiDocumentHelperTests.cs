@@ -136,7 +136,7 @@ public class OpenApiDocumentHelperTests
     {
         // Arrange
         // Use unique content so this test is isolated from other tests sharing the static cache
-        var uniqueYaml = """
+        const string uniqueYaml = """
             openapi: 3.1.0
             info:
               title: Cache Test Same Content
@@ -158,7 +158,7 @@ public class OpenApiDocumentHelperTests
     public void TryParseYamlWithDiagnostic_DifferentContent_ReturnsDifferentResults()
     {
         // Arrange
-        var yaml1 = """
+        const string yaml1 = """
             openapi: 3.1.0
             info:
               title: Cache Test API One
@@ -166,7 +166,7 @@ public class OpenApiDocumentHelperTests
             paths: {}
             """;
 
-        var yaml2 = """
+        const string yaml2 = """
             openapi: 3.1.0
             info:
               title: Cache Test API Two
@@ -191,7 +191,7 @@ public class OpenApiDocumentHelperTests
         // The cache is keyed by (path, content).
         // Different paths with the same content should return different results
         // because the path affects $ref resolution via baseUri.
-        var uniqueYaml = """
+        const string uniqueYaml = """
             openapi: 3.1.0
             info:
               title: Cache Test Path Variant
@@ -212,7 +212,7 @@ public class OpenApiDocumentHelperTests
     {
         // Arrange
         // ParseYaml delegates to TryParseYamlWithDiagnostic, so the cache applies
-        var uniqueYaml = """
+        const string uniqueYaml = """
             openapi: 3.1.0
             info:
               title: Cache Test ParseYaml Delegation
@@ -234,19 +234,20 @@ public class OpenApiDocumentHelperTests
     {
         // Arrange
         // TryParseYaml delegates to TryParseYamlWithDiagnostic, so the cache applies
-        var uniqueYaml = """
-            openapi: 3.1.0
-            info:
-              title: Cache Test TryParseYaml Delegation
-              version: 1.0.0
-            paths: {}
-            """;
+        const string uniqueYaml = """
+                                  openapi: 3.1.0
+                                  info:
+                                    title: Cache Test TryParseYaml Delegation
+                                    version: 1.0.0
+                                  paths: {}
+                                  """;
 
         // Act
         var (docFromDiag, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(uniqueYaml, "shared.yaml");
-        OpenApiDocumentHelper.TryParseYaml(uniqueYaml, "shared.yaml", out var docFromTry);
+        var parsed = OpenApiDocumentHelper.TryParseYaml(uniqueYaml, "shared.yaml", out var docFromTry);
 
         // Assert
+        Assert.True(parsed);
         Assert.Same(docFromDiag, docFromTry);
     }
 
@@ -255,7 +256,7 @@ public class OpenApiDocumentHelperTests
     public void ClearCache_InvalidatesCachedEntries()
     {
         // Arrange
-        var uniqueYaml = """
+        const string uniqueYaml = """
             openapi: 3.1.0
             info:
               title: Cache Test ClearCache

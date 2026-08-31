@@ -5,13 +5,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Atc" Version="3.0.174" />
+    <PackageReference Include="Atc" Version="3.0.186" />
     <PackageReference Include="Atc.Rest.Client" Version="2.0.36" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.10" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.10" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.8.0" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.10" />
-    <PackageReference Include="MudBlazor" Version="9.7.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.11" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.9.0" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.11" />
+    <PackageReference Include="MudBlazor" Version="9.9.0" />
   </ItemGroup>
 
   <ItemGroup>

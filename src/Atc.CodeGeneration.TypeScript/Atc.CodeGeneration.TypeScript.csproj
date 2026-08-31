@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Atc" Version="3.0.174" GeneratePathProperty="true" />
+    <PackageReference Include="Atc" Version="3.0.186" GeneratePathProperty="true" />
   </ItemGroup>
 
 </Project>
