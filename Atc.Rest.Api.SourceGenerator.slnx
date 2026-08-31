@@ -55,11 +55,11 @@
     <File Path="sample/ThirdParty-EPO-Clients/EloverblikCustomerApiClient/api-1.yaml" />
     <Project Path="sample/ThirdParty-EPO-Clients/EloverblikCustomerApiClient/EloverblikCustomerApiClient.csproj" />
   </Folder>
-  <Folder Name="/sample/ThirdParty-EPO-Clients/EloverblikThirdPartyApiClient/">
-    <File Path="sample/ThirdParty-EPO-Clients/EloverblikThirdPartyApiClient/.atc-rest-api-client" />
-    <File Path="sample/ThirdParty-EPO-Clients/EloverblikThirdPartyApiClient/api-1.yaml" />
+  <Folder Name="/sample/ThirdParty-EPO-Clients/Eloverblik.ThirdPartyApi.Client/">
+    <File Path="sample/ThirdParty-EPO-Clients/Eloverblik.ThirdPartyApi.Client/.atc-rest-api-client" />
+    <File Path="sample/ThirdParty-EPO-Clients/Eloverblik.ThirdPartyApi.Client/api-1.yaml" />
     <Project Path="sample/ThirdParty-EPO-Clients/EloverblikThirdPartyApiClient-App/EloverblikThirdPartyApiClient-App.csproj" />
-    <Project Path="sample/ThirdParty-EPO-Clients/EloverblikThirdPartyApiClient/EloverblikThirdPartyApiClient.csproj" />
+    <Project Path="sample/ThirdParty-EPO-Clients/Eloverblik.ThirdPartyApi.Client/Eloverblik.ThirdPartyApi.Client.csproj" />
   </Folder>
   <Folder Name="/sample/ThirdParty-EPO-Clients/MontaClient/">
     <File Path="sample/ThirdParty-EPO-Clients/MontaClient/Monta.yaml" />
@@ -67,11 +67,11 @@
     <Project Path="sample/ThirdParty-EPO-Clients/MontaClient/MontaClient.csproj" />
   </Folder>
   <Folder Name="/sample/ThirdParty-Typed-Clients/" />
-  <Folder Name="/sample/ThirdParty-Typed-Clients/EloverblikThirdPartyApiClient/">
-    <File Path="sample/ThridParty-Typed-Clients/EloverblikThirdPartyApiClient/.atc-rest-api-client" />
-    <File Path="sample/ThridParty-Typed-Clients/EloverblikThirdPartyApiClient/api-1.yaml" />
-    <Project Path="sample/ThridParty-Typed-Clients/EloverblikThirdPartyApiClient-App/EloverblikThirdPartyApiClient-App.csproj" />
-    <Project Path="sample/ThridParty-Typed-Clients/EloverblikThirdPartyApiClient/EloverblikThirdPartyApiClient.csproj" />
+  <Folder Name="/sample/ThirdParty-Typed-Clients/Eloverblik.ThirdPartyApi.Client/">
+    <File Path="sample/ThirdParty-Typed-Clients/Eloverblik.ThirdPartyApi.Client/.atc-rest-api-client" />
+    <File Path="sample/ThirdParty-Typed-Clients/Eloverblik.ThirdPartyApi.Client/api-1.yaml" />
+    <Project Path="sample/ThirdParty-Typed-Clients/EloverblikThirdPartyApiClient-App/EloverblikThirdPartyApiClient-App.csproj" />
+    <Project Path="sample/ThirdParty-Typed-Clients/Eloverblik.ThirdPartyApi.Client/Eloverblik.ThirdPartyApi.Client.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Atc.Rest.Api.Generator.Cli/Atc.Rest.Api.Generator.Cli.csproj" />

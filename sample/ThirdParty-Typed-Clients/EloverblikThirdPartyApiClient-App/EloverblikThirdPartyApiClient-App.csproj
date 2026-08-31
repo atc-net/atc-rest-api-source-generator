@@ -16,13 +16,13 @@
       TypedClient mode emits a single class taking an HttpClient, so the app only
       needs IHttpClientFactory's typed-client support plus the generic host.
     -->
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.11" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- The generated client library (generationMode: TypedClient) -->
-    <ProjectReference Include="..\EloverblikThirdPartyApiClient\EloverblikThirdPartyApiClient.csproj" />
+    <ProjectReference Include="..\Eloverblik.ThirdPartyApi.Client\Eloverblik.ThirdPartyApi.Client.csproj" />
   </ItemGroup>
 
 </Project>
