@@ -1,6 +1,6 @@
 global using System.Net.Http.Headers;
 
-global using Eloverblik.Api.ThirdPartyApi.Generated.Client;
+global using Eloverblik.Api.ThirdPartyApi.Generated;
 global using Eloverblik.Api.ThirdPartyApi.Generated.Models;
 
 global using EloverblikThirdPartyApiClientApp;
