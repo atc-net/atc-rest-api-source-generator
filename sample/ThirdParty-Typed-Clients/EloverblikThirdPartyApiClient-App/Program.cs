@@ -1,12 +1,20 @@
 // This sample demonstrates how to wire up and use a client generated with
 //   "generationMode": "TypedClient"
+//   "clientGranularity": "Single"
+//   "clientName": "ElOverblikThirdPartyApiClient"
 //
-// In this mode the generator emits a single ThirdPartyApiClient class that takes
-// an HttpClient in its constructor and exposes one async method per OpenAPI
-// operation. Compared to EndpointPerOperation there is no DI registration
+// In this mode the generator emits a single client class covering every operation
+// in the specification, regardless of how many API areas (first path segments) it
+// has. It takes an HttpClient in its constructor and exposes one async method per
+// OpenAPI operation. Compared to EndpointPerOperation there is no DI registration
 // extension and no named-client constant - the client is registered as a typed
-// client, which is why AddHttpClient<ThirdPartyApiClient>() configures both the
-// transport and the client registration in one call.
+// client, which is why AddHttpClient<ElOverblikThirdPartyApiClient>() configures
+// both the transport and the client registration in one call.
+//
+// Because "clientName" is set it is used verbatim as the type name - the
+// "clientSuffix" is not appended, since the name already states it in full. With
+// clientGranularity Single the client is emitted into {root}.Generated and the
+// models into {root}.Generated.Models, rather than being split per API area.
 //
 // The other notable difference: typed-client methods return the payload directly
 // and throw HttpRequestException on a non-success status code, rather than
@@ -43,7 +51,7 @@ builder.Services.AddTransient<BearerTokenHandler>();
 // generated constructor. This is the single place where transport concerns are
 // configured: base address, timeouts, auth and (optionally) resilience handlers.
 builder.Services
-    .AddHttpClient<ThirdPartyApiClient>(client =>
+    .AddHttpClient<ElOverblikThirdPartyApiClient>(client =>
     {
         client.BaseAddress = new Uri(baseAddress);
         client.Timeout = TimeSpan.FromSeconds(100);
@@ -55,7 +63,7 @@ using var host = builder.Build();
 // ---------------------------------------------------------------------------
 // 2. Resolve the generated client
 // ---------------------------------------------------------------------------
-var client = host.Services.GetRequiredService<ThirdPartyApiClient>();
+var client = host.Services.GetRequiredService<ElOverblikThirdPartyApiClient>();
 var tokenProvider = host.Services.GetRequiredService<BearerTokenProvider>();
 
 try
