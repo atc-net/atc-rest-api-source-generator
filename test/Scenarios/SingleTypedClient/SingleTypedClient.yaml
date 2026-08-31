@@ -1,0 +1,118 @@
+openapi: 3.1.1
+info:
+  title: Single Typed Client Test API
+  version: 1.0.0
+  description: >
+    Test API covering multiple first path segments (accounts, orders) used to verify
+    clientGranularity=Single, which collapses all areas into one client and flattens
+    all models into a single Models namespace.
+
+paths:
+  /accounts:
+    get:
+      operationId: listAccounts
+      summary: List all accounts
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Account'
+
+  /accounts/{accountId}:
+    get:
+      operationId: getAccountById
+      summary: Get a single account
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '404':
+          description: Account not found
+
+  /orders:
+    get:
+      operationId: listOrders
+      summary: List all orders
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+    post:
+      operationId: createOrder
+      summary: Create an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+components:
+  schemas:
+    Account:
+      title: Account
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+
+    AccountStatus:
+      title: AccountStatus
+      type: string
+      enum:
+        - Active
+        - Suspended
+        - Closed
+
+    Order:
+      title: Order
+      type: object
+      properties:
+        id:
+          type: string
+        accountId:
+          type: string
+        total:
+          type: number
+          format: double
+
+    CreateOrderRequest:
+      title: CreateOrderRequest
+      type: object
+      required:
+        - accountId
+      properties:
+        accountId:
+          type: string
+        total:
+          type: number
+          format: double

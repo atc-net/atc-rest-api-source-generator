@@ -1,0 +1,6 @@
+{
+    "generationMode": "TypedClient",
+    "clientGranularity": "Single",
+    "clientName": "SingleTypedApiClient",
+    "useServersBasePath": false
+}
