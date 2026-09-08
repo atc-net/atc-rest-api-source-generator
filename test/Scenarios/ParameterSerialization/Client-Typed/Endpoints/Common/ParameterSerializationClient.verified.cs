@@ -10,7 +10,7 @@ using ParameterSerialization.Generated.Models;
 namespace ParameterSerialization.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ParameterSerializationClient
+public sealed class ParameterSerializationClient : IParameterSerializationClient
 {
     private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
     {

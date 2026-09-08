@@ -10,7 +10,7 @@ using Demo.Generated.Models;
 namespace Demo.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DemoClient
+public sealed class DemoClient : IDemoClient
 {
     private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
     {
