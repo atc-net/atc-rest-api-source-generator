@@ -59,6 +59,7 @@
     <File Path="sample/ThirdParty-EPO-Clients/Eloverblik.ThirdPartyApi.Client/.atc-rest-api-client" />
     <File Path="sample/ThirdParty-EPO-Clients/Eloverblik.ThirdPartyApi.Client/api-1.yaml" />
     <Project Path="sample/ThirdParty-EPO-Clients/EloverblikThirdPartyApiClient-App/EloverblikThirdPartyApiClient-App.csproj" />
+    <Project Path="sample/ThirdParty-EPO-Clients/Eloverblik.ThirdPartyApi.Client.Tests/Eloverblik.ThirdPartyApi.Client.Tests.csproj" />
     <Project Path="sample/ThirdParty-EPO-Clients/Eloverblik.ThirdPartyApi.Client/Eloverblik.ThirdPartyApi.Client.csproj" />
   </Folder>
   <Folder Name="/sample/ThirdParty-EPO-Clients/MontaClient/">
@@ -71,6 +72,7 @@
     <File Path="sample/ThirdParty-Typed-Clients/Eloverblik.ThirdPartyApi.Client/.atc-rest-api-client" />
     <File Path="sample/ThirdParty-Typed-Clients/Eloverblik.ThirdPartyApi.Client/api-1.yaml" />
     <Project Path="sample/ThirdParty-Typed-Clients/EloverblikThirdPartyApiClient-App/EloverblikThirdPartyApiClient-App.csproj" />
+    <Project Path="sample/ThirdParty-Typed-Clients/Eloverblik.ThirdPartyApi.Client.Tests/Eloverblik.ThirdPartyApi.Client.Tests.csproj" />
     <Project Path="sample/ThirdParty-Typed-Clients/Eloverblik.ThirdPartyApi.Client/Eloverblik.ThirdPartyApi.Client.csproj" />
   </Folder>
   <Folder Name="/src/">
