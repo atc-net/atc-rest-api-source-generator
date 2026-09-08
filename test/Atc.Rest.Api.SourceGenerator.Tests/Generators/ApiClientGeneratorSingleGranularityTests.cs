@@ -20,7 +20,7 @@ public class ApiClientGeneratorSingleGranularityTests
     {
         var sources = CompilationVerificationHarness.RunClient(ScenarioName, YamlFileName);
 
-        var client = sources.Single(x => x.HintName.Contains("SingleTypedApiClient", StringComparison.Ordinal));
+        var client = sources.Single(x => x.HintName.EndsWith(".SingleTypedApiClient.g.cs", StringComparison.Ordinal));
 
         Assert.Contains("namespace SingleTypedClient.Generated;", client.Source, StringComparison.Ordinal);
         Assert.DoesNotContain("namespace SingleTypedClient.Generated.Client;", client.Source, StringComparison.Ordinal);
@@ -65,7 +65,7 @@ public class ApiClientGeneratorSingleGranularityTests
     {
         var sources = CompilationVerificationHarness.RunClient(ScenarioName, YamlFileName);
 
-        var client = sources.Single(x => x.HintName.Contains("SingleTypedApiClient", StringComparison.Ordinal));
+        var client = sources.Single(x => x.HintName.EndsWith(".SingleTypedApiClient.g.cs", StringComparison.Ordinal));
 
         Assert.Contains("public sealed class SingleTypedApiClient", client.Source, StringComparison.Ordinal);
         Assert.DoesNotContain("SingleTypedApiClientClient", client.Source, StringComparison.Ordinal);
