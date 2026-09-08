@@ -10,7 +10,7 @@ using SingleTypedClient.Generated.Models;
 namespace SingleTypedClient.Generated;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class SingleTypedApiClient
+public sealed class SingleTypedApiClient : ISingleTypedApiClient
 {
     private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
     {

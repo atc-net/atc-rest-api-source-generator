@@ -12,7 +12,7 @@ using StreamingItemSchema.Generated.Streaming;
 namespace StreamingItemSchema.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class StreamingItemSchemaClient
+public sealed class StreamingItemSchemaClient : IStreamingItemSchemaClient
 {
     private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
     {

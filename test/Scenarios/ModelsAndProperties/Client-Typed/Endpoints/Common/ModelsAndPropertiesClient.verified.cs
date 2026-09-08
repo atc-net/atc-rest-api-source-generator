@@ -10,7 +10,7 @@ using ModelsAndProperties.Generated.Models;
 namespace ModelsAndProperties.Generated.Client;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ModelsAndPropertiesClient
+public sealed class ModelsAndPropertiesClient : IModelsAndPropertiesClient
 {
     private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
     {
