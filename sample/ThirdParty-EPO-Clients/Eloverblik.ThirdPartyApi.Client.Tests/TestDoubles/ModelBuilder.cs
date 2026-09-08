@@ -10,6 +10,16 @@ namespace Eloverblik.ThirdPartyApi.Client.Tests.TestDoubles;
 /// </summary>
 public static class ModelBuilder
 {
+    public static Eloverblik.Api.ThirdPartyApi.Generated.ProblemDetails ProblemDetails(
+        HttpStatusCode statusCode,
+        string? detail = null)
+        => new(
+            Type: $"https://httpstatuses.io/{(int)statusCode}",
+            Title: statusCode.ToString(),
+            Status: (int)statusCode,
+            Detail: detail,
+            Instance: null);
+
     public static MeteringPointThirdPartyDto MeteringPoint(
         string meteringPointId,
         string streetName = "Hovedgaden",

@@ -30,10 +30,8 @@ public sealed class MeteringPointReportServiceTests
 
         // Assert
         report.Should().BeEquivalentTo(
-        [
             "571313: Vejnavn 1",
-            "571314: Andenvej 2",
-        ]);
+            "571314: Andenvej 2");
     }
 
     [Fact]
