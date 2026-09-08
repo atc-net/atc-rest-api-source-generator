@@ -827,7 +827,105 @@ public static class PathSegmentHelper
         HashSet<string> sharedSchemas)
     {
         var segmentSchemas = GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
-        return segmentSchemas.Count > 0;
+        return segmentSchemas.Count > 0 ||
+               PathSegmentHasInlineModels(openApiDoc, pathSegment);
+    }
+
+    /// <summary>
+    /// Checks whether any operation in <paramref name="pathSegment"/> declares an anonymous inline
+    /// object schema in a response or request body.
+    /// <para>
+    /// Such schemas are not present in <c>components.schemas</c>, yet the generator still
+    /// materializes a record for them (for example <c>GetAnalyticsSummaryResponse</c>) into the
+    /// segment's Models namespace. They must therefore count towards "this segment has models",
+    /// otherwise the consuming endpoint/result files omit the Models <c>using</c> and fail to
+    /// compile with CS0246.
+    /// </para>
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <param name="pathSegment">The path segment to check.</param>
+    /// <returns><see langword="true"/> if the segment yields at least one inline model.</returns>
+    public static bool PathSegmentHasInlineModels(
+        OpenApiDocument openApiDoc,
+        string pathSegment)
+    {
+        if (openApiDoc.Paths is null)
+        {
+            return false;
+        }
+
+        foreach (var path in openApiDoc.Paths)
+        {
+            if (!GetFirstPathSegment(path.Key).Equals(pathSegment, StringComparison.OrdinalIgnoreCase) ||
+                path.Value is not IOpenApiPathItem { Operations: not null } pathItem)
+            {
+                continue;
+            }
+
+            foreach (var operation in pathItem.Operations)
+            {
+                if (operation.Value is null)
+                {
+                    continue;
+                }
+
+                if (OperationHasInlineModel(operation.Value))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool OperationHasInlineModel(OpenApiOperation operation)
+    {
+        if (operation.Responses is not null)
+        {
+            foreach (var response in operation.Responses)
+            {
+                if (response.Value?.Content is null)
+                {
+                    continue;
+                }
+
+                foreach (var media in response.Value.Content)
+                {
+                    if (SchemaYieldsInlineModel(media.Value?.Schema))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        if (operation.RequestBody?.Content is null)
+        {
+            return false;
+        }
+
+        foreach (var media in operation.RequestBody.Content)
+        {
+            if (SchemaYieldsInlineModel(media.Value?.Schema))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool SchemaYieldsInlineModel(IOpenApiSchema? schema)
+    {
+        if (InlineSchemaExtractor.IsInlineObjectSchema(schema))
+        {
+            return true;
+        }
+
+        // An array of anonymous objects yields an inline "…ResponseItem" record.
+        return schema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema &&
+               InlineSchemaExtractor.IsInlineObjectSchema(arraySchema.Items);
     }
 
     /// <summary>

@@ -58,17 +58,19 @@ public class ProblemDetailsDuplicationTests
         // Arrange & Act
         var (_, generatedSources) = RunGenerator();
 
-        var ambiguous = generatedSources
-            .Where(s =>
-                s.Source.Contains("using InlineSchemas.Generated;", StringComparison.Ordinal) &&
-                s.Source.Contains("using InlineSchemas.Generated.Reports.Models;", StringComparison.Ordinal) &&
-                s.Source.Contains("ProblemDetails", StringComparison.Ordinal))
-            .Select(s => s.HintName)
+        // A file may legitimately import both 'InlineSchemas.Generated' and a segment Models
+        // namespace, because segments can own inline (anonymous) schema models. Ambiguity arises
+        // only if more than one imported namespace also declares a ProblemDetails type, so assert
+        // on the declaring namespaces rather than on the presence of usings.
+        var declaringNamespaces = generatedSources
+            .Where(s => s.HintName.EndsWith("ProblemDetails.g.cs", StringComparison.Ordinal))
+            .Select(s => GetNamespace(s.Source))
+            .Distinct(StringComparer.Ordinal)
             .ToList();
 
-        // Assert - no file can resolve ProblemDetails through two competing namespaces. The old
-        // layout only avoided CS0104 by accident of namespace nesting.
-        Assert.Empty(ambiguous);
+        // Assert - exactly one namespace declares ProblemDetails, so no using combination can
+        // produce CS0104. The old layout only avoided it by accident of namespace nesting.
+        Assert.Equal(["InlineSchemas.Generated"], declaringNamespaces);
     }
 
     [Fact]
