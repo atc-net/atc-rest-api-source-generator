@@ -132,6 +132,11 @@ public static class NamespaceConstants
     // Third-party namespaces
 
     /// <summary>
+    /// Atc.Rest.Client - Required for the EndpointResponse result envelopes.
+    /// </summary>
+    public const string AtcRestClient = "Atc.Rest.Client";
+
+    /// <summary>
     /// FluentValidation - Required for validator registrations.
     /// </summary>
     public const string FluentValidation = "FluentValidation";

@@ -1,0 +1,160 @@
+openapi: 3.1.1
+info:
+  title: Typed Client Result Style Test API
+  version: 1.0.0
+  description: >
+    Test API used to verify typedClientResultStyle=Result, which makes every typed-client
+    operation return an EndpointResponse envelope instead of throwing on a non-success
+    status code. Covers the payload shapes that map to different envelope builders:
+    JSON content, no content, binary content, text content and a Location header.
+
+paths:
+  /devices:
+    get:
+      operationId: listDevices
+      summary: List all devices
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+    post:
+      operationId: createDevice
+      summary: Create a device
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeviceRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+
+  /devices/{deviceId}:
+    get:
+      operationId: getDeviceById
+      summary: Get a single device
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '404':
+          description: Device not found
+    put:
+      operationId: updateDevice
+      summary: Update a device
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeviceRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+    delete:
+      operationId: deleteDevice
+      summary: Delete a device
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: No Content
+
+  /devices/{deviceId}/firmware:
+    get:
+      operationId: downloadFirmware
+      summary: Download the firmware blob
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /devices/{deviceId}/log:
+    get:
+      operationId: getDeviceLog
+      summary: Get the device log as plain text
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  schemas:
+    Device:
+      title: Device
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          $ref: '#/components/schemas/DeviceStatus'
+
+    DeviceStatus:
+      title: DeviceStatus
+      type: string
+      enum:
+        - Online
+        - Offline
+
+    CreateDeviceRequest:
+      title: CreateDeviceRequest
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string

@@ -1,0 +1,7 @@
+{
+    "generationMode": "TypedClient",
+    "clientGranularity": "Single",
+    "clientName": "DeviceApiClient",
+    "typedClientResultStyle": "Result",
+    "useServersBasePath": false
+}

@@ -275,7 +275,8 @@ public static class GeneratorTestHelper
                 generatorType,
                 granularity,
                 config?.ClientName,
-                config?.ClientSuffix))
+                config?.ClientSuffix,
+                config?.TypedClientResultStyle ?? TypedClientResultStyleType.Throw))
             {
                 yield return type;
             }

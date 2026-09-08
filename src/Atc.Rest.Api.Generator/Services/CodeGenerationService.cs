@@ -1406,13 +1406,15 @@ public static class CodeGenerationService
     /// <param name="granularity">Client granularity; under Single the client is emitted flat into {root}.Generated.</param>
     /// <param name="clientName">Optional explicit client type name, used verbatim.</param>
     /// <param name="clientSuffix">Optional client type name suffix; defaults to Client.</param>
+    /// <param name="typedClientResultStyle">Controls whether operations throw on a non-success status or return an EndpointResponse envelope.</param>
     public static List<GeneratedType> GenerateHttpClient(
         OpenApiDocument openApiDoc,
         string projectName,
         GeneratorType generatorType = GeneratorType.Client,
         ClientGranularityType granularity = ClientGranularityType.PerArea,
         string? clientName = null,
-        string? clientSuffix = null)
+        string? clientSuffix = null,
+        TypedClientResultStyleType typedClientResultStyle = TypedClientResultStyleType.Throw)
     {
         var result = new List<GeneratedType>();
         var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
@@ -1429,7 +1431,8 @@ public static class CodeGenerationService
             includeDeprecated: false,
             useServersBasePath: false,
             clientSuffix: clientSuffix,
-            clientName: clientName);
+            clientName: clientName,
+            resultStyle: typedClientResultStyle);
 
         // Add inline model types first (they may be referenced by the client class)
         if (inlineSchemas.Count > 0)
@@ -1483,6 +1486,14 @@ public static class CodeGenerationService
         if (content.IndexOf(".FirstOrDefault(", StringComparison.Ordinal) >= 0)
         {
             usings.Add(NamespaceConstants.SystemLinq);
+        }
+
+        // Result style returns EndpointResponse/EndpointResponse<T>/StreamingEndpointResponse<T>,
+        // which all live in Atc.Rest.Client. This path builds its own using list rather than
+        // reusing the extractor's header, so the import has to be added here as well.
+        if (typedClientResultStyle == TypedClientResultStyleType.Result)
+        {
+            usings.Add(NamespaceConstants.AtcRestClient);
         }
 
         var subFolder = GetSubFolder("Client", null, generatorType, granularity);
