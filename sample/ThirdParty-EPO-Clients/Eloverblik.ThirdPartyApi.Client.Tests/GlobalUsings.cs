@@ -1,6 +1,8 @@
 global using System.Net;
 global using System.Net.Http.Json;
 
+global using Atc.Rest.Api.Client.Testing;
+
 global using Atc.Rest.Client.Builder;
 global using Atc.Rest.Client.Serialization;
 

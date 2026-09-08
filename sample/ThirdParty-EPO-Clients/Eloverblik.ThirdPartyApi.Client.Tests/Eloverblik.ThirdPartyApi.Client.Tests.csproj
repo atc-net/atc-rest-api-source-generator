@@ -12,6 +12,8 @@
   <ItemGroup>
     <!-- The system under test: the project the source generator emits the endpoints into. -->
     <ProjectReference Include="..\Eloverblik.ThirdPartyApi.Client\Eloverblik.ThirdPartyApi.Client.csproj" />
+    <!-- Shared HTTP test doubles. Consumers reference the NuGet package instead. -->
+    <ProjectReference Include="..\..\..\src\Atc.Rest.Api.Client.Testing\Atc.Rest.Api.Client.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>
