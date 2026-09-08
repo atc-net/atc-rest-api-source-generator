@@ -37,6 +37,8 @@ public class ApiClientGenerator : IIncrementalGenerator
                     .Any(a => a.Name.Equals("Atc.Rest.Client", StringComparison.OrdinalIgnoreCase)),
                 HasResilience = compilation.ReferencedAssemblyNames
                     .Any(a => a.Name.Equals("Microsoft.Extensions.Http.Resilience", StringComparison.OrdinalIgnoreCase)),
+                HasHttpClientFactory = compilation.ReferencedAssemblyNames
+                    .Any(a => a.Name.Equals("Microsoft.Extensions.Http", StringComparison.OrdinalIgnoreCase)),
             });
 
         // Combine ALL YAML files (as collection) with marker files and compilation info
@@ -176,6 +178,12 @@ public class ApiClientGenerator : IIncrementalGenerator
         public bool HasAtcRestClient { get; init; }
 
         public bool HasResilience { get; init; }
+
+        /// <summary>
+        /// True when Microsoft.Extensions.Http is referenced. The typed-client DI extension calls
+        /// AddHttpClient&lt;TInterface, TClient&gt;(), so it can only be emitted when present.
+        /// </summary>
+        public bool HasHttpClientFactory { get; init; }
     }
 
     private static void GenerateApiClient(
@@ -295,7 +303,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         if (config.GenerationMode != GenerationModeType.EndpointPerOperation &&
             config.ClientGranularity == ClientGranularityType.Single)
         {
-            GenerateSingleTypedClient(context, generatedContext, openApiDoc, projectName, config, conflicts, systemTypeResolver, yamlPath);
+            GenerateSingleTypedClient(context, generatedContext, openApiDoc, projectName, config, conflicts, systemTypeResolver, yamlPath, packages.HasHttpClientFactory);
             return;
         }
 
@@ -374,7 +382,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 var hasSegmentModelsTyped = segmentSchemas.Count > 0;
                 var hasSharedModelsTyped = sharedSchemas.Count > 0;
-                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy, config.ClientSuffix);
+                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy, config.ClientSuffix, clientName: null, packages.HasHttpClientFactory);
             }
         }
 
@@ -785,7 +793,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         ClientConfig config,
         ISet<string> conflicts,
         SystemTypeConflictResolver systemTypeResolver,
-        string yamlPath)
+        string yamlPath,
+        bool generateDiExtension)
     {
         // Flattening removes the per-area namespaces that would otherwise keep colliding type names
         // apart. Report and stop, rather than emitting code that fails with an opaque CS0101.
@@ -834,7 +843,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             config.UseServersBasePath,
             config.ValidateSpecificationStrategy,
             config.ClientSuffix,
-            config.ClientName);
+            config.ClientName,
+            generateDiExtension);
 
         if (StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
         {
@@ -859,7 +869,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool useServersBasePath,
         ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
         string? clientSuffix = null,
-        string? clientName = null)
+        string? clientName = null,
+        bool generateDiExtension = false)
     {
         // An empty namespace segment means Single granularity: the client and its parameter
         // records are flattened into "{projectName}.Generated" rather than the per-area
@@ -939,6 +950,35 @@ public class ApiClientGenerator : IIncrementalGenerator
             NamespaceBuilder.ToFileName(clientNamespace, clientTypeName),
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
 
+        // Emit the matching I{ClientName} contract next to the client so consumers can depend on -
+        // and mock - the API surface instead of stubbing HttpClient
+        var interfaceParameters = HttpClientInterfaceExtractor.Extract(classParameters);
+        if (interfaceParameters is not null)
+        {
+            var interfaceContent = new GenerateContentForInterface(
+                codeDocGenerator2,
+                interfaceParameters).Generate();
+
+            context.AddSource(
+                NamespaceBuilder.ToFileName(clientNamespace, interfaceParameters.InterfaceTypeName),
+                SourceText.From(interfaceContent.NormalizeForSourceOutput(), Encoding.UTF8));
+
+            // The DI extension calls AddHttpClient<TInterface, TClient>(), which lives in
+            // Microsoft.Extensions.Http. Typed-client projects are not required to reference it,
+            // so only emit the extension when the consumer actually has it.
+            if (generateDiExtension)
+            {
+                var diContent = BuildTypedClientDiExtension(
+                    clientNamespace,
+                    clientTypeName,
+                    interfaceParameters.InterfaceTypeName);
+
+                context.AddSource(
+                    NamespaceBuilder.ToFileName(clientNamespace, $"{clientTypeName}ServiceCollectionExtensions"),
+                    SourceText.From(diContent.NormalizeForSourceOutput(), Encoding.UTF8));
+            }
+        }
+
         // Generate inline model files for any inline schemas discovered
         if (inlineSchemas.Count > 0)
         {
@@ -951,6 +991,66 @@ public class ApiClientGenerator : IIncrementalGenerator
                     SourceText.From(inlineContent.NormalizeForSourceOutput(), Encoding.UTF8));
             }
         }
+    }
+
+    /// <summary>
+    /// Builds the DI registration extension for a typed client, registering the generated
+    /// interface as the service type so consumers can depend on (and fake) the contract.
+    /// </summary>
+    private static string BuildTypedClientDiExtension(
+        string clientNamespace,
+        string clientTypeName,
+        string interfaceTypeName)
+    {
+        var sb = new StringBuilder();
+
+        sb.AppendLine("// <auto-generated />");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine();
+        sb.AppendLine("using System;");
+        sb.AppendLine("using System.CodeDom.Compiler;");
+        sb.AppendLine("using System.Net.Http;");
+        sb.AppendLine("using Microsoft.Extensions.DependencyInjection;");
+        sb.AppendLine();
+        sb.AppendLine($"namespace {clientNamespace};");
+        sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine($"/// Registration extensions for <see cref=\"{interfaceTypeName}\"/>.");
+        sb.AppendLine("/// </summary>");
+        sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
+        sb.AppendLine($"public static class {clientTypeName}ServiceCollectionExtensions");
+        sb.AppendLine("{");
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine($"    /// Adds <see cref=\"{clientTypeName}\"/> as <see cref=\"{interfaceTypeName}\"/> using IHttpClientFactory.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    /// <param name=\"services\">The service collection.</param>");
+        sb.AppendLine("    /// <param name=\"configureClient\">Optional callback to configure the underlying <see cref=\"HttpClient\"/>.</param>");
+        sb.AppendLine($"    public static IHttpClientBuilder Add{clientTypeName}(");
+        sb.AppendLine("        this IServiceCollection services,");
+        sb.AppendLine("        Action<HttpClient>? configureClient = null)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (services is null)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            throw new ArgumentNullException(nameof(services));");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        // An explicit factory is used because the generated client exposes both a");
+        sb.AppendLine("        // (HttpClient) and a (HttpClient, JsonSerializerOptions) constructor, which");
+        sb.AppendLine("        // ActivatorUtilities cannot disambiguate on its own.");
+        sb.AppendLine("        if (configureClient is null)");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            return services.AddHttpClient<{interfaceTypeName}>()");
+        sb.AppendLine($"                .AddTypedClient<{interfaceTypeName}>(");
+        sb.AppendLine($"                    static (httpClient, _) => new {clientTypeName}(httpClient));");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine($"        return services.AddHttpClient<{interfaceTypeName}>(configureClient)");
+        sb.AppendLine($"            .AddTypedClient<{interfaceTypeName}>(");
+        sb.AppendLine($"                static (httpClient, _) => new {clientTypeName}(httpClient));");
+        sb.AppendLine("    }");
+        sb.AppendLine("}");
+
+        return sb.ToString();
     }
 
     private static bool GenerateEndpointPerOperation(
