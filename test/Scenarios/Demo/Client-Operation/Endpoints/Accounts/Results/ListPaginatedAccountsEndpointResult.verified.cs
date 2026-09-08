@@ -18,7 +18,7 @@ namespace Demo.Generated.Accounts.Endpoints.Results;
 /// Operation: ListPaginatedAccounts.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListPaginatedAccountsEndpointResult : EndpointResponse, IListPaginatedAccountsEndpointResult
+public partial class ListPaginatedAccountsEndpointResult : EndpointResponse, IListPaginatedAccountsEndpointResult
 {
     public ListPaginatedAccountsEndpointResult(EndpointResponse response)
         : base(response)

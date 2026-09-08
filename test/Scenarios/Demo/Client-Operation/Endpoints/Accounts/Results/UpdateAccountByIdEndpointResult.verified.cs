@@ -18,7 +18,7 @@ namespace Demo.Generated.Accounts.Endpoints.Results;
 /// Operation: UpdateAccountById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateAccountByIdEndpointResult : EndpointResponse, IUpdateAccountByIdEndpointResult
+public partial class UpdateAccountByIdEndpointResult : EndpointResponse, IUpdateAccountByIdEndpointResult
 {
     public UpdateAccountByIdEndpointResult(EndpointResponse response)
         : base(response)

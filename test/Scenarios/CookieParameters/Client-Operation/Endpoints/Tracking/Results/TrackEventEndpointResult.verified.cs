@@ -18,7 +18,7 @@ namespace CookieParameters.Generated.Tracking.Endpoints.Results;
 /// Operation: TrackEvent.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class TrackEventEndpointResult : EndpointResponse, ITrackEventEndpointResult
+public partial class TrackEventEndpointResult : EndpointResponse, ITrackEventEndpointResult
 {
     public TrackEventEndpointResult(EndpointResponse response)
         : base(response)

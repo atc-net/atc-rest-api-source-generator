@@ -18,7 +18,7 @@ namespace Polymorphism.Generated.Shapes.Endpoints.Results;
 /// Operation: ListShapes.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListShapesEndpointResult : EndpointResponse, IListShapesEndpointResult
+public partial class ListShapesEndpointResult : EndpointResponse, IListShapesEndpointResult
 {
     public ListShapesEndpointResult(EndpointResponse response)
         : base(response)

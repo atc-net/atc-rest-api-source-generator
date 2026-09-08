@@ -18,7 +18,7 @@ namespace CookieParameters.Generated.Session.Endpoints.Results;
 /// Operation: GetSession.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetSessionEndpointResult : EndpointResponse, IGetSessionEndpointResult
+public partial class GetSessionEndpointResult : EndpointResponse, IGetSessionEndpointResult
 {
     public GetSessionEndpointResult(EndpointResponse response)
         : base(response)

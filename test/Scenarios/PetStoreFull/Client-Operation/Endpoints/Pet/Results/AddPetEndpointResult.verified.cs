@@ -18,7 +18,7 @@ namespace PetStoreFull.Generated.Pet.Endpoints.Results;
 /// Operation: AddPet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class AddPetEndpointResult : EndpointResponse, IAddPetEndpointResult
+public partial class AddPetEndpointResult : EndpointResponse, IAddPetEndpointResult
 {
     public AddPetEndpointResult(EndpointResponse response)
         : base(response)

@@ -18,7 +18,7 @@ namespace Demo.Generated.Tasks.Endpoints.Results;
 /// Operation: UpdateTaskById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdateTaskByIdEndpointResult : EndpointResponse, IUpdateTaskByIdEndpointResult
+public partial class UpdateTaskByIdEndpointResult : EndpointResponse, IUpdateTaskByIdEndpointResult
 {
     public UpdateTaskByIdEndpointResult(EndpointResponse response)
         : base(response)

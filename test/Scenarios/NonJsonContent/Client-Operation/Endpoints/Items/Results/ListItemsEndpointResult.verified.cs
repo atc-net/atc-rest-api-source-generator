@@ -18,7 +18,7 @@ namespace NonJsonContent.Generated.Items.Endpoints.Results;
 /// Operation: ListItems.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListItemsEndpointResult : EndpointResponse, IListItemsEndpointResult
+public partial class ListItemsEndpointResult : EndpointResponse, IListItemsEndpointResult
 {
     public ListItemsEndpointResult(EndpointResponse response)
         : base(response)

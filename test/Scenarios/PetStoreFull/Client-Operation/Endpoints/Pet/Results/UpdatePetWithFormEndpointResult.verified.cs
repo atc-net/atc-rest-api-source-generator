@@ -18,7 +18,7 @@ namespace PetStoreFull.Generated.Pet.Endpoints.Results;
 /// Operation: UpdatePetWithForm.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdatePetWithFormEndpointResult : EndpointResponse, IUpdatePetWithFormEndpointResult
+public partial class UpdatePetWithFormEndpointResult : EndpointResponse, IUpdatePetWithFormEndpointResult
 {
     public UpdatePetWithFormEndpointResult(EndpointResponse response)
         : base(response)

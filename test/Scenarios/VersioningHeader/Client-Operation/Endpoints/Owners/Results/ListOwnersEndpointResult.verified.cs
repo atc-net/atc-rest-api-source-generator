@@ -18,7 +18,7 @@ namespace VersioningHeader.Generated.Owners.Endpoints.Results;
 /// Operation: ListOwners.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListOwnersEndpointResult : EndpointResponse, IListOwnersEndpointResult
+public partial class ListOwnersEndpointResult : EndpointResponse, IListOwnersEndpointResult
 {
     public ListOwnersEndpointResult(EndpointResponse response)
         : base(response)

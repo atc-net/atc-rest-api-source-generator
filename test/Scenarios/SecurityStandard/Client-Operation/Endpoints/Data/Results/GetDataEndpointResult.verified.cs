@@ -18,7 +18,7 @@ namespace SecurityStandard.Generated.Data.Endpoints.Results;
 /// Operation: GetData.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetDataEndpointResult : EndpointResponse, IGetDataEndpointResult
+public partial class GetDataEndpointResult : EndpointResponse, IGetDataEndpointResult
 {
     public GetDataEndpointResult(EndpointResponse response)
         : base(response)

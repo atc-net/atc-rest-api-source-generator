@@ -18,7 +18,7 @@ namespace VersioningUrlSegment.Generated.Pets.Endpoints.Results;
 /// Operation: UpdatePet.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UpdatePetEndpointResult : EndpointResponse, IUpdatePetEndpointResult
+public partial class UpdatePetEndpointResult : EndpointResponse, IUpdatePetEndpointResult
 {
     public UpdatePetEndpointResult(EndpointResponse response)
         : base(response)

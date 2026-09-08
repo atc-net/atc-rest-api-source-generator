@@ -18,7 +18,7 @@ namespace PetStoreFull.Generated.User.Endpoints.Results;
 /// Operation: CreateUsersWithListInput.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateUsersWithListInputEndpointResult : EndpointResponse, ICreateUsersWithListInputEndpointResult
+public partial class CreateUsersWithListInputEndpointResult : EndpointResponse, ICreateUsersWithListInputEndpointResult
 {
     public CreateUsersWithListInputEndpointResult(EndpointResponse response)
         : base(response)

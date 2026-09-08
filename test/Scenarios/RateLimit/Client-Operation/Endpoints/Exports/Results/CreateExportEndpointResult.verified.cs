@@ -18,7 +18,7 @@ namespace RateLimit.Generated.Exports.Endpoints.Results;
 /// Operation: CreateExport.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateExportEndpointResult : EndpointResponse, ICreateExportEndpointResult
+public partial class CreateExportEndpointResult : EndpointResponse, ICreateExportEndpointResult
 {
     public CreateExportEndpointResult(EndpointResponse response)
         : base(response)

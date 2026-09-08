@@ -18,7 +18,7 @@ namespace HeaderParameters.Generated.Endpoints.Results;
 /// Operation: GetItemById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetItemByIdEndpointResult : EndpointResponse, IGetItemByIdEndpointResult
+public partial class GetItemByIdEndpointResult : EndpointResponse, IGetItemByIdEndpointResult
 {
     public GetItemByIdEndpointResult(EndpointResponse response)
         : base(response)

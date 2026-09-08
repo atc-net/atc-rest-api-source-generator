@@ -18,7 +18,7 @@ namespace SecurityAtcExt.Generated.ApiKeys.Endpoints.Results;
 /// Operation: ListApiKeys.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListApiKeysEndpointResult : EndpointResponse, IListApiKeysEndpointResult
+public partial class ListApiKeysEndpointResult : EndpointResponse, IListApiKeysEndpointResult
 {
     public ListApiKeysEndpointResult(EndpointResponse response)
         : base(response)

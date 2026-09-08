@@ -18,7 +18,7 @@ namespace Polymorphism.Generated.Payments.Endpoints.Results;
 /// Operation: GetPaymentById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetPaymentByIdEndpointResult : EndpointResponse, IGetPaymentByIdEndpointResult
+public partial class GetPaymentByIdEndpointResult : EndpointResponse, IGetPaymentByIdEndpointResult
 {
     public GetPaymentByIdEndpointResult(EndpointResponse response)
         : base(response)

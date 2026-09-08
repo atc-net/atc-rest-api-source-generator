@@ -18,7 +18,7 @@ namespace HttpMethods.Generated.Endpoints.Results;
 /// Operation: QueryResources.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class QueryResourcesEndpointResult : EndpointResponse, IQueryResourcesEndpointResult
+public partial class QueryResourcesEndpointResult : EndpointResponse, IQueryResourcesEndpointResult
 {
     public QueryResourcesEndpointResult(EndpointResponse response)
         : base(response)
