@@ -382,7 +382,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 var hasSegmentModelsTyped = segmentSchemas.Count > 0;
                 var hasSharedModelsTyped = sharedSchemas.Count > 0;
-                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy, config.ClientSuffix, clientName: null, packages.HasHttpClientFactory);
+                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy, config.ClientSuffix, clientName: null, packages.HasHttpClientFactory, config.TypedClientResultStyle);
             }
         }
 
@@ -844,7 +844,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             config.ValidateSpecificationStrategy,
             config.ClientSuffix,
             config.ClientName,
-            generateDiExtension);
+            generateDiExtension,
+            config.TypedClientResultStyle);
 
         if (StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
         {
@@ -870,7 +871,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
         string? clientSuffix = null,
         string? clientName = null,
-        bool generateDiExtension = false)
+        bool generateDiExtension = false,
+        TypedClientResultStyleType typedClientResultStyle = TypedClientResultStyleType.Throw)
     {
         // An empty namespace segment means Single granularity: the client and its parameter
         // records are flattened into "{projectName}.Generated" rather than the per-area
@@ -923,7 +925,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         // Use HttpClientExtractor to extract HTTP client class parameters filtered by path segment
         // This also extracts inline schemas for type generation
-        var (classParameters, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, useServersBasePath, hasSegmentModels, hasSharedModels, namespaceSegment, clientSuffix, clientName);
+        var (classParameters, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, useServersBasePath, hasSegmentModels, hasSharedModels, namespaceSegment, clientSuffix, clientName, typedClientResultStyle);
 
         if (classParameters is null)
         {

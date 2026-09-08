@@ -58,6 +58,9 @@ public enum DeclarationModifiers
     [Description("private async")]
     PrivateAsync,
 
+    [Description("private static")]
+    PrivateStatic,
+
     [Description("private static async")]
     PrivateStaticAsync,
 

@@ -35,6 +35,16 @@ public class ClientConfig : BaseConfig
     public string? ClientName { get; set; }
 
     /// <summary>
+    /// Controls how generated typed client operations report non-success HTTP responses. Default: Throw.
+    /// Throw: non-success status codes throw an HttpRequestException carrying the response body.
+    /// Result: operations return EndpointResponse/EndpointResponse&lt;T&gt; so callers can inspect the
+    /// status without exception handling. Transport-level failures still throw.
+    /// Only applies to TypedClient generation mode, and requires a reference to Atc.Rest.Client.
+    /// </summary>
+    [JsonConverter(typeof(TypedClientResultStyleTypeConverter))]
+    public TypedClientResultStyleType TypedClientResultStyle { get; set; } = TypedClientResultStyleType.Throw;
+
+    /// <summary>
     /// The HTTP client name to use in IHttpClientFactory. Default: "{ProjectName}-ApiClient".
     /// </summary>
     public string? HttpClientName { get; set; }

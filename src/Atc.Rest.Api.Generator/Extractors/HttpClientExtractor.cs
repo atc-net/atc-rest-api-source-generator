@@ -15,6 +15,7 @@ public static class HttpClientExtractor
     /// <param name="systemTypeResolver">Resolver for system type conflicts.</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
     /// <param name="useServersBasePath">Whether to prepend the base path from OpenAPI servers[0].url to URLs. Default: true.</param>
+    /// <param name="resultStyle">Whether operations throw on a non-success status or return an EndpointResponse envelope.</param>
     /// <returns>ClassParameters for the HTTP client class, or null if no paths exist.</returns>
     public static ClassParameters? Extract(
         OpenApiDocument openApiDoc,
@@ -22,8 +23,9 @@ public static class HttpClientExtractor
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
         bool includeDeprecated = false,
-        bool useServersBasePath = true)
-        => Extract(openApiDoc, projectName, pathSegment: null, registry: registry, systemTypeResolver: systemTypeResolver, includeDeprecated: includeDeprecated, useServersBasePath: useServersBasePath);
+        bool useServersBasePath = true,
+        TypedClientResultStyleType resultStyle = TypedClientResultStyleType.Throw)
+        => Extract(openApiDoc, projectName, pathSegment: null, registry: registry, systemTypeResolver: systemTypeResolver, includeDeprecated: includeDeprecated, useServersBasePath: useServersBasePath, resultStyle: resultStyle);
 
     /// <summary>
     /// Extracts HTTP client class from OpenAPI document paths and operations filtered by path segment.
@@ -35,6 +37,7 @@ public static class HttpClientExtractor
     /// <param name="systemTypeResolver">Resolver for system type conflicts.</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
     /// <param name="useServersBasePath">Whether to prepend the base path from OpenAPI servers[0].url to URLs. Default: true.</param>
+    /// <param name="resultStyle">Whether operations throw on a non-success status or return an EndpointResponse envelope.</param>
     /// <returns>ClassParameters for the HTTP client class, or null if no paths exist.</returns>
     public static ClassParameters? Extract(
         OpenApiDocument openApiDoc,
@@ -43,8 +46,9 @@ public static class HttpClientExtractor
         TypeConflictRegistry? registry,
         SystemTypeConflictResolver systemTypeResolver,
         bool includeDeprecated = false,
-        bool useServersBasePath = true)
-        => ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas: null, useServersBasePath: useServersBasePath);
+        bool useServersBasePath = true,
+        TypedClientResultStyleType resultStyle = TypedClientResultStyleType.Throw)
+        => ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas: null, useServersBasePath: useServersBasePath, resultStyle: resultStyle);
 
     /// <summary>
     /// Extracts HTTP client class from OpenAPI document along with any inline schemas discovered.
@@ -74,10 +78,11 @@ public static class HttpClientExtractor
         bool? hasSharedModels = null,
         string? namespaceSegment = null,
         string? clientSuffix = null,
-        string? clientName = null)
+        string? clientName = null,
+        TypedClientResultStyleType resultStyle = TypedClientResultStyleType.Throw)
     {
         var inlineSchemas = new Dictionary<string, HttpClientInlineSchemaInfo>(StringComparer.Ordinal);
-        var clientClass = ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas, useServersBasePath, hasSegmentModels, hasSharedModels, namespaceSegment, clientSuffix, clientName);
+        var clientClass = ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas, useServersBasePath, hasSegmentModels, hasSharedModels, namespaceSegment, clientSuffix, clientName, resultStyle);
         return (clientClass, inlineSchemas);
     }
 
@@ -94,7 +99,8 @@ public static class HttpClientExtractor
         bool? hasSharedModels = null,
         string? namespaceSegment = null,
         string? clientSuffix = null,
-        string? clientName = null)
+        string? clientName = null,
+        TypedClientResultStyleType resultStyle = TypedClientResultStyleType.Throw)
     {
         if (openApiDoc is null)
         {
@@ -224,7 +230,7 @@ public static class HttpClientExtractor
                         .ToUpperInvariant();
 
                     var currentPathSegment = PathSegmentHelper.GetFirstPathSegment(pathKey);
-                    var methodParams = ExtractMethod(pathKey, httpMethod, operation.Value, pathLevelParameters, openApiDoc, registry, systemTypeResolver, currentPathSegment, inlineSchemas, useServersBasePath);
+                    var methodParams = ExtractMethod(pathKey, httpMethod, operation.Value, pathLevelParameters, openApiDoc, registry, systemTypeResolver, currentPathSegment, inlineSchemas, useServersBasePath, resultStyle);
 
                     if (methodParams is not null)
                     {
@@ -271,10 +277,23 @@ public static class HttpClientExtractor
         // Add the EnsureSuccessAsync helper method that reads error body before throwing
         methods.Add(CreateEnsureSuccessMethod());
 
+        // Result style replaces the throw-on-status behaviour with envelope builders.
+        if (resultStyle == TypedClientResultStyleType.Result)
+        {
+            methods.AddRange(CreateResultStyleHelperMethods());
+        }
+
         // Build header content with only required usings
         var usings = UsingStatementHelper.GetRequiredUsings(
             contentForAnalysis,
             NamespaceConstants.SystemCodeDomCompiler);
+
+        // Result style returns EndpointResponse/EndpointResponse<T>/StreamingEndpointResponse<T>,
+        // which all live in Atc.Rest.Client.
+        if (resultStyle == TypedClientResultStyleType.Result)
+        {
+            usings.Add(NamespaceConstants.AtcRestClient);
+        }
 
         // Models usings. When the caller knows which models exist (Roslyn per-segment client),
         // reference the shared and/or segment namespaces precisely — emitting a using for a
@@ -403,7 +422,8 @@ public static class HttpClientExtractor
         SystemTypeConflictResolver systemTypeResolver,
         string pathSegment,
         Dictionary<string, HttpClientInlineSchemaInfo>? inlineSchemas,
-        bool useServersBasePath = true)
+        bool useServersBasePath = true,
+        TypedClientResultStyleType resultStyle = TypedClientResultStyleType.Throw)
     {
         if (operation is null)
         {
@@ -501,8 +521,12 @@ public static class HttpClientExtractor
         }
 
         // Add [EnumeratorCancellation] attribute only for methods that actually return IAsyncEnumerable<T>
-        // (requires both the x-return-async-enumerable extension AND a streaming item type from an array response)
-        var willReturnAsyncEnumerable = isAsyncEnumerable && streamingItemType is not null;
+        // (requires both the x-return-async-enumerable extension AND a streaming item type from an array response).
+        // Under Result style the method returns Task<StreamingEndpointResponse<T>> instead, so the attribute
+        // would be invalid there.
+        var willReturnAsyncEnumerable = isAsyncEnumerable &&
+                                        streamingItemType is not null &&
+                                        resultStyle != TypedClientResultStyleType.Result;
         var cancellationTokenAttrs = willReturnAsyncEnumerable
             ? new List<AttributeParameters> { new("EnumeratorCancellation", null) }
             : null;
@@ -519,10 +543,13 @@ public static class HttpClientExtractor
 
         // Generate method body content
         var hasReturnType = returnType != nameof(Task);
-        var methodContent = GenerateMethodBody(path, httpMethod, operation, pathLevelParameters, openApiDoc, returnType, hasParameters, isAsyncEnumerable, streamingItemType, hasReturnType, hasLocationHeader, useServersBasePath, parametersClassName);
+        var methodContent = GenerateMethodBody(path, httpMethod, operation, pathLevelParameters, openApiDoc, returnType, hasParameters, isAsyncEnumerable, streamingItemType, hasReturnType, hasLocationHeader, useServersBasePath, parametersClassName, resultStyle);
 
-        // For async enumerable methods, return IAsyncEnumerable<T> directly
-        if (isAsyncEnumerable && streamingItemType is not null)
+        // For async enumerable methods, return IAsyncEnumerable<T> directly.
+        // Under Result style the operation instead returns Task<StreamingEndpointResponse<T>>, which
+        // resolves the status envelope once the response headers arrive and exposes the lazily
+        // consumed IAsyncEnumerable<T> as its content - matching EndpointPerOperation mode.
+        if (isAsyncEnumerable && streamingItemType is not null && resultStyle != TypedClientResultStyleType.Result)
         {
             return new MethodParameters(
                 DocumentationTags: null,
@@ -542,7 +569,18 @@ public static class HttpClientExtractor
         string? returnGenericTypeName = null;
         string returnTypeName;
 
-        if (returnType == nameof(Task))
+        if (resultStyle == TypedClientResultStyleType.Result)
+        {
+            // Result style always yields a Task<TEnvelope>, so callers can inspect the status
+            // without exception handling. Transport-level failures still throw.
+            returnGenericTypeName = taskTypeName;
+            returnTypeName = isAsyncEnumerable && streamingItemType is not null
+                ? $"StreamingEndpointResponse<{streamingItemType}>"
+                : returnType == nameof(Task)
+                    ? "EndpointResponse"
+                    : $"EndpointResponse<{returnType}>";
+        }
+        else if (returnType == nameof(Task))
         {
             returnTypeName = taskTypeName;
         }
@@ -578,7 +616,8 @@ public static class HttpClientExtractor
         bool hasReturnType,
         bool hasLocationHeader,
         bool useServersBasePath = true,
-        string parametersClassName = "")
+        string parametersClassName = "",
+        TypedClientResultStyleType resultStyle = TypedClientResultStyleType.Throw)
     {
         var builder = new StringBuilder();
 
@@ -761,22 +800,22 @@ public static class HttpClientExtractor
         switch (httpMethod)
         {
             case "GET":
-                GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), hasReturnType, builder, headerParams, cookieParams);
+                GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), hasReturnType, builder, headerParams, cookieParams, resultStyle);
                 break;
             case "POST":
-                GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder);
+                GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder, resultStyle);
                 break;
             case "PUT":
-                GeneratePutMethodBody(operation, returnType, hasParameters, hasReturnType, builder);
+                GeneratePutMethodBody(operation, returnType, hasParameters, hasReturnType, builder, resultStyle);
                 break;
             case "DELETE":
-                GenerateDeleteMethodBody(returnType, hasReturnType, builder);
+                GenerateDeleteMethodBody(returnType, hasReturnType, builder, resultStyle);
                 break;
             default:
                 // Non-standard verbs: OpenAPI 3.2 `query` and `additionalOperations`
                 // (e.g. LINK), plus PATCH. No dedicated HttpClient JSON helper exists,
                 // so build the request explicitly and dispatch by body/return presence.
-                GenerateGenericMethodBody(httpMethod, operation, returnType, hasParameters, hasReturnType, builder);
+                GenerateGenericMethodBody(httpMethod, operation, returnType, hasParameters, hasReturnType, builder, resultStyle);
                 break;
         }
 
@@ -793,11 +832,18 @@ public static class HttpClientExtractor
         bool hasReturnType,
         StringBuilder builder,
         List<(OpenApiParameter Param, string? ReferenceId)> headerParams,
-        List<(OpenApiParameter Param, string? ReferenceId)> cookieParams)
+        List<(OpenApiParameter Param, string? ReferenceId)> cookieParams,
+        TypedClientResultStyleType resultStyle)
     {
         // Special handling for async enumerable streaming
         if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
         {
+            if (resultStyle == TypedClientResultStyleType.Result)
+            {
+                AppendStreamingResultBody(builder, streamingItemType!, streamingFraming);
+                return;
+            }
+
             builder.AppendLine("using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);");
             builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
             builder.AppendLine();
@@ -911,37 +957,119 @@ public static class HttpClientExtractor
             }
 
             builder.AppendLine("var response = await httpClient.SendAsync(request, cancellationToken);");
-            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
 
-            if (hasReturnType)
-            {
-                builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
-            }
+            AppendResponseCompletion(
+                builder,
+                resultStyle,
+                hasReturnType ? ResponsePayloadKind.Json : ResponsePayloadKind.None,
+                returnType,
+                isLastStatement: hasReturnType);
         }
         else if (hasReturnType && returnType == "byte[]")
         {
             // Binary content download - use ReadAsByteArrayAsync
             builder.AppendLine("var response = await httpClient.GetAsync(url, cancellationToken);");
-            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
-            builder.Append("return await response.Content.ReadAsByteArrayAsync(cancellationToken);");
+            AppendResponseCompletion(builder, resultStyle, ResponsePayloadKind.Binary, returnType, isLastStatement: true);
         }
         else if (hasReturnType && returnType == "string")
         {
             // Text content - use ReadAsStringAsync
             builder.AppendLine("var response = await httpClient.GetAsync(url, cancellationToken);");
-            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
-            builder.Append("return await response.Content.ReadAsStringAsync(cancellationToken);");
+            AppendResponseCompletion(builder, resultStyle, ResponsePayloadKind.Text, returnType, isLastStatement: true);
         }
-        else if (hasReturnType)
+        else if (hasReturnType && resultStyle != TypedClientResultStyleType.Result)
         {
+            // Throw style can use the GetFromJsonAsync shortcut, which throws on a non-success status
+            // and never materializes an HttpResponseMessage. Result style needs the response itself to
+            // build the envelope, so it falls through to the GetAsync branch below.
             builder.Append($"return (await httpClient.GetFromJsonAsync<{returnType}>(url, jsonSerializerOptions, cancellationToken))!;");
         }
         else
         {
             builder.AppendLine("var response = await httpClient.GetAsync(url, cancellationToken);");
-            builder.Append("await EnsureSuccessAsync(response, cancellationToken);");
+
+            AppendResponseCompletion(
+                builder,
+                resultStyle,
+                hasReturnType ? ResponsePayloadKind.Json : ResponsePayloadKind.None,
+                returnType,
+                isLastStatement: true);
         }
     }
+
+    /// <summary>
+    /// Emits the Result-style body for a streaming operation.
+    /// </summary>
+    /// <remarks>
+    /// The method returns <c>Task&lt;StreamingEndpointResponse&lt;T&gt;&gt;</c>, so it cannot be an iterator
+    /// (<c>yield</c> is illegal in a Task-returning method). Instead the status envelope is resolved as soon
+    /// as the response headers arrive and the still-unconsumed reader is handed to the envelope as its content,
+    /// which preserves lazy streaming. This mirrors EndpointPerOperation mode.
+    /// The response is deliberately NOT disposed here - <c>StreamingEndpointResponse&lt;T&gt;</c> owns it and
+    /// disposes it once the caller disposes the envelope, otherwise the stream would be closed before it is read.
+    /// </remarks>
+    private static void AppendStreamingResultBody(
+        StringBuilder builder,
+        string streamingItemType,
+        StreamingFraming streamingFraming)
+    {
+        builder.AppendLine("var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);");
+        builder.AppendLine();
+        builder.AppendLine("if (!response.IsSuccessStatusCode)");
+        builder.AppendLine("{");
+        builder.AppendLine(4, "var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);");
+        builder.AppendLine(4, $"return new StreamingEndpointResponse<{streamingItemType}>(false, response.StatusCode, content: null, errorContent, response);");
+        builder.AppendLine("}");
+        builder.AppendLine();
+        builder.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken);");
+        builder.AppendLine();
+
+        AppendMultipartBoundaryIfNeeded(builder, streamingFraming);
+
+        builder.AppendLine($"var content = {GetStreamReaderExpression(streamingItemType, streamingFraming)};");
+        builder.AppendLine();
+        builder.Append($"return new StreamingEndpointResponse<{streamingItemType}>(true, response.StatusCode, content, errorContent: null, response);");
+    }
+
+    /// <summary>
+    /// Emits the multipart/mixed boundary extraction, which must precede the reader expression.
+    /// </summary>
+    private static void AppendMultipartBoundaryIfNeeded(
+        StringBuilder builder,
+        StreamingFraming streamingFraming)
+    {
+        if (streamingFraming != StreamingFraming.MultipartMixed)
+        {
+            return;
+        }
+
+        builder.AppendLine("var boundary = response.Content.Headers.ContentType?.Parameters");
+        builder.AppendLine(4, ".FirstOrDefault(p => string.Equals(p.Name, \"boundary\", StringComparison.OrdinalIgnoreCase))?.Value?.Trim('\"')");
+        builder.AppendLine(4, $"?? \"{SequentialResultsExtractor.MultipartBoundaryValue}\";");
+    }
+
+    /// <summary>
+    /// Returns the reader expression that produces the <c>IAsyncEnumerable</c> for a wire framing.
+    /// </summary>
+    private static string GetStreamReaderExpression(
+        string streamingItemType,
+        StreamingFraming streamingFraming)
+        => streamingFraming switch
+        {
+            StreamingFraming.ServerSentEvents => $"StreamReaders.ReadServerSentEventsAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken)",
+            StreamingFraming.JsonLines => $"StreamReaders.ReadJsonLinesAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken)",
+            StreamingFraming.JsonSequence => $"StreamReaders.ReadJsonSequenceAsync<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken)",
+            StreamingFraming.MultipartMixed => $"StreamReaders.ReadMultipartMixedAsync<{streamingItemType}>(stream, boundary, jsonSerializerOptions, cancellationToken)",
+
+            // JsonArray is the legitimate legacy path using the DeserializeAsyncEnumerable brace-scan.
+            StreamingFraming.JsonArray => $"JsonSerializer.DeserializeAsyncEnumerable<{streamingItemType}>(stream, jsonSerializerOptions, cancellationToken)",
+
+            // Any other framing is a StreamReaders-based wire framing that was added without an explicit
+            // reader branch - fail loudly at generation time rather than silently emitting the
+            // JSON-array brace-scan path (wrong bytes). Mirrors the per-op ReaderMethodName switch.
+            _ => throw new InvalidOperationException(
+                $"No typed-client stream reader is defined for framing '{streamingFraming}'."),
+        };
 
     private static void GenerateGenericMethodBody(
         string httpMethod,
@@ -949,7 +1077,8 @@ public static class HttpClientExtractor
         string returnType,
         bool hasParameters,
         bool hasReturnType,
-        StringBuilder builder)
+        StringBuilder builder,
+        TypedClientResultStyleType resultStyle)
     {
         var hasJsonBody = operation.RequestBody?.Content?.ContainsKey("application/json") ?? false;
         var requestAccess = hasParameters ? "parameters.Request" : "request";
@@ -965,12 +1094,13 @@ public static class HttpClientExtractor
 
         builder.AppendLine();
         builder.AppendLine("var response = await httpClient.SendAsync(requestMessage, cancellationToken);");
-        builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
 
-        if (hasReturnType)
-        {
-            builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
-        }
+        AppendResponseCompletion(
+            builder,
+            resultStyle,
+            hasReturnType ? ResponsePayloadKind.Json : ResponsePayloadKind.None,
+            returnType,
+            isLastStatement: hasReturnType);
     }
 
     private static void GeneratePostMethodBody(
@@ -980,7 +1110,8 @@ public static class HttpClientExtractor
         bool hasParameters,
         bool hasReturnType,
         bool hasLocationHeader,
-        StringBuilder builder)
+        StringBuilder builder,
+        TypedClientResultStyleType resultStyle)
     {
         var hasJsonBody = operation.RequestBody?.Content?.ContainsKey("application/json") ?? false;
         var requestAccess = hasParameters
@@ -1063,17 +1194,27 @@ public static class HttpClientExtractor
             builder.AppendLine("var response = await httpClient.PostAsync(url, null, cancellationToken);");
         }
 
-        builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
-
         if (hasLocationHeader)
         {
             // Return the Location header as Uri
-            builder.Append("return response.Headers.Location!;");
+            if (resultStyle == TypedClientResultStyleType.Result)
+            {
+                builder.Append("return await BuildLocationResponseAsync(response, cancellationToken);");
+            }
+            else
+            {
+                builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
+                builder.Append("return response.Headers.Location!;");
+            }
         }
-        else if (hasReturnType)
+        else
         {
-            // Use null-forgiving operator since we validated the response succeeded
-            builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
+            AppendResponseCompletion(
+                builder,
+                resultStyle,
+                hasReturnType ? ResponsePayloadKind.Json : ResponsePayloadKind.None,
+                returnType,
+                isLastStatement: true);
         }
     }
 
@@ -1082,56 +1223,39 @@ public static class HttpClientExtractor
         string returnType,
         bool hasParameters,
         bool hasReturnType,
-        StringBuilder builder)
+        StringBuilder builder,
+        TypedClientResultStyleType resultStyle)
     {
         var hasJsonBody = operation.RequestBody?.Content?.ContainsKey("application/json") ?? false;
         var requestAccess = hasParameters ? "parameters.Request" : "request";
 
-        if (hasJsonBody)
-        {
-            builder.AppendLine($"var response = await httpClient.PutAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);");
-            if (hasReturnType)
-            {
-                builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
-                builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
-            }
-            else
-            {
-                builder.Append("await EnsureSuccessAsync(response, cancellationToken);");
-            }
-        }
-        else
-        {
-            if (hasReturnType)
-            {
-                builder.AppendLine("var response = await httpClient.PutAsync(url, null, cancellationToken);");
-                builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
-                builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
-            }
-            else
-            {
-                builder.AppendLine("var response = await httpClient.PutAsync(url, null, cancellationToken);");
-                builder.Append("await EnsureSuccessAsync(response, cancellationToken);");
-            }
-        }
+        builder.AppendLine(
+            hasJsonBody
+                ? $"var response = await httpClient.PutAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);"
+                : "var response = await httpClient.PutAsync(url, null, cancellationToken);");
+
+        AppendResponseCompletion(
+            builder,
+            resultStyle,
+            hasReturnType ? ResponsePayloadKind.Json : ResponsePayloadKind.None,
+            returnType,
+            isLastStatement: true);
     }
 
     private static void GenerateDeleteMethodBody(
         string returnType,
         bool hasReturnType,
-        StringBuilder builder)
+        StringBuilder builder,
+        TypedClientResultStyleType resultStyle)
     {
-        if (hasReturnType)
-        {
-            builder.AppendLine("var response = await httpClient.DeleteAsync(url, cancellationToken);");
-            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
-            builder.Append($"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;");
-        }
-        else
-        {
-            builder.AppendLine("var response = await httpClient.DeleteAsync(url, cancellationToken);");
-            builder.Append("await EnsureSuccessAsync(response, cancellationToken);");
-        }
+        builder.AppendLine("var response = await httpClient.DeleteAsync(url, cancellationToken);");
+
+        AppendResponseCompletion(
+            builder,
+            resultStyle,
+            hasReturnType ? ResponsePayloadKind.Json : ResponsePayloadKind.None,
+            returnType,
+            isLastStatement: true);
     }
 
     private static string GetParameterType(
@@ -1840,6 +1964,71 @@ public static class HttpClientExtractor
     }
 
     /// <summary>
+    /// Emits the statement(s) that terminate a method body once <c>response</c> is in scope.
+    /// </summary>
+    /// <remarks>
+    /// This is the single place where the Throw-vs-Result decision is made:
+    /// <list type="bullet">
+    /// <item>Throw - calls <c>EnsureSuccessAsync</c> (which throws on a non-success status) and then reads the content directly.</item>
+    /// <item>Result - never throws on status; delegates to a generated Build*ResponseAsync helper that wraps status, raw content and deserialized content in an EndpointResponse envelope.</item>
+    /// </list>
+    /// Keeping both styles here guarantees the Throw output stays byte-identical to the pre-Result behaviour.
+    /// </remarks>
+    private static void AppendResponseCompletion(
+        StringBuilder builder,
+        TypedClientResultStyleType resultStyle,
+        ResponsePayloadKind payloadKind,
+        string returnType,
+        bool isLastStatement)
+    {
+        if (resultStyle == TypedClientResultStyleType.Result)
+        {
+            var call = payloadKind switch
+            {
+                ResponsePayloadKind.Json => $"return await BuildJsonResponseAsync<{returnType}>(response, jsonSerializerOptions, cancellationToken);",
+                ResponsePayloadKind.Binary => "return await BuildBinaryResponseAsync(response, cancellationToken);",
+                ResponsePayloadKind.Text => "return await BuildTextResponseAsync(response, cancellationToken);",
+                _ => "return await BuildEmptyResponseAsync(response, cancellationToken);",
+            };
+
+            AppendStatement(builder, call, isLastStatement);
+            return;
+        }
+
+        if (payloadKind == ResponsePayloadKind.None)
+        {
+            AppendStatement(builder, "await EnsureSuccessAsync(response, cancellationToken);", isLastStatement);
+            return;
+        }
+
+        builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
+
+        var read = payloadKind switch
+        {
+            ResponsePayloadKind.Binary => "return await response.Content.ReadAsByteArrayAsync(cancellationToken);",
+            ResponsePayloadKind.Text => "return await response.Content.ReadAsStringAsync(cancellationToken);",
+            _ => $"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;",
+        };
+
+        AppendStatement(builder, read, isLastStatement);
+    }
+
+    private static void AppendStatement(
+        StringBuilder builder,
+        string statement,
+        bool isLastStatement)
+    {
+        if (isLastStatement)
+        {
+            builder.Append(statement);
+        }
+        else
+        {
+            builder.AppendLine(statement);
+        }
+    }
+
+    /// <summary>
     /// Creates the EnsureSuccessAsync helper method that reads error response body before throwing.
     /// This replaces the standard EnsureSuccessStatusCode() to preserve error details.
     /// </summary>
@@ -1889,4 +2078,196 @@ public static class HttpClientExtractor
             UseExpressionBody: false,
             Content: sb.ToString());
     }
+
+    /// <summary>
+    /// Creates the helper methods used exclusively by the Result style to wrap a response in an
+    /// <c>EndpointResponse</c> envelope instead of throwing on a non-success status code.
+    /// </summary>
+    /// <remarks>
+    /// Transport-level failures (DNS, TLS, connection reset, cancellation) still surface as exceptions
+    /// from <c>HttpClient</c> itself - only status-code failures are converted into an envelope.
+    /// </remarks>
+    private static List<MethodParameters> CreateResultStyleHelperMethods()
+        =>
+        [
+            CreateReadHeadersMethod(),
+            CreateBuildEmptyResponseMethod(),
+            CreateBuildJsonResponseMethod(),
+            CreateBuildBinaryResponseMethod(),
+            CreateBuildTextResponseMethod(),
+            CreateBuildLocationResponseMethod(),
+        ];
+
+    private static MethodParameters CreateReadHeadersMethod()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("var headers = new Dictionary<string, IEnumerable<string>>(StringComparer.OrdinalIgnoreCase);");
+        sb.AppendLine();
+        sb.AppendLine("foreach (var header in response.Headers)");
+        sb.AppendLine("{");
+        sb.AppendLine(4, "headers[header.Key] = header.Value;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("foreach (var header in response.Content.Headers)");
+        sb.AppendLine("{");
+        sb.AppendLine(4, "headers[header.Key] = header.Value;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.Append("return headers;");
+
+        return new MethodParameters(
+            DocumentationTags: null,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.PrivateStatic,
+            ReturnGenericTypeName: null,
+            ReturnTypeName: "IReadOnlyDictionary<string, IEnumerable<string>>",
+            Name: "ReadHeaders",
+            Parameters: [CreateResponseParameter()],
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: false,
+            Content: sb.ToString());
+    }
+
+    private static MethodParameters CreateBuildEmptyResponseMethod()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken);");
+        sb.AppendLine();
+        sb.AppendLine("return new EndpointResponse(");
+        sb.AppendLine(4, "response.IsSuccessStatusCode,");
+        sb.AppendLine(4, "response.StatusCode,");
+        sb.AppendLine(4, "content,");
+        sb.AppendLine(4, "contentObject: null,");
+        sb.Append(4, "ReadHeaders(response));");
+
+        return CreateBuildResponseMethod("BuildEmptyResponseAsync", "EndpointResponse", genericName: null, includeSerializerOptions: false, sb.ToString());
+    }
+
+    private static MethodParameters CreateBuildJsonResponseMethod()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken);");
+        sb.AppendLine();
+        sb.AppendLine("object? contentObject = null;");
+        sb.AppendLine("if (response.IsSuccessStatusCode && !string.IsNullOrEmpty(content))");
+        sb.AppendLine("{");
+        sb.AppendLine(4, "contentObject = JsonSerializer.Deserialize<T>(content, jsonSerializerOptions);");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("return new EndpointResponse<T>(");
+        sb.AppendLine(4, "response.IsSuccessStatusCode,");
+        sb.AppendLine(4, "response.StatusCode,");
+        sb.AppendLine(4, "content,");
+        sb.AppendLine(4, "contentObject,");
+        sb.Append(4, "ReadHeaders(response));");
+
+        return CreateBuildResponseMethod("BuildJsonResponseAsync<T>", "EndpointResponse<T>", genericName: "T", includeSerializerOptions: true, sb.ToString());
+    }
+
+    private static MethodParameters CreateBuildBinaryResponseMethod()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);");
+        sb.AppendLine();
+        sb.AppendLine("return new EndpointResponse<byte[]>(");
+        sb.AppendLine(4, "response.IsSuccessStatusCode,");
+        sb.AppendLine(4, "response.StatusCode,");
+        sb.AppendLine(4, "content: string.Empty,");
+        sb.AppendLine(4, "response.IsSuccessStatusCode ? bytes : null,");
+        sb.Append(4, "ReadHeaders(response));");
+
+        return CreateBuildResponseMethod("BuildBinaryResponseAsync", "EndpointResponse<byte[]>", genericName: null, includeSerializerOptions: false, sb.ToString());
+    }
+
+    private static MethodParameters CreateBuildTextResponseMethod()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken);");
+        sb.AppendLine();
+        sb.AppendLine("return new EndpointResponse<string>(");
+        sb.AppendLine(4, "response.IsSuccessStatusCode,");
+        sb.AppendLine(4, "response.StatusCode,");
+        sb.AppendLine(4, "content,");
+        sb.AppendLine(4, "response.IsSuccessStatusCode ? content : null,");
+        sb.Append(4, "ReadHeaders(response));");
+
+        return CreateBuildResponseMethod("BuildTextResponseAsync", "EndpointResponse<string>", genericName: null, includeSerializerOptions: false, sb.ToString());
+    }
+
+    private static MethodParameters CreateBuildLocationResponseMethod()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken);");
+        sb.AppendLine();
+        sb.AppendLine("return new EndpointResponse<Uri>(");
+        sb.AppendLine(4, "response.IsSuccessStatusCode,");
+        sb.AppendLine(4, "response.StatusCode,");
+        sb.AppendLine(4, "content,");
+        sb.AppendLine(4, "response.Headers.Location,");
+        sb.Append(4, "ReadHeaders(response));");
+
+        return CreateBuildResponseMethod("BuildLocationResponseAsync", "EndpointResponse<Uri>", genericName: null, includeSerializerOptions: false, sb.ToString());
+    }
+
+    private static MethodParameters CreateBuildResponseMethod(
+        string name,
+        string envelopeTypeName,
+        string? genericName,
+        bool includeSerializerOptions,
+        string content)
+    {
+        _ = genericName;
+
+        var parameters = new List<ParameterBaseParameters> { CreateResponseParameter() };
+
+        if (includeSerializerOptions)
+        {
+            parameters.Add(
+                new ParameterBaseParameters(
+                    Attributes: null,
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: "JsonSerializerOptions",
+                    IsNullableType: false,
+                    IsReferenceType: true,
+                    Name: "jsonSerializerOptions",
+                    DefaultValue: null));
+        }
+
+        parameters.Add(CreateCancellationTokenParameter());
+
+        return new MethodParameters(
+            DocumentationTags: null,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.PrivateStaticAsync,
+            ReturnGenericTypeName: "System.Threading.Tasks.Task",
+            ReturnTypeName: envelopeTypeName,
+            Name: name,
+            Parameters: parameters,
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: false,
+            Content: content);
+    }
+
+    private static ParameterBaseParameters CreateResponseParameter()
+        => new(
+            Attributes: null,
+            GenericTypeName: null,
+            IsGenericListType: false,
+            TypeName: "HttpResponseMessage",
+            IsNullableType: false,
+            IsReferenceType: true,
+            Name: "response",
+            DefaultValue: null);
+
+    private static ParameterBaseParameters CreateCancellationTokenParameter()
+        => new(
+            Attributes: null,
+            GenericTypeName: null,
+            IsGenericListType: false,
+            TypeName: "CancellationToken",
+            IsNullableType: false,
+            IsReferenceType: false,
+            Name: "cancellationToken",
+            DefaultValue: null);
 }
