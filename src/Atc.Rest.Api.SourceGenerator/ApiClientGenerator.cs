@@ -379,7 +379,11 @@ public class ApiClientGenerator : IIncrementalGenerator
             // Generate client code based on generation mode
             if (config.GenerationMode == GenerationModeType.EndpointPerOperation)
             {
-                var hasSegmentModels = segmentSchemas.Count > 0;
+                // Inline (anonymous) response/request schemas are emitted into the segment's Models
+                // namespace too, so they must count here - otherwise the generated endpoint and
+                // result files omit the Models 'using' and fail to compile with CS0246.
+                var hasSegmentModels = segmentSchemas.Count > 0 ||
+                                       PathSegmentHelper.PathSegmentHasInlineModels(openApiDoc, pathSegment);
                 var hasSharedModels = sharedSchemas.Count > 0;
 
                 // If customErrorResponseModel is configured and errorResponseFormat is default (ProblemDetails),
