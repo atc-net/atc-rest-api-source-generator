@@ -336,7 +336,7 @@ public static class HttpClientExtractor
             GenericTypeName: null,
             InheritedClassTypeName: null,
             InheritedGenericClassTypeName: null,
-            InheritedInterfaceTypeName: null,
+            InheritedInterfaceTypeName: HttpClientInterfaceExtractor.BuildInterfaceName(className),
             Constructors: [constructor1, constructor2],
             Properties: null,
             Methods: methods,
