@@ -18,7 +18,7 @@ namespace Demo.Generated.Users.Endpoints.Results;
 /// Operation: CreateUser.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateUserEndpointResult : EndpointResponse, ICreateUserEndpointResult
+public partial class CreateUserEndpointResult : EndpointResponse, ICreateUserEndpointResult
 {
     public CreateUserEndpointResult(EndpointResponse response)
         : base(response)

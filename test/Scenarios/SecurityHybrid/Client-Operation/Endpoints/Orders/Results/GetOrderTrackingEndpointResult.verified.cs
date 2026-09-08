@@ -18,7 +18,7 @@ namespace SecurityHybrid.Generated.Orders.Endpoints.Results;
 /// Operation: GetOrderTracking.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOrderTrackingEndpointResult : EndpointResponse, IGetOrderTrackingEndpointResult
+public partial class GetOrderTrackingEndpointResult : EndpointResponse, IGetOrderTrackingEndpointResult
 {
     public GetOrderTrackingEndpointResult(EndpointResponse response)
         : base(response)

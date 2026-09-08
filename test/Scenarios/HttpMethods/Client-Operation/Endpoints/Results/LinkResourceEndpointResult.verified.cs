@@ -18,7 +18,7 @@ namespace HttpMethods.Generated.Endpoints.Results;
 /// Operation: LinkResource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class LinkResourceEndpointResult : EndpointResponse, ILinkResourceEndpointResult
+public partial class LinkResourceEndpointResult : EndpointResponse, ILinkResourceEndpointResult
 {
     public LinkResourceEndpointResult(EndpointResponse response)
         : base(response)

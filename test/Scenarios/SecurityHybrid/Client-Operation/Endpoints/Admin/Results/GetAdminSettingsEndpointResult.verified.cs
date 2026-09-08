@@ -18,7 +18,7 @@ namespace SecurityHybrid.Generated.Admin.Endpoints.Results;
 /// Operation: GetAdminSettings.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetAdminSettingsEndpointResult : EndpointResponse, IGetAdminSettingsEndpointResult
+public partial class GetAdminSettingsEndpointResult : EndpointResponse, IGetAdminSettingsEndpointResult
 {
     public GetAdminSettingsEndpointResult(EndpointResponse response)
         : base(response)

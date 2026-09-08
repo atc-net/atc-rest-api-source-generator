@@ -18,7 +18,7 @@ namespace NonJsonContent.Generated.Reports.Endpoints.Results;
 /// Operation: GetTextReport.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetTextReportEndpointResult : EndpointResponse, IGetTextReportEndpointResult
+public partial class GetTextReportEndpointResult : EndpointResponse, IGetTextReportEndpointResult
 {
     public GetTextReportEndpointResult(EndpointResponse response)
         : base(response)

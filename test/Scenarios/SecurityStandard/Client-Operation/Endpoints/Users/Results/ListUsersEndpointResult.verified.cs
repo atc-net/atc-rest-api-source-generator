@@ -18,7 +18,7 @@ namespace SecurityStandard.Generated.Users.Endpoints.Results;
 /// Operation: ListUsers.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListUsersEndpointResult : EndpointResponse, IListUsersEndpointResult
+public partial class ListUsersEndpointResult : EndpointResponse, IListUsersEndpointResult
 {
     public ListUsersEndpointResult(EndpointResponse response)
         : base(response)

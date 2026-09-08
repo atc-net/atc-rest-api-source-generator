@@ -18,7 +18,7 @@ namespace SecurityOpenIdConnect.Generated.Resources.Endpoints.Results;
 /// Operation: CreateResource.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class CreateResourceEndpointResult : EndpointResponse, ICreateResourceEndpointResult
+public partial class CreateResourceEndpointResult : EndpointResponse, ICreateResourceEndpointResult
 {
     public CreateResourceEndpointResult(EndpointResponse response)
         : base(response)

@@ -18,7 +18,7 @@ namespace PetStoreFull.Generated.Store.Endpoints.Results;
 /// Operation: GetInventory.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetInventoryEndpointResult : EndpointResponse, IGetInventoryEndpointResult
+public partial class GetInventoryEndpointResult : EndpointResponse, IGetInventoryEndpointResult
 {
     public GetInventoryEndpointResult(EndpointResponse response)
         : base(response)

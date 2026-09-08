@@ -18,7 +18,7 @@ namespace InlineSchemas.Generated.Analytics.Endpoints.Results;
 /// Operation: GetAnalyticsSummary.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetAnalyticsSummaryEndpointResult : EndpointResponse, IGetAnalyticsSummaryEndpointResult
+public partial class GetAnalyticsSummaryEndpointResult : EndpointResponse, IGetAnalyticsSummaryEndpointResult
 {
     public GetAnalyticsSummaryEndpointResult(EndpointResponse response)
         : base(response)

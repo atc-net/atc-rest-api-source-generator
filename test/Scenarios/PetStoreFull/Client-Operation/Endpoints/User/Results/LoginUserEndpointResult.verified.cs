@@ -18,7 +18,7 @@ namespace PetStoreFull.Generated.User.Endpoints.Results;
 /// Operation: LoginUser.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class LoginUserEndpointResult : EndpointResponse, ILoginUserEndpointResult
+public partial class LoginUserEndpointResult : EndpointResponse, ILoginUserEndpointResult
 {
     public LoginUserEndpointResult(EndpointResponse response)
         : base(response)

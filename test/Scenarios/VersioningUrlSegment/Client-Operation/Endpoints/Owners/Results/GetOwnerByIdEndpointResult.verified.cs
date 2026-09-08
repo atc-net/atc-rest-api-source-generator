@@ -18,7 +18,7 @@ namespace VersioningUrlSegment.Generated.Owners.Endpoints.Results;
 /// Operation: GetOwnerById.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GetOwnerByIdEndpointResult : EndpointResponse, IGetOwnerByIdEndpointResult
+public partial class GetOwnerByIdEndpointResult : EndpointResponse, IGetOwnerByIdEndpointResult
 {
     public GetOwnerByIdEndpointResult(EndpointResponse response)
         : base(response)

@@ -1292,6 +1292,62 @@ public class EndpointPerOperationExtractorTests
         Assert.DoesNotContain("BuildStreamingEndpointResponseAsync<Event>", operationFile.EndpointClassContent, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_ResultClass_IsPartialAndNotSealed()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /devices/{id}:
+                                get:
+                                  operationId: getDeviceById
+                                  parameters:
+                                    - name: id
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Device'
+                                    '404':
+                                      description: Not Found
+                            components:
+                              schemas:
+                                Device:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document,
+            "TestApi",
+            "devices",
+            registry: null,
+            includeDeprecated: false);
+
+        // Assert - the result class must be extensible via a partial declaration so consumers
+        // can add their own members, and must not be sealed.
+        var operationFile = Assert.Single(files);
+        Assert.NotNull(operationFile.ResultClassContent);
+        Assert.Contains("public partial class GetDeviceByIdEndpointResult", operationFile.ResultClassContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("sealed class GetDeviceByIdEndpointResult", operationFile.ResultClassContent, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

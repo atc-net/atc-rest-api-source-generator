@@ -18,7 +18,7 @@ namespace SecurityStandard.Generated.Orders.Endpoints.Results;
 /// Operation: ListOrders.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ListOrdersEndpointResult : EndpointResponse, IListOrdersEndpointResult
+public partial class ListOrdersEndpointResult : EndpointResponse, IListOrdersEndpointResult
 {
     public ListOrdersEndpointResult(EndpointResponse response)
         : base(response)

@@ -18,7 +18,7 @@ namespace Retry.Generated.Reports.Endpoints.Results;
 /// Operation: GenerateReport.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class GenerateReportEndpointResult : EndpointResponse, IGenerateReportEndpointResult
+public partial class GenerateReportEndpointResult : EndpointResponse, IGenerateReportEndpointResult
 {
     public GenerateReportEndpointResult(EndpointResponse response)
         : base(response)

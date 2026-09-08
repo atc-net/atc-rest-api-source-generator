@@ -18,7 +18,7 @@ namespace PetStoreFull.Generated.Store.Endpoints.Results;
 /// Operation: DeleteOrder.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class DeleteOrderEndpointResult : EndpointResponse, IDeleteOrderEndpointResult
+public partial class DeleteOrderEndpointResult : EndpointResponse, IDeleteOrderEndpointResult
 {
     public DeleteOrderEndpointResult(EndpointResponse response)
         : base(response)

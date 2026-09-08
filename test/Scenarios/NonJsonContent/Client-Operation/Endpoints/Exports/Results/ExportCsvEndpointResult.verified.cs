@@ -18,7 +18,7 @@ namespace NonJsonContent.Generated.Exports.Endpoints.Results;
 /// Operation: ExportCsv.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class ExportCsvEndpointResult : EndpointResponse, IExportCsvEndpointResult
+public partial class ExportCsvEndpointResult : EndpointResponse, IExportCsvEndpointResult
 {
     public ExportCsvEndpointResult(EndpointResponse response)
         : base(response)

@@ -18,7 +18,7 @@ namespace PetStoreFull.Generated.Pet.Endpoints.Results;
 /// Operation: UploadFile.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed class UploadFileEndpointResult : EndpointResponse, IUploadFileEndpointResult
+public partial class UploadFileEndpointResult : EndpointResponse, IUploadFileEndpointResult
 {
     public UploadFileEndpointResult(EndpointResponse response)
         : base(response)
