@@ -61,6 +61,12 @@ jobs:
             -o ${GITHUB_WORKSPACE}/packages \
             -p:RepositoryBranch=$BRANCH_NAME \
             /p:PublicRelease=true
+          dotnet pack src/Atc.Rest.Api.Client.Testing/Atc.Rest.Api.Client.Testing.csproj \
+            -c Release \
+            --no-restore \
+            -o ${GITHUB_WORKSPACE}/packages \
+            -p:RepositoryBranch=$BRANCH_NAME \
+            /p:PublicRelease=true
 
       - name: 📦 Push packages to NuGet
         run: |
@@ -70,6 +76,11 @@ jobs:
             --skip-duplicate \
             --no-symbols
           dotnet nuget push ${GITHUB_WORKSPACE}/packages/atc-rest-api-gen.*.nupkg \
+            -k ${{ secrets.NUGET_KEY }} \
+            -s ${{ env.NUGET_REPO_URL }} \
+            --skip-duplicate \
+            --no-symbols
+          dotnet nuget push ${GITHUB_WORKSPACE}/packages/Atc.Rest.Api.Client.Testing.*.nupkg \
             -k ${{ secrets.NUGET_KEY }} \
             -s ${{ env.NUGET_REPO_URL }} \
             --skip-duplicate \
