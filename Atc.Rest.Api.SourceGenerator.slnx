@@ -78,6 +78,7 @@
   <Folder Name="/src/">
     <Project Path="src/Atc.Rest.Api.Generator.Cli/Atc.Rest.Api.Generator.Cli.csproj" />
     <Project Path="src/Atc.Rest.Api.SourceGenerator/Atc.Rest.Api.SourceGenerator.csproj" Id="65b7bf64-9143-4e50-8303-2d3cd8b9a601" />
+    <Project Path="src/Atc.Rest.Api.Client.Testing/Atc.Rest.Api.Client.Testing.csproj" />
   </Folder>
   <Folder Name="/src/libs/">
     <Project Path="src/Atc.CodeGeneration.CSharp/Atc.CodeGeneration.CSharp.csproj" />
