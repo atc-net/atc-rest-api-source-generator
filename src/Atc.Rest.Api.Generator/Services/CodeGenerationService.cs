@@ -1487,6 +1487,21 @@ public static class CodeGenerationService
 
         var subFolder = GetSubFolder("Client", null, generatorType, granularity);
 
+        // Emit the matching I{ClientName} contract next to the client so consumers can depend on -
+        // and mock - the API surface instead of stubbing HttpClient.
+        var interfaceParams = HttpClientInterfaceExtractor.Extract(classParams);
+        if (interfaceParams is not null)
+        {
+            result.Add(new GeneratedType(
+                TypeName: interfaceParams.InterfaceTypeName,
+                Category: "Client",
+                Namespace: @namespace,
+                Content: GenerateInterfaceContentOnly(codeDocGenerator, interfaceParams),
+                RequiredUsings: usings,
+                GroupName: null,
+                SubFolder: subFolder));
+        }
+
         result.Add(new GeneratedType(
             TypeName: classParams.ClassTypeName,
             Category: "Client",
