@@ -297,6 +297,16 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Detect shared schemas (used by multiple path segments) for deduplication
         var sharedSchemas = PathSegmentHelper.GetSharedSchemas(openApiDoc);
 
+        // In EndpointPerOperation mode the generator owns ProblemDetails/ValidationProblemDetails
+        // (emitted above into "{projectName}.Generated"). A same-named schema in the specification
+        // can never be referenced - every consumer sits under "{projectName}.Generated.*", so C#
+        // binds the unqualified name to the enclosing-namespace built-in - so drop it and tell the
+        // user their declaration is being ignored rather than emitting silent dead code.
+        if (config.GenerationMode == GenerationModeType.EndpointPerOperation)
+        {
+            ReportAndRemoveShadowedErrorContracts(context, openApiDoc, sharedSchemas, yamlPath);
+        }
+
         // Single-client mode: emit one client covering every operation, with all models flattened
         // into "{projectName}.Generated.Models". Handled before the per-area loop because the two
         // layouts are mutually exclusive.
@@ -349,6 +359,13 @@ public class ApiClientGenerator : IIncrementalGenerator
 
             // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
             var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
+
+            // Built-in error contracts are emitted once under "{projectName}.Generated"; drop any
+            // spec-defined namesake so it is not re-emitted per segment. Already reported above.
+            if (config.GenerationMode == GenerationModeType.EndpointPerOperation)
+            {
+                segmentSchemas.RemoveWhere(BuiltInErrorContractNames.IsReserved);
+            }
 
             // Generate segment-specific models (excluding shared schemas)
             // Include shared models using directive so segment types can reference shared types
@@ -1296,6 +1313,39 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine("}");
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Reports <see cref="RuleIdentifiers.ProblemDetailsSchemaShadowedByBuiltIn"/> for every
+    /// specification schema that collides with a built-in error contract, and removes it from
+    /// <paramref name="sharedSchemas"/> so it is never materialized.
+    /// </summary>
+    private static void ReportAndRemoveShadowedErrorContracts(
+        SourceProductionContext context,
+        OpenApiDocument openApiDoc,
+        HashSet<string> sharedSchemas,
+        string yamlPath)
+    {
+        var schemaNames = openApiDoc.Components?.Schemas?.Keys;
+        if (schemaNames is null)
+        {
+            return;
+        }
+
+        foreach (var schemaName in schemaNames.Where(BuiltInErrorContractNames.IsReserved))
+        {
+            context.ReportDiagnostic(
+                DiagnosticHelpers.ToRoslynDiagnostic(
+                    GeneratorDiagnosticMessage.Warning(
+                        RuleIdentifiers.ProblemDetailsSchemaShadowedByBuiltIn,
+                        $"The schema '{schemaName}' is ignored because 'generationMode' is " +
+                        $"'EndpointPerOperation', which generates its own '{schemaName}' type used by the " +
+                        "endpoint results and ProblemDetailsFactory. Remove the schema from the " +
+                        "specification, or switch to a TypedClient generation mode to use your own definition.",
+                        yamlPath)));
+
+            sharedSchemas.Remove(schemaName);
+        }
     }
 
     /// <summary>

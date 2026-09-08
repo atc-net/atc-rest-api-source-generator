@@ -420,6 +420,13 @@ public static class RuleIdentifiers
     /// </summary>
     public const string DiscriminatorMissingPropertyName = "ATC_API_SCH020";
 
+    /// <summary>
+    /// ATC_API_SCH021: The specification defines a schema named 'ProblemDetails' or
+    /// 'ValidationProblemDetails' while generating in EndpointPerOperation mode, where the generator
+    /// already emits its own built-in versions of those types. The spec-defined schema is ignored.
+    /// </summary>
+    public const string ProblemDetailsSchemaShadowedByBuiltIn = "ATC_API_SCH021";
+
     // ========== Path Rules (PTH) ==========
 
     /// <summary>

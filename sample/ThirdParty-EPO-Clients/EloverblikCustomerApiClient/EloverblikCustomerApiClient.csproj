@@ -4,6 +4,12 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!--
+      ATC_API_SCH021: 'api-1.yaml' is a vendored third-party specification that defines its own
+      'ProblemDetails' schema. EndpointPerOperation mode supplies the built-in equivalent, so the
+      spec-defined one is ignored. The spec is not ours to change, hence the suppression.
+    -->
+    <NoWarn>$(NoWarn);ATC_API_SCH021</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
