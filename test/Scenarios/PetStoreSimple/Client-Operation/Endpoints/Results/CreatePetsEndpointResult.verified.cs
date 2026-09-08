@@ -3,6 +3,7 @@
 
 using System;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.Net;
 using Atc.Rest.Client;
 using PetStoreSimple.Generated;
@@ -23,6 +24,40 @@ public sealed class CreatePetsEndpointResult : EndpointResponse, ICreatePetsEndp
         : base(response)
     {
     }
+
+    /// <summary>
+    /// Creates a result representing HTTP Created.
+    /// </summary>
+    public static CreatePetsEndpointResult Created()
+        => Create(HttpStatusCode.Created, contentObject: null);
+
+    /// <summary>
+    /// Creates a result representing HTTP Conflict.
+    /// </summary>
+    public static CreatePetsEndpointResult Conflict(ProblemDetails content)
+        => Create(HttpStatusCode.Conflict, content);
+
+    /// <summary>
+    /// Creates a result representing HTTP InternalServerError.
+    /// </summary>
+    public static CreatePetsEndpointResult InternalServerError(ProblemDetails content)
+        => Create(HttpStatusCode.InternalServerError, content);
+
+    /// <summary>
+    /// Creates a result representing HTTP GatewayTimeout.
+    /// </summary>
+    public static CreatePetsEndpointResult GatewayTimeout(ProblemDetails content)
+        => Create(HttpStatusCode.GatewayTimeout, content);
+
+    private static CreatePetsEndpointResult Create(
+        HttpStatusCode statusCode,
+        object? contentObject)
+        => new(new EndpointResponse(
+            isSuccess: (int)statusCode is >= 200 and < 300,
+            statusCode: statusCode,
+            content: string.Empty,
+            contentObject: contentObject,
+            headers: new Dictionary<string, IEnumerable<string>>(StringComparer.Ordinal)));
 
     public bool IsCreated
         => StatusCode == HttpStatusCode.Created;

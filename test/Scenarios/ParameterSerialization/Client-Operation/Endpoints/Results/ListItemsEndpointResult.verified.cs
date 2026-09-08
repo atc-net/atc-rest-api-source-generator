@@ -3,6 +3,7 @@
 
 using System;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.Net;
 using Atc.Rest.Client;
 using ParameterSerialization.Generated;
@@ -23,6 +24,40 @@ public sealed class ListItemsEndpointResult : EndpointResponse, IListItemsEndpoi
         : base(response)
     {
     }
+
+    /// <summary>
+    /// Creates a result representing HTTP OK.
+    /// </summary>
+    public static ListItemsEndpointResult Ok(IEnumerable<Item> content)
+        => Create(HttpStatusCode.OK, content);
+
+    /// <summary>
+    /// Creates a result representing HTTP BadRequest.
+    /// </summary>
+    public static ListItemsEndpointResult BadRequest(ValidationProblemDetails content)
+        => Create(HttpStatusCode.BadRequest, content);
+
+    /// <summary>
+    /// Creates a result representing HTTP InternalServerError.
+    /// </summary>
+    public static ListItemsEndpointResult InternalServerError(ProblemDetails content)
+        => Create(HttpStatusCode.InternalServerError, content);
+
+    /// <summary>
+    /// Creates a result representing HTTP GatewayTimeout.
+    /// </summary>
+    public static ListItemsEndpointResult GatewayTimeout(ProblemDetails content)
+        => Create(HttpStatusCode.GatewayTimeout, content);
+
+    private static ListItemsEndpointResult Create(
+        HttpStatusCode statusCode,
+        object? contentObject)
+        => new(new EndpointResponse(
+            isSuccess: (int)statusCode is >= 200 and < 300,
+            statusCode: statusCode,
+            content: string.Empty,
+            contentObject: contentObject,
+            headers: new Dictionary<string, IEnumerable<string>>(StringComparer.Ordinal)));
 
     public bool IsOk
         => StatusCode == HttpStatusCode.OK;

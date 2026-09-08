@@ -3,6 +3,7 @@
 
 using System;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.Net;
 using Atc.Rest.Client;
 using HttpMethods.Generated;
@@ -23,6 +24,34 @@ public sealed class ListResourcesEndpointResult : EndpointResponse, IListResourc
         : base(response)
     {
     }
+
+    /// <summary>
+    /// Creates a result representing HTTP OK.
+    /// </summary>
+    public static ListResourcesEndpointResult Ok(IEnumerable<Resource> content)
+        => Create(HttpStatusCode.OK, content);
+
+    /// <summary>
+    /// Creates a result representing HTTP InternalServerError.
+    /// </summary>
+    public static ListResourcesEndpointResult InternalServerError(ProblemDetails content)
+        => Create(HttpStatusCode.InternalServerError, content);
+
+    /// <summary>
+    /// Creates a result representing HTTP GatewayTimeout.
+    /// </summary>
+    public static ListResourcesEndpointResult GatewayTimeout(ProblemDetails content)
+        => Create(HttpStatusCode.GatewayTimeout, content);
+
+    private static ListResourcesEndpointResult Create(
+        HttpStatusCode statusCode,
+        object? contentObject)
+        => new(new EndpointResponse(
+            isSuccess: (int)statusCode is >= 200 and < 300,
+            statusCode: statusCode,
+            content: string.Empty,
+            contentObject: contentObject,
+            headers: new Dictionary<string, IEnumerable<string>>(StringComparer.Ordinal)));
 
     public bool IsOk
         => StatusCode == HttpStatusCode.OK;

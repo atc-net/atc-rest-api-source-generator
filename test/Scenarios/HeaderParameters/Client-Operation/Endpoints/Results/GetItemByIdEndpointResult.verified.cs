@@ -3,6 +3,7 @@
 
 using System;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.Net;
 using Atc.Rest.Client;
 using HeaderParameters.Generated;
@@ -23,6 +24,46 @@ public sealed class GetItemByIdEndpointResult : EndpointResponse, IGetItemByIdEn
         : base(response)
     {
     }
+
+    /// <summary>
+    /// Creates a result representing HTTP OK.
+    /// </summary>
+    public static GetItemByIdEndpointResult Ok(Item content)
+        => Create(HttpStatusCode.OK, content);
+
+    /// <summary>
+    /// Creates a result representing HTTP NotFound.
+    /// </summary>
+    public static GetItemByIdEndpointResult NotFound(Error content)
+        => Create(HttpStatusCode.NotFound, content);
+
+    /// <summary>
+    /// Creates a result representing HTTP BadRequest.
+    /// </summary>
+    public static GetItemByIdEndpointResult BadRequest(ValidationProblemDetails content)
+        => Create(HttpStatusCode.BadRequest, content);
+
+    /// <summary>
+    /// Creates a result representing HTTP InternalServerError.
+    /// </summary>
+    public static GetItemByIdEndpointResult InternalServerError(ProblemDetails content)
+        => Create(HttpStatusCode.InternalServerError, content);
+
+    /// <summary>
+    /// Creates a result representing HTTP GatewayTimeout.
+    /// </summary>
+    public static GetItemByIdEndpointResult GatewayTimeout(ProblemDetails content)
+        => Create(HttpStatusCode.GatewayTimeout, content);
+
+    private static GetItemByIdEndpointResult Create(
+        HttpStatusCode statusCode,
+        object? contentObject)
+        => new(new EndpointResponse(
+            isSuccess: (int)statusCode is >= 200 and < 300,
+            statusCode: statusCode,
+            content: string.Empty,
+            contentObject: contentObject,
+            headers: new Dictionary<string, IEnumerable<string>>(StringComparer.Ordinal)));
 
     public bool IsOk
         => StatusCode == HttpStatusCode.OK;
