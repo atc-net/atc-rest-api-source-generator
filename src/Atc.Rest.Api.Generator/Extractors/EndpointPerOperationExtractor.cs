@@ -1336,6 +1336,7 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine();
         sb.AppendLine("using System;");
         sb.AppendLine("using System.CodeDom.Compiler;");
+        sb.AppendLine("using System.Collections.Generic;");
         sb.AppendLine("using System.Net;");
         sb.AppendLine("using Atc.Rest.Client;");
         sb.AppendLine($"using {NamespaceBuilder.BuildBase(projectName)};");
@@ -1370,6 +1371,41 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine(8, ": base(response)");
         sb.AppendLine(4, "{");
         sb.AppendLine(4, "}");
+        sb.AppendLine();
+
+        // Static factories so consumers can build results in tests without
+        // constructing an EndpointResponse by hand.
+        foreach (var response in responses
+                     .GroupBy(r => r.PropertyName, StringComparer.Ordinal)
+                     .Select(g => g.First()))
+        {
+            sb.AppendLine(4, "/// <summary>");
+            sb.AppendLine(4, $"/// Creates a result representing HTTP {response.StatusEnumName}.");
+            sb.AppendLine(4, "/// </summary>");
+
+            if (response.ContentType is null)
+            {
+                sb.AppendLine(4, $"public static {operationName}EndpointResult {response.PropertyName}()");
+                sb.AppendLine(8, $"=> Create(HttpStatusCode.{response.StatusEnumName}, contentObject: null);");
+            }
+            else
+            {
+                sb.AppendLine(4, $"public static {operationName}EndpointResult {response.PropertyName}({response.ContentType} content)");
+                sb.AppendLine(8, $"=> Create(HttpStatusCode.{response.StatusEnumName}, content);");
+            }
+
+            sb.AppendLine();
+        }
+
+        sb.AppendLine(4, $"private static {operationName}EndpointResult Create(");
+        sb.AppendLine(8, "HttpStatusCode statusCode,");
+        sb.AppendLine(8, "object? contentObject)");
+        sb.AppendLine(8, "=> new(new EndpointResponse(");
+        sb.AppendLine(12, "isSuccess: (int)statusCode is >= 200 and < 300,");
+        sb.AppendLine(12, "statusCode: statusCode,");
+        sb.AppendLine(12, "content: string.Empty,");
+        sb.AppendLine(12, "contentObject: contentObject,");
+        sb.AppendLine(12, "headers: new Dictionary<string, IEnumerable<string>>(StringComparer.Ordinal)));");
         sb.AppendLine();
 
         // Is{PropertyName} properties
