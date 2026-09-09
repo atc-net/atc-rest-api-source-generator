@@ -267,6 +267,7 @@ public static class ScenarioDiscovery
         "Client-Operation",
         "Client-Typed",
         "Server",
+        "ServerDomain",
     };
 
     /// <summary>

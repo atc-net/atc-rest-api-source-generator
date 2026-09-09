@@ -45,7 +45,8 @@ internal static class CompilationVerificationHarness
         string markerFileName,
         string masterFolder,
         bool useFullReferences = false,
-        string assemblyName = "TestAssembly")
+        string assemblyName = "TestAssembly",
+        string? markerDirectoryOverride = null)
     {
         var yamlPath = GetScenarioPath(scenarioName, yamlFileName);
         var yamlContent = File.ReadAllText(yamlPath);
@@ -56,9 +57,16 @@ internal static class CompilationVerificationHarness
             markerFileName);
         var markerContent = File.Exists(markerPath) ? File.ReadAllText(markerPath) : "{}";
 
+        // The server-domain generator writes handler scaffolds as physical files next to the marker
+        // file rather than emitting them as source. Giving the marker an absolute path lets a caller
+        // choose where those land, so they can be read back instead of polluting the test output.
+        var markerAdditionalTextPath = markerDirectoryOverride is null
+            ? markerFileName
+            : Path.Combine(markerDirectoryOverride, markerFileName);
+
         var additionalTexts = ImmutableArray.Create<AdditionalText>(
             new InMemoryAdditionalText(yamlFileName, yamlContent),
-            new InMemoryAdditionalText(markerFileName, markerContent));
+            new InMemoryAdditionalText(markerAdditionalTextPath, markerContent));
 
         // The server generator gates on ASP.NET Core references being present; supply the
         // full reference set when the caller needs the generator to actually emit output.

@@ -1,0 +1,9 @@
+global using System.Threading.Tasks;
+global using System.Threading;
+global using System;
+global using VersioningUrlSegment.Generated.Owners.Handlers;
+global using VersioningUrlSegment.Generated.Owners.Parameters;
+global using VersioningUrlSegment.Generated.Owners.Results;
+global using VersioningUrlSegment.Generated.Pets.Handlers;
+global using VersioningUrlSegment.Generated.Pets.Parameters;
+global using VersioningUrlSegment.Generated.Pets.Results;

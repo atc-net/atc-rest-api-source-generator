@@ -1,0 +1,10 @@
+global using SecurityOpenIdConnect.Generated.Health.Handlers;
+global using SecurityOpenIdConnect.Generated.Health.Results;
+global using SecurityOpenIdConnect.Generated.Me.Handlers;
+global using SecurityOpenIdConnect.Generated.Me.Results;
+global using SecurityOpenIdConnect.Generated.Resources.Handlers;
+global using SecurityOpenIdConnect.Generated.Resources.Parameters;
+global using SecurityOpenIdConnect.Generated.Resources.Results;
+global using System.Threading.Tasks;
+global using System.Threading;
+global using System;
