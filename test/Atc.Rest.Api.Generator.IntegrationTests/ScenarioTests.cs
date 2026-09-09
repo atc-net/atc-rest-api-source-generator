@@ -98,9 +98,9 @@ public class ScenarioTests
 
         var types = generator.ToUpperInvariant() switch
         {
-            "SERVER" => GeneratorTestHelper.GetServerTypesWithPaths(yamlPath, scenarioName).ToList(),
-            "CLIENT" => GeneratorTestHelper.GetClientTypesWithPaths(yamlPath, markerPath, scenarioName).ToList(),
-            "SERVERDOMAIN" => GeneratorTestHelper.GetServerDomainTypesWithPaths(yamlPath, scenarioName).ToList(),
+            // The C# generators are snapshotted by GeneratorScenarioSnapshotTests, driven by the
+            // real Roslyn generators. Only TypeScript is still generated here, because there is no
+            // TypeScript incremental generator to converge onto.
             "TYPESCRIPTCLIENT" => GeneratorTestHelper.GetTypeScriptClientTypesWithPaths(yamlPath, markerPath, scenarioName).ToList(),
             _ => throw new ArgumentException($"Unknown generator type: {generator}", nameof(generator)),
         };
