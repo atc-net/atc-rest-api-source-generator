@@ -19,6 +19,8 @@ internal static class GeneratorSnapshotHarness
 {
     private const string GeneratedFileSuffix = ".g.cs";
 
+    private static readonly ConcurrentDictionary<string, IReadOnlyList<GeneratedSnapshot>> SnapshotCache = new(StringComparer.Ordinal);
+
     /// <summary>The master folder holding the <c>EndpointPerOperation</c> client marker.</summary>
     public const string ClientOperationMasterFolder = "Client-Operation";
 
@@ -46,6 +48,55 @@ internal static class GeneratorSnapshotHarness
         ClientOperationMasterFolder,
         ClientTypedMasterFolder,
     ];
+
+    /// <summary>
+    /// The master folders whose <c>*.verified.cs</c> snapshots are produced by the Roslyn generator
+    /// rather than by <c>GeneratorTestHelper</c>.
+    /// <para>
+    /// The move happens one folder at a time, because each one re-bases hundreds of snapshot files
+    /// and the diffs are only reviewable in isolation. A folder listed here is skipped by
+    /// <c>ScenarioTests</c> in the integration-test project, so exactly one suite owns it.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<string> ConvertedMasterFolders { get; } =
+    [
+        ClientOperationMasterFolder,
+    ];
+
+    /// <summary>
+    /// Enumerates every scenario and converted master-folder pair.
+    /// </summary>
+    public static IEnumerable<object[]> GetConvertedScenarioGeneratorData()
+        => ConvertedMasterFolders.SelectMany(
+            masterFolder => GetScenarioNames(masterFolder),
+            (masterFolder, scenarioName) => new object[] { scenarioName, masterFolder });
+
+    /// <summary>
+    /// Enumerates one entry per emitted source across the converted master folders, so each
+    /// snapshot is its own test case.
+    /// <para>
+    /// Verifying several files inside a single test would stop at the first mismatch and hide the
+    /// rest, which makes a re-baseline impossible to review in one pass.
+    /// </para>
+    /// </summary>
+    public static IEnumerable<object[]> GetConvertedSnapshotData()
+        => GetConvertedScenarioGeneratorData()
+            .SelectMany(row => RunCached((string)row[0], (string)row[1])
+                .Select(snapshot => new object[] { row[0], row[1], snapshot.Name }));
+
+    /// <summary>
+    /// Runs the generator for a scenario and master folder, memoizing the result.
+    /// <para>
+    /// With one test per emitted file the same generator run is otherwise repeated hundreds of
+    /// times over the same inputs.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<GeneratedSnapshot> RunCached(
+        string scenarioName,
+        string masterFolder)
+        => SnapshotCache.GetOrAdd(
+            $"{scenarioName}/{masterFolder}",
+            _ => Run(scenarioName, masterFolder));
 
     /// <summary>
     /// Runs the generator owning <paramref name="masterFolder"/> for a scenario and returns the
@@ -159,6 +210,14 @@ internal static class GeneratorSnapshotHarness
         => MasterFolders.SelectMany(
             masterFolder => GetScenarioNames(masterFolder),
             (masterFolder, scenarioName) => new object[] { scenarioName, masterFolder });
+
+    /// <summary>
+    /// Gets the directory holding the snapshots for a scenario and master folder.
+    /// </summary>
+    public static string GetSnapshotDirectory(
+        string scenarioName,
+        string masterFolder)
+        => Path.Combine(GetScenariosRoot(), scenarioName, masterFolder);
 
     /// <summary>
     /// Gets the absolute path to the source <c>test/Scenarios</c> directory.
