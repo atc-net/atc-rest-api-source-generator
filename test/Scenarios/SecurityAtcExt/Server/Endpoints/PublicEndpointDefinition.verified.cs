@@ -23,11 +23,11 @@ public sealed class PublicEndpointDefinition : IEndpointDefinition
 
     public void DefineEndpoints(WebApplication app)
     {
-        var public = app
+        var @public = app
             .MapGroup(ApiRouteBase)
             .WithTags("Public");
 
-        public
+        @public
             .MapGet("health", GetHealth)
             .WithName("GetHealth")
             .WithSummary("Health check (public)")

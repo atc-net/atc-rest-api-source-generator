@@ -15,6 +15,12 @@
     <!-- Referenced only so the assemblies are present in the test host (TRUSTED_PLATFORM_ASSEMBLIES),
          enabling real C# compilation of generated client/server output in CompilationVerificationTests. -->
     <PackageReference Include="Atc.Rest.Client" Version="2.0.36" />
+    <!-- Same purpose: the resilience/retry scenarios emit code against Polly, so those assemblies
+         must be present in the test host for the compilation gate to resolve them. -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.9.0" />
+    <!-- Likewise for the OpenID Connect security scenario, whose emitted authentication wiring
+         lives outside the ASP.NET Core shared framework. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.0" />
   </ItemGroup>
 
   <!-- ASP.NET Core shared framework, so generated server/client output (which uses
