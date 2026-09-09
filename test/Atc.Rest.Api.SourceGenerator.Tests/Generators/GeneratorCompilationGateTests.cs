@@ -56,29 +56,21 @@ public class GeneratorCompilationGateTests
         "SecurityHybrid/Client-Typed",
         "SecurityStandard/Server",
         "SecurityStandard/Client-Typed",
+
+        // Derivative: a ServerDomain compilation includes the server output it implements against,
+        // so these four inherit the failure of their Server row above rather than adding one. They
+        // will go green when that row does; there is nothing separate to fix here.
+        "PetStoreFull/ServerDomain",
+        "Polymorphism/ServerDomain",
+        "SecurityHybrid/ServerDomain",
+        "SecurityStandard/ServerDomain",
     };
 
     public static IEnumerable<object[]> AllScenarioGenerators
         => GeneratorSnapshotHarness.GetScenarioGeneratorData();
 
-    /// <summary>
-    /// Scenario and master-folder pairs whose output is a self-contained compilation.
-    /// <para>
-    /// <c>ServerDomain</c> is excluded: its source output is only the handler dependency
-    /// registration and the global usings, while the handler stubs it registers are scaffolded as
-    /// ordinary editable project files rather than emitted into the compilation. Binding
-    /// <c>{Project}.ApiHandlers.*</c> therefore requires files that are deliberately not part of
-    /// the generator output, so a compile assertion there would report a design property as a
-    /// defect. It is still covered by <see cref="Generator_EmitsSources"/>.
-    /// </para>
-    /// </summary>
     public static IEnumerable<object[]> CompilableScenarioGenerators
-        => GeneratorSnapshotHarness
-            .GetScenarioGeneratorData()
-            .Where(row => !string.Equals(
-                (string)row[1],
-                GeneratorSnapshotHarness.ServerDomainMasterFolder,
-                StringComparison.Ordinal));
+        => GeneratorSnapshotHarness.GetScenarioGeneratorData();
 
     /// <summary>
     /// Asserts the generator emitted something at all.

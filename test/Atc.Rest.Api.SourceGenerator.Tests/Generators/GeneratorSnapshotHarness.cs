@@ -45,11 +45,14 @@ internal static class GeneratorSnapshotHarness
     [
         ServerMasterFolder,
         ServerDomainMasterFolder,
+        ServerDomainMasterFolder,
         ClientOperationMasterFolder,
         ClientTypedMasterFolder,
         ServerMasterFolder,
+        ServerDomainMasterFolder,
         ClientTypedMasterFolder,
         ServerMasterFolder,
+        ServerDomainMasterFolder,
     ];
 
     /// <summary>
@@ -66,6 +69,7 @@ internal static class GeneratorSnapshotHarness
         ClientOperationMasterFolder,
         ClientTypedMasterFolder,
         ServerMasterFolder,
+        ServerDomainMasterFolder,
     ];
 
     /// <summary>
@@ -128,6 +132,11 @@ internal static class GeneratorSnapshotHarness
         string scenarioName,
         string masterFolder = ClientOperationMasterFolder)
     {
+        if (string.Equals(masterFolder, ServerDomainMasterFolder, StringComparison.Ordinal))
+        {
+            return RunServerDomainWithScaffolds(scenarioName);
+        }
+
         var (generator, markerFileName) = ResolveGenerator(masterFolder);
 
         // The server-domain generator derives its namespace from the compilation assembly name
@@ -170,6 +179,46 @@ internal static class GeneratorSnapshotHarness
         return serverSources
             .Concat(sources)
             .ToList();
+    }
+
+    /// <summary>
+    /// Runs the server-domain generator against a throwaway project directory.
+    /// <para>
+    /// Handler scaffolds are written as physical, editable project files <i>and</i> emitted as
+    /// source so the current compilation can reference them - but the writer returns early when the
+    /// file already exists, before it emits. Pointed at a shared directory the generator therefore
+    /// stops emitting scaffolds as soon as a previous run has written them, and the snapshot set
+    /// silently shrinks to the dependency registration. A directory unique to each run keeps the
+    /// output deterministic; the scaffolds are then taken from the source output, which carries the
+    /// same content as the files on disk.
+    /// </para>
+    /// </summary>
+    private static List<(string HintName, string Source)> RunServerDomainWithScaffolds(
+        string scenarioName)
+    {
+        var projectDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "atc-domain-scaffolds",
+            Guid.NewGuid().ToString("N"));
+
+        Directory.CreateDirectory(projectDirectory);
+
+        try
+        {
+            return CompilationVerificationHarness.RunGenerator(
+                new ApiServerDomainGenerator(),
+                scenarioName,
+                GetYamlFileName(scenarioName),
+                ".atc-rest-api-server-handlers",
+                ServerDomainMasterFolder,
+                useFullReferences: true,
+                assemblyName: scenarioName,
+                markerDirectoryOverride: projectDirectory).GeneratedSources;
+        }
+        finally
+        {
+            Directory.Delete(projectDirectory, recursive: true);
+        }
     }
 
     /// <summary>

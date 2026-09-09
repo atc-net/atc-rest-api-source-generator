@@ -1,0 +1,11 @@
+global using Polymorphism.Generated.Notifications.Handlers;
+global using Polymorphism.Generated.Notifications.Parameters;
+global using Polymorphism.Generated.Notifications.Results;
+global using Polymorphism.Generated.Payments.Handlers;
+global using Polymorphism.Generated.Payments.Parameters;
+global using Polymorphism.Generated.Payments.Results;
+global using Polymorphism.Generated.Shapes.Handlers;
+global using Polymorphism.Generated.Shapes.Results;
+global using System.Threading.Tasks;
+global using System.Threading;
+global using System;

@@ -1,0 +1,12 @@
+global using PetStoreFull.Generated.Pet.Handlers;
+global using PetStoreFull.Generated.Pet.Parameters;
+global using PetStoreFull.Generated.Pet.Results;
+global using PetStoreFull.Generated.Store.Handlers;
+global using PetStoreFull.Generated.Store.Parameters;
+global using PetStoreFull.Generated.Store.Results;
+global using PetStoreFull.Generated.User.Handlers;
+global using PetStoreFull.Generated.User.Parameters;
+global using PetStoreFull.Generated.User.Results;
+global using System.Threading.Tasks;
+global using System.Threading;
+global using System;
