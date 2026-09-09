@@ -44,7 +44,8 @@ internal static class CompilationVerificationHarness
         string yamlFileName,
         string markerFileName,
         string masterFolder,
-        bool useFullReferences = false)
+        bool useFullReferences = false,
+        string assemblyName = "TestAssembly")
     {
         var yamlPath = GetScenarioPath(scenarioName, yamlFileName);
         var yamlContent = File.ReadAllText(yamlPath);
@@ -62,7 +63,7 @@ internal static class CompilationVerificationHarness
         // The server generator gates on ASP.NET Core references being present; supply the
         // full reference set when the caller needs the generator to actually emit output.
         var compilation = CSharpCompilation.Create(
-            "TestAssembly",
+            assemblyName,
             references: useFullReferences ? GetFullFrameworkReferences() : GetMinimalReferences(),
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 

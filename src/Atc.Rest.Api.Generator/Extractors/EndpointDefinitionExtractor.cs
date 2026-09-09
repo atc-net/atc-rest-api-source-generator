@@ -677,7 +677,7 @@ using Microsoft.AspNetCore.Builder;
         }
 
         // Create the route group using the ApiRouteBase constant
-        builder.AppendLine($"var {segment.ToLowerInvariant()} = app");
+        builder.AppendLine($"var {CSharpIdentifierHelper.EscapeIfKeyword(segment.ToLowerInvariant())} = app");
         builder.AppendLine(4, ".MapGroup(ApiRouteBase)");
 
         // Add versioning to the group if enabled
@@ -957,7 +957,7 @@ using Microsoft.AspNetCore.Builder;
         // Calculate relative path from original prefix (without server base path)
         var relativePath = GetRelativePath(path, originalPrefix);
 
-        builder.Append(segment.ToLowerInvariant());
+        builder.Append(CSharpIdentifierHelper.EscapeIfKeyword(segment.ToLowerInvariant()));
         builder.AppendLine();
         builder.Append($"    .{EndpointMapHelper.BuildSingleLineMapCall(httpMethod, relativePath, methodName)}");
         builder.AppendLine();

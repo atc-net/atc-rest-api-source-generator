@@ -1,0 +1,139 @@
+namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
+
+/// <summary>
+/// Compiles the output of the real Roslyn generators for every scenario that declares a marker
+/// file.
+/// <para>
+/// The <c>*.verified.cs</c> snapshot suite compares <b>text</b> and never compiles, so a snapshot
+/// set can reference undefined types indefinitely - the blind spot that let the missing Models
+/// <c>using</c> survive. This gate closes it: whatever a generator emits has to be a well-formed
+/// compilation.
+/// </para>
+/// </summary>
+[Trait("Category", "CompilationGate")]
+public class GeneratorCompilationGateTests
+{
+    /// <summary>
+    /// Scenario and master-folder pairs whose generated output does <b>not</b> compile today.
+    /// <para>
+    /// The gate was introduced long after these defects, so it starts as a ratchet rather than a
+    /// clean sheet: every combination not listed here is enforced, and a listed combination that
+    /// starts compiling <b>fails</b> the test asking to be removed. That way the list can only
+    /// shrink - it never silently preserves debt someone has already paid off.
+    /// </para>
+    /// <para>
+    /// The failures cluster into three families, none of them introduced by this gate:
+    /// polymorphic <c>oneOf</c>/<c>anyOf</c> models that are referenced but never emitted
+    /// (<c>Shape</c>, <c>PaymentMethod</c>, <c>Coordinate</c>, <c>RgbColor</c>, <c>Notification</c>);
+    /// a path segment whose name collides with a model of the same name, so the namespace shadows
+    /// the type (<c>Session</c> in <c>CookieParameters</c>); and segment <c>Models</c> namespaces
+    /// that are imported but never populated in the OpenAPI 3.1/3.2 scenarios.
+    /// </para>
+    /// </summary>
+    private static readonly HashSet<string> KnownNonCompilingCombinations = new(StringComparer.Ordinal)
+    {
+        "AnyOfNoDiscriminator/Server",
+        "AnyOfNoDiscriminator/Client-Typed",
+        "CachingHybrid/Server",
+        "CookieParameters/Server",
+        "CookieParameters/Client-Operation",
+        "CookieParameters/Client-Typed",
+        "DiscriminatorImprovements/Server",
+        "DiscriminatorImprovements/Client-Typed",
+        "ModelsAndProperties/Server",
+        "ModelsAndProperties/Client-Typed",
+        "OpenApi31Features/Server",
+        "OpenApi31Features/Client-Typed",
+        "OpenApi32Features/Server",
+        "OpenApi32Features/Client-Typed",
+        "PetStoreFull/Server",
+        "PetStoreFull/Client-Operation",
+        "PetStoreFull/Client-Typed",
+        "Polymorphism/Server",
+        "Polymorphism/Client-Operation",
+        "Polymorphism/Client-Typed",
+        "SecurityHybrid/Server",
+        "SecurityHybrid/Client-Typed",
+        "SecurityStandard/Server",
+        "SecurityStandard/Client-Typed",
+    };
+
+    public static IEnumerable<object[]> AllScenarioGenerators
+        => GeneratorSnapshotHarness.GetScenarioGeneratorData();
+
+    /// <summary>
+    /// Scenario and master-folder pairs whose output is a self-contained compilation.
+    /// <para>
+    /// <c>ServerDomain</c> is excluded: its source output is only the handler dependency
+    /// registration and the global usings, while the handler stubs it registers are scaffolded as
+    /// ordinary editable project files rather than emitted into the compilation. Binding
+    /// <c>{Project}.ApiHandlers.*</c> therefore requires files that are deliberately not part of
+    /// the generator output, so a compile assertion there would report a design property as a
+    /// defect. It is still covered by <see cref="Generator_EmitsSources"/>.
+    /// </para>
+    /// </summary>
+    public static IEnumerable<object[]> CompilableScenarioGenerators
+        => GeneratorSnapshotHarness
+            .GetScenarioGeneratorData()
+            .Where(row => !string.Equals(
+                (string)row[1],
+                GeneratorSnapshotHarness.ServerDomainMasterFolder,
+                StringComparison.Ordinal));
+
+    /// <summary>
+    /// Asserts the generator emitted something at all.
+    /// <para>
+    /// This guards the failure mode that driving snapshots from the generator introduces: a run
+    /// that silently emits zero files would delete every baseline and leave all assertions passing
+    /// vacuously. <c>EndpointPerOperation</c> does exactly that under a minimal reference set,
+    /// where it aborts with <c>ATC_API_DEP003</c>.
+    /// </para>
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(AllScenarioGenerators))]
+    public void Generator_EmitsSources(
+        string scenarioName,
+        string masterFolder)
+    {
+        var generatedSources = GeneratorSnapshotHarness.RunRaw(scenarioName, masterFolder);
+
+        Assert.False(
+            generatedSources.Count == 0,
+            $"{scenarioName}/{masterFolder}: the generator emitted no sources.");
+    }
+
+    /// <summary>
+    /// Compiles the emitted sources as a real assembly and asserts there are no compile errors,
+    /// except for the combinations listed in <see cref="KnownNonCompilingCombinations"/>, which are
+    /// asserted to still fail so the list stays honest.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(CompilableScenarioGenerators))]
+    public void GeneratedSources_Compile(
+        string scenarioName,
+        string masterFolder)
+    {
+        var combination = $"{scenarioName}/{masterFolder}";
+        var generatedSources = GeneratorSnapshotHarness.RunRawForCompilation(scenarioName, masterFolder);
+
+        Assert.False(
+            generatedSources.Count == 0,
+            $"{combination}: the generator emitted no sources.");
+
+        var errors = CompilationVerificationHarness.CompileGeneratedSources(generatedSources);
+
+        if (KnownNonCompilingCombinations.Contains(combination))
+        {
+            Assert.False(
+                errors.Count == 0,
+                $"{combination} now compiles. Remove it from {nameof(KnownNonCompilingCombinations)}.");
+
+            return;
+        }
+
+        Assert.True(
+            errors.Count == 0,
+            $"{combination}: {errors.Count} compile error(s):\n  " +
+            string.Join("\n  ", errors.Take(25)));
+    }
+}
