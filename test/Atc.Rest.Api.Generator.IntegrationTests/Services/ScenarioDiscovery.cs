@@ -253,6 +253,21 @@ public static class ScenarioDiscovery
     }
 
     /// <summary>
+    /// Master folders whose snapshots are owned by <c>GeneratorScenarioSnapshotTests</c> in the
+    /// source-generator test project, where they are produced by the real Roslyn generator instead
+    /// of by <see cref="GeneratorTestHelper"/>.
+    /// <para>
+    /// They are excluded here so exactly one suite owns each folder. Leaving them in would have
+    /// both suites verify the same files against two different implementations, and whichever ran
+    /// second would rewrite the other's snapshots.
+    /// </para>
+    /// </summary>
+    private static readonly HashSet<string> ConvertedMasterFolders = new(StringComparer.Ordinal)
+    {
+        "Client-Operation",
+    };
+
+    /// <summary>
     /// Builds test data for Theory tests with all scenario/masterFolder/generator combinations.
     /// Returns: [scenario, masterFolder, generator]
     /// </summary>
@@ -262,6 +277,11 @@ public static class ScenarioDiscovery
         {
             foreach (var masterFolder in GetMasterFoldersForScenario(scenario))
             {
+                if (ConvertedMasterFolders.Contains(masterFolder))
+                {
+                    continue;
+                }
+
                 foreach (var generator in GetGeneratorsForScenario(scenario, masterFolder))
                 {
                     yield return [scenario, masterFolder, generator];
@@ -280,6 +300,11 @@ public static class ScenarioDiscovery
         {
             foreach (var masterFolder in GetMasterFoldersForScenario(scenario))
             {
+                if (ConvertedMasterFolders.Contains(masterFolder))
+                {
+                    continue;
+                }
+
                 foreach (var generator in GetGeneratorsForScenario(scenario, masterFolder))
                 {
                     foreach (var file in GetExpectedFiles(scenario, masterFolder, generator))
