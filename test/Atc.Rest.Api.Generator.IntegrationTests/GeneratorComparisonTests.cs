@@ -188,9 +188,8 @@ public class GeneratorComparisonTests
 
         return generator.ToUpperInvariant() switch
         {
-            "SERVER" => GeneratorTestHelper.GetServerTypesWithPaths(yamlPath, scenario),
-            "CLIENT" => GeneratorTestHelper.GetClientTypesWithPaths(yamlPath, markerPath, scenario),
-            "SERVERDOMAIN" => GeneratorTestHelper.GetServerDomainTypesWithPaths(yamlPath, scenario),
+            // Only TypeScript remains: the C# generators are covered by
+            // GeneratorScenarioSnapshotTests, driven by the real Roslyn generators.
             "TYPESCRIPTCLIENT" => GeneratorTestHelper.GetTypeScriptClientTypesWithPaths(yamlPath, markerPath, scenario),
             _ => throw new ArgumentException($"Unknown generator type: {generator}", nameof(generator)),
         };
