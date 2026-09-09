@@ -265,6 +265,7 @@ public static class ScenarioDiscovery
     private static readonly HashSet<string> ConvertedMasterFolders = new(StringComparer.Ordinal)
     {
         "Client-Operation",
+        "Client-Typed",
     };
 
     /// <summary>

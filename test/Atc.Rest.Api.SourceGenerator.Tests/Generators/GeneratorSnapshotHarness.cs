@@ -47,6 +47,7 @@ internal static class GeneratorSnapshotHarness
         ServerDomainMasterFolder,
         ClientOperationMasterFolder,
         ClientTypedMasterFolder,
+        ClientTypedMasterFolder,
     ];
 
     /// <summary>
@@ -61,6 +62,7 @@ internal static class GeneratorSnapshotHarness
     public static IReadOnlyList<string> ConvertedMasterFolders { get; } =
     [
         ClientOperationMasterFolder,
+        ClientTypedMasterFolder,
     ];
 
     /// <summary>
