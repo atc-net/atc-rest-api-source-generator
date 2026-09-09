@@ -387,6 +387,13 @@ public class ApiServerGenerator : IIncrementalGenerator
                 projectName,
                 sharedSchemas,
                 pathSegment: null);
+
+            PolymorphicTypeEmitter.Emit(
+                generatedContext,
+                openApiDoc,
+                projectName,
+                sharedSchemas,
+                pathSegment: null);
         }
 
         // Generate shared IEndpointDefinition interface once (unless using Atc.Rest.MinimalApi package)
@@ -439,6 +446,13 @@ public class ApiServerGenerator : IIncrementalGenerator
                     effectiveSegment);
 
                 GenerateTuplesForSchemas(
+                    generatedContext,
+                    openApiDoc,
+                    projectName,
+                    segmentSchemas,
+                    effectiveSegment);
+
+                PolymorphicTypeEmitter.Emit(
                     generatedContext,
                     openApiDoc,
                     projectName,

@@ -60,13 +60,16 @@ public static class PolymorphicTypeExtractor
     public static string GeneratePolymorphicBaseType(
         PolymorphicConfig config,
         string projectName,
-        string? pathSegment = null)
+        string? pathSegment = null,
+        IReadOnlyCollection<string>? additionalUsings = null)
     {
         var sb = new StringBuilder();
 
         sb.Append(HeaderBuilder.WithUsings(
-            NamespaceConstants.SystemCodeDomCompiler,
-            NamespaceConstants.SystemTextJsonSerialization));
+            BuildUsings(
+                additionalUsings,
+                NamespaceConstants.SystemCodeDomCompiler,
+                NamespaceConstants.SystemTextJsonSerialization)));
 
         var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
         sb.AppendLine($"namespace {ns};");
@@ -123,15 +126,18 @@ public static class PolymorphicTypeExtractor
     public static string GenerateDiscriminatorFallbackConverter(
         PolymorphicConfig config,
         string projectName,
-        string? pathSegment = null)
+        string? pathSegment = null,
+        IReadOnlyCollection<string>? additionalUsings = null)
     {
         var sb = new StringBuilder();
 
         sb.Append(HeaderBuilder.WithUsings(
-            NamespaceConstants.System,
-            NamespaceConstants.SystemCodeDomCompiler,
-            NamespaceConstants.SystemTextJson,
-            NamespaceConstants.SystemTextJsonSerialization));
+            BuildUsings(
+                additionalUsings,
+                NamespaceConstants.System,
+                NamespaceConstants.SystemCodeDomCompiler,
+                NamespaceConstants.SystemTextJson,
+                NamespaceConstants.SystemTextJsonSerialization)));
 
         var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
         sb.AppendLine($"namespace {ns};");
@@ -348,13 +354,16 @@ public static class PolymorphicTypeExtractor
     public static string GenerateUnionBaseType(
         PolymorphicConfig config,
         string projectName,
-        string? pathSegment = null)
+        string? pathSegment = null,
+        IReadOnlyCollection<string>? additionalUsings = null)
     {
         var sb = new StringBuilder();
 
         sb.Append(HeaderBuilder.WithUsings(
-            NamespaceConstants.SystemCodeDomCompiler,
-            NamespaceConstants.SystemTextJsonSerialization));
+            BuildUsings(
+                additionalUsings,
+                NamespaceConstants.SystemCodeDomCompiler,
+                NamespaceConstants.SystemTextJsonSerialization)));
 
         var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
         sb.AppendLine($"namespace {ns};");
@@ -393,15 +402,18 @@ public static class PolymorphicTypeExtractor
     public static string GenerateUnionConverter(
         PolymorphicConfig config,
         string projectName,
-        string? pathSegment = null)
+        string? pathSegment = null,
+        IReadOnlyCollection<string>? additionalUsings = null)
     {
         var sb = new StringBuilder();
 
         sb.Append(HeaderBuilder.WithUsings(
-            NamespaceConstants.System,
-            NamespaceConstants.SystemCodeDomCompiler,
-            NamespaceConstants.SystemTextJson,
-            NamespaceConstants.SystemTextJsonSerialization));
+            BuildUsings(
+                additionalUsings,
+                NamespaceConstants.System,
+                NamespaceConstants.SystemCodeDomCompiler,
+                NamespaceConstants.SystemTextJson,
+                NamespaceConstants.SystemTextJsonSerialization)));
 
         var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
         sb.AppendLine($"namespace {ns};");
@@ -482,4 +494,26 @@ public static class PolymorphicTypeExtractor
         // and System.Text.Json's default, rather than guessing a snake_case transformation.
         return variantSchemaName;
     }
+
+    /// <summary>
+    /// Combines the fixed usings a generated file always needs with any extra namespaces the
+    /// caller supplies.
+    /// </summary>
+    /// <remarks>
+    /// A polymorphic base names its variants unqualified, so when a variant lives in another
+    /// segment's Models namespace that namespace has to be imported. Duplicates are removed because
+    /// several variants commonly share one namespace.
+    /// </remarks>
+    /// <param name="additionalUsings">Extra namespaces to import, if any.</param>
+    /// <param name="fixedUsings">The namespaces the generated file always needs.</param>
+    /// <returns>The combined, de-duplicated set of namespaces.</returns>
+    private static string[] BuildUsings(
+        IReadOnlyCollection<string>? additionalUsings,
+        params string[] fixedUsings)
+        => additionalUsings is null || additionalUsings.Count == 0
+            ? fixedUsings
+            : fixedUsings
+                .Concat(additionalUsings)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
 }

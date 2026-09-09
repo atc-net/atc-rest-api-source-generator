@@ -10,4 +10,4 @@ namespace Polymorphism.Generated.Payments.Models;
 public sealed record PayPal(
     [property: Required] string Type,
     [property: Required, MaxLength(254), EmailAddress] string Email,
-    string? PayerId);
+    string? PayerId) : PaymentMethod;

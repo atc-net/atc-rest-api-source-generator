@@ -22,24 +22,22 @@ public class GeneratorCompilationGateTests
     /// shrink - it never silently preserves debt someone has already paid off.
     /// </para>
     /// <para>
-    /// The failures cluster into three families, none of them introduced by this gate:
-    /// polymorphic <c>oneOf</c>/<c>anyOf</c> models that are referenced but never emitted
-    /// (<c>Shape</c>, <c>PaymentMethod</c>, <c>Coordinate</c>, <c>RgbColor</c>, <c>Notification</c>);
-    /// a path segment whose name collides with a model of the same name, so the namespace shadows
-    /// the type (<c>Session</c> in <c>CookieParameters</c>); and segment <c>Models</c> namespaces
-    /// that are imported but never populated in the OpenAPI 3.1/3.2 scenarios.
+    /// The remaining failures cluster into two families, neither introduced by this gate: a path
+    /// segment whose name collides with a model of the same name, so the namespace shadows the type
+    /// (<c>Session</c> in <c>CookieParameters</c>); and segment <c>Models</c> namespaces that are
+    /// imported but never populated, which is what the OpenAPI 3.1/3.2 scenarios hit.
+    /// </para>
+    /// <para>
+    /// The third family - polymorphic <c>oneOf</c>/<c>anyOf</c> bases that were referenced but never
+    /// emitted - has been fixed, and its eight entries removed from this list by the ratchet.
     /// </para>
     /// </summary>
     private static readonly HashSet<string> KnownNonCompilingCombinations = new(StringComparer.Ordinal)
     {
-        "AnyOfNoDiscriminator/Server",
-        "AnyOfNoDiscriminator/Client-Typed",
         "CachingHybrid/Server",
         "CookieParameters/Server",
         "CookieParameters/Client-Operation",
         "CookieParameters/Client-Typed",
-        "DiscriminatorImprovements/Server",
-        "DiscriminatorImprovements/Client-Typed",
         "ModelsAndProperties/Server",
         "ModelsAndProperties/Client-Typed",
         "OpenApi31Features/Server",
@@ -49,9 +47,6 @@ public class GeneratorCompilationGateTests
         "PetStoreFull/Server",
         "PetStoreFull/Client-Operation",
         "PetStoreFull/Client-Typed",
-        "Polymorphism/Server",
-        "Polymorphism/Client-Operation",
-        "Polymorphism/Client-Typed",
         "SecurityHybrid/Server",
         "SecurityHybrid/Client-Typed",
         "SecurityStandard/Server",
@@ -61,7 +56,6 @@ public class GeneratorCompilationGateTests
         // so these four inherit the failure of their Server row above rather than adding one. They
         // will go green when that row does; there is nothing separate to fix here.
         "PetStoreFull/ServerDomain",
-        "Polymorphism/ServerDomain",
         "SecurityHybrid/ServerDomain",
         "SecurityStandard/ServerDomain",
     };

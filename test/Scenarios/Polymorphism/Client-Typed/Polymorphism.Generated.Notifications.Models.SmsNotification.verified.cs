@@ -10,4 +10,4 @@ namespace Polymorphism.Generated.Notifications.Models;
 public sealed record SmsNotification(
     [property: Required] string Kind,
     [property: Required, RegularExpression(@"^\+?[1-9]\d{6,14}$")] string PhoneNumber,
-    [property: Required, MaxLength(160)] string Message);
+    [property: Required, MaxLength(160)] string Message) : Notification;

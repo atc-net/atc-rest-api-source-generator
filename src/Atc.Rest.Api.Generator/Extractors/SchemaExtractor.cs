@@ -184,7 +184,8 @@ public static class SchemaExtractor
             inlineEnums,
             registry,
             includeDeprecated,
-            generatePartialModels: generatePartialModels);
+            generatePartialModels: generatePartialModels,
+            polymorphicConfigs: PolymorphicTypeExtractor.ExtractPolymorphicConfigs(openApiDoc));
 
         if (recordParametersList is null || recordParametersList.Count == 0)
         {
@@ -452,7 +453,8 @@ public static class SchemaExtractor
         List<InlineEnumInfo> inlineEnums,
         TypeConflictRegistry? registry = null,
         bool includeDeprecated = false,
-        bool generatePartialModels = false)
+        bool generatePartialModels = false,
+        Dictionary<string, PolymorphicConfig>? polymorphicConfigs = null)
     {
         if (openApiDoc is null)
         {
@@ -562,9 +564,25 @@ public static class SchemaExtractor
                             generatePartialModels,
                             declarationModifier);
 
-                        // Add allOf inheritance info
-                        if (recordParams is not null && allOfBaseName is not null)
+                        // A oneOf/anyOf variant derives from the emitted polymorphic base. This wins
+                        // over allOf: a variant that is also an allOf composition still has to be
+                        // assignable to the base its operations are typed against.
+                        var polymorphicBaseName = PolymorphicTypeExtractor.GetBaseTypeForVariant(
+                            originalSchemaName,
+                            polymorphicConfigs);
+
+                        if (recordParams is not null && !string.IsNullOrEmpty(polymorphicBaseName))
                         {
+                            // The base is emitted as a parameterless abstract record, so there are
+                            // no base constructor arguments to forward.
+                            recordParams = recordParams with
+                            {
+                                BaseTypeName = polymorphicBaseName,
+                            };
+                        }
+                        else if (recordParams is not null && allOfBaseName is not null)
+                        {
+                            // Add allOf inheritance info
                             var baseName = OpenApiSchemaExtensions.SanitizeSchemaName(allOfBaseName);
                             var baseArgs = GetBaseConstructorArguments(openApiDoc, allOfBaseName);
                             recordParams = recordParams with

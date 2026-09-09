@@ -9,4 +9,4 @@ namespace AnyOfNoDiscriminator.Generated.Shapes.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Circle(
     [property: Required] double Radius,
-    string Color);
+    string Color) : Shape;

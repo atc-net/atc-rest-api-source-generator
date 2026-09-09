@@ -10,4 +10,4 @@ namespace DiscriminatorImprovements.Generated.Events.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UserCreatedEvent(
     [property: Required] string EventType,
-    [property: Required] Guid UserId);
+    [property: Required] Guid UserId) : Event;

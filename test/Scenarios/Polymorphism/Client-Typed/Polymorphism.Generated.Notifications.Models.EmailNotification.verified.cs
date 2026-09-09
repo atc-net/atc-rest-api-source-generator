@@ -12,4 +12,4 @@ public sealed record EmailNotification(
     [property: Required, EmailAddress] string To,
     [property: Required, MaxLength(200)] string Subject,
     [property: Required, MaxLength(10000)] string Body,
-    bool IsHtml = false);
+    bool IsHtml = false) : Notification;
