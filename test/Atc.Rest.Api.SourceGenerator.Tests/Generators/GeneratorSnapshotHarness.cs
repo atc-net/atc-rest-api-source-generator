@@ -47,7 +47,9 @@ internal static class GeneratorSnapshotHarness
         ServerDomainMasterFolder,
         ClientOperationMasterFolder,
         ClientTypedMasterFolder,
+        ServerMasterFolder,
         ClientTypedMasterFolder,
+        ServerMasterFolder,
     ];
 
     /// <summary>
@@ -63,6 +65,7 @@ internal static class GeneratorSnapshotHarness
     [
         ClientOperationMasterFolder,
         ClientTypedMasterFolder,
+        ServerMasterFolder,
     ];
 
     /// <summary>
