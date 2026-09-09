@@ -33,3 +33,4 @@ global using EndpointInfo = Atc.Rest.Api.Generator.Models.EndpointInfo;
 global using GeneratorDiagnosticMessage = Atc.Rest.Api.Generator.Models.DiagnosticMessage;
 global using GeneratorDiagnosticSeverity = Atc.Rest.Api.Generator.Models.DiagnosticSeverity;
 global using MultiPartConfiguration = Atc.Rest.Api.Generator.Models.MultiPartConfiguration;
+global using PolymorphicConfig = Atc.Rest.Api.Generator.Models.PolymorphicConfig;

@@ -13,4 +13,4 @@ public sealed record PushNotification(
     [property: Required, MaxLength(100)] string Title,
     [property: MaxLength(500)] string? Body,
     [property: Range(0, long.MaxValue)] int? Badge,
-    string? Sound);
+    string? Sound) : Notification;

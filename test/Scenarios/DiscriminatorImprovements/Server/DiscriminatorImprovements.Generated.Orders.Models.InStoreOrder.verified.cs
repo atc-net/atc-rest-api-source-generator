@@ -10,4 +10,4 @@ namespace DiscriminatorImprovements.Generated.Orders.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record InStoreOrder(
     [property: Required] string OrderType,
-    [property: Required] string StoreId);
+    [property: Required] string StoreId) : Order;

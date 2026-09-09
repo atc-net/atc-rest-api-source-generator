@@ -85,14 +85,24 @@ public class GenerateContentForRecords : IContentGenerator
             if (recordParameters.Parameters is not null &&
                 recordParameters.Parameters.Any())
             {
+                // BaseConstructorArguments distinguishes three cases. Null means the base takes no
+                // constructor arguments - the abstract base of a oneOf/anyOf schema, say - so the
+                // clause is written without parentheses. A non-empty list is forwarded as the base
+                // constructor call. An empty list means the caller could not resolve the base's
+                // arguments, and emitting a parameterless call would not compile against a
+                // positional record, so the clause is dropped as it always has been.
                 if (!string.IsNullOrEmpty(recordParameters.BaseTypeName) &&
-                    recordParameters.BaseConstructorArguments is { Count: > 0 })
+                    recordParameters.BaseConstructorArguments is not { Count: 0 })
                 {
                     sb.Append(" : ");
                     sb.Append(recordParameters.BaseTypeName);
-                    sb.Append('(');
-                    sb.Append(string.Join(", ", recordParameters.BaseConstructorArguments));
-                    sb.Append(')');
+
+                    if (recordParameters.BaseConstructorArguments is { Count: > 0 })
+                    {
+                        sb.Append('(');
+                        sb.Append(string.Join(", ", recordParameters.BaseConstructorArguments));
+                        sb.Append(')');
+                    }
                 }
 
                 sb.Append(';');

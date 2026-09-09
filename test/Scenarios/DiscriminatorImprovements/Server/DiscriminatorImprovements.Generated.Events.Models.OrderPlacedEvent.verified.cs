@@ -10,4 +10,4 @@ namespace DiscriminatorImprovements.Generated.Events.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record OrderPlacedEvent(
     [property: Required] string EventType,
-    [property: Required] Guid OrderId);
+    [property: Required] Guid OrderId) : Event;

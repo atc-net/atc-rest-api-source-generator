@@ -339,6 +339,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, sharedRegistry, config.IncludeDeprecated, config.GeneratePartialModels);
             GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
             GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
+            PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
         }
 
         // Track generated path segments for consolidated DI extension
@@ -374,6 +375,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                 GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, includeSharedModelsUsing: sharedSchemas.Count > 0);
                 GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
                 GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
+                PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
             }
 
             // Generate client code based on generation mode
@@ -772,12 +774,22 @@ public class ApiClientGenerator : IIncrementalGenerator
                     DefaultValue: param.DefaultValue));
             }
 
-            convertedRecords.Add(new RecordParameters(
-                DocumentationTags: record.DocumentationTags,
-                DeclarationModifier: record.DeclarationModifier,
-                Name: record.Name,
-                Parameters: convertedParams,
-                Attributes: record.Attributes));
+            // Constructing a fresh RecordParameters here dropped every field not restated, which
+            // silently lost all inheritance on the client side. Rewriting only the parameter list
+            // keeps it, and keeps any field added later.
+            //
+            // allOf inheritance stays dropped for now: restoring it emits base constructor calls
+            // that forward parameters which still carry their [property:] attributes, and an
+            // attribute on a forwarded parameter is invalid (CS0657). That is a separate defect in
+            // the allOf extraction, and it is only masked - not fixed - by dropping the base here.
+            // Only a resolved allOf base is stripped. An allOf base whose arguments could not be
+            // resolved arrives with an empty list, and GenerateContentForRecords already drops the
+            // clause for that case - so leave it alone here rather than encoding the same rule twice.
+            var isAllOfInheritance = record.BaseConstructorArguments is { Count: > 0 };
+
+            convertedRecords.Add(isAllOfInheritance
+                ? record with { Parameters = convertedParams, BaseTypeName = null, BaseConstructorArguments = null }
+                : record with { Parameters = convertedParams });
         }
 
         // Update header content to use Atc.Rest.Client instead of Microsoft.AspNetCore.Http
@@ -848,6 +860,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels);
             GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
             GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
+            PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
         }
 
         GenerateTypedClient(

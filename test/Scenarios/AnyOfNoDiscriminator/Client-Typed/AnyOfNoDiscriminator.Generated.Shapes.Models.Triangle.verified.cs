@@ -10,4 +10,4 @@ namespace AnyOfNoDiscriminator.Generated.Shapes.Models;
 public sealed record Triangle(
     [property: Required] double Base,
     [property: Required] double Height,
-    string Color);
+    string Color) : Shape;
