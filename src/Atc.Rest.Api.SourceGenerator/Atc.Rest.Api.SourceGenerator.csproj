@@ -5,6 +5,7 @@
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <IsRoslynComponent>true</IsRoslynComponent>
     <NoWarn>$(NoWarn);MA0048;SA1649;MA0016;SA1516;CA2227;SA1413</NoWarn>
+    <IsPackable>true</IsPackable>
     <PackageId>Atc.Rest.Api.SourceGenerator</PackageId>
     <PackageTags>rest;api;generator;openapi;source-generator;roslyn</PackageTags>
     <Description>Roslyn Source Generator that automatically generates REST API server and client code from OpenAPI specifications. Zero CLI commands - just build your project.</Description>

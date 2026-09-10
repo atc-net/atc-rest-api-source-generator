@@ -8,6 +8,10 @@
 
   <!-- Place any common sample properties here -->
 
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
   <!--
     Microsoft.AspNetCore.OpenApi 10.0.9 transitively pulls Microsoft.OpenApi 2.0.0, which is
     affected by GHSA-v5pm-xwqc-g5wc (stack-overflow DoS on circular schema refs, fixed in
