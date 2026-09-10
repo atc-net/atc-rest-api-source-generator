@@ -196,28 +196,13 @@ public static class TypeScriptSwrHookExtractor
 
         sb.AppendLine("import { useApiService } from './useApiService';");
 
-        // Collect model imports
-        var importTypes = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var info in hookInfos)
-        {
-            if (info.ReturnType != "void" && info.ReturnType != "unknown")
-            {
-                var cleanType = info.ReturnType
-                    .Replace("[]", string.Empty, StringComparison.Ordinal)
-                    .Replace("?", string.Empty, StringComparison.Ordinal);
-                if (char.IsUpper(cleanType[0]) && cleanType != "Blob")
-                {
-                    importTypes.Add(cleanType);
-                }
-            }
-        }
-
-        if (importTypes.Count > 0)
-        {
-            sb.AppendLine("import type { ApiResult } from '../types/ApiResult';");
-        }
-
-        // Body types appear in a read hook's own signature, so unlike return types they have
+        // Return types are never named in an SWR hook — the body reads result.status and
+        // result.data with the type inferred — so nothing is imported for them. An earlier version
+        // collected them and, on finding any, imported ApiResult, which the emitted code does not
+        // reference either: an unused import that fails a consumer building with noUnusedLocals or
+        // an ESLint no-unused-vars rule.
+        //
+        // Body types are different: they appear in a read hook's own signature, so they have
         // to be imported by name or the emitted TypeScript will not compile.
         var bodyImports = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var info in hookInfos)

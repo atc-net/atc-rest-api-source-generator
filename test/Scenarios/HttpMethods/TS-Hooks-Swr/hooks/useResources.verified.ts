@@ -2,7 +2,6 @@
 import useSWR from 'swr';
 import useSWRMutation from 'swr/mutation';
 import { useApiService } from './useApiService';
-import type { ApiResult } from '../types/ApiResult';
 import type { ResourceQuery } from '../models';
 
 export const resourcesKeys = {

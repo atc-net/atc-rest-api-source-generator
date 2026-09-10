@@ -474,4 +474,64 @@ public class TypeScriptModelExtractorTests
         Assert.NotNull(valueProp.DocumentationTags.Example);
         Assert.Contains("hello", valueProp.DocumentationTags.Example, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Extract_InlineOneOfProperty_DoesNotImportTypesTheInterfaceNeverNames()
+    {
+        // A property whose schema is an inline oneOf is emitted as `unknown`, but the referenced
+        // schemas were still collected as imports. The result is an interface importing three
+        // types it never names — which fails to compile for any consumer using noUnusedLocals, or
+        // the equivalent ESLint rule.
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info:
+              title: T
+              version: 1.0.0
+            paths: {}
+            components:
+              schemas:
+                NotificationEvent:
+                  type: object
+                  title: NotificationEvent
+                  properties:
+                    id:
+                      type: string
+                    payload:
+                      oneOf:
+                        - $ref: '#/components/schemas/SystemNotification'
+                        - $ref: '#/components/schemas/UserActivityEvent'
+                SystemNotification:
+                  type: object
+                  title: SystemNotification
+                  properties:
+                    message:
+                      type: string
+                UserActivityEvent:
+                  type: object
+                  title: UserActivityEvent
+                  properties:
+                    action:
+                      type: string
+            """);
+
+        var config = new TypeScriptClientConfig();
+
+        var results = TypeScriptModelExtractor.Extract(document, config);
+
+        var (_, parameters) = results.Single(r => r.Name == "NotificationEvent");
+        var imports = parameters.ImportStatements ?? [];
+        var emittedTypes = string.Join(
+            " ",
+            (parameters.Properties ?? []).Select(p => p.TypeAnnotation));
+
+        foreach (var import in imports)
+        {
+            var name = import.Split('{')[1].Split('}')[0].Trim();
+            Assert.True(
+                emittedTypes.Contains(name, StringComparison.Ordinal) ||
+                string.Equals(parameters.ExtendsTypeName, name, StringComparison.Ordinal),
+                $"'{name}' is imported but no property or extends clause names it. Imports:\n" +
+                string.Join("\n", imports));
+        }
+    }
 }

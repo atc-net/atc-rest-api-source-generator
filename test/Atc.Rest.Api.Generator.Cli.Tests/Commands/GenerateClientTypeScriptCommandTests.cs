@@ -434,6 +434,93 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
         Assert.Contains("ApiClient", clientIndexContent, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Type-checks the hook files, which the Showcase test below never generates, under
+    /// <c>noUnusedLocals</c>.
+    /// </summary>
+    /// <remarks>
+    /// The existing strict test passes no <c>--hooks</c> flag, so no hook file has ever been
+    /// compiled by anything; and its tsconfig omits <c>noUnusedLocals</c>. Between them, a
+    /// generated SWR hook file carrying an unused <c>ApiResult</c> import went unnoticed — code
+    /// that fails to build for any consumer using that compiler option, or the equivalent ESLint
+    /// rule. Both hook styles are covered because they are separate emitters with separate import
+    /// logic.
+    /// </remarks>
+    [Theory]
+    [Trait("Category", "RequiresNode")]
+    [InlineData("Swr")]
+    [InlineData("ReactQuery")]
+    public async Task GenerateClientTypeScript_Hooks_CompileWithNoUnusedLocals(
+        string hooksStyle)
+    {
+        var nodeAvailable = await IsNodeAvailable(TestContext.Current.CancellationToken);
+        if (!nodeAvailable)
+        {
+            return;
+        }
+
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Showcase");
+        var outputPath = Path.Combine(tempOutputDir, $"Hooks{hooksStyle}Tsc");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\" --hooks {hooksStyle} --no-strict";
+
+        var (isSuccessful, genOutput) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(isSuccessful, $"Generation should succeed. Output: {CliTestHelper.StripAnsiCodes(genOutput)}");
+
+        // React's types are not installed here, so the hook files are checked for their own
+        // correctness rather than against the React type definitions.
+        var tsconfigContent = """
+            {
+              "compilerOptions": {
+                "target": "ES2022",
+                "module": "ES2022",
+                "moduleResolution": "bundler",
+                "strict": true,
+                "noEmit": true,
+                "noUnusedLocals": true,
+                "noUnusedParameters": true,
+                "skipLibCheck": true,
+                "lib": ["ES2022", "DOM", "DOM.Iterable"]
+              },
+              "include": ["./**/*.ts"]
+            }
+            """;
+        await File.WriteAllTextAsync(
+            Path.Combine(outputPath, "tsconfig.json"),
+            tsconfigContent,
+            TestContext.Current.CancellationToken);
+
+        var (npmSuccess, npmOutput) = await RunCommand(
+            "npm",
+            "install --save-dev typescript",
+            outputPath,
+            TestContext.Current.CancellationToken);
+
+        Assert.True(npmSuccess, $"npm install typescript should succeed. Output:\n{npmOutput}");
+
+        var (_, tscOutput) = await RunCommand(
+            "npx",
+            "tsc --noEmit",
+            outputPath,
+            TestContext.Current.CancellationToken);
+
+        // Missing React/SWR/TanStack packages produce TS2307 "cannot find module", which is an
+        // artefact of not installing them rather than a defect in the generated code. Unused
+        // declarations (TS6133/TS6196) are exactly what this test exists to catch.
+        var unusedDiagnostics = tscOutput
+            .Split('\n')
+            .Where(l => l.Contains("TS6133", StringComparison.Ordinal) || l.Contains("TS6196", StringComparison.Ordinal))
+            .ToList();
+
+        Assert.True(
+            unusedDiagnostics.Count == 0,
+            $"Generated {hooksStyle} output declares or imports things it never uses:\n" +
+            string.Join("\n", unusedDiagnostics));
+    }
+
     [Fact]
     [Trait("Category", "RequiresNode")]
     public async Task GenerateClientTypeScript_Showcase_CompilesWithTscStrict()

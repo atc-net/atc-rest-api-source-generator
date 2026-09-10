@@ -390,6 +390,104 @@ public class TypeScriptSwrHookExtractorTests
         Assert.Contains("arg as never", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_DoesNotImportApiResult_BecauseTheHooksNeverReferenceIt()
+    {
+        // The generated SWR hooks read result.status and result.data with the type inferred, so
+        // ApiResult is never named. Importing it anyway breaks a consumer building with
+        // noUnusedLocals or an ESLint no-unused-vars rule — generated code has to be clean under
+        // the strict settings people actually use.
+        // The import is gated on the operation returning a named model — a bare string[] does not
+        // trigger it — so the document has to $ref a schema to reproduce.
+        var doc = ParseYaml(ModelReturningYaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        Assert.DoesNotContain("ApiResult", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_EveryTypeImportIsActuallyUsed()
+    {
+        // Defence in depth for the whole import block rather than one symbol: each name brought in
+        // by an `import type { ... }` must appear somewhere else in the file.
+        var doc = ParseYaml(ModelReturningYaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        var lines = content.Split('\n');
+        foreach (var line in lines.Where(l => l.StartsWith("import type {", StringComparison.Ordinal)))
+        {
+            var names = line
+                .Split('{')[1]
+                .Split('}')[0]
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            foreach (var name in names)
+            {
+                var usageCount = lines.Count(l => l.Contains(name, StringComparison.Ordinal));
+                Assert.True(
+                    usageCount > 1,
+                    $"'{name}' is imported but never used — the import line is its only occurrence.");
+            }
+        }
+    }
+
+    /// <summary>
+    /// A GET returning a named model plus a QUERY taking one, so both the return-type and
+    /// body-type import paths are exercised.
+    /// </summary>
+    private const string ModelReturningYaml = """
+                                              openapi: 3.2.0
+                                              info: { title: T, version: 1.0.0 }
+                                              paths:
+                                                /resources:
+                                                  get:
+                                                    operationId: listResources
+                                                    responses:
+                                                      '200':
+                                                        description: OK
+                                                        content:
+                                                          application/json:
+                                                            schema:
+                                                              type: array
+                                                              items:
+                                                                $ref: '#/components/schemas/Resource'
+                                                  query:
+                                                    operationId: queryResources
+                                                    requestBody:
+                                                      required: true
+                                                      content:
+                                                        application/json:
+                                                          schema:
+                                                            $ref: '#/components/schemas/ResourceQuery'
+                                                    responses:
+                                                      '200':
+                                                        description: OK
+                                                        content:
+                                                          application/json:
+                                                            schema:
+                                                              type: array
+                                                              items:
+                                                                $ref: '#/components/schemas/Resource'
+                                              components:
+                                                schemas:
+                                                  Resource:
+                                                    type: object
+                                                    title: Resource
+                                                    properties:
+                                                      id: { type: string }
+                                                  ResourceQuery:
+                                                    type: object
+                                                    title: ResourceQuery
+                                                    properties:
+                                                      filter: { type: string }
+                                              """;
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

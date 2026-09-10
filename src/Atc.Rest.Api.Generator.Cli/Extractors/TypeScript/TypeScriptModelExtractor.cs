@@ -495,6 +495,22 @@ public static class TypeScriptModelExtractor
                 DefaultValue: null));
         }
 
+        // Drop anything collected that the emitted interface never names. CollectReferencedTypes
+        // walks the schema graph, so it picks up references the type emitter does not surface —
+        // an inline `oneOf` property, for instance, is emitted as `unknown` while its branches are
+        // still collected. Importing those produces an interface that fails to compile under
+        // noUnusedLocals, or the equivalent ESLint rule.
+        var namedTypes = new StringBuilder();
+        foreach (var property in tsProperties)
+        {
+            namedTypes.Append(property.TypeAnnotation).Append(' ');
+        }
+
+        var namedTypesText = namedTypes.ToString();
+        importTypes.RemoveWhere(typeName =>
+            !ContainsTypeReference(namedTypesText, typeName) &&
+            !string.Equals(extendsTypeName, typeName, StringComparison.Ordinal));
+
         // Build import statements
         var importStatements = BuildImportStatements(importTypes, schemaName, enumNames);
 
@@ -655,6 +671,40 @@ public static class TypeScriptModelExtractor
 
         return null;
     }
+
+    /// <summary>
+    /// Determines whether <paramref name="text"/> names <paramref name="typeName"/> as a whole
+    /// identifier rather than as part of a longer one.
+    /// </summary>
+    /// <remarks>
+    /// A plain substring test would treat <c>Resource</c> as used by a property typed
+    /// <c>ResourceQuery</c>, which would keep an import that is genuinely unused. Identifier
+    /// characters on either side disqualify a match.
+    /// </remarks>
+    private static bool ContainsTypeReference(
+        string text,
+        string typeName)
+    {
+        var index = text.IndexOf(typeName, StringComparison.Ordinal);
+        while (index >= 0)
+        {
+            var precededByIdentifierChar = index > 0 && IsIdentifierChar(text[index - 1]);
+            var followedByIndex = index + typeName.Length;
+            var followedByIdentifierChar = followedByIndex < text.Length && IsIdentifierChar(text[followedByIndex]);
+
+            if (!precededByIdentifierChar && !followedByIdentifierChar)
+            {
+                return true;
+            }
+
+            index = text.IndexOf(typeName, index + 1, StringComparison.Ordinal);
+        }
+
+        return false;
+    }
+
+    private static bool IsIdentifierChar(char value)
+        => char.IsLetterOrDigit(value) || value == '_' || value == '$';
 
     private static List<string> BuildImportStatements(
         HashSet<string> importTypes,
