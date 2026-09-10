@@ -1730,6 +1730,9 @@ public static class OpenApiDocumentValidator
         // ATC_API_OPR027: GET with an array query parameter that can outgrow the request line
         ValidateLargeArrayQueryParameters(diagnostics, sourceFilePath, pathItem, httpMethodUpper, operation, operationId);
 
+        // ATC_API_OPR028/029: QUERY operation whose shape contradicts what the method means
+        ValidateQueryOperationShape(diagnostics, sourceFilePath, httpMethodUpper, operation, operationId);
+
         // ATCAPI_OPR026: Parameter serialization not supported
         if (operation.Parameters is not null)
         {
@@ -3420,6 +3423,63 @@ public static class OpenApiDocumentValidator
         if (!string.IsNullOrEmpty(documentClaim) && !anyOperationUsesUserPartition)
         {
             AddPartitionClaimIgnoredDiagnostic(diagnostics, sourceFilePath, "document", documentPartition);
+        }
+    }
+
+    /// <summary>
+    /// Emits ATC_API_OPR028 and ATC_API_OPR029 when a <c>QUERY</c> operation is shaped in a way that
+    /// contradicts what the method means.
+    /// </summary>
+    /// <remarks>
+    /// <c>QUERY</c> is a safe, idempotent read whose criteria travel in a request body. Without a
+    /// body it is a <c>GET</c> written with a verb that fewer intermediaries understand — all of the
+    /// cost, none of the benefit. And a <c>201</c> or <c>409</c> response describes a mutation under
+    /// a method that callers, caches and proxies are entitled to treat as read-only.
+    /// </remarks>
+    private static void ValidateQueryOperationShape(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        string httpMethodUpper,
+        OpenApiOperation operation,
+        string operationId)
+    {
+        if (!string.Equals(httpMethodUpper, "QUERY", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (operation.RequestBody is null)
+        {
+            diagnostics.Add(new DiagnosticMessage(
+                RuleId: RuleIdentifiers.QueryOperationWithoutRequestBody,
+                Message: $"QUERY operation '{operationId}' declares no 'requestBody'. The only thing QUERY offers " +
+                         "over GET is that the criteria travel in a body instead of the URL, so without one this is " +
+                         "a GET expressed with a verb that fewer proxies, caches and client libraries understand. " +
+                         "Add a requestBody, or declare the operation as 'get:'.",
+                Severity: DiagnosticSeverity.Warning,
+                FilePath: sourceFilePath));
+        }
+
+        if (operation.Responses is null)
+        {
+            return;
+        }
+
+        foreach (var statusCode in new[] { "201", "409" })
+        {
+            if (!operation.Responses.ContainsKey(statusCode))
+            {
+                continue;
+            }
+
+            diagnostics.Add(new DiagnosticMessage(
+                RuleId: RuleIdentifiers.QueryOperationWithMutationResponse,
+                Message: $"QUERY operation '{operationId}' declares a '{statusCode}' response, which implies it " +
+                         "changes state. QUERY is safe and idempotent — callers, caches and proxies may retry it " +
+                         "freely and assume it mutates nothing. Use 'post:' for an operation that creates or " +
+                         "conflicts, or drop the response if the operation really is a read.",
+                Severity: DiagnosticSeverity.Warning,
+                FilePath: sourceFilePath));
         }
     }
 

@@ -63,6 +63,8 @@ public class RuleCoverageTests
         ["ATC_API_OPR025"] = "TooManyRequestsWithoutRateLimiting - Tested in Atc.Rest.Api.Generator.Tests.ResponseCodeValidationTests",
         ["ATC_API_CACHE001"] = "OutputCacheOnNonCacheableMethod - Tested in Atc.Rest.Api.Generator.Tests.Validators.OutputCacheValidationTests",
         ["ATC_API_OPR027"] = "LargeArrayQueryParameterShouldUseQueryMethod - Tested in Atc.Rest.Api.Generator.Tests.Validators.LargeArrayQueryParameterValidationTests",
+        ["ATC_API_OPR028"] = "QueryOperationWithoutRequestBody - Tested in Atc.Rest.Api.Generator.Tests.Validators.QueryOperationShapeValidationTests",
+        ["ATC_API_OPR029"] = "QueryOperationWithMutationResponse - Tested in Atc.Rest.Api.Generator.Tests.Validators.QueryOperationShapeValidationTests",
 
         // ========== Client Rules (CLT) ==========
         ["ATC_API_CLT001"] = "SingleClientTypeNameCollision - Tested in Atc.Rest.Api.Generator.Tests.Validators.SingleClientCollisionValidatorTests",

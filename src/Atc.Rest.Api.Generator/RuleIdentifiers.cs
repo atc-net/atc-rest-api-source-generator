@@ -579,6 +579,20 @@ public static class RuleIdentifiers
     /// </summary>
     public const string LargeArrayQueryParameterShouldUseQueryMethod = "ATC_API_OPR027";
 
+    /// <summary>
+    /// ATC_API_OPR028: A <c>QUERY</c> operation declares no <c>requestBody</c>. The entire reason to
+    /// choose <c>QUERY</c> over <c>GET</c> is that the criteria travel in a body, so such an
+    /// operation is a <c>GET</c> written with a verb that fewer intermediaries understand.
+    /// </summary>
+    public const string QueryOperationWithoutRequestBody = "ATC_API_OPR028";
+
+    /// <summary>
+    /// ATC_API_OPR029: A <c>QUERY</c> operation declares a response that implies it changes state
+    /// (<c>201 Created</c> or <c>409 Conflict</c>). <c>QUERY</c> is safe and idempotent, so a caller
+    /// or cache is entitled to assume it mutates nothing.
+    /// </summary>
+    public const string QueryOperationWithMutationResponse = "ATC_API_OPR029";
+
     // ========== Webhook Rules (WBH) ==========
 
     /// <summary>

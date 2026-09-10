@@ -165,16 +165,15 @@ public static class WebhookEndpointExtractor
         var handlerName = operationId.EnsureFirstCharacterToUpper();
         var handlerInterfaceName = $"I{handlerName}WebhookHandler";
 
-        // Convert HTTP method to Map method (webhooks typically use POST)
-        var mapMethod = httpMethod.ToUpperInvariant() switch
-        {
-            "GET" => "MapGet",
-            "POST" => "MapPost",
-            "PUT" => "MapPut",
-            "DELETE" => "MapDelete",
-            "PATCH" => "MapPatch",
-            _ => "MapPost", // Default to POST for webhooks
-        };
+        // Webhooks typically use POST, but the declared verb is what the subscriber will call.
+        // Falling back to MapPost for anything unrecognised meant an OpenAPI 3.2 query: webhook,
+        // or a custom additionalOperations verb, was served on the wrong method with no diagnostic.
+        // Standard verbs keep their dedicated Map{Verb}; the rest go through MapMethods, exactly as
+        // path operations do.
+        var isStandardVerb = EndpointMapHelper.IsStandardMappableMethod(httpMethod);
+        var mapMethod = isStandardVerb
+            ? $"Map{httpMethod.ToUpperInvariant()[0]}{httpMethod.Substring(1).ToLowerInvariant()}"
+            : "MapMethods";
 
         // Determine if webhook has parameters (request body)
         var hasParameters = operation.RequestBody is not null;
@@ -213,6 +212,13 @@ public static class WebhookEndpointExtractor
         builder.AppendLine("webhooksGroup");
         builder.AppendLine(4, $".{mapMethod}(");
         builder.AppendLine(8, $"\"{routePath}\",");
+
+        // MapMethods takes the verb list between the pattern and the handler.
+        if (!isStandardVerb)
+        {
+            builder.AppendLine(8, $"new[] {{ \"{httpMethod.ToUpperInvariant()}\" }},");
+        }
+
         builder.AppendLine(8, "async (");
 
         // Output each parameter on its own line

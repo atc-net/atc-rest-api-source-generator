@@ -178,6 +178,66 @@ public class WebhookExtractorTests
         Assert.True(result.Methods.Count > 0);
     }
 
+    [Fact]
+    public void WebhookEndpointExtractor_NonStandardVerb_MapsTheDeclaredVerb()
+    {
+        // A webhook declared with an OpenAPI 3.2 query: operation, or a custom
+        // additionalOperations verb, used to fall through to MapPost — silently serving the
+        // subscriber's callback on the wrong method, with no diagnostic to say so.
+        const string yaml = """
+                            openapi: 3.2.0
+                            info: { title: T, version: 1.0.0 }
+                            webhooks:
+                              resourceLookup:
+                                query:
+                                  operationId: onResourceLookup
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/LookupEvent'
+                                  responses:
+                                    '200': { description: Acknowledged }
+                            paths: {}
+                            components:
+                              schemas:
+                                LookupEvent:
+                                  type: object
+                                  title: LookupEvent
+                                  properties:
+                                    id: { type: string }
+                            """;
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var config = new ServerConfig();
+
+        var result = WebhookEndpointExtractor.Extract(document, "TestApi", config);
+
+        Assert.NotNull(result);
+        var content = string.Join("\n", result.Methods.Select(m => m.Content));
+
+        Assert.Contains("MapMethods(", content, StringComparison.Ordinal);
+        Assert.Contains("\"QUERY\"", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("MapPost(", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WebhookEndpointExtractor_StandardVerb_KeepsTheDedicatedMapMethod()
+    {
+        // Guard against over-correcting: the classic verbs must keep MapPost/MapGet/... which is
+        // both idiomatic and narrower than MapMethods.
+        var document = OpenApiDocumentHelper.ParseYaml(WebhookYaml);
+        var config = new ServerConfig();
+
+        var result = WebhookEndpointExtractor.Extract(document, "TestApi", config);
+
+        Assert.NotNull(result);
+        var content = string.Join("\n", result.Methods.Select(m => m.Content));
+
+        Assert.Contains("MapPost(", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("MapMethods(", content, StringComparison.Ordinal);
+    }
+
     // ========== WebhookDependencyInjectionExtractor ==========
     [Fact]
     public void WebhookDependencyInjectionExtractor_Extract_ProducesDIClass()
