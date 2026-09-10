@@ -1,0 +1,75 @@
+name: release-please
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # required for NuGet Trusted Publishing (OIDC)
+
+    steps:
+      - name: release-please
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_PAT }}
+
+      - name: 🛒 Checkout repository
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.release.outputs.tag_name }}
+
+      - name: ⚙️ Setup .NET
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: 🧹 Clean
+        if: ${{ steps.release.outputs.release_created }}
+        run: dotnet clean Atc.Rest.Api.SourceGenerator.slnx -c Release && dotnet nuget locals all --clear
+
+      - name: 🔁 Restore packages
+        if: ${{ steps.release.outputs.release_created }}
+        run: dotnet restore Atc.Rest.Api.SourceGenerator.slnx
+
+      - name: 🛠️ Build solution
+        if: ${{ steps.release.outputs.release_created }}
+        run: dotnet build Atc.Rest.Api.SourceGenerator.slnx -c Release --no-restore /p:UseSourceLink=true
+
+      # The three packages share a single <Version> in Directory.Build.props, so they are
+      # always packed and published together from one release-please tag.
+      - name: 🗳️ Creating library packages for release
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          dotnet pack src/Atc.Rest.Api.SourceGenerator/Atc.Rest.Api.SourceGenerator.csproj -c Release --no-restore -o ${GITHUB_WORKSPACE}/packages
+          dotnet pack src/Atc.Rest.Api.Generator.Cli/Atc.Rest.Api.Generator.Cli.csproj -c Release --no-restore -o ${GITHUB_WORKSPACE}/packages
+          dotnet pack src/Atc.Rest.Api.Client.Testing/Atc.Rest.Api.Client.Testing.csproj -c Release --no-restore -o ${GITHUB_WORKSPACE}/packages
+
+      - name: 🔑 NuGet login (OIDC → short-lived API key)
+        if: ${{ steps.release.outputs.release_created }}
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: 📦 Push packages to NuGet
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          dotnet nuget push ${GITHUB_WORKSPACE}/packages/Atc.Rest.Api.SourceGenerator.*.nupkg -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" -s https://api.nuget.org/v3/index.json --skip-duplicate --no-symbols
+          dotnet nuget push ${GITHUB_WORKSPACE}/packages/atc-rest-api-gen.*.nupkg -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" -s https://api.nuget.org/v3/index.json --skip-duplicate --no-symbols
+          dotnet nuget push ${GITHUB_WORKSPACE}/packages/Atc.Rest.Api.Client.Testing.*.nupkg -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" -s https://api.nuget.org/v3/index.json --skip-duplicate --no-symbols
+
+      - name: 🌩️ ATC-API invalidate cache for CLI-Tool
+        if: ${{ steps.release.outputs.release_created }}
+        uses: satak/webrequest-action@3697cc0c0ba0d501729b080ab5825c04bf96132e # v1.5.0
+        with:
+          url: https://atcnet-api-prod-api-ca-01.greenhill-862ffb7c.swedencentral.azurecontainerapps.io/nuget-search/package?packageId=atc-rest-api-gen&invalidateCache=true
+          method: GET
