@@ -570,6 +570,15 @@ public static class RuleIdentifiers
     /// </summary>
     public const string ParameterSerializationNotSupported = "ATC_API_OPR026";
 
+    /// <summary>
+    /// ATC_API_OPR027: A <c>GET</c> declares an array query parameter with no <c>maxItems</c>, or a
+    /// <c>maxItems</c> large enough that the serialized URL can exceed a typical 8 KB request-line
+    /// limit. Such a request fails at runtime with <c>414 URI Too Long</c> before it reaches a
+    /// handler. An OpenAPI 3.2 <c>query:</c> operation carries the criteria in a request body
+    /// instead.
+    /// </summary>
+    public const string LargeArrayQueryParameterShouldUseQueryMethod = "ATC_API_OPR027";
+
     // ========== Webhook Rules (WBH) ==========
 
     /// <summary>

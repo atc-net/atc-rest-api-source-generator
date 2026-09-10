@@ -10,6 +10,12 @@ namespace Atc.Rest.Api.Generator.Validators;
 /// </summary>
 public static class OpenApiDocumentValidator
 {
+    /// <summary>
+    /// Kestrel's default <c>MaxRequestLineSize</c>. A request line longer than this is rejected with
+    /// <c>414 URI Too Long</c> before routing, so it never reaches a handler.
+    /// </summary>
+    private const int RequestLineBudgetInBytes = 8192;
+
     private static readonly string[] PaginationPropertyNames = ["items", "results", "data", "records", "values"];
 
     private static readonly string[] CollectionIntentPrefixes = ["list", "search", "find"];
@@ -1721,6 +1727,9 @@ public static class OpenApiDocumentValidator
         // ATC_API_CACHE001: Output caching configured on a method the middleware never caches
         ValidateOutputCacheMethod(diagnostics, sourceFilePath, document, pathItem, httpMethodUpper, operation, operationId);
 
+        // ATC_API_OPR027: GET with an array query parameter that can outgrow the request line
+        ValidateLargeArrayQueryParameters(diagnostics, sourceFilePath, pathItem, httpMethodUpper, operation, operationId);
+
         // ATCAPI_OPR026: Parameter serialization not supported
         if (operation.Parameters is not null)
         {
@@ -3412,6 +3421,152 @@ public static class OpenApiDocumentValidator
         {
             AddPartitionClaimIgnoredDiagnostic(diagnostics, sourceFilePath, "document", documentPartition);
         }
+    }
+
+    /// <summary>
+    /// Emits ATC_API_OPR027 when a <c>GET</c> declares an array query parameter whose serialized
+    /// form can outgrow the request line.
+    /// </summary>
+    /// <remarks>
+    /// This is the build-time counterpart of a runtime <c>414</c>: a read whose criteria are a large
+    /// set of ids cannot express them in a URL, and the OpenAPI 3.2 <c>query:</c> method exists
+    /// precisely so they can travel in a request body instead.
+    /// <para>
+    /// The rule only speaks when it can justify the claim. An array with no <c>maxItems</c> is
+    /// unbounded, so the risk is real by definition. A bounded array is measured against a known
+    /// per-item length — a <c>uuid</c> format, an explicit <c>maxLength</c>, the longest enum value,
+    /// or the widest form of a numeric or boolean type. A bounded array whose item length cannot be
+    /// derived is left alone: guessing there would fire on specs that are perfectly fine.
+    /// </para>
+    /// </remarks>
+    private static void ValidateLargeArrayQueryParameters(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        IOpenApiPathItem pathItem,
+        string httpMethodUpper,
+        OpenApiOperation operation,
+        string operationId)
+    {
+        // Only GET. A QUERY has already taken this rule's advice, and for a mutating verb the
+        // criteria are not what is being sent.
+        if (!string.Equals(httpMethodUpper, "GET", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        // Path-level parameters apply to every operation beneath the path, so an oversized array
+        // declared there is a problem for this operation too.
+        var parameters = new List<IOpenApiParameter>();
+        if (pathItem.Parameters is not null)
+        {
+            parameters.AddRange(pathItem.Parameters);
+        }
+
+        if (operation.Parameters is not null)
+        {
+            parameters.AddRange(operation.Parameters);
+        }
+
+        foreach (var parameter in parameters)
+        {
+            if (parameter.In != ParameterLocation.Query ||
+                string.IsNullOrEmpty(parameter.Name) ||
+                parameter.Schema is not { } schema ||
+                schema.Type?.HasFlag(JsonSchemaType.Array) != true)
+            {
+                continue;
+            }
+
+            var maxItems = schema.MaxItems;
+            var itemLength = EstimateSerializedItemLength(schema.Items);
+
+            string reason;
+            if (maxItems is null or <= 0)
+            {
+                reason = "it declares no 'maxItems', so the serialized length is unbounded";
+            }
+            else
+            {
+                if (itemLength is null)
+                {
+                    // Bounded, but the item length cannot be derived — do not guess.
+                    continue;
+                }
+
+                // "name=" + value + "&" per item.
+                var estimatedBytes = (long)maxItems.Value * (parameter.Name!.Length + 2 + itemLength.Value);
+                if (estimatedBytes <= RequestLineBudgetInBytes)
+                {
+                    continue;
+                }
+
+                reason = $"'maxItems: {maxItems.Value}' with values of up to {itemLength.Value} characters " +
+                         $"serializes to roughly {estimatedBytes} bytes";
+            }
+
+            diagnostics.Add(new DiagnosticMessage(
+                RuleId: RuleIdentifiers.LargeArrayQueryParameterShouldUseQueryMethod,
+                Message: $"Array query parameter '{parameter.Name}' on GET operation '{operationId}' may not fit in " +
+                         $"the request line: {reason}. Kestrel's default limit is {RequestLineBudgetInBytes} bytes, and " +
+                         "proxies and CDNs often impose lower ones, so an oversized request fails with 414 URI Too " +
+                         "Long before reaching the handler. Consider an OpenAPI 3.2 'query:' operation, which carries " +
+                         "the criteria in a request body, or add a 'maxItems' that keeps the URL within the limit.",
+                Severity: DiagnosticSeverity.Warning,
+                FilePath: sourceFilePath));
+        }
+    }
+
+    /// <summary>
+    /// Derives an upper bound on the serialized length of one array item, or <see langword="null"/>
+    /// when the schema gives no basis for one.
+    /// </summary>
+    private static int? EstimateSerializedItemLength(IOpenApiSchema? itemSchema)
+    {
+        if (itemSchema is null)
+        {
+            return null;
+        }
+
+        if (string.Equals(itemSchema.Format, "uuid", StringComparison.OrdinalIgnoreCase))
+        {
+            return 36;
+        }
+
+        if (itemSchema.MaxLength is > 0)
+        {
+            return itemSchema.MaxLength.Value;
+        }
+
+        if (itemSchema.Enum is { Count: > 0 })
+        {
+            return itemSchema.Enum.Max(value => value?.ToString()?.Length ?? 0);
+        }
+
+        var type = itemSchema.Type;
+        if (type is null)
+        {
+            return null;
+        }
+
+        if (type.Value.HasFlag(JsonSchemaType.Boolean))
+        {
+            return 5;
+        }
+
+        if (type.Value.HasFlag(JsonSchemaType.Integer))
+        {
+            // long.MinValue is 20 characters.
+            return 20;
+        }
+
+        if (type.Value.HasFlag(JsonSchemaType.Number))
+        {
+            // A round-trippable double is at most 24 characters.
+            return 24;
+        }
+
+        // An unconstrained string, or anything else, has no derivable upper bound.
+        return null;
     }
 
     /// <summary>

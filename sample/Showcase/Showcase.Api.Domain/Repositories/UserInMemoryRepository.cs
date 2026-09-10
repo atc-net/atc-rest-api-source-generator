@@ -321,6 +321,22 @@ public sealed class UserInMemoryRepository
     public Task<UserEntity?> GetById(Guid id)
         => Task.FromResult(users.FirstOrDefault(u => u.Id == id));
 
+    /// <summary>
+    /// Fetches every user in the given id set. Unknown ids are skipped rather than erroring, so a
+    /// caller can ask about a large set without first knowing which ids still exist.
+    /// </summary>
+    /// <remarks>
+    /// This backs the OpenAPI 3.2 <c>QUERY /users</c> operation, whose whole reason to exist is
+    /// that the id set is too large to put in a URL. The lookup is set-based rather than a loop of
+    /// <see cref="GetById"/> calls so that asking for 1000 ids stays a single pass.
+    /// </remarks>
+    public Task<List<UserEntity>> GetByIds(IEnumerable<Guid> ids)
+    {
+        var idSet = ids as HashSet<Guid> ?? [.. ids];
+
+        return Task.FromResult(users.Where(u => idSet.Contains(u.Id)).ToList());
+    }
+
     public Task<UserEntity?> GetByEmail(string email)
         => Task.FromResult(users.FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase)));
 

@@ -1,4 +1,4 @@
-openapi: "3.1.0"
+openapi: "3.2.0"
 info:
   version: 1.0.0
   title: My Demo API - Full
@@ -461,6 +461,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Users"
+    # OpenAPI 3.2 QUERY - a read whose criteria are too large for a URL.
+    #
+    # Looking up 1000 users by id as a GET would serialize to roughly 40 KB of query
+    # string ("id=" plus a 36-character GUID, a thousand times over). Kestrel's default
+    # MaxRequestLineSize is 8 KB, so that request is rejected with 414 URI Too Long
+    # before it ever reaches a handler - and proxies and CDNs impose their own, often
+    # lower, limits. QUERY is safe and idempotent like GET, but the criteria travel in
+    # a request body, so there is no URL to outgrow.
+    query:
+      summary: Query users by a set of ids
+      description: |-
+        Fetches users by an explicit set of ids. Use this instead of `GET /users` with
+        repeated `id` query parameters when the set is large - see ATC_API_OPR027.
+      operationId: queryUsers
+      tags:
+        - users
+      # QUERY is a read, but the output-cache middleware stores GET/HEAD only and keys on
+      # the URL - which cannot distinguish two bodies. The path-level config here is
+      # x-cache-type: hybrid, which caches inside the handler, so it applies correctly.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserQuery"
+      responses:
+        '200':
+          description: Array of matching users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Users"
+        '400':
+          description: Validation error
     post:
       summary: Create user
       operationId: createUser
@@ -1532,6 +1566,24 @@ components:
       maxItems: 100
       items:
         $ref: "#/components/schemas/User"
+    UserQuery:
+      title: UserQuery
+      type: object
+      description: |-
+        Criteria for the OpenAPI 3.2 QUERY operation on /users. The id set lives in the
+        request body precisely because it does not fit in a URL - 1000 GUIDs is roughly
+        40 KB of query string against Kestrel's 8 KB request-line limit.
+      required:
+        - ids
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          description: The user ids to fetch. Unknown ids are ignored rather than erroring.
+          items:
+            type: string
+            format: uuid
     PaginatedResult:
       title: PaginatedResult
       type: object
