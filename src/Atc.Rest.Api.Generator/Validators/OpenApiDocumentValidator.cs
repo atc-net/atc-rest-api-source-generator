@@ -1718,6 +1718,9 @@ public static class OpenApiDocumentValidator
         // ATCAPI_OPR018: Multiple 2xx status codes not supported
         ValidateResponseStatusCodes(diagnostics, sourceFilePath, operation, operationId);
 
+        // ATC_API_CACHE001: Output caching configured on a method the middleware never caches
+        ValidateOutputCacheMethod(diagnostics, sourceFilePath, document, pathItem, httpMethodUpper, operation, operationId);
+
         // ATCAPI_OPR026: Parameter serialization not supported
         if (operation.Parameters is not null)
         {
@@ -3409,6 +3412,56 @@ public static class OpenApiDocumentValidator
         {
             AddPartitionClaimIgnoredDiagnostic(diagnostics, sourceFilePath, "document", documentPartition);
         }
+    }
+
+    /// <summary>
+    /// Emits ATC_API_CACHE001 when output caching is configured on an operation whose HTTP method
+    /// the ASP.NET Core output-cache middleware never caches.
+    /// </summary>
+    /// <remarks>
+    /// The middleware's default policy stores only GET and HEAD responses, so the generated
+    /// <c>.CacheOutput(...)</c> call silently does nothing on any other verb — the worst kind of
+    /// gap, because the endpoint looks configured. The call is still emitted, because a consumer
+    /// can override the base policy to opt a verb in, but the build now says so.
+    /// <para>
+    /// For an OpenAPI 3.2 <c>query:</c> operation there is a second problem even after opting in:
+    /// the middleware keys cache entries on the URL alone, and a QUERY carries its criteria in the
+    /// request body — so every distinct criteria set would collide on one entry.
+    /// </para>
+    /// HybridCache is unaffected: it runs inside the handler, not in the middleware.
+    /// </remarks>
+    private static void ValidateOutputCacheMethod(
+        List<DiagnosticMessage> diagnostics,
+        string sourceFilePath,
+        OpenApiDocument document,
+        IOpenApiPathItem pathItem,
+        string httpMethodUpper,
+        OpenApiOperation operation,
+        string operationId)
+    {
+        if (httpMethodUpper is "GET" or "HEAD")
+        {
+            return;
+        }
+
+        var cacheConfiguration = operation.ExtractCacheConfiguration(pathItem, document);
+        if (cacheConfiguration is null ||
+            !cacheConfiguration.Enabled ||
+            cacheConfiguration.Type != CacheType.Output)
+        {
+            return;
+        }
+
+        diagnostics.Add(new DiagnosticMessage(
+            RuleId: RuleIdentifiers.OutputCacheOnNonCacheableMethod,
+            Message: $"Output caching is configured on operation '{operationId}', but its HTTP method " +
+                     $"is {httpMethodUpper}. The ASP.NET Core output-cache middleware caches only GET and " +
+                     "HEAD responses by default, so the generated '.CacheOutput(...)' call has no effect. " +
+                     "The middleware also keys cache entries on the URL only, so it cannot distinguish two " +
+                     "requests that differ by request body. Use 'x-cache-type: hybrid' and cache inside the " +
+                     "handler instead, or override the output-cache base policy to opt this method in.",
+            Severity: DiagnosticSeverity.Warning,
+            FilePath: sourceFilePath));
     }
 
     /// <summary>

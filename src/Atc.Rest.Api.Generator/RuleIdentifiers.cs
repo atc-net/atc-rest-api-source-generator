@@ -302,6 +302,15 @@ public static class RuleIdentifiers
     /// </summary>
     public const string RateLimitWindowIgnoredForConcurrency = "ATC_API_RL008";
 
+    // ========== Caching Rules (CACHE) ==========
+
+    /// <summary>
+    /// ATC_API_CACHE001: Output caching is configured on an operation whose HTTP method the
+    /// ASP.NET Core output-cache middleware never caches. The middleware's default policy stores
+    /// only GET and HEAD responses, so the emitted <c>.CacheOutput(...)</c> call has no effect.
+    /// </summary>
+    public const string OutputCacheOnNonCacheableMethod = "ATC_API_CACHE001";
+
     // ========== Server Rules (SRV) ==========
 
     /// <summary>

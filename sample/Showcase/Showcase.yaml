@@ -147,6 +147,10 @@ paths:
         - accounts
       # Disable retry for non-idempotent POST
       x-retry-enabled: false
+      # Opt out of the path-level output cache. The ASP.NET Core output-cache middleware
+      # stores GET/HEAD responses only, so inheriting it here would emit a .CacheOutput(...)
+      # call that never caches - see ATC_API_CACHE001.
+      x-cache-enabled: false
       requestBody:
         required: true
         content:

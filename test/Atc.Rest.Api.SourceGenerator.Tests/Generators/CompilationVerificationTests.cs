@@ -85,6 +85,12 @@ public class CompilationVerificationTests
     [InlineData("StreamingItemSchema", "StreamingItemSchema.yaml")]
     [InlineData("ParameterSerialization", "ParameterSerialization.yaml")]
     [InlineData("ComponentsReuse", "ComponentsReuse.yaml")]
+
+    // HttpMethods is the only scenario that emits a non-standard verb, and the per-operation
+    // client resolves those through EndpointMapHelper.BuildHttpMethodExpression — which yields
+    // the static HttpMethod.Query property rather than new HttpMethod("QUERY"). Compiling it
+    // here is what proves that property actually exists on the targeted framework.
+    [InlineData("HttpMethods", "HttpMethods.yaml")]
     public void ClientGenerator_PerOperation_GeneratedCode_CompilesWithoutErrors(
         string scenarioName,
         string yamlFileName)

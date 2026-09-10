@@ -1082,10 +1082,15 @@ public static class HttpClientExtractor
     {
         var hasJsonBody = operation.RequestBody?.Content?.ContainsKey("application/json") ?? false;
         var requestAccess = hasParameters ? "parameters.Request" : "request";
-        var verb = httpMethod.ToUpperInvariant();
+
+        // Resolve the verb through the same helper the per-operation client uses, so both
+        // generated clients express the same verb the same way: the static HttpMethod property
+        // for RFC verbs (HttpMethod.Query, ...) and new HttpMethod("VERB") only for custom
+        // additionalOperations verbs that have none.
+        var httpMethodExpression = EndpointMapHelper.BuildHttpMethodExpression(httpMethod);
 
         builder.AppendLine();
-        builder.AppendLine($"using var requestMessage = new HttpRequestMessage(new HttpMethod(\"{verb}\"), url);");
+        builder.AppendLine($"using var requestMessage = new HttpRequestMessage({httpMethodExpression}, url);");
 
         if (hasJsonBody)
         {

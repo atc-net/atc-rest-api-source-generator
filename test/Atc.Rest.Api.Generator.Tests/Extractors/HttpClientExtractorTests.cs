@@ -619,7 +619,12 @@ public class HttpClientExtractorTests
         Assert.NotNull(clientClass);
         var method = clientClass.Methods[0];
         Assert.NotNull(method.Content);
-        Assert.Contains("new HttpMethod(\"QUERY\")", method.Content, StringComparison.Ordinal);
+
+        // QUERY is an RFC verb with a static HttpMethod property, so the typed client uses it
+        // rather than allocating a new HttpMethod per call — matching the per-operation client,
+        // which has always resolved verbs through EndpointMapHelper.BuildHttpMethodExpression.
+        Assert.Contains("HttpMethod.Query", method.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain("new HttpMethod(\"QUERY\")", method.Content, StringComparison.Ordinal);
         Assert.Contains("JsonContent.Create(parameters.Request, options: jsonSerializerOptions)", method.Content, StringComparison.Ordinal);
         Assert.Contains("SendAsync(", method.Content, StringComparison.Ordinal);
         Assert.Contains("ReadFromJsonAsync<Widget>(jsonSerializerOptions, cancellationToken)", method.Content, StringComparison.Ordinal);

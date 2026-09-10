@@ -51,7 +51,7 @@ public sealed class HttpMethodsClient : IHttpMethodsClient
     {
         var url = "/resources";
 
-        using var requestMessage = new HttpRequestMessage(new HttpMethod("QUERY"), url);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Query, url);
         requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
 
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
