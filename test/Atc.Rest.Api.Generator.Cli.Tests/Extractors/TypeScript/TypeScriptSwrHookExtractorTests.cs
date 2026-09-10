@@ -261,6 +261,135 @@ public class TypeScriptSwrHookExtractorTests
         Assert.Contains("useStreamItemStream(itemId: ItemId,", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_QueryOperation_GeneratesUseSWRHookTakingTheBody()
+    {
+        // The OpenAPI 3.2 QUERY method is a read that carries its criteria in the request
+        // body. It belongs in useSWR alongside GET, and the body has to reach both the hook
+        // signature and the cache key — otherwise every criteria set collides on one entry.
+        const string yaml = """
+                            openapi: 3.2.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /resources:
+                                query:
+                                  operationId: queryResources
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/ResourceQuery'
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                            components:
+                              schemas:
+                                ResourceQuery:
+                                  type: object
+                                  title: ResourceQuery
+                                  properties:
+                                    filter: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        Assert.Contains("export function useQueryResources(body: ResourceQuery) {", content, StringComparison.Ordinal);
+        Assert.Contains("useSWR(", content, StringComparison.Ordinal);
+        Assert.Contains("'queryResources', body] as const,", content, StringComparison.Ordinal);
+        Assert.Contains("api.resources.queryResources(body)", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("useSWRMutation", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_CustomVerbOperation_GeneratesUseSWRMutationHook()
+    {
+        // OpenAPI 3.2 additionalOperations verbs used to match neither the read nor the
+        // mutation set, so the operation was skipped and no hook was emitted at all.
+        const string yaml = """
+                            openapi: 3.2.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /resources:
+                                additionalOperations:
+                                  LINK:
+                                    operationId: linkResource
+                                    responses:
+                                      '204': { description: Linked }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        Assert.Contains("export function useLinkResource()", content, StringComparison.Ordinal);
+        Assert.Contains("useSWRMutation", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_MutationWithNoParametersAndNoBody_CallsClientMethodWithoutArgument()
+    {
+        // The generated client method for an operation with no path params, no body and no
+        // query/header params takes zero arguments. Passing `arg as never` to it is a
+        // TypeScript compile error ("Expected 0 arguments, but got 1"), so the emitted
+        // mocks/hooks file would not build in the consumer's project.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                post:
+                                  operationId: createPets
+                                  responses:
+                                    '201': { description: Created }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        Assert.Contains("return api.pets.createPets();", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("arg as never", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_MutationWithBody_StillForwardsTheArgument()
+    {
+        // Guard against over-correcting: an operation that does take something must keep
+        // forwarding the SWR mutation argument.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                post:
+                                  operationId: createPet
+                                  requestBody:
+                                    content:
+                                      application/json:
+                                        schema: { type: object }
+                                  responses:
+                                    '201': { description: Created }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        Assert.Contains("arg as never", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

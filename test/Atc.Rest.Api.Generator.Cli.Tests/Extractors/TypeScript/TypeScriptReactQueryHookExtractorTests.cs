@@ -1139,6 +1139,53 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.Contains("api.foundry.createFoundryDeployment(accountName, body, query)", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_QueryOperationWithPathParamAndBody_GuardsOnBoth()
+    {
+        // A QUERY nested under a path parameter has two things that can be missing on the
+        // first render. Guarding on only one of them lets the hook fire with an undefined
+        // body as soon as the path param resolves.
+        const string yaml = """
+                            openapi: 3.2.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /tenants/{tenantId}/resources:
+                                query:
+                                  operationId: queryTenantResources
+                                  parameters:
+                                    - { name: tenantId, in: path, required: true, schema: { type: string } }
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema:
+                                          $ref: '#/components/schemas/ResourceQuery'
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                            components:
+                              schemas:
+                                ResourceQuery:
+                                  type: object
+                                  title: ResourceQuery
+                                  properties:
+                                    filter: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null);
+        var (_, content) = Assert.Single(result);
+
+        Assert.Contains("useQueryTenantResources(tenantId: string, body: ResourceQuery,", content, StringComparison.Ordinal);
+        Assert.Contains("enabled: !!tenantId && !!body,", content, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

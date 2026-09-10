@@ -100,6 +100,90 @@ public class TypeScriptMswHandlerExtractorTests
         Assert.All(result, x => Assert.StartsWith(header, x.Content, StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void Extract_QueryOperation_UsesHttpAllWithMethodGuard()
+    {
+        // MSW's http namespace exposes the standard verbs plus http.all — there is no
+        // http.query, so deriving the handler name from the verb emitted a call to a
+        // function that does not exist and broke the consumer's test suite at import time.
+        var doc = ParseYaml(NonStandardVerbYaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptMswHandlerExtractor.Extract(doc, headerContent: null, baseUrl: string.Empty, TypeScriptNamingStrategy.CamelCase);
+
+        var (_, content) = result.First(x => x.SegmentName == "Resources");
+
+        Assert.DoesNotContain("http.query(", content, StringComparison.Ordinal);
+        Assert.Contains("http.all('/resources', ({ request }) => {", content, StringComparison.Ordinal);
+        Assert.Contains("if (request.method !== 'QUERY') return;", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_CustomVerbOperation_UsesHttpAllWithMethodGuard()
+    {
+        var doc = ParseYaml(NonStandardVerbYaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptMswHandlerExtractor.Extract(doc, headerContent: null, baseUrl: string.Empty, TypeScriptNamingStrategy.CamelCase);
+
+        var (_, content) = result.First(x => x.SegmentName == "Resources");
+
+        Assert.DoesNotContain("http.link(", content, StringComparison.Ordinal);
+        Assert.Contains("if (request.method !== 'LINK') return;", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_StandardVerbOperation_KeepsDedicatedHttpHelper()
+    {
+        // The http.all fallback must not regress the standard verbs — those keep the
+        // dedicated helper, which is both idiomatic MSW and narrower matching.
+        var doc = ParseYaml(NonStandardVerbYaml);
+        Assert.NotNull(doc);
+
+        var result = TypeScriptMswHandlerExtractor.Extract(doc, headerContent: null, baseUrl: string.Empty, TypeScriptNamingStrategy.CamelCase);
+
+        var (_, content) = result.First(x => x.SegmentName == "Resources");
+
+        Assert.Contains("http.get('/resources', () => {", content, StringComparison.Ordinal);
+    }
+
+    private const string NonStandardVerbYaml = """
+                                               openapi: 3.2.0
+                                               info: { title: T, version: 1.0.0 }
+                                               paths:
+                                                 /resources:
+                                                   get:
+                                                     operationId: listResources
+                                                     responses:
+                                                       '200':
+                                                         description: OK
+                                                         content:
+                                                           application/json:
+                                                             schema:
+                                                               type: array
+                                                               items: { type: string }
+                                                   query:
+                                                     operationId: queryResources
+                                                     requestBody:
+                                                       required: true
+                                                       content:
+                                                         application/json:
+                                                           schema: { type: object }
+                                                     responses:
+                                                       '200':
+                                                         description: OK
+                                                         content:
+                                                           application/json:
+                                                             schema:
+                                                               type: array
+                                                               items: { type: string }
+                                                   additionalOperations:
+                                                     LINK:
+                                                       operationId: linkResource
+                                                       responses:
+                                                         '204': { description: Linked }
+                                               """;
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

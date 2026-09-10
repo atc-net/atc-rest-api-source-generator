@@ -404,7 +404,7 @@ public static class TypeScriptReactQueryHookExtractor
             var keyName = DeriveKeyName(info.MethodName, segmentCamel);
 
             // Build key function param list and key spread values incrementally.
-            // Order: pathParams..., querystringParams (individual)..., query?
+            // Order: pathParams..., body, querystringParams (individual)..., query?
             // Headers and cookies are intentionally excluded — they fragment the cache
             // per-request rather than per-resource, which breaks cache sharing.
             var keyFuncParts = new List<string>();
@@ -415,6 +415,17 @@ public static class TypeScriptReactQueryHookExtractor
                 var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
                 keyFuncParts.Add(pName + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path));
                 keySpreadValues.Add(pName);
+            }
+
+            // A read that carries a body (OpenAPI 3.2 QUERY) is identified by that body, so it
+            // has to participate in the cache key — otherwise every distinct criteria set would
+            // collide on one entry. React Query hashes the key structurally, so the body object
+            // is used directly rather than a digest: a digest would cost the same serialization
+            // and lose readability in the devtools.
+            if (info.HasBody)
+            {
+                keyFuncParts.Add("body: " + info.BodyType);
+                keySpreadValues.Add("body");
             }
 
             foreach (var p in info.QuerystringParams)
@@ -480,6 +491,12 @@ public static class TypeScriptReactQueryHookExtractor
             hookParams.Add(paramName + ": " + paramType);
         }
 
+        // Mirrors the client method's parameter order: pathParams..., body, querystring..., query.
+        if (info.HasBody)
+        {
+            hookParams.Add("body: " + info.BodyType);
+        }
+
         foreach (var param in info.QuerystringParams)
         {
             var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
@@ -524,6 +541,11 @@ public static class TypeScriptReactQueryHookExtractor
             keyArgsParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
         }
 
+        if (info.HasBody)
+        {
+            keyArgsParts.Add("body");
+        }
+
         foreach (var p in info.QuerystringParams)
         {
             keyArgsParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
@@ -537,7 +559,7 @@ public static class TypeScriptReactQueryHookExtractor
         var keyCallArgs = string.Join(", ", keyArgsParts);
 
         // Build client call args (headers and cookies ARE forwarded to the client method)
-        var clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, info.CookieParams, info.QuerystringParams, hasBody: false, namingStrategy: namingStrategy);
+        var clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, info.CookieParams, info.QuerystringParams, hasBody: info.HasBody, namingStrategy: namingStrategy);
 
         AppendHookJsDoc(sb, info);
         sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
@@ -555,10 +577,27 @@ public static class TypeScriptReactQueryHookExtractor
         // standard variant. useSuspenseQuery doesn't support conditional execution
         // (it throws a promise that the boundary catches), so consumers control whether
         // the hook runs by mounting/unmounting the component, not by toggling enabled.
-        if (!isSuspense && info.PathParams.Count > 0)
+        // A body-carrying read (QUERY) guards on the body for the same reason a detail query
+        // guards on its id: the caller often has nothing to send on the first render. An
+        // operation with both — a QUERY nested under a path parameter — guards on both, since
+        // either one being absent makes the request meaningless.
+        if (!isSuspense)
         {
-            var firstParam = (info.PathParams[0].Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            sb.Append("    enabled: !!").Append(firstParam).AppendLine(",");
+            var guards = new List<string>();
+            if (info.PathParams.Count > 0)
+            {
+                guards.Add("!!" + (info.PathParams[0].Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            }
+
+            if (info.HasBody)
+            {
+                guards.Add("!!body");
+            }
+
+            if (guards.Count > 0)
+            {
+                sb.Append("    enabled: ").Append(string.Join(" && ", guards)).AppendLine(",");
+            }
         }
 
         // Spread caller options LAST so they override the generated defaults (enabled,
@@ -1229,11 +1268,16 @@ public static class TypeScriptReactQueryHookExtractor
             (hasFileUploadArg, fileUploadParam, fileUploadArgName) = GetFileUploadInfo(bodySchema, bodyContentType, namingStrategy);
         }
 
-        // GET + not file download + not streaming => useQuery
+        // GET / QUERY + not file download + not streaming => useQuery
         // GET + file download => useMutation (user-triggered)
         // Streaming => skip
         // Everything else => useMutation
-        var isQuery = httpMethod.Equals("GET", StringComparison.OrdinalIgnoreCase)
+        //
+        // The OpenAPI 3.2 QUERY method is safe and idempotent — a read whose criteria travel
+        // in the request body because they are too large for a URL. It belongs in useQuery
+        // (cached, refetchable) exactly like GET, not in useMutation.
+        var isQuery = (httpMethod.Equals("GET", StringComparison.OrdinalIgnoreCase) ||
+                       httpMethod.Equals("QUERY", StringComparison.OrdinalIgnoreCase))
                       && !isFileDownload
                       && !isStreaming;
 

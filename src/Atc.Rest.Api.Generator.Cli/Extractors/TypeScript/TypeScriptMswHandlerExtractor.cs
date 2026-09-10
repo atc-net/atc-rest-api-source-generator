@@ -7,6 +7,23 @@ namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 public static class TypeScriptMswHandlerExtractor
 {
     /// <summary>
+    /// The HTTP verbs MSW exposes as dedicated <c>http.{verb}</c> request handlers.
+    /// Anything else — OpenAPI 3.2 <c>query</c>, or a custom <c>additionalOperations</c>
+    /// verb such as <c>LINK</c> — has to go through <c>http.all</c> with a method guard.
+    /// Values are lower-case to match the emitted helper name.
+    /// </summary>
+    private static readonly HashSet<string> StandardMswMethods = new(StringComparer.Ordinal)
+    {
+        "get",
+        "post",
+        "put",
+        "patch",
+        "delete",
+        "head",
+        "options",
+    };
+
+    /// <summary>
     /// Generates MSW handler files for all operations in the OpenAPI document.
     /// </summary>
     [SuppressMessage("Design", "CA1054:URI parameters should not be strings", Justification = "Base URL is a path prefix, not a full URI.")]
@@ -87,7 +104,20 @@ public static class TypeScriptMswHandlerExtractor
             var (statusCode, hasBody) = GetPrimaryResponse(operation);
             var mockBody = hasBody ? GenerateMockBody(operation, openApiDoc, namingStrategy) : null;
 
-            sb.Append("  http.").Append(httpMethod).Append("('").Append(fullPath).AppendLine("', () => {");
+            // MSW's `http` namespace only exposes helpers for the standard verbs. Deriving the
+            // helper name from the verb produced `http.query(...)` for an OpenAPI 3.2 `query:`
+            // operation and `http.link(...)` for an `additionalOperations` verb — neither
+            // exists, so the generated mocks file failed at import time. Non-standard verbs
+            // therefore match through `http.all` and narrow with an explicit method guard.
+            if (StandardMswMethods.Contains(httpMethod))
+            {
+                sb.Append("  http.").Append(httpMethod).Append("('").Append(fullPath).AppendLine("', () => {");
+            }
+            else
+            {
+                sb.Append("  http.all('").Append(fullPath).AppendLine("', ({ request }) => {");
+                sb.Append("    if (request.method !== '").Append(method.ToUpperInvariant()).AppendLine("') return;");
+            }
 
             if (mockBody is not null)
             {

@@ -68,8 +68,18 @@ public static class TypeScriptSwrHookExtractor
             var returnType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming, isFileDownload);
             var httpMethod = method.ToUpperInvariant();
 
-            var isQuery = httpMethod == "GET" && !isFileDownload && !isStreaming;
-            var isMutation = httpMethod is "POST" or "PUT" or "PATCH" or "DELETE";
+            // The OpenAPI 3.2 QUERY method is a read — safe and idempotent — that carries its
+            // criteria in the request body because they are too large for a URL. It belongs
+            // with GET in useSWR, not in useSWRMutation.
+            var isQuery = httpMethod is "GET" or "QUERY" && !isFileDownload && !isStreaming;
+
+            // Everything else that changes state is a mutation. Listing only the four classic
+            // verbs meant OpenAPI 3.2 additionalOperations verbs (LINK, UNLINK, ...) matched
+            // neither set and were dropped without a hook and without a diagnostic. The safe
+            // metadata verbs are excluded because a hook for them has no meaning.
+            var isMutation = !isQuery &&
+                             !isStreaming &&
+                             httpMethod is not ("HEAD" or "OPTIONS" or "TRACE");
 
             if (!isQuery && !isMutation && !isStreaming)
             {
@@ -85,6 +95,24 @@ public static class TypeScriptSwrHookExtractor
             var headerParams = TypeScriptOperationHelper.GetMergedParameters(operation, openApiDoc, path, ParameterLocation.Header);
             var methodName = operationId.ToCamelCase().ToTypeScriptIdentifier();
 
+            // A read with a body needs the body in the hook signature, the client call and the
+            // cache key; a mutation forwards its argument untyped, so only the read path uses
+            // the resolved type name.
+            var (bodySchema, _) = operation.GetRequestBodySchemaWithContentType();
+            var hasBody = bodySchema is not null;
+            var bodyType = hasBody && isQuery
+                ? bodySchema!.ToTypeScriptReturnType()
+                : string.Empty;
+
+            // The generated client method takes zero arguments when the operation has no path
+            // params, no body and nothing to send in the query string or headers. A mutation
+            // hook must then call it with no argument at all — forwarding `arg as never` to a
+            // zero-parameter method is a TypeScript compile error in the consumer's project.
+            var takesArgument = pathParams.Count > 0 ||
+                                queryParams.Count > 0 ||
+                                headerParams.Count > 0 ||
+                                hasBody;
+
             hookInfos.Add(new SwrHookInfo(
                 operationId,
                 returnType,
@@ -98,7 +126,10 @@ public static class TypeScriptSwrHookExtractor
                 headerParams,
                 operation.Summary,
                 operation.Description,
-                operation.Deprecated));
+                operation.Deprecated,
+                hasBody,
+                bodyType,
+                takesArgument));
         }
 
         return hookInfos;
@@ -186,6 +217,30 @@ public static class TypeScriptSwrHookExtractor
             sb.AppendLine("import type { ApiResult } from '../types/ApiResult';");
         }
 
+        // Body types appear in a read hook's own signature, so unlike return types they have
+        // to be imported by name or the emitted TypeScript will not compile.
+        var bodyImports = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var info in hookInfos)
+        {
+            if (!info.HasBody || string.IsNullOrEmpty(info.BodyType))
+            {
+                continue;
+            }
+
+            var cleanType = info.BodyType
+                .Replace("[]", string.Empty, StringComparison.Ordinal)
+                .Replace("?", string.Empty, StringComparison.Ordinal);
+            if (char.IsUpper(cleanType[0]) && cleanType != "Blob")
+            {
+                bodyImports.Add(cleanType);
+            }
+        }
+
+        if (bodyImports.Count > 0)
+        {
+            sb.Append("import type { ").Append(string.Join(", ", bodyImports)).AppendLine(" } from '../models';");
+        }
+
         if (brandImports.Count > 0)
         {
             sb.Append("import type { ").Append(string.Join(", ", brandImports)).AppendLine(" } from '../types/BrandedIds';");
@@ -238,7 +293,19 @@ public static class TypeScriptSwrHookExtractor
                        info.OperationId.Contains("ByName", StringComparison.OrdinalIgnoreCase);
 
         AppendHookJsDoc(sb, info);
-        if (isDetail)
+        if (info.HasBody)
+        {
+            // OpenAPI 3.2 QUERY: the body is the query, so it identifies the cache entry.
+            // SWR hashes the key structurally, so the body object goes in directly.
+            sb.Append("export function ").Append(hookName).Append("(body: ").Append(info.BodyType).AppendLine(") {");
+            sb.AppendLine("  const api = useApiService();");
+            sb.AppendLine();
+            sb.AppendLine("  return useSWR(");
+            sb.Append("    [...").Append(segmentLower).Append("Keys.all, '").Append(methodName).AppendLine("', body] as const,");
+            sb.AppendLine("    async () => {");
+            sb.Append("      const result = await api.").Append(segmentLower).Append('.').Append(methodName).AppendLine("(body);");
+        }
+        else if (isDetail)
         {
             sb.Append("export function ").Append(hookName).AppendLine("(id: string) {");
             sb.Append("  const api = useApiService();");
@@ -282,8 +349,19 @@ public static class TypeScriptSwrHookExtractor
         sb.AppendLine();
         sb.AppendLine("  return useSWRMutation(");
         sb.Append("    ").Append(segmentLower).AppendLine("Keys.all,");
-        sb.AppendLine("    async (_key: string, { arg }: { arg: unknown }) => {");
-        sb.Append("      return api.").Append(segmentLower).Append('.').Append(methodName).AppendLine("(arg as never);");
+
+        if (info.TakesArgument)
+        {
+            sb.AppendLine("    async (_key: string, { arg }: { arg: unknown }) => {");
+            sb.Append("      return api.").Append(segmentLower).Append('.').Append(methodName).AppendLine("(arg as never);");
+        }
+        else
+        {
+            // The client method takes nothing, so the SWR mutation argument has nowhere to go.
+            sb.AppendLine("    async () => {");
+            sb.Append("      return api.").Append(segmentLower).Append('.').Append(methodName).AppendLine("();");
+        }
+
         sb.AppendLine("    },");
         sb.AppendLine("  );");
         sb.AppendLine("}");
@@ -462,7 +540,10 @@ public static class TypeScriptSwrHookExtractor
         List<OpenApiParameter> HeaderParams,
         string? Summary,
         string? Description,
-        bool Deprecated);
+        bool Deprecated,
+        bool HasBody,
+        string BodyType,
+        bool TakesArgument);
 
     private static void AppendHookJsDoc(
         StringBuilder sb,
