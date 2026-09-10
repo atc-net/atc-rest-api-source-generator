@@ -41,7 +41,14 @@ public static class ScenarioDiscovery
     /// <summary>
     /// Known master folders for different generator configurations.
     /// </summary>
-    public static readonly string[] MasterFolders = ["Server", "Client-Typed", "Client-Operation", "ServerDomain", "TS-Client-Fetch", "TS-Client-Axios", "TS-Hooks-ReactQuery"];
+    /// <remarks>
+    /// TS-Hooks-Swr and TS-Mocks-Msw were added after a defect shipped in each: the SWR mutation
+    /// hook passed an argument to a client method that takes none, and the MSW handler named an
+    /// http.&lt;verb&gt; function that does not exist. Both emit TypeScript that does not compile, and
+    /// both survived because no snapshot covered them — the React Query hooks had a master folder,
+    /// these two did not.
+    /// </remarks>
+    public static readonly string[] MasterFolders = ["Server", "Client-Typed", "Client-Operation", "ServerDomain", "TS-Client-Fetch", "TS-Client-Axios", "TS-Hooks-ReactQuery", "TS-Hooks-Swr", "TS-Mocks-Msw"];
 
     /// <summary>
     /// Valid generator types for comparison.

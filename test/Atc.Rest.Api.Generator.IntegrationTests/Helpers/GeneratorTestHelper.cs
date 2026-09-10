@@ -62,6 +62,11 @@ public static class GeneratorTestHelper
             ZodRuntimeValidate = markerConfig?.ZodRuntimeValidate ?? false,
             GenerateZodSchemas = (markerConfig?.ZodRuntimeValidate ?? false) || (markerConfig?.GenerateZodSchemas ?? false),
             EnumRuntimeValues = markerConfig?.EnumRuntimeValues ?? false,
+
+            // MSW handlers had no snapshot coverage at all, which is how a handler naming a
+            // non-existent http.<verb> function survived. A scenario opts in with
+            // "generateMswHandlers": true in its marker file.
+            GenerateMswHandlers = markerConfig?.GenerateMswHandlers ?? false,
             DryRun = false,
             GenerateFileHeaders = true,
         };
@@ -160,5 +165,7 @@ public static class GeneratorTestHelper
         public bool GenerateZodSchemas { get; init; }
 
         public bool EnumRuntimeValues { get; init; }
+
+        public bool GenerateMswHandlers { get; init; }
     }
 }
