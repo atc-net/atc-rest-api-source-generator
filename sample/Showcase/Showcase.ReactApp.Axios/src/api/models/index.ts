@@ -21,5 +21,6 @@ export type * from './Tasks';
 export type * from './UpdateUserRequest';
 export type * from './User';
 export type * from './UserActivityEvent';
+export type * from './UserQuery';
 export type * from './UserWritable';
 export type * from './Users';

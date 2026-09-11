@@ -476,12 +476,50 @@ public class TypeScriptModelExtractorTests
     }
 
     [Fact]
-    public void Extract_InlineOneOfProperty_DoesNotImportTypesTheInterfaceNeverNames()
+    public void Extract_InlineOneOfWithMultipleRefs_EmitsAUnionType()
     {
-        // A property whose schema is an inline oneOf is emitted as `unknown`, but the referenced
-        // schemas were still collected as imports. The result is an interface importing three
-        // types it never names — which fails to compile for any consumer using noUnusedLocals, or
-        // the equivalent ESLint rule.
+        // The mapper already handled oneOf with a single $ref by returning that name; the
+        // multi-ref case fell through to `unknown`. Meanwhile the Zod emitter produced a proper
+        // z.union([...]) for the same schema, so the compile-time type and the runtime validator
+        // disagreed about the same property.
+        var document = OpenApiDocumentHelper.ParseYaml(OneOfPropertyYaml);
+        var config = new TypeScriptClientConfig();
+
+        var results = TypeScriptModelExtractor.Extract(document, config);
+
+        var (_, parameters) = results.Single(r => r.Name == "NotificationEvent");
+        var payload = parameters.Properties?.FirstOrDefault(p => p.Name == "payload");
+
+        Assert.NotNull(payload);
+        Assert.Contains("SystemNotification", payload.TypeAnnotation, StringComparison.Ordinal);
+        Assert.Contains("UserActivityEvent", payload.TypeAnnotation, StringComparison.Ordinal);
+        Assert.Contains("|", payload.TypeAnnotation, StringComparison.Ordinal);
+        Assert.DoesNotContain("unknown", payload.TypeAnnotation, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_InlineAnyOfWithMultipleRefs_EmitsAUnionType()
+    {
+        var document = OpenApiDocumentHelper.ParseYaml(
+            OneOfPropertyYaml.Replace("oneOf:", "anyOf:", StringComparison.Ordinal));
+        var config = new TypeScriptClientConfig();
+
+        var results = TypeScriptModelExtractor.Extract(document, config);
+
+        var (_, parameters) = results.Single(r => r.Name == "NotificationEvent");
+        var payload = parameters.Properties?.FirstOrDefault(p => p.Name == "payload");
+
+        Assert.NotNull(payload);
+        Assert.Contains("SystemNotification", payload.TypeAnnotation, StringComparison.Ordinal);
+        Assert.Contains("UserActivityEvent", payload.TypeAnnotation, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_InlineOneOfWithANonRefBranch_StaysUnknown()
+    {
+        // TypeScript collapses `A | unknown` to `unknown`, so a partial union buys nothing and
+        // would only mislead. Zod can emit a per-branch z.unknown() because its unions do not
+        // collapse; this is the one place the two emitters legitimately differ.
         var document = OpenApiDocumentHelper.ParseYaml("""
             openapi: 3.0.0
             info:
@@ -494,25 +532,37 @@ public class TypeScriptModelExtractorTests
                   type: object
                   title: NotificationEvent
                   properties:
-                    id:
-                      type: string
                     payload:
                       oneOf:
                         - $ref: '#/components/schemas/SystemNotification'
-                        - $ref: '#/components/schemas/UserActivityEvent'
+                        - type: string
                 SystemNotification:
                   type: object
                   title: SystemNotification
                   properties:
                     message:
                       type: string
-                UserActivityEvent:
-                  type: object
-                  title: UserActivityEvent
-                  properties:
-                    action:
-                      type: string
             """);
+
+        var config = new TypeScriptClientConfig();
+
+        var results = TypeScriptModelExtractor.Extract(document, config);
+
+        var (_, parameters) = results.Single(r => r.Name == "NotificationEvent");
+        var payload = parameters.Properties?.FirstOrDefault(p => p.Name == "payload");
+
+        Assert.NotNull(payload);
+        Assert.Contains("unknown", payload.TypeAnnotation, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_InlineOneOfProperty_DoesNotImportTypesTheInterfaceNeverNames()
+    {
+        // A property whose schema is an inline oneOf is emitted as `unknown`, but the referenced
+        // schemas were still collected as imports. The result is an interface importing three
+        // types it never names — which fails to compile for any consumer using noUnusedLocals, or
+        // the equivalent ESLint rule.
+        var document = OpenApiDocumentHelper.ParseYaml(OneOfPropertyYaml);
 
         var config = new TypeScriptClientConfig();
 
@@ -534,4 +584,40 @@ public class TypeScriptModelExtractorTests
                 string.Join("\n", imports));
         }
     }
+
+    /// <summary>
+    /// The shape behind Showcase's <c>NotificationEvent.payload</c>: a property whose schema is an
+    /// inline <c>oneOf</c> of two named component schemas.
+    /// </summary>
+    private const string OneOfPropertyYaml = """
+        openapi: 3.0.0
+        info:
+          title: T
+          version: 1.0.0
+        paths: {}
+        components:
+          schemas:
+            NotificationEvent:
+              type: object
+              title: NotificationEvent
+              properties:
+                id:
+                  type: string
+                payload:
+                  oneOf:
+                    - $ref: '#/components/schemas/SystemNotification'
+                    - $ref: '#/components/schemas/UserActivityEvent'
+            SystemNotification:
+              type: object
+              title: SystemNotification
+              properties:
+                message:
+                  type: string
+            UserActivityEvent:
+              type: object
+              title: UserActivityEvent
+              properties:
+                action:
+                  type: string
+        """;
 }

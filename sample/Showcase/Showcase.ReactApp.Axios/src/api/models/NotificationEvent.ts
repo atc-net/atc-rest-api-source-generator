@@ -17,5 +17,5 @@ export interface NotificationEvent {
 
   readonly message?: string | null;
 
-  readonly payload?: unknown;
+  readonly payload?: SystemNotification | UserActivityEvent | DataChangeEvent;
 }

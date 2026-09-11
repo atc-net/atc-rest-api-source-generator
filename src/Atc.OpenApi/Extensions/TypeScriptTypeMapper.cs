@@ -110,6 +110,15 @@ public static class TypeScriptTypeMapper
                 return isNullable ? $"{refName} | null" : refName;
             }
 
+            // Handle oneOf/anyOf across several references as a TypeScript union. The Zod emitter
+            // already produces z.union([...]) for this shape, so leaving the type as `unknown` had
+            // the compile-time type and the runtime validator disagreeing about the same property.
+            var unionType = BuildRefUnionTypeForTypeScript(actualSchema);
+            if (unionType is not null)
+            {
+                return isNullable ? $"{unionType} | null" : unionType;
+            }
+
             // Handle additionalProperties (Dictionary/Record types)
             if (actualSchema.AdditionalProperties is not null)
             {
@@ -241,6 +250,52 @@ public static class TypeScriptTypeMapper
             "uri" => "string",
             _ => "string",
         };
+
+    /// <summary>
+    /// Builds a TypeScript union from a schema's <c>oneOf</c> or <c>anyOf</c> branches, e.g.
+    /// <c>SystemNotification | UserActivityEvent</c>.
+    /// </summary>
+    /// <remarks>
+    /// Returns <c>null</c> — leaving the caller on its <c>unknown</c> path — unless there are at
+    /// least two branches and <b>every</b> one of them is a <c>$ref</c>. A partial union is worse
+    /// than none: TypeScript collapses <c>A | unknown</c> back to <c>unknown</c>, so naming some
+    /// branches would suggest a precision the type does not actually have. The Zod emitter can
+    /// afford a per-branch <c>z.unknown()</c> because Zod unions do not collapse.
+    /// </remarks>
+    private static string? BuildRefUnionTypeForTypeScript(
+        OpenApiSchema schema)
+    {
+        var branches = schema.OneOf is { Count: > 0 }
+            ? schema.OneOf
+            : schema.AnyOf;
+
+        if (branches is not { Count: > 1 })
+        {
+            return null;
+        }
+
+        var names = new List<string>(branches.Count);
+        foreach (var branch in branches)
+        {
+            if (branch is not OpenApiSchemaReference branchRef)
+            {
+                return null;
+            }
+
+            var refName = branchRef.Reference.Id ?? branchRef.Id;
+            if (string.IsNullOrEmpty(refName))
+            {
+                return null;
+            }
+
+            if (!names.Contains(refName!, StringComparer.Ordinal))
+            {
+                names.Add(refName!);
+            }
+        }
+
+        return string.Join(" | ", names);
+    }
 
     /// <summary>
     /// Builds a TypeScript tuple type from a schema's <c>prefixItems</c> (OpenAPI 3.1 /

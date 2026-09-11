@@ -3,11 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
 import { useApiService } from './useApiService';
 import { ApiError } from '../errors/ApiError';
-import type { CreateUserRequest, UpdateUserRequest, User, Users } from '../models';
+import type { CreateUserRequest, UpdateUserRequest, User, UserQuery, Users } from '../models';
 
 const usersKeys = {
   all: ['users'] as const,
   list: (query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number /* default: 25 */ }) => [...usersKeys.all, 'list', query] as const,
+  query: (body: UserQuery) => [...usersKeys.all, 'query', body] as const,
   userById: (userId: string) => [...usersKeys.all, 'userById', userId] as const,
 };
 
@@ -30,6 +31,28 @@ export function useListUsers(query?: { search?: string; country?: string; role?:
         result.response,
       );
     },
+    ...options,
+  });
+}
+
+/** Query users by a set of ids */
+export function useQueryUsers(body: UserQuery, options?: Omit<UseQueryOptions<Users, ApiError>, 'queryKey' | 'queryFn'>) {
+  const api = useApiService();
+  return useQuery({
+    queryKey: usersKeys.query(body),
+    queryFn: async () => {
+      const result = await api.users.queryUsers(body);
+      if (result.status === 'ok') {
+        return result.data;
+      }
+      throw new ApiError(
+        result.response.status,
+        result.response.statusText,
+        'error' in result ? result.error.message : 'Request failed',
+        result.response,
+      );
+    },
+    enabled: !!body,
     ...options,
   });
 }
