@@ -426,3 +426,4 @@ tmpclaude-*-cwd
 # Working documents - assessments, roadmaps and TODO notes kept alongside the repo but not part of it
 /issues/
 /plans/
+/docs/*.md
