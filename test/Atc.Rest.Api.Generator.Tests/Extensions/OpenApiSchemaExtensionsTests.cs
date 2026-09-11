@@ -1415,6 +1415,50 @@ public class OpenApiSchemaExtensionsTests
         Assert.Equal("Address?", address.ToCSharpTypeForModel(isRequired: true, registry: null));
     }
 
+    [Fact]
+    public void ToCSharpTypeForModel_OneOfRefPlusNullableObjectBranch_IsTheReferencedTypeMadeNullable()
+    {
+        // The OpenAPI 3.0 nullable-$ref. 3.0 has no `type: "null"`, so the null branch is spelled as
+        // an object that is nullable, and the nullability has to live inside the composition because
+        // a `nullable` sibling of `oneOf` has no `type` to apply to - which is what ATC_API_VER001
+        // reports.
+        //
+        // This is the rewrite the VER001 diagnostic suggests and the one NexusSample uses, so it has
+        // to produce `Address?` rather than degrade to `object` on the extra branch.
+        const string yaml = """
+                            openapi: "3.0.1"
+                            info:
+                              title: T
+                              version: "1.0.0"
+                            paths: {}
+                            components:
+                              schemas:
+                                Person:
+                                  type: object
+                                  title: Person
+                                  properties:
+                                    address:
+                                      oneOf:
+                                        - $ref: '#/components/schemas/Address'
+                                        - type: object
+                                          nullable: true
+                                Address:
+                                  type: object
+                                  title: Address
+                                  properties:
+                                    street:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var person = (OpenApiSchema)document.Components!.Schemas!["Person"];
+        var address = person.Properties!["address"];
+
+        Assert.Equal("Address?", address.ToCSharpTypeForModel(isRequired: true, registry: null));
+    }
+
     [Theory]
     [InlineData("3.0.4")]
     [InlineData("3.1.0")]

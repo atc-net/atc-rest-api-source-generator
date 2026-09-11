@@ -27,6 +27,51 @@ public static class OpenApiSchemaExtensions
             : schemaName.Replace(".", "_"); // Replace dots with underscores for valid C# identifiers
 
     /// <summary>
+    /// Determines whether a composition branch exists only to permit <c>null</c>, and so carries no
+    /// shape the generated type would otherwise have to represent.
+    /// </summary>
+    /// <remarks>
+    /// Two spellings qualify. The OpenAPI 3.1 one is <c>type: "null"</c> on its own. The 3.0 one is
+    /// an untyped or object-typed branch made nullable — 3.0 has no <c>type: "null"</c> to write —
+    /// which the parser resolves to the type flags <c>Object | Null</c>. The 3.0 form only qualifies
+    /// when it declares nothing else, so a branch that genuinely describes an object still counts as
+    /// a union member.
+    /// <para>
+    /// The non-null part must be <c>object</c> or absent. A nullable scalar branch such as
+    /// <c>{type: string, nullable: true}</c> is a real alternative — treating it as a marker would
+    /// turn <c>oneOf: [$ref, {type: string}]</c> into the reference alone and silently lose the
+    /// string.
+    /// </para>
+    /// </remarks>
+    /// <param name="branch">The composition branch to inspect.</param>
+    /// <returns><see langword="true"/> when the branch only adds nullability.</returns>
+    internal static bool IsNullOnlyBranch(IOpenApiSchema? branch)
+    {
+        if (branch is not OpenApiSchema candidate ||
+            candidate.Type is not { } type ||
+            !type.HasFlag(JsonSchemaType.Null))
+        {
+            return false;
+        }
+
+        var withoutNull = type & ~JsonSchemaType.Null;
+        if (withoutNull is not (default(JsonSchemaType) or JsonSchemaType.Object))
+        {
+            return false;
+        }
+
+        return candidate.Properties is null or { Count: 0 } &&
+               candidate.Required is null or { Count: 0 } &&
+               candidate.Enum is null or { Count: 0 } &&
+               candidate.OneOf is null or { Count: 0 } &&
+               candidate.AnyOf is null or { Count: 0 } &&
+               candidate.AllOf is null or { Count: 0 } &&
+               candidate.Items is null &&
+               candidate.AdditionalProperties is null &&
+               string.IsNullOrEmpty(candidate.Format);
+    }
+
+    /// <summary>
     /// Resolves a type name, using full namespace qualification if it conflicts with a .NET system type.
     /// Also sanitizes the type name to be a valid C# identifier.
     /// </summary>
@@ -172,15 +217,18 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
-        /// Determines whether a <c>oneOf</c> / <c>anyOf</c> composition carries an explicit
-        /// <c>type: "null"</c> branch — the OpenAPI 3.1 spelling of a nullable reference.
+        /// Determines whether a <c>oneOf</c> / <c>anyOf</c> composition carries a branch whose only
+        /// contribution is nullability, in either specification's spelling.
         /// </summary>
         /// <remarks>
         /// OpenAPI 3.1 removed the <c>nullable</c> keyword, so <c>oneOf: [$ref, {type: "null"}]</c>
-        /// is how a conformant document says "this, or null". The null branch is a marker rather
-        /// than a real union member and is filtered out of the resulting type.
+        /// is how a conformant 3.1 document says "this, or null". A 3.0 document has no
+        /// <c>type: "null"</c> to write, so the same thing is spelled as an empty object that is
+        /// nullable — <c>oneOf: [$ref, {type: object, nullable: true}]</c> — and the parser resolves
+        /// that to the type flags <c>Object | Null</c>. Both are markers rather than real union
+        /// members and are filtered out of the resulting type.
         /// </remarks>
-        /// <returns><see langword="true"/> when a branch is exactly the null type.</returns>
+        /// <returns><see langword="true"/> when such a branch is present.</returns>
         public bool HasNullBranchInOneOf()
         {
             if (schema is not OpenApiSchema openApiSchema)
@@ -199,7 +247,7 @@ public static class OpenApiSchemaExtensions
 
                 foreach (var branch in branches)
                 {
-                    if (branch is OpenApiSchema { Type: JsonSchemaType.Null })
+                    if (IsNullOnlyBranch(branch))
                     {
                         return true;
                     }
@@ -211,7 +259,7 @@ public static class OpenApiSchemaExtensions
 
         /// <summary>
         /// Determines whether a <c>oneOf</c> / <c>anyOf</c> composition contains a branch that is
-        /// neither a <c>$ref</c> nor the <c>type: "null"</c> nullability marker.
+        /// neither a <c>$ref</c> nor a nullability marker.
         /// </summary>
         /// <remarks>
         /// Such a branch is a real union member the generator cannot name, so callers must fall
@@ -242,7 +290,7 @@ public static class OpenApiSchemaExtensions
                         continue;
                     }
 
-                    if (branch is OpenApiSchema { Type: JsonSchemaType.Null })
+                    if (IsNullOnlyBranch(branch))
                     {
                         continue;
                     }

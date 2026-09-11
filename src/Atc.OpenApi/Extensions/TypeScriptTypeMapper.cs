@@ -283,9 +283,10 @@ public static class TypeScriptTypeMapper
         var names = new List<string>(branches.Count);
         foreach (var branch in branches)
         {
-            // A `type: "null"` branch marks the union nullable rather than adding a member; the
-            // caller appends `| null`. Skipping it here keeps `oneOf: [A, B, null]` as `A | B`.
-            if (branch is OpenApiSchema { Type: JsonSchemaType.Null })
+            // A null-only branch marks the union nullable rather than adding a member; the caller
+            // appends `| null`. Skipping it here keeps `oneOf: [A, B, null]` as `A | B`, and covers
+            // the 3.0 spelling of the same thing, `{type: object, nullable: true}`.
+            if (OpenApiSchemaExtensions.IsNullOnlyBranch(branch))
             {
                 continue;
             }
