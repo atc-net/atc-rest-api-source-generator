@@ -1241,6 +1241,141 @@ public class OpenApiSchemaExtensionsTests
         Assert.Null(result);
     }
 
+    /// <summary>
+    /// Both spellings of "this property may be null" produce a nullable C# type, at every spec
+    /// version — the OpenAPI 3.0 <c>nullable: true</c> keyword and the 3.1 <c>type: [X, "null"]</c>
+    /// array.
+    /// </summary>
+    /// <remarks>
+    /// Supporting both is a deliberate compatibility choice rather than a reading of the spec:
+    /// 3.1 removed <c>nullable</c>, so writing it in a 3.1 document is invalid. Rejecting it would
+    /// silently flip a consumer's model from <c>string?</c> to <c>string</c>, which fails at
+    /// runtime rather than at build time, so the keyword is honoured wherever it appears.
+    /// </remarks>
+    [Theory]
+    [InlineData("3.0.4")]
+    [InlineData("3.1.0")]
+    [InlineData("3.2.0")]
+    public void ToCSharpTypeForModel_NullableKeywordSpelling_ProducesANullableType(
+        string specVersion)
+    {
+        var yaml = $$"""
+                     openapi: "{{specVersion}}"
+                     info:
+                       title: T
+                       version: "1.0.0"
+                     paths: {}
+                     components:
+                       schemas:
+                         Person:
+                           type: object
+                           title: Person
+                           required:
+                             - nickname
+                           properties:
+                             nickname:
+                               type: string
+                               nullable: true
+                     """;
+
+        AssertNicknameIsNullable(yaml);
+    }
+
+    /// <summary>
+    /// The 3.1 spelling. Type arrays are a JSON Schema feature that OpenAPI 3.0 does not have, so
+    /// this form is only meaningful from 3.1 onward.
+    /// </summary>
+    [Theory]
+    [InlineData("3.1.0")]
+    [InlineData("3.2.0")]
+    public void ToCSharpTypeForModel_TypeArraySpelling_ProducesANullableType(
+        string specVersion)
+    {
+        var yaml = $$"""
+                     openapi: "{{specVersion}}"
+                     info:
+                       title: T
+                       version: "1.0.0"
+                     paths: {}
+                     components:
+                       schemas:
+                         Person:
+                           type: object
+                           title: Person
+                           required:
+                             - nickname
+                           properties:
+                             nickname:
+                               type: [string, "null"]
+                     """;
+
+        AssertNicknameIsNullable(yaml);
+    }
+
+    /// <summary>
+    /// A nullable <c>$ref</c> written the 3.0 way — <c>nullable: true</c> beside an
+    /// <c>allOf</c> — inside a 3.1+ document.
+    /// </summary>
+    /// <remarks>
+    /// The keyword is invalid in 3.1, so the reader parks it in <c>UnrecognizedKeywords</c> rather
+    /// than dropping it, which leaves enough for the generator to honour the author's intent.
+    /// <para>
+    /// The same shape in a <b>3.0</b> document cannot be supported: there the keyword is
+    /// recognised, consumed, and then discarded because there is no <c>type</c> in that Schema
+    /// Object to modify, so nothing reaches the generator. That case has its own test asserting
+    /// the non-nullable result.
+    /// </para>
+    /// </remarks>
+    [Theory]
+    [InlineData("3.1.0")]
+    [InlineData("3.2.0")]
+    public void ToCSharpTypeForModel_NullableKeywordBesideAllOf_IsHonouredInThreeOneAndLater(
+        string specVersion)
+    {
+        var yaml = $$"""
+                     openapi: "{{specVersion}}"
+                     info:
+                       title: T
+                       version: "1.0.0"
+                     paths: {}
+                     components:
+                       schemas:
+                         Person:
+                           type: object
+                           title: Person
+                           properties:
+                             address:
+                               nullable: true
+                               allOf:
+                                 - $ref: '#/components/schemas/Address'
+                         Address:
+                           type: object
+                           title: Address
+                           properties:
+                             street:
+                               type: string
+                     """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var person = (OpenApiSchema)document.Components!.Schemas!["Person"];
+        var address = person.Properties!["address"];
+
+        Assert.Equal("Address?", address.ToCSharpTypeForModel(isRequired: true, registry: null));
+    }
+
+    private static void AssertNicknameIsNullable(string yaml)
+    {
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var person = (OpenApiSchema)document.Components!.Schemas!["Person"];
+        var nickname = person.Properties!["nickname"];
+
+        Assert.Equal("string?", nickname.ToCSharpTypeForModel(isRequired: true, registry: null));
+    }
+
     [Fact]
     public void ToCSharpTypeForModel_OneOfRefPlusNullBranch_IsTheReferencedTypeMadeNullable()
     {
