@@ -15,9 +15,6 @@ namespace Atc.Rest.Api.Generator.Validators;
 /// </remarks>
 public static class SingleClientCollisionValidator
 {
-    [SuppressMessage("Design", "S1075:Refactor your code not to use hardcoded absolute paths or URIs", Justification = "OK - stable public documentation URL surfaced in the diagnostic.")]
-    private const string DocsBaseUrl = "https://github.com/atc-net/atc-rest-api-generator/blob/main/docs/analyzer-rules.md";
-
     /// <summary>
     /// Detects generated type-name collisions for single-client mode.
     /// </summary>
@@ -107,6 +104,6 @@ public static class SingleClientCollisionValidator
                 $"Rename one of the schemas so they no longer both normalise to '{generatedName}'",
                 "Or use \"clientGranularity\": \"PerArea\" to keep per-area namespaces",
             ],
-            DocumentationUrl: $"{DocsBaseUrl}#{RuleIdentifiers.SingleClientTypeNameCollision.ToLowerInvariant()}");
+            DocumentationUrl: Constants.Documentation.GetRuleUrl(RuleIdentifiers.SingleClientTypeNameCollision));
     }
 }

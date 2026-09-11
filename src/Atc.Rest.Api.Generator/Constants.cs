@@ -86,4 +86,41 @@ public static class Constants
         /// </summary>
         public const string ScriptsAndSpecifications = "ScriptsAndSpecifications";
     }
+
+    /// <summary>
+    /// Where a diagnostic sends the reader for the long explanation.
+    /// </summary>
+    /// <remarks>
+    /// All prose documentation for this project lives in the GitHub wiki, so a help link points
+    /// there rather than at a file in the repository.
+    /// </remarks>
+    [SuppressMessage("Design", "S1075:Refactor your code not to use hardcoded absolute paths or URIs", Justification = "The wiki location is fixed and is part of the published diagnostic contract.")]
+    public static class Documentation
+    {
+        /// <summary>
+        /// Root of the project wiki.
+        /// </summary>
+        public const string WikiUrl = "https://github.com/atc-net/atc-rest-api-source-generator/wiki";
+
+        /// <summary>
+        /// The page listing every analyzer rule.
+        /// </summary>
+        public const string AnalyzerRulesUrl = WikiUrl + "/Analyzer-Rules";
+
+        /// <summary>
+        /// Builds the help link for a rule.
+        /// </summary>
+        /// <remarks>
+        /// GitHub derives a heading anchor by lower-casing and replacing spaces with hyphens; it does
+        /// not touch underscores. The rule id is therefore only lower-cased, and the wiki gives each
+        /// rule a heading that is exactly its id so the anchor resolves.
+        /// </remarks>
+        /// <param name="ruleId">The rule identifier, for example <c>ATC_API_VER001</c>.</param>
+        /// <returns>An absolute URL to the rule's section.</returns>
+        [SuppressMessage("Design", "CA1055:URI-like return values should not be strings", Justification = "DiagnosticMessage.DocumentationUrl is a string, and the value is passed straight through to it.")]
+        public static string GetRuleUrl(string ruleId)
+            => ruleId is null
+                ? AnalyzerRulesUrl
+                : $"{AnalyzerRulesUrl}#{ruleId.ToLowerInvariant()}";
+    }
 }

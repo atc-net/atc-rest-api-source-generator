@@ -3,11 +3,8 @@ namespace Atc.Rest.Api.Generator.Validators;
 /// <summary>
 /// Helper for building rich diagnostic messages with context, suggestions, and documentation.
 /// </summary>
-[SuppressMessage("Design", "S1075:URIs should not be hardcoded", Justification = "Documentation URLs are intentionally static.")]
 public static class DiagnosticBuilder
 {
-    private const string DocsBaseUrl = "https://github.com/atc-net/atc-rest-api-generator/blob/main/docs/analyzer-rules.md";
-
     /// <summary>
     /// Creates a schema reference error diagnostic.
     /// </summary>
@@ -204,11 +201,5 @@ public static class DiagnosticBuilder
             DocumentationUrl: GetDocUrl(RuleIdentifiers.ParameterSerializationNotSupported));
 
     private static string GetDocUrl(string ruleId)
-    {
-        var lowerRuleId = ruleId
-            .ToLowerInvariant()
-            .Replace("_", "-");
-
-        return $"{DocsBaseUrl}#{lowerRuleId}";
-    }
+        => Constants.Documentation.GetRuleUrl(ruleId);
 }

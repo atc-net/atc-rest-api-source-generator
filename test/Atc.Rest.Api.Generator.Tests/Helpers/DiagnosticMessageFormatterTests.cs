@@ -102,7 +102,14 @@ public class DiagnosticMessageFormatterTests
 
         // Assert
         Assert.Contains("Documentation:", result, StringComparison.Ordinal);
-        Assert.Contains("atc-api-test001", result, StringComparison.Ordinal);
+
+        // The link points at the wiki, where this project's documentation lives, and keeps the
+        // underscores of the rule id - GitHub's heading anchors do not replace them, so a hyphenated
+        // anchor would land on the page but never on the rule.
+        Assert.Contains(
+            "https://github.com/atc-net/atc-rest-api-source-generator/wiki/Analyzer-Rules#atc_api_test001",
+            result,
+            StringComparison.Ordinal);
     }
 
     [Fact]

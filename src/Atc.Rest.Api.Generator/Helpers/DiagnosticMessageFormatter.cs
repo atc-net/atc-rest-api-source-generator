@@ -3,11 +3,8 @@ namespace Atc.Rest.Api.Generator.Helpers;
 /// <summary>
 /// Formats diagnostic messages for display in various contexts.
 /// </summary>
-[SuppressMessage("Design", "S1075:URIs should not be hardcoded", Justification = "Documentation URLs are intentionally static.")]
 public static class DiagnosticMessageFormatter
 {
-    private const string DocumentationBaseUrl = "https://github.com/atc-net/atc-rest-api-generator/blob/main/docs/analyzer-rules.md";
-
     /// <summary>
     /// Formats a diagnostic message for rich console/terminal output.
     /// </summary>
@@ -238,18 +235,9 @@ public static class DiagnosticMessageFormatter
         };
 
     private static string? GetDefaultDocumentationUrl(string ruleId)
-    {
-        // Only generate URL for known ATC_API rules
-        if (ruleId.StartsWith("ATC_API_", StringComparison.Ordinal))
-        {
-            var lowerRuleId = ruleId
-                .ToLowerInvariant()
-                .Replace("_", "-");
-            return $"{DocumentationBaseUrl}#{lowerRuleId}";
-        }
-
-        return null;
-    }
+        => ruleId.StartsWith("ATC_API_", StringComparison.Ordinal)
+            ? Constants.Documentation.GetRuleUrl(ruleId)
+            : null;
 
     private static string EscapeSpectreMarkup(string text)
         => text
