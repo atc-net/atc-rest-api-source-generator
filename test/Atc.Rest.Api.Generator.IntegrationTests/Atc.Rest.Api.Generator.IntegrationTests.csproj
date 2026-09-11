@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Verify.XunitV3" Version="32.0.0" />
-    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.7.0" />
+    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.10.2" />
   </ItemGroup>
 
   <ItemGroup>

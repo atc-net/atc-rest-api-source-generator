@@ -663,13 +663,12 @@ public static class TypeScriptModelExtractor
             return schema.Examples[0].ToJsonString();
         }
 
-        // OAS 3.0-style scalar example on the schema
-        if (schema.Example is not null)
-        {
-            return schema.Example.ToJsonString();
-        }
-
-        return null;
+        // OAS 3.0-style scalar example. The property is deprecated in Microsoft.OpenApi because
+        // 3.1 replaced the keyword, but it remains the only place a 3.0 document's `example`
+        // surfaces — the reader does not fold it into Examples.
+#pragma warning disable CS0618 // Type or member is obsolete
+        return schema.Example?.ToJsonString();
+#pragma warning restore CS0618
     }
 
     /// <summary>

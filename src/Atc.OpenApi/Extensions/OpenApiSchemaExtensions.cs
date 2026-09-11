@@ -172,6 +172,133 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
+        /// Determines whether a <c>oneOf</c> / <c>anyOf</c> composition carries an explicit
+        /// <c>type: "null"</c> branch — the OpenAPI 3.1 spelling of a nullable reference.
+        /// </summary>
+        /// <remarks>
+        /// OpenAPI 3.1 removed the <c>nullable</c> keyword, so <c>oneOf: [$ref, {type: "null"}]</c>
+        /// is how a conformant document says "this, or null". The null branch is a marker rather
+        /// than a real union member and is filtered out of the resulting type.
+        /// </remarks>
+        /// <returns><see langword="true"/> when a branch is exactly the null type.</returns>
+        public bool HasNullBranchInOneOf()
+        {
+            if (schema is not OpenApiSchema openApiSchema)
+            {
+                return false;
+            }
+
+            return HasNullBranch(openApiSchema.OneOf) || HasNullBranch(openApiSchema.AnyOf);
+
+            static bool HasNullBranch(IList<IOpenApiSchema>? branches)
+            {
+                if (branches is null)
+                {
+                    return false;
+                }
+
+                foreach (var branch in branches)
+                {
+                    if (branch is OpenApiSchema { Type: JsonSchemaType.Null })
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Determines whether a <c>oneOf</c> / <c>anyOf</c> composition contains a branch that is
+        /// neither a <c>$ref</c> nor the <c>type: "null"</c> nullability marker.
+        /// </summary>
+        /// <remarks>
+        /// Such a branch is a real union member the generator cannot name, so callers must fall
+        /// back to an untyped result rather than silently dropping it — otherwise
+        /// <c>oneOf: [$ref, {type: string}]</c> would masquerade as the reference alone.
+        /// </remarks>
+        /// <returns><see langword="true"/> when an unnameable branch is present.</returns>
+        public bool HasNonReferenceBranchInOneOf()
+        {
+            if (schema is not OpenApiSchema openApiSchema)
+            {
+                return false;
+            }
+
+            return HasUnnameable(openApiSchema.OneOf) || HasUnnameable(openApiSchema.AnyOf);
+
+            static bool HasUnnameable(IList<IOpenApiSchema>? branches)
+            {
+                if (branches is null)
+                {
+                    return false;
+                }
+
+                foreach (var branch in branches)
+                {
+                    if (branch is OpenApiSchemaReference)
+                    {
+                        continue;
+                    }
+
+                    if (branch is OpenApiSchema { Type: JsonSchemaType.Null })
+                    {
+                        continue;
+                    }
+
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Collects the <c>$ref</c> names from a <c>oneOf</c> / <c>anyOf</c> composition, ignoring
+        /// any <c>type: "null"</c> marker branch.
+        /// </summary>
+        /// <returns>The referenced schema names, in declaration order.</returns>
+        public List<string> GetOneOfReferenceIds()
+        {
+            var result = new List<string>();
+            if (schema is not OpenApiSchema openApiSchema)
+            {
+                return result;
+            }
+
+            Collect(openApiSchema.OneOf);
+            if (result.Count == 0)
+            {
+                Collect(openApiSchema.AnyOf);
+            }
+
+            return result;
+
+            void Collect(IList<IOpenApiSchema>? branches)
+            {
+                if (branches is null)
+                {
+                    return;
+                }
+
+                foreach (var branch in branches)
+                {
+                    if (branch is not OpenApiSchemaReference branchRef)
+                    {
+                        continue;
+                    }
+
+                    var refName = branchRef.Reference.Id ?? branchRef.Id;
+                    if (!string.IsNullOrEmpty(refName) && !result.Contains(refName!, StringComparer.Ordinal))
+                    {
+                        result.Add(refName!);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Checks if the schema has multiple non-null types (OpenAPI 3.1 feature).
         /// OpenAPI 3.1 allows type arrays like ["string", "integer"] which is represented
         /// as combined flags in Microsoft.OpenApi.
@@ -1047,14 +1174,20 @@ public static class OpenApiSchemaExtensions
                 }
             }
 
-            // Handle oneOf with single reference (commonly used for nullable $ref)
-            // Pattern: oneOf: [ $ref: "#/..." ] with nullable: true
-            // When there's only one item, it's equivalent to a direct reference
-            if (schema1.OneOf is { Count: 1 } && schema1.OneOf[0] is OpenApiSchemaReference oneOfRef)
+            // Handle oneOf carrying a single reference, with or without an explicit null branch.
+            //
+            //   oneOf: [ $ref ]                    + nullable: true   — the OpenAPI 3.0 spelling
+            //   oneOf: [ $ref, { type: "null" } ]                     — the OpenAPI 3.1 spelling
+            //
+            // Both mean "this reference, or null". 3.1 removed the `nullable` keyword, so the
+            // second form is what a conformant 3.1 document uses; treating the null branch as just
+            // another union member would degrade the property to `object`.
+            var oneOfHasNullBranch = schema1.HasNullBranchInOneOf();
+            var oneOfRefs = schema1.GetOneOfReferenceIds();
+            if (oneOfRefs.Count == 1 && !schema1.HasNonReferenceBranchInOneOf())
             {
-                var refName = oneOfRef.Reference.Id ?? oneOfRef.Id ?? "object";
-                var typeName = ResolveTypeName(refName, registry);
-                return isNullable ? $"{typeName}?" : typeName;
+                var typeName = ResolveTypeName(oneOfRefs[0], registry);
+                return isNullable || oneOfHasNullBranch ? $"{typeName}?" : typeName;
             }
 
             // Handle base64-encoded content (format: byte or contentEncoding: base64)

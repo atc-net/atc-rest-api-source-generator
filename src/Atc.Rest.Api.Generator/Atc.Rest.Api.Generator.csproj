@@ -11,11 +11,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.OpenApi" Version="3.7.0" />
-    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.7.0" />
+    <PackageReference Include="Microsoft.OpenApi" Version="3.10.2" />
+    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.10.2" />
     <!-- Exact pin, not a floor — SharpYaml 3.x breaks Microsoft.OpenApi.YamlReader at runtime.
          See Atc.OpenApi.csproj for the full rationale. -->
-    <PackageReference Include="SharpYaml" Version="[2.1.4]" />
+    <PackageReference Include="SharpYaml" Version="[2.1.5]" />
   </ItemGroup>
 
   <ItemGroup>

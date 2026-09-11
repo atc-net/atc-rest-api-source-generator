@@ -17,8 +17,8 @@
     <PackageReference Include="Atc" Version="3.0.186" />
     <PackageReference Include="Atc.Console.Spectre" Version="3.0.186" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.12" />
-    <PackageReference Include="Microsoft.OpenApi" Version="3.7.0" />
-    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.7.0" />
+    <PackageReference Include="Microsoft.OpenApi" Version="3.10.2" />
+    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.10.2" />
   </ItemGroup>
 
   <ItemGroup>

@@ -44,7 +44,10 @@ public class OpenApiSchemaExtensionsTests
         var typeName = customerProperty.ToCSharpTypeForModel(isRequired: false);
 
         // Assert
-        Assert.Equal("IdValue?", typeName);
+        // Spec note: `nullable: true` only applies when `type` is in the same Schema Object,
+        // and never reaches through allOf/oneOf (OAI "Clarify Semantics of nullable", 2019).
+        // Microsoft.OpenApi 3.7.0 honoured it here anyway; 3.10.2 correctly does not.
+        Assert.Equal("IdValue", typeName);
     }
 
     [Fact]
@@ -169,7 +172,8 @@ public class OpenApiSchemaExtensionsTests
         var typeName = settingsProperty.ToCSharpTypeForModel(isRequired: false);
 
         // Assert
-        Assert.Equal("DeviceSettings?", typeName);
+        // See the spec note above: nullable does not reach through allOf.
+        Assert.Equal("DeviceSettings", typeName);
     }
 
     [Fact]
@@ -245,7 +249,8 @@ public class OpenApiSchemaExtensionsTests
         var typeName = suggestedTypeProperty.ToCSharpTypeForModel(isRequired: false);
 
         // Assert
-        Assert.Equal("DeviceType?", typeName);
+        // See the spec note above: nullable does not reach through oneOf.
+        Assert.Equal("DeviceType", typeName);
     }
 
     [Fact]
@@ -325,21 +330,21 @@ public class OpenApiSchemaExtensionsTests
             .FirstOrDefault(p => p.Name == "Customer");
         Assert.NotNull(customerParam);
         Assert.Equal("IdValue", customerParam.TypeName);
-        Assert.True(customerParam.IsNullableType);
+        Assert.False(customerParam.IsNullableType);
 
         // Check the site property type
         var siteParam = insightDeviceRecord.Parameters
             .FirstOrDefault(p => p.Name == "Site");
         Assert.NotNull(siteParam);
         Assert.Equal("IdValue", siteParam.TypeName);
-        Assert.True(siteParam.IsNullableType);
+        Assert.False(siteParam.IsNullableType);
 
         // Check the suggestedCustomer property type
         var suggestedCustomerParam = insightDeviceRecord.Parameters
             .FirstOrDefault(p => p.Name == "SuggestedCustomer");
         Assert.NotNull(suggestedCustomerParam);
         Assert.Equal("KeyValue", suggestedCustomerParam.TypeName);
-        Assert.True(suggestedCustomerParam.IsNullableType);
+        Assert.False(suggestedCustomerParam.IsNullableType);
     }
 
     // ========== SanitizeSchemaName Tests ==========
@@ -1234,6 +1239,45 @@ public class OpenApiSchemaExtensionsTests
 
         // Assert
         Assert.Null(result);
+    }
+
+    [Fact]
+    public void ToCSharpTypeForModel_OneOfRefPlusNullBranch_IsTheReferencedTypeMadeNullable()
+    {
+        // The idiomatic OpenAPI 3.1 nullable-$ref: `oneOf: [$ref, type: "null"]`. It replaces
+        // 3.0's `nullable: true` + `allOf`, which the spec says never worked. Without this the
+        // second branch defeats the single-ref shortcut and the property degrades to `object`.
+        const string yaml = """
+                            openapi: "3.1.0"
+                            info:
+                              title: T
+                              version: "1.0.0"
+                            paths: {}
+                            components:
+                              schemas:
+                                Person:
+                                  type: object
+                                  title: Person
+                                  properties:
+                                    address:
+                                      oneOf:
+                                        - $ref: '#/components/schemas/Address'
+                                        - type: "null"
+                                Address:
+                                  type: object
+                                  title: Address
+                                  properties:
+                                    street:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var person = (OpenApiSchema)document.Components!.Schemas!["Person"];
+        var address = person.Properties!["address"];
+
+        Assert.Equal("Address?", address.ToCSharpTypeForModel(isRequired: true, registry: null));
     }
 
     [Theory]

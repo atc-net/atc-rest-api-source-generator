@@ -867,9 +867,8 @@ components:
           type: string
           description: Human-readable notification message
         data:
-          type: string
+          type: [string, "null"]
           description: Additional event-specific data as JSON string
-          nullable: true
         metrics:
           $ref: '#/components/schemas/SystemMetrics'
 
@@ -930,15 +929,12 @@ components:
           type: string
           format: date-time
         ipAddress:
-          type: string
-          nullable: true
+          type: [string, "null"]
         userAgent:
-          type: string
-          nullable: true
+          type: [string, "null"]
         details:
-          type: string
+          type: [string, "null"]
           description: Additional details as JSON string
-          nullable: true
 
     UserAction:
       type: string
@@ -977,17 +973,14 @@ components:
           type: string
           format: date-time
         performedBy:
-          type: string
+          type: [string, "null"]
           format: uuid
-          nullable: true
           description: User who performed the operation
         previousValue:
-          type: string
-          nullable: true
+          type: [string, "null"]
           description: Previous entity state as JSON string (for updates)
         newValue:
-          type: string
-          nullable: true
+          type: [string, "null"]
           description: New entity state as JSON string (for creates/updates)
 
     DataOperation:
@@ -1034,9 +1027,8 @@ components:
           type: string
           format: uuid
         name:
-          type: string
+          type: [string, "null"]
           maxLength: 100
-          nullable: true
           description: Optional friendly name for the subscription
         topics:
           type: array
@@ -1045,13 +1037,11 @@ components:
           minItems: 1
           description: Event types to subscribe to
         callbackUrl:
-          type: string
+          type: [string, "null"]
           format: uri
-          nullable: true
           description: HTTP callback URL for webhook delivery (optional)
         connectionId:
-          type: string
-          nullable: true
+          type: [string, "null"]
           description: SignalR connection ID for real-time delivery
         isActive:
           type: boolean
@@ -1060,14 +1050,12 @@ components:
           type: string
           format: date-time
         expiresAt:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
           description: Optional expiration time
         lastNotificationAt:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
 
     Subscriptions:
       title: Subscriptions
@@ -1082,9 +1070,8 @@ components:
         - topics
       properties:
         name:
-          type: string
+          type: [string, "null"]
           maxLength: 100
-          nullable: true
         topics:
           type: array
           items:
@@ -1092,15 +1079,13 @@ components:
           minItems: 1
           description: Event types to subscribe to
         callbackUrl:
-          type: string
+          type: [string, "null"]
           format: uri
-          nullable: true
           description: HTTP callback URL (use for server-to-server webhooks)
         expiresInMinutes:
-          type: integer
+          type: [integer, "null"]
           minimum: 1
           maximum: 43200
-          nullable: true
           description: Subscription duration in minutes (max 30 days)
 
     NotificationEvent:
@@ -1123,8 +1108,7 @@ components:
           type: string
           format: date-time
         message:
-          type: string
-          nullable: true
+          type: [string, "null"]
         payload:
           oneOf:
             - $ref: '#/components/schemas/SystemNotification'
@@ -1186,9 +1170,8 @@ components:
         itemName:
           type: string
         file:
-          type: string
+          type: [string, "null"]
           format: binary
-          nullable: true
         items:
           type: array
           items:
@@ -1259,16 +1242,14 @@ components:
           maxLength: 254
           description: User's email address
         phone:
-          type: string
+          type: [string, "null"]
           pattern: '^\+?[1-9]\d{6,14}$'
           description: Phone number in E.164 format
-          nullable: true
         website:
-          type: string
+          type: [string, "null"]
           format: uri
           maxLength: 2048
           description: User's personal website
-          nullable: true
         dateOfBirth:
           type: string
           format: date
@@ -1280,15 +1261,13 @@ components:
           readOnly: true
           description: Calculated age based on date of birth
         bio:
-          type: string
+          type: [string, "null"]
           maxLength: 1000
           description: Short biography
-          nullable: true
         avatarUrl:
-          type: string
+          type: [string, "null"]
           format: uri
           description: URL to user's avatar image
-          nullable: true
         isActive:
           type: boolean
           default: true
@@ -1331,25 +1310,21 @@ components:
           format: email
           maxLength: 254
         phone:
-          type: string
+          type: [string, "null"]
           pattern: '^\+?[1-9]\d{6,14}$'
-          nullable: true
         website:
-          type: string
+          type: [string, "null"]
           format: uri
           maxLength: 2048
-          nullable: true
         dateOfBirth:
           type: string
           format: date
         bio:
-          type: string
+          type: [string, "null"]
           maxLength: 1000
-          nullable: true
         avatarUrl:
-          type: string
+          type: [string, "null"]
           format: uri
-          nullable: true
         isActive:
           type: boolean
           default: true
@@ -1381,25 +1356,21 @@ components:
           format: email
           maxLength: 254
         phone:
-          type: string
+          type: [string, "null"]
           pattern: '^\+?[1-9]\d{6,14}$'
-          nullable: true
         website:
-          type: string
+          type: [string, "null"]
           format: uri
           maxLength: 2048
-          nullable: true
         dateOfBirth:
           type: string
           format: date
         bio:
-          type: string
+          type: [string, "null"]
           maxLength: 1000
-          nullable: true
         avatarUrl:
-          type: string
+          type: [string, "null"]
           format: uri
-          nullable: true
         isActive:
           type: boolean
         role:
@@ -1426,10 +1397,9 @@ components:
           maxLength: 100
           description: City name
         state:
-          type: string
+          type: [string, "null"]
           maxLength: 100
           description: State or region
-          nullable: true
         postalCode:
           type: string
           minLength: 2
@@ -1441,26 +1411,23 @@ components:
           maxLength: 100
           description: Country name
         countryCode:
-          type: string
+          type: [string, "null"]
           minLength: 2
           maxLength: 3
           pattern: '^[A-Z]{2,3}$'
           description: ISO 3166-1 country code
-          nullable: true
         latitude:
-          type: number
+          type: [number, "null"]
           format: double
           minimum: -90
           maximum: 90
           description: Geographic latitude
-          nullable: true
         longitude:
-          type: number
+          type: [number, "null"]
           format: double
           minimum: -180
           maximum: 180
           description: Geographic longitude
-          nullable: true
     AddressRequest:
       title: AddressRequest
       type: object
@@ -1479,9 +1446,8 @@ components:
           minLength: 1
           maxLength: 100
         state:
-          type: string
+          type: [string, "null"]
           maxLength: 100
-          nullable: true
         postalCode:
           type: string
           minLength: 2
@@ -1491,23 +1457,20 @@ components:
           minLength: 2
           maxLength: 100
         countryCode:
-          type: string
+          type: [string, "null"]
           minLength: 2
           maxLength: 3
           pattern: '^[A-Z]{2,3}$'
-          nullable: true
         latitude:
-          type: number
+          type: [number, "null"]
           format: double
           minimum: -90
           maximum: 90
-          nullable: true
         longitude:
-          type: number
+          type: [number, "null"]
           format: double
           minimum: -180
           maximum: 180
-          nullable: true
     UserRole:
       type: string
       enum:
@@ -1531,11 +1494,9 @@ components:
         pageIndex:
           type: integer
         queryString:
-          type: string
-          nullable: true
+          type: [string, "null"]
         continuation:
-          type: string
-          nullable: true
+          type: [string, "null"]
         count:
           type: integer
         totalCount:
@@ -1549,8 +1510,7 @@ components:
       in: query
       required: false
       schema:
-        type: string
-        nullable: true
+        type: [string, "null"]
     filter:
       name: filter
       in: query
@@ -1581,8 +1541,7 @@ components:
       in: query
       required: false
       schema:
-        type: string
-        nullable: true
+        type: [string, "null"]
       description: Search query string.
   securitySchemes:
     bearer_auth:

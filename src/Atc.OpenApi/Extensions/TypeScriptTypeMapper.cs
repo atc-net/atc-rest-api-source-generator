@@ -103,20 +103,26 @@ public static class TypeScriptTypeMapper
                 }
             }
 
-            // Handle oneOf with single reference
-            if (actualSchema.OneOf is { Count: 1 } && actualSchema.OneOf[0] is OpenApiSchemaReference oneOfRef)
+            // Handle oneOf/anyOf references. An explicit `type: "null"` branch is OpenAPI 3.1's
+            // spelling of a nullable reference (3.1 removed the `nullable` keyword), so it is a
+            // nullability marker rather than a union member — counting it as one would turn
+            // `Address | null` into a two-member union including a useless null type.
+            var oneOfRefs = actualSchema.GetOneOfReferenceIds();
+            var nullableViaBranch = isNullable || actualSchema.HasNullBranchInOneOf();
+            var hasUnnameableBranch = actualSchema.HasNonReferenceBranchInOneOf();
+
+            if (oneOfRefs.Count == 1 && !hasUnnameableBranch)
             {
-                var refName = oneOfRef.Reference.Id ?? oneOfRef.Id ?? "unknown";
-                return isNullable ? $"{refName} | null" : refName;
+                return nullableViaBranch ? $"{oneOfRefs[0]} | null" : oneOfRefs[0];
             }
 
-            // Handle oneOf/anyOf across several references as a TypeScript union. The Zod emitter
-            // already produces z.union([...]) for this shape, so leaving the type as `unknown` had
-            // the compile-time type and the runtime validator disagreeing about the same property.
+            // Several references become a TypeScript union. The Zod emitter already produces
+            // z.union([...]) for this shape, so leaving the type as `unknown` had the compile-time
+            // type and the runtime validator disagreeing about the same property.
             var unionType = BuildRefUnionTypeForTypeScript(actualSchema);
             if (unionType is not null)
             {
-                return isNullable ? $"{unionType} | null" : unionType;
+                return nullableViaBranch ? $"{unionType} | null" : unionType;
             }
 
             // Handle additionalProperties (Dictionary/Record types)
@@ -277,6 +283,13 @@ public static class TypeScriptTypeMapper
         var names = new List<string>(branches.Count);
         foreach (var branch in branches)
         {
+            // A `type: "null"` branch marks the union nullable rather than adding a member; the
+            // caller appends `| null`. Skipping it here keeps `oneOf: [A, B, null]` as `A | B`.
+            if (branch is OpenApiSchema { Type: JsonSchemaType.Null })
+            {
+                continue;
+            }
+
             if (branch is not OpenApiSchemaReference branchRef)
             {
                 return null;

@@ -774,18 +774,16 @@ components:
           description: Whether this pizza is currently available for ordering
           example: true
         imageUrl:
-          type: string
+          type: [string, "null"]
           format: uri
           description: URL of the pizza image
-          nullable: true
           example: 'http://localhost:5000/api/v1/pizzas/f47ac10b-58cc-4372-a567-0e02b2c3d479/image'
         calorieCount:
-          type: integer
+          type: [integer, "null"]
           format: int32
           description: Approximate calorie count per serving
           minimum: 0
           maximum: 10000
-          nullable: true
           example: 850
         isVegetarian:
           type: boolean
@@ -848,11 +846,10 @@ components:
           description: Whether this pizza is available for ordering
           default: true
         calorieCount:
-          type: integer
+          type: [integer, "null"]
           format: int32
           minimum: 0
           maximum: 10000
-          nullable: true
           description: Approximate calorie count
         isVegetarian:
           type: boolean
@@ -906,11 +903,10 @@ components:
           type: boolean
           description: Whether this pizza is available for ordering
         calorieCount:
-          type: integer
+          type: [integer, "null"]
           format: int32
           minimum: 0
           maximum: 10000
-          nullable: true
           description: Approximate calorie count
         isVegetarian:
           type: boolean
@@ -1016,16 +1012,14 @@ components:
         deliveryAddress:
           $ref: '#/components/schemas/Address'
         specialInstructions:
-          type: string
+          type: [string, "null"]
           maxLength: 500
           description: Special delivery or preparation instructions
-          nullable: true
           example: 'Ring the doorbell twice. Extra napkins please!'
         estimatedDeliveryTime:
-          type: string
+          type: [string, "null"]
           format: date-time
           description: Estimated delivery time
-          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -1056,10 +1050,9 @@ components:
         deliveryAddress:
           $ref: '#/components/schemas/Address'
         specialInstructions:
-          type: string
+          type: [string, "null"]
           maxLength: 500
           description: Special delivery or preparation instructions
-          nullable: true
           example: 'Please cut into squares instead of triangles'
 
     OrderItem:
@@ -1096,13 +1089,12 @@ components:
           description: Subtotal for this line item
           example: 29.98
         extraToppings:
-          type: array
+          type: [array, "null"]
           description: Additional toppings requested
           maxItems: 10
           items:
             type: string
             maxLength: 50
-          nullable: true
           example: ['Extra Cheese', 'Jalapeños']
 
     CreateOrderItemRequest:
@@ -1126,13 +1118,12 @@ components:
           description: How many of this pizza
           example: 2
         extraToppings:
-          type: array
+          type: [array, "null"]
           maxItems: 10
           items:
             type: string
             maxLength: 50
           description: Additional toppings
-          nullable: true
 
     OrderStatus:
       type: string
@@ -1161,10 +1152,9 @@ components:
         newStatus:
           $ref: '#/components/schemas/OrderStatus'
         reason:
-          type: string
+          type: [string, "null"]
           maxLength: 500
           description: Reason for the status change (required for cancellation)
-          nullable: true
           example: 'Customer requested cancellation'
 
     OrderStatusUpdate:
@@ -1191,11 +1181,10 @@ components:
           description: Human-readable status message
           example: '🔥 Your pizza is now in the oven!'
         estimatedMinutesRemaining:
-          type: integer
+          type: [integer, "null"]
           format: int32
           description: Estimated minutes until delivery
           minimum: 0
-          nullable: true
           example: 15
 
     # ── 👤 Customer Schemas ───────────────────────────────────

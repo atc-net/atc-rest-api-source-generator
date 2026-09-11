@@ -316,10 +316,9 @@ components:
           maxLength: 100
           description: Display name with length constraints
         description:
-          type: string
+          type: [string, "null"]
           maxLength: 500
           description: Optional description
-          nullable: true
 
         # === String Format Types ===
         email:
@@ -328,11 +327,10 @@ components:
           maxLength: 254
           description: Email address with format validation
         website:
-          type: string
+          type: [string, "null"]
           format: uri
           maxLength: 2048
           description: Website URL
-          nullable: true
 
         # === Date/Time Types ===
         createdAt:
@@ -340,49 +338,42 @@ components:
           format: date-time
           description: Creation timestamp
         updatedAt:
-          type: string
+          type: [string, "null"]
           format: date-time
           description: Last update timestamp
-          nullable: true
         birthDate:
-          type: string
+          type: [string, "null"]
           format: date
           description: Date of birth (date only)
-          nullable: true
         preferredTime:
-          type: string
+          type: [string, "null"]
           format: time
           description: Preferred contact time (HH:mm:ss)
-          nullable: true
 
         # === Numeric Types ===
         age:
-          type: integer
+          type: [integer, "null"]
           format: int32
           minimum: 0
           maximum: 150
           description: Age in years
-          nullable: true
         score:
-          type: number
+          type: [number, "null"]
           format: double
           minimum: 0.0
           maximum: 100.0
           description: Score as floating point
-          nullable: true
         rating:
-          type: number
+          type: [number, "null"]
           format: float
           minimum: 1.0
           maximum: 5.0
           description: Rating (1-5 stars)
-          nullable: true
         viewCount:
-          type: integer
+          type: [integer, "null"]
           format: int64
           minimum: 0
           description: View count as long integer
-          nullable: true
 
         # === Boolean Type ===
         isActive:
@@ -390,16 +381,14 @@ components:
           default: true
           description: Whether the model is active
         isVerified:
-          type: boolean
+          type: [boolean, "null"]
           description: Whether the model is verified
-          nullable: true
 
         # === Pattern Validation ===
         phoneNumber:
-          type: string
+          type: [string, "null"]
           pattern: '^\+?[1-9]\d{6,14}$'
           description: Phone number in E.164 format
-          nullable: true
 
         # === Nested Object Reference ===
         address:
@@ -510,60 +499,51 @@ components:
           format: date-time
           description: ISO 8601 date-time (maps to DateTimeOffset)
         dateValue:
-          type: string
+          type: [string, "null"]
           format: date
           description: ISO 8601 date (maps to DateTimeOffset)
-          nullable: true
         timeValue:
-          type: string
+          type: [string, "null"]
           format: time
           description: ISO 8601 time (stays as string)
-          nullable: true
 
         # URI/URL
         uriValue:
-          type: string
+          type: [string, "null"]
           format: uri
           description: URI format (maps to Uri)
-          nullable: true
 
         # Email
         emailValue:
-          type: string
+          type: [string, "null"]
           format: email
           description: Email format (string + EmailAddress attribute)
-          nullable: true
 
         # Base64 encoded
         byteValue:
-          type: string
+          type: [string, "null"]
           format: byte
           description: Base64 encoded string
-          nullable: true
 
         # Password (UI hint)
         passwordValue:
-          type: string
+          type: [string, "null"]
           format: password
           description: Password (UI masking hint)
-          nullable: true
 
         # Network formats
         hostnameValue:
-          type: string
+          type: [string, "null"]
           format: hostname
           description: Hostname format
-          nullable: true
         ipv4Value:
-          type: string
+          type: [string, "null"]
           format: ipv4
           description: IPv4 address format
-          nullable: true
         ipv6Value:
-          type: string
+          type: [string, "null"]
           format: ipv6
           description: IPv6 address format
-          nullable: true
 
     # ========================================
     # VALIDATION CONSTRAINTS - All validation types
@@ -739,93 +719,78 @@ components:
 
         # Nullable primitives
         nullableString:
-          type: string
-          nullable: true
+          type: [string, "null"]
           description: Nullable string
         nullableInteger:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
           description: Nullable integer
         nullableLong:
-          type: integer
+          type: [integer, "null"]
           format: int64
-          nullable: true
           description: Nullable long
         nullableNumber:
-          type: number
-          nullable: true
+          type: [number, "null"]
           description: Nullable number
         nullableFloat:
-          type: number
+          type: [number, "null"]
           format: float
-          nullable: true
           description: Nullable float
         nullableBoolean:
-          type: boolean
-          nullable: true
+          type: [boolean, "null"]
           description: Nullable boolean
 
         # Nullable format types
         nullableUuid:
-          type: string
+          type: [string, "null"]
           format: uuid
-          nullable: true
           description: Nullable UUID
         nullableDateTime:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
           description: Nullable date-time
         nullableDate:
-          type: string
+          type: [string, "null"]
           format: date
-          nullable: true
           description: Nullable date
         nullableUri:
-          type: string
+          type: [string, "null"]
           format: uri
-          nullable: true
           description: Nullable URI
         nullableEmail:
-          type: string
+          type: [string, "null"]
           format: email
-          nullable: true
           description: Nullable email
 
         # Nullable with validation
         nullableIntegerWithRange:
-          type: integer
+          type: [integer, "null"]
           minimum: 0
           maximum: 100
-          nullable: true
           description: Nullable integer with range
         nullableStringWithLength:
-          type: string
+          type: [string, "null"]
           minLength: 1
           maxLength: 255
-          nullable: true
           description: Nullable string with length
 
         # Nullable with default
         nullableWithDefault:
-          type: string
-          nullable: true
+          type: [string, "null"]
           default: "default-nullable"
           description: Nullable string with default
 
         # Nullable array
         nullableArray:
-          type: array
+          type: [array, "null"]
           items:
             type: string
-          nullable: true
           description: Nullable array of strings
 
         # Nullable object reference
         nullableAddress:
-          allOf:
+          oneOf:
             - $ref: "#/components/schemas/Address"
-          nullable: true
+            - type: "null"
           description: Nullable address reference
 
     # ========================================
@@ -1017,10 +982,9 @@ components:
           maxLength: 255
           description: Street name
         streetNumber:
-          type: string
+          type: [string, "null"]
           maxLength: 20
           description: Street/house number
-          nullable: true
         postalCode:
           type: string
           minLength: 2
@@ -1031,10 +995,9 @@ components:
           maxLength: 100
           description: City name
         state:
-          type: string
+          type: [string, "null"]
           maxLength: 100
           description: State or region
-          nullable: true
         country:
           $ref: "#/components/schemas/Country"
 
@@ -1067,16 +1030,14 @@ components:
           pattern: '^[A-Z]{3}$'
           description: ISO 3166-1 alpha-3 code (e.g., USA, GBR)
         numericCode:
-          type: integer
+          type: [integer, "null"]
           minimum: 0
           maximum: 999
           description: ISO 3166-1 numeric code
-          nullable: true
         phonePrefix:
-          type: string
+          type: [string, "null"]
           pattern: '^\+[1-9][0-9]{0,3}$'
           description: International phone prefix (e.g., +1, +44)
-          nullable: true
 
     # ========================================
     # PERSON - Complex nested model
@@ -1107,17 +1068,14 @@ components:
           format: email
           maxLength: 254
         phone:
-          type: string
+          type: [string, "null"]
           pattern: '^\+?[1-9]\d{6,14}$'
-          nullable: true
         website:
-          type: string
+          type: [string, "null"]
           format: uri
-          nullable: true
         dateOfBirth:
-          type: string
+          type: [string, "null"]
           format: date
-          nullable: true
         gender:
           $ref: "#/components/schemas/GenderType"
         address:
@@ -1129,9 +1087,8 @@ components:
           type: string
           format: date-time
         updatedAt:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
 
     # ========================================
     # ENUMS

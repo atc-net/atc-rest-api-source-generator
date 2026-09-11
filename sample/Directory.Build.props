@@ -13,16 +13,21 @@
   </PropertyGroup>
 
   <!--
-    Microsoft.AspNetCore.OpenApi 10.0.9 transitively pulls Microsoft.OpenApi 2.0.0, which is
-    affected by GHSA-v5pm-xwqc-g5wc (stack-overflow DoS on circular schema refs, fixed in
-    2.7.5 / 3.5.4+). Pin to the latest patched 2.x release — NOT the 3.x line used in src/ —
-    because Microsoft.AspNetCore.OpenApi 10.0.9's built-in XmlCommentGenerator assumes the 2.x
-    API shape (IOpenApiMediaType.Example is settable there; Microsoft.OpenApi 3.x made it
-    read-only, which fails to compile against that generator). Upper-bounded below 3.0.0 so a
-    future transitive floor bump elsewhere in the graph can't silently resolve to 3.x again.
+    The samples run on the 2.x line of Microsoft.OpenApi — NOT the 3.x line used in src/ —
+    because Microsoft.AspNetCore.OpenApi's built-in XmlCommentGenerator assumes the 2.x API
+    shape (IOpenApiMediaType.Example is settable there; Microsoft.OpenApi 3.x made it read-only,
+    which fails to compile against that generator with CS0200).
+
+    The floor tracks whatever Microsoft.AspNetCore.OpenApi itself requires: 10.0.12 asks for
+    >= 2.12.0, so anything lower is an NU1605 downgrade. It is also comfortably above 2.7.5,
+    which patched GHSA-v5pm-xwqc-g5wc (stack-overflow DoS on circular schema refs).
+
+    Upper-bounded below 3.0.0 so a future transitive floor bump elsewhere in the graph can't
+    silently resolve to 3.x again. When bumping Microsoft.AspNetCore.OpenApi, raise this floor
+    to match its new minimum rather than removing the bound.
   -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.OpenApi" Version="[2.9.0,3.0.0)" />
+    <PackageReference Include="Microsoft.OpenApi" Version="[2.12.0,3.0.0)" />
   </ItemGroup>
 
 </Project>

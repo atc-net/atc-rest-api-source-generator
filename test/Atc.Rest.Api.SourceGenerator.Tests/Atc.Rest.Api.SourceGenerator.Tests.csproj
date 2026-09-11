@@ -18,7 +18,7 @@
     <!-- The scenario snapshots moved here from the integration-test project, so that they are
          produced by the real Roslyn generators rather than a parallel orchestration. -->
     <PackageReference Include="Verify.XunitV3" Version="32.0.0" />
-    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.7.0" />
+    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.10.2" />
     <!-- Referenced only so the assemblies are present in the test host (TRUSTED_PLATFORM_ASSEMBLIES),
          enabling real C# compilation of generated client/server output in CompilationVerificationTests. -->
     <PackageReference Include="Atc.Rest.Client" Version="2.0.36" />

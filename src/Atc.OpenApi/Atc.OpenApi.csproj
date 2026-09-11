@@ -7,8 +7,8 @@
 
   <ItemGroup>
     <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
-    <PackageReference Include="Microsoft.OpenApi" Version="3.7.0" GeneratePathProperty="true" />
-    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.7.0" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.OpenApi" Version="3.10.2" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.10.2" GeneratePathProperty="true" />
     <!--
       Exact pin, not a floor: Microsoft.OpenApi.YamlReader 3.7.0's own nuspec was built/tested
       against SharpYaml 2.1.4 specifically. SharpYaml 3.x is a complete API redesign (breaking,
@@ -17,7 +17,7 @@
       produces zero generated output at runtime. We have no evidence any OTHER 2.x patch is safe
       either, so pin to the one version actually verified rather than floating within 2.x.
     -->
-    <PackageReference Include="SharpYaml" Version="[2.1.4]" GeneratePathProperty="true" />
+    <PackageReference Include="SharpYaml" Version="[2.1.5]" GeneratePathProperty="true" />
   </ItemGroup>
 
   <ItemGroup>

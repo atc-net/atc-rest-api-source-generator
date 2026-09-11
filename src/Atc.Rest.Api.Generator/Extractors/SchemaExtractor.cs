@@ -942,19 +942,23 @@ public static class SchemaExtractor
     /// <summary>
     /// Extracts a string representation of the example value from an OpenAPI schema.
     /// </summary>
+    /// <remarks>
+    /// OpenAPI 3.1 replaced the singular <c>example</c> keyword with the plural <c>examples</c>
+    /// array, and Microsoft.OpenApi deprecated the matching property to match. The deprecated
+    /// property is still read because it is the *only* place a 3.0 document's <c>example</c>
+    /// appears — the reader does not fold it into <c>Examples</c> — and dropping it silently lost
+    /// every example doc-comment on a 3.0 spec.
+    /// </remarks>
     private static string? ExtractExampleString(OpenApiSchema schema)
     {
-        if (schema.Example is not null)
-        {
-            return schema.Example.ToJsonString();
-        }
-
-        if (schema.Examples is not null && schema.Examples.Count > 0)
+        if (schema.Examples is { Count: > 0 })
         {
             return schema.Examples[0].ToJsonString();
         }
 
-        return null;
+#pragma warning disable CS0618 // Type or member is obsolete
+        return schema.Example?.ToJsonString();
+#pragma warning restore CS0618
     }
 
     /// <summary>

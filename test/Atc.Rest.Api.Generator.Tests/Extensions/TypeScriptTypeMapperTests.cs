@@ -251,7 +251,12 @@ public class TypeScriptTypeMapperTests
         var result = schema.ToTypeScriptTypeForModel(isRequired: false);
 
         // Assert
-        Assert.Equal("IdValue | null", result);
+        // Spec note: `nullable: true` applies only when `type` is in the same Schema Object, and
+        // never reaches through allOf/oneOf (OAI "Clarify Semantics of nullable", 2019).
+        // Microsoft.OpenApi 3.7.0 honoured it here anyway; 3.10.2 correctly does not, so the
+        // property is no longer nullable. The 3.1 spelling — `oneOf: [$ref, {type: "null"}]` —
+        // does produce `IdValue | null`; see ToTypeScriptTypeForModel_OneOfRefPlusNullBranch.
+        Assert.Equal("IdValue", result);
     }
 
     [Fact]
@@ -268,7 +273,42 @@ public class TypeScriptTypeMapperTests
         var result = schema.ToTypeScriptTypeForModel(isRequired: false);
 
         // Assert
-        Assert.Equal("DeviceSettings | null", result);
+        // See the spec note above: nullable does not reach through allOf.
+        Assert.Equal("DeviceSettings", result);
+    }
+
+    [Fact]
+    public void ToTypeScriptTypeForModel_OneOfRefPlusNullBranch_IsNullableRefType()
+    {
+        // The OpenAPI 3.1 spelling of a nullable reference. The null branch marks nullability
+        // rather than adding a union member, so this stays a single named type.
+        var doc = ParseYaml("""
+                            openapi: "3.1.0"
+                            info:
+                              title: T
+                              version: "1.0.0"
+                            paths: {}
+                            components:
+                              schemas:
+                                Device:
+                                  type: object
+                                  properties:
+                                    customer:
+                                      oneOf:
+                                        - $ref: '#/components/schemas/IdValue'
+                                        - type: "null"
+                                IdValue:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                            """);
+        Assert.NotNull(doc);
+
+        var schema = GetSchemaProperty(doc, "Device", "customer");
+        Assert.NotNull(schema);
+
+        Assert.Equal("IdValue | null", schema.ToTypeScriptTypeForModel(isRequired: true));
     }
 
     // ========== ToTypeScriptReturnType Tests ==========

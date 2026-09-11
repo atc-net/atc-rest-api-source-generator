@@ -184,15 +184,13 @@ components:
         species:
           type: string
         breed:
-          type: string
-          nullable: true
+          type: [string, "null"]
         age:
           type: integer
           minimum: 0
         ownerId:
-          type: string
+          type: [string, "null"]
           format: uuid
-          nullable: true
 
     CreatePetRequest:
       type: object
@@ -207,15 +205,13 @@ components:
         species:
           type: string
         breed:
-          type: string
-          nullable: true
+          type: [string, "null"]
         age:
           type: integer
           minimum: 0
         ownerId:
-          type: string
+          type: [string, "null"]
           format: uuid
-          nullable: true
 
     UpdatePetRequest:
       type: object
@@ -230,15 +226,13 @@ components:
         species:
           type: string
         breed:
-          type: string
-          nullable: true
+          type: [string, "null"]
         age:
           type: integer
           minimum: 0
         ownerId:
-          type: string
+          type: [string, "null"]
           format: uuid
-          nullable: true
 
     Owner:
       type: object
@@ -258,8 +252,7 @@ components:
           type: string
           format: email
         phone:
-          type: string
-          nullable: true
+          type: [string, "null"]
 
     CreateOwnerRequest:
       type: object
@@ -275,5 +268,4 @@ components:
           type: string
           format: email
         phone:
-          type: string
-          nullable: true
+          type: [string, "null"]
