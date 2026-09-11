@@ -138,6 +138,22 @@ public static class OpenApiSchemaExtensions
                 return false;
             }
 
+            // `nullable: true` is an OpenAPI 3.0 keyword. Microsoft.OpenApi up to 3.7.0 still
+            // honoured it inside a 3.1 document by folding it into the Null type flag; 3.10.2
+            // correctly stopped, because 3.1 replaced it with `type: [x, 'null']` — the keyword
+            // lands in UnrecognizedKeywords instead.
+            //
+            // The 3.1 spec is on the library's side, but silently flipping a consumer's generated
+            // model from `string?` to `string` on a package bump is a breaking change they never
+            // asked for and would not notice until it failed at runtime. So the keyword is still
+            // honoured wherever it appears, and ATC_API_SCH022 tells the author to migrate.
+            if (openApiSchema.UnrecognizedKeywords is { } unrecognized &&
+                unrecognized.TryGetValue("nullable", out var nullableNode) &&
+                nullableNode?.GetValueKind() == System.Text.Json.JsonValueKind.True)
+            {
+                return true;
+            }
+
             var schemaType = openApiSchema.Type;
             if (schemaType is null)
             {

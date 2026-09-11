@@ -1236,6 +1236,50 @@ public class OpenApiSchemaExtensionsTests
         Assert.Null(result);
     }
 
+    [Theory]
+    [InlineData("3.0.4")]
+    [InlineData("3.1.0")]
+    [InlineData("3.2.0")]
+    public void IsNullable_HonoursTheNullableKeyword_AtEverySpecVersion(
+        string specVersion)
+    {
+        // `nullable: true` is an OpenAPI 3.0 keyword. Microsoft.OpenApi 3.7.0 still honoured it in
+        // a 3.1 document; 3.10.2 correctly ignores it, parking it in UnrecognizedKeywords instead.
+        //
+        // Strictly the 3.1 spec is on the library's side, but silently flipping a consumer's
+        // generated model from `string?` to `string` on a package bump is a breaking change they
+        // never asked for and would not notice until it failed at runtime. The keyword is still
+        // honoured — and ATC_API_SCH022 tells the author to migrate to `type: [x, 'null']`.
+        var yaml = $$"""
+                     openapi: "{{specVersion}}"
+                     info:
+                       title: T
+                       version: "1.0.0"
+                     paths: {}
+                     components:
+                       schemas:
+                         Address:
+                           type: object
+                           title: Address
+                           required:
+                             - street
+                           properties:
+                             street:
+                               type: string
+                             state:
+                               type: string
+                               nullable: true
+                     """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var address = (OpenApiSchema)document.Components!.Schemas!["Address"];
+
+        Assert.False(((OpenApiSchema)address.Properties!["street"]).IsNullable());
+        Assert.True(((OpenApiSchema)address.Properties!["state"]).IsNullable());
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
