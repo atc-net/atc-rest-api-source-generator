@@ -2,6 +2,13 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <!--
+      MultipartDemo.yaml is an OpenAPI 3.1 document that deliberately keeps the legacy `nullable: true`
+      spelling, so that the samples between them cover both forms - Showcase.yaml demonstrates the 3.2
+      `type: [x, "null"]` form. ATC_API_VER002 correctly points out that 3.1 removed the keyword; here
+      that is the point of the sample, so the rule is suppressed rather than obeyed.
+    -->
+    <NoWarn>$(NoWarn);ATC_API_VER002</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

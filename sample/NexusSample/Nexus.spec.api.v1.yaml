@@ -338,22 +338,30 @@ components:
           $ref: '#/components/schemas/KeyValue'
         deviceState:
           $ref: '#/components/schemas/DeviceState'
+        # These four are nullable references. `nullable: true` beside `oneOf` would not make them
+        # so - it has no `type` in the same schema object to apply to, which ATC_API_VER001 reports -
+        # so the nullability goes inside the composition as a branch. This is the OpenAPI 3.0
+        # spelling; from 3.1 the branch is simply `type: "null"`.
         customer:
-          nullable: true
           oneOf:
             - $ref: '#/components/schemas/IdValue'
+            - type: object
+              nullable: true
         site:
-          nullable: true
           oneOf:
             - $ref: '#/components/schemas/IdValue'
+            - type: object
+              nullable: true
         suggestedCustomer:
-          nullable: true
           oneOf:
             - $ref: '#/components/schemas/KeyValue'
+            - type: object
+              nullable: true
         suggestedSite:
-          nullable: true
           oneOf:
             - $ref: '#/components/schemas/KeyValue'
+            - type: object
+              nullable: true
     KeyValue:
       title: KeyValue
       type: object

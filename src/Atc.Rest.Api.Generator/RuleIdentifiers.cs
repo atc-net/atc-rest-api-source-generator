@@ -673,4 +673,30 @@ public static class RuleIdentifiers
     /// ATC_API_CLT002: 'clientName' is ignored when clientGranularity is PerArea.
     /// </summary>
     public const string ClientNameIgnoredForPerArea = "ATC_API_CLT002";
+
+    // ========== Spec Version Migration Rules (VER) ==========
+
+    /// <summary>
+    /// ATC_API_VER001: 'nullable' is declared on a Schema Object that has no 'type' of its own,
+    /// so per the specification it has no effect.
+    /// </summary>
+    public const string NullableWithoutSiblingType = "ATC_API_VER001";
+
+    /// <summary>
+    /// ATC_API_VER002: 'nullable' is used in an OpenAPI 3.1 or later document, where the keyword
+    /// no longer exists.
+    /// </summary>
+    public const string NullableKeywordRemovedInSpecVersion = "ATC_API_VER002";
+
+    /// <summary>
+    /// ATC_API_VER003: 'exclusiveMinimum' or 'exclusiveMaximum' is declared in the boolean form,
+    /// which OpenAPI 3.1 replaced with a numeric value.
+    /// </summary>
+    public const string ExclusiveBoundBooleanForm = "ATC_API_VER003";
+
+    /// <summary>
+    /// ATC_API_VER004: A type array ('type: [string, "null"]') is used in an OpenAPI 3.0 document,
+    /// where 'type' must be a single string.
+    /// </summary>
+    public const string TypeArrayNotSupportedInSpecVersion = "ATC_API_VER004";
 }

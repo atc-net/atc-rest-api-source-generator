@@ -50,7 +50,8 @@ internal static class SpecificationValidationHelper
                 strategy,
                 parsedDoc,
                 openApiDiagnostic?.Errors ?? [],
-                specPath);
+                specPath,
+                yamlContent);
 
             var errors = diagnostics
                 .Where(d => d.Severity == DiagnosticSeverity.Error)

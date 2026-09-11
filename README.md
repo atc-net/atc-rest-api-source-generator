@@ -197,8 +197,10 @@ Read the full documentation on the [WIKI](https://github.com/atc-net/atc-rest-ap
 | [🚀 Getting Started](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Getting-Started-with-Basic)                    | Detailed setup guide with examples           |
 | [🖥️ Getting Started with CLI](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Getting-Started-with-CLI)            | Quick start guide using CLI scaffolding      |
 | [🔄 Migration Guide](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Migration-Guide)                               | Migrate from old `atc-rest-api-generator`    |
+| [⬆️ Upgrading to v2](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v2)                               | What the v2 nullability change means for you |
 | [⚙️ Working with the CLI](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-CLI)                         | Full CLI command reference                   |
 | [📖 Working with OpenAPI](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-OpenAPI)                     | YAML patterns and generated output           |
+| [🕳️ Working with Nullability](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Nullability)             | `nullable` vs `type: [x, "null"]`, and why   |
 | [🔐 Working with Security](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Security)                   | JWT, OAuth2, API Key authentication          |
 | [✅ Working with Validations](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Validations)             | Request validation from OpenAPI constraints  |
 | [⏱️ Working with Rate Limiting](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Rate-Limiting)         | Server-side rate limiting configuration      |

@@ -387,7 +387,8 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
                 strategy,
                 parsedDoc,
                 openApiDiagnostic?.Errors ?? [],
-                specPath);
+                specPath,
+                yamlContent);
 
             var errors = diagnostics
                 .Where(d => d.Severity == DiagnosticSeverity.Error)

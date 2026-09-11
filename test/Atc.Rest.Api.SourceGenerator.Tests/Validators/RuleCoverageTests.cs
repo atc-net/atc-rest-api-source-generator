@@ -69,6 +69,12 @@ public class RuleCoverageTests
         // ========== Client Rules (CLT) ==========
         ["ATC_API_CLT001"] = "SingleClientTypeNameCollision - Tested in Atc.Rest.Api.Generator.Tests.Validators.SingleClientCollisionValidatorTests",
         ["ATC_API_CLT002"] = "ClientNameIgnoredForPerArea - Emitted by ApiClientGenerator, requires a Roslyn generator run with a clientName under PerArea",
+
+        // ========== Spec Version Migration Rules (VER) ==========
+        ["ATC_API_VER001"] = "NullableWithoutSiblingType - Tested in Atc.Rest.Api.Generator.Tests.Validators.SpecVersionMigrationValidationTests",
+        ["ATC_API_VER002"] = "NullableKeywordRemovedInSpecVersion - Tested in Atc.Rest.Api.Generator.Tests.Validators.SpecVersionMigrationValidationTests",
+        ["ATC_API_VER003"] = "ExclusiveBoundBooleanForm - Tested in Atc.Rest.Api.Generator.Tests.Validators.SpecVersionMigrationValidationTests",
+        ["ATC_API_VER004"] = "TypeArrayNotSupportedInSpecVersion - Tested in Atc.Rest.Api.Generator.Tests.Validators.SpecVersionMigrationValidationTests",
     };
 
     [Fact]

@@ -444,16 +444,19 @@ public static class SpecificationService
     /// <param name="document">The OpenAPI document to validate.</param>
     /// <param name="filePath">The file path for error reporting.</param>
     /// <param name="strategy">The validation strategy.</param>
+    /// <param name="sourceText">The raw specification text, when available. Rules that read the text rather than the parsed document need it.</param>
     /// <returns>List of diagnostic messages.</returns>
     public static IReadOnlyList<DiagnosticMessage> Validate(
         OpenApiDocument document,
         string filePath,
-        ValidateSpecificationStrategy strategy = ValidateSpecificationStrategy.Standard)
+        ValidateSpecificationStrategy strategy = ValidateSpecificationStrategy.Standard,
+        string? sourceText = null)
         => Validators.OpenApiDocumentValidator.Validate(
             strategy,
             document,
             Array.Empty<OpenApiError>(),
-            filePath);
+            filePath,
+            sourceText);
 
     /// <summary>
     /// Validates a part file for prohibited sections.

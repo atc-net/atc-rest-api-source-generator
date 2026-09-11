@@ -42,12 +42,20 @@ public static class OpenApiDocumentValidator
     /// <param name="document">The OpenAPI document to validate.</param>
     /// <param name="diagnosticErrors">Diagnostic errors from parsing (used in Standard validation).</param>
     /// <param name="sourceFilePath">Path to the source OpenAPI file for error reporting.</param>
+    /// <param name="sourceText">
+    /// The raw specification text, when the caller has it. Some rules cannot be expressed against the
+    /// parsed document because the parser discards the construct they are about — <c>nullable</c> on a
+    /// schema with no <c>type</c> is consumed and dropped in an OpenAPI 3.0 document, reaching neither
+    /// the type flags nor <c>UnrecognizedKeywords</c>. Those rules read the text instead, which also
+    /// lets them report a line number.
+    /// </param>
     /// <returns>List of diagnostic messages to report.</returns>
     public static List<DiagnosticMessage> Validate(
         ValidateSpecificationStrategy strategy,
         OpenApiDocument document,
         IList<OpenApiError> diagnosticErrors,
-        string sourceFilePath)
+        string sourceFilePath,
+        string? sourceText = null)
     {
         var diagnostics = new List<DiagnosticMessage>();
 
@@ -66,6 +74,10 @@ public static class OpenApiDocumentValidator
         if (strategy == ValidateSpecificationStrategy.Strict)
         {
             diagnostics.AddRange(ValidateStrict(document, sourceFilePath));
+
+            // ATC_API_VER0xx: constructs that do not mean what the author thinks at the declared
+            // spec version, or that must change when the version is raised.
+            SpecVersionMigrationValidator.Validate(diagnostics, sourceFilePath, document, sourceText);
         }
 
         return diagnostics;

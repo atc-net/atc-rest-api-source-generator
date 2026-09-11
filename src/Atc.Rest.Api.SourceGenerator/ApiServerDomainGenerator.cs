@@ -211,7 +211,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             config.ValidateSpecificationStrategy,
             openApiDoc,
             openApiDiagnostic?.Errors ?? Array.Empty<OpenApiError>(),
-            yamlPath);
+            yamlPath,
+            yamlContent);
 
         // Report all validation diagnostics (convert from platform-agnostic to Roslyn)
         foreach (var diagnostic in validationDiagnostics)
