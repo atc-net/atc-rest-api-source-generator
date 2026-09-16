@@ -1852,6 +1852,16 @@ public static class OpenApiDocumentValidator
         string pathKey,
         string httpMethod)
     {
+        // OPR008/OPR009 enforce a *read-side* naming convention: does this operation's name
+        // promise one item or many? For an action operation the operationId names what it acts on,
+        // not what it returns, so `resendPendingDevices` answering with one summary of counts is
+        // correct rather than a defect. Applying the convention to writes flagged that whole
+        // category and rewarded padding the name until it stopped ending in 's'.
+        if (!IsCardinalityCheckedMethod(httpMethod))
+        {
+            return;
+        }
+
         var responseSchema = GetSuccessResponseSchema(operation);
         if (responseSchema is null)
         {
@@ -1859,8 +1869,10 @@ public static class OpenApiDocumentValidator
         }
 
         // Author assertion via `x-operation-response-cardinality: single|array` trumps the
-        // name-based heuristic. The response-shape cross-check still runs, so an annotation that
-        // disagrees with the actual response still surfaces a warning.
+        // name-based heuristic for the reads that reach this point. It is the intended answer for a
+        // read whose plural name describes what it aggregated — `getTotalDownloads` counts many
+        // downloads and returns one total. The response-shape cross-check still runs, so an
+        // annotation that disagrees with the actual response still surfaces a warning.
         var cardinalityAnnotation = operation.GetResponseCardinalityAnnotation();
         var isPluralized = cardinalityAnnotation switch
         {
@@ -1881,11 +1893,17 @@ public static class OpenApiDocumentValidator
         if (isPluralized && !isDirectArrayResponse && !isWrapperWithArray)
         {
             diagnostics.Add(new DiagnosticMessage(
-                RuleIdentifiers.OperationIdPluralizationMismatch,
-                $"OperationId '{operationId}' is pluralized but response is a single item. " +
-                $"Location: {httpMethod.ToUpperInvariant()} {pathKey}",
-                DiagnosticSeverity.Warning,
-                sourceFilePath));
+                RuleId: RuleIdentifiers.OperationIdPluralizationMismatch,
+                Message: $"OperationId '{operationId}' is pluralized but response is a single item. " +
+                         $"Location: {httpMethod.ToUpperInvariant()} {pathKey}",
+                Severity: DiagnosticSeverity.Warning,
+                FilePath: sourceFilePath,
+                Suggestions:
+                [
+                    "Add 'x-operation-response-cardinality: single' to the operation if the plural operationId names what it aggregates rather than what it returns.",
+                    "Otherwise rename the operation to a singular subject, or return the collection the name promises.",
+                ],
+                DocumentationUrl: Constants.Documentation.GetRuleUrl(RuleIdentifiers.OperationIdPluralizationMismatch)));
         }
 
         // ATCAPI_OPR009: Singular operationId but response is array
@@ -1893,11 +1911,17 @@ public static class OpenApiDocumentValidator
         if (!isPluralized && isDirectArrayResponse && !isWrapperWithArray)
         {
             diagnostics.Add(new DiagnosticMessage(
-                RuleIdentifiers.OperationIdSingularMismatch,
-                $"OperationId '{operationId}' is singular but response is an array. " +
-                $"Location: {httpMethod.ToUpperInvariant()} {pathKey}",
-                DiagnosticSeverity.Warning,
-                sourceFilePath));
+                RuleId: RuleIdentifiers.OperationIdSingularMismatch,
+                Message: $"OperationId '{operationId}' is singular but response is an array. " +
+                         $"Location: {httpMethod.ToUpperInvariant()} {pathKey}",
+                Severity: DiagnosticSeverity.Warning,
+                FilePath: sourceFilePath,
+                Suggestions:
+                [
+                    "Add 'x-operation-response-cardinality: array' to the operation if the singular operationId names one subject whose result is legitimately a list.",
+                    "Otherwise rename the operation to a plural subject, or return the single item the name promises.",
+                ],
+                DocumentationUrl: Constants.Documentation.GetRuleUrl(RuleIdentifiers.OperationIdSingularMismatch)));
         }
     }
 
@@ -2249,6 +2273,19 @@ public static class OpenApiDocumentValidator
 
         return null;
     }
+
+    /// <summary>
+    /// Whether OPR008/OPR009 apply to an operation declared with this HTTP method.
+    /// </summary>
+    /// <remarks>
+    /// The rule pair is a read-side convention — it asks whether the operationId promises one item
+    /// or many, and compares that against the response. Only <c>GET</c> and <c>QUERY</c> are reads
+    /// whose name is expected to describe the response; on a write the operationId names the
+    /// subject being acted on, and a plural subject with a single summary response is correct.
+    /// </remarks>
+    private static bool IsCardinalityCheckedMethod(string httpMethod)
+        => string.Equals(httpMethod, "get", StringComparison.OrdinalIgnoreCase) ||
+           string.Equals(httpMethod, "query", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Checks if an operationId signals a collection (plural) response. Considers all PascalCase

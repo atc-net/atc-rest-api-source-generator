@@ -1259,6 +1259,329 @@ public class OperationValidationTests
         Assert.NotNull(opr009);
     }
 
+    // ========== OPR008/OPR009: cardinality is a read-side convention ==========
+
+    [Fact]
+    public void Validate_BulkActionPluralOperationIdReturnsSummaryObject_NoOPR008()
+    {
+        // Arrange - the shape reported from the field: a POST that acts on many devices and reports
+        // one summary of what happened. `resendPendingDevices` names its *subject*, not its response,
+        // so both halves are honest and there is no rename that is simultaneously correct and quiet.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /devices/command/resend-d365-pendings:
+                                post:
+                                  operationId: resendPendingDevices
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: object
+                                            properties:
+                                              reSentCount:
+                                                type: integer
+                                              notFoundCount:
+                                                type: integer
+                                              skippedCount:
+                                                type: integer
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.Null(opr008);
+    }
+
+    [Theory]
+    [InlineData("post")]
+    [InlineData("put")]
+    [InlineData("patch")]
+    [InlineData("delete")]
+    public void Validate_NonReadMethodWithPluralOperationIdAndSingleResponse_NoOPR008(
+        string httpMethod)
+    {
+        // Arrange - no write method should be asked whether its name promises one item or many.
+        var document = ParseYaml(CreateOperationWithObjectResponseYaml("archiveDevices", httpMethod));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.Null(opr008);
+    }
+
+    [Theory]
+    [InlineData("post")]
+    [InlineData("put")]
+    [InlineData("patch")]
+    [InlineData("delete")]
+    public void Validate_NonReadMethodWithSingularOperationIdAndArrayResponse_NoOPR009(
+        string httpMethod)
+    {
+        // Arrange - the OPR009 half of the same narrowing. `createSubscription` returning the list
+        // of subscriptions it produced is a normal write shape, not a naming defect.
+        var document = ParseYaml(CreateOperationWithArrayResponseYaml("createSubscription", httpMethod));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr009 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdSingularMismatch);
+        Assert.Null(opr009);
+    }
+
+    [Fact]
+    public void Validate_QueryOperationWithSingularOperationIdAndArrayResponse_ReportsOPR009()
+    {
+        // Arrange - QUERY is a read that carries its criteria in a body, so the naming convention
+        // applies to it exactly as it does to GET. Guards the narrowing against overshooting.
+        const string yaml = """
+                            openapi: "3.2.0"
+                            info:
+                              title: Test API
+                              version: "1.0.0"
+                            paths:
+                              /devices:
+                                query:
+                                  operationId: queryDevice
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema:
+                                          type: object
+                                          properties:
+                                            state:
+                                              type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items:
+                                              type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr009 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdSingularMismatch);
+        Assert.NotNull(opr009);
+        Assert.Contains("queryDevice", opr009.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_GetPluralOperationIdReturnsArray_NoOPR008AndNoOPR009()
+    {
+        // Arrange - neighbour guard: the narrowing must not disturb the ordinary read case.
+        var document = ParseYaml(CreateOperationWithArrayResponseYaml("getDevices"));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        Assert.DoesNotContain(diagnostics, d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.DoesNotContain(diagnostics, d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdSingularMismatch);
+    }
+
+    [Fact]
+    public void Validate_GetSingularOperationIdReturnsArray_StillReportsOPR009()
+    {
+        // Arrange - neighbour guard: a GET is still held to the convention.
+        var document = ParseYaml(CreateOperationWithArrayResponseYaml("getDevice"));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr009 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdSingularMismatch);
+        Assert.NotNull(opr009);
+    }
+
+    [Fact]
+    public void Validate_GetCollectionIntentPrefixReturnsSingleObject_StillReportsOPR008()
+    {
+        // Arrange - neighbour guard: `searchDevices` on a GET promises many and delivers one, which
+        // is the mismatch OPR008 exists to catch.
+        var document = ParseYaml(CreateOperationWithObjectResponseYaml("searchDevices"));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.NotNull(opr008);
+    }
+
+    // ========== OPR008/OPR009: the diagnostics carry a way out ==========
+
+    [Fact]
+    public void Validate_OPR008_CarriesSuggestionsAndDocumentationUrl()
+    {
+        // Arrange - a spec author who hits OPR008 on a name they believe is correct needs the
+        // annotation and the wiki page to be reachable from the diagnostic itself.
+        var document = ParseYaml(CreateOperationWithObjectResponseYaml("getPets"));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.NotNull(opr008);
+        Assert.Equal(
+            "https://github.com/atc-net/atc-rest-api-source-generator/wiki/Analyzer-Rules#atc_api_opr008",
+            opr008.DocumentationUrl);
+        Assert.NotNull(opr008.Suggestions);
+        Assert.Contains(
+            opr008.Suggestions,
+            s => s.Contains("x-operation-response-cardinality", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_OPR009_CarriesSuggestionsAndDocumentationUrl()
+    {
+        // Arrange - same affordance on the singular-name half of the rule pair.
+        var document = ParseYaml(CreateOperationWithArrayResponseYaml("getPet"));
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr009 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdSingularMismatch);
+        Assert.NotNull(opr009);
+        Assert.Equal(
+            "https://github.com/atc-net/atc-rest-api-source-generator/wiki/Analyzer-Rules#atc_api_opr009",
+            opr009.DocumentationUrl);
+        Assert.NotNull(opr009.Suggestions);
+        Assert.Contains(
+            opr009.Suggestions,
+            s => s.Contains("x-operation-response-cardinality", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_CardinalityAnnotationSingleOverridesPluralNameOnQueryOperation_NoOPR008()
+    {
+        // Arrange - after OPR008/OPR009 were narrowed to read operations, the annotation's only
+        // remaining job is the read-side aggregate: a GET or QUERY whose plural name honestly
+        // describes what it counted rather than a collection it returns.
+        const string yaml = """
+                            openapi: "3.2.0"
+                            info:
+                              title: Test API
+                              version: "1.0.0"
+                            paths:
+                              /downloads/totals:
+                                query:
+                                  operationId: getTotalDownloads
+                                  x-operation-response-cardinality: single
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema:
+                                          type: object
+                                          properties:
+                                            packageId:
+                                              type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: object
+                                            properties:
+                                              total:
+                                                type: integer
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr008 = diagnostics.FirstOrDefault(d =>
+            d.RuleId == Generator.RuleIdentifiers.OperationIdPluralizationMismatch);
+        Assert.Null(opr008);
+    }
+
     // ========== OPR010: BadRequest without parameters ==========
 
     [Fact]
@@ -2047,7 +2370,8 @@ public class OperationValidationTests
              """;
 
     private static string CreateOperationWithArrayResponseYaml(
-        string operationId)
+        string operationId,
+        string httpMethod = "get")
         => $$"""
 
              openapi: 3.0.0
@@ -2056,7 +2380,7 @@ public class OperationValidationTests
                version: 1.0.0
              paths:
                /pets:
-                 get:
+                 {{httpMethod}}:
                    operationId: {{operationId}}
                    responses:
                      '200':
@@ -2071,7 +2395,8 @@ public class OperationValidationTests
              """;
 
     private static string CreateOperationWithObjectResponseYaml(
-        string operationId)
+        string operationId,
+        string httpMethod = "get")
         => $$"""
 
              openapi: 3.0.0
@@ -2080,7 +2405,7 @@ public class OperationValidationTests
                version: 1.0.0
              paths:
                /pets:
-                 get:
+                 {{httpMethod}}:
                    operationId: {{operationId}}
                    responses:
                      '200':
