@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.1.0](https://github.com/atc-net/atc-rest-api-source-generator/compare/v2.0.0...v2.1.0) (2026-09-24)
+
+
+### New features
+
+* **security:** map http bearer schemes onto the "Bearer" authentication scheme ([9d31382](https://github.com/atc-net/atc-rest-api-source-generator/commit/9d3138233e45176b480dbf98714c361eef7a1c3c))
+
+
+### Bug fixes
+
+* **security:** generate AddApiSecurityPolicies whenever a security scheme exists ([947388e](https://github.com/atc-net/atc-rest-api-source-generator/commit/947388ebc11767a1b2483e1f82de2aa15fb122f3))
+* **validator:** only report OPR022 for a 403 on an anonymous operation ([54f21e1](https://github.com/atc-net/atc-rest-api-source-generator/commit/54f21e1e0bea8d235a2f4df6c34a306d20f1e00a))
+
 ## [2.0.0](https://github.com/atc-net/atc-rest-api-source-generator/compare/v1.0.393...v2.0.0) (2026-09-16)
 
 
