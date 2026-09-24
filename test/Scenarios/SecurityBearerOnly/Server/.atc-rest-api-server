@@ -1,0 +1,9 @@
+{
+  "validateSpecificationStrategy": "Strict",
+  "useServersBasePath": true,
+  "useMinimalApiPackage": "Enabled",
+  "useValidationFilter": "Enabled",
+  "useGlobalErrorHandler": "Enabled",
+  "includeDeprecated": false,
+  "removeNamespaceGroupSeparatorInGlobalUsings": true
+}

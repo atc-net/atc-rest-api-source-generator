@@ -9,7 +9,9 @@ global using System.Net;
 global using System.Net.Http.Json;
 global using System.Reflection;
 global using System.Runtime.CompilerServices;
+global using System.Security.Claims;
 global using System.Text;
+global using System.Text.Encodings.Web;
 global using System.Text.Json;
 global using System.Text.Json.Serialization;
 global using System.Text.RegularExpressions;
@@ -24,6 +26,7 @@ global using Atc.Rest.Api.Generator.Validators;
 global using Atc.Rest.Api.SourceGenerator.Helpers;
 global using Atc.Rest.Api.SourceGenerator.Tests.Helpers;
 
+global using Microsoft.AspNetCore.Authentication;
 global using Microsoft.AspNetCore.Builder;
 global using Microsoft.AspNetCore.Http;
 global using Microsoft.AspNetCore.Mvc;
@@ -31,6 +34,8 @@ global using Microsoft.CodeAnalysis;
 global using Microsoft.CodeAnalysis.CSharp;
 global using Microsoft.CodeAnalysis.Text;
 global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Logging;
+global using Microsoft.Extensions.Options;
 global using Microsoft.OpenApi;
 
 global using VerifyXunit;
