@@ -96,6 +96,121 @@ public class ResponseCodeValidationTests
         Assert.Contains(diagnostics, d => d.RuleId == RuleIdentifiers.ForbiddenWithoutAuthorization);
     }
 
+    [Fact]
+    public void StrictMode_NoWarning_403OnAuthenticatedOperationWithoutRoles()
+    {
+        // Arrange: Authenticated-only operation. The handler returns 403 for application-level
+        // authorization ("not a known user"), which needs no role, policy or scope in the spec.
+        const string yaml = """
+                            openapi: "3.1.1"
+                            info:
+                              title: Test API
+                              version: "1.0.0"
+                            paths:
+                              /whoami:
+                                get:
+                                  operationId: getCurrentUser
+                                  security:
+                                    - BearerAuth: []
+                                  responses:
+                                    200:
+                                      description: OK
+                                    401:
+                                      description: Not authenticated
+                                    403:
+                                      description: Not a known user
+                            components:
+                              securitySchemes:
+                                BearerAuth:
+                                  type: http
+                                  scheme: bearer
+                            """;
+
+        var doc = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        // Act: Validate with Strict mode
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict, doc, [], TestFilePath);
+
+        // Assert: Should NOT have ATC_API_OPR022 warning
+        Assert.DoesNotContain(diagnostics, d => d.RuleId == RuleIdentifiers.ForbiddenWithoutAuthorization);
+    }
+
+    [Fact]
+    public void StrictMode_NoWarning_403OnOperationInheritingDocumentSecurity()
+    {
+        // Arrange: Document-level security applies to the operation
+        const string yaml = """
+                            openapi: "3.1.1"
+                            info:
+                              title: Test API
+                              version: "1.0.0"
+                            security:
+                              - BearerAuth: []
+                            paths:
+                              /whoami:
+                                get:
+                                  operationId: getCurrentUser
+                                  responses:
+                                    200:
+                                      description: OK
+                                    403:
+                                      description: Not a known user
+                            components:
+                              securitySchemes:
+                                BearerAuth:
+                                  type: http
+                                  scheme: bearer
+                            """;
+
+        var doc = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        // Act: Validate with Strict mode
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict, doc, [], TestFilePath);
+
+        // Assert: Should NOT have ATC_API_OPR022 warning
+        Assert.DoesNotContain(diagnostics, d => d.RuleId == RuleIdentifiers.ForbiddenWithoutAuthorization);
+    }
+
+    [Fact]
+    public void StrictMode_Warns_403OnOperationOptingOutOfDocumentSecurity()
+    {
+        // Arrange: "security: []" makes the operation anonymous despite document-level security
+        const string yaml = """
+                            openapi: "3.1.1"
+                            info:
+                              title: Test API
+                              version: "1.0.0"
+                            security:
+                              - BearerAuth: []
+                            paths:
+                              /status:
+                                get:
+                                  operationId: getStatus
+                                  security: []
+                                  responses:
+                                    200:
+                                      description: OK
+                                    403:
+                                      description: Forbidden
+                            components:
+                              securitySchemes:
+                                BearerAuth:
+                                  type: http
+                                  scheme: bearer
+                            """;
+
+        var doc = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        // Act: Validate with Strict mode
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict, doc, [], TestFilePath);
+
+        // Assert: Should have ATC_API_OPR022 warning
+        Assert.Contains(diagnostics, d => d.RuleId == RuleIdentifiers.ForbiddenWithoutAuthorization);
+    }
+
     // ========== 404 NotFound on POST Tests (ATC_API_OPR023) ==========
     [Fact]
     public void StrictMode_Warns_404OnPostOperation()

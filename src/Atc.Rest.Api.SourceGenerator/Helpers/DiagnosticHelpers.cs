@@ -1333,11 +1333,11 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI_OPR022: 403 Forbidden response defined but no authorization (roles/policies).
+    /// ATCAPI_OPR022: 403 Forbidden response defined on an operation without any security requirement.
     /// </summary>
     public static readonly DiagnosticDescriptor ForbiddenWithoutAuthorization = new(
         RuleIdentifiers.ForbiddenWithoutAuthorization,
-        "Forbidden Response Without Authorization",
+        "Forbidden Response On Anonymous Operation",
         "{0}",
         RuleIdentifiers.Category,
         DiagnosticSeverity.Warning,

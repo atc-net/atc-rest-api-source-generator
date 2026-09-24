@@ -1988,7 +1988,12 @@ public static class OpenApiDocumentValidator
     }
 
     /// <summary>
-    /// Validates 403 Forbidden response has authorization requirements (roles/policies/scopes).
+    /// Validates 403 Forbidden response is on an operation with an effective security requirement.
+    /// <para>
+    /// An authenticated operation needs no role, policy or scope to return 403: the handler may
+    /// refuse a signed-in caller for application-level reasons ("not a known user", "not your
+    /// resource"). Only an anonymous operation declaring 403 is flagged.
+    /// </para>
     /// </summary>
     private static void ValidateForbiddenResponse(
         List<DiagnosticMessage> diagnostics,
@@ -2005,17 +2010,18 @@ public static class OpenApiDocumentValidator
         }
 
         var securityConfig = operation.ExtractUnifiedSecurityConfiguration(pathItem, document);
-        var hasRolesOrPolicies = securityConfig is not null &&
-            (securityConfig.Roles.Count > 0 ||
+        var hasSecurity = securityConfig is not null &&
+            (securityConfig.AuthenticationRequired ||
+             securityConfig.Roles.Count > 0 ||
              securityConfig.Policies.Count > 0 ||
              securityConfig.Scopes.Count > 0);
 
-        // ATCAPI_OPR022: Has 403 Forbidden but no authorization requirements
-        if (!hasRolesOrPolicies)
+        // ATCAPI_OPR022: Has 403 Forbidden but no security requirement at all (anonymous)
+        if (!hasSecurity)
         {
             diagnostics.Add(new DiagnosticMessage(
                 RuleIdentifiers.ForbiddenWithoutAuthorization,
-                $"Operation '{operationId}' defines 403 Forbidden response but has no authorization requirements (roles/policies/scopes).",
+                $"Operation '{operationId}' defines 403 Forbidden response but has no security requirements (it allows anonymous access).",
                 DiagnosticSeverity.Warning,
                 sourceFilePath));
         }
