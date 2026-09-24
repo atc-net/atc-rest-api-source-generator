@@ -106,7 +106,9 @@ public class GeneratorCompilationGateTests
             generatedSources.Count == 0,
             $"{combination}: the generator emitted no sources.");
 
-        var errors = CompilationVerificationHarness.CompileGeneratedSources(generatedSources);
+        var errors = CompilationVerificationHarness.CompileGeneratedSources(
+            generatedSources,
+            CompilationVerificationHarness.ScenarioReferencesMinimalApi(scenarioName));
 
         if (KnownNonCompilingCombinations.Contains(combination))
         {

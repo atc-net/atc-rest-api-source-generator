@@ -72,7 +72,9 @@ internal static class CompilationVerificationHarness
         // full reference set when the caller needs the generator to actually emit output.
         var compilation = CSharpCompilation.Create(
             assemblyName,
-            references: useFullReferences ? GetFullFrameworkReferences() : GetMinimalReferences(),
+            references: useFullReferences
+                ? GetFullFrameworkReferences(ScenarioReferencesMinimalApi(scenarioName))
+                : GetMinimalReferences(),
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var driver = CSharpGeneratorDriver
@@ -96,9 +98,10 @@ internal static class CompilationVerificationHarness
     /// framework + ASP.NET Core + Atc.Rest.Client reference set.
     /// </summary>
     public static List<string> CompileGeneratedSources(
-        List<(string HintName, string Source)> generatedSources)
+        List<(string HintName, string Source)> generatedSources,
+        bool includeMinimalApi = false)
     {
-        var compilation = CreateCompilation(generatedSources);
+        var compilation = CreateCompilation(generatedSources, includeMinimalApi);
 
         return compilation
             .GetDiagnostics(TestContext.Current.CancellationToken)
@@ -112,9 +115,10 @@ internal static class CompilationVerificationHarness
     /// emit succeeded. Used by wire-byte round-trip tests that invoke emitted types via reflection.
     /// </summary>
     public static Assembly EmitAndLoad(
-        List<(string HintName, string Source)> generatedSources)
+        List<(string HintName, string Source)> generatedSources,
+        bool includeMinimalApi = false)
     {
-        var compilation = CreateCompilation(generatedSources);
+        var compilation = CreateCompilation(generatedSources, includeMinimalApi);
 
         using var ms = new MemoryStream();
         var emitResult = compilation.Emit(ms, cancellationToken: TestContext.Current.CancellationToken);
@@ -131,7 +135,8 @@ internal static class CompilationVerificationHarness
     }
 
     private static CSharpCompilation CreateCompilation(
-        List<(string HintName, string Source)> generatedSources)
+        List<(string HintName, string Source)> generatedSources,
+        bool includeMinimalApi = false)
     {
         // Generated code assumes the host project's ImplicitUsings; supply the standard set
         // so BCL types (Task, IAsyncEnumerable, HttpClient, ...) resolve without per-file usings.
@@ -157,7 +162,7 @@ internal static class CompilationVerificationHarness
         return CSharpCompilation.Create(
             "GeneratedCodeCompileTest",
             trees,
-            GetFullFrameworkReferences(),
+            GetFullFrameworkReferences(includeMinimalApi),
             new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
                 nullableContextOptions: NullableContextOptions.Enable));
@@ -181,16 +186,54 @@ internal static class CompilationVerificationHarness
     /// Full reference set: every assembly the test host can see (the trusted-platform-assemblies
     /// list), which includes the BCL, the ASP.NET Core shared framework, and Atc.Rest.Client —
     /// so generated code compiles for real.
+    /// <para>
+    /// <c>Atc.Rest.MinimalApi</c> is left out unless <paramref name="includeMinimalApi"/> is set:
+    /// the server generator switches every <c>"Auto"</c> MinimalApi mode on when it sees that
+    /// assembly, so exposing it to all scenarios would change their output wholesale.
+    /// </para>
     /// </summary>
-    public static List<MetadataReference> GetFullFrameworkReferences()
+    public static List<MetadataReference> GetFullFrameworkReferences(
+        bool includeMinimalApi = false)
     {
         var tpa = (string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES");
         return tpa
             .Split(Path.PathSeparator)
             .Where(p => p.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            .Where(p => includeMinimalApi ||
+                        !string.Equals(Path.GetFileName(p), MinimalApiAssemblyFileName, StringComparison.OrdinalIgnoreCase))
             .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))
             .ToList();
     }
+
+    /// <summary>
+    /// Whether a scenario stands for a project that references <c>Atc.Rest.MinimalApi</c>, which
+    /// it declares by setting any MinimalApi mode in its Server marker to <c>"Enabled"</c> - the
+    /// same promise a consumer makes with that value.
+    /// </summary>
+    public static bool ScenarioReferencesMinimalApi(string scenarioName)
+    {
+        var markerPath = GetScenarioPath(scenarioName, Path.Combine("Server", ".atc-rest-api-server"));
+        if (!File.Exists(markerPath))
+        {
+            return false;
+        }
+
+        using var document = JsonDocument.Parse(File.ReadAllText(markerPath));
+
+        return MinimalApiModeProperties.Any(name =>
+            document.RootElement.TryGetProperty(name, out var value) &&
+            value.ValueKind == JsonValueKind.String &&
+            string.Equals(value.GetString(), "Enabled", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private const string MinimalApiAssemblyFileName = "Atc.Rest.MinimalApi.dll";
+
+    private static readonly string[] MinimalApiModeProperties =
+    [
+        "useMinimalApiPackage",
+        "useValidationFilter",
+        "useGlobalErrorHandler",
+    ];
 
     public static string GetScenarioPath(
         string scenarioName,

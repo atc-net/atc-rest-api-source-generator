@@ -1,0 +1,41 @@
+openapi: 3.2.0
+info:
+  title: SecurityBearerOnly Sample API
+  description: API demonstrating bearer authentication without roles, policies or scopes
+  version: 1.0.0
+
+servers:
+  - url: /api/v1
+
+paths:
+  /whoami:
+    get:
+      operationId: getCurrentUser
+      summary: Get the signed-in user
+      description: Any authenticated caller may call this. The handler returns 403 when the caller is not a known user.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Not authenticated.
+        '403':
+          description: Not a known user.
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        email:
+          type: string
