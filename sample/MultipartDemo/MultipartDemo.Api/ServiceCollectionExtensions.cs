@@ -13,7 +13,8 @@ public static class ServiceCollectionExtensions
     /// WARNING: This configuration accepts ANY bearer token and should NEVER be used in production!
     /// </para>
     /// <para>
-    /// The scheme names "bearer_auth" and "api_key" match the OpenAPI securitySchemes definitions.
+    /// The generator maps the "bearer_auth" securityScheme (type: http, scheme: bearer) onto the
+    /// conventional "Bearer" scheme.
     /// When authentication fails, a demo identity is created automatically so the request can proceed.
     /// </para>
     /// </remarks>
@@ -22,10 +23,11 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddAuthenticationForMultipartDemoDemo(
         this IServiceCollection services)
     {
-        // The scheme names must match the OpenAPI securitySchemes names
+        // "Bearer" is what the generated endpoints require for the http/bearer "bearer_auth"
+        // securityScheme.
         services
-            .AddAuthentication("bearer_auth")
-            .AddJwtBearer("bearer_auth", ConfigureDemoJwtBearer);
+            .AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(ConfigureDemoJwtBearer);
 
         services.AddAuthorization();
 
@@ -77,7 +79,7 @@ public static class ServiceCollectionExtensions
                     new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "demo-user"),
                     new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "demo-user-id"),
                 };
-                var identity = new System.Security.Claims.ClaimsIdentity(claims, "bearer_auth");
+                var identity = new System.Security.Claims.ClaimsIdentity(claims, Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme);
                 context.Principal = new System.Security.Claims.ClaimsPrincipal(identity);
                 context.Success();
                 return Task.CompletedTask;

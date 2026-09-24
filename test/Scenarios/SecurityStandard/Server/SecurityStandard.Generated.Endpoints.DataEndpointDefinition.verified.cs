@@ -39,7 +39,7 @@ public sealed class DataEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
-                .AddAuthenticationSchemes("api_key", "bearer_auth", "oauth2")
+                .AddAuthenticationSchemes("api_key", "Bearer", "oauth2")
                 .RequireAuthenticatedUser());
     }
 
