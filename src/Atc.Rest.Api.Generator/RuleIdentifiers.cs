@@ -543,7 +543,7 @@ public static class RuleIdentifiers
     public const string UnauthorizedWithoutSecurity = "ATC_API_OPR021";
 
     /// <summary>
-    /// ATC_API_OPR022: 403 Forbidden response defined but no authorization (roles/policies).
+    /// ATC_API_OPR022: 403 Forbidden response defined on an operation without any security requirement.
     /// </summary>
     public const string ForbiddenWithoutAuthorization = "ATC_API_OPR022";
 
