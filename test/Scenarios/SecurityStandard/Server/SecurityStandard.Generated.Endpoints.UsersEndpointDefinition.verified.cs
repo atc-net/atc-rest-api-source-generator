@@ -39,7 +39,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
-                .AddAuthenticationSchemes("bearer_auth")
+                .AddAuthenticationSchemes("Bearer")
                 .RequireAuthenticatedUser());
 
         users
@@ -53,7 +53,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
-                .AddAuthenticationSchemes("bearer_auth")
+                .AddAuthenticationSchemes("Bearer")
                 .RequireAuthenticatedUser());
     }
 

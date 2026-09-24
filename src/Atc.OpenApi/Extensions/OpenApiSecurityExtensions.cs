@@ -67,7 +67,36 @@ public static class OpenApiSecurityExtensions
                extension is null
                 ? []
                 : ExtractStringArray(extension);
+
+        /// <summary>
+        /// Extracts the x-authentication-scheme value from a security scheme's extensions.
+        /// </summary>
+        /// <returns>The ASP.NET Core authentication scheme name, or null if not specified.</returns>
+        public string? ExtractAuthenticationScheme()
+        {
+            if (extensions is null ||
+                !extensions.TryGetValue(SecurityExtensionNameConstants.AuthenticationScheme, out var extension) ||
+                extension is null)
+            {
+                return null;
+            }
+
+            // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
+            var node = extension.GetType().GetProperty("Node")?.GetValue(extension);
+
+            return node is JsonValue jsonValue &&
+                   jsonValue.TryGetValue<string>(out var value) &&
+                   !string.IsNullOrWhiteSpace(value)
+                ? value
+                : null;
+        }
     }
+
+    /// <summary>
+    /// The name <c>AddJwtBearer()</c> registers its handler under
+    /// (<c>JwtBearerDefaults.AuthenticationScheme</c>).
+    /// </summary>
+    private const string AspNetBearerAuthenticationScheme = "Bearer";
 
     /// <summary>
     /// Extracts the complete authorization configuration for an operation.
@@ -330,9 +359,11 @@ public static class OpenApiSecurityExtensions
                 config.AuthenticationRequired = true;
                 config.Requirements = standardRequirements;
 
-                // Extract scheme names and scopes from requirements
+                // Extract the ASP.NET Core authentication scheme names and the scopes from the
+                // requirements. The securityScheme key is only a name inside the spec, so it is
+                // mapped onto the scheme the host actually registers.
                 var schemeNames = standardRequirements
-                    .Select(r => r.SchemeName)
+                    .Select(r => ResolveAuthenticationSchemeName(document, r.SchemeName))
                     .Distinct(StringComparer.Ordinal)
                     .ToList();
                 config.Schemes = schemeNames;
@@ -350,6 +381,34 @@ public static class OpenApiSecurityExtensions
         }
 
         return config;
+    }
+
+    /// <summary>
+    /// Maps a securityScheme key to the ASP.NET Core authentication scheme name it stands for:
+    /// the <c>x-authentication-scheme</c> extension when present, <c>"Bearer"</c> for
+    /// <c>type: http, scheme: bearer</c>, and the key itself otherwise.
+    /// </summary>
+    private static string ResolveAuthenticationSchemeName(
+        OpenApiDocument document,
+        string schemeKey)
+    {
+        if (document.Components?.SecuritySchemes is null ||
+            !document.Components.SecuritySchemes.TryGetValue(schemeKey, out var scheme) ||
+            scheme is null)
+        {
+            return schemeKey;
+        }
+
+        var overrideName = scheme.Extensions.ExtractAuthenticationScheme();
+        if (overrideName is not null)
+        {
+            return overrideName;
+        }
+
+        return scheme.Type == Microsoft.OpenApi.SecuritySchemeType.Http &&
+               string.Equals(scheme.Scheme, "bearer", StringComparison.OrdinalIgnoreCase)
+            ? AspNetBearerAuthenticationScheme
+            : schemeKey;
     }
 
     /// <summary>

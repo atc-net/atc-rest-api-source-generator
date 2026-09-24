@@ -416,6 +416,97 @@ public class OpenApiSecurityExtensionsTests
         Assert.True(result.AuthenticationRequired);
     }
 
+    // ========== Authentication scheme name mapping ==========
+    [Fact]
+    public void ExtractUnifiedSecurityConfiguration_HttpBearer_MapsToAspNetBearerScheme()
+    {
+        // The securityScheme key is a spec-local name; AddJwtBearer() registers "Bearer".
+        var doc = ParseYaml(CreateSingleSchemeYaml(
+            """
+            BearerAuth:
+              type: http
+              scheme: bearer
+              bearerFormat: JWT
+            """,
+            "BearerAuth"));
+        Assert.NotNull(doc);
+
+        var result = ExtractFirstOperationSecurity(doc);
+
+        Assert.Equal(["Bearer"], result.Schemes);
+        Assert.Equal("BearerAuth", Assert.Single(result.Requirements).SchemeName);
+    }
+
+    [Fact]
+    public void ExtractUnifiedSecurityConfiguration_AuthenticationSchemeExtension_OverridesName()
+    {
+        var doc = ParseYaml(CreateSingleSchemeYaml(
+            """
+            BearerAuth:
+              type: http
+              scheme: bearer
+              x-authentication-scheme: AzureAd
+            """,
+            "BearerAuth"));
+        Assert.NotNull(doc);
+
+        var result = ExtractFirstOperationSecurity(doc);
+
+        Assert.Equal(["AzureAd"], result.Schemes);
+    }
+
+    [Fact]
+    public void ExtractUnifiedSecurityConfiguration_ApiKey_KeepsSchemeKey()
+    {
+        var doc = ParseYaml(CreateSingleSchemeYaml(
+            """
+            api_key:
+              type: apiKey
+              name: X-API-Key
+              in: header
+            """,
+            "api_key"));
+        Assert.NotNull(doc);
+
+        var result = ExtractFirstOperationSecurity(doc);
+
+        Assert.Equal(["api_key"], result.Schemes);
+    }
+
+    [Fact]
+    public void ExtractUnifiedSecurityConfiguration_TwoBearerSchemes_EmitBearerOnce()
+    {
+        var doc = ParseYaml("""
+                            openapi: 3.0.0
+                            info:
+                              title: Test
+                              version: 1.0.0
+                            paths:
+                              /whoami:
+                                get:
+                                  operationId: getCurrentUser
+                                  security:
+                                    - UserToken: []
+                                    - ServiceToken: []
+                                  responses:
+                                    '200':
+                                      description: OK
+                            components:
+                              securitySchemes:
+                                UserToken:
+                                  type: http
+                                  scheme: bearer
+                                ServiceToken:
+                                  type: http
+                                  scheme: Bearer
+                            """);
+        Assert.NotNull(doc);
+
+        var result = ExtractFirstOperationSecurity(doc);
+
+        Assert.Equal(["Bearer"], result.Schemes);
+    }
+
     // ========== ATC Extension Extraction Tests ==========
     [Fact]
     public void ExtractAuthenticationRequired_NullExtensions_ReturnsNull()
@@ -511,6 +602,45 @@ public class OpenApiSecurityExtensionsTests
     }
 
     // ========== Helper Methods ==========
+    private static UnifiedSecurityConfig ExtractFirstOperationSecurity(
+        OpenApiDocument doc)
+    {
+        var pathItem = GetFirstPathItem(doc);
+        var operation = GetFirstOperation(pathItem);
+
+        return operation.ExtractUnifiedSecurityConfiguration(pathItem, doc);
+    }
+
+    private static string CreateSingleSchemeYaml(
+        string securitySchemeYaml,
+        string schemeName)
+    {
+        var indentedScheme = string.Join(
+            "\n",
+            securitySchemeYaml
+                .Split('\n')
+                .Select(line => "    " + line.TrimEnd('\r')));
+
+        return $"""
+                openapi: 3.0.0
+                info:
+                  title: Test
+                  version: 1.0.0
+                paths:
+                  /whoami:
+                    get:
+                      operationId: getCurrentUser
+                      security:
+                        - {schemeName}: []
+                      responses:
+                        '200':
+                          description: OK
+                components:
+                  securitySchemes:
+                {indentedScheme}
+                """;
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(
             yaml,

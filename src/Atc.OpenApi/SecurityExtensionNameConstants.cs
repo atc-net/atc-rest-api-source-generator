@@ -32,4 +32,13 @@ public static class SecurityExtensionNameConstants
     /// Example: x-authorize-roles: ["admin", "manager"]
     /// </summary>
     public const string AuthorizeRoles = "x-authorize-roles";
+
+    /// <summary>
+    /// Extension tag on a <c>components/securitySchemes</c> entry naming the ASP.NET Core
+    /// authentication scheme it maps to. Overrides the default mapping, which is <c>"Bearer"</c>
+    /// for <c>type: http, scheme: bearer</c> and the securityScheme key otherwise.
+    /// Type: string
+    /// Example: x-authentication-scheme: AzureAd
+    /// </summary>
+    public const string AuthenticationScheme = "x-authentication-scheme";
 }
