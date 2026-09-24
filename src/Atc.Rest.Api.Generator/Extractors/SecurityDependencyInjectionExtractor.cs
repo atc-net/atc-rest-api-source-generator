@@ -11,7 +11,7 @@ public static class SecurityDependencyInjectionExtractor
     /// <param name="openApiDoc">The OpenAPI document.</param>
     /// <param name="projectName">The project name for namespace.</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
-    /// <returns>Generated code content for the security DI extension class, or null if no policies needed.</returns>
+    /// <returns>Generated code content for the security DI extension class, or null if the document has no security schemes.</returns>
     public static string? Extract(
         OpenApiDocument openApiDoc,
         string projectName,
@@ -22,13 +22,15 @@ public static class SecurityDependencyInjectionExtractor
             throw new ArgumentNullException(nameof(openApiDoc));
         }
 
-        // Collect all unique policies from security requirements
-        var (policies, _, _, _) = SecurityPoliciesExtractor.CollectPolicies(openApiDoc, includeDeprecated);
-
-        if (policies.Count == 0)
+        // The unified Add{Project}Api() references AddApiSecurityPolicies() whenever a scheme
+        // exists, so the method has to exist then too - even with no policy to register.
+        if (!openApiDoc.HasSecuritySchemes())
         {
             return null;
         }
+
+        // Collect all unique policies from security requirements
+        var (policies, _, _, _) = SecurityPoliciesExtractor.CollectPolicies(openApiDoc, includeDeprecated);
 
         // Generate the complete file content
         return GenerateFileContent(projectName, policies);
@@ -48,17 +50,25 @@ public static class SecurityDependencyInjectionExtractor
         contentBuilder.AppendLine("{");
         contentBuilder.AppendLine(4, "public static IServiceCollection AddApiSecurityPolicies(this IServiceCollection services)");
         contentBuilder.AppendLine(8, "services.AddAuthorization(options =>");
-        contentBuilder.AppendLine(12, "options.AddPolicy(SecurityPolicies.Policy, policy =>");
-        contentBuilder.AppendLine(16, "policy.RequireClaim(\"scope\", \"read\"));");
-        contentBuilder.AppendLine(16, "policy.RequireAssertion(context =>");
+        if (policies.Count > 0)
+        {
+            contentBuilder.AppendLine(12, "options.AddPolicy(SecurityPolicies.Policy, policy =>");
+            contentBuilder.AppendLine(16, "policy.RequireClaim(\"scope\", \"read\"));");
+            contentBuilder.AppendLine(16, "policy.RequireAssertion(context =>");
+        }
+
         contentBuilder.AppendLine("}");
         var content = contentBuilder.ToString();
 
         // Build header with only required usings
         var builder = new StringBuilder();
         builder.Append(UsingStatementHelper.BuildHeader(content, NamespaceConstants.SystemCodeDomCompiler));
-        builder.AppendLine($"using {projectName}.Generated.Security;");
-        builder.AppendLine();
+        if (policies.Count > 0)
+        {
+            builder.AppendLine($"using {projectName}.Generated.Security;");
+            builder.AppendLine();
+        }
+
         builder.AppendLine($"namespace {projectName}.Generated.Security;");
         builder.AppendLine();
         builder.AppendLine("/// <summary>");
@@ -92,6 +102,17 @@ public static class SecurityDependencyInjectionExtractor
         Dictionary<string, List<string>> policies)
     {
         var builder = new StringBuilder();
+
+        if (policies.Count == 0)
+        {
+            // Authenticated-only security: no policy to add, but UseAuthorization() still needs
+            // the authorization services registered.
+            builder.AppendLine(8, "services.AddAuthorization();");
+            builder.AppendLine();
+            builder.AppendLine(8, "return services;");
+
+            return builder.ToString();
+        }
 
         builder.AppendLine(8, "services.AddAuthorization(options =>");
         builder.AppendLine(8, "{");
