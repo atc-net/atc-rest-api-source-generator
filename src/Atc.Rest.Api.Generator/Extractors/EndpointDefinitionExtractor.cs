@@ -1768,7 +1768,7 @@ using Microsoft.AspNetCore.Builder;
         // Handle array types
         if (schemaType == "array" && schema.Items is not null)
         {
-            var itemType = GetSchemaItemType(schema.Items, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry);
+            var itemType = GetSchemaItemType(schema.Items, openApiDoc, operationId, projectName, segment, systemTypeResolver, registry, inlineContext == "Response" ? "ResponseItem" : inlineContext + "Item");
             return $"List<{itemType}>";
         }
 
@@ -1835,7 +1835,8 @@ using Microsoft.AspNetCore.Builder;
         string projectName,
         string segment,
         SystemTypeConflictResolver systemTypeResolver,
-        TypeConflictRegistry? registry)
+        TypeConflictRegistry? registry,
+        string itemContext = "ResponseItem")
     {
         // Handle reference
         if (itemSchema is OpenApiSchemaReference itemRef)
@@ -1855,10 +1856,10 @@ using Microsoft.AspNetCore.Builder;
 
         var itemSchemaType = itemSchema.GetSchemaType();
 
-        // Handle inline object - use "ResponseItem" suffix for array items
+        // Handle inline object - "ResponseItem" for a success body, "{Status}ErrorItem" for an error body
         if (itemSchemaType == "object" && itemSchema.Properties is not null && itemSchema.Properties.Count > 0)
         {
-            return InlineSchemaExtractor.GenerateInlineTypeName(operationId, "ResponseItem");
+            return InlineSchemaExtractor.GenerateInlineTypeName(operationId, itemContext);
         }
 
         // Try to find schema by Title property in components

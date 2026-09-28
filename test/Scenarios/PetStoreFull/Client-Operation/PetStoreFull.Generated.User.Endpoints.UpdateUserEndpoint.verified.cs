@@ -57,6 +57,11 @@ public sealed class UpdateUserEndpoint : IUpdateUserEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        if (!response.IsSuccessStatusCode && response.StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.NotFound or HttpStatusCode.Conflict or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout))
+        {
+            responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
+        }
+
         return await responseBuilder.BuildResponseAsync(x => new UpdateUserEndpointResult(x), cancellationToken);
     }
 }

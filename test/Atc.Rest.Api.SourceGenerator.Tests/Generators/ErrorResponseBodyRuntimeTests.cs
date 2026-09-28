@@ -16,6 +16,218 @@ public class ErrorResponseBodyRuntimeTests
     private const string ValidReason = "ok";
     private const string TooLongReason = "far-too-long";
 
+    /// <summary>
+    /// Two operations with only a success and a <c>default</c> response: a problem-shaped default
+    /// (<c>application/problem+json</c>) and a plain JSON one. The <c>{code}</c> path parameter makes the
+    /// generator add 400 and 404 besides 500.
+    /// </summary>
+    private const string DefaultOnlyYaml = """
+        openapi: 3.0.3
+        info:
+          title: ErrorBodies
+          version: 1.0.0
+        paths:
+          /problem-default/{code}:
+            get:
+              operationId: getProblemDefault
+              parameters:
+                - name: code
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Item'
+                default:
+                  description: Error
+                  content:
+                    application/problem+json:
+                      schema:
+                        $ref: '#/components/schemas/ApiProblem'
+          /json-default/{code}:
+            get:
+              operationId: getJsonDefault
+              parameters:
+                - name: code
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Item'
+                default:
+                  description: Error
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/ErrorResponse'
+          /pd-default/{code}:
+            get:
+              operationId: getPdDefault
+              parameters:
+                - name: code
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Item'
+                default:
+                  description: Error
+                  content:
+                    application/problem+json:
+                      schema:
+                        $ref: '#/components/schemas/ProblemDetails'
+        components:
+          schemas:
+            ProblemDetails:
+              type: object
+              properties:
+                type:
+                  type: string
+                title:
+                  type: string
+                status:
+                  type: integer
+                detail:
+                  type: string
+                instance:
+                  type: string
+            Item:
+              type: object
+              properties:
+                name:
+                  type: string
+            ApiProblem:
+              type: object
+              properties:
+                type:
+                  type: string
+                title:
+                  type: string
+                status:
+                  type: integer
+                detail:
+                  type: string
+                code:
+                  type: string
+            ErrorResponse:
+              type: object
+              properties:
+                code:
+                  type: string
+                message:
+                  type: string
+        """;
+
+    /// <summary>
+    /// Calls both <see cref="DefaultOnlyYaml"/> operations against a stub server that answers
+    /// <c>/problem-default/{code}</c> with <c>application/problem+json</c> and <c>/json-default/{code}</c> with
+    /// <c>application/json</c>, both with a body that fits every model involved; one row per true <c>Is…</c>
+    /// property: <c>{operation}/{code}: {status} {IsX} {XContent} => {value}</c>.
+    /// </summary>
+    private const string DefaultOnlyProbeSource = """"
+        using Atc.Rest.Client;
+        using Microsoft.Extensions.DependencyInjection;
+        using ErrorBodies.Generated;
+        using ErrorBodies.Generated.ProblemDefault.Client;
+        using ErrorBodies.Generated.ProblemDefault.Endpoints.Interfaces;
+        using ErrorBodies.Generated.JsonDefault.Client;
+        using ErrorBodies.Generated.JsonDefault.Endpoints.Interfaces;
+        using ErrorBodies.Generated.PdDefault.Client;
+        using ErrorBodies.Generated.PdDefault.Endpoints.Interfaces;
+
+        namespace ErrorBodies.RuntimeTest;
+
+        public static class Probe
+        {
+            public static async Task<List<string>> RunAsync()
+            {
+                var services = new ServiceCollection();
+                services
+                    .AddHttpClient(Constants.HttpClientName, c => c.BaseAddress = new Uri("http://stub/"))
+                    .ConfigurePrimaryHttpMessageHandler(() => new StubHandler());
+                services.AddErrorBodiesEndpoints();
+                using var provider = services.BuildServiceProvider();
+
+                var rows = new List<string>();
+                foreach (var code in new[] { "400", "404", "418", "500", "html" })
+                {
+                    Describe(rows, $"problemDefault/{code}", await provider.GetRequiredService<IGetProblemDefaultEndpoint>().ExecuteAsync(new GetProblemDefaultParameters(code)));
+                    Describe(rows, $"jsonDefault/{code}", await provider.GetRequiredService<IGetJsonDefaultEndpoint>().ExecuteAsync(new GetJsonDefaultParameters(code)));
+                    Describe(rows, $"pdDefault/{code}", await provider.GetRequiredService<IGetPdDefaultEndpoint>().ExecuteAsync(new GetPdDefaultParameters(code)));
+                }
+
+                return rows;
+            }
+
+            private static void Describe(List<string> rows, string name, EndpointResponse response)
+            {
+                var type = response.GetType();
+                foreach (var isProperty in type.GetProperties().Where(p => p.PropertyType == typeof(bool) && p.Name.StartsWith("Is", StringComparison.Ordinal) && p.Name != "IsSuccess"))
+                {
+                    if (!(bool)isProperty.GetValue(response)!)
+                    {
+                        continue;
+                    }
+
+                    var contentProperty = type.GetProperty(isProperty.Name[2..] + "Content");
+                    string value;
+                    try
+                    {
+                        var content = contentProperty?.GetValue(response);
+                        value = content is null ? "null" : $"{content.GetType().Name} {System.Text.Json.JsonSerializer.Serialize(content, content.GetType())}";
+                    }
+                    catch (System.Reflection.TargetInvocationException ex)
+                    {
+                        value = $"THROWS {ex.InnerException!.GetType().Name}: {ex.InnerException.Message}";
+                    }
+
+                    rows.Add($"{name}: {(int)response.StatusCode} {isProperty.Name} {contentProperty?.Name ?? "(no content property)"} => {value}");
+                }
+            }
+
+            private sealed class StubHandler : HttpMessageHandler
+            {
+                protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+                {
+                    var segments = request.RequestUri!.AbsolutePath.Trim('/').Split('/');
+                    if (segments[1] == "html")
+                    {
+                        // A proxy's error page: neither JSON nor the API's error body.
+                        return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.BadGateway)
+                        {
+                            Content = new StringContent("<html><body>502 Bad Gateway</body></html>", System.Text.Encoding.UTF8, "text/html"),
+                        });
+                    }
+
+                    var code = int.Parse(segments[1], System.Globalization.CultureInfo.InvariantCulture);
+                    var mediaType = segments[0] == "json-default" ? "application/json" : "application/problem+json";
+                    var body = $$$"""{"type":"about:blank","title":"t{{{code}}}","status":{{{code}}},"detail":"{{{code}}} detail","errors":{"name":["name {{{code}}}"]},"code":"E{{{code}}}","message":"m{{{code}}}"}""";
+                    return Task.FromResult(new HttpResponseMessage((System.Net.HttpStatusCode)code)
+                    {
+                        Content = new StringContent(body, System.Text.Encoding.UTF8, mediaType),
+                    });
+                }
+            }
+        }
+        """";
+
     private const string JsonStringContent = """
                   content:
                     application/json:
@@ -142,11 +354,13 @@ public class ErrorResponseBodyRuntimeTests
         "throw-not-implemented",
     ];
 
+    // d{code}: the handler returns the spec's `default` body with that status (every error status code).
     private static readonly string[] DefaultErrorModes =
     [
         "ok",
         "error",
         "throw",
+        .. AllErrorStatusCodes.Select(c => $"d{c}"),
     ];
 
     internal static readonly string[] ErrorResponseFormats =
@@ -509,6 +723,267 @@ public class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
+    /// Where the spec declares a <c>ProblemDetails</c> body, a factory has both the 2.x shape
+    /// (<c>X(string? message)</c>, 429 <c>X(int? retryAfterSeconds, string? message)</c>, default
+    /// <c>Error(string? message, int statusCode)</c>) and an <c>X(ProblemDetails problem)</c> overload.
+    /// <c>X(null)</c> compiled in 2.x and must still compile, resolving to the 2.x shape.
+    /// </summary>
+    [Fact]
+    public void DeclaredProblemDetails_NullArgumentCallsFrom2x_StillCompile()
+    {
+        const string yaml = """
+            openapi: 3.0.3
+            info:
+              title: ErrorBodies
+              version: 1.0.0
+            paths:
+              /things/{thingId}:
+                get:
+                  operationId: getThing
+                  parameters:
+                    - name: thingId
+                      in: path
+                      required: true
+                      schema:
+                        type: string
+                  responses:
+                    '204':
+                      description: No Content
+                    '404':
+                      description: Not Found
+                      content:
+                        application/problem+json:
+                          schema:
+                            $ref: '#/components/schemas/ProblemDetails'
+                    '409':
+                      description: Conflict
+                      content:
+                        application/problem+json:
+                          schema:
+                            $ref: '#/components/schemas/ProblemDetails'
+                    '429':
+                      description: Too Many Requests
+                      content:
+                        application/problem+json:
+                          schema:
+                            $ref: '#/components/schemas/ProblemDetails'
+                    default:
+                      description: Error
+                      content:
+                        application/problem+json:
+                          schema:
+                            $ref: '#/components/schemas/ProblemDetails'
+            components:
+              schemas:
+                ProblemDetails:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    status:
+                      type: integer
+                    detail:
+                      type: string
+            """;
+
+        const string calls = """
+            using Microsoft.AspNetCore.Mvc;
+            using Thing = ErrorBodies.Generated.Results.GetThingResult;
+
+            namespace ErrorBodies.CompatCheck;
+
+            public static class NullArgumentCalls
+            {
+                public static object[] All()
+                    =>
+                    [
+                        Thing.NotFound(),
+                        Thing.NotFound(null),
+                        Thing.NotFound("m"),
+                        Thing.NotFound(new ProblemDetails()),
+                        Thing.Conflict(null),
+                        Thing.TooManyRequests(),
+                        Thing.TooManyRequests(null),
+                        Thing.TooManyRequests(30),
+                        Thing.TooManyRequests(null, "m"),
+                        Thing.TooManyRequests(new ProblemDetails(), 30),
+                        Thing.Error(),
+                        Thing.Error(null),
+                        Thing.Error(null, 503),
+                        Thing.Error("m", 503),
+                        Thing.Error(new ProblemDetails(), 503),
+                    ];
+            }
+            """;
+
+        var sources = Generate(new ApiServerGenerator(), ".atc-rest-api-server", ServerMarker, includeMinimalApi: true, yaml);
+        sources.Add(("NullArgumentCalls.cs", calls));
+
+        var errors = CompilationVerificationHarness.CompileGeneratedSources(sources, includeMinimalApi: true);
+
+        Assert.True(errors.Count == 0, string.Join(Environment.NewLine, errors.Concat(sources.Select(s => s.HintName))));
+    }
+
+    /// <summary>
+    /// Error-body shapes that compiled with 2.x (which ignored most declared error bodies) must compile with the
+    /// 3.0 contract, on the server and the EndpointPerOperation client:
+    /// <list type="bullet">
+    ///   <item>a spec <c>ProblemDetails</c> that another model extends (<c>allOf</c>) or holds as a property;</item>
+    ///   <item>an error body that <c>$ref</c>s a primitive alias (<c>ErrorMessage: string</c>, <c>ErrorNumber: integer</c>);</item>
+    ///   <item>an inline error schema on a spec whose paths share one first segment;</item>
+    ///   <item>an array of inline objects as error body next to one as success body (distinct item types);</item>
+    ///   <item>a media type with a quoted parameter; a declared non-400 <c>ValidationProblemDetails</c>;</item>
+    ///   <item>the 2.x call <c>TooManyRequests(30)</c> on a 429 that declares a model.</item>
+    /// </list>
+    /// </summary>
+    [Fact]
+    public void ErrorBodyShapesThatCompiledIn2x_StillCompile()
+    {
+        const string yaml = """
+            openapi: 3.0.3
+            info:
+              title: ErrorBodies
+              version: 1.0.0
+            paths:
+              /things/{thingId}:
+                get:
+                  operationId: getThing
+                  parameters:
+                    - name: thingId
+                      in: path
+                      required: true
+                      schema:
+                        type: string
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                name:
+                                  type: string
+                    '400':
+                      description: Bad Request
+                      content:
+                        application/json:
+                          schema:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                field:
+                                  type: string
+                                message:
+                                  type: string
+                    '404':
+                      description: Not Found
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/ErrorMessage'
+                    '409':
+                      description: Conflict
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/ErrorNumber'
+                    '410':
+                      description: Gone
+                      content:
+                        application/json; profile="urn:x":
+                          schema:
+                            $ref: '#/components/schemas/ApiProblem'
+                    '422':
+                      description: Unprocessable
+                      content:
+                        application/problem+json:
+                          schema:
+                            $ref: '#/components/schemas/ValidationProblemDetails'
+                    '429':
+                      description: Too Many Requests
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/ErrorEnvelope'
+                    '503':
+                      description: Unavailable
+                      content:
+                        application/json:
+                          schema:
+                            type: object
+                            properties:
+                              reason:
+                                type: string
+            components:
+              schemas:
+                ProblemDetails:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    detail:
+                      type: string
+                ValidationProblemDetails:
+                  type: object
+                ApiProblem:
+                  allOf:
+                    - $ref: '#/components/schemas/ProblemDetails'
+                    - type: object
+                      properties:
+                        code:
+                          type: string
+                ErrorEnvelope:
+                  type: object
+                  properties:
+                    problem:
+                      $ref: '#/components/schemas/ProblemDetails'
+                ErrorMessage:
+                  type: string
+                ErrorNumber:
+                  type: integer
+            """;
+
+        const string calls = """
+            using Microsoft.AspNetCore.Mvc;
+            using Thing = ErrorBodies.Generated.Results.GetThingResult;
+
+            namespace ErrorBodies.CompatCheck;
+
+            public static class ErrorBodyCalls
+            {
+                public static object[] All()
+                    =>
+                    [
+                        Thing.NotFound("not found"),
+                        Thing.Conflict(5),
+                        Thing.TooManyRequests(),
+                        Thing.TooManyRequests(30),
+                        Thing.UnprocessableEntity(new ValidationProblemDetails()),
+                    ];
+            }
+            """;
+
+        var server = Generate(new ApiServerGenerator(), ".atc-rest-api-server", ServerMarker, includeMinimalApi: true, yaml);
+        server.Add(("ErrorBodyCalls.cs", calls));
+        var serverErrors = CompilationVerificationHarness.CompileGeneratedSources(server, includeMinimalApi: true);
+        Assert.True(serverErrors.Count == 0, "Server: " + string.Join(Environment.NewLine, serverErrors));
+
+        // The spec's ProblemDetails is a model (ApiProblem extends it), and the error array item is its own type.
+        Assert.Contains(server, s => s.Source.Contains("record ProblemDetails(", StringComparison.Ordinal));
+        Assert.Contains(server, s => s.Source.Contains("GetThingBadRequestErrorItem", StringComparison.Ordinal));
+
+        var client = Generate(new ApiClientGenerator(), ".atc-rest-api-client", ClientOperationMarker("ProblemDetails"), includeMinimalApi: false, yaml);
+        var clientErrors = CompilationVerificationHarness.CompileGeneratedSources(client);
+        Assert.True(clientErrors.Count == 0, "Client: " + string.Join(Environment.NewLine, clientErrors));
+    }
+
+    /// <summary>
     /// A spec that defines its own <c>ProblemDetails</c> schema (a common convention) must still give a
     /// compiling server. The name binds to <c>Microsoft.AspNetCore.Mvc.ProblemDetails</c>, which every
     /// generated Results file imports; 2.1.0 also emitted a <c>Models.ProblemDetails</c> record, making
@@ -575,6 +1050,14 @@ public class ErrorResponseBodyRuntimeTests
             Assert.Equal("application/problem+json", w.MediaType);
             Assert.True(TryReadStatus(w.Body, out var status) && status == w.Status, w.Case);
         });
+
+        // A missing required body is reported under the empty key with MVC's message - not under the
+        // parameters record's C# member name (Request), which the client never sent.
+        var missingBody = framework.Single(w => w.Case == "framework: missing required body");
+        using var document = JsonDocument.Parse(missingBody.Body);
+        var errors = document.RootElement.GetProperty("errors");
+        Assert.Equal([string.Empty], errors.EnumerateObject().Select(p => p.Name), StringComparer.Ordinal);
+        Assert.Equal(["A non-empty request body is required."], errors.GetProperty(string.Empty).EnumerateArray().Select(m => m.GetString()), StringComparer.Ordinal);
     }
 
     /// <summary>
@@ -655,6 +1138,114 @@ public class ErrorResponseBodyRuntimeTests
         }
 
         Assert.True(mismatches.Count == 0, $"{mismatches.Count} client mismatches:\n" + string.Join("\n", mismatches));
+    }
+
+    /// <summary>
+    /// The spec's <c>default</c> response on the EndpointPerOperation client, over every error status code:
+    /// the handler's <c>Error(body, status)</c> is read as the default model (<c>IsDefaultError</c> /
+    /// <c>DefaultErrorContent</c>) - also for 400/404/500/504, which the client registers as ProblemDetails
+    /// for the framework's own errors - while an unhandled exception (the framework's 500 ProblemDetails,
+    /// sent as <c>application/problem+json</c>) is still read as a ProblemDetails.
+    /// </summary>
+    [Fact]
+    public async Task ClientDefaultResponse_EveryStatus_IsReadAsTheDefaultBody()
+    {
+        await using var host = await ErrorBodyHost.StartAsync();
+        var client = GenerateClientAssembly(ClientOperationMarker("ProblemDetails"), BuildOperationProbeSource);
+        var rows = (await RunProbeAsync(client.Assembly, host.BaseAddress))
+            .Where(r => r[0].StartsWith("getDefaultError/", StringComparison.Ordinal))
+            .ToDictionary(r => r[0].Split('/')[1].Split(' ')[0], StringComparer.Ordinal);
+
+        var mismatches = new List<string>();
+        foreach (var code in AllErrorStatusCodes)
+        {
+            var row = rows[$"d{code}"];
+            var expected = $"DefaultErrorContent => ErrorResponse {{\"Code\":\"c{code}\",\"Message\":\"{code} default from handler\"}}";
+            if (row[1] != code.ToString(CultureInfo.InvariantCulture) || !row[4].Contains(expected, StringComparison.Ordinal))
+            {
+                mismatches.Add($"d{code}: expected {code} and '{expected}', got {row[1]} '{Short(row[4])}'");
+            }
+        }
+
+        var thrown = rows["throw"];
+        if (thrown[1] != "500" || !thrown[4].StartsWith("InternalServerErrorContent => ProblemDetails ", StringComparison.Ordinal))
+        {
+            mismatches.Add($"throw: expected the framework's 500 ProblemDetails, got {thrown[1]} '{Short(thrown[4])}'");
+        }
+
+        Assert.True(mismatches.Count == 0, $"{mismatches.Count} default-response mismatches:\n" + string.Join("\n", mismatches));
+    }
+
+    /// <summary>
+    /// The <c>default</c> response where the media type cannot tell the framework's ProblemDetails from the
+    /// handler's default body, answered by a stub server over the generator-added statuses (400, 404, 500) and
+    /// an unlisted one (418):
+    /// <list type="bullet">
+    ///   <item>a problem-shaped default (<c>application/problem+json</c>): every error status is read as the
+    ///   default model, and the ProblemDetails accessors of the generator-added statuses read the body again
+    ///   instead of throwing;</item>
+    ///   <item>a plain JSON default, while the API answers with a ProblemDetails sent as <c>application/json</c>:
+    ///   the ProblemDetails accessors still give that ProblemDetails;</item>
+    ///   <item><c>errorResponseFormat: Custom</c>: the custom model registered for the generator-added statuses
+    ///   is read as that model, whatever the media type.</item>
+    /// </list>
+    /// </summary>
+    [Theory]
+    [InlineData("ProblemDetails")]
+    [InlineData("Custom")]
+    public async Task ClientDefaultResponse_WithoutAMediaTypeSplit_KeepsEveryAccessorReadable(
+        string errorResponseFormat)
+    {
+        var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", ClientOperationMarker(errorResponseFormat), includeMinimalApi: false, DefaultOnlyYaml);
+        sources.Add(("Probe.cs", DefaultOnlyProbeSource));
+        var assembly = CompilationVerificationHarness.EmitAndLoad(sources);
+        var probe = assembly.GetType("ErrorBodies.RuntimeTest.Probe", throwOnError: true)!;
+        var rows = await (Task<List<string>>)probe.GetMethod("RunAsync")!.Invoke(null, [])!;
+        var report = string.Join("\n", rows);
+
+        Assert.True(!report.Contains("THROWS", StringComparison.Ordinal), report);
+        AssertRow("problemDefault/418: 418 IsDefaultError DefaultErrorContent => ApiProblem .*\"code\":\"E418\"");
+        AssertRow("jsonDefault/418: 418 IsDefaultError DefaultErrorContent => ErrorResponse .*\"code\":\"E418\"");
+
+        (int Code, string Name)[] generatorAdded = [(400, "BadRequest"), (404, "NotFound"), (500, "InternalServerError")];
+        foreach (var (code, name) in generatorAdded)
+        {
+            if (string.Equals(errorResponseFormat, "Custom", StringComparison.Ordinal))
+            {
+                // The custom model is what the client was told every generator-added status carries.
+                AssertRow($"problemDefault/{code}: {code} Is{name} {name}Content => ApiError .*\"code\":\"E{code}\"");
+                AssertRow($"jsonDefault/{code}: {code} Is{name} {name}Content => ApiError .*\"code\":\"E{code}\"");
+                continue;
+            }
+
+            // A problem-shaped default: the status is the default body, and its ProblemDetails accessor still reads.
+            AssertRow($"problemDefault/{code}: {code} IsDefaultError DefaultErrorContent => ApiProblem .*\"code\":\"E{code}\"");
+            AssertRow($"problemDefault/{code}: {code} Is{name} {name}Content => (Validation)?ProblemDetails .*\"detail\":\"{code} detail\"");
+
+            // A ProblemDetails sent as application/json under a plain JSON default.
+            AssertRow($"jsonDefault/{code}: {code} Is{name} {name}Content => (Validation)?ProblemDetails .*\"detail\":\"{code} detail\"");
+        }
+
+        AssertRow("pdDefault/418: 418 IsDefaultError DefaultErrorContent => ProblemDetails .*\"detail\":\"418 detail\"");
+
+        // A proxy's HTML 502 is not the default model, so it is not IsDefaultError, and nothing throws. A
+        // ProblemDetails default reads it as a ProblemDetails with the page as its detail.
+        Assert.DoesNotContain(rows, r => r.StartsWith("problemDefault/html: 502 IsDefaultError", StringComparison.Ordinal));
+        Assert.DoesNotContain(rows, r => r.StartsWith("jsonDefault/html: 502 IsDefaultError", StringComparison.Ordinal));
+        AssertRow("pdDefault/html: 502 IsDefaultError DefaultErrorContent => ProblemDetails .*502 Bad Gateway");
+        if (!string.Equals(errorResponseFormat, "Custom", StringComparison.Ordinal))
+        {
+            // A ProblemDetails default: the validation 400 stays a ValidationProblemDetails with its errors.
+            AssertRow("pdDefault/400: 400 IsBadRequest BadRequestContent => ValidationProblemDetails .*\"errors\":\\{\"name\":\\[\"name 400\"\\]\\}");
+            Assert.DoesNotContain(rows, r => r.StartsWith("pdDefault/400: 400 IsDefaultError", StringComparison.Ordinal));
+            AssertRow("pdDefault/404: 404 IsNotFound NotFoundContent => ProblemDetails .*\"detail\":\"404 detail\"");
+            AssertRow("pdDefault/500: 500 IsInternalServerError InternalServerErrorContent => ProblemDetails .*\"detail\":\"500 detail\"");
+        }
+
+        void AssertRow(string pattern)
+            => Assert.True(
+                rows.Any(r => Regex.IsMatch(r, "^" + pattern, RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1))),
+                $"No row matches '{pattern}':\n{report}");
     }
 
     /// <summary>
@@ -1189,10 +1780,17 @@ public class ErrorResponseBodyRuntimeTests
             var factories = new Dictionary<string, Factory>(StringComparer.Ordinal);
             foreach (Match match in Regex.Matches(source, $@"public static {resultClass} (?<name>\w+)\((?<params>[^)]*)\)", RegexOptions.None, TimeSpan.FromSeconds(1)))
             {
-                var parameters = match.Groups["params"].Value.Trim();
-                var parameterType = parameters.Length == 0
+                var parameters = Regex.Replace(match.Groups["params"].Value, @"\s+", " ", RegexOptions.None, TimeSpan.FromSeconds(1)).Trim();
+
+                // A 429 value factory leads with the 2.x retryAfterSeconds parameter; the value follows it.
+                var leadsWithRetryAfter = parameters.StartsWith("int? retryAfterSeconds", StringComparison.Ordinal) &&
+                                          parameters.Contains(',', StringComparison.Ordinal);
+                var valueParameter = leadsWithRetryAfter
+                    ? parameters[(parameters.IndexOf(',', StringComparison.Ordinal) + 1)..].Trim()
+                    : parameters;
+                var parameterType = valueParameter.Length == 0
                     ? null
-                    : parameters.Split(' ')[0].TrimEnd('?');
+                    : valueParameter.Split(' ')[0].TrimEnd('?');
                 var name = match.Groups["name"].Value;
                 if (!factories.TryGetValue(name, out var factory))
                 {
@@ -1203,7 +1801,9 @@ public class ErrorResponseBodyRuntimeTests
                 factory.Overloads.Add(new FactoryOverload(
                     parameters,
                     parameterType,
-                    ParameterIsOptional: parameters.Length == 0 || parameters.Contains("= null", StringComparison.Ordinal)));
+                    ParameterIsOptional: valueParameter.Length == 0 || valueParameter.Contains("= null", StringComparison.Ordinal),
+                    LeadsWithRetryAfter: leadsWithRetryAfter,
+                    EndsWithRetryAfter: !leadsWithRetryAfter && parameters.Contains(", int? retryAfterSeconds", StringComparison.Ordinal)));
             }
 
             result[operationId] = factories;
@@ -1248,7 +1848,9 @@ public class ErrorResponseBodyRuntimeTests
                 {
                     var type = response.GetType();
                     var accessor = "(none)";
-                    foreach (var isProperty in type.GetProperties().Where(p => p.PropertyType == typeof(bool) && p.Name.StartsWith("Is", StringComparison.Ordinal) && p.Name != "IsSuccess"))
+                    // IsDefaultError first: it is the most specific description where it applies (a 500
+                    // that carries the spec's default body is both IsInternalServerError and IsDefaultError).
+                    foreach (var isProperty in type.GetProperties().Where(p => p.PropertyType == typeof(bool) && p.Name.StartsWith("Is", StringComparison.Ordinal) && p.Name != "IsSuccess").OrderBy(p => p.Name == "IsDefaultError" ? 0 : 1))
                     {
                         if (!(bool)isProperty.GetValue(response)!)
                         {
@@ -1448,7 +2050,9 @@ public class ErrorResponseBodyRuntimeTests
     private sealed record FactoryOverload(
         string Signature,
         string? ParameterType,
-        bool ParameterIsOptional);
+        bool ParameterIsOptional,
+        bool LeadsWithRetryAfter = false,
+        bool EndsWithRetryAfter = false);
 
     internal sealed record ProbeCase(
         string OperationId,
@@ -1730,6 +2334,7 @@ public class ErrorResponseBodyRuntimeTests
                         "throw-invalid-operation" => "throw new System.InvalidOperationException(\"invalid operation in handler\")",
                         "throw-timeout" => "throw new System.TimeoutException(\"handler timed out\")",
                         "throw-not-implemented" => "throw new System.NotImplementedException(\"not implemented in handler\")",
+                        _ when operationId == "getDefaultError" && mode.StartsWith('d') => $"{resultType}.Error(new ErrorBodies.Generated.Models.ErrorResponse(\"c{mode[1..]}\", \"{mode[1..]} default from handler\"), {mode[1..]})",
                         _ => BuildFactoryCall(resultType, mode, available),
                     };
 
@@ -1805,7 +2410,12 @@ public class ErrorResponseBodyRuntimeTests
                 var modelType => $"System.Text.Json.JsonSerializer.Deserialize<{modelType}>(\"{{\\\"code\\\":\\\"E{status}\\\",\\\"message\\\":\\\"{status} error from handler\\\"}}\", new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!",
             };
 
-            return $"{resultType}.{name}({argument})";
+            return overload switch
+            {
+                { LeadsWithRetryAfter: true } => $"{resultType}.{name}(30, {argument})",
+                { EndsWithRetryAfter: true } => $"{resultType}.{name}({argument}, 30)",
+                _ => $"{resultType}.{name}({argument})",
+            };
         }
 
         private async Task<WireResult> SendAsync(

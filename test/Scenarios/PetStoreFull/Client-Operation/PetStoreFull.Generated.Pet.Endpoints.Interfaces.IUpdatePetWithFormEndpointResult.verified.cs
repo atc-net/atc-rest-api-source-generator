@@ -30,6 +30,8 @@ public interface IUpdatePetWithFormEndpointResult : IEndpointResponse
 
     bool IsGatewayTimeout { get; }
 
+    bool IsDefaultError { get; }
+
     Pet OkContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
@@ -43,4 +45,6 @@ public interface IUpdatePetWithFormEndpointResult : IEndpointResponse
     ProblemDetails InternalServerErrorContent { get; }
 
     ProblemDetails GatewayTimeoutContent { get; }
+
+    ProblemDetails DefaultErrorContent { get; }
 }

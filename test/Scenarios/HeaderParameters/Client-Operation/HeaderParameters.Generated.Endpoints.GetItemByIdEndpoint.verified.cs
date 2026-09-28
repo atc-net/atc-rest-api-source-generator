@@ -54,11 +54,21 @@ public sealed class GetItemByIdEndpoint : IGetItemByIdEndpoint
         using var response = await client.SendAsync(requestMessage, cancellationToken);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
+        var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is "application/problem+json";
         responseBuilder.AddSuccessResponse<Item>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<Error>(HttpStatusCode.NotFound);
-        responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
-        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
-        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        if (isProblemJson)
+        {
+            responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
+            responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+            responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        }
+
+        if (!response.IsSuccessStatusCode && response.StatusCode is not HttpStatusCode.NotFound && (response.StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout) || !isProblemJson))
+        {
+            responseBuilder.AddErrorResponse<Error>(response.StatusCode);
+        }
+
         return await responseBuilder.BuildResponseAsync(x => new GetItemByIdEndpointResult(x), cancellationToken);
     }
 }

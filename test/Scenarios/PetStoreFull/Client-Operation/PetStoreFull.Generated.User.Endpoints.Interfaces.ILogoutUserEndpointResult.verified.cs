@@ -22,7 +22,11 @@ public interface ILogoutUserEndpointResult : IEndpointResponse
 
     bool IsGatewayTimeout { get; }
 
+    bool IsDefaultError { get; }
+
     ProblemDetails InternalServerErrorContent { get; }
 
     ProblemDetails GatewayTimeoutContent { get; }
+
+    ProblemDetails DefaultErrorContent { get; }
 }

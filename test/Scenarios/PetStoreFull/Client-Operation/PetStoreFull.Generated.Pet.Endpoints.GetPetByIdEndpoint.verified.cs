@@ -57,6 +57,11 @@ public sealed class GetPetByIdEndpoint : IGetPetByIdEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Forbidden);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        if (!response.IsSuccessStatusCode && response.StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.NotFound or HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout))
+        {
+            responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
+        }
+
         return await responseBuilder.BuildResponseAsync(x => new GetPetByIdEndpointResult(x), cancellationToken);
     }
 }

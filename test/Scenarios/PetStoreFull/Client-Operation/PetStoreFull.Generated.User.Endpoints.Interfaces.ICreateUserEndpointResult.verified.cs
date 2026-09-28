@@ -26,6 +26,8 @@ public interface ICreateUserEndpointResult : IEndpointResponse
 
     bool IsGatewayTimeout { get; }
 
+    bool IsDefaultError { get; }
+
     User OkContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
@@ -35,4 +37,6 @@ public interface ICreateUserEndpointResult : IEndpointResponse
     ProblemDetails InternalServerErrorContent { get; }
 
     ProblemDetails GatewayTimeoutContent { get; }
+
+    ProblemDetails DefaultErrorContent { get; }
 }

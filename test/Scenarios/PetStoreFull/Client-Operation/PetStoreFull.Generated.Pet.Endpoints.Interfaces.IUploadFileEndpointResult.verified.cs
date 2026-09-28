@@ -32,6 +32,8 @@ public interface IUploadFileEndpointResult : IEndpointResponse
 
     bool IsGatewayTimeout { get; }
 
+    bool IsDefaultError { get; }
+
     ApiResponse OkContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
@@ -47,4 +49,6 @@ public interface IUploadFileEndpointResult : IEndpointResponse
     ProblemDetails InternalServerErrorContent { get; }
 
     ProblemDetails GatewayTimeoutContent { get; }
+
+    ProblemDetails DefaultErrorContent { get; }
 }

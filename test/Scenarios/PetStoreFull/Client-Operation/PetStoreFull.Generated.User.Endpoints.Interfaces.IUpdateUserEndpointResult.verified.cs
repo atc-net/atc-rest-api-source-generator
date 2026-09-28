@@ -28,6 +28,8 @@ public interface IUpdateUserEndpointResult : IEndpointResponse
 
     bool IsGatewayTimeout { get; }
 
+    bool IsDefaultError { get; }
+
     ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails NotFoundContent { get; }
@@ -37,4 +39,6 @@ public interface IUpdateUserEndpointResult : IEndpointResponse
     ProblemDetails InternalServerErrorContent { get; }
 
     ProblemDetails GatewayTimeoutContent { get; }
+
+    ProblemDetails DefaultErrorContent { get; }
 }

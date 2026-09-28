@@ -55,6 +55,11 @@ public sealed class GetUserByNameEndpoint : IGetUserByNameEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        if (!response.IsSuccessStatusCode && response.StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.NotFound or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout))
+        {
+            responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
+        }
+
         return await responseBuilder.BuildResponseAsync(x => new GetUserByNameEndpointResult(x), cancellationToken);
     }
 }

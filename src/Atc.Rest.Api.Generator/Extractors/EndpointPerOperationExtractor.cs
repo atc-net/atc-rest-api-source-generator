@@ -274,6 +274,14 @@ public static class EndpointPerOperationExtractor
             inlineSchemas,
             isAsyncEnumerable);
 
+        // The spec's `default` response covers every error status the operation does not list; it is
+        // registered at run time for the actual status (see GenerateEndpointClass).
+        var defaultResponse = responses.Find(r => r.IsDefault);
+        if (defaultResponse is not null)
+        {
+            responses.Remove(defaultResponse);
+        }
+
         // Auto-apply responses based on detected features (same as server-side .Produces() metadata)
         // This ensures client is prepared to handle all responses the server may return
         var definedCodes = new HashSet<string>(responses.Select(r => r.StatusCode), StringComparer.Ordinal);
@@ -284,19 +292,19 @@ public static class EndpointPerOperationExtractor
         if (features.HasParameters && !definedCodes.Contains("400"))
         {
             var validationContentType = string.IsNullOrEmpty(customErrorTypeName) ? "ValidationProblemDetails" : customErrorTypeName;
-            responses.Add(new ResponseInfo("400", "BadRequest", "BadRequest", validationContentType, false));
+            responses.Add(new ResponseInfo("400", "BadRequest", "BadRequest", validationContentType, false, IsAutoAdded: true));
         }
 
         // 401 - Has security but no 401 defined
         if (features.HasSecurity && !definedCodes.Contains("401"))
         {
-            responses.Add(new ResponseInfo("401", "Unauthorized", "Unauthorized", errorContentType, false));
+            responses.Add(new ResponseInfo("401", "Unauthorized", "Unauthorized", errorContentType, false, IsAutoAdded: true));
         }
 
         // 403 - Has roles/policies but no 403 defined
         if (features.HasRolesOrPolicies && !definedCodes.Contains("403"))
         {
-            responses.Add(new ResponseInfo("403", "Forbidden", "Forbidden", errorContentType, false));
+            responses.Add(new ResponseInfo("403", "Forbidden", "Forbidden", errorContentType, false, IsAutoAdded: true));
         }
 
         // 404 - GET/PUT/DELETE/PATCH with path params but no 404 defined
@@ -304,32 +312,32 @@ public static class EndpointPerOperationExtractor
             features.HttpMethod is "GET" or "PUT" or "DELETE" or "PATCH" &&
             !definedCodes.Contains("404"))
         {
-            responses.Add(new ResponseInfo("404", "NotFound", "NotFound", errorContentType, false));
+            responses.Add(new ResponseInfo("404", "NotFound", "NotFound", errorContentType, false, IsAutoAdded: true));
         }
 
         // 409 - POST/PUT but no 409 defined
         if (features.HttpMethod is "POST" or "PUT" && !definedCodes.Contains("409"))
         {
-            responses.Add(new ResponseInfo("409", "Conflict", "Conflict", errorContentType, false));
+            responses.Add(new ResponseInfo("409", "Conflict", "Conflict", errorContentType, false, IsAutoAdded: true));
         }
 
         // 429 - Has rate limiting but no 429 defined
         if (features.HasRateLimiting && !definedCodes.Contains("429"))
         {
-            responses.Add(new ResponseInfo("429", "TooManyRequests", "TooManyRequests", errorContentType, false));
+            responses.Add(new ResponseInfo("429", "TooManyRequests", "TooManyRequests", errorContentType, false, IsAutoAdded: true));
         }
 
         // 500 - Always add if not defined (global error handler)
-        if (!definedCodes.Contains("500") && !definedCodes.Contains("default"))
+        if (!definedCodes.Contains("500"))
         {
-            responses.Add(new ResponseInfo("500", "InternalServerError", "InternalServerError", errorContentType, false));
+            responses.Add(new ResponseInfo("500", "InternalServerError", "InternalServerError", errorContentType, false, IsAutoAdded: true));
         }
 
         // 504 - Always add if not defined (GlobalErrorHandler maps TimeoutException
         // and OperationCanceledException to 504 Gateway Timeout)
-        if (!definedCodes.Contains("504") && !definedCodes.Contains("default"))
+        if (!definedCodes.Contains("504"))
         {
-            responses.Add(new ResponseInfo("504", "GatewayTimeout", "GatewayTimeout", errorContentType, false));
+            responses.Add(new ResponseInfo("504", "GatewayTimeout", "GatewayTimeout", errorContentType, false, IsAutoAdded: true));
         }
 
         // Check if operation has parameters
@@ -377,6 +385,7 @@ public static class EndpointPerOperationExtractor
             hasParameters,
             httpClientName,
             responses,
+            defaultResponse,
             isBinaryEndpoint,
             isAsyncEnumerable,
             streamingItemType,
@@ -400,6 +409,7 @@ public static class EndpointPerOperationExtractor
                 operationName,
                 description,
                 responses,
+                defaultResponse,
                 hasSegmentModels,
                 hasSharedModels);
             resultInterfaceFileName = NamespaceBuilder.ToFileName(
@@ -413,6 +423,7 @@ public static class EndpointPerOperationExtractor
                 operationName,
                 description,
                 responses,
+                defaultResponse,
                 hasSegmentModels,
                 hasSharedModels);
             resultClassFileName = NamespaceBuilder.ToFileName(
@@ -445,8 +456,17 @@ public static class EndpointPerOperationExtractor
     /// <param name="PropertyName">The property-friendly name (e.g., "Ok", "NotFound") - used for Is{value}, {value}Content.</param>
     /// <param name="ContentType">The content type returned by this response.</param>
     /// <param name="IsSuccess">Whether this is a success (2xx) response.</param>
-    private sealed record ResponseInfo(string StatusCode, string StatusEnumName, string PropertyName, string? ContentType, bool IsSuccess, string? TextMediaType = null)
+    /// <param name="TextMediaType">The text media type of a raw text body, or <see langword="null"/>.</param>
+    /// <param name="IsAutoAdded">Whether the generator added this response (the spec does not list it).</param>
+    /// <param name="ErrorMediaType">The declared media type of an error response's body, or <see langword="null"/>.</param>
+    private sealed record ResponseInfo(string StatusCode, string StatusEnumName, string PropertyName, string? ContentType, bool IsSuccess, string? TextMediaType = null, bool IsAutoAdded = false, string? ErrorMediaType = null)
     {
+        /// <summary>
+        /// Whether this is the spec's <c>default</c> response: the body of any error status the operation does not list.
+        /// </summary>
+        public bool IsDefault
+            => string.Equals(StatusCode, "default", StringComparison.Ordinal);
+
         /// <summary>
         /// The <c>HttpStatusCode</c> expression for this status: the enum member, or a numeric cast for
         /// codes the enum does not define (418, 499, ...).
@@ -476,14 +496,19 @@ public static class EndpointPerOperationExtractor
         foreach (var response in operation.Responses)
         {
             var statusCodeStr = response.Key;
-            if (!int.TryParse(statusCodeStr, out var statusCodeInt))
+            var isDefault = string.Equals(statusCodeStr, "default", StringComparison.OrdinalIgnoreCase);
+            if (!int.TryParse(statusCodeStr, out var statusCodeInt) && !isDefault)
             {
                 continue;
             }
 
-            var statusEnumName = HttpStatusCodeHelper.ToEnumName(statusCodeInt);
-            var propertyName = NormalizeStatusName(statusEnumName);
+            var statusEnumName = isDefault ? "DefaultError" : HttpStatusCodeHelper.ToEnumName(statusCodeInt);
+            var propertyName = isDefault ? "DefaultError" : NormalizeStatusName(statusEnumName);
             var isSuccess = statusCodeInt >= 200 && statusCodeInt < 300;
+            if (isDefault)
+            {
+                statusCodeStr = "default";
+            }
 
             // Determine content type from response body (headers like Location are metadata, not content)
             string? contentType = null;
@@ -504,7 +529,7 @@ public static class EndpointPerOperationExtractor
                     _ => (GetErrorContentType(errorResponseFormat, customErrorTypeName, statusCodeStr), (string?)null),
                 };
 
-                responses.Add(new ResponseInfo(statusCodeStr, statusEnumName, propertyName, contentType, isSuccess, textMediaType));
+                responses.Add(new ResponseInfo(statusCodeStr, statusEnumName, propertyName, contentType, isSuccess, textMediaType, ErrorMediaType: shape.MediaType));
                 continue;
             }
 
@@ -740,6 +765,7 @@ public static class EndpointPerOperationExtractor
         bool hasParameters,
         string httpClientName,
         List<ResponseInfo> responses,
+        ResponseInfo? defaultResponse,
         bool isBinaryEndpoint,
         bool isAsyncEnumerable,
         string? streamingItemType,
@@ -939,6 +965,7 @@ public static class EndpointPerOperationExtractor
             openApiDoc,
             operationName,
             responses,
+            defaultResponse,
             isBinaryEndpoint,
             isAsyncEnumerable,
             streamingItemType,
@@ -1010,6 +1037,7 @@ public static class EndpointPerOperationExtractor
         OpenApiDocument openApiDoc,
         string operationName,
         List<ResponseInfo> responses,
+        ResponseInfo? defaultResponse,
         bool isBinaryEndpoint,
         bool isAsyncEnumerable,
         string? streamingItemType,
@@ -1252,8 +1280,22 @@ public static class EndpointPerOperationExtractor
         }
         else
         {
+            // A generator-added status that the default response shares: the framework's ProblemDetails is
+            // sent as application/problem+json, the handler's default body is not.
+            var sharedWithDefault = SharedWithDefault(responses, defaultResponse);
+            var splitByMediaType = SplitsByMediaType(responses, defaultResponse);
+            if (splitByMediaType)
+            {
+                sb.AppendLine("var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is \"application/problem+json\";");
+            }
+
             foreach (var responseInfo in responses)
             {
+                if (sharedWithDefault.Contains(responseInfo))
+                {
+                    continue;
+                }
+
                 if (responseInfo.IsSuccess)
                 {
                     if (responseInfo.TextMediaType is not null)
@@ -1283,6 +1325,31 @@ public static class EndpointPerOperationExtractor
                 }
             }
 
+            if (splitByMediaType)
+            {
+                sb.AppendLine("if (isProblemJson)");
+                sb.AppendLine("{");
+                foreach (var responseInfo in sharedWithDefault)
+                {
+                    sb.AppendLine(4, $"responseBuilder.AddErrorResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression});");
+                }
+
+                sb.AppendLine("}");
+                sb.AppendLine();
+            }
+
+            // `default`: any other error status is read as the default body, through the configured serializer.
+            if (defaultResponse is not null)
+            {
+                sb.AppendLine($"if ({DefaultErrorCondition(responses, defaultResponse, "response.IsSuccessStatusCode", "response.StatusCode", splitByMediaType ? "!isProblemJson" : null)})");
+                sb.AppendLine("{");
+                sb.AppendLine(4, defaultResponse.TextMediaType is not null
+                    ? "responseBuilder.AddErrorTextResponse(response.StatusCode);"
+                    : $"responseBuilder.AddErrorResponse<{defaultResponse.ContentType}>(response.StatusCode);");
+                sb.AppendLine("}");
+                sb.AppendLine();
+            }
+
             sb.Append($"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(x), cancellationToken);");
         }
 
@@ -1295,6 +1362,7 @@ public static class EndpointPerOperationExtractor
         string operationName,
         string description,
         List<ResponseInfo> responses,
+        ResponseInfo? defaultResponse,
         bool hasSegmentModels,
         bool hasSharedModels)
     {
@@ -1341,10 +1409,22 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine();
         }
 
+        if (defaultResponse is not null)
+        {
+            sb.AppendLine(4, $"bool Is{defaultResponse.PropertyName} {{ get; }}");
+            sb.AppendLine();
+        }
+
         // Only generate content properties for responses that have content
         foreach (var response in responses.Where(r => r.ContentType is not null))
         {
             sb.AppendLine(4, $"{response.ContentType} {response.PropertyName}Content {{ get; }}");
+            sb.AppendLine();
+        }
+
+        if (defaultResponse?.ContentType is not null)
+        {
+            sb.AppendLine(4, $"{defaultResponse.ContentType} {defaultResponse.PropertyName}Content {{ get; }}");
             sb.AppendLine();
         }
 
@@ -1368,6 +1448,7 @@ public static class EndpointPerOperationExtractor
         string operationName,
         string description,
         List<ResponseInfo> responses,
+        ResponseInfo? defaultResponse,
         bool hasSegmentModels,
         bool hasSharedModels)
     {
@@ -1441,6 +1522,16 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine();
         }
 
+        if (defaultResponse?.ContentType is not null)
+        {
+            sb.AppendLine(4, "/// <summary>");
+            sb.AppendLine(4, "/// Creates a result representing the default (any other) error response.");
+            sb.AppendLine(4, "/// </summary>");
+            sb.AppendLine(4, $"public static {operationName}EndpointResult {defaultResponse.PropertyName}(HttpStatusCode statusCode, {defaultResponse.ContentType} content)");
+            sb.AppendLine(8, "=> Create(statusCode, content);");
+            sb.AppendLine();
+        }
+
         sb.AppendLine(4, $"private static {operationName}EndpointResult Create(");
         sb.AppendLine(8, "HttpStatusCode statusCode,");
         sb.AppendLine(8, "object? contentObject)");
@@ -1460,6 +1551,24 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine();
         }
 
+        if (defaultResponse is not null)
+        {
+            // A model (or text) default is only the default error when the body was read as it: an HTML page from a
+            // proxy is not, so IsDefaultError stays false and DefaultErrorContent never throws when it is true. A
+            // ProblemDetails default reads any body, and a default without content has nothing to read.
+            var readGuard = defaultResponse.ContentType is null or "ProblemDetails" or "ValidationProblemDetails"
+                ? null
+                : $"ContentObject is {defaultResponse.ContentType}";
+
+            // The guard also tells a shared status's default body from the framework's ProblemDetails (the media type
+            // split registers the default type only for a body that is not application/problem+json).
+            var condition = DefaultErrorCondition(responses, defaultResponse, "IsSuccess", "StatusCode", sharedStatusExpression: null);
+
+            sb.AppendLine(4, $"public bool Is{defaultResponse.PropertyName}");
+            sb.AppendLine(8, readGuard is null ? $"=> {condition};" : $"=> {condition} && {readGuard};");
+            sb.AppendLine();
+        }
+
         // {PropertyName}Content properties - only generate for responses that have content
         foreach (var response in responses.Where(r => r.ContentType is not null))
         {
@@ -1471,15 +1580,44 @@ public static class EndpointPerOperationExtractor
             if (response.ContentType is "ProblemDetails" or "ValidationProblemDetails")
             {
                 var create = response.ContentType == "ProblemDetails" ? "Create" : "CreateValidation";
+                var fromContent = response.ContentType == "ProblemDetails" ? "FromContent" : "ValidationFromContent";
                 sb.AppendLine(12, $": Is{response.PropertyName} && ContentObject is string message");
                 sb.AppendLine(16, $"? ProblemDetailsFactory.{create}({response.StatusCodeExpression}, message)");
                 sb.AppendLine(16, $": Is{response.PropertyName} && ContentObject is null");
                 sb.AppendLine(20, $"? ProblemDetailsFactory.{create}({response.StatusCodeExpression})");
-                sb.AppendLine(20, $": throw InvalidContentAccessException<{response.ContentType}>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
+                sb.AppendLine(20, $": Is{response.PropertyName}");
+                sb.AppendLine(24, $"? ProblemDetailsFactory.{fromContent}({response.StatusCodeExpression}, Content)");
+                sb.AppendLine(24, $": throw InvalidContentAccessException<{response.ContentType}>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
             }
             else
             {
                 sb.AppendLine(12, $": throw InvalidContentAccessException<{response.ContentType}>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
+            }
+
+            sb.AppendLine();
+        }
+
+        if (defaultResponse?.ContentType is { } defaultType)
+        {
+            var name = defaultResponse.PropertyName;
+            sb.AppendLine(4, $"public {defaultType} {name}Content");
+            sb.AppendLine(8, $"=> Is{name} && ContentObject is {defaultType} result");
+            sb.AppendLine(12, "? result");
+
+            if (defaultType is "ProblemDetails" or "ValidationProblemDetails")
+            {
+                var create = defaultType == "ProblemDetails" ? "Create" : "CreateValidation";
+                sb.AppendLine(12, $": Is{name} && ContentObject is string message");
+                sb.AppendLine(16, $"? ProblemDetailsFactory.{create}(StatusCode, message)");
+                sb.AppendLine(16, $": Is{name} && ContentObject is null");
+                sb.AppendLine(20, $"? ProblemDetailsFactory.{create}(StatusCode)");
+                sb.AppendLine(20, $": Is{name}");
+                sb.AppendLine(24, $"? ProblemDetailsFactory.{(defaultType == "ProblemDetails" ? "FromContent" : "ValidationFromContent")}(StatusCode, Content)");
+                sb.AppendLine(24, $": throw InvalidContentAccessException<{defaultType}>(StatusCode, \"{name}Content\");");
+            }
+            else
+            {
+                sb.AppendLine(12, $": throw InvalidContentAccessException<{defaultType}>(StatusCode, \"{name}Content\");");
             }
 
             sb.AppendLine();
@@ -1767,6 +1905,78 @@ public static class EndpointPerOperationExtractor
             "OK" => "Ok",
             _ => statusName,
         };
+
+    /// <summary>
+    /// The condition under which a response is the spec's <c>default</c> response: not a success, and not
+    /// one of the error statuses the operation lists (or the generator adds).
+    /// </summary>
+    /// <param name="responses">The operation's listed (and generator-added) responses.</param>
+    /// <param name="defaultResponse">The <c>default</c> response.</param>
+    /// <param name="isSuccessExpression">The expression for "the response is a success".</param>
+    /// <param name="statusCodeExpression">The expression for the response status.</param>
+    /// <param name="sharedStatusExpression">
+    /// The expression that tells, for a status in <see cref="SharedWithDefault"/>, that the body is the default body.
+    /// </param>
+    private static string DefaultErrorCondition(
+        List<ResponseInfo> responses,
+        ResponseInfo defaultResponse,
+        string isSuccessExpression,
+        string statusCodeExpression,
+        string? sharedStatusExpression)
+    {
+        var shared = SharedWithDefault(responses, defaultResponse);
+        var listed = responses
+            .Where(r => !r.IsSuccess && !shared.Contains(r))
+            .Select(r => r.StatusCodeExpression)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        var condition = listed.Count == 0
+            ? $"!{isSuccessExpression}"
+            : $"!{isSuccessExpression} && {statusCodeExpression} is not {OrPattern(listed)}";
+
+        return shared.Count == 0 || sharedStatusExpression is null
+            ? condition
+            : $"{condition} && ({statusCodeExpression} is not {OrPattern(shared.Select(r => r.StatusCodeExpression).ToList())} || {sharedStatusExpression})";
+
+        static string OrPattern(List<string> values)
+            => values.Count == 1 ? values[0] : $"({string.Join(" or ", values)})";
+    }
+
+    /// <summary>
+    /// The generator-added error responses (400 validation, 404, 409, 500, 504, …) whose type differs from the
+    /// <c>default</c> response's. Such a status is written either by the framework (a ProblemDetails, sent as
+    /// <c>application/problem+json</c>) or by the handler's <c>Error(…)</c> factory (the default body), so the
+    /// client decides by the response media type. A <c>ValidationProblemDetails</c> under a <c>ProblemDetails</c>
+    /// default is not shared: it is the richer ProblemDetails, so the 400 stays a <c>ValidationProblemDetails</c>.
+    /// </summary>
+    private static List<ResponseInfo> SharedWithDefault(
+        List<ResponseInfo> responses,
+        ResponseInfo? defaultResponse)
+        => defaultResponse is null
+            ? []
+            : responses
+                .Where(r => r.IsAutoAdded &&
+                            r.ContentType is "ProblemDetails" or "ValidationProblemDetails" &&
+                            !string.Equals(r.ContentType, defaultResponse.ContentType, StringComparison.Ordinal) &&
+                            !(string.Equals(r.ContentType, "ValidationProblemDetails", StringComparison.Ordinal) &&
+                              string.Equals(defaultResponse.ContentType, "ProblemDetails", StringComparison.Ordinal)))
+                .ToList();
+
+    /// <summary>
+    /// Whether the generator-added statuses shared with the <c>default</c> response are told apart by the response
+    /// media type: only when the default body is a plain JSON / text body. A default that is itself a problem (a
+    /// ProblemDetails, or any model under <c>application/problem+json</c>) cannot be told apart from the framework's
+    /// ProblemDetails, so those statuses are read as the default body - their ProblemDetails accessors read the raw
+    /// body again (<c>ProblemDetailsFactory.FromContent</c>).
+    /// </summary>
+    private static bool SplitsByMediaType(
+        List<ResponseInfo> responses,
+        ResponseInfo? defaultResponse)
+        => defaultResponse is not null &&
+           SharedWithDefault(responses, defaultResponse).Count > 0 &&
+           defaultResponse.ContentType is not ("ProblemDetails" or "ValidationProblemDetails") &&
+           defaultResponse.ErrorMediaType?.Split(';')[0].Trim().EndsWith("problem+json", StringComparison.OrdinalIgnoreCase) != true;
 
     /// <summary>
     /// Extracts the item type from an IAsyncEnumerable type string.

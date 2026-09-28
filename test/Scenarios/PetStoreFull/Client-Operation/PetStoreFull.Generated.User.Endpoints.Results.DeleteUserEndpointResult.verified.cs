@@ -55,6 +55,12 @@ public partial class DeleteUserEndpointResult : EndpointResponse, IDeleteUserEnd
     public static DeleteUserEndpointResult GatewayTimeout(ProblemDetails content)
         => Create(HttpStatusCode.GatewayTimeout, content);
 
+    /// <summary>
+    /// Creates a result representing the default (any other) error response.
+    /// </summary>
+    public static DeleteUserEndpointResult DefaultError(HttpStatusCode statusCode, ProblemDetails content)
+        => Create(statusCode, content);
+
     private static DeleteUserEndpointResult Create(
         HttpStatusCode statusCode,
         object? contentObject)
@@ -80,6 +86,9 @@ public partial class DeleteUserEndpointResult : EndpointResponse, IDeleteUserEnd
     public bool IsGatewayTimeout
         => StatusCode == HttpStatusCode.GatewayTimeout;
 
+    public bool IsDefaultError
+        => !IsSuccess && StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.NotFound or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout);
+
     public ValidationProblemDetails BadRequestContent
         => IsBadRequest && ContentObject is ValidationProblemDetails result
             ? result
@@ -87,7 +96,9 @@ public partial class DeleteUserEndpointResult : EndpointResponse, IDeleteUserEnd
                 ? ProblemDetailsFactory.CreateValidation(HttpStatusCode.BadRequest, message)
                 : IsBadRequest && ContentObject is null
                     ? ProblemDetailsFactory.CreateValidation(HttpStatusCode.BadRequest)
-                    : throw InvalidContentAccessException<ValidationProblemDetails>(HttpStatusCode.BadRequest, "BadRequestContent");
+                    : IsBadRequest
+                        ? ProblemDetailsFactory.ValidationFromContent(HttpStatusCode.BadRequest, Content)
+                        : throw InvalidContentAccessException<ValidationProblemDetails>(HttpStatusCode.BadRequest, "BadRequestContent");
 
     public ProblemDetails NotFoundContent
         => IsNotFound && ContentObject is ProblemDetails result
@@ -96,7 +107,9 @@ public partial class DeleteUserEndpointResult : EndpointResponse, IDeleteUserEnd
                 ? ProblemDetailsFactory.Create(HttpStatusCode.NotFound, message)
                 : IsNotFound && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.NotFound)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.NotFound, "NotFoundContent");
+                    : IsNotFound
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.NotFound, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.NotFound, "NotFoundContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result
@@ -105,7 +118,9 @@ public partial class DeleteUserEndpointResult : EndpointResponse, IDeleteUserEnd
                 ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError, message)
                 : IsInternalServerError && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
+                    : IsInternalServerError
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.InternalServerError, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
 
     public ProblemDetails GatewayTimeoutContent
         => IsGatewayTimeout && ContentObject is ProblemDetails result
@@ -114,5 +129,18 @@ public partial class DeleteUserEndpointResult : EndpointResponse, IDeleteUserEnd
                 ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout, message)
                 : IsGatewayTimeout && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
+                    : IsGatewayTimeout
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.GatewayTimeout, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
+
+    public ProblemDetails DefaultErrorContent
+        => IsDefaultError && ContentObject is ProblemDetails result
+            ? result
+            : IsDefaultError && ContentObject is string message
+                ? ProblemDetailsFactory.Create(StatusCode, message)
+                : IsDefaultError && ContentObject is null
+                    ? ProblemDetailsFactory.Create(StatusCode)
+                    : IsDefaultError
+                        ? ProblemDetailsFactory.FromContent(StatusCode, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(StatusCode, "DefaultErrorContent");
 }

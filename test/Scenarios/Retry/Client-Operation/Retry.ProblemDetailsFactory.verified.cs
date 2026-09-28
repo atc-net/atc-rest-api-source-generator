@@ -37,6 +37,42 @@ public static class ProblemDetailsFactory
             Errors: null);
 
     /// <summary>
+    /// Reads a ProblemDetails from the raw response body - a body that was read as another type (e.g. the
+    /// operation's <c>default</c> model) - or creates one with the body as the detail.
+    /// </summary>
+    public static ProblemDetails FromContent(HttpStatusCode statusCode, string? content)
+        => TryRead<ProblemDetails>(content) is { } problem
+            ? problem with { Status = problem.Status ?? (int)statusCode }
+            : Create(statusCode, content);
+
+    /// <summary>
+    /// Reads a ValidationProblemDetails from the raw response body - a body that was read as another type - or
+    /// creates one with the body as the detail.
+    /// </summary>
+    public static ValidationProblemDetails ValidationFromContent(HttpStatusCode statusCode, string? content)
+        => TryRead<ValidationProblemDetails>(content) is { } problem
+            ? problem with { Status = problem.Status ?? (int)statusCode }
+            : CreateValidation(statusCode, content);
+
+    private static T? TryRead<T>(string? content)
+        where T : class
+    {
+        if (string.IsNullOrWhiteSpace(content) || content!.TrimStart()[0] != '{')
+        {
+            return null;
+        }
+
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<T>(content, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// The message as detail text: a JSON string body (<c>"text"</c>) is unwrapped to its value.
     /// </summary>
     private static string? ToDetail(string? message)

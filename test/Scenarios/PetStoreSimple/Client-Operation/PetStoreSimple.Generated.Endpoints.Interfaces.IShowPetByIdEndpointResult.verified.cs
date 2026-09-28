@@ -26,6 +26,8 @@ public interface IShowPetByIdEndpointResult : IEndpointResponse
 
     bool IsGatewayTimeout { get; }
 
+    bool IsDefaultError { get; }
+
     Pet OkContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
@@ -35,4 +37,6 @@ public interface IShowPetByIdEndpointResult : IEndpointResponse
     ProblemDetails InternalServerErrorContent { get; }
 
     ProblemDetails GatewayTimeoutContent { get; }
+
+    Error DefaultErrorContent { get; }
 }

@@ -64,6 +64,17 @@ public static class ResultClassExtractor
     {
         var inlineSchemas = new Dictionary<string, ResultClassInlineSchemaInfo>(StringComparer.Ordinal);
         var resultClasses = ExtractInternal(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, inlineSchemas, namespaceSegment);
+
+        // The inline models live in the models namespace the Results file imports: the collapsed segment
+        // (e.g. none, on a spec whose paths share one first segment), not the raw path segment.
+        if (namespaceSegment is not null)
+        {
+            foreach (var key in inlineSchemas.Keys.ToList())
+            {
+                inlineSchemas[key] = inlineSchemas[key] with { PathSegment = namespaceSegment };
+            }
+        }
+
         return (resultClasses, inlineSchemas);
     }
 
@@ -455,6 +466,13 @@ public static class ResultClassExtractor
         {
             var problemFromMessage = $"TypedResults.Problem(detail: message, statusCode: {status})";
 
+            // A declared problem schema adds a ProblemDetails overload next to the 2.x shape. A null
+            // argument keeps resolving to the 2.x shape, as it did in 2.x, instead of being ambiguous.
+            var hasProblemOverload = shape.IsDeclared && code is not (400 or 500 or 504);
+            IList<AttributeParameters>? legacyShapeAttributes = hasProblemOverload
+                ? [new AttributeParameters("System.Runtime.CompilerServices.OverloadResolutionPriority", "1")]
+                : null;
+
             if (code == 400)
             {
                 // 2.x shape: BadRequest(ValidationProblemDetails? errors = null) (or the declared ProblemDetails).
@@ -490,7 +508,8 @@ public static class ResultClassExtractor
                         CreateParameter("int", "retryAfterSeconds", nullable: true, isReference: false, defaultValue: "null"),
                         CreateParameter("string", "message", nullable: true, isReference: true, defaultValue: "null"),
                     ],
-                    Wrap(problemFromMessage)));
+                    Wrap(problemFromMessage),
+                    legacyShapeAttributes));
             }
             else
             {
@@ -501,11 +520,12 @@ public static class ResultClassExtractor
                     isDefault
                         ? [CreateParameter("string", "message", nullable: true, isReference: true, defaultValue: "null"), .. statusParameter]
                         : [CreateParameter("string", "message", nullable: true, isReference: true, defaultValue: "null")],
-                    $"new({problemFromMessage})"));
+                    $"new({problemFromMessage})",
+                    legacyShapeAttributes));
             }
 
             // A declared problem schema also accepts the problem object itself (400/500/504 already do).
-            if (shape.IsDeclared && code is not (400 or 500 or 504))
+            if (hasProblemOverload)
             {
                 var problemType = shape.Kind == ErrorResponseKind.ValidationProblem ? "ValidationProblemDetails" : "ProblemDetails";
                 var fromProblem = shape.Kind == ErrorResponseKind.ValidationProblem
@@ -529,15 +549,15 @@ public static class ResultClassExtractor
             ErrorResponseKind.Text => (
                 "string",
                 "message",
-                $"TypedResults.Text(message, \"{shape.MediaType}\", statusCode: {status})"),
+                $"TypedResults.Text(message, \"{shape.MediaTypeLiteral}\", statusCode: {status})"),
             ErrorResponseKind.JsonString => (
                 "string",
                 "message",
-                $"TypedResults.Json(message, contentType: \"{shape.MediaType}\", statusCode: {status})"),
+                $"TypedResults.Json(message, contentType: \"{shape.MediaTypeLiteral}\", statusCode: {status})"),
             _ => (
                 GetSchemaTypeName(shape.Schema, openApiDoc, registry, operationId, pathSegment, ErrorResponseShapeResolver.InlineTypeContext(statusCode), inlineSchemas),
                 code == 400 ? "errors" : "error",
-                $"TypedResults.Json({(code == 400 ? "errors" : "error")}, contentType: \"{shape.MediaType}\", statusCode: {status})"),
+                $"TypedResults.Json({(code == 400 ? "errors" : "error")}, contentType: \"{shape.MediaTypeLiteral}\", statusCode: {status})"),
         };
 
         if (isDefault)
@@ -556,7 +576,8 @@ public static class ResultClassExtractor
         List<ParameterBaseParameters> valueParameters = [CreateParameter(valueType, valueName, nullable: true, isReference: true, defaultValue: "null")];
         if (isTooManyRequests)
         {
-            valueParameters.Add(CreateParameter("int", "retryAfterSeconds", nullable: true, isReference: false, defaultValue: "null"));
+            // First, as in the 2.x shape TooManyRequests(int? retryAfterSeconds): a 2.x call TooManyRequests(30) still compiles.
+            valueParameters.Insert(0, CreateParameter("int", "retryAfterSeconds", nullable: true, isReference: false, defaultValue: "null"));
         }
 
         methods.Add(CreateErrorFactory(
@@ -585,17 +606,18 @@ public static class ResultClassExtractor
         string status)
         => status == "400"
             ? $"TypedResults.ValidationProblem({variable}.Errors, detail: {variable}.Detail, instance: {variable}.Instance, title: {variable}.Title, type: {variable}.Type, extensions: {variable}.Extensions)"
-            : $"TypedResults.Problem(new HttpValidationProblemDetails({variable}.Errors) {{ Detail = {variable}.Detail, Instance = {variable}.Instance, Status = {status}, Title = {variable}.Title, Type = {variable}.Type }})";
+            : $"TypedResults.Problem(new HttpValidationProblemDetails({variable}.Errors) {{ Detail = {variable}.Detail, Instance = {variable}.Instance, Status = {status}, Title = {variable}.Title, Type = {variable}.Type, Extensions = {variable}.Extensions }})";
 
     private static MethodParameters CreateErrorFactory(
         string className,
         string documentation,
         string name,
         List<ParameterBaseParameters> parameters,
-        string content)
+        string content,
+        IList<AttributeParameters>? attributes = null)
         => new(
             DocumentationTags: new CodeDocumentationTags(documentation),
-            Attributes: null,
+            Attributes: attributes,
             DeclarationModifier: DeclarationModifiers.PublicStatic,
             ReturnGenericTypeName: null,
             ReturnTypeName: className,
@@ -1135,7 +1157,7 @@ public static class ResultClassExtractor
                 !arraySchema.HasPrefixItems())
             {
                 // This is a simple array alias - resolve to the underlying array type
-                return GetArraySchemaType(arraySchema, openApiDoc, registry, operationId, pathSegment, inlineSchemas);
+                return GetArraySchemaType(arraySchema, openApiDoc, registry, operationId, pathSegment, context, inlineSchemas);
             }
 
             // Return the resolved type name for schema references
@@ -1161,7 +1183,7 @@ public static class ResultClassExtractor
                     return OpenApiSchemaExtensions.ResolveTypeName(schemaName!, registry);
                 }
 
-                return GetArraySchemaType(actualSchema, openApiDoc, registry, operationId, pathSegment, inlineSchemas);
+                return GetArraySchemaType(actualSchema, openApiDoc, registry, operationId, pathSegment, context, inlineSchemas);
             }
 
             // Handle inline object schemas with properties
@@ -1229,6 +1251,7 @@ public static class ResultClassExtractor
         TypeConflictRegistry? registry,
         string operationId,
         string pathSegment,
+        string? context,
         Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
     {
         if (schema.Items is null)
@@ -1237,14 +1260,15 @@ public static class ResultClassExtractor
         }
 
         // Delegate to GetSchemaTypeName for proper handling of schema references, resolved schemas, and inline objects
-        // Use "ResponseItem" context for array items (e.g., ListReportsResponseItem)
+        // Array items get the context of the array: "ResponseItem" for a success body (ListReportsResponseItem),
+        // "{Status}ErrorItem" for an error body, so an error item never takes the success item's type.
         var itemType = GetSchemaTypeName(
             schema.Items,
             openApiDoc,
             registry,
             operationId,
             pathSegment,
-            "ResponseItem",
+            context is null or "Response" ? "ResponseItem" : context + "Item",
             inlineSchemas);
 
         return $"List<{itemType}>";

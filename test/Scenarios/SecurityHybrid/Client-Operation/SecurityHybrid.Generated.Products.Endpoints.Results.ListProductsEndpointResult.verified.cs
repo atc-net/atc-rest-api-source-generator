@@ -83,7 +83,9 @@ public partial class ListProductsEndpointResult : EndpointResponse, IListProduct
                 ? ProblemDetailsFactory.Create(HttpStatusCode.Unauthorized, message)
                 : IsUnauthorized && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.Unauthorized)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Unauthorized, "UnauthorizedContent");
+                    : IsUnauthorized
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Unauthorized, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Unauthorized, "UnauthorizedContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result
@@ -92,7 +94,9 @@ public partial class ListProductsEndpointResult : EndpointResponse, IListProduct
                 ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError, message)
                 : IsInternalServerError && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
+                    : IsInternalServerError
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.InternalServerError, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
 
     public ProblemDetails GatewayTimeoutContent
         => IsGatewayTimeout && ContentObject is ProblemDetails result
@@ -101,5 +105,7 @@ public partial class ListProductsEndpointResult : EndpointResponse, IListProduct
                 ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout, message)
                 : IsGatewayTimeout && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
+                    : IsGatewayTimeout
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.GatewayTimeout, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
 }

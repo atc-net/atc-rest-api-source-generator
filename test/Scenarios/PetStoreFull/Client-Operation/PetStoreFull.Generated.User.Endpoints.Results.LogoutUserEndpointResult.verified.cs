@@ -43,6 +43,12 @@ public partial class LogoutUserEndpointResult : EndpointResponse, ILogoutUserEnd
     public static LogoutUserEndpointResult GatewayTimeout(ProblemDetails content)
         => Create(HttpStatusCode.GatewayTimeout, content);
 
+    /// <summary>
+    /// Creates a result representing the default (any other) error response.
+    /// </summary>
+    public static LogoutUserEndpointResult DefaultError(HttpStatusCode statusCode, ProblemDetails content)
+        => Create(statusCode, content);
+
     private static LogoutUserEndpointResult Create(
         HttpStatusCode statusCode,
         object? contentObject)
@@ -62,6 +68,9 @@ public partial class LogoutUserEndpointResult : EndpointResponse, ILogoutUserEnd
     public bool IsGatewayTimeout
         => StatusCode == HttpStatusCode.GatewayTimeout;
 
+    public bool IsDefaultError
+        => !IsSuccess && StatusCode is not (HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout);
+
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result
             ? result
@@ -69,7 +78,9 @@ public partial class LogoutUserEndpointResult : EndpointResponse, ILogoutUserEnd
                 ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError, message)
                 : IsInternalServerError && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
+                    : IsInternalServerError
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.InternalServerError, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
 
     public ProblemDetails GatewayTimeoutContent
         => IsGatewayTimeout && ContentObject is ProblemDetails result
@@ -78,5 +89,18 @@ public partial class LogoutUserEndpointResult : EndpointResponse, ILogoutUserEnd
                 ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout, message)
                 : IsGatewayTimeout && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
+                    : IsGatewayTimeout
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.GatewayTimeout, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
+
+    public ProblemDetails DefaultErrorContent
+        => IsDefaultError && ContentObject is ProblemDetails result
+            ? result
+            : IsDefaultError && ContentObject is string message
+                ? ProblemDetailsFactory.Create(StatusCode, message)
+                : IsDefaultError && ContentObject is null
+                    ? ProblemDetailsFactory.Create(StatusCode)
+                    : IsDefaultError
+                        ? ProblemDetailsFactory.FromContent(StatusCode, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(StatusCode, "DefaultErrorContent");
 }

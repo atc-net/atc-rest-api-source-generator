@@ -28,6 +28,8 @@ public interface IFindPetsByTagsEndpointResult : IEndpointResponse
 
     bool IsGatewayTimeout { get; }
 
+    bool IsDefaultError { get; }
+
     IEnumerable<Pet> OkContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
@@ -39,4 +41,6 @@ public interface IFindPetsByTagsEndpointResult : IEndpointResponse
     ProblemDetails InternalServerErrorContent { get; }
 
     ProblemDetails GatewayTimeoutContent { get; }
+
+    ProblemDetails DefaultErrorContent { get; }
 }

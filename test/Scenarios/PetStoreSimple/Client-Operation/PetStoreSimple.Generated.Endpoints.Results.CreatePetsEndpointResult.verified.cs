@@ -49,6 +49,12 @@ public partial class CreatePetsEndpointResult : EndpointResponse, ICreatePetsEnd
     public static CreatePetsEndpointResult GatewayTimeout(ProblemDetails content)
         => Create(HttpStatusCode.GatewayTimeout, content);
 
+    /// <summary>
+    /// Creates a result representing the default (any other) error response.
+    /// </summary>
+    public static CreatePetsEndpointResult DefaultError(HttpStatusCode statusCode, Error content)
+        => Create(statusCode, content);
+
     private static CreatePetsEndpointResult Create(
         HttpStatusCode statusCode,
         object? contentObject)
@@ -71,6 +77,9 @@ public partial class CreatePetsEndpointResult : EndpointResponse, ICreatePetsEnd
     public bool IsGatewayTimeout
         => StatusCode == HttpStatusCode.GatewayTimeout;
 
+    public bool IsDefaultError
+        => !IsSuccess && ContentObject is Error;
+
     public ProblemDetails ConflictContent
         => IsConflict && ContentObject is ProblemDetails result
             ? result
@@ -78,7 +87,9 @@ public partial class CreatePetsEndpointResult : EndpointResponse, ICreatePetsEnd
                 ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict, message)
                 : IsConflict && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
+                    : IsConflict
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Conflict, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result
@@ -87,7 +98,9 @@ public partial class CreatePetsEndpointResult : EndpointResponse, ICreatePetsEnd
                 ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError, message)
                 : IsInternalServerError && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
+                    : IsInternalServerError
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.InternalServerError, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
 
     public ProblemDetails GatewayTimeoutContent
         => IsGatewayTimeout && ContentObject is ProblemDetails result
@@ -96,5 +109,12 @@ public partial class CreatePetsEndpointResult : EndpointResponse, ICreatePetsEnd
                 ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout, message)
                 : IsGatewayTimeout && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
+                    : IsGatewayTimeout
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.GatewayTimeout, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
+
+    public Error DefaultErrorContent
+        => IsDefaultError && ContentObject is Error result
+            ? result
+            : throw InvalidContentAccessException<Error>(StatusCode, "DefaultErrorContent");
 }

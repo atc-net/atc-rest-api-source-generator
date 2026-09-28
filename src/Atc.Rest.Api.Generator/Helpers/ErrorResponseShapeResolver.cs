@@ -68,8 +68,8 @@ public static class ErrorResponseShapeResolver
             ErrorResponseKind.ValidationProblem => $".ProducesValidationProblem({status})",
             ErrorResponseKind.Problem when code == 400 && !shape.IsDeclared => ".ProducesValidationProblem()",
             ErrorResponseKind.Problem => $".ProducesProblem({status})",
-            ErrorResponseKind.JsonString or ErrorResponseKind.Text => $".Produces<string>({status}, contentType: \"{shape.MediaType}\")",
-            _ => $".Produces<{modelTypeName ?? "object"}>({status}, contentType: \"{shape.MediaType}\")",
+            ErrorResponseKind.JsonString or ErrorResponseKind.Text => $".Produces<string>({status}, contentType: \"{shape.MediaTypeLiteral}\")",
+            _ => $".Produces<{modelTypeName ?? "object"}>({status}, contentType: \"{shape.MediaTypeLiteral}\")",
         };
     }
 
@@ -105,6 +105,17 @@ public static class ErrorResponseShapeResolver
 
             if (json.MediaType is not null)
             {
+                // A $ref to a primitive alias (ErrorMessage: { type: string }) is no generated type: use the
+                // primitive itself. An enum is a generated type and keeps its reference.
+                if (json.Schema is OpenApiSchemaReference { Target: OpenApiSchema target } &&
+                    target.Type is { } targetType &&
+                    !targetType.HasFlag(JsonSchemaType.Object) &&
+                    !targetType.HasFlag(JsonSchemaType.Array) &&
+                    target.Enum is not { Count: > 0 })
+                {
+                    json.Schema = target;
+                }
+
                 var schemaName = json.Schema.GetReferenceId();
                 if (string.Equals(schemaName, "ProblemDetails", StringComparison.Ordinal))
                 {

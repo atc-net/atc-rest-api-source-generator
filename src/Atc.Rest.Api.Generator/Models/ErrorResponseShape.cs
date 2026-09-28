@@ -22,4 +22,11 @@ public sealed record ErrorResponseShape(
     /// </summary>
     public bool IsDeclared
         => MediaType is not null;
+
+    /// <summary>
+    /// The media type as the content of a C# string literal (quotes and backslashes of a parameter such as
+    /// <c>profile="urn:x"</c> escaped).
+    /// </summary>
+    public string? MediaTypeLiteral
+        => MediaType?.Replace("\\", "\\\\").Replace("\"", "\\\"");
 }

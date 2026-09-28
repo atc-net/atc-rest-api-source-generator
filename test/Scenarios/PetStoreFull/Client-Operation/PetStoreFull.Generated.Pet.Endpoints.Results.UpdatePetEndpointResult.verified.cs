@@ -79,6 +79,12 @@ public partial class UpdatePetEndpointResult : EndpointResponse, IUpdatePetEndpo
     public static UpdatePetEndpointResult GatewayTimeout(ProblemDetails content)
         => Create(HttpStatusCode.GatewayTimeout, content);
 
+    /// <summary>
+    /// Creates a result representing the default (any other) error response.
+    /// </summary>
+    public static UpdatePetEndpointResult DefaultError(HttpStatusCode statusCode, ProblemDetails content)
+        => Create(statusCode, content);
+
     private static UpdatePetEndpointResult Create(
         HttpStatusCode statusCode,
         object? contentObject)
@@ -116,6 +122,9 @@ public partial class UpdatePetEndpointResult : EndpointResponse, IUpdatePetEndpo
     public bool IsGatewayTimeout
         => StatusCode == HttpStatusCode.GatewayTimeout;
 
+    public bool IsDefaultError
+        => !IsSuccess && StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.NotFound or HttpStatusCode.UnprocessableEntity or HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden or HttpStatusCode.Conflict or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout);
+
     public Pet OkContent
         => IsOk && ContentObject is Pet result
             ? result
@@ -128,7 +137,9 @@ public partial class UpdatePetEndpointResult : EndpointResponse, IUpdatePetEndpo
                 ? ProblemDetailsFactory.CreateValidation(HttpStatusCode.BadRequest, message)
                 : IsBadRequest && ContentObject is null
                     ? ProblemDetailsFactory.CreateValidation(HttpStatusCode.BadRequest)
-                    : throw InvalidContentAccessException<ValidationProblemDetails>(HttpStatusCode.BadRequest, "BadRequestContent");
+                    : IsBadRequest
+                        ? ProblemDetailsFactory.ValidationFromContent(HttpStatusCode.BadRequest, Content)
+                        : throw InvalidContentAccessException<ValidationProblemDetails>(HttpStatusCode.BadRequest, "BadRequestContent");
 
     public ProblemDetails NotFoundContent
         => IsNotFound && ContentObject is ProblemDetails result
@@ -137,7 +148,9 @@ public partial class UpdatePetEndpointResult : EndpointResponse, IUpdatePetEndpo
                 ? ProblemDetailsFactory.Create(HttpStatusCode.NotFound, message)
                 : IsNotFound && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.NotFound)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.NotFound, "NotFoundContent");
+                    : IsNotFound
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.NotFound, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.NotFound, "NotFoundContent");
 
     public ProblemDetails UnprocessableEntityContent
         => IsUnprocessableEntity && ContentObject is ProblemDetails result
@@ -146,7 +159,9 @@ public partial class UpdatePetEndpointResult : EndpointResponse, IUpdatePetEndpo
                 ? ProblemDetailsFactory.Create(HttpStatusCode.UnprocessableEntity, message)
                 : IsUnprocessableEntity && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.UnprocessableEntity)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.UnprocessableEntity, "UnprocessableEntityContent");
+                    : IsUnprocessableEntity
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.UnprocessableEntity, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.UnprocessableEntity, "UnprocessableEntityContent");
 
     public ProblemDetails UnauthorizedContent
         => IsUnauthorized && ContentObject is ProblemDetails result
@@ -155,7 +170,9 @@ public partial class UpdatePetEndpointResult : EndpointResponse, IUpdatePetEndpo
                 ? ProblemDetailsFactory.Create(HttpStatusCode.Unauthorized, message)
                 : IsUnauthorized && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.Unauthorized)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Unauthorized, "UnauthorizedContent");
+                    : IsUnauthorized
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Unauthorized, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Unauthorized, "UnauthorizedContent");
 
     public ProblemDetails ForbiddenContent
         => IsForbidden && ContentObject is ProblemDetails result
@@ -164,7 +181,9 @@ public partial class UpdatePetEndpointResult : EndpointResponse, IUpdatePetEndpo
                 ? ProblemDetailsFactory.Create(HttpStatusCode.Forbidden, message)
                 : IsForbidden && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.Forbidden)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Forbidden, "ForbiddenContent");
+                    : IsForbidden
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Forbidden, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Forbidden, "ForbiddenContent");
 
     public ProblemDetails ConflictContent
         => IsConflict && ContentObject is ProblemDetails result
@@ -173,7 +192,9 @@ public partial class UpdatePetEndpointResult : EndpointResponse, IUpdatePetEndpo
                 ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict, message)
                 : IsConflict && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
+                    : IsConflict
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Conflict, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result
@@ -182,7 +203,9 @@ public partial class UpdatePetEndpointResult : EndpointResponse, IUpdatePetEndpo
                 ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError, message)
                 : IsInternalServerError && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
+                    : IsInternalServerError
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.InternalServerError, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
 
     public ProblemDetails GatewayTimeoutContent
         => IsGatewayTimeout && ContentObject is ProblemDetails result
@@ -191,5 +214,18 @@ public partial class UpdatePetEndpointResult : EndpointResponse, IUpdatePetEndpo
                 ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout, message)
                 : IsGatewayTimeout && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
+                    : IsGatewayTimeout
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.GatewayTimeout, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
+
+    public ProblemDetails DefaultErrorContent
+        => IsDefaultError && ContentObject is ProblemDetails result
+            ? result
+            : IsDefaultError && ContentObject is string message
+                ? ProblemDetailsFactory.Create(StatusCode, message)
+                : IsDefaultError && ContentObject is null
+                    ? ProblemDetailsFactory.Create(StatusCode)
+                    : IsDefaultError
+                        ? ProblemDetailsFactory.FromContent(StatusCode, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(StatusCode, "DefaultErrorContent");
 }

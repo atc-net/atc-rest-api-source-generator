@@ -26,6 +26,8 @@ public interface IGetItemByIdEndpointResult : IEndpointResponse
 
     bool IsGatewayTimeout { get; }
 
+    bool IsDefaultError { get; }
+
     Item OkContent { get; }
 
     Error NotFoundContent { get; }
@@ -35,4 +37,6 @@ public interface IGetItemByIdEndpointResult : IEndpointResponse
     ProblemDetails InternalServerErrorContent { get; }
 
     ProblemDetails GatewayTimeoutContent { get; }
+
+    Error DefaultErrorContent { get; }
 }

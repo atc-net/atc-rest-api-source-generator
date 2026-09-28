@@ -96,7 +96,9 @@ public partial class SendNotificationEndpointResult : EndpointResponse, ISendNot
                 ? ProblemDetailsFactory.CreateValidation(HttpStatusCode.BadRequest, message)
                 : IsBadRequest && ContentObject is null
                     ? ProblemDetailsFactory.CreateValidation(HttpStatusCode.BadRequest)
-                    : throw InvalidContentAccessException<ValidationProblemDetails>(HttpStatusCode.BadRequest, "BadRequestContent");
+                    : IsBadRequest
+                        ? ProblemDetailsFactory.ValidationFromContent(HttpStatusCode.BadRequest, Content)
+                        : throw InvalidContentAccessException<ValidationProblemDetails>(HttpStatusCode.BadRequest, "BadRequestContent");
 
     public ProblemDetails ConflictContent
         => IsConflict && ContentObject is ProblemDetails result
@@ -105,7 +107,9 @@ public partial class SendNotificationEndpointResult : EndpointResponse, ISendNot
                 ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict, message)
                 : IsConflict && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.Conflict)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
+                    : IsConflict
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Conflict, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Conflict, "ConflictContent");
 
     public ProblemDetails TooManyRequestsContent
         => IsTooManyRequests && ContentObject is ProblemDetails result
@@ -114,7 +118,9 @@ public partial class SendNotificationEndpointResult : EndpointResponse, ISendNot
                 ? ProblemDetailsFactory.Create(HttpStatusCode.TooManyRequests, message)
                 : IsTooManyRequests && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.TooManyRequests)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.TooManyRequests, "TooManyRequestsContent");
+                    : IsTooManyRequests
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.TooManyRequests, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.TooManyRequests, "TooManyRequestsContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result
@@ -123,7 +129,9 @@ public partial class SendNotificationEndpointResult : EndpointResponse, ISendNot
                 ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError, message)
                 : IsInternalServerError && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
+                    : IsInternalServerError
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.InternalServerError, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
 
     public ProblemDetails GatewayTimeoutContent
         => IsGatewayTimeout && ContentObject is ProblemDetails result
@@ -132,5 +140,7 @@ public partial class SendNotificationEndpointResult : EndpointResponse, ISendNot
                 ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout, message)
                 : IsGatewayTimeout && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
+                    : IsGatewayTimeout
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.GatewayTimeout, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
 }

@@ -53,10 +53,20 @@ public sealed class ListPetsEndpoint : IListPetsEndpoint
         using var response = await client.SendAsync(requestMessage, cancellationToken);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
+        var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is "application/problem+json";
         responseBuilder.AddSuccessResponse<IEnumerable<Pet>>(HttpStatusCode.OK);
-        responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
-        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
-        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        if (isProblemJson)
+        {
+            responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
+            responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+            responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        }
+
+        if (!response.IsSuccessStatusCode && (response.StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout) || !isProblemJson))
+        {
+            responseBuilder.AddErrorResponse<Error>(response.StatusCode);
+        }
+
         return await responseBuilder.BuildResponseAsync(x => new ListPetsEndpointResult(x), cancellationToken);
     }
 }

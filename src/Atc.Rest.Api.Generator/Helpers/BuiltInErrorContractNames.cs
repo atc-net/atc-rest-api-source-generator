@@ -34,4 +34,87 @@ public static class BuiltInErrorContractNames
     /// <returns><see langword="true"/> when the name is reserved by the generator.</returns>
     public static bool IsReserved(string schemaName)
         => All.Contains(schemaName, StringComparer.Ordinal);
+
+    /// <summary>
+    /// The reserved schemas that another schema of the document references (extends through <c>allOf</c>,
+    /// holds as a property, …). Those are generated as models like any other schema - the models that use
+    /// them need them - and files that also import <c>Microsoft.AspNetCore.Mvc</c> alias the name to the
+    /// framework type (see <see cref="AppendFrameworkAliases"/>).
+    /// </summary>
+    /// <param name="document">The OpenAPI document.</param>
+    /// <returns>The referenced reserved schema names.</returns>
+    public static HashSet<string> ReferencedByOtherSchemas(
+        OpenApiDocument document)
+    {
+        var result = new HashSet<string>(StringComparer.Ordinal);
+        if (document?.Components?.Schemas is not { } schemas)
+        {
+            return result;
+        }
+
+        foreach (var schema in schemas.Where(s => !IsReserved(s.Key)).Select(s => s.Value))
+        {
+            CollectReservedReferences(schema, result, new HashSet<IOpenApiSchema>());
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Appends <c>using ProblemDetails = Microsoft.AspNetCore.Mvc.ProblemDetails;</c> (and the same for
+    /// <c>ValidationProblemDetails</c>) for every reserved name that is also generated as a model: the alias
+    /// takes precedence over the imported models namespace, so the file keeps meaning the framework type.
+    /// </summary>
+    /// <param name="sb">The file content.</param>
+    /// <param name="generatedReservedModels">The reserved names generated as models.</param>
+    public static void AppendFrameworkAliases(
+        StringBuilder sb,
+        IEnumerable<string> generatedReservedModels)
+    {
+        if (sb is null || generatedReservedModels is null)
+        {
+            return;
+        }
+
+        foreach (var name in generatedReservedModels.OrderBy(n => n, StringComparer.Ordinal))
+        {
+            sb.AppendLine($"using {name} = Microsoft.AspNetCore.Mvc.{name};");
+        }
+    }
+
+    private static void CollectReservedReferences(
+        IOpenApiSchema? schema,
+        HashSet<string> result,
+        HashSet<IOpenApiSchema> visited)
+    {
+        if (schema is null || !visited.Add(schema))
+        {
+            return;
+        }
+
+        if (schema is OpenApiSchemaReference reference)
+        {
+            var name = reference.Reference.Id ?? reference.Id;
+            if (name is not null && IsReserved(name))
+            {
+                result.Add(name);
+            }
+
+            // Named schemas are walked from the components loop.
+            return;
+        }
+
+        foreach (var child in (schema.AllOf ?? []).Concat(schema.OneOf ?? []).Concat(schema.AnyOf ?? []))
+        {
+            CollectReservedReferences(child, result, visited);
+        }
+
+        foreach (var property in schema.Properties?.Values ?? [])
+        {
+            CollectReservedReferences(property, result, visited);
+        }
+
+        CollectReservedReferences(schema.Items, result, visited);
+        CollectReservedReferences(schema.AdditionalProperties, result, visited);
+    }
 }

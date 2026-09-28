@@ -61,6 +61,11 @@ public sealed class LoginUserEndpoint : ILoginUserEndpoint
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        if (!response.IsSuccessStatusCode && response.StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout))
+        {
+            responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
+        }
+
         return await responseBuilder.BuildResponseAsync(x => new LoginUserEndpointResult(x), cancellationToken);
     }
 }

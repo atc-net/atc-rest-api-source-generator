@@ -363,8 +363,11 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         // A spec-defined ProblemDetails / ValidationProblemDetails is not materialized: the server binds
         // those names to Microsoft.AspNetCore.Mvc (every generated Results file imports it), and a second,
-        // generated type of the same name would make every reference ambiguous (CS0104).
-        sharedSchemas.RemoveWhere(BuiltInErrorContractNames.IsReserved);
+        // generated type of the same name would make every reference ambiguous (CS0104). Unless another
+        // schema extends or holds it: then it is a model like any other, and the files that import both
+        // namespaces alias the name to the framework type.
+        var referencedReservedSchemas = BuiltInErrorContractNames.ReferencedByOtherSchemas(openApiDoc);
+        sharedSchemas.RemoveWhere(name => BuiltInErrorContractNames.IsReserved(name) && !referencedReservedSchemas.Contains(name));
 
         // Generate shared models/enums first (under common namespace without segment suffix)
         if (sharedSchemas.Count > 0)
@@ -430,7 +433,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
 
             // Same as for the shared set: ProblemDetails / ValidationProblemDetails bind to the framework types.
-            segmentSchemas.RemoveWhere(BuiltInErrorContractNames.IsReserved);
+            segmentSchemas.RemoveWhere(name => BuiltInErrorContractNames.IsReserved(name) && !referencedReservedSchemas.Contains(name));
 
             // Generate segment-specific models (excluding shared ones)
             // Include shared models using directive so segment types can reference shared types
@@ -980,6 +983,7 @@ public class ApiServerGenerator : IIncrementalGenerator
 
             // Add conditional segment namespace usings
             sb.AppendSegmentUsings(projectName, effectiveSegment, namespaces);
+            BuiltInErrorContractNames.AppendFrameworkAliases(sb, BuiltInErrorContractNames.ReferencedByOtherSchemas(openApiDoc));
 
             // Add caching namespace when output caching is used
             if (openApiDoc.HasOutputCaching())
@@ -1353,6 +1357,9 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             allGeneratedCode.AppendLine($"using {modelsNamespace};");
         }
+
+        // A spec ProblemDetails / ValidationProblemDetails that other models use is generated too: keep meaning the framework type.
+        BuiltInErrorContractNames.AppendFrameworkAliases(allGeneratedCode, BuiltInErrorContractNames.ReferencedByOtherSchemas(openApiDoc));
 
         allGeneratedCode.AppendLine();
         allGeneratedCode.AppendLine($"namespace {resultsNamespace};");

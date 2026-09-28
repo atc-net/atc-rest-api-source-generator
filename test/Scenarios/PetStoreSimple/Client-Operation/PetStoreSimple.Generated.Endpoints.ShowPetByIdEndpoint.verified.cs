@@ -50,11 +50,21 @@ public sealed class ShowPetByIdEndpoint : IShowPetByIdEndpoint
         using var response = await client.SendAsync(requestMessage, cancellationToken);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
+        var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is "application/problem+json";
         responseBuilder.AddSuccessResponse<Pet>(HttpStatusCode.OK);
-        responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
-        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
-        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
-        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        if (isProblemJson)
+        {
+            responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
+            responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
+            responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+            responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        }
+
+        if (!response.IsSuccessStatusCode && (response.StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.NotFound or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout) || !isProblemJson))
+        {
+            responseBuilder.AddErrorResponse<Error>(response.StatusCode);
+        }
+
         return await responseBuilder.BuildResponseAsync(x => new ShowPetByIdEndpointResult(x), cancellationToken);
     }
 }

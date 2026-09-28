@@ -24,6 +24,8 @@ public interface IGetInventoryEndpointResult : IEndpointResponse
 
     bool IsGatewayTimeout { get; }
 
+    bool IsDefaultError { get; }
+
     object OkContent { get; }
 
     ProblemDetails UnauthorizedContent { get; }
@@ -31,4 +33,6 @@ public interface IGetInventoryEndpointResult : IEndpointResponse
     ProblemDetails InternalServerErrorContent { get; }
 
     ProblemDetails GatewayTimeoutContent { get; }
+
+    ProblemDetails DefaultErrorContent { get; }
 }

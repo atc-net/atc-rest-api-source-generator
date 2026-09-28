@@ -49,6 +49,12 @@ public partial class GetInventoryEndpointResult : EndpointResponse, IGetInventor
     public static GetInventoryEndpointResult GatewayTimeout(ProblemDetails content)
         => Create(HttpStatusCode.GatewayTimeout, content);
 
+    /// <summary>
+    /// Creates a result representing the default (any other) error response.
+    /// </summary>
+    public static GetInventoryEndpointResult DefaultError(HttpStatusCode statusCode, ProblemDetails content)
+        => Create(statusCode, content);
+
     private static GetInventoryEndpointResult Create(
         HttpStatusCode statusCode,
         object? contentObject)
@@ -71,6 +77,9 @@ public partial class GetInventoryEndpointResult : EndpointResponse, IGetInventor
     public bool IsGatewayTimeout
         => StatusCode == HttpStatusCode.GatewayTimeout;
 
+    public bool IsDefaultError
+        => !IsSuccess && StatusCode is not (HttpStatusCode.Unauthorized or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout);
+
     public object OkContent
         => IsOk && ContentObject is object result
             ? result
@@ -83,7 +92,9 @@ public partial class GetInventoryEndpointResult : EndpointResponse, IGetInventor
                 ? ProblemDetailsFactory.Create(HttpStatusCode.Unauthorized, message)
                 : IsUnauthorized && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.Unauthorized)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Unauthorized, "UnauthorizedContent");
+                    : IsUnauthorized
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.Unauthorized, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.Unauthorized, "UnauthorizedContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result
@@ -92,7 +103,9 @@ public partial class GetInventoryEndpointResult : EndpointResponse, IGetInventor
                 ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError, message)
                 : IsInternalServerError && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.InternalServerError)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
+                    : IsInternalServerError
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.InternalServerError, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.InternalServerError, "InternalServerErrorContent");
 
     public ProblemDetails GatewayTimeoutContent
         => IsGatewayTimeout && ContentObject is ProblemDetails result
@@ -101,5 +114,18 @@ public partial class GetInventoryEndpointResult : EndpointResponse, IGetInventor
                 ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout, message)
                 : IsGatewayTimeout && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.GatewayTimeout)
-                    : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
+                    : IsGatewayTimeout
+                        ? ProblemDetailsFactory.FromContent(HttpStatusCode.GatewayTimeout, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.GatewayTimeout, "GatewayTimeoutContent");
+
+    public ProblemDetails DefaultErrorContent
+        => IsDefaultError && ContentObject is ProblemDetails result
+            ? result
+            : IsDefaultError && ContentObject is string message
+                ? ProblemDetailsFactory.Create(StatusCode, message)
+                : IsDefaultError && ContentObject is null
+                    ? ProblemDetailsFactory.Create(StatusCode)
+                    : IsDefaultError
+                        ? ProblemDetailsFactory.FromContent(StatusCode, Content)
+                        : throw InvalidContentAccessException<ProblemDetails>(StatusCode, "DefaultErrorContent");
 }
