@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/atc-net/atc-rest-api-source-generator/compare/v2.1.0...v2.1.1) (2026-09-28)
+
+
+### Bug fixes
+
+* **cli:** take the specification with -s in migrate and find the solution automatically ([366b8cd](https://github.com/atc-net/atc-rest-api-source-generator/commit/366b8cd511a13598ea23fbc5ee5ef6a1e21c5023))
+
 ## [2.1.0](https://github.com/atc-net/atc-rest-api-source-generator/compare/v2.0.0...v2.1.0) (2026-09-24)
 
 
