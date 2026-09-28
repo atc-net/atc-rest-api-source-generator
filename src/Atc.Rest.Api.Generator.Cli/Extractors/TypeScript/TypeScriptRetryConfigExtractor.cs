@@ -43,17 +43,33 @@ public static class TypeScriptRetryConfigExtractor
         sb.AppendLine("}");
         sb.AppendLine();
 
+        // Per-request retry, passed by the generated client methods for operations that differ
+        // from the ApiClient default (x-retry-policy / x-retry-enabled on the operation or path).
+        sb.AppendLine("/**");
+        sb.AppendLine(" * Retry for one request. Omitted, the ApiClient uses its policy for safe methods and does not");
+        sb.AppendLine(" * retry POST/PATCH (not idempotent: a resend can apply them twice).");
+        sb.AppendLine(" */");
+        sb.AppendLine("export interface RequestRetry {");
+        sb.AppendLine("  /** The operation's own policy; defaults to the ApiClient's. */");
+        sb.AppendLine("  readonly policy?: RetryPolicy;");
+        sb.AppendLine("  /** false: one attempt only (the policy's timeout still applies). true: retry even a POST/PATCH. */");
+        sb.AppendLine("  readonly enabled?: boolean;");
+        sb.AppendLine("  /** Per-attempt timeout override in milliseconds. */");
+        sb.AppendLine("  readonly timeoutMs?: number;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+
         // Extract named policies from document
-        var policies = CollectNamedPolicies(document);
+        var policies = document.CollectNamedRetryPolicies();
 
         if (policies.Count > 0)
         {
             sb.AppendLine("/** Named retry policies extracted from the OpenAPI specification. */");
             sb.AppendLine("export const retryPolicies = {");
 
-            foreach (var (name, config) in policies)
+            foreach (var config in policies)
             {
-                var safeName = ToCamelCase(name);
+                var safeName = ToCamelCase(config.Policy!);
                 sb.Append("  ").Append(safeName).AppendLine(": {");
                 sb.Append("    maxAttempts: ").Append(config.MaxAttempts).AppendLine(",");
                 sb.Append("    delayMs: ").Append(FormatDouble(config.DelaySeconds * 1000)).AppendLine(",");
@@ -74,8 +90,8 @@ public static class TypeScriptRetryConfigExtractor
 
             // Default policy (first one)
             var defaultPolicy = policies[0];
-            sb.Append("/** Default retry policy ('").Append(defaultPolicy.Name).AppendLine("'). */");
-            sb.Append("export const defaultRetryPolicy: RetryPolicy = retryPolicies.").Append(ToCamelCase(defaultPolicy.Name)).Append(';');
+            sb.Append("/** Default retry policy ('").Append(defaultPolicy.Policy).AppendLine("'). */");
+            sb.Append("export const defaultRetryPolicy: RetryPolicy = retryPolicies.").Append(ToCamelCase(defaultPolicy.Policy!)).Append(';');
         }
         else
         {
@@ -93,127 +109,12 @@ public static class TypeScriptRetryConfigExtractor
         return sb.ToString();
     }
 
-    private static List<(string Name, RetryConfiguration Config)> CollectNamedPolicies(
-        OpenApiDocument document)
-    {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var policies = new List<(string Name, RetryConfiguration Config)>();
-
-        // Document-level policy
-        var docPolicy = document.Extensions.ExtractRetryPolicy();
-        if (!string.IsNullOrEmpty(docPolicy))
-        {
-            var config = ExtractDocumentLevelConfig(document);
-            if (config is not null && seen.Add(docPolicy))
-            {
-                policies.Add((docPolicy, config));
-            }
-        }
-
-        // Path and operation-level policies
-        if (document.Paths is not null)
-        {
-            foreach (var pathPair in document.Paths)
-            {
-                if (pathPair.Value is not IOpenApiPathItem pathItem)
-                {
-                    continue;
-                }
-
-                var pathPolicy = pathItem.Extensions.ExtractRetryPolicy();
-                if (!string.IsNullOrEmpty(pathPolicy) && seen.Add(pathPolicy))
-                {
-                    var config = BuildRetryConfigFromExtensions(pathItem.Extensions, document.Extensions);
-                    if (config is not null)
-                    {
-                        policies.Add((pathPolicy, config));
-                    }
-                }
-
-                if (pathItem.Operations is null)
-                {
-                    continue;
-                }
-
-                foreach (var operationPair in pathItem.Operations)
-                {
-                    var op = operationPair.Value;
-                    if (op is null)
-                    {
-                        continue;
-                    }
-
-                    var opPolicy = op.Extensions.ExtractRetryPolicy();
-                    if (!string.IsNullOrEmpty(opPolicy) && seen.Add(opPolicy))
-                    {
-                        var config = op.ExtractRetryConfiguration(pathItem, document);
-                        if (config is { Enabled: true })
-                        {
-                            policies.Add((opPolicy, config));
-                        }
-                    }
-                }
-            }
-        }
-
-        return policies;
-    }
-
-    private static RetryConfiguration? ExtractDocumentLevelConfig(
-        OpenApiDocument document)
-    {
-        var ext = document.Extensions;
-        var policy = ext.ExtractRetryPolicy();
-        if (string.IsNullOrEmpty(policy))
-        {
-            return null;
-        }
-
-        return new RetryConfiguration
-        {
-            Enabled = true,
-            Policy = policy,
-            MaxAttempts = ext.ExtractMaxRetryAttempts() ?? 3,
-            DelaySeconds = ext.ExtractRetryDelaySeconds() ?? 1.0,
-            BackoffType = ParseBackoff(ext.ExtractRetryBackoff()),
-            UseJitter = ext.ExtractRetryUseJitter() ?? true,
-            TimeoutSeconds = ext.ExtractRetryTimeoutSeconds(),
-            Handle429 = ext.ExtractRetryHandle429() ?? true,
-        };
-    }
-
-    private static RetryConfiguration? BuildRetryConfigFromExtensions(
-        IDictionary<string, IOpenApiExtension>? pathExt,
-        IDictionary<string, IOpenApiExtension>? docExt)
-    {
-        var policy = pathExt.ExtractRetryPolicy() ?? docExt.ExtractRetryPolicy();
-        if (string.IsNullOrEmpty(policy))
-        {
-            return null;
-        }
-
-        return new RetryConfiguration
-        {
-            Enabled = true,
-            Policy = policy,
-            MaxAttempts = pathExt.ExtractMaxRetryAttempts() ?? docExt.ExtractMaxRetryAttempts() ?? 3,
-            DelaySeconds = pathExt.ExtractRetryDelaySeconds() ?? docExt.ExtractRetryDelaySeconds() ?? 1.0,
-            BackoffType = ParseBackoff(pathExt.ExtractRetryBackoff() ?? docExt.ExtractRetryBackoff()),
-            UseJitter = pathExt.ExtractRetryUseJitter() ?? docExt.ExtractRetryUseJitter() ?? true,
-            TimeoutSeconds = pathExt.ExtractRetryTimeoutSeconds() ?? docExt.ExtractRetryTimeoutSeconds(),
-            Handle429 = pathExt.ExtractRetryHandle429() ?? docExt.ExtractRetryHandle429() ?? true,
-        };
-    }
-
-    private static RetryBackoffType ParseBackoff(string? value)
-        => value?.ToLowerInvariant() switch
-        {
-            "constant" or "fixed" => RetryBackoffType.Constant,
-            "linear" => RetryBackoffType.Linear,
-            _ => RetryBackoffType.Exponential,
-        };
-
-    private static string ToCamelCase(string name)
+    /// <summary>
+    /// The property name of a policy in the generated <c>retryPolicies</c> object ("accounts-fast" → "accountsFast").
+    /// </summary>
+    /// <param name="name">The policy name from <c>x-retry-policy</c>.</param>
+    /// <returns>The camelCase property name.</returns>
+    internal static string ToCamelCase(string name)
     {
         if (string.IsNullOrEmpty(name))
         {

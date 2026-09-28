@@ -33,6 +33,7 @@ export function useListResources(options?: Omit<UseQueryOptions<Resource[], ApiE
         result.response,
       );
     },
+    retry: false,
     ...options,
   });
 }
@@ -58,6 +59,7 @@ export function useQueryResources(body: ResourceQuery, options?: Omit<UseQueryOp
       );
     },
     enabled: !!body,
+    retry: false,
     ...options,
   });
 }

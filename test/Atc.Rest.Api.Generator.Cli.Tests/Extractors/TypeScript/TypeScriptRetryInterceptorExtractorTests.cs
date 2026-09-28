@@ -7,7 +7,7 @@ public class TypeScriptRetryInterceptorExtractorTests
     {
         var result = TypeScriptRetryInterceptorExtractor.Generate(headerContent: null);
 
-        Assert.Contains("import type { RetryPolicy } from './retryConfig';", result, StringComparison.Ordinal);
+        Assert.Contains("import type { RequestRetry, RetryPolicy } from './retryConfig';", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -86,5 +86,26 @@ public class TypeScriptRetryInterceptorExtractorTests
         Assert.Contains("} finally {", result, StringComparison.Ordinal);
         Assert.Contains("clearTimeout(timer)", result, StringComparison.Ordinal);
         Assert.Contains("removeEventListener('abort', onParentAbort)", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_ResolveRetryPolicy_DoesNotRetryPostOrPatchUnlessOptedIn()
+    {
+        // POST/PATCH are not idempotent; "no retry" keeps the policy (and its timeout) with zero retries.
+        var result = TypeScriptRetryInterceptorExtractor.Generate(headerContent: null);
+
+        Assert.Contains("export function resolveRetryPolicy(", result, StringComparison.Ordinal);
+        Assert.Contains("if (clientPolicy === false) return undefined;", result, StringComparison.Ordinal);
+        Assert.Contains("retry?.enabled ?? (upper !== 'POST' && upper !== 'PATCH')", result, StringComparison.Ordinal);
+        Assert.Contains("{ ...policy, maxAttempts: 0 }", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_RetryAfterLongerThanThePolicyAllows_ReturnsThe429()
+    {
+        var result = TypeScriptRetryInterceptorExtractor.Generate(headerContent: null);
+
+        Assert.Contains("const MAX_RETRY_AFTER_MS = 30000;", result, StringComparison.Ordinal);
+        Assert.Contains("retryAfterMs > (policy.timeoutMs ?? MAX_RETRY_AFTER_MS)", result, StringComparison.Ordinal);
     }
 }

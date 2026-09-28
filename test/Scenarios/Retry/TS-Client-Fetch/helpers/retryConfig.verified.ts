@@ -15,6 +15,19 @@ export interface RetryPolicy {
   readonly handle429: boolean;
 }
 
+/**
+ * Retry for one request. Omitted, the ApiClient uses its policy for safe methods and does not
+ * retry POST/PATCH (not idempotent: a resend can apply them twice).
+ */
+export interface RequestRetry {
+  /** The operation's own policy; defaults to the ApiClient's. */
+  readonly policy?: RetryPolicy;
+  /** false: one attempt only (the policy's timeout still applies). true: retry even a POST/PATCH. */
+  readonly enabled?: boolean;
+  /** Per-attempt timeout override in milliseconds. */
+  readonly timeoutMs?: number;
+}
+
 /** Named retry policies extracted from the OpenAPI specification. */
 export const retryPolicies = {
   standard: {

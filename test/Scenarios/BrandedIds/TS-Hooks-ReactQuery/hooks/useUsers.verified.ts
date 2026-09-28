@@ -33,6 +33,7 @@ export function useGetUser(id: UserId, options?: Omit<UseQueryOptions<User, ApiE
       );
     },
     enabled: !!id,
+    retry: false,
     ...options,
   });
 }

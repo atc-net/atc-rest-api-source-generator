@@ -3,6 +3,7 @@ import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { PaymentRequest, PaymentResult } from '../models';
 import type { ApiError, ValidationError } from '../errors';
+import { retryPolicies } from '../helpers/retryConfig';
 
 export type ProcessPaymentResult =
   | { status: 'ok'; data: PaymentResult; response: AxiosResponse }
@@ -23,6 +24,7 @@ export class ExternalClient {
   async processPayment(body: PaymentRequest): Promise<ProcessPaymentResult> {
     return this.api.request<PaymentResult>('POST', '/external/payment', {
       body,
+      retry: { policy: retryPolicies.externalService, enabled: false },
     }) as Promise<ProcessPaymentResult>;
   }
 }

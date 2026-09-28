@@ -2,6 +2,7 @@
 import { ApiClient } from './ApiClient';
 import type { Notification } from '../models';
 import type { ApiError, ValidationError } from '../errors';
+import { retryPolicies } from '../helpers/retryConfig';
 
 export type SendNotificationResult =
   | { status: 'accepted'; response: Response }
@@ -22,6 +23,7 @@ export class NotificationsClient {
   async sendNotification(body: Notification): Promise<SendNotificationResult> {
     return this.api.request<void>('POST', '/notifications', {
       body,
+      retry: { policy: retryPolicies.notificationsConstant, enabled: false },
     }) as Promise<SendNotificationResult>;
   }
 }

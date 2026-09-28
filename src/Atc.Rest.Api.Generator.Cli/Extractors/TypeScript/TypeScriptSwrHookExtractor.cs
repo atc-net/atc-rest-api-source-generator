@@ -186,7 +186,7 @@ public static class TypeScriptSwrHookExtractor
 
         if (hasQueries)
         {
-            sb.AppendLine("import useSWR from 'swr';");
+            sb.AppendLine("import useSWR, { type SWRConfiguration } from 'swr';");
         }
 
         if (hasMutations)
@@ -282,7 +282,7 @@ public static class TypeScriptSwrHookExtractor
         {
             // OpenAPI 3.2 QUERY: the body is the query, so it identifies the cache entry.
             // SWR hashes the key structurally, so the body object goes in directly.
-            sb.Append("export function ").Append(hookName).Append("(body: ").Append(info.BodyType).AppendLine(") {");
+            sb.Append("export function ").Append(hookName).Append("(body: ").Append(info.BodyType).AppendLine(", config?: SWRConfiguration) {");
             sb.AppendLine("  const api = useApiService();");
             sb.AppendLine();
             sb.AppendLine("  return useSWR(");
@@ -292,7 +292,7 @@ public static class TypeScriptSwrHookExtractor
         }
         else if (isDetail)
         {
-            sb.Append("export function ").Append(hookName).AppendLine("(id: string) {");
+            sb.Append("export function ").Append(hookName).AppendLine("(id: string, config?: SWRConfiguration) {");
             sb.Append("  const api = useApiService();");
             sb.AppendLine();
             sb.AppendLine("  return useSWR(");
@@ -302,7 +302,7 @@ public static class TypeScriptSwrHookExtractor
         }
         else
         {
-            sb.Append("export function ").Append(hookName).AppendLine("() {");
+            sb.Append("export function ").Append(hookName).AppendLine("(config?: SWRConfiguration) {");
             sb.AppendLine("  const api = useApiService();");
             sb.AppendLine();
             sb.AppendLine("  return useSWR(");
@@ -316,6 +316,10 @@ public static class TypeScriptSwrHookExtractor
         sb.AppendLine("      }");
         sb.AppendLine("      throw result.error;");
         sb.AppendLine("    },");
+
+        // The ApiClient owns retry (x-retry-*); SWR's own error retry would multiply the attempts and
+        // re-send operations marked x-retry-enabled: false. The caller's config wins.
+        sb.AppendLine("    { shouldRetryOnError: false, ...config },");
         sb.AppendLine("  );");
         sb.AppendLine("}");
         sb.AppendLine();

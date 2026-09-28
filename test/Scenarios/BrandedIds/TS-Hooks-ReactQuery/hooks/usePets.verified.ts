@@ -33,6 +33,7 @@ export function useGetPet(petId: PetId, options?: Omit<UseQueryOptions<Pet, ApiE
       );
     },
     enabled: !!petId,
+    retry: false,
     ...options,
   });
 }

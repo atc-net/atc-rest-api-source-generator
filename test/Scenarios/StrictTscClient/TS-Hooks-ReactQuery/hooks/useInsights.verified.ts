@@ -98,5 +98,6 @@ export function useGetInsightsDevicesInfinite(query?: { pageSize?: number }) {
     },
     getNextPageParam: (lastPage) => lastPage.continuationToken ?? undefined,
     initialPageParam: undefined as string | undefined,
+    retry: false,
   });
 }

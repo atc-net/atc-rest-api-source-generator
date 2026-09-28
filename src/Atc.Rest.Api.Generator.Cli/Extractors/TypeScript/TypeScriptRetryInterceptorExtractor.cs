@@ -21,7 +21,32 @@ public static class TypeScriptRetryInterceptorExtractor
             sb.Append(headerContent);
         }
 
-        sb.AppendLine("import type { RetryPolicy } from './retryConfig';");
+        sb.AppendLine("import type { RequestRetry, RetryPolicy } from './retryConfig';");
+        sb.AppendLine();
+        sb.AppendLine("/** The longest Retry-After a 429 may ask for when the policy has no timeout; longer goes back to the caller. */");
+        sb.AppendLine("const MAX_RETRY_AFTER_MS = 30000;");
+        sb.AppendLine();
+
+        // resolveRetryPolicy: the single place the method rule and per-operation settings meet
+        sb.AppendLine("/**");
+        sb.AppendLine(" * The policy for one request, or undefined for no retry handling at all.");
+        sb.AppendLine(" * - The ApiClient's `retryPolicy: false` switches retry off for every request.");
+        sb.AppendLine(" * - POST and PATCH are not retried unless the operation opts in (`retry.enabled: true`).");
+        sb.AppendLine(" * - \"No retry\" keeps the policy's timeout: the request gets one attempt.");
+        sb.AppendLine(" */");
+        sb.AppendLine("export function resolveRetryPolicy(");
+        sb.AppendLine("  method: string,");
+        sb.AppendLine("  clientPolicy: RetryPolicy | false,");
+        sb.AppendLine("  retry?: RequestRetry,");
+        sb.AppendLine("): RetryPolicy | undefined {");
+        sb.AppendLine("  if (clientPolicy === false) return undefined;");
+        sb.AppendLine();
+        sb.AppendLine("  const policy = retry?.policy ?? clientPolicy;");
+        sb.AppendLine("  const upper = method.toUpperCase();");
+        sb.AppendLine("  const enabled = retry?.enabled ?? (upper !== 'POST' && upper !== 'PATCH');");
+        sb.AppendLine("  const effective: RetryPolicy = enabled ? policy : { ...policy, maxAttempts: 0 };");
+        sb.AppendLine("  return retry?.timeoutMs !== undefined ? { ...effective, timeoutMs: retry.timeoutMs } : effective;");
+        sb.AppendLine("}");
         sb.AppendLine();
 
         // sleep helper
@@ -90,8 +115,8 @@ public static class TypeScriptRetryInterceptorExtractor
         sb.AppendLine("/** Determines whether the given HTTP status code is retryable. */");
         sb.AppendLine("function isRetryableStatus(status: number, handle429: boolean): boolean {");
         sb.AppendLine("  if (handle429 && status === 429) return true;");
-        sb.AppendLine("  // Retry on server errors (500, 502, 503, 504)");
-        sb.AppendLine("  return status >= 500 && status <= 504;");
+        sb.AppendLine("  // Transient: 408 Request Timeout and every 5xx (the same set as the generated C# client)");
+        sb.AppendLine("  return status === 408 || (status >= 500 && status <= 599);");
         sb.AppendLine("}");
         sb.AppendLine();
 
@@ -166,6 +191,11 @@ public static class TypeScriptRetryInterceptorExtractor
         sb.AppendLine("      let delay: number;");
         sb.AppendLine("      if (response.status === 429 && policy.handle429) {");
         sb.AppendLine("        const retryAfterMs = parseRetryAfter(response.headers.get('Retry-After'));");
+        sb.AppendLine("        // A 429 asking for a longer wait than the policy allows goes back to the caller.");
+        sb.AppendLine("        if (retryAfterMs !== undefined && retryAfterMs > (policy.timeoutMs ?? MAX_RETRY_AFTER_MS)) {");
+        sb.AppendLine("          return response;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
         sb.AppendLine("        delay = retryAfterMs ?? computeDelay(attempt, policy);");
         sb.AppendLine("      } else {");
         sb.AppendLine("        delay = computeDelay(attempt, policy);");

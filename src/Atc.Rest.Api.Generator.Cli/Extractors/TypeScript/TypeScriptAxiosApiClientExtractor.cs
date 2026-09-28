@@ -33,7 +33,7 @@ public static class TypeScriptAxiosApiClientExtractor
 
         AppendUnparseableBodyClass(sb);
         AppendApiClientOptionsInterface(sb, hasRetry);
-        AppendRequestOptionsInterface(sb, zodRuntimeValidate);
+        AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate);
         TypeScriptOperationHelper.AppendParseEventStreamHelper(sb);
         AppendApiClientClass(sb, convertDates, hasRetry, zodRuntimeValidate);
 
@@ -53,9 +53,9 @@ public static class TypeScriptAxiosApiClientExtractor
 
         if (hasRetry)
         {
-            sb.AppendLine("import { retryWithBackoff } from '../helpers/retryInterceptor';");
+            sb.AppendLine("import { resolveRetryPolicy, retryWithBackoff } from '../helpers/retryInterceptor';");
             sb.AppendLine("import { defaultRetryPolicy } from '../helpers/retryConfig';");
-            sb.AppendLine("import type { RetryPolicy } from '../helpers/retryConfig';");
+            sb.AppendLine("import type { RequestRetry, RetryPolicy } from '../helpers/retryConfig';");
         }
 
         if (zodRuntimeValidate)
@@ -103,6 +103,7 @@ public static class TypeScriptAxiosApiClientExtractor
 
     private static void AppendRequestOptionsInterface(
         StringBuilder sb,
+        bool hasRetry,
         bool zodRuntimeValidate)
     {
         sb.AppendLine("export interface RequestOptions {");
@@ -111,6 +112,12 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("  headers?: Record<string, string | number | boolean | undefined>;");
         sb.AppendLine("  signal?: AbortSignal;");
         sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
+        if (hasRetry)
+        {
+            sb.AppendLine("  /** Retry for this request (the generated client passes it for operations with their own x-retry-* settings). */");
+            sb.AppendLine("  retry?: RequestRetry;");
+        }
+
         if (zodRuntimeValidate)
         {
             sb.AppendLine("  parseSchema?: ZodTypeAny;");
@@ -339,14 +346,20 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("    });");
             sb.AppendLine();
             sb.AppendLine("    let response: AxiosResponse<T> | undefined;");
-            sb.AppendLine("    if (this.retryPolicy) {");
+            sb.AppendLine("    const retryPolicy = resolveRetryPolicy(method, this.retryPolicy, options?.retry);");
+            sb.AppendLine("    if (retryPolicy) {");
             sb.AppendLine("      // Use retryWithBackoff with a fetch-compatible wrapper.");
-            sb.AppendLine("      // The wrapper captures the AxiosResponse so it can be handed to handleResponse below.");
+            sb.AppendLine("      // The wrapper captures the AxiosResponse so it can be handed to handleResponse below,");
+            sb.AppendLine("      // and passes Retry-After on so a 429 back-off (and its cap) can see it.");
             sb.AppendLine("      const fetchWrapper = async (attemptSignal: AbortSignal): Promise<Response> => {");
             sb.AppendLine("        response = await doRequest(attemptSignal);");
-            sb.AppendLine("        return new Response(null, { status: response.status });");
+            sb.AppendLine("        const retryAfter = response.headers?.['retry-after'];");
+            sb.AppendLine("        return new Response(null, {");
+            sb.AppendLine("          status: response.status,");
+            sb.AppendLine("          headers: retryAfter !== undefined && retryAfter !== null ? { 'Retry-After': String(retryAfter) } : undefined,");
+            sb.AppendLine("        });");
             sb.AppendLine("      };");
-            sb.AppendLine("      await retryWithBackoff(fetchWrapper, this.retryPolicy, options?.signal);");
+            sb.AppendLine("      await retryWithBackoff(fetchWrapper, retryPolicy, options?.signal);");
             sb.AppendLine("    } else {");
             sb.AppendLine("      response = await doRequest();");
             sb.AppendLine("    }");

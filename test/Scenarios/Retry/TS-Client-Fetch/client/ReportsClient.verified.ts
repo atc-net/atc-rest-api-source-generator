@@ -22,6 +22,7 @@ export class ReportsClient {
   async generateReport(body: ReportRequest): Promise<GenerateReportResult> {
     return this.api.request<void>('POST', '/reports/generate', {
       body,
+      retry: { enabled: false, timeoutMs: 600000 },
     }) as Promise<GenerateReportResult>;
   }
 }

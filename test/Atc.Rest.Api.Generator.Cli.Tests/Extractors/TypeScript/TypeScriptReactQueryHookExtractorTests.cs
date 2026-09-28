@@ -62,6 +62,37 @@ public class TypeScriptReactQueryHookExtractorTests
     }
 
     [Fact]
+    public void Extract_QueryHook_LeavesRetryToTheApiClient()
+    {
+        // The ApiClient retries per operation (x-retry-*); React Query's own retry would multiply the
+        // attempts. retry: false comes before ...options so a caller can still turn it back on.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
+
+        var retry = content.IndexOf("    retry: false,", StringComparison.Ordinal);
+        Assert.True(retry >= 0, "expected retry: false in the query hook");
+        Assert.True(retry < content.IndexOf("    ...options,", retry, StringComparison.Ordinal), "retry: false must precede ...options");
+    }
+
+    [Fact]
     public void Extract_GetOperation_GeneratesUseQueryHook()
     {
         const string yaml = """

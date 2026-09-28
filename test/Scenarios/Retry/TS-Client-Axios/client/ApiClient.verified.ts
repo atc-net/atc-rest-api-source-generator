@@ -4,9 +4,9 @@ import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'a
 import { ApiError, errorMessage } from '../errors/ApiError';
 import { ValidationError } from '../errors/ValidationError';
 import type { ApiResult } from '../types/ApiResult';
-import { retryWithBackoff } from '../helpers/retryInterceptor';
+import { resolveRetryPolicy, retryWithBackoff } from '../helpers/retryInterceptor';
 import { defaultRetryPolicy } from '../helpers/retryConfig';
-import type { RetryPolicy } from '../helpers/retryConfig';
+import type { RequestRetry, RetryPolicy } from '../helpers/retryConfig';
 
 class UnparseableBody {
   constructor(public readonly raw: string) {}
@@ -30,6 +30,8 @@ export interface RequestOptions {
   headers?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
   responseType?: 'json' | 'blob' | 'text';
+  /** Retry for this request (the generated client passes it for operations with their own x-retry-* settings). */
+  retry?: RequestRetry;
 }
 
 export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
@@ -144,14 +146,20 @@ export class ApiClient {
     });
 
     let response: AxiosResponse<T> | undefined;
-    if (this.retryPolicy) {
+    const retryPolicy = resolveRetryPolicy(method, this.retryPolicy, options?.retry);
+    if (retryPolicy) {
       // Use retryWithBackoff with a fetch-compatible wrapper.
-      // The wrapper captures the AxiosResponse so it can be handed to handleResponse below.
+      // The wrapper captures the AxiosResponse so it can be handed to handleResponse below,
+      // and passes Retry-After on so a 429 back-off (and its cap) can see it.
       const fetchWrapper = async (attemptSignal: AbortSignal): Promise<Response> => {
         response = await doRequest(attemptSignal);
-        return new Response(null, { status: response.status });
+        const retryAfter = response.headers?.['retry-after'];
+        return new Response(null, {
+          status: response.status,
+          headers: retryAfter !== undefined && retryAfter !== null ? { 'Retry-After': String(retryAfter) } : undefined,
+        });
       };
-      await retryWithBackoff(fetchWrapper, this.retryPolicy, options?.signal);
+      await retryWithBackoff(fetchWrapper, retryPolicy, options?.signal);
     } else {
       response = await doRequest();
     }

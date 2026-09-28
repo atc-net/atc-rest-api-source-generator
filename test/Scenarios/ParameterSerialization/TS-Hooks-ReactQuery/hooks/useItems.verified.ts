@@ -32,6 +32,7 @@ export function useListItems(rawFilter?: string, query?: { tags?: string[]; q?: 
         result.response,
       );
     },
+    retry: false,
     ...options,
   });
 }

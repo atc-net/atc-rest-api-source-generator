@@ -600,7 +600,11 @@ public static class TypeScriptReactQueryHookExtractor
             }
         }
 
-        // Spread caller options LAST so they override the generated defaults (enabled,
+        // The ApiClient already retries per operation as the spec says (x-retry-*); React Query's own
+        // retry would multiply those attempts and re-send operations marked x-retry-enabled: false.
+        sb.AppendLine("    retry: false,");
+
+        // Spread caller options LAST so they override the generated defaults (enabled, retry,
         // queryKey, queryFn). The Omit on the options type still blocks queryKey/queryFn,
         // so only the safe defaults are overridable.
         sb.AppendLine("    ...options,");
@@ -862,6 +866,9 @@ public static class TypeScriptReactQueryHookExtractor
         sb.AppendLine("    },");
         sb.AppendLine("    getNextPageParam: (lastPage) => lastPage.continuationToken ?? undefined,");
         sb.AppendLine("    initialPageParam: undefined as string | undefined,");
+
+        // The ApiClient owns retry (x-retry-*); React Query's own retry would multiply the attempts.
+        sb.AppendLine("    retry: false,");
         sb.AppendLine("  });");
         sb.AppendLine("}");
     }

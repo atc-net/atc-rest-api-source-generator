@@ -420,6 +420,12 @@ public static class TypeScriptClientExtractor
             sb.Append("import type { ").Append(string.Join(", ", brandImports)).AppendLine(" } from '../types/BrandedIds';");
         }
 
+        // Operations with their own retry policy pass it as a request option.
+        if (bodyText.Contains("retryPolicies.", StringComparison.Ordinal))
+        {
+            sb.AppendLine("import { retryPolicies } from '../helpers/retryConfig';");
+        }
+
         // Runtime Zod validation: one import line per response schema the methods
         // reference, plus the `z` runtime import when any method wraps inline
         // (z.array, z.string, etc).
@@ -470,6 +476,10 @@ public static class TypeScriptClientExtractor
         // Get response type
         var returnType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming, isFileDownload);
 
+        // Per-operation retry (x-retry-*): only emitted when the operation differs from what the ApiClient
+        // does on its own (its default policy for safe methods, no retry for POST/PATCH).
+        var retryOption = BuildRetryOption(operation, path, httpMethod, openApiDoc);
+
         // Emit a /** ... */ block when the spec has anything worth saying
         // about this operation — summary, description, or deprecated marker. The same
         // block applies to the Page companion below (it shares the operation).
@@ -501,7 +511,7 @@ public static class TypeScriptClientExtractor
             {
                 var pageDataType = TypeScriptOperationHelper.GetReturnType(operation, isStreaming: false, isFileDownload: false);
                 AppendOperationJsDoc(sb, operation);
-                AppendPageCompanionMethod(sb, methodName, path, pathParams, queryParams, headerParams, pageDataType, perOpPageResultTypeName, namingStrategy, convertDates, brandedIds);
+                AppendPageCompanionMethod(sb, methodName, path, pathParams, queryParams, headerParams, pageDataType, perOpPageResultTypeName, namingStrategy, convertDates, brandedIds, retryOption);
             }
         }
         else
@@ -512,7 +522,7 @@ public static class TypeScriptClientExtractor
             var zodSpec = zodRuntimeValidate
                 ? TypeScriptOperationHelper.TryGetResponseZodSchemaSpec(operation)
                 : null;
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption);
         }
     }
 
@@ -551,6 +561,55 @@ public static class TypeScriptClientExtractor
     }
 
     /// <summary>
+    /// The <c>retry</c> request option for an operation (e.g. <c>{ policy: retryPolicies.ordersFast }</c>
+    /// or <c>{ enabled: false, timeoutMs: 600000 }</c>), or null when the ApiClient's own behavior already
+    /// matches: its default policy for safe methods, no retry for POST/PATCH. Uses the same resolution as
+    /// the C# client (<see cref="OpenApiRetryExtensions.ResolveOperationRetry"/>).
+    /// </summary>
+    private static string? BuildRetryOption(
+        OpenApiOperation operation,
+        string path,
+        string httpMethod,
+        OpenApiDocument openApiDoc)
+    {
+        if (!openApiDoc.HasRetryConfiguration() ||
+            openApiDoc.Paths is null ||
+            !openApiDoc.Paths.TryGetValue(path, out var pathItem))
+        {
+            return null;
+        }
+
+        var retry = operation.ResolveOperationRetry(pathItem, openApiDoc, httpMethod);
+        if (retry.IsClientDefault(httpMethod))
+        {
+            return null;
+        }
+
+        var parts = new List<string>();
+        if (retry.PolicyName is not null)
+        {
+            parts.Add("policy: retryPolicies." + TypeScriptRetryConfigExtractor.ToCamelCase(retry.PolicyName));
+        }
+
+        if (retry.Mode == OperationRetryMode.NoRetry)
+        {
+            parts.Add("enabled: false");
+        }
+        else if (OpenApiRetryExtensions.IsRetryUnsafeHttpMethod(httpMethod))
+        {
+            // POST/PATCH are not retried unless told to; the operation opted in.
+            parts.Add("enabled: true");
+        }
+
+        if (retry.TimeoutSeconds is { } timeoutSeconds)
+        {
+            parts.Add("timeoutMs: " + (timeoutSeconds * 1000).ToString("G", CultureInfo.InvariantCulture));
+        }
+
+        return "{ " + string.Join(", ", parts) + " }";
+    }
+
+    /// <summary>
     /// Emits the non-streaming Page companion for a paginated-streaming operation: same
     /// path / query / header params as the streaming sibling PLUS a synthesized
     /// <c>headers?: { 'x-continuation'?: string }</c> so useInfiniteQuery's
@@ -569,7 +628,8 @@ public static class TypeScriptClientExtractor
         string pageResultTypeName,
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
-        bool brandedIds)
+        bool brandedIds,
+        string? retryOption)
     {
         var pageMethodName = streamingMethodName + "Page";
 
@@ -659,6 +719,11 @@ public static class TypeScriptClientExtractor
 
         sb.AppendLine("      },");
 
+        if (retryOption is not null)
+        {
+            sb.Append("      retry: ").Append(retryOption).AppendLine(",");
+        }
+
         sb.Append("    })").Append(" as Promise<").Append(pageResultTypeName).AppendLine(">;");
         sb.AppendLine("  }");
     }
@@ -684,7 +749,8 @@ public static class TypeScriptClientExtractor
         string? perOpResultTypeName,
         HashSet<string> writableSchemas,
         bool brandedIds,
-        ZodResponseSchemaSpec? zodSpec)
+        ZodResponseSchemaSpec? zodSpec,
+        string? retryOption)
     {
         // Build parameter list
         var paramList = BuildParameterList(pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path);
@@ -741,7 +807,7 @@ public static class TypeScriptClientExtractor
 
         var urlArg = hasQuerystring ? "_url" : interpolatedPath;
 
-        if (hasQuery || hasHeaders || hasBody || isFileUpload || isFileDownload || isTextDownload || emitParseSchema)
+        if (hasQuery || hasHeaders || hasBody || isFileUpload || isFileDownload || isTextDownload || emitParseSchema || retryOption is not null)
         {
             sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(urlArg).AppendLine(", {");
 
@@ -776,6 +842,11 @@ public static class TypeScriptClientExtractor
             if (emitParseSchema)
             {
                 sb.Append("      parseSchema: ").Append(zodSpec!.Expression).AppendLine(",");
+            }
+
+            if (retryOption is not null)
+            {
+                sb.Append("      retry: ").Append(retryOption).AppendLine(",");
             }
 
             sb.Append("    })").Append(castSuffix).AppendLine(";");

@@ -33,6 +33,7 @@ export function useListPets(query?: { limit?: number }, options?: Omit<UseQueryO
         result.response,
       );
     },
+    retry: false,
     ...options,
   });
 }
@@ -86,6 +87,7 @@ export function useShowPetById(petId: string, options?: Omit<UseQueryOptions<Pet
       );
     },
     enabled: !!petId,
+    retry: false,
     ...options,
   });
 }

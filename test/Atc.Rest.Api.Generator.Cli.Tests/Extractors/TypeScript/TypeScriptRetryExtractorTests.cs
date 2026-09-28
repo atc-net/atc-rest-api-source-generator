@@ -192,7 +192,7 @@ public class TypeScriptRetryExtractorTests
         var result = TypeScriptRetryInterceptorExtractor.Generate(null);
 
         // Assert
-        Assert.Contains("import type { RetryPolicy } from './retryConfig'", result, StringComparison.Ordinal);
+        Assert.Contains("import type { RequestRetry, RetryPolicy } from './retryConfig'", result, StringComparison.Ordinal);
     }
 
     [Fact]

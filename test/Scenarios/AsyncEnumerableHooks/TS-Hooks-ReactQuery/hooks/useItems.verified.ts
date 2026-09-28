@@ -165,6 +165,7 @@ export function useListItemPagesInfinite(query?: { pageSize?: number }) {
     },
     getNextPageParam: (lastPage) => lastPage.continuationToken ?? undefined,
     initialPageParam: undefined as string | undefined,
+    retry: false,
   });
 }
 
@@ -189,6 +190,7 @@ export function useGetItemLogs(itemId: string, query?: { logLevel?: 'debug' | 'i
       );
     },
     enabled: !!itemId,
+    retry: false,
     ...options,
   });
 }
@@ -213,6 +215,7 @@ export function useSearchItems(query?: { createdAfter?: Date; createdBefore?: Da
         result.response,
       );
     },
+    retry: false,
     ...options,
   });
 }

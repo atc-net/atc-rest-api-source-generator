@@ -49,6 +49,37 @@ public class TypeScriptSwrHookExtractorTests
     }
 
     [Fact]
+    public void Extract_QueryHook_LeavesRetryToTheApiClient()
+    {
+        // The ApiClient retries per operation (x-retry-*); SWR's own error retry would multiply the
+        // attempts. The caller's config comes last, so it can still turn it back on.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptSwrHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.Contains("import useSWR, { type SWRConfiguration } from 'swr';", content, StringComparison.Ordinal);
+        Assert.Contains("export function useListPets(config?: SWRConfiguration) {", content, StringComparison.Ordinal);
+        Assert.Contains("{ shouldRetryOnError: false, ...config },", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Extract_PostOperation_GeneratesUseSWRMutationHook()
     {
         const string yaml = """
@@ -187,7 +218,7 @@ public class TypeScriptSwrHookExtractorTests
         var (_, content) = Assert.Single(result);
 
         Assert.Contains("import { useCallback, useEffect, useRef, useState } from 'react';", content, StringComparison.Ordinal);
-        Assert.Contains("import useSWR from 'swr';", content, StringComparison.Ordinal);
+        Assert.Contains("import useSWR, { type SWRConfiguration } from 'swr';", content, StringComparison.Ordinal);
         Assert.Contains("export function useListItemsStream(", content, StringComparison.Ordinal);
         Assert.Contains("export function useListAllItems(", content, StringComparison.Ordinal);
         Assert.Contains("return useSWR(", content, StringComparison.Ordinal);
@@ -302,7 +333,7 @@ public class TypeScriptSwrHookExtractorTests
         var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
-        Assert.Contains("export function useQueryResources(body: ResourceQuery) {", content, StringComparison.Ordinal);
+        Assert.Contains("export function useQueryResources(body: ResourceQuery, config?: SWRConfiguration) {", content, StringComparison.Ordinal);
         Assert.Contains("useSWR(", content, StringComparison.Ordinal);
         Assert.Contains("'queryResources', body] as const,", content, StringComparison.Ordinal);
         Assert.Contains("api.resources.queryResources(body)", content, StringComparison.Ordinal);

@@ -2,6 +2,7 @@
 import { ApiClient } from './ApiClient';
 import type { CreateOrderRequest, Order } from '../models';
 import type { ApiError, ValidationError } from '../errors';
+import { retryPolicies } from '../helpers/retryConfig';
 
 export type ListOrdersResult =
   | { status: 'ok'; data: Order[]; response: Response }
@@ -42,23 +43,30 @@ export class OrdersClient {
 
   /** List orders (fast retry policy) */
   async listOrders(): Promise<ListOrdersResult> {
-    return this.api.request<Order[]>('GET', '/orders') as Promise<ListOrdersResult>;
+    return this.api.request<Order[]>('GET', '/orders', {
+      retry: { policy: retryPolicies.ordersFast },
+    }) as Promise<ListOrdersResult>;
   }
 
   /** Create order (retry disabled for non-idempotent) */
   async createOrder(body: CreateOrderRequest): Promise<CreateOrderResult> {
     return this.api.request<Order>('POST', '/orders', {
       body,
+      retry: { policy: retryPolicies.ordersFast, enabled: false },
     }) as Promise<CreateOrderResult>;
   }
 
   /** Get order (inherits orders-fast) */
   async getOrderById(orderId: string): Promise<GetOrderByIdResult> {
-    return this.api.request<Order>('GET', `/orders/${orderId}`) as Promise<GetOrderByIdResult>;
+    return this.api.request<Order>('GET', `/orders/${orderId}`, {
+      retry: { policy: retryPolicies.ordersFast },
+    }) as Promise<GetOrderByIdResult>;
   }
 
   /** Delete order (idempotent - can retry) */
   async deleteOrder(orderId: string): Promise<DeleteOrderResult> {
-    return this.api.request<void>('DELETE', `/orders/${orderId}`) as Promise<DeleteOrderResult>;
+    return this.api.request<void>('DELETE', `/orders/${orderId}`, {
+      retry: { policy: retryPolicies.ordersDelete },
+    }) as Promise<DeleteOrderResult>;
   }
 }

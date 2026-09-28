@@ -32,7 +32,7 @@ public static class TypeScriptFetchApiClientExtractor
         }
 
         AppendApiClientOptionsInterface(sb, hasRetry);
-        AppendRequestOptionsInterface(sb, zodRuntimeValidate);
+        AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate);
         TypeScriptOperationHelper.AppendParseEventStreamHelper(sb);
         AppendApiClientClass(sb, convertDates, hasRetry, zodRuntimeValidate);
 
@@ -50,9 +50,9 @@ public static class TypeScriptFetchApiClientExtractor
 
         if (hasRetry)
         {
-            sb.AppendLine("import { retryWithBackoff } from '../helpers/retryInterceptor';");
+            sb.AppendLine("import { resolveRetryPolicy, retryWithBackoff } from '../helpers/retryInterceptor';");
             sb.AppendLine("import { defaultRetryPolicy } from '../helpers/retryConfig';");
-            sb.AppendLine("import type { RetryPolicy } from '../helpers/retryConfig';");
+            sb.AppendLine("import type { RequestRetry, RetryPolicy } from '../helpers/retryConfig';");
         }
 
         if (zodRuntimeValidate)
@@ -91,6 +91,7 @@ public static class TypeScriptFetchApiClientExtractor
 
     private static void AppendRequestOptionsInterface(
         StringBuilder sb,
+        bool hasRetry,
         bool zodRuntimeValidate)
     {
         sb.AppendLine("export interface RequestOptions {");
@@ -99,6 +100,12 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("  headers?: Record<string, string | number | boolean | undefined>;");
         sb.AppendLine("  signal?: AbortSignal;");
         sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
+        if (hasRetry)
+        {
+            sb.AppendLine("  /** Retry for this request (the generated client passes it for operations with their own x-retry-* settings). */");
+            sb.AppendLine("  retry?: RequestRetry;");
+        }
+
         if (zodRuntimeValidate)
         {
             // The schema is whatever the generated client method passes — z.object,
@@ -256,12 +263,13 @@ public static class TypeScriptFetchApiClientExtractor
         if (hasRetry)
         {
             sb.AppendLine("    let response: Response;");
-            sb.AppendLine("    if (this.retryPolicy) {");
+            sb.AppendLine("    const retryPolicy = resolveRetryPolicy(method, this.retryPolicy, options?.retry);");
+            sb.AppendLine("    if (retryPolicy) {");
             sb.AppendLine("      // Wire the per-attempt signal through so policy.timeoutMs actually cancels the");
             sb.AppendLine("      // in-flight fetch and parent aborts propagate to every retry attempt.");
             sb.AppendLine("      response = await retryWithBackoff(");
             sb.AppendLine("        (attemptSignal) => fetch(url, { ...init, signal: attemptSignal }),");
-            sb.AppendLine("        this.retryPolicy,");
+            sb.AppendLine("        retryPolicy,");
             sb.AppendLine("        options?.signal,");
             sb.AppendLine("      );");
             sb.AppendLine("    } else {");
