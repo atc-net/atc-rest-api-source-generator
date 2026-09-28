@@ -63,7 +63,7 @@ public sealed class MigrateValidateCommandTests : IDisposable
             TestContext.Current.CancellationToken);
 
         var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
-        var arguments = $"migrate validate -s \"{slnPath}\" -p \"{yamlPath}\"";
+        var arguments = $"migrate validate -s \"{yamlPath}\" --solution \"{slnPath}\"";
 
         // Act
         var (_, output) = await ProcessHelper.Execute(
@@ -76,23 +76,61 @@ public sealed class MigrateValidateCommandTests : IDisposable
         Assert.Contains("Migration Validator", cleanOutput, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task MigrateValidate_WithMissingSolutionPath_ReturnsError()
+    [Theory]
+    [InlineData("TestProject.sln")]
+    [InlineData("TestProject.slnx")]
+    public async Task MigrateValidate_WithSpecificationOnly_FindsTheSolutionAboveIt(
+        string solutionFileName)
     {
-        // Arrange
-        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
-        var arguments = $"migrate validate -p \"{yamlPath}\"";
+        // Arrange - <root>/TestProject.sln(x) and <root>/src/Specs/api.yaml, no --solution
+        var specDirectory = Path.Combine(tempOutputDir, "src", "Specs");
+        Directory.CreateDirectory(specDirectory);
+        await File.WriteAllTextAsync(
+            Path.Combine(tempOutputDir, solutionFileName),
+            "Microsoft Visual Studio Solution File, Format Version 12.00",
+            TestContext.Current.CancellationToken);
+        var yamlPath = Path.Combine(specDirectory, "api.yaml");
+        File.Copy(CliTestHelper.GetScenarioYamlPath("Demo"), yamlPath);
+
+        var arguments = $"migrate validate -s \"{yamlPath}\"";
 
         // Act
-        var (isSuccessful, output) = await ProcessHelper.Execute(
+        var (_, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert - The solution folder is found and the validation runs against it
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.DoesNotContain("Solution file must be", cleanOutput, StringComparison.Ordinal);
+        Assert.Contains("Found the solution", cleanOutput, StringComparison.Ordinal);
+        Assert.Contains("Migration Validator", cleanOutput, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MigrateValidate_WithOldSpelling_SolutionWithSAndSpecificationWithP_StillRuns()
+    {
+        // Arrange
+        Directory.CreateDirectory(tempOutputDir);
+        var slnPath = Path.Combine(tempOutputDir, "TestProject.sln");
+        await File.WriteAllTextAsync(
+            slnPath,
+            "Microsoft Visual Studio Solution File, Format Version 12.00",
+            TestContext.Current.CancellationToken);
+
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var arguments = $"migrate validate -s \"{slnPath}\" -p \"{yamlPath}\"";
+
+        // Act
+        var (_, output) = await ProcessHelper.Execute(
             CliExeFile,
             arguments,
             cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         var cleanOutput = CliTestHelper.StripAnsiCodes(output);
-        Assert.False(isSuccessful);
-        Assert.Contains("required", cleanOutput, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("--solution", cleanOutput, StringComparison.Ordinal);
+        Assert.Contains("Migration Validator", cleanOutput, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -106,7 +144,7 @@ public sealed class MigrateValidateCommandTests : IDisposable
             "Microsoft Visual Studio Solution File, Format Version 12.00",
             TestContext.Current.CancellationToken);
 
-        var arguments = $"migrate validate -s \"{slnPath}\"";
+        var arguments = $"migrate validate --solution \"{slnPath}\"";
 
         // Act
         var (isSuccessful, output) = await ProcessHelper.Execute(
@@ -125,7 +163,7 @@ public sealed class MigrateValidateCommandTests : IDisposable
     {
         // Arrange
         var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
-        var arguments = $"migrate validate -s \"nonexistent.sln\" -p \"{yamlPath}\"";
+        var arguments = $"migrate validate -s \"{yamlPath}\" --solution \"nonexistent.sln\"";
 
         // Act
         var (isSuccessful, output) = await ProcessHelper.Execute(
@@ -150,7 +188,7 @@ public sealed class MigrateValidateCommandTests : IDisposable
             "Microsoft Visual Studio Solution File, Format Version 12.00",
             TestContext.Current.CancellationToken);
 
-        var arguments = $"migrate validate -s \"{slnPath}\" -p \"nonexistent.yaml\"";
+        var arguments = $"migrate validate -s \"nonexistent.yaml\" --solution \"{slnPath}\"";
 
         // Act
         var (isSuccessful, output) = await ProcessHelper.Execute(
@@ -177,7 +215,7 @@ public sealed class MigrateValidateCommandTests : IDisposable
 
         var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
         var reportPath = Path.Combine(tempOutputDir, "report.json");
-        var arguments = $"migrate validate -s \"{slnPath}\" -p \"{yamlPath}\" --output-report \"{reportPath}\"";
+        var arguments = $"migrate validate -s \"{yamlPath}\" --solution \"{slnPath}\" --output-report \"{reportPath}\"";
 
         // Act
         var (_, output) = await ProcessHelper.Execute(

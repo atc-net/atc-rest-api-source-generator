@@ -22,6 +22,11 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
 
         AnsiConsole.MarkupLine($"[blue]Solution:[/]      {Markup.Escape(solutionPath)}");
         AnsiConsole.MarkupLine($"[blue]Specification:[/] {Markup.Escape(specPath)}");
+        foreach (var note in settings.PathNotes)
+        {
+            AnsiConsole.MarkupLine($"[yellow]Note:[/]          {Markup.Escape(note)}");
+        }
+
         AnsiConsole.WriteLine();
 
         return AnsiConsole

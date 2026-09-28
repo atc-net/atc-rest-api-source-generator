@@ -5,13 +5,17 @@ namespace Atc.Rest.Api.Generator.Cli.Commands.Settings;
 /// </summary>
 public sealed class MigrateValidateCommandSettings : CommandSettings
 {
-    [CommandOption("-s|--solution <PATH>")]
-    [Description("Path to the solution file (.sln/.slnx) or root directory of the project to migrate.")]
-    public string SolutionPath { get; set; } = string.Empty;
-
-    [CommandOption("-p|--spec <PATH>")]
+    [CommandOption("-s|--specification <PATH>")]
     [Description("Path to the OpenAPI specification file (.yaml/.yml/.json) used to generate the API.")]
     public string SpecificationPath { get; set; } = string.Empty;
+
+    [CommandOption("-p|--spec <PATH>", IsHidden = true)]
+    [Description("Old spelling of -s|--specification.")]
+    public string? LegacySpecificationPath { get; init; }
+
+    [CommandOption("--solution <PATH>")]
+    [Description("Path to the solution file (.sln/.slnx) or the directory that contains it. Default: the nearest folder with a .sln/.slnx, searched from the specification's folder upwards, then from the current directory upwards.")]
+    public string SolutionPath { get; set; } = string.Empty;
 
     [CommandOption("--verbose")]
     [Description("Show detailed validation output including all detected files and configurations.")]
@@ -22,47 +26,21 @@ public sealed class MigrateValidateCommandSettings : CommandSettings
     [Description("Save the validation report to a JSON file.")]
     public string? OutputReportPath { get; init; }
 
+    /// <summary>
+    /// Gets notes about how the specification and solution paths were resolved.
+    /// </summary>
+    internal List<string> PathNotes { get; } = [];
+
     public override ValidationResult Validate()
     {
-        // Validate solution path
-        if (string.IsNullOrWhiteSpace(SolutionPath))
+        var solutionPath = SolutionPath;
+        var specificationPath = SpecificationPath;
+        var error = MigrationPathResolver.Resolve(ref specificationPath, LegacySpecificationPath, ref solutionPath, PathNotes);
+        SolutionPath = solutionPath;
+        SpecificationPath = specificationPath;
+        if (error is not null)
         {
-            return ValidationResult.Error("Solution path is required. Use -s or --solution.");
-        }
-
-        SolutionPath = PathHelper.ResolveRelativePath(SolutionPath);
-
-        // Check if it's a file or directory
-        if (File.Exists(SolutionPath))
-        {
-            var extension = Path.GetExtension(SolutionPath).ToLowerInvariant();
-            if (extension is not ".sln" and not ".slnx")
-            {
-                return ValidationResult.Error("Solution file must be a .sln or .slnx file.");
-            }
-        }
-        else if (!Directory.Exists(SolutionPath))
-        {
-            return ValidationResult.Error($"Solution path not found: {SolutionPath}");
-        }
-
-        // Validate specification path
-        if (string.IsNullOrWhiteSpace(SpecificationPath))
-        {
-            return ValidationResult.Error("Specification path is required. Use -p or --spec.");
-        }
-
-        SpecificationPath = PathHelper.ResolveRelativePath(SpecificationPath);
-
-        if (!File.Exists(SpecificationPath))
-        {
-            return ValidationResult.Error($"Specification file not found: {SpecificationPath}");
-        }
-
-        var specExtension = Path.GetExtension(SpecificationPath).ToLowerInvariant();
-        if (specExtension is not ".yaml" and not ".yml" and not ".json")
-        {
-            return ValidationResult.Error("Specification file must be a YAML (.yaml, .yml) or JSON (.json) file.");
+            return ValidationResult.Error(error);
         }
 
         // Validate output report path if provided
