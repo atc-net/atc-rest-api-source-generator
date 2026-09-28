@@ -25,7 +25,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | 🌊 **Streaming**                 | `IAsyncEnumerable<T>` support for efficient data streaming                       |
 | **CLI**    | 🖥️ **Project Scaffolding**       | `generate server` / `generate client` creates complete project structure         |
 |            | 🟦 **TypeScript Client**         | `generate client-typescript` — Fetch/Axios, interceptors, retry, MSW handlers    |
-|            | ⚛️ **React Hooks**               | React Query (`useQuery`/`useMutation`/`useInfiniteQuery`/`useSuspenseQuery`) + SWR — streaming hooks for `IAsyncEnumerable` |
+|            | ⚛️ **React Hooks**               | React Query (`useQuery`/`useMutation`/`useInfiniteQuery`/`useSuspenseQuery`) + SWR (`useSWR`/`useSWRMutation`/`useSWRInfinite`) — streaming hooks for `IAsyncEnumerable` |
 |            | 🪪 **Branded ID types**          | `--branded-ids` emits nominal types — `getUser(petId)` becomes a compile error  |
 |            | 🔍 **Runtime Zod validation**    | `--zod-runtime-validate` wires Zod into response parsing — spec-drift detection  |
 |            | 🔌 **SignalR Hub Hooks**         | `x-signalr-hubs` extension → typed `use<Hub>Hub()` with auto-reconnect          |

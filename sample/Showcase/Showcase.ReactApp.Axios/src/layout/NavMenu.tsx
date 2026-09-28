@@ -49,6 +49,7 @@ const navGroups: NavGroup[] = [
     icon: <TaskIcon />,
     items: [
       { label: 'List Tasks', href: '/tasks', icon: <ListIcon /> },
+      { label: 'SWR Hooks', href: '/tasks/swr', icon: <ListIcon /> },
     ],
   },
   {

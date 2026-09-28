@@ -95,6 +95,12 @@ public sealed class TaskInMemoryRepository
             .Delay(1)
             .ConfigureAwait(false);
 
+        // No id from the client (the React apps send 0): assign the next one
+        if (id <= 0)
+        {
+            id = nextId;
+        }
+
         // Check if task with this ID already exists
         var existing = tasks.FirstOrDefault(t => t.Id == id);
         if (existing is not null)

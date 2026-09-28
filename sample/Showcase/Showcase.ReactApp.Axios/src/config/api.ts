@@ -11,7 +11,7 @@ export const apiBaseUrl =
 
 // Same demo token used by the Blazor app — the API accepts any bearer token
 // with relaxed validation (no issuer/audience/lifetime/signing key checks).
-const demoToken =
+export const demoToken =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vLXVzZXIiLCJuYW1lIjoiRGVtbyBVc2VyIiwiaWF0IjoxNzE2MjM5MDIyfQ.demo-signature';
 
 const apiClient = new ApiClient(apiBaseUrl + '/api/v1', {
