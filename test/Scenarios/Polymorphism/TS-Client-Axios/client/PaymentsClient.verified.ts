@@ -6,16 +6,24 @@ import type { ApiError, ValidationError } from '../errors';
 
 export type ListPaymentsResult =
   | { status: 'ok'; data: PaymentMethod[]; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type CreatePaymentResult =
   | { status: 'created'; data: PaymentMethod; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type GetPaymentByIdResult =
   | { status: 'ok'; data: PaymentMethod; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class PaymentsClient {

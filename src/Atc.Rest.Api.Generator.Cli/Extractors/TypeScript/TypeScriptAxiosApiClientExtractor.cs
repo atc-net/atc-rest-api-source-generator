@@ -47,7 +47,7 @@ public static class TypeScriptAxiosApiClientExtractor
     {
         sb.AppendLine("import axios from 'axios';");
         sb.AppendLine("import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';");
-        sb.AppendLine("import { ApiError } from '../errors/ApiError';");
+        sb.AppendLine("import { ApiError, errorMessage } from '../errors/ApiError';");
         sb.AppendLine("import { ValidationError } from '../errors/ValidationError';");
         sb.AppendLine("import type { ApiResult } from '../types/ApiResult';");
 
@@ -237,7 +237,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      transformResponse: [function (this: InternalAxiosRequestConfig, data: unknown, headers?: Record<string, string>) {");
         sb.AppendLine("        if (typeof data !== 'string' || data.length === 0) return data;");
         sb.AppendLine("        if (this.responseType === 'text') return data;");
-        sb.AppendLine("        const contentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '');");
+        sb.AppendLine("        const contentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '').toLowerCase();");
         sb.AppendLine("        if (!contentType.includes('application/json') && !contentType.includes('+json')) return data;");
         sb.Append("        try { return ").Append(jsonParse).AppendLine("; } catch { return new UnparseableBody(data); }");
         sb.AppendLine("      }],");
@@ -423,7 +423,21 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("    });");
         sb.AppendLine();
         sb.AppendLine("    if (!response.ok) {");
-        sb.AppendLine("      throw new ApiError(response.status, response.statusText, 'Stream request failed');");
+        sb.AppendLine("      // Read the error body like the non-streaming path: a ProblemDetails / model / JSON string, or text.");
+        sb.AppendLine("      const errorContentType = (response.headers.get('Content-Type') ?? '').toLowerCase();");
+        sb.AppendLine("      let errorBody: unknown = undefined;");
+        sb.AppendLine("      try {");
+        sb.AppendLine("        if (errorContentType.includes('application/json') || errorContentType.includes('+json')) {");
+        sb.AppendLine("          errorBody = await response.json();");
+        sb.AppendLine("        } else if (errorContentType.startsWith('text/')) {");
+        sb.AppendLine("          const text = await response.text();");
+        sb.AppendLine("          errorBody = text.length > 0 ? text : undefined;");
+        sb.AppendLine("        }");
+        sb.AppendLine("      } catch {");
+        sb.AppendLine("        errorBody = undefined;");
+        sb.AppendLine("      }");
+        sb.AppendLine();
+        sb.AppendLine("      throw new ApiError(response.status, response.statusText, errorMessage(response.status, response.statusText, errorBody), undefined, errorBody);");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    const reader = response.body?.getReader();");
@@ -596,25 +610,39 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("    }");
         sb.AppendLine();
 
-        // For a non-2xx JSON error body that failed to parse, response.data is the sentinel.
-        // Unwrapping to its raw text keeps title/message probing falling through to statusText
-        // instead of reading fields off the sentinel. Non-JSON error bodies remain raw strings.
-        sb.AppendLine("    const errorData: unknown = response.data instanceof UnparseableBody ? response.data.raw : response.data;");
-        sb.AppendLine("    const errorBody = errorData as Record<string, unknown> | null;");
-        sb.AppendLine("    const message = (errorBody?.title ?? errorBody?.message ?? response.statusText) as string;");
+        // The error body: a ProblemDetails / declared model / JSON string (already parsed by
+        // transformResponse), or text. A JSON body left as a string - the operation asked for
+        // responseType 'text' - is parsed here; a malformed one (the UnparseableBody sentinel) or an
+        // empty one yields no body, so the message falls back to the status text.
+        sb.AppendLine("    let errorBody: unknown = response.data instanceof UnparseableBody ? undefined : response.data;");
+        sb.AppendLine("    if (typeof errorBody === 'string') {");
+        sb.AppendLine("      const errorContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '').toLowerCase();");
+        sb.AppendLine("      if (errorBody.length === 0) {");
+        sb.AppendLine("        errorBody = undefined;");
+        sb.AppendLine("      } else if (errorContentType.includes('application/json') || errorContentType.includes('+json')) {");
+        sb.AppendLine("        try {");
+        sb.AppendLine("          errorBody = JSON.parse(errorBody);");
+        sb.AppendLine("        } catch {");
+        sb.AppendLine("          // Already the parsed value of a JSON string body: keep it.");
+        sb.AppendLine("        }");
+        sb.AppendLine("      }");
+        sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    if (response.status === 400 && errorBody?.errors) {");
+        sb.AppendLine("    const message = errorMessage(response.status, response.statusText, errorBody);");
+        sb.AppendLine();
+        sb.AppendLine("    if (response.status === 400) {");
+        sb.AppendLine("      // Always badRequest: a 400 without validation errors carries an empty errors map.");
+        sb.AppendLine("      const errors = errorBody !== null && typeof errorBody === 'object' && typeof (errorBody as { errors?: unknown }).errors === 'object' && (errorBody as { errors?: unknown }).errors !== null");
+        sb.AppendLine("        ? (errorBody as { errors: Record<string, string[]> }).errors");
+        sb.AppendLine("        : {};");
         sb.AppendLine("      return {");
         sb.AppendLine("        status: 'badRequest',");
-        sb.AppendLine("        error: new ValidationError(");
-        sb.AppendLine("          response.status, response.statusText, message,");
-        sb.AppendLine("          errorBody.errors as Record<string, string[]>, response,");
-        sb.AppendLine("        ),");
+        sb.AppendLine("        error: new ValidationError(response.status, response.statusText, message, errors, response, errorBody),");
         sb.AppendLine("        response,");
         sb.AppendLine("      };");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const apiError = new ApiError(response.status, response.statusText, message, response);");
+        sb.AppendLine("    const apiError = new ApiError(response.status, response.statusText, message, response, errorBody);");
         sb.AppendLine();
         sb.AppendLine("    switch (response.status) {");
         sb.AppendLine("      case 401:");
@@ -630,7 +658,9 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      case 429:");
         sb.AppendLine("        return { status: 'tooManyRequests', error: apiError, response };");
         sb.AppendLine("      default:");
-        sb.AppendLine("        return { status: 'serverError', error: apiError, response };");
+        sb.AppendLine("        return response.status >= 400 && response.status < 500");
+        sb.AppendLine("          ? { status: 'clientError', error: apiError, response }");
+        sb.AppendLine("          : { status: 'serverError', error: apiError, response };");
         sb.AppendLine("    }");
         sb.AppendLine("  }");
     }

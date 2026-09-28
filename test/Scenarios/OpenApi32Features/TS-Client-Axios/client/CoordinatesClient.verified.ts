@@ -2,13 +2,18 @@
 import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { Coordinate } from '../models';
+import type { ApiError } from '../errors';
 
 export type GetCoordinatesResult =
   | { status: 'ok'; data: Coordinate; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type ListCoordinatesResult =
   | { status: 'ok'; data: Coordinate[]; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class CoordinatesClient {

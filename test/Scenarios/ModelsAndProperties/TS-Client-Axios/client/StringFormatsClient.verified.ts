@@ -2,9 +2,12 @@
 import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { StringFormats } from '../models';
+import type { ApiError } from '../errors';
 
 export type GetStringFormatsResult =
   | { status: 'ok'; data: StringFormats; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class StringFormatsClient {

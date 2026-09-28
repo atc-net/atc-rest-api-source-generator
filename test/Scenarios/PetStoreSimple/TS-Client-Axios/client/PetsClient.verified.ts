@@ -13,6 +13,7 @@ export type ListPetsResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -25,6 +26,7 @@ export type CreatePetsResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -37,6 +39,7 @@ export type ShowPetByIdResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 

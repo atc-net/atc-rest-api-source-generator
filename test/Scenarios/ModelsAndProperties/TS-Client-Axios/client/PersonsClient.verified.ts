@@ -3,9 +3,13 @@ import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { Person } from '../models';
 import type { GenderType } from '../enums';
+import type { ApiError, ValidationError } from '../errors';
 
 export type ListPersonsResult =
   | { status: 'ok'; data: Person[]; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class PersonsClient {

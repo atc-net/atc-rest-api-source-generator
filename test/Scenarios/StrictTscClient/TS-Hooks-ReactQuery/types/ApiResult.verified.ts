@@ -15,6 +15,7 @@ export type ApiResult<T> =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -60,6 +61,10 @@ export function isUnprocessableEntity<T>(result: ApiResult<T>): result is { stat
 
 export function isTooManyRequests<T>(result: ApiResult<T>): result is { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse } {
   return result.status === 'tooManyRequests';
+}
+
+export function isClientError<T>(result: ApiResult<T>): result is { status: 'clientError'; error: ApiError; response: AxiosResponse } {
+  return result.status === 'clientError';
 }
 
 export function isServerError<T>(result: ApiResult<T>): result is { status: 'serverError'; error: ApiError; response: AxiosResponse } {

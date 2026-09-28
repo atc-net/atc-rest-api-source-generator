@@ -2,9 +2,13 @@
 import { ApiClient } from './ApiClient';
 import type { Person } from '../models';
 import type { GenderType } from '../enums';
+import type { ApiError, ValidationError } from '../errors';
 
 export type ListPersonsResult =
   | { status: 'ok'; data: Person[]; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export class PersonsClient {

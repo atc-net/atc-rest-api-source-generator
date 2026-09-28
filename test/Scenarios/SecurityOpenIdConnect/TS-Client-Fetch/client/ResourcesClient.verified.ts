@@ -6,18 +6,29 @@ import type { ApiError, ValidationError } from '../errors';
 export type ListResourcesResult =
   | { status: 'ok'; data: Resource[]; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
+  | { status: 'forbidden'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type CreateResourceResult =
   | { status: 'created'; data: Resource; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
+  | { status: 'forbidden'; error: ApiError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type GetResourceByIdResult =
   | { status: 'ok'; data: Resource; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'forbidden'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type DeleteResourceResult =
@@ -25,6 +36,9 @@ export type DeleteResourceResult =
   | { status: 'unauthorized'; error: ApiError; response: Response }
   | { status: 'forbidden'; error: ApiError; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export class ResourcesClient {

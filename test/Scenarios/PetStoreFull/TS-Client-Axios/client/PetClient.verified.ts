@@ -13,6 +13,7 @@ export type UpdatePetResult =
   | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -25,6 +26,7 @@ export type AddPetResult =
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -37,6 +39,7 @@ export type FindPetsByStatusResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -49,6 +52,7 @@ export type FindPetsByTagsResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -61,6 +65,7 @@ export type GetPetByIdResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -73,6 +78,7 @@ export type UpdatePetWithFormResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -85,6 +91,7 @@ export type DeletePetResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -97,6 +104,7 @@ export type UploadFileResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 

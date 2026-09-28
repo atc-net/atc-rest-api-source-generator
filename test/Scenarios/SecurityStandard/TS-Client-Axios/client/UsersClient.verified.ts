@@ -2,15 +2,22 @@
 import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { User } from '../models';
-import type { ApiError } from '../errors';
+import type { ApiError, ValidationError } from '../errors';
 
 export type ListUsersResult =
   | { status: 'ok'; data: User[]; response: AxiosResponse }
+  | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type GetUserByIdResult =
   | { status: 'ok'; data: User; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class UsersClient {

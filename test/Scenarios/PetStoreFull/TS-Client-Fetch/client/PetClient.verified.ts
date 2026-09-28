@@ -12,6 +12,7 @@ export type UpdatePetResult =
   | { status: 'forbidden'; error: ApiError; response: Response }
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -24,6 +25,7 @@ export type AddPetResult =
   | { status: 'notFound'; error: ApiError; response: Response }
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -36,6 +38,7 @@ export type FindPetsByStatusResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -48,6 +51,7 @@ export type FindPetsByTagsResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -60,6 +64,7 @@ export type GetPetByIdResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -72,6 +77,7 @@ export type UpdatePetWithFormResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -84,6 +90,7 @@ export type DeletePetResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -96,6 +103,7 @@ export type UploadFileResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 

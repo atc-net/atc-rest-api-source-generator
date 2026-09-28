@@ -7,16 +7,24 @@ import type { ApiError, ValidationError } from '../errors';
 export type ListPetsResult =
   | { status: 'ok'; data: Pet[]; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type CreatePetResult =
   | { status: 'created'; data: Pet; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type GetPetByIdResult =
   | { status: 'ok'; data: Pet; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class PetsClient {

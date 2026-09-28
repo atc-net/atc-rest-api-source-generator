@@ -2,9 +2,14 @@
 import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { Report } from '../models';
+import type { ApiError } from '../errors';
 
 export type ListReportsResult =
   | { status: 'ok'; data: Report[]; response: AxiosResponse }
+  | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class ReportsClient {

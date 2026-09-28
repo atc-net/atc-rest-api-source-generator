@@ -23,6 +23,9 @@ export function useListResources(options?: Omit<UseQueryOptions<Resource[], ApiE
       if (result.status === 'ok') {
         return result.data;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -43,6 +46,9 @@ export function useQueryResources(body: ResourceQuery, options?: Omit<UseQueryOp
       const result = await api.resources.queryResources(body);
       if (result.status === 'ok') {
         return result.data;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,
@@ -65,6 +71,9 @@ export function useLinkResource(options?: Omit<UseMutationOptions<void, ApiError
       const result = await api.resources.linkResource();
       if (result.status === 'noContent') {
         return;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,

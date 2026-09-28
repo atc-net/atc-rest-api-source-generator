@@ -2,9 +2,13 @@
 import { ApiClient } from './ApiClient';
 import type { Ticket } from '../models';
 import type { TicketStatus } from '../enums';
+import type { ApiError, ValidationError } from '../errors';
 
 export type GetTicketsResult =
   | { status: 'ok'; data: Ticket[]; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export class TicketsClient {

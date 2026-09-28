@@ -15,6 +15,7 @@ export type ApiResult<T> =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response }
   | { status: 'schemaMismatch'; issues: ZodIssue[]; data: unknown; response: Response };
@@ -61,6 +62,10 @@ export function isUnprocessableEntity<T>(result: ApiResult<T>): result is { stat
 
 export function isTooManyRequests<T>(result: ApiResult<T>): result is { status: 'tooManyRequests'; error: ApiError; response: Response } {
   return result.status === 'tooManyRequests';
+}
+
+export function isClientError<T>(result: ApiResult<T>): result is { status: 'clientError'; error: ApiError; response: Response } {
+  return result.status === 'clientError';
 }
 
 export function isServerError<T>(result: ApiResult<T>): result is { status: 'serverError'; error: ApiError; response: Response } {

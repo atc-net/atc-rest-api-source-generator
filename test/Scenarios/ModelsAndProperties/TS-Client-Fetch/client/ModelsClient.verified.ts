@@ -5,16 +5,24 @@ import type { ApiError, ValidationError } from '../errors';
 
 export type ListModelsResult =
   | { status: 'ok'; data: ComprehensiveModel[]; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type CreateModelResult =
   | { status: 'created'; data: ComprehensiveModel; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type GetModelByIdResult =
   | { status: 'ok'; data: ComprehensiveModel; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export class ModelsClient {

@@ -2,9 +2,12 @@
 import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { EnumTypes } from '../models';
+import type { ApiError } from '../errors';
 
 export type GetEnumTypesResult =
   | { status: 'ok'; data: EnumTypes; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class EnumsClient {

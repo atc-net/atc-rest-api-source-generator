@@ -44,7 +44,7 @@ public static class TypeScriptFetchApiClientExtractor
         bool hasRetry,
         bool zodRuntimeValidate)
     {
-        sb.AppendLine("import { ApiError } from '../errors/ApiError';");
+        sb.AppendLine("import { ApiError, errorMessage } from '../errors/ApiError';");
         sb.AppendLine("import { ValidationError } from '../errors/ValidationError';");
         sb.AppendLine("import type { ApiResult } from '../types/ApiResult';");
 
@@ -486,7 +486,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("      return { status: 'noContent', response };");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const contentType = response.headers.get('Content-Type') ?? '';");
+        sb.AppendLine("    const contentType = (response.headers.get('Content-Type') ?? '').toLowerCase();");
         sb.AppendLine("    const isText = responseType === 'text' || (!responseType && (contentType.startsWith('text/') || contentType.includes('application/xml')));");
 
         // Treat +json suffixes (application/problem+json, application/vnd.api+json) as JSON too,
@@ -532,26 +532,36 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("      return { status, data: data as T, response };");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    // Malformed JSON in an error response is non-fatal — fall back to statusText.");
-        sb.AppendLine("    let errorBody: { title?: string; message?: string; errors?: Record<string, string[]> } | null = null;");
-        sb.AppendLine("    if (isJson) {");
-        sb.AppendLine("      try {");
+        sb.AppendLine("    // The error body is detected from the actual Content-Type (an operation's success responseType");
+        sb.AppendLine("    // says nothing about its errors): a ProblemDetails / declared model / JSON string, or text.");
+        sb.AppendLine("    // Malformed or empty bodies are non-fatal - the message then falls back to the status text.");
+        sb.AppendLine("    let errorBody: unknown = undefined;");
+        sb.AppendLine("    try {");
+        sb.AppendLine("      if (contentType.includes('application/json') || contentType.includes('+json')) {");
         sb.Append("        errorBody = ").Append(parseJson).AppendLine(";");
-        sb.AppendLine("      } catch {");
-        sb.AppendLine("        errorBody = null;");
+        sb.AppendLine("      } else if (contentType.startsWith('text/')) {");
+        sb.AppendLine("        const text = await response.text();");
+        sb.AppendLine("        errorBody = text.length > 0 ? text : undefined;");
         sb.AppendLine("      }");
+        sb.AppendLine("    } catch {");
+        sb.AppendLine("      errorBody = undefined;");
         sb.AppendLine("    }");
-        sb.AppendLine("    const message = errorBody?.title ?? errorBody?.message ?? response.statusText;");
         sb.AppendLine();
-        sb.AppendLine("    if (response.status === 400 && errorBody?.errors) {");
+        sb.AppendLine("    const message = errorMessage(response.status, response.statusText, errorBody);");
+        sb.AppendLine();
+        sb.AppendLine("    if (response.status === 400) {");
+        sb.AppendLine("      // Always badRequest: a 400 without validation errors carries an empty errors map.");
+        sb.AppendLine("      const errors = errorBody !== null && typeof errorBody === 'object' && typeof (errorBody as { errors?: unknown }).errors === 'object' && (errorBody as { errors?: unknown }).errors !== null");
+        sb.AppendLine("        ? (errorBody as { errors: Record<string, string[]> }).errors");
+        sb.AppendLine("        : {};");
         sb.AppendLine("      return {");
         sb.AppendLine("        status: 'badRequest',");
-        sb.AppendLine("        error: new ValidationError(response.status, response.statusText, message, errorBody.errors, response),");
+        sb.AppendLine("        error: new ValidationError(response.status, response.statusText, message, errors, response, errorBody),");
         sb.AppendLine("        response,");
         sb.AppendLine("      };");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const apiError = new ApiError(response.status, response.statusText, message, response);");
+        sb.AppendLine("    const apiError = new ApiError(response.status, response.statusText, message, response, errorBody);");
         sb.AppendLine();
         sb.AppendLine("    switch (response.status) {");
         sb.AppendLine("      case 401:");
@@ -567,7 +577,9 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("      case 429:");
         sb.AppendLine("        return { status: 'tooManyRequests', error: apiError, response };");
         sb.AppendLine("      default:");
-        sb.AppendLine("        return { status: 'serverError', error: apiError, response };");
+        sb.AppendLine("        return response.status >= 400 && response.status < 500");
+        sb.AppendLine("          ? { status: 'clientError', error: apiError, response }");
+        sb.AppendLine("          : { status: 'serverError', error: apiError, response };");
         sb.AppendLine("    }");
         sb.AppendLine("  }");
     }

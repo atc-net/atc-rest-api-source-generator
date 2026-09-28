@@ -5,17 +5,25 @@ import type { ApiError, ValidationError } from '../errors';
 
 export type ListUsersResult =
   | { status: 'ok'; data: Users; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type CreateUserResult =
   | { status: 'created'; data: User; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type GetUserByIdResult =
   | { status: 'ok'; data: User; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type UpdateUserByIdResult =
@@ -23,11 +31,16 @@ export type UpdateUserByIdResult =
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
   | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type DeleteUserByIdResult =
   | { status: 'noContent'; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export class UsersClient {

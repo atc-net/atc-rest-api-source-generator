@@ -6,11 +6,17 @@ import type { ApiError } from '../errors';
 export type GetCurrentUserResult =
   | { status: 'ok'; data: UserProfile; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
+  | { status: 'forbidden'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type GetCurrentUserProfileResult =
   | { status: 'ok'; data: UserProfile; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
+  | { status: 'forbidden'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export class MeClient {

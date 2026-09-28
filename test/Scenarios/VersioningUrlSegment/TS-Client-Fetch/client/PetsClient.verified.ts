@@ -5,26 +5,42 @@ import type { ApiError, ValidationError } from '../errors';
 
 export type ListPetsResult =
   | { status: 'ok'; data: Pet[]; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type CreatePetResult =
   | { status: 'created'; data: Pet; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type GetPetByIdResult =
   | { status: 'ok'; data: Pet; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type UpdatePetResult =
   | { status: 'ok'; data: Pet; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type DeletePetResult =
   | { status: 'noContent'; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export class PetsClient {

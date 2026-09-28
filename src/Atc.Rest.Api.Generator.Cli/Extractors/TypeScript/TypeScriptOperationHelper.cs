@@ -226,32 +226,61 @@ public static class TypeScriptOperationHelper
         string typeName,
         bool isFileDownload,
         bool isTextDownload,
-        TypeScriptHttpClient httpClient)
+        TypeScriptHttpClient httpClient,
+        OperationFeatures? features = null)
     {
         var responseType = httpClient == TypeScriptHttpClient.Axios ? "AxiosResponse" : "Response";
         var imports = new HashSet<string>(StringComparer.Ordinal);
-        var arms = new List<string>();
-        var seenDiscriminators = new HashSet<string>(StringComparer.Ordinal);
+        var successArms = new List<string>();
+        var seenSuccess = new HashSet<string>(StringComparer.Ordinal);
 
-        void AddArm(
+        // Error arms: discriminator -> base error type + the body types seen for it. A body type of
+        // null means "untyped" (nothing declared), which makes the arm a plain ApiError/ValidationError.
+        var errorArms = new List<(string Discriminator, string BaseType, List<string?> Bodies)>();
+
+        // onlyIfMissing: arms the server adds (or `default` fans out to) only fill statuses the spec does
+        // not declare - like the server, which only auto-adds undeclared statuses - so they never
+        // demote a declared, typed arm to an untyped one.
+        void AddErrorArm(
             string discriminator,
-            string armBody)
+            string baseType,
+            string? bodyType,
+            bool onlyIfMissing = false)
         {
-            if (seenDiscriminators.Add(discriminator))
+            var index = errorArms.FindIndex(a => string.Equals(a.Discriminator, discriminator, StringComparison.Ordinal));
+            if (index >= 0 && onlyIfMissing)
             {
-                arms.Add(armBody);
+                return;
             }
+
+            if (index < 0)
+            {
+                errorArms.Add((discriminator, baseType, [bodyType]));
+            }
+            else if (!errorArms[index].Bodies.Contains(bodyType))
+            {
+                errorArms[index].Bodies.Add(bodyType);
+            }
+
+            imports.Add(baseType);
         }
 
         var hasDefaultResponse = false;
 
         if (operation.Responses is not null)
         {
-            foreach (var (statusCode, _) in operation.Responses)
+            foreach (var (statusCode, response) in operation.Responses)
             {
                 if (string.Equals(statusCode, "default", StringComparison.OrdinalIgnoreCase))
                 {
                     hasDefaultResponse = true;
+                    continue;
+                }
+
+                if (ErrorResponseShapeResolver.IsErrorStatusCode(statusCode))
+                {
+                    var (errorDiscriminator, baseType) = ErrorArmFor(statusCode);
+                    AddErrorArm(errorDiscriminator, baseType, ResolveErrorBodyType(response, imports));
                     continue;
                 }
 
@@ -263,9 +292,9 @@ public static class TypeScriptOperationHelper
                     responseType,
                     imports,
                     out var discriminator);
-                if (arm is not null && discriminator is not null)
+                if (arm is not null && discriminator is not null && seenSuccess.Add(discriminator))
                 {
-                    AddArm(discriminator, arm);
+                    successArms.Add(arm);
                 }
             }
         }
@@ -276,14 +305,62 @@ public static class TypeScriptOperationHelper
         {
             foreach (var (discriminator, errorType) in DefaultResponseErrorArms)
             {
-                imports.Add(errorType);
-                AddArm(discriminator, $"  | {{ status: '{discriminator}'; error: {errorType}; response: {responseType} }}");
+                AddErrorArm(discriminator, errorType, null, onlyIfMissing: true);
             }
+        }
+
+        // Errors the server produces without the spec listing them - the same rules as the
+        // generated server's endpoint metadata - so the union covers what handleResponse returns.
+        if (features is not null)
+        {
+            if (features.HasParameters)
+            {
+                AddErrorArm("badRequest", "ValidationError", null, onlyIfMissing: true);
+            }
+
+            if (features.HasSecurity)
+            {
+                AddErrorArm("unauthorized", "ApiError", null, onlyIfMissing: true);
+            }
+
+            if (features.HasRolesOrPolicies)
+            {
+                AddErrorArm("forbidden", "ApiError", null, onlyIfMissing: true);
+            }
+
+            if (features.HasPathParameters && features.HttpMethod is "GET" or "PUT" or "DELETE" or "PATCH")
+            {
+                AddErrorArm("notFound", "ApiError", null, onlyIfMissing: true);
+            }
+
+            if (features.HttpMethod is "POST" or "PUT")
+            {
+                AddErrorArm("conflict", "ApiError", null, onlyIfMissing: true);
+            }
+
+            if (features.HasRateLimiting)
+            {
+                AddErrorArm("tooManyRequests", "ApiError", null, onlyIfMissing: true);
+            }
+        }
+
+        // Any API can answer with an unmapped 4xx (405, 413, 415, ... from the framework) or a 5xx. These
+        // catch-all arms also carry statuses with other bodies, so they are always merged as untyped.
+        AddErrorArm("clientError", "ApiError", null);
+        AddErrorArm("serverError", "ApiError", null);
+
+        var arms = new List<string>(successArms);
+        foreach (var (discriminator, baseType, bodies) in errorArms)
+        {
+            var errorType = bodies.Contains(null)
+                ? baseType
+                : $"{baseType}<{string.Join(" | ", bodies)}>";
+            arms.Add($"  | {{ status: '{discriminator}'; error: {errorType}; response: {responseType} }}");
         }
 
         // Universal synthetic: any 2xx with a JSON body can produce parseError; emit it
         // as Error rather than ApiError so consumers know it carries the JS SyntaxError.
-        AddArm("parseError", $"  | {{ status: 'parseError'; error: Error; response: {responseType} }}");
+        arms.Add($"  | {{ status: 'parseError'; error: Error; response: {responseType} }}");
 
         var sb = new StringBuilder();
         sb.Append("export type ").Append(typeName).AppendLine(" =");
@@ -294,6 +371,42 @@ public static class TypeScriptOperationHelper
         }
 
         return (sb.ToString(), imports);
+    }
+
+    /// <summary>
+    /// The discriminator and base error type <c>handleResponse</c> uses for an error status.
+    /// </summary>
+    private static (string Discriminator, string BaseType) ErrorArmFor(
+        string statusCode)
+        => ErrorStatusMapping.TryGetValue(statusCode, out var mapped)
+            ? mapped
+            : statusCode.StartsWith('4')
+                ? ("clientError", "ApiError")
+                : ("serverError", "ApiError");
+
+    /// <summary>
+    /// The TypeScript type of a declared error body - the declared model, <c>string</c> for a JSON
+    /// string or text - or <see langword="null"/> when nothing usable is declared (then the arm's error
+    /// stays an untyped ApiError). Uses the same resolution as the generated server and C# client.
+    /// </summary>
+    private static string? ResolveErrorBodyType(
+        IOpenApiResponse? response,
+        HashSet<string> imports)
+    {
+        var shape = ErrorResponseShapeResolver.Resolve(response);
+        switch (shape.Kind)
+        {
+            case ErrorResponseKind.JsonString:
+            case ErrorResponseKind.Text:
+                return "string";
+            case ErrorResponseKind.JsonObject:
+            case ErrorResponseKind.Problem when shape.Schema is not null:
+            case ErrorResponseKind.ValidationProblem when shape.Schema is not null:
+                CollectSchemaRefTypes(shape.Schema!, imports);
+                return shape.Schema!.ToTypeScriptReturnType();
+            default:
+                return null;
+        }
     }
 
     private static readonly Dictionary<string, (string Discriminator, string ErrorType)> ErrorStatusMapping =
@@ -317,6 +430,7 @@ public static class TypeScriptOperationHelper
         ("conflict", "ApiError"),
         ("unprocessableEntity", "ApiError"),
         ("tooManyRequests", "ApiError"),
+        ("clientError", "ApiError"),
         ("serverError", "ApiError"),
     };
 
@@ -398,21 +512,7 @@ public static class TypeScriptOperationHelper
                 return $"  | {{ status: 'noContent'; response: {responseType} }}";
         }
 
-        if (ErrorStatusMapping.TryGetValue(statusCode, out var mapped))
-        {
-            imports.Add(mapped.ErrorType);
-            discriminator = mapped.Discriminator;
-            return $"  | {{ status: '{mapped.Discriminator}'; error: {mapped.ErrorType}; response: {responseType} }}";
-        }
-
-        // Any 5xx (or unmapped 4xx) collapses to 'serverError' to match handleResponse.
-        if (statusCode.Length == 3 && (statusCode[0] == '5' || statusCode[0] == '4'))
-        {
-            imports.Add("ApiError");
-            discriminator = "serverError";
-            return $"  | {{ status: 'serverError'; error: ApiError; response: {responseType} }}";
-        }
-
+        // Error statuses are handled by BuildPerOperationResultType (ErrorArmFor).
         return null;
     }
 

@@ -2,9 +2,12 @@
 import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { ArrayTypes } from '../models';
+import type { ApiError } from '../errors';
 
 export type GetArrayTypesResult =
   | { status: 'ok'; data: ArrayTypes; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class ArraysClient {

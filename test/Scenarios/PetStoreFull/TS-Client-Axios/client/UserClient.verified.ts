@@ -13,6 +13,7 @@ export type CreateUserResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -25,6 +26,7 @@ export type CreateUsersWithListInputResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -37,6 +39,7 @@ export type LoginUserResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -49,6 +52,7 @@ export type LogoutUserResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -61,6 +65,7 @@ export type GetUserByNameResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -73,6 +78,7 @@ export type UpdateUserResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -85,6 +91,7 @@ export type DeleteUserResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 

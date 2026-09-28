@@ -2,9 +2,12 @@
 import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { ValidationConstraints } from '../models';
+import type { ApiError } from '../errors';
 
 export type GetValidationsResult =
   | { status: 'ok'; data: ValidationConstraints; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class ValidationsClient {

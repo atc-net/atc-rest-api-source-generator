@@ -7,7 +7,9 @@ public class TypeScriptErrorExtractorTests
     {
         var result = TypeScriptErrorExtractor.GenerateApiError(headerContent: null);
 
-        Assert.Contains("export class ApiError extends Error", result, StringComparison.Ordinal);
+        Assert.Contains("export class ApiError<TBody = unknown> extends Error", result, StringComparison.Ordinal);
+        Assert.Contains("readonly detail?: string;", result, StringComparison.Ordinal);
+        Assert.Contains("export function errorMessage(status: number, statusText: string, body: unknown): string", result, StringComparison.Ordinal);
         Assert.Contains("response?: Response", result, StringComparison.Ordinal);
         Assert.DoesNotContain("AxiosResponse", result, StringComparison.Ordinal);
     }
@@ -40,7 +42,7 @@ public class TypeScriptErrorExtractorTests
         var result = TypeScriptErrorExtractor.GenerateValidationError(headerContent: null);
 
         Assert.Contains("import { ApiError } from './ApiError';", result, StringComparison.Ordinal);
-        Assert.Contains("export class ValidationError extends ApiError", result, StringComparison.Ordinal);
+        Assert.Contains("export class ValidationError<TBody = unknown> extends ApiError<TBody>", result, StringComparison.Ordinal);
         Assert.Contains("readonly errors: Record<string, string[]>;", result, StringComparison.Ordinal);
         Assert.Contains("this.name = 'ValidationError';", result, StringComparison.Ordinal);
     }

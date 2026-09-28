@@ -7,18 +7,29 @@ import type { ApiError, ValidationError } from '../errors';
 export type ListResourcesResult =
   | { status: 'ok'; data: Resource[]; response: AxiosResponse }
   | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type CreateResourceResult =
   | { status: 'created'; data: Resource; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
   | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
+  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type GetResourceByIdResult =
   | { status: 'ok'; data: Resource; response: AxiosResponse }
   | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type DeleteResourceResult =
@@ -26,6 +37,9 @@ export type DeleteResourceResult =
   | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
   | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class ResourcesClient {

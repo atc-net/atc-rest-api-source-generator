@@ -5,24 +5,41 @@ import type { ApiError, ValidationError } from '../errors';
 export type GetFileByIdResult =
   | { status: 'ok'; data: Blob; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type UploadFormDataFileResult =
   | { status: 'ok'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type UploadFormDataFilesResult =
   | { status: 'ok'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type UploadSingleFileAsFormDataResult =
   | { status: 'ok'; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type UploadMultiFilesAsFormDataResult =
   | { status: 'ok'; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export class FilesClient {

@@ -1040,9 +1040,10 @@ public class TypeScriptOperationHelperOtherMethodsTests
     }
 
     [Fact]
-    public void BuildPerOperationResultType_NoResponses_EmitsOnlyParseError()
+    public void BuildPerOperationResultType_NoResponses_EmitsOnlyTheUniversalArms()
     {
-        // Degenerate spec: an op declaring no responses still needs a callable shape.
+        // Degenerate spec: an op declaring no responses still needs a callable shape - the arms any
+        // response can take regardless of the spec: clientError, serverError and parseError.
         const string yaml = """
                             openapi: 3.0.0
                             info: { title: t, version: '1' }
@@ -1066,7 +1067,10 @@ public class TypeScriptOperationHelperOtherMethodsTests
 
         Assert.Contains("export type NoopResult =", declaration, StringComparison.Ordinal);
         Assert.Contains("status: 'parseError'", declaration, StringComparison.Ordinal);
-        Assert.Empty(imports);
+        Assert.Contains("status: 'clientError'; error: ApiError", declaration, StringComparison.Ordinal);
+        Assert.Contains("status: 'serverError'; error: ApiError", declaration, StringComparison.Ordinal);
+        Assert.DoesNotContain("status: 'badRequest'", declaration, StringComparison.Ordinal);
+        Assert.Equal(["ApiError"], imports);
     }
 
     // ========== itemSchema streaming — import collection ==========

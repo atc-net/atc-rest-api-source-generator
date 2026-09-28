@@ -12,6 +12,7 @@ export type GetInventoryResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -24,6 +25,7 @@ export type PlaceOrderResult =
   | { status: 'notFound'; error: ApiError; response: Response }
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -36,6 +38,7 @@ export type GetOrderByIdResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -48,6 +51,7 @@ export type DeleteOrderResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 

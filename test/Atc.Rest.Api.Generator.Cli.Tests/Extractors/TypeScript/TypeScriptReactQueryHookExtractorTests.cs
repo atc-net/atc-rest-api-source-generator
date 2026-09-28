@@ -18,6 +18,50 @@ public class TypeScriptReactQueryHookExtractorTests
     }
 
     [Fact]
+    public void Extract_Hooks_RethrowTheClientsApiError()
+    {
+        // The client already built the right ApiError (a ValidationError with its errors, the parsed
+        // body, detail, title); the hook re-throws it instead of rebuilding a bare ApiError.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: array
+                                            items: { type: string }
+                                post:
+                                  operationId: createPet
+                                  requestBody:
+                                    content:
+                                      application/json:
+                                        schema: { type: string }
+                                  responses:
+                                    '201':
+                                      description: Created
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.Equal(2, CountOccurrences(content, "if ('error' in result && result.error instanceof ApiError) {"));
+        Assert.Equal(2, CountOccurrences(content, "throw result.error;"));
+
+        static int CountOccurrences(
+            string text,
+            string value)
+            => (text.Length - text.Replace(value, string.Empty, StringComparison.Ordinal).Length) / value.Length;
+    }
+
+    [Fact]
     public void Extract_GetOperation_GeneratesUseQueryHook()
     {
         const string yaml = """

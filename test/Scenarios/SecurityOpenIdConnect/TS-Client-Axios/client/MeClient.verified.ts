@@ -7,11 +7,17 @@ import type { ApiError } from '../errors';
 export type GetCurrentUserResult =
   | { status: 'ok'; data: UserProfile; response: AxiosResponse }
   | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type GetCurrentUserProfileResult =
   | { status: 'ok'; data: UserProfile; response: AxiosResponse }
   | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class MeClient {

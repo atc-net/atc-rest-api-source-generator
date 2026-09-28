@@ -57,6 +57,7 @@ public static class TypeScriptApiResultExtractor
         sb.Append("  | { status: 'conflict'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'unprocessableEntity'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'tooManyRequests'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
+        sb.Append("  | { status: 'clientError'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'serverError'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'parseError'; error: Error; response: ").Append(responseType);
         if (zodRuntimeValidate)
@@ -83,6 +84,7 @@ public static class TypeScriptApiResultExtractor
         AppendErrorTypeGuard(sb, "isConflict", "conflict", "ApiError", responseType);
         AppendErrorTypeGuard(sb, "isUnprocessableEntity", "unprocessableEntity", "ApiError", responseType);
         AppendErrorTypeGuard(sb, "isTooManyRequests", "tooManyRequests", "ApiError", responseType);
+        AppendErrorTypeGuard(sb, "isClientError", "clientError", "ApiError", responseType);
         AppendErrorTypeGuard(sb, "isServerError", "serverError", "ApiError", responseType);
         AppendErrorTypeGuard(sb, "isParseError", "parseError", "Error", responseType);
 

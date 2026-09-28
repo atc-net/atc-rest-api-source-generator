@@ -86,6 +86,9 @@ export function useGetInsightsDevicesInfinite(query?: { pageSize?: number }) {
       if (result.status === 'ok') {
         return result.data;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,

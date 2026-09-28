@@ -5,16 +5,24 @@ import type { ApiError, ValidationError } from '../errors';
 
 export type ListOwnersResult =
   | { status: 'ok'; data: Owner[]; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type CreateOwnerResult =
   | { status: 'created'; data: Owner; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type GetOwnerByIdResult =
   | { status: 'ok'; data: Owner; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export class OwnersClient {

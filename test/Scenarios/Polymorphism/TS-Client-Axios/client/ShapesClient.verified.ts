@@ -2,9 +2,12 @@
 import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { Shape } from '../models';
+import type { ApiError } from '../errors';
 
 export type ListShapesResult =
   | { status: 'ok'; data: Shape[]; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class ShapesClient {

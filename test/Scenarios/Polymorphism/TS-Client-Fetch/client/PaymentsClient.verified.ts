@@ -5,16 +5,24 @@ import type { ApiError, ValidationError } from '../errors';
 
 export type ListPaymentsResult =
   | { status: 'ok'; data: PaymentMethod[]; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type CreatePaymentResult =
   | { status: 'created'; data: PaymentMethod; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type GetPaymentByIdResult =
   | { status: 'ok'; data: PaymentMethod; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export class PaymentsClient {

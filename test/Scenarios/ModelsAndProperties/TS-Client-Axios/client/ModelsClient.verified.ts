@@ -6,16 +6,24 @@ import type { ApiError, ValidationError } from '../errors';
 
 export type ListModelsResult =
   | { status: 'ok'; data: ComprehensiveModel[]; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type CreateModelResult =
   | { status: 'created'; data: ComprehensiveModel; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type GetModelByIdResult =
   | { status: 'ok'; data: ComprehensiveModel; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class ModelsClient {

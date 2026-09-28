@@ -515,11 +515,71 @@ public class TypeScriptClientExtractorTests
     }
 
     [Fact]
-    public void Extract_PerOperationResultType_OmitsArmsForStatusesTheOperationDoesNotDeclare()
+    public void Extract_PerOperationResultType_TypesErrorArmsFromTheDeclaredBody()
     {
-        // 401/403/409 etc. are mapped by handleResponse globally, but per-op types must
-        // stay narrow — only emit arms the spec actually documents. The cast at the call
-        // site is sound because handleResponse uses the same discriminator names.
+        // The same resolution as the server and the C# client: a declared model types the arm's
+        // error body, a JSON string or text body is a string, and an undeclared (ProblemDetails)
+        // error stays a plain ApiError / ValidationError. An unmapped 4xx is clientError.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: t, version: '1' }
+                            paths:
+                              /items/{id}:
+                                put:
+                                  operationId: updateItem
+                                  parameters:
+                                    - name: id
+                                      in: path
+                                      required: true
+                                      schema: { type: integer }
+                                  responses:
+                                    '204':
+                                      description: Updated
+                                    '404':
+                                      description: Not Found
+                                      content:
+                                        application/problem+json:
+                                          schema:
+                                            $ref: '#/components/schemas/ErrorResponse'
+                                    '409':
+                                      description: Conflict
+                                      content:
+                                        text/plain:
+                                          schema: { type: string }
+                                    '410':
+                                      description: Gone
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/ErrorResponse'
+                                    '422':
+                                      description: Unprocessable Entity
+                            components:
+                              schemas:
+                                ErrorResponse:
+                                  type: object
+                                  properties:
+                                    code: { type: string }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains("status: 'notFound'; error: ApiError<ErrorResponse>;", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'conflict'; error: ApiError<string>;", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'clientError'; error: ApiError;", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'unprocessableEntity'; error: ApiError;", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'badRequest'; error: ValidationError;", content, StringComparison.Ordinal);
+        Assert.Contains("ErrorResponse", content.Split('\n').First(l => l.Contains("from '../models'", StringComparison.Ordinal)), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PerOperationResultType_OmitsArmsTheServerCannotProduce()
+    {
+        // Per-op types stay narrow: the declared statuses, the ones the server adds for the operation
+        // (auth, path parameters, ...) and the universal clientError/serverError/parseError. A GET
+        // without parameters or security cannot answer 401 or 404, so those arms are omitted.
         const string yaml = """
                             openapi: 3.0.0
                             info: { title: t, version: '1' }
@@ -549,7 +609,8 @@ public class TypeScriptClientExtractorTests
         Assert.Contains("status: 'parseError'", content, StringComparison.Ordinal);
         Assert.DoesNotContain("status: 'unauthorized'", content, StringComparison.Ordinal);
         Assert.DoesNotContain("status: 'notFound'", content, StringComparison.Ordinal);
-        Assert.DoesNotContain("status: 'serverError'", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'serverError'", content, StringComparison.Ordinal);
+        Assert.Contains("status: 'clientError'", content, StringComparison.Ordinal);
     }
 
     [Fact]

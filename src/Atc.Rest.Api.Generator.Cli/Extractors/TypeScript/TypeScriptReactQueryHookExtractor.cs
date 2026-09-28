@@ -847,6 +847,12 @@ public static class TypeScriptReactQueryHookExtractor
         sb.AppendLine("      if (result.status === 'ok') {");
         sb.AppendLine("        return result.data;");
         sb.AppendLine("      }");
+
+        // Re-throw the client's own ApiError (a ValidationError keeps its errors; body, detail and
+        // title stay available); only non-ApiError arms (parseError, schemaMismatch) are wrapped.
+        sb.AppendLine("      if ('error' in result && result.error instanceof ApiError) {");
+        sb.AppendLine("        throw result.error;");
+        sb.AppendLine("      }");
         sb.AppendLine("      throw new ApiError(");
         sb.AppendLine("        result.response.status,");
         sb.AppendLine("        result.response.statusText,");
@@ -1088,6 +1094,12 @@ public static class TypeScriptReactQueryHookExtractor
             sb.AppendLine("        return result.data;");
         }
 
+        sb.AppendLine("      }");
+
+        // Re-throw the client's own ApiError (a ValidationError keeps its errors; body, detail and
+        // title stay available); only non-ApiError arms (parseError, schemaMismatch) are wrapped.
+        sb.AppendLine("      if ('error' in result && result.error instanceof ApiError) {");
+        sb.AppendLine("        throw result.error;");
         sb.AppendLine("      }");
         sb.AppendLine("      throw new ApiError(");
         sb.AppendLine("        result.response.status,");

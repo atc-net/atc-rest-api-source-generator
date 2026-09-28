@@ -153,6 +153,9 @@ export function useListItemPagesInfinite(query?: { pageSize?: number }) {
       if (result.status === 'ok') {
         return result.data;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -175,6 +178,9 @@ export function useGetItemLogs(itemId: string, query?: { logLevel?: 'debug' | 'i
       if (result.status === 'ok') {
         return result.data;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -196,6 +202,9 @@ export function useSearchItems(query?: { createdAfter?: Date; createdBefore?: Da
       const result = await api.items.searchItems(query);
       if (result.status === 'ok') {
         return result.data;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,

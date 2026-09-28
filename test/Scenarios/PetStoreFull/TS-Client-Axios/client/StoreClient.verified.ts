@@ -13,6 +13,7 @@ export type GetInventoryResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -25,6 +26,7 @@ export type PlaceOrderResult =
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -37,6 +39,7 @@ export type GetOrderByIdResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
@@ -49,6 +52,7 @@ export type DeleteOrderResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
   | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 

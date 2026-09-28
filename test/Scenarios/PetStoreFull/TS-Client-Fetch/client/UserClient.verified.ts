@@ -12,6 +12,7 @@ export type CreateUserResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -24,6 +25,7 @@ export type CreateUsersWithListInputResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -36,6 +38,7 @@ export type LoginUserResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -48,6 +51,7 @@ export type LogoutUserResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -60,6 +64,7 @@ export type GetUserByNameResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -72,6 +77,7 @@ export type UpdateUserResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
@@ -84,6 +90,7 @@ export type DeleteUserResult =
   | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'unprocessableEntity'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 

@@ -23,6 +23,9 @@ export function useListPets(query?: { limit?: number }, options?: Omit<UseQueryO
       if (result.status === 'ok') {
         return result.data;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -43,6 +46,9 @@ export function useCreatePets(options?: Omit<UseMutationOptions<void, ApiError, 
       const result = await api.pets.createPets();
       if (result.status === 'created') {
         return;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,
@@ -68,6 +74,9 @@ export function useShowPetById(petId: string, options?: Omit<UseQueryOptions<Pet
       const result = await api.pets.showPetById(petId);
       if (result.status === 'ok') {
         return result.data;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,

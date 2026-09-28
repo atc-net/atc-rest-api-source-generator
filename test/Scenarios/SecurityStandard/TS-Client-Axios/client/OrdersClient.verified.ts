@@ -2,24 +2,44 @@
 import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { CreateOrderRequest, Order } from '../models';
-import type { ApiError } from '../errors';
+import type { ApiError, ValidationError } from '../errors';
 
 export type ListOrdersResult =
   | { status: 'ok'; data: Order[]; response: AxiosResponse }
+  | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type CreateOrderResult =
   | { status: 'created'; data: Order; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
+  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type GetOrderByIdResult =
   | { status: 'ok'; data: Order; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type DeleteOrderResult =
   | { status: 'noContent'; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class OrdersClient {

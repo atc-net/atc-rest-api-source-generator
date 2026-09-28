@@ -172,6 +172,12 @@ public static class TypeScriptClientExtractor
                 continue;
             }
 
+            // The errors the server produces without the spec listing them (the same rules as its
+            // endpoint metadata), so the per-op union covers every arm handleResponse can return.
+            var features = openApiDoc.Paths is not null && openApiDoc.Paths.TryGetValue(operationPath, out var pathItemForFeatures)
+                ? OperationFeaturesHelper.DetectOperationFeatures(operation, pathItemForFeatures, openApiDoc, methodVerb.ToUpperInvariant())
+                : null;
+
             var isFileDownload = operation.HasFileDownload();
             var isTextDownload = !isFileDownload && operation.HasTextResponse();
             var operationId = operation.GetOperationId(operationPath, methodVerb);
@@ -187,7 +193,8 @@ public static class TypeScriptClientExtractor
                     pageResultTypeName,
                     isFileDownload: false,
                     isTextDownload: false,
-                    httpClient);
+                    httpClient,
+                    features);
                 perOpPageResultTypes[operation] = pageResultTypeName;
                 perOpDeclarations.Add(pageDeclaration);
                 foreach (var imp in pageImports)
@@ -212,7 +219,8 @@ public static class TypeScriptClientExtractor
                 resultTypeName,
                 isFileDownload,
                 isTextDownload,
-                httpClient);
+                httpClient,
+                features);
 
             perOpResultTypes[operation] = resultTypeName;
             perOpDeclarations.Add(declaration);

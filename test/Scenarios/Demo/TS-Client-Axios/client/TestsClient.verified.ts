@@ -2,26 +2,38 @@
 import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { CreateTestItemRequest, TestItem } from '../models';
-import type { ValidationError } from '../errors';
+import type { ApiError, ValidationError } from '../errors';
 
 export type CreateTestItemWithModelResult =
   | { status: 'created'; data: TestItem; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type CreateTestItemWithLocationHeaderResult =
   | { status: 'created'; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type CreateTestItemWithLocationInBodyResult =
   | { status: 'created'; data: string; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type CreateTestItemEmptyResult =
   | { status: 'created'; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class TestsClient {

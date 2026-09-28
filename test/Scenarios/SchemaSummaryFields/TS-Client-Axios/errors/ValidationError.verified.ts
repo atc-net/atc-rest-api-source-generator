@@ -2,7 +2,11 @@
 import type { AxiosResponse } from 'axios';
 import { ApiError } from './ApiError';
 
-export class ValidationError extends ApiError {
+/**
+ * A 400 Bad Request. `errors` holds the validation errors keyed by the field names the client sent
+ * (empty when the response carries none).
+ */
+export class ValidationError<TBody = unknown> extends ApiError<TBody> {
   readonly errors: Record<string, string[]>;
 
   constructor(
@@ -11,8 +15,9 @@ export class ValidationError extends ApiError {
     message: string,
     errors: Record<string, string[]>,
     response?: AxiosResponse,
+    body?: TBody,
   ) {
-    super(status, statusText, message, response);
+    super(status, statusText, message, response, body);
     this.name = 'ValidationError';
     this.errors = errors;
   }
