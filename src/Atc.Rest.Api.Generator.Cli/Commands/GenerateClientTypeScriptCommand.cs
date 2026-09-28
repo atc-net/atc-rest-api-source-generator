@@ -192,11 +192,13 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         var specDirectory = Path.GetDirectoryName(specPath)!;
         var specFileName = Path.GetFileName(specPath);
 
+        // The base file and its multi-part files ({Base}_{Part}.yaml) - a change to a part regenerates too.
         using var watcher = new FileSystemWatcher(specDirectory, specFileName)
         {
             NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.CreationTime,
-            EnableRaisingEvents = true,
         };
+        watcher.Filters.Add(Path.GetFileNameWithoutExtension(specPath) + "_*" + Path.GetExtension(specPath));
+        watcher.EnableRaisingEvents = true;
 
         using var exitEvent = new ManualResetEventSlim(false);
         using var debounceTimer = new System.Threading.Timer(_ =>
@@ -381,6 +383,27 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
                 }
 
                 return (false, null);
+            }
+
+            // Multi-part specifications ({Base}_{Part}.yaml next to the base file, or x-multipart):
+            // merge the parts exactly like the build does, so the client covers every part.
+            var (merge, merged) = SpecificationService.ReadAndMergeResolved(specPath);
+            if (merged?.Document is null)
+            {
+                AnsiConsole.MarkupLine("[red]✗[/] Failed to merge the multi-part specification:");
+                foreach (var diagnostic in merge.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+                {
+                    AnsiConsole.MarkupLine($"  [red][[{diagnostic.RuleId}]] {Markup.Escape(diagnostic.Message)}[/]");
+                }
+
+                return (false, null);
+            }
+
+            if (merge.IsMultiPart)
+            {
+                parsedDoc = merged.Document;
+                yamlContent = merged.Content;
+                AnsiConsole.MarkupLine($"[green]✓[/] Merged {merge.PartFiles.Count} part file(s) into the specification");
             }
 
             var diagnostics = OpenApiDocumentValidator.Validate(

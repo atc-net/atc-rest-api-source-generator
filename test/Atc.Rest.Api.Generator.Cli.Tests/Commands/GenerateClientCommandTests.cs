@@ -80,6 +80,32 @@ public sealed class GenerateClientCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task GenerateClient_MultiPartSpecification_CopiesAndReferencesThePartFiles()
+    {
+        // The build merges {Base}_{Part}.yaml files next to the base - without them in the project,
+        // the generated client would cover the base file only.
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("MultiParts");
+        var outputPath = Path.Combine(tempOutputDir, "MultiParts", "Client");
+        var projectName = "MultiParts.Client";
+        var arguments = $"generate client -s \"{yamlPath}\" -o \"{outputPath}\" -n \"{projectName}\"";
+
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var csprojContent = await File.ReadAllTextAsync(Path.Combine(outputPath, $"{projectName}.csproj"), TestContext.Current.CancellationToken);
+        foreach (var fileName in new[] { "MultiParts.yaml", "MultiParts_Products.yaml", "MultiParts_Users.yaml" })
+        {
+            Assert.True(File.Exists(Path.Combine(outputPath, fileName)), $"{fileName} should be copied");
+            Assert.Contains($"    <AdditionalFiles Include=\"{fileName}\" />", csprojContent, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public async Task GenerateClient_SecondTime_DoesNotOverwriteExistingFiles()
     {
         // Arrange - Run first time

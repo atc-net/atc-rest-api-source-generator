@@ -38,6 +38,33 @@ public static class SpecificationService
         => SpecificationFile.FromContent(virtualPath, yamlContent);
 
     /// <summary>
+    /// Reads a specification and merges its part files (<c>{Base}_{Part}.yaml</c> or <c>x-multipart</c>) like
+    /// the build does. When parts were merged, the merged document is read again from its own YAML, so every
+    /// <c>$ref</c> - also one written in a part file - resolves against the merged document.
+    /// </summary>
+    /// <param name="baseFilePath">Path to the base YAML file.</param>
+    /// <returns>
+    /// The merge result, and the merged specification (the base file itself when it has no parts), or null
+    /// when the merge failed.
+    /// </returns>
+    public static (MergeResult Merge, SpecificationFile? Specification) ReadAndMergeResolved(
+        string baseFilePath)
+    {
+        var merge = ReadAndMerge(baseFilePath);
+        if (!merge.IsSuccess || merge.Document is null)
+        {
+            return (merge, null);
+        }
+
+        if (!merge.IsMultiPart)
+        {
+            return (merge, merge.BaseFile);
+        }
+
+        return (merge, ReadFromContent(SerializeToYaml(merge.Document), baseFilePath));
+    }
+
+    /// <summary>
     /// Reads and parses a single OpenAPI specification file.
     /// Alias for ReadSingle for convenience.
     /// </summary>

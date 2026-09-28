@@ -1438,4 +1438,61 @@ public class SpecificationServiceTests
         Assert.NotNull(result.Document);
         Assert.NotEqual(new Uri("https://api.example.com/openapi.yaml"), result.Document.BaseUri);
     }
+
+    [Fact]
+    public void ReadAndMergeResolved_PartReferencesABaseSchema_TheReferenceResolvesInTheMergedDocument()
+    {
+        // A $ref written in a part file points at the part's own document until the merged document
+        // is read again; generators that follow reference targets (TypeScript) need it resolved.
+        var directory = Path.Combine(Path.GetTempPath(), "atc-merge-resolved", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var basePath = Path.Combine(directory, "Shop.yaml");
+            File.WriteAllText(basePath, """
+                openapi: 3.0.3
+                info:
+                  title: Shop
+                  version: 1.0.0
+                paths: {}
+                components:
+                  schemas:
+                    Error:
+                      type: object
+                      properties:
+                        message:
+                          type: string
+                """);
+            File.WriteAllText(Path.Combine(directory, "Shop_Orders.yaml"), """
+                openapi: 3.0.3
+                info:
+                  title: Shop - Orders
+                  version: 1.0.0
+                paths:
+                  /orders:
+                    get:
+                      operationId: listOrders
+                      responses:
+                        '500':
+                          description: Error
+                          content:
+                            application/json:
+                              schema:
+                                $ref: '#/components/schemas/Error'
+                """);
+
+            var (merge, specification) = SpecificationService.ReadAndMergeResolved(basePath);
+
+            Assert.True(merge.IsMultiPart);
+            Assert.NotNull(specification?.Document);
+            var schema = specification.Document.Paths["/orders"].Operations![HttpMethod.Get].Responses!["500"].Content!["application/json"].Schema;
+            var reference = Assert.IsType<OpenApiSchemaReference>(schema);
+            Assert.NotNull(reference.Target);
+            Assert.NotNull(reference.Target.Properties?["message"]);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
 }

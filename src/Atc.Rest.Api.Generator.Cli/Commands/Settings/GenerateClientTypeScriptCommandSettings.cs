@@ -34,7 +34,7 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
     public string? EnumStyle { get; init; }
 
     [CommandOption("--hooks <STYLE>")]
-    [Description("Hook generation style: None (default) or ReactQuery (TanStack Query hooks).")]
+    [Description("Hook generation style: None (default), ReactQuery (TanStack Query hooks), or Swr (SWR hooks).")]
     public string? HooksStyle { get; init; }
 
     [CommandOption("--hooks-mode <MODE>")]

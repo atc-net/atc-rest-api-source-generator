@@ -125,6 +125,20 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                     return 1;
                 }
 
+                // Multi-part specification: the part files ({Base}_{Part}.yaml) go along, or the build
+                // would generate a client for the base file only.
+                var partFileNames = new List<string>();
+                foreach (var partFile in SpecificationService.DiscoverPartFiles(specPath))
+                {
+                    var partFileName = Path.GetFileName(partFile.FilePath);
+                    if (!CopySpecificationFile(partFile.FilePath, outputPath, partFileName))
+                    {
+                        return 1;
+                    }
+
+                    partFileNames.Add(partFileName);
+                }
+
                 // Step 5: Create or update marker file with client config
                 ctx.Status("Creating marker file...");
                 if (!CreateOrUpdateMarkerFile(outputPath, clientConfig))
@@ -134,7 +148,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
                 // Step 6: Create or update project file (using local YAML file name)
                 ctx.Status("Creating project file...");
-                if (!CreateOrUpdateProjectFile(outputPath, projectName, specFileName, sourceGeneratorVersion, restClientVersion, resilienceVersion))
+                if (!CreateOrUpdateProjectFile(outputPath, projectName, specFileName, partFileNames, sourceGeneratorVersion, restClientVersion, resilienceVersion))
                 {
                     return 1;
                 }
@@ -367,6 +381,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         string outputPath,
         string projectName,
         string specFileName,
+        IReadOnlyList<string> partFileNames,
         Version sourceGeneratorVersion,
         Version restClientVersion,
         Version? resilienceVersion)
@@ -379,11 +394,21 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             {
                 var csprojContent = GenerateProjectFileContent(specFileName, sourceGeneratorVersion, restClientVersion, resilienceVersion);
                 File.WriteAllText(csprojPath, csprojContent);
+                foreach (var partFileName in partFileNames)
+                {
+                    UpdateProjectFileIfNeeded(csprojPath, partFileName);
+                }
+
                 AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
             {
                 var updated = UpdateProjectFileIfNeeded(csprojPath, specFileName);
+                foreach (var partFileName in partFileNames)
+                {
+                    updated |= UpdateProjectFileIfNeeded(csprojPath, partFileName);
+                }
+
                 if (updated)
                 {
                     AnsiConsole.MarkupLine($"[green]✓[/] Updated project file: {projectName}.csproj");
@@ -438,6 +463,19 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             """;
     }
 
+    /// <summary>
+    /// The start of the line holding the last <c>&lt;/ItemGroup&gt;</c> - inserting there keeps a new entry at
+    /// the entries' indentation (inserting at the tag itself added the tag's indentation in front of it).
+    /// Returns -1 when there is no <c>&lt;/ItemGroup&gt;</c>.
+    /// </summary>
+    private static int ItemGroupEndLineStart(string content)
+    {
+        var tagPosition = content.LastIndexOf("</ItemGroup>", StringComparison.OrdinalIgnoreCase);
+        return tagPosition <= 0
+            ? tagPosition
+            : content.LastIndexOf('\n', tagPosition) + 1;
+    }
+
     private static bool UpdateProjectFileIfNeeded(
         string csprojPath,
         string specFileName)
@@ -460,7 +498,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             // Find the AdditionalFiles ItemGroup and add missing entries
             if (!hasYamlInclude)
             {
-                var insertPosition = content.LastIndexOf("</ItemGroup>", StringComparison.OrdinalIgnoreCase);
+                var insertPosition = ItemGroupEndLineStart(content);
                 var additionalFilesPosition = content.LastIndexOf("<AdditionalFiles", insertPosition, StringComparison.OrdinalIgnoreCase);
                 if (insertPosition >= 0 && additionalFilesPosition >= 0)
                 {
@@ -471,7 +509,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
             if (!hasMarkerInclude)
             {
-                var insertPosition = content.LastIndexOf("</ItemGroup>", StringComparison.OrdinalIgnoreCase);
+                var insertPosition = ItemGroupEndLineStart(content);
                 var additionalFilesPosition = content.LastIndexOf("<AdditionalFiles", insertPosition, StringComparison.OrdinalIgnoreCase);
                 if (insertPosition >= 0 && additionalFilesPosition >= 0)
                 {
