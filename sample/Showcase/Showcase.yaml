@@ -845,9 +845,9 @@ paths:
         - 0: Success (no exception)
         - 1: General Exception → 500 Internal Server Error
         - 2: ArgumentException → 400 Bad Request
-        - 3: ArgumentNullException → 400 Bad Request
-        - 4: InvalidOperationException → 409 Conflict
-        - 5: UnauthorizedAccessException → 401 Unauthorized
+        - 3: ArgumentNullException → 500 Internal Server Error (a server-side bug, not a bad request)
+        - 4: InvalidOperationException → 500 Internal Server Error (map it to 409 with MapException if you throw it on purpose)
+        - 5: UnauthorizedAccessException → 500 Internal Server Error
         - 6: NotImplementedException → 501 Not Implemented
         - 7: TimeoutException → 504 Gateway Timeout
         - 8: ValidationException (DataAnnotations) → 400 Bad Request
@@ -880,6 +880,44 @@ paths:
                 $ref: "#/components/schemas/ExceptionTestResponse"
         '404':
           description: Not Found (invalid code)
+
+  /testing/error-responses/{status}:
+    # Disable retry for testing - we want to see actual error responses, not retries
+    x-retry-enabled: false
+    post:
+      summary: Test error responses
+      description: |
+        Returns the requested error status through the generated result factories, to show the error
+        contract: every error a handler returns is an RFC 9457 ProblemDetails (`application/problem+json`),
+        unless the specification declares another body for that status.
+
+        Supported statuses: 400, 404, 409, 422 and 429 (with `Retry-After`); any other value returns 204.
+      operationId: getErrorResponseTest
+      tags:
+        - testing
+      # Public endpoint - no auth required for testing
+      security: []
+      parameters:
+        - name: status
+          in: path
+          required: true
+          description: The error status to return (400, 404, 409, 422 or 429).
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '204':
+          description: No error requested
+        '400':
+          description: Bad Request (a validation problem)
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+        '422':
+          description: Unprocessable Entity
+        '429':
+          description: Too Many Requests (with Retry-After)
 components:
   schemas:
     # ============================================

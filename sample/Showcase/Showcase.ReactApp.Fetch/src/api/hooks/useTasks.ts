@@ -23,6 +23,9 @@ export function useListTasks(query?: { limit?: number }, options?: Omit<UseQuery
       if (result.status === 'ok') {
         return result.data;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -43,6 +46,9 @@ export function useCreateTask(options?: Omit<UseMutationOptions<Task, ApiError, 
       const result = await api.tasks.createTask(body);
       if (result.status === 'created') {
         return result.data;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,
@@ -69,6 +75,9 @@ export function useGetTaskById(taskId: string, options?: Omit<UseQueryOptions<Ta
       if (result.status === 'ok') {
         return result.data;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -90,6 +99,9 @@ export function useDeleteTaskById(options?: Omit<UseMutationOptions<void, ApiErr
       const result = await api.tasks.deleteTaskById(taskId);
       if (result.status === 'noContent') {
         return;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,
@@ -115,6 +127,9 @@ export function useUpdateTaskById(taskId: string, options?: Omit<UseMutationOpti
       const result = await api.tasks.updateTaskById(taskId, body);
       if (result.status === 'ok') {
         return result.data;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,

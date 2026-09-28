@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { testingClient } from '../config/api';
+import { ApiError, ValidationError } from '../api/errors';
 
 export interface TestResult {
   code: number;
@@ -11,26 +12,43 @@ export interface TestResult {
   timestamp: string;
 }
 
-const expectedStatusMap: Record<number, number> = {
-  0: 200,
-  1: 400,
-  2: 401,
-  3: 403,
-  4: 404,
-  5: 409,
-  6: 500,
-  7: 500,
-  8: 500,
-  9: 502,
-  10: 503,
-};
+/** What the client read from one error response (an RFC 9457 ProblemDetails). */
+export interface ErrorResponseResult {
+  status: number;
+  arm: string;
+  title?: string;
+  detail?: string;
+  errors?: string;
+  retryAfter?: string;
+  timestamp: string;
+}
+
+// Mirrors the exception codes in Showcase.yaml (getExceptionTest) and the
+// Atc.Rest.MinimalApi 3.0 GlobalErrorHandlingMiddleware status mapping.
+export const exceptionTests = [
+  { code: 0, exceptionType: 'No Exception', expectedStatus: 200 },
+  { code: 1, exceptionType: 'Exception', expectedStatus: 500 },
+  { code: 2, exceptionType: 'ArgumentException', expectedStatus: 400 },
+  { code: 3, exceptionType: 'ArgumentNullException', expectedStatus: 500 },
+  { code: 4, exceptionType: 'InvalidOperationException', expectedStatus: 500 },
+  { code: 5, exceptionType: 'UnauthorizedAccessException', expectedStatus: 500 },
+  { code: 6, exceptionType: 'NotImplementedException', expectedStatus: 501 },
+  { code: 7, exceptionType: 'TimeoutException', expectedStatus: 504 },
+  { code: 8, exceptionType: 'ValidationException', expectedStatus: 400 },
+  { code: 9, exceptionType: 'KeyNotFoundException', expectedStatus: 500 },
+  { code: 10, exceptionType: 'NullReferenceException', expectedStatus: 500 },
+  { code: 11, exceptionType: 'TaskCanceledException', expectedStatus: 504 },
+] as const;
+
+export const errorStatuses = [400, 404, 409, 422, 429] as const;
 
 export function useTesting() {
   const [results, setResults] = useState<TestResult[]>([]);
+  const [errorResults, setErrorResults] = useState<ErrorResponseResult[]>([]);
   const [isRunning, setIsRunning] = useState(false);
 
   const runTest = useCallback(async (code: number) => {
-    const expectedStatus = expectedStatusMap[code] ?? 0;
+    const expectedStatus = exceptionTests.find((t) => t.code === code)?.expectedStatus ?? 0;
     const result = await testingClient.getExceptionTest(code);
 
     const actualStatus = result.response.status;
@@ -46,6 +64,7 @@ export function useTesting() {
       testResult.message = result.data.message;
     } else if ('error' in result) {
       testResult.exceptionType = result.error.name;
+      // ApiError.message is the ProblemDetails `detail` (the server's message), falling back to `title`.
       testResult.message = result.error.message;
     }
 
@@ -55,17 +74,45 @@ export function useTesting() {
   const runAll = useCallback(async () => {
     setIsRunning(true);
     try {
-      for (let code = 0; code <= 10; code++) {
-        await runTest(code);
+      for (const test of exceptionTests) {
+        await runTest(test.code);
       }
     } finally {
       setIsRunning(false);
     }
   }, [runTest]);
 
-  const clear = useCallback(() => {
-    setResults([]);
+  const runErrorResponseTest = useCallback(async (status: number) => {
+    setIsRunning(true);
+    try {
+      const result = await testingClient.getErrorResponseTest(status);
+      const entry: ErrorResponseResult = {
+        status: result.response.status,
+        arm: result.status,
+        retryAfter: result.response.headers['retry-after'] as string | undefined,
+        timestamp: new Date().toISOString(),
+      };
+
+      if ('error' in result && result.error instanceof ApiError) {
+        entry.title = result.error.title;
+        entry.detail = result.error.detail;
+        if (result.error instanceof ValidationError) {
+          entry.errors = Object.entries(result.error.errors)
+            .map(([key, messages]) => `${key}: ${messages.join(', ')}`)
+            .join('; ');
+        }
+      }
+
+      setErrorResults((prev) => [entry, ...prev]);
+    } finally {
+      setIsRunning(false);
+    }
   }, []);
 
-  return { results, isRunning, runTest, runAll, clear };
+  const clear = useCallback(() => {
+    setResults([]);
+    setErrorResults([]);
+  }, []);
+
+  return { results, errorResults, isRunning, runTest, runAll, runErrorResponseTest, clear };
 }

@@ -10,6 +10,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | 🏗️ **Minimal API**               | Generates modern ASP.NET Core minimal API endpoints                              |
 |            | 🔒 **Contract-Enforced Results** | Handlers can **only** return responses defined in OpenAPI - compile-time safety! |
 |            | ✅ **Validation**                | Automatic `[Required]`, `[Range]`, `[StringLength]` from OpenAPI constraints     |
+|            | 🚨 **ProblemDetails Errors**     | Every error is RFC 9457 `application/problem+json` - server, C# and TS clients agree |
 |            | 🔎 **HTTP `QUERY` (OAS 3.2)**    | `query:` operations - a read with a request body, for criteria too big for a URL |
 | **Server** | 📝 **Handler Scaffolds**         | Auto-generates handler stubs for unimplemented operations                        |
 |            | 🔐 **Security**                  | JWT, OAuth2 scopes, API Key, role-based auth - all from OpenAPI                  |

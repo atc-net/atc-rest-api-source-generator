@@ -25,6 +25,9 @@ export function useListAccounts(query?: { limit?: number }, options?: Omit<UseQu
       if (result.status === 'ok') {
         return result.data;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -45,6 +48,9 @@ export function useCreateAccount(options?: Omit<UseMutationOptions<Account, ApiE
       const result = await api.accounts.createAccount(body);
       if (result.status === 'created') {
         return result.data;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,
@@ -71,6 +77,9 @@ export function useGetAccountById(accountId: string, options?: Omit<UseQueryOpti
       if (result.status === 'ok') {
         return result.data;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -92,6 +101,9 @@ export function useDeleteAccountById(options?: Omit<UseMutationOptions<void, Api
       const result = await api.accounts.deleteAccountById(accountId);
       if (result.status === 'noContent') {
         return;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,
@@ -118,6 +130,9 @@ export function useUpdateAccountById(accountId: string, options?: Omit<UseMutati
       if (result.status === 'ok') {
         return result.data;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -142,6 +157,9 @@ export function useListPaginatedAccounts(query?: { pageSize?: number /* default:
       const result = await api.accounts.listPaginatedAccounts(query);
       if (result.status === 'ok') {
         return result.data;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,

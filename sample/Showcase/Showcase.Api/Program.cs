@@ -21,6 +21,7 @@ builder.Services.AddCors(options =>
             .SetIsOriginAllowed(_ => true) // Allow any origin for SignalR
             .AllowAnyMethod()
             .AllowAnyHeader()
+            .WithExposedHeaders("Retry-After") // Let browser clients read the 429 back-off
             .AllowCredentials(); // Required for SignalR
     });
 });

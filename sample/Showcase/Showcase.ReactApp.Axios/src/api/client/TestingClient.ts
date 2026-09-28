@@ -2,11 +2,26 @@
 import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { ExceptionTestResponse } from '../models';
-import type { ApiError } from '../errors';
+import type { ApiError, ValidationError } from '../errors';
 
 export type GetExceptionTestResult =
   | { status: 'ok'; data: ExceptionTestResponse; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
+  | { status: 'parseError'; error: Error; response: AxiosResponse };
+
+export type GetErrorResponseTestResult =
+  | { status: 'noContent'; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'notFound'; error: ApiError; response: AxiosResponse }
+  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
+  | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
+  | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class TestingClient {
@@ -19,5 +34,10 @@ export class TestingClient {
   /** Test exception handling */
   async getExceptionTest(code: number): Promise<GetExceptionTestResult> {
     return this.api.request<ExceptionTestResponse>('GET', `/testing/exception/${code}`) as Promise<GetExceptionTestResult>;
+  }
+
+  /** Test error responses */
+  async getErrorResponseTest(status: number): Promise<GetErrorResponseTestResult> {
+    return this.api.request<void>('POST', `/testing/error-responses/${status}`) as Promise<GetErrorResponseTestResult>;
   }
 }

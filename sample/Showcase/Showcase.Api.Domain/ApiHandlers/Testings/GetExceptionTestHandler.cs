@@ -63,13 +63,13 @@ public sealed class GetExceptionTestHandler : IGetExceptionTestHandler
         => throw new ArgumentException("Argument Exception (code 2) - This maps to 400 Bad Request", "code");
 
     private static Task<GetExceptionTestResult> ThrowArgumentNullException()
-        => throw new ArgumentNullException("code", "Argument Null Exception (code 3) - This maps to 400 Bad Request");
+        => throw new ArgumentNullException("code", "Argument Null Exception (code 3) - This maps to 500 Internal Server Error");
 
     private static Task<GetExceptionTestResult> ThrowInvalidOperationException()
-        => throw new InvalidOperationException("Invalid Operation Exception (code 4) - This maps to 409 Conflict");
+        => throw new InvalidOperationException("Invalid Operation Exception (code 4) - This maps to 500 Internal Server Error");
 
     private static Task<GetExceptionTestResult> ThrowUnauthorizedAccessException()
-        => throw new UnauthorizedAccessException("Unauthorized Access Exception (code 5) - This maps to 401 Unauthorized");
+        => throw new UnauthorizedAccessException("Unauthorized Access Exception (code 5) - This maps to 500 Internal Server Error");
 
     private static Task<GetExceptionTestResult> ThrowNotImplementedException()
         => throw new NotImplementedException("Not Implemented Exception (code 6) - This maps to 501 Not Implemented");

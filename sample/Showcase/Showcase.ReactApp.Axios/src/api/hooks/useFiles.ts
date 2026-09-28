@@ -20,6 +20,9 @@ export function useGetFileById(options?: Omit<UseMutationOptions<Blob, ApiError,
       if (result.status === 'ok') {
         return result.data;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -44,6 +47,9 @@ export function useUploadSingleObjectWithFileAsFormData(options?: Omit<UseMutati
       const result = await api.files.uploadSingleObjectWithFileAsFormData(data);
       if (result.status === 'ok') {
         return;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,
@@ -70,6 +76,9 @@ export function useUploadSingleObjectWithFilesAsFormData(options?: Omit<UseMutat
       if (result.status === 'ok') {
         return;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -95,6 +104,9 @@ export function useUploadSingleFileAsFormData(options?: Omit<UseMutationOptions<
       if (result.status === 'ok') {
         return;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -119,6 +131,9 @@ export function useUploadMultiFilesAsFormData(options?: Omit<UseMutationOptions<
       const result = await api.files.uploadMultiFilesAsFormData(files);
       if (result.status === 'ok') {
         return;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,

@@ -7,9 +7,9 @@ public partial class ExceptionTesting
         new(0, "No Exception", "Success response - no exception thrown", 200),
         new(1, "Exception", "General Exception - 500 Internal Server Error", 500),
         new(2, "ArgumentException", "ArgumentException - 400 Bad Request", 400),
-        new(3, "ArgumentNullException", "ArgumentNullException - 400 Bad Request", 400),
-        new(4, "InvalidOperationException", "InvalidOperationException - 409 Conflict", 409),
-        new(5, "UnauthorizedAccessException", "UnauthorizedAccessException - 401 Unauthorized", 401),
+        new(3, "ArgumentNullException", "ArgumentNullException - 500 Internal Server Error", 500),
+        new(4, "InvalidOperationException", "InvalidOperationException - 500 Internal Server Error", 500),
+        new(5, "UnauthorizedAccessException", "UnauthorizedAccessException - 500 Internal Server Error", 500),
         new(6, "NotImplementedException", "NotImplementedException - 501 Not Implemented", 501),
         new(7, "TimeoutException", "TimeoutException - 504 Gateway Timeout", 504),
         new(8, "ValidationException", "ValidationException - 400 Bad Request", 400),
@@ -18,7 +18,11 @@ public partial class ExceptionTesting
         new(11, "TaskCanceledException", "TaskCanceledException - 504 Gateway Timeout", 504),
     ];
 
+    private static readonly int[] ErrorStatuses = [400, 404, 409, 422, 429];
+
     private readonly List<TestResult> testResults = [];
+
+    private readonly List<ErrorResponseTestResult> errorResponseResults = [];
 
     private bool isLoading;
     private int currentTestCode = -1;
@@ -135,6 +139,32 @@ public partial class ExceptionTesting
         {
             isLoading = false;
             currentTestCode = -1;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RunErrorResponseTestAsync(int status)
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await Gateway
+                .TestErrorResponseAsync(status)
+                .ConfigureAwait(false);
+
+            errorResponseResults.Insert(0, result);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(
+                $"Error requesting status {status}: {ex.Message}",
+                Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
             StateHasChanged();
         }
     }

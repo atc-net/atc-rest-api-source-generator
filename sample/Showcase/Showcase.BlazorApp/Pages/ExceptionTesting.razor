@@ -109,3 +109,48 @@
            Disabled="isLoading">
     Clear Results
 </MudButton>
+
+<MudDivider Class="my-6" />
+
+<MudText Typo="Typo.h4" Class="mb-2">Error Responses</MudText>
+
+<MudText Typo="Typo.body1" Class="mb-4">
+    Errors a handler returns on purpose (<code>NotFound("…")</code>, <code>Conflict("…")</code>, …). The specification declares
+    no body for them, so each one arrives as an RFC 9457 ProblemDetails (<code>application/problem+json</code>), and the
+    generated client's typed accessors return it parsed - the handler's message is the <code>detail</code>.
+</MudText>
+
+<MudStack Row="true" Class="mb-4">
+    @foreach (var status in ErrorStatuses)
+    {
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Size="Size.Small"
+                   OnClick="() => RunErrorResponseTestAsync(status)"
+                   Disabled="isLoading">
+            @status
+        </MudButton>
+    }
+</MudStack>
+
+<MudTable Items="errorResponseResults" Hover="true" Striped="true" Dense="true">
+    <HeaderContent>
+        <MudTh>Status</MudTh>
+        <MudTh>Title</MudTh>
+        <MudTh>Detail</MudTh>
+        <MudTh>Validation errors</MudTh>
+        <MudTh>Retry-After</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Status">
+            <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small">@context.Status</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Title">@context.Title</MudTd>
+        <MudTd DataLabel="Detail">@context.Detail</MudTd>
+        <MudTd DataLabel="Validation errors">@context.Errors</MudTd>
+        <MudTd DataLabel="Retry-After">@context.RetryAfter</MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No error responses requested yet. Click a status above.</MudText>
+    </NoRecordsContent>
+</MudTable>

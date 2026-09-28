@@ -6,22 +6,40 @@ import type { ApiError, ValidationError } from '../errors';
 
 export type ListSubscriptionsResult =
   | { status: 'ok'; data: Subscriptions; response: AxiosResponse }
+  | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type CreateSubscriptionResult =
   | { status: 'created'; data: Subscription; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
+  | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type GetSubscriptionByIdResult =
   | { status: 'ok'; data: Subscription; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export type DeleteSubscriptionResult =
   | { status: 'noContent'; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
 export class NotificationsClient {

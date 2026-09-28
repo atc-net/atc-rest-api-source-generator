@@ -5,24 +5,50 @@ import type { ApiError, ValidationError } from '../errors';
 export type GetFileByIdResult =
   | { status: 'ok'; data: Blob; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type UploadSingleObjectWithFileAsFormDataResult =
   | { status: 'ok'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'unauthorized'; error: ApiError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type UploadSingleObjectWithFilesAsFormDataResult =
   | { status: 'ok'; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'unauthorized'; error: ApiError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type UploadSingleFileAsFormDataResult =
   | { status: 'ok'; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'unauthorized'; error: ApiError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export type UploadMultiFilesAsFormDataResult =
   | { status: 'ok'; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'unauthorized'; error: ApiError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
 export class FilesClient {

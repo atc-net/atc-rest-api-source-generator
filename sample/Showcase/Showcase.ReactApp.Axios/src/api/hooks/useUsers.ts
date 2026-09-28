@@ -24,6 +24,9 @@ export function useListUsers(query?: { search?: string; country?: string; role?:
       if (result.status === 'ok') {
         return result.data;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -44,6 +47,9 @@ export function useQueryUsers(body: UserQuery, options?: Omit<UseQueryOptions<Us
       const result = await api.users.queryUsers(body);
       if (result.status === 'ok') {
         return result.data;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,
@@ -66,6 +72,9 @@ export function useCreateUser(options?: Omit<UseMutationOptions<User, ApiError, 
       const result = await api.users.createUser(body);
       if (result.status === 'created') {
         return result.data;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,
@@ -92,6 +101,9 @@ export function useGetUserById(userId: string, options?: Omit<UseQueryOptions<Us
       if (result.status === 'ok') {
         return result.data;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -113,6 +125,9 @@ export function useUpdateUserById(userId: string, options?: Omit<UseMutationOpti
       const result = await api.users.updateUserById(userId, body);
       if (result.status === 'ok') {
         return result.data;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,
@@ -138,6 +153,9 @@ export function useDeleteUserById(options?: Omit<UseMutationOptions<void, ApiErr
       const result = await api.users.deleteUserById(userId);
       if (result.status === 'noContent') {
         return;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,

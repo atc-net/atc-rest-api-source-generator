@@ -24,6 +24,9 @@ export function useListSubscriptions(options?: Omit<UseQueryOptions<Subscription
       if (result.status === 'ok') {
         return result.data;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -44,6 +47,9 @@ export function useCreateSubscription(options?: Omit<UseMutationOptions<Subscrip
       const result = await api.notifications.createSubscription(body);
       if (result.status === 'created') {
         return result.data;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,
@@ -70,6 +76,9 @@ export function useGetSubscriptionById(subscriptionId: string, options?: Omit<Us
       if (result.status === 'ok') {
         return result.data;
       }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
       throw new ApiError(
         result.response.status,
         result.response.statusText,
@@ -91,6 +100,9 @@ export function useDeleteSubscription(options?: Omit<UseMutationOptions<void, Ap
       const result = await api.notifications.deleteSubscription(subscriptionId);
       if (result.status === 'noContent') {
         return;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
       }
       throw new ApiError(
         result.response.status,
