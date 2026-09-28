@@ -185,35 +185,7 @@ public static class TypeScriptTypeMapper
             // Handle allOf (pagination pattern: allOf with $ref to PaginatedResult + inline results)
             if (actualSchema.AllOf is { Count: > 0 })
             {
-                string? refTypeName = null;
-                string? arrayItemType = null;
-
-                foreach (var subSchema in actualSchema.AllOf)
-                {
-                    if (subSchema is OpenApiSchemaReference allOfRef)
-                    {
-                        refTypeName = allOfRef.Reference.Id ?? allOfRef.Id;
-                    }
-                    else if (subSchema is OpenApiSchema inlineSchema && inlineSchema.Properties is { Count: > 0 })
-                    {
-                        // Look for an array property with $ref items (e.g., results: Account[])
-                        foreach (var prop in inlineSchema.Properties.Values)
-                        {
-                            if (prop is OpenApiSchema { Type: JsonSchemaType.Array } arrayProp &&
-                                arrayProp.Items is OpenApiSchemaReference itemRef)
-                            {
-                                arrayItemType = itemRef.Reference.Id ?? itemRef.Id;
-                            }
-                        }
-                    }
-                }
-
-                if (refTypeName is not null && arrayItemType is not null)
-                {
-                    return $"{refTypeName}<{arrayItemType}>";
-                }
-
-                return refTypeName ?? "unknown";
+                return BuildAllOfTypeScriptType(actualSchema.AllOf);
             }
 
             // Handle prefixItems (OpenAPI 3.1 / JSON Schema 2020-12 tuple types).
@@ -268,6 +240,68 @@ public static class TypeScriptTypeMapper
     /// branches would suggest a precision the type does not actually have. The Zod emitter can
     /// afford a per-branch <c>z.unknown()</c> because Zod unions do not collapse.
     /// </remarks>
+    /// <summary>
+    /// The TypeScript type of an inline <c>allOf</c>: <c>Base&lt;Item&gt;</c> when the referenced base is a
+    /// generic pagination base (an array property with untyped items - the TypeScript model is emitted as
+    /// <c>Base&lt;T&gt;</c>) and the inline member supplies the item type; otherwise the intersection of the
+    /// referenced types and the inline members (<c>(PaginationResult &amp; { items?: Item[] })</c>).
+    /// </summary>
+    private static string BuildAllOfTypeScriptType(IList<IOpenApiSchema> allOf)
+    {
+        var refs = allOf.OfType<OpenApiSchemaReference>().ToList();
+        var inlineMembers = allOf.OfType<OpenApiSchema>().Where(s => s.Properties is { Count: > 0 }).ToList();
+
+        if (refs.Count == 1 &&
+            IsGenericPaginationBase(refs[0].Target) &&
+            inlineMembers.SelectMany(s => s.Properties!.Values)
+                .OfType<OpenApiSchema>()
+                .FirstOrDefault(p => p.Type == JsonSchemaType.Array && p.Items is OpenApiSchemaReference)
+                ?.Items is OpenApiSchemaReference itemRef)
+        {
+            return $"{refs[0].Reference.Id ?? refs[0].Id}<{itemRef.Reference.Id ?? itemRef.Id}>";
+        }
+
+        var parts = refs
+            .Select(r => r.Reference.Id ?? r.Id)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .Select(name => name!)
+            .ToList();
+
+        foreach (var member in inlineMembers)
+        {
+            var required = member.Required ?? new HashSet<string>(StringComparer.Ordinal);
+            var members = member.Properties!.Select(p =>
+                $"{(IsTypeScriptIdentifier(p.Key) ? p.Key : $"'{p.Key}'")}{(required.Contains(p.Key) ? string.Empty : "?")}: {p.Value.ToTypeScriptReturnType()}");
+            parts.Add("{ " + string.Join("; ", members) + " }");
+        }
+
+        return parts.Count switch
+        {
+            0 => "unknown",
+            1 => parts[0],
+
+            // Parenthesized so it stays one type where callers embed it (`readonly X[]`, `X | null`).
+            _ => "(" + string.Join(" & ", parts) + ")",
+        };
+    }
+
+    /// <summary>
+    /// A pagination base: an object with an array property whose items are untyped (<c>items: {}</c>) -
+    /// the TypeScript model extractor emits it as <c>Name&lt;T&gt;</c>.
+    /// </summary>
+    private static bool IsGenericPaginationBase(IOpenApiSchema? schema)
+        => schema?.Properties?.Values.Any(p =>
+               p is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema &&
+               (arraySchema.Items is null ||
+                (arraySchema.Items is OpenApiSchema itemSchema &&
+                 itemSchema.Type is null &&
+                 itemSchema.Properties?.Count is null or 0))) == true;
+
+    private static bool IsTypeScriptIdentifier(string name)
+        => name.Length > 0 &&
+           (char.IsLetter(name[0]) || name[0] is '_' or '$') &&
+           name.All(c => char.IsLetterOrDigit(c) || c is '_' or '$');
+
     private static string? BuildRefUnionTypeForTypeScript(
         OpenApiSchema schema)
     {

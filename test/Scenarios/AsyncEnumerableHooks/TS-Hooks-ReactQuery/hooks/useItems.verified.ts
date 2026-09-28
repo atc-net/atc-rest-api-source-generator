@@ -82,7 +82,7 @@ export function useListItemsStream(query?: { filter?: string }, options?: { enab
 /** Stream paginated items (async-enumerable with PaginationResult) */
 export function useListItemPagesStream(query?: { pageSize?: number }, options?: { enabled?: boolean }) {
   const api = useApiService();
-  const [items, setItems] = useState<readonly PaginationResult<Item>[]>([]);
+  const [items, setItems] = useState<readonly (PaginationResult & { items?: Item[] })[]>([]);
   const [status, setStatus] = useState<'idle' | 'streaming' | 'success' | 'error'>('idle');
   const [error, setError] = useState<Error | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
@@ -111,7 +111,7 @@ export function useListItemPagesStream(query?: { pageSize?: number }, options?: 
     setItems([]);
     setError(null);
 
-    let buffer: PaginationResult<Item>[] = [];
+    let buffer: (PaginationResult & { items?: Item[] })[] = [];
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
     const flush = () => { flushTimer = null; if (!controller.signal.aborted) setItems(buffer.slice()); };
     (async () => {

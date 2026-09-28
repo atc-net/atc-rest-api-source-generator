@@ -4,7 +4,7 @@ import type { Item, ItemLogs, Items, PaginationResult } from '../models';
 import type { ApiError, ValidationError } from '../errors';
 
 export type ListItemPagesPageResult =
-  | { status: 'ok'; data: PaginationResult<Item>; response: Response }
+  | { status: 'ok'; data: (PaginationResult & { items?: Item[] }); response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
@@ -43,8 +43,8 @@ export class ItemsClient {
   }
 
   /** Stream paginated items (async-enumerable with PaginationResult) */
-  async *listItemPages(query?: { pageSize?: number }, signal?: AbortSignal): AsyncGenerator<PaginationResult<Item>> {
-    yield* this.api.requestStream<PaginationResult<Item>>('GET', '/items/pages', {
+  async *listItemPages(query?: { pageSize?: number }, signal?: AbortSignal): AsyncGenerator<(PaginationResult & { items?: Item[] })> {
+    yield* this.api.requestStream<(PaginationResult & { items?: Item[] })>('GET', '/items/pages', {
       query: {
         pageSize: query?.pageSize,
       },
@@ -54,7 +54,7 @@ export class ItemsClient {
   /** Stream paginated items (async-enumerable with PaginationResult) */
 
   async listItemPagesPage(query?: { pageSize?: number }, headers?: { 'x-continuation'?: string }): Promise<ListItemPagesPageResult> {
-    return this.api.request<PaginationResult<Item>>('GET', '/items/pages', {
+    return this.api.request<(PaginationResult & { items?: Item[] })>('GET', '/items/pages', {
       query: {
         pageSize: query?.pageSize,
       },

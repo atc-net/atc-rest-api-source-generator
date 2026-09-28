@@ -1011,7 +1011,9 @@ public class TypeScriptReactQueryHookExtractorTests
         Assert.Contains("async listItemPagesPage(", content, StringComparison.Ordinal);
         Assert.Contains("'x-continuation'?: string", content, StringComparison.Ordinal);
         Assert.Contains("Promise<ListItemPagesPageResult>", content, StringComparison.Ordinal);
-        Assert.Contains("data: PaginationResult<Item>", content, StringComparison.Ordinal);
+
+        // PaginationResult is not a generic pagination base (no untyped array), so the allOf is an intersection.
+        Assert.Contains("data: (PaginationResult & { items?: Item[] })", content, StringComparison.Ordinal);
     }
 
     [Fact]

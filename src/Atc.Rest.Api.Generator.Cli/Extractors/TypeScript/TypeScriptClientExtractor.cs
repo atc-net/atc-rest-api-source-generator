@@ -254,6 +254,15 @@ public static class TypeScriptClientExtractor
         {
             foreach (var (_, _, operation) in operations)
             {
+                // Mirror the emission condition in AppendStandardMethod: streams and file / text
+                // downloads carry no parseSchema, so importing a schema for them leaves it unused.
+                if (operation.IsStreamingResponse() ||
+                    operation.HasFileDownload() ||
+                    operation.HasTextResponse())
+                {
+                    continue;
+                }
+
                 var spec = TypeScriptOperationHelper.TryGetResponseZodSchemaSpec(operation);
                 if (spec is null)
                 {

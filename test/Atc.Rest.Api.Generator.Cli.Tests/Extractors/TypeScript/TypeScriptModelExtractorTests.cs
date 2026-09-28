@@ -42,6 +42,51 @@ public class TypeScriptModelExtractorTests
     }
 
     [Fact]
+    public void Extract_AllOfWithoutType_ExtendsTheReferencesAndKeepsTheInlineProperties()
+    {
+        // Composition usually leaves `type` out; such a schema is still a model, the $ref members are
+        // extended and the inline members' properties (and required names) belong to it.
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info:
+              title: Test
+              version: 1.0.0
+            paths: {}
+            components:
+              schemas:
+                Entity:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                Audited:
+                  type: object
+                  properties:
+                    createdBy:
+                      type: string
+                Person:
+                  allOf:
+                    - $ref: '#/components/schemas/Entity'
+                    - $ref: '#/components/schemas/Audited'
+                    - type: object
+                      required:
+                        - email
+                      properties:
+                        email:
+                          type: string
+                        age:
+                          type: integer
+            """);
+
+        var results = TypeScriptModelExtractor.Extract(document, new TypeScriptClientConfig());
+
+        var (_, person) = Assert.Single(results, r => r.Name == "Person");
+        Assert.Equal("Entity, Audited", person.ExtendsTypeName);
+        Assert.False(person.Properties!.Single(p => p.Name == "email").IsOptional);
+        Assert.True(person.Properties!.Single(p => p.Name == "age").IsOptional);
+    }
+
+    [Fact]
     public void Extract_RegularArrayProperty_DoesNotGenerateGeneric()
     {
         // Arrange
@@ -337,6 +382,31 @@ public class TypeScriptModelExtractorTests
 
         Assert.Contains("User", writable);
         Assert.DoesNotContain("Address", writable);
+    }
+
+    [Fact]
+    public void Extract_BrandedIdsOnAWritableVariant_BrandAfterTheEntity()
+    {
+        // The Writable request variant (readOnly/writeOnly split) must use the entity's brand
+        // (UserId) - the BrandedIds file never declares UserWritableId.
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                User:
+                  type: object
+                  properties:
+                    id: { type: string, format: uuid }
+                    managerId: { type: string, format: uuid }
+                    password: { type: string, writeOnly: true }
+            """);
+
+        var results = TypeScriptModelExtractor.Extract(document, new TypeScriptClientConfig { BrandedIds = true });
+
+        var (_, writable) = Assert.Single(results, r => r.Name == "UserWritable");
+        Assert.Equal("UserId", writable.Properties!.Single(p => p.Name == "id").TypeAnnotation);
     }
 
     [Fact]

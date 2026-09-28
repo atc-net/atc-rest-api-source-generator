@@ -2,10 +2,12 @@
 export type * from './Address';
 export type * from './Animal';
 export type * from './ArrayTypes';
+export type * from './Cat';
 export type * from './ComprehensiveModel';
 export type * from './Country';
 export type * from './DefaultValues';
 export type * from './DictionaryTypes';
+export type * from './Dog';
 export type * from './EnumTypes';
 export type * from './NullableTypes';
 export type * from './Person';

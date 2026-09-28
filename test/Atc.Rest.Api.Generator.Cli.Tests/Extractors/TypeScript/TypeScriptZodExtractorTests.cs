@@ -3,6 +3,17 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Extractors.TypeScript;
 public class TypeScriptZodExtractorTests
 {
     // ============ TypeScriptZodEnumExtractor ============
+    [Theory]
+    [InlineData(@"^\d{2}/\d{2}$", @"^\d{2}\/\d{2}$")]
+    [InlineData(@"^a\/b$", @"^a\/b$")]
+    [InlineData(@"^[/]+$", @"^[\/]+$")]
+    [InlineData("^\\\\/$", "^\\\\\\/$")]
+    [InlineData(@"^[A-Z]{3}$", @"^[A-Z]{3}$")]
+    public void ToRegexLiteralBody_EscapesWhatWouldEndTheLiteral(
+        string pattern,
+        string expected)
+        => Assert.Equal(expected, TypeScriptZodModelExtractor.ToRegexLiteralBody(pattern));
+
     [Fact]
     public void ZodEnum_NullDocument_Throws()
     {
@@ -72,6 +83,61 @@ public class TypeScriptZodExtractorTests
     }
 
     // ============ TypeScriptZodModelExtractor ============
+    [Fact]
+    public void ZodModel_AllOfWithoutType_ExtendsEveryBaseAndKeepsTheInlineProperties()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Entity: { type: object, properties: { id: { type: string } } }
+                                Audited: { type: object, properties: { createdBy: { type: string } } }
+                                Person:
+                                  allOf:
+                                    - $ref: '#/components/schemas/Entity'
+                                    - $ref: '#/components/schemas/Audited'
+                                    - type: object
+                                      required: [email]
+                                      properties:
+                                        email: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig()), r => r.Name == "Person");
+
+        Assert.Contains("export const PersonSchema = EntitySchema.extend(AuditedSchema.shape).extend({", content, StringComparison.Ordinal);
+        Assert.Contains("  email: z.string(),", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ZodUnion_OneOfOfReferences_IsAZodUnionOfTheirSchemas()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Card: { type: object, properties: { number: { type: string } } }
+                                Wallet: { type: object, properties: { address: { type: string } } }
+                                Payment:
+                                  oneOf:
+                                    - $ref: '#/components/schemas/Card'
+                                    - $ref: '#/components/schemas/Wallet'
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (name, content) = Assert.Single(TypeScriptZodModelExtractor.ExtractUnionTypeAliases(doc, new TypeScriptClientConfig()));
+
+        Assert.Equal("Payment", name);
+        Assert.Contains("import { CardSchema } from './Card.zod';", content, StringComparison.Ordinal);
+        Assert.Contains("export const PaymentSchema = z.union([CardSchema, WalletSchema]);", content, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ZodModel_NullDocument_Throws()
     {

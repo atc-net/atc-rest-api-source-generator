@@ -277,6 +277,60 @@ public class TypeScriptTypeMapperTests
         Assert.Equal("DeviceSettings", result);
     }
 
+    [Theory]
+    [InlineData("PagedBase", "PagedBase<Item>")]
+    [InlineData("PlainBase", "(PlainBase & { items?: Item[] })")]
+    public void ToTypeScriptReturnType_AllOfBasePlusItems_IsGenericOnlyForAGenericPaginationBase(
+        string baseSchema,
+        string expected)
+    {
+        // A base with an untyped array (`items: {}`) is emitted as Base<T>, so Base<Item> fits; any
+        // other base is not generic, and the allOf is the intersection of its members.
+        var doc = ParseYaml($$"""
+                              openapi: 3.0.0
+                              info:
+                                title: T
+                                version: 1.0.0
+                              paths:
+                                /items:
+                                  get:
+                                    responses:
+                                      '200':
+                                        description: OK
+                                        content:
+                                          application/json:
+                                            schema:
+                                              allOf:
+                                                - $ref: '#/components/schemas/{{baseSchema}}'
+                                                - type: object
+                                                  properties:
+                                                    items:
+                                                      type: array
+                                                      items:
+                                                        $ref: '#/components/schemas/Item'
+                              components:
+                                schemas:
+                                  Item:
+                                    type: object
+                                  PagedBase:
+                                    type: object
+                                    properties:
+                                      results:
+                                        type: array
+                                        items: {}
+                                  PlainBase:
+                                    type: object
+                                    properties:
+                                      continuationToken:
+                                        type: string
+                              """);
+        Assert.NotNull(doc);
+
+        var schema = doc.Paths["/items"].Operations![HttpMethod.Get].Responses!["200"].Content!["application/json"].Schema!;
+
+        Assert.Equal(expected, schema.ToTypeScriptReturnType());
+    }
+
     [Fact]
     public void ToTypeScriptTypeForModel_OneOfRefPlusNullBranch_IsNullableRefType()
     {
