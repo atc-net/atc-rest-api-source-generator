@@ -52,6 +52,7 @@ public class RuleCoverageTests
         ["ATC_API_MPT008"] = "BaseFileNotFound - Requires file system access, integration test needed",
         ["ATC_API_MPT009"] = "DuplicateParameterInPart - Tested in Atc.Rest.Api.Generator.Tests.SpecificationServiceTests",
         ["ATC_API_MPT010"] = "NonIdenticalMergeConflict - Tested in Atc.Rest.Api.Generator.Tests.SpecificationServiceTests",
+        ["ATC_API_MPT011"] = "SplitPathSpansGroups - Tested in Atc.Rest.Api.Generator.Tests.SpecificationServiceTests",
 
         // ========== Rules tested in Atc.Rest.Api.Generator.Tests ==========
         // These rules have tests but in a separate test project

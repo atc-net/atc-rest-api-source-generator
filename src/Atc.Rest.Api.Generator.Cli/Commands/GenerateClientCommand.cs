@@ -86,6 +86,25 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 parsedDocument = validationResult.Document;
                 validationDiagnostics = validationResult.Diagnostics;
 
+                // A multi-part specification ({Base}_{Part}.yaml): the parts' operations, schemas and retry
+                // settings count too (e.g. for the resilience package and the statistics).
+                var (merge, merged) = SpecificationService.ReadAndMergeResolved(specPath);
+                if (!merge.IsSuccess)
+                {
+                    foreach (var diagnostic in merge.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+                    {
+                        var location = diagnostic.FilePath is null ? string.Empty : " (" + Path.GetFileName(diagnostic.FilePath) + ")";
+                        AnsiConsole.MarkupLine($"  [red][[{diagnostic.RuleId}]] {Markup.Escape(diagnostic.Message + location)}[/]");
+                    }
+
+                    return 1;
+                }
+
+                if (merge.IsMultiPart && merged?.Document is not null)
+                {
+                    parsedDocument = merged.Document;
+                }
+
                 // Resolve resilience package if spec has retry configuration
                 Version? resilienceVersion = null;
                 if (parsedDocument is not null && parsedDocument.HasRetryConfiguration())
@@ -447,6 +466,8 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
               <PropertyGroup>
                 <OutputType>Library</OutputType>
                 <TargetFramework>{TargetFrameworkResult.RequiredTargetFramework}</TargetFramework>
+                <ImplicitUsings>enable</ImplicitUsings>
+                <Nullable>enable</Nullable>
               </PropertyGroup>
 
               <ItemGroup>
@@ -464,15 +485,18 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
     }
 
     /// <summary>
-    /// The start of the line holding the last <c>&lt;/ItemGroup&gt;</c> - inserting there keeps a new entry at
-    /// the entries' indentation (inserting at the tag itself added the tag's indentation in front of it).
-    /// Returns -1 when there is no <c>&lt;/ItemGroup&gt;</c>.
+    /// The start of the line holding the <c>&lt;/ItemGroup&gt;</c> of the item group with the <c>AdditionalFiles</c>
+    /// entries - inserting there keeps a new entry in that group, at the entries' indentation. Returns -1 when
+    /// there is no such group.
     /// </summary>
-    private static int ItemGroupEndLineStart(string content)
+    private static int AdditionalFilesGroupEndLineStart(string content)
     {
-        var tagPosition = content.LastIndexOf("</ItemGroup>", StringComparison.OrdinalIgnoreCase);
+        var entryPosition = content.LastIndexOf("<AdditionalFiles", StringComparison.OrdinalIgnoreCase);
+        var tagPosition = entryPosition < 0
+            ? -1
+            : content.IndexOf("</ItemGroup>", entryPosition, StringComparison.OrdinalIgnoreCase);
         return tagPosition <= 0
-            ? tagPosition
+            ? -1
             : content.LastIndexOf('\n', tagPosition) + 1;
     }
 
@@ -482,6 +506,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
     {
         var content = File.ReadAllText(csprojPath);
         var originalContent = content;
+        var newLine = content.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
 
         // Check if AdditionalFiles entries exist
         var hasYamlInclude = content.Contains($"Include=\"{specFileName}\"", StringComparison.OrdinalIgnoreCase);
@@ -498,22 +523,20 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             // Find the AdditionalFiles ItemGroup and add missing entries
             if (!hasYamlInclude)
             {
-                var insertPosition = ItemGroupEndLineStart(content);
-                var additionalFilesPosition = content.LastIndexOf("<AdditionalFiles", insertPosition, StringComparison.OrdinalIgnoreCase);
-                if (insertPosition >= 0 && additionalFilesPosition >= 0)
+                var insertPosition = AdditionalFilesGroupEndLineStart(content);
+                if (insertPosition >= 0)
                 {
-                    var yamlEntry = $"    <AdditionalFiles Include=\"{specFileName}\" />\n";
+                    var yamlEntry = $"    <AdditionalFiles Include=\"{specFileName}\" />{newLine}";
                     content = content.Insert(insertPosition, yamlEntry);
                 }
             }
 
             if (!hasMarkerInclude)
             {
-                var insertPosition = ItemGroupEndLineStart(content);
-                var additionalFilesPosition = content.LastIndexOf("<AdditionalFiles", insertPosition, StringComparison.OrdinalIgnoreCase);
-                if (insertPosition >= 0 && additionalFilesPosition >= 0)
+                var insertPosition = AdditionalFilesGroupEndLineStart(content);
+                if (insertPosition >= 0)
                 {
-                    var markerEntry = $"    <AdditionalFiles Include=\"{Constants.MarkerFile.Client}\" />\n";
+                    var markerEntry = $"    <AdditionalFiles Include=\"{Constants.MarkerFile.Client}\" />{newLine}";
                     content = content.Insert(insertPosition, markerEntry);
                 }
             }
@@ -532,7 +555,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                   </ItemGroup>
 
                 """;
-                content = content.Insert(insertPosition, newItemGroup);
+                content = content.Insert(insertPosition, newItemGroup.ReplaceLineEndings(newLine));
             }
         }
 

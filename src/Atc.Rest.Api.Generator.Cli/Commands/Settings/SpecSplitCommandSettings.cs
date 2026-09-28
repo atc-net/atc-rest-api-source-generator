@@ -20,25 +20,31 @@ public sealed class SpecSplitCommandSettings : CommandSettings
     [DefaultValue("ByTag")]
     public string Strategy { get; init; } = "ByTag";
 
-    [CommandOption("--pattern <PATTERN>")]
-    [Description("File naming pattern. Default: {base}_{part}.yaml")]
-    [DefaultValue("{base}_{part}.yaml")]
-    public string Pattern { get; init; } = "{base}_{part}.yaml";
-
     [CommandOption("--preview")]
     [Description("Preview split without writing files.")]
     [DefaultValue(false)]
     public bool Preview { get; init; }
 
     [CommandOption("--extract-common")]
-    [Description("Extract shared schemas to a Common file.")]
+    [Description("Extract schemas shared by several parts to a {base}_Common.yaml file (default).")]
     [DefaultValue(true)]
     public bool ExtractCommon { get; init; } = true;
+
+    [CommandOption("--no-extract-common")]
+    [Description("Keep schemas shared by several parts in the base file instead of a Common file.")]
+    [DefaultValue(false)]
+    public bool NoExtractCommon { get; init; }
 
     [CommandOption("--min-operations <N>")]
     [Description("Minimum operations per part file (smaller groups merged into Other).")]
     [DefaultValue(2)]
     public int MinOperations { get; init; } = 2;
+
+    /// <summary>
+    /// Gets whether shared schemas go to a Common file.
+    /// </summary>
+    public bool ShouldExtractCommon
+        => ExtractCommon && !NoExtractCommon;
 
     public override ValidationResult Validate()
     {

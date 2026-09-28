@@ -52,7 +52,8 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
 
         AnsiConsole.MarkupLine($"[blue]Source file:[/] {Path.GetFileName(specPath)}");
         AnsiConsole.MarkupLine($"[blue]Split strategy:[/] {settings.Strategy}");
-        AnsiConsole.MarkupLine($"[blue]Extract common:[/] {(settings.ExtractCommon ? "Yes" : "No")}");
+        AnsiConsole.MarkupLine($"[blue]Extract common:[/] {(settings.ShouldExtractCommon ? "Yes" : "No")}");
+        AnsiConsole.MarkupLine($"[blue]Min operations per part:[/] {settings.MinOperations.ToString(CultureInfo.InvariantCulture)}");
         AnsiConsole.WriteLine();
 
         // Split the specification
@@ -62,7 +63,8 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
             spec.Document,
             baseName,
             settings.GetSplitStrategyEnum(),
-            settings.ExtractCommon);
+            settings.ShouldExtractCommon,
+            settings.MinOperations);
 
         // Report diagnostics
         var errors = splitResult.Diagnostics

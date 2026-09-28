@@ -1495,4 +1495,343 @@ public class SpecificationServiceTests
             Directory.Delete(directory, recursive: true);
         }
     }
+
+    [Fact]
+    public void ReadAndMergeResolved_OpenApi32Parts_KeepTheVersionQueryOperationsAndWebhooks()
+    {
+        // The merged document is read again from YAML: written as 3.0, a 3.2 document lost its query:
+        // operations (and 3.1 type arrays became nullable), so the TypeScript client missed them silently.
+        var directory = Path.Combine(Path.GetTempPath(), "atc-merge-resolved", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var basePath = Path.Combine(directory, "Shop.yaml");
+            File.WriteAllText(basePath, """
+                openapi: 3.2.0
+                info:
+                  title: Shop
+                  version: 1.0.0
+                paths: {}
+                webhooks:
+                  orderShipped:
+                    post:
+                      operationId: onOrderShipped
+                      responses:
+                        '200':
+                          description: OK
+                components:
+                  schemas:
+                    Pet:
+                      type: object
+                      properties:
+                        name:
+                          type: [string, 'null']
+                """);
+            File.WriteAllText(Path.Combine(directory, "Shop_Pets.yaml"), """
+                openapi: 3.2.0
+                info:
+                  title: Shop - Pets
+                  version: 1.0.0
+                paths:
+                  /pets/search:
+                    query:
+                      operationId: searchPets
+                      requestBody:
+                        content:
+                          application/json:
+                            schema:
+                              type: object
+                      responses:
+                        '200':
+                          description: OK
+                          content:
+                            application/json:
+                              schema:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Pet'
+                """);
+
+            var (merge, specification) = SpecificationService.ReadAndMergeResolved(basePath);
+
+            Assert.True(merge.IsMultiPart);
+            var document = specification?.Document;
+            Assert.NotNull(document);
+            Assert.Equal(OpenApiSpecVersion.OpenApi3_2, document.GetOpenApiSpecVersion());
+            Assert.Contains(document.GetAllOperations(), o => o.Operation.OperationId == "searchPets");
+            Assert.NotNull(document.Webhooks?["orderShipped"]);
+            Assert.True(document.Components!.Schemas!["Pet"].Properties!["name"].Type!.Value.HasFlag(JsonSchemaType.Null));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// <c>spec split</c> followed by the merge the build does gives back the document it split - for every
+    /// scenario specification, every strategy, with and without a common file: every path and operation, every
+    /// component, webhook, tag, security requirement and extension, in the specification's own OpenAPI version.
+    /// </summary>
+    [Fact]
+    public void Split_ThenMerge_GivesBackTheSameDocument_ForEveryScenario()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var specifications = Directory
+            .GetDirectories(Path.Combine(repositoryRoot, "test", "Scenarios"))
+            .Concat(Directory.GetDirectories(Path.Combine(repositoryRoot, "sample")))
+            .SelectMany(d => Directory.GetFiles(d, "*.yaml", SearchOption.AllDirectories))
+            .Where(f => !f.Contains("node_modules", StringComparison.Ordinal) &&
+                        !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal) &&
+                        !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Where(IsSingleFileSpecification)
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
+        Assert.NotEmpty(specifications);
+
+        var failures = new List<string>();
+        var checkedSpecifications = new List<string>();
+        var root = Path.Combine(Path.GetTempPath(), "atc-split-roundtrip", Guid.NewGuid().ToString("N"));
+        try
+        {
+            foreach (var specification in specifications)
+            {
+                var original = SpecificationService.ReadSingle(specification).Document;
+                if (original?.Info is null)
+                {
+                    // Not an OpenAPI document (e.g. a docker-compose or CI file under sample/).
+                    continue;
+                }
+
+                checkedSpecifications.Add(Path.GetFileName(specification));
+
+                var expected = NormalizedJson(SpecificationService.SerializeToJson(original));
+                var baseName = Path.GetFileNameWithoutExtension(specification);
+
+                foreach (var strategy in (SplitStrategy[])[SplitStrategy.ByTag, SplitStrategy.ByPathSegment, SplitStrategy.ByDomain])
+                {
+                    foreach (var (extractCommon, minOperations) in ((bool, int)[])[(true, 1), (false, 1), (true, 3)])
+                    {
+                        var label = $"{baseName} {strategy} extractCommon={extractCommon} minOperations={minOperations}";
+                        var result = SpecificationService.Split(SpecificationService.ReadSingle(specification).Document!, baseName, strategy, extractCommon, minOperations);
+                        var directory = Path.Combine(root, $"{checkedSpecifications.Count}-{baseName}-{strategy}-{extractCommon}-{minOperations}");
+                        Directory.CreateDirectory(directory);
+                        foreach (var file in result.AllFiles)
+                        {
+                            File.WriteAllText(Path.Combine(directory, file.FileName), file.Content);
+                        }
+
+                        var merge = SpecificationService.ReadAndMerge(Path.Combine(directory, baseName + ".yaml"));
+                        if (!merge.IsSuccess || merge.Document is null)
+                        {
+                            failures.Add($"{label}: merge failed - {string.Join("; ", merge.Diagnostics.Select(d => d.Message))}");
+                            continue;
+                        }
+
+                        var unexpected = merge.Diagnostics
+                            .Where(d => d.Severity != DiagnosticSeverity.Info)
+                            .Select(d => d.Message)
+                            .ToList();
+                        if (unexpected.Count > 0)
+                        {
+                            failures.Add($"{label}: merge diagnostics - {string.Join("; ", unexpected)}");
+                        }
+
+                        var actual = NormalizedJson(SpecificationService.SerializeToJson(merge.Document));
+                        var difference = FirstDifference(expected, actual, "$");
+                        if (difference is not null)
+                        {
+                            failures.Add($"{label}: {difference}");
+                        }
+                    }
+                }
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+
+        Assert.Contains("Showcase.yaml", checkedSpecifications, StringComparer.Ordinal);
+        Assert.Contains("PetStoreFull.yaml", checkedSpecifications, StringComparer.Ordinal);
+        Assert.True(failures.Count == 0, $"{failures.Count} split round trips differ:\n" + string.Join("\n", failures));
+    }
+
+    [Fact]
+    public void Split_PathWithOperationsOfSeveralTags_StaysWholeInOnePart()
+    {
+        const string yaml = """
+                            openapi: 3.1.1
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  tags: [Pets]
+                                  responses:
+                                    '200':
+                                      description: OK
+                                post:
+                                  operationId: createPet
+                                  tags: [Admin]
+                                  responses:
+                                    '201':
+                                      description: Created
+                                delete:
+                                  operationId: deletePets
+                                  tags: [Admin]
+                                  responses:
+                                    '204':
+                                      description: Deleted
+                            """;
+        var doc = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var result = SpecificationService.Split(doc, "Shop", SplitStrategy.ByTag, extractCommon: false);
+
+        var part = Assert.Single(result.PartFiles);
+        Assert.Equal("Admin", part.PartName);
+        Assert.Contains("listPets", part.Content, StringComparison.Ordinal);
+        Assert.Contains("createPet", part.Content, StringComparison.Ordinal);
+        Assert.Contains("deletePets", part.Content, StringComparison.Ordinal);
+        var warning = Assert.Single(result.Diagnostics, d => d.RuleId == RuleIdentifiers.SplitPathSpansGroups);
+        Assert.Contains("'/pets'", warning.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Split_MinOperations_PutsSmallGroupsTogetherInOther()
+    {
+        const string yaml = """
+                            openapi: 3.1.1
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                post:
+                                  operationId: createPet
+                                  responses:
+                                    '201':
+                                      description: Created
+                              /health:
+                                get:
+                                  operationId: getHealth
+                                  responses:
+                                    '200':
+                                      description: OK
+                              /version:
+                                get:
+                                  operationId: getVersion
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+        var doc = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var result = SpecificationService.Split(doc, "Shop", SplitStrategy.ByPathSegment, extractCommon: false, minOperations: 2);
+
+        Assert.Equal(["Other", "Pets"], result.PartFiles.Select(p => p.PartName!), StringComparer.Ordinal);
+        var other = result.PartFiles.Single(p => p.PartName == "Other");
+        Assert.Contains("getHealth", other.Content, StringComparison.Ordinal);
+        Assert.Contains("getVersion", other.Content, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A specification that is neither a part file (<c>{Base}_{Part}.yaml</c> next to <c>{Base}.yaml</c>) nor the
+    /// base of part files.
+    /// </summary>
+    private static bool IsSingleFileSpecification(string filePath)
+    {
+        var directory = Path.GetDirectoryName(filePath)!;
+        var name = Path.GetFileNameWithoutExtension(filePath);
+        var separator = name.IndexOf('_', StringComparison.Ordinal);
+        var isPart = separator > 0 && File.Exists(Path.Combine(directory, name[..separator] + ".yaml"));
+        var hasParts = Directory.GetFiles(directory, name + "_*.yaml").Length > 0;
+        return !isPart && !hasParts;
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "test", "Scenarios")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new DirectoryNotFoundException("test/Scenarios not found above " + AppContext.BaseDirectory);
+    }
+
+    private static JsonNode? NormalizedJson(string json)
+        => Sort(JsonNode.Parse(json));
+
+    private static JsonNode? Sort(JsonNode? node)
+        => node switch
+        {
+            JsonObject obj => new JsonObject(obj
+                .OrderBy(p => p.Key, StringComparer.Ordinal)
+                .Select(p => KeyValuePair.Create(p.Key, Sort(p.Value)))),
+            JsonArray array => new JsonArray(array.Select(Sort).ToArray()),
+            null => null,
+            _ => node.DeepClone(),
+        };
+
+    private static string? FirstDifference(
+        JsonNode? expected,
+        JsonNode? actual,
+        string path)
+    {
+        switch (expected, actual)
+        {
+            case (JsonObject e, JsonObject a):
+                foreach (var key in e.Select(p => p.Key).Union(a.Select(p => p.Key), StringComparer.Ordinal))
+                {
+                    if (!e.ContainsKey(key))
+                    {
+                        return $"{path}.{key} was added";
+                    }
+
+                    if (!a.ContainsKey(key))
+                    {
+                        return $"{path}.{key} was lost";
+                    }
+
+                    var difference = FirstDifference(e[key], a[key], $"{path}.{key}");
+                    if (difference is not null)
+                    {
+                        return difference;
+                    }
+                }
+
+                return null;
+            case (JsonArray e, JsonArray a):
+                if (e.Count != a.Count)
+                {
+                    return $"{path} has {a.Count} items, expected {e.Count}";
+                }
+
+                for (var i = 0; i < e.Count; i++)
+                {
+                    var difference = FirstDifference(e[i], a[i], $"{path}[{i}]");
+                    if (difference is not null)
+                    {
+                        return difference;
+                    }
+                }
+
+                return null;
+            default:
+                return JsonNode.DeepEquals(expected, actual)
+                    ? null
+                    : $"{path} is {actual?.ToJsonString() ?? "null"}, expected {expected?.ToJsonString() ?? "null"}";
+        }
+    }
 }

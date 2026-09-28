@@ -385,15 +385,16 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
                 return (false, null);
             }
 
-            // Multi-part specifications ({Base}_{Part}.yaml next to the base file, or x-multipart):
-            // merge the parts exactly like the build does, so the client covers every part.
+            // Multi-part specifications ({Base}_{Part}.yaml next to the base file - as the build finds them - or an
+            // x-multipart list in the base file): merge the parts, so the client covers every part.
             var (merge, merged) = SpecificationService.ReadAndMergeResolved(specPath);
             if (merged?.Document is null)
             {
                 AnsiConsole.MarkupLine("[red]✗[/] Failed to merge the multi-part specification:");
                 foreach (var diagnostic in merge.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
                 {
-                    AnsiConsole.MarkupLine($"  [red][[{diagnostic.RuleId}]] {Markup.Escape(diagnostic.Message)}[/]");
+                    var location = diagnostic.FilePath is null ? string.Empty : " (" + Path.GetFileName(diagnostic.FilePath) + ")";
+                    AnsiConsole.MarkupLine($"  [red][[{diagnostic.RuleId}]] {Markup.Escape(diagnostic.Message + location)}[/]");
                 }
 
                 return (false, null);

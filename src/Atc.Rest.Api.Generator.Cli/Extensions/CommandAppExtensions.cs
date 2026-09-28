@@ -106,15 +106,16 @@ public static class CommandAppExtensions
             node
                 .AddCommand<MigrateValidateCommand>("validate")
                 .WithDescription("Validate an old-generated API project for migration to source generators.")
-                .WithExample("migrate", "validate", "-s", "D:\\Code\\MyProject", "-p", "specs\\api.yaml")
-                .WithExample("migrate", "validate", "-s", "D:\\Code\\MyProject", "-p", "specs\\api.yaml", "--verbose")
-                .WithExample("migrate", "validate", "-s", "D:\\Code\\MyProject", "-p", "specs\\api.yaml", "--output-report", "report.json");
+                .WithExample("migrate", "validate", "-s", "specs\\api.yaml")
+                .WithExample("migrate", "validate", "-s", "specs\\api.yaml", "--solution", "D:\\Code\\MyProject")
+                .WithExample("migrate", "validate", "-s", "specs\\api.yaml", "--verbose")
+                .WithExample("migrate", "validate", "-s", "specs\\api.yaml", "--output-report", "report.json");
 
             node
                 .AddCommand<MigrateExecuteCommand>("execute")
                 .WithDescription("Execute migration from old CLI-generated API to source generators.")
-                .WithExample("migrate", "execute", "-s", "D:\\Code\\MyProject", "-p", "specs\\api.yaml")
-                .WithExample("migrate", "execute", "-s", "D:\\Code\\MyProject", "-p", "specs\\api.yaml", "--dry-run")
-                .WithExample("migrate", "execute", "-s", "D:\\Code\\MyProject", "-p", "specs\\api.yaml", "--force");
+                .WithExample("migrate", "execute", "-s", "specs\\api.yaml")
+                .WithExample("migrate", "execute", "-s", "specs\\api.yaml", "--dry-run")
+                .WithExample("migrate", "execute", "-s", "specs\\api.yaml", "--force");
         };
 }

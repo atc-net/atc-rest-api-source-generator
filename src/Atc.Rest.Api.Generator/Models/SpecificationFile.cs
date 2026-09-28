@@ -141,6 +141,18 @@ public sealed class SpecificationFile
     }
 
     /// <summary>
+    /// Creates a SpecificationFile for an already parsed (e.g. merged) document.
+    /// </summary>
+    /// <param name="filePath">The file path the document stands for.</param>
+    /// <param name="content">The document's YAML.</param>
+    /// <param name="document">The document.</param>
+    public static SpecificationFile FromDocument(
+        string filePath,
+        string content,
+        OpenApiDocument document)
+        => new(filePath, content, document, isBaseFile: true, isPartFile: false, partName: null);
+
+    /// <summary>
     /// Creates an empty SpecificationFile for error cases.
     /// </summary>
     public static SpecificationFile Empty(string filePath)

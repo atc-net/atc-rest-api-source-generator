@@ -163,10 +163,10 @@ public sealed class SpecMergeCommandTests : IDisposable
             arguments,
             cancellationToken: TestContext.Current.CancellationToken);
 
-        // Assert - The --validate flag causes validation to run after merge.
-        // The MultiParts scenario may have validation issues, so we just verify
-        // the validation step was attempted (not that it passes).
+        // Assert - The --validate flag validates the merged document and prints the outcome.
+        // (The "Validating merged specification..." spinner status is transient: it only
+        // reaches the output when a refresh happens while validation runs.)
         var cleanOutput = CliTestHelper.StripAnsiCodes(output);
-        Assert.Contains("Validating merged specification", cleanOutput, StringComparison.Ordinal);
+        Assert.Contains("Merged specification is valid", cleanOutput, StringComparison.Ordinal);
     }
 }

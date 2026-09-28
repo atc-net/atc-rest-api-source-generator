@@ -662,6 +662,11 @@ public static class RuleIdentifiers
     /// </summary>
     public const string NonIdenticalMergeConflict = "ATC_API_MPT010";
 
+    /// <summary>
+    /// ATC_API_MPT011: A path's operations belong to more than one split group; the path is kept whole in one part.
+    /// </summary>
+    public const string SplitPathSpansGroups = "ATC_API_MPT011";
+
     // ========== Client Rules (CLT) ==========
 
     /// <summary>
