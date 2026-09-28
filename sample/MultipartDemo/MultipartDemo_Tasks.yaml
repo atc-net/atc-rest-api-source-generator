@@ -1,9 +1,4 @@
-openapi: 3.1.1
-info:
-  title: MultipartDemo API - Tasks
-  version: 1.0.0
-  description: Task management endpoints
-
+openapi: "3.1.0"
 paths:
   /tasks:
     get:
@@ -45,7 +40,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Task"
-
+        '409':
+          description: Task conflict
   /tasks/{taskId}:
     get:
       summary: Get a specific task
@@ -112,39 +108,3 @@ paths:
                 $ref: "#/components/schemas/Task"
         '404':
           description: Task not found
-
-components:
-  schemas:
-    Task:
-      type: object
-      required:
-        - id
-        - name
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-          minLength: 1
-          maxLength: 200
-        description:
-          type: string
-          maxLength: 1000
-        isCompleted:
-          type: boolean
-          default: false
-        dueDate:
-          type: string
-          format: date-time
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-
-    Tasks:
-      type: array
-      items:
-        $ref: "#/components/schemas/Task"

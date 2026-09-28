@@ -17,7 +17,7 @@ specs/*.ts             Test specs (each runs once per project automatically)
 playwright.config.ts   Three projects (blazor/react-fetch/react-axios) with different baseURLs
 ```
 
-Both MudBlazor and MUI render semantic HTML, so role-based selectors (`getByRole`, `getByText`) work across all apps. Only the navigation page object branches on `appType` since Blazor renders nav links and React renders nav buttons. The two React projects share identical page logic; only the generated `src/api/` and `src/api-swr/` differ (fetch vs axios). `specs/swr-tasks.spec.ts` covers the SWR hooks page and skips on Blazor. They share the same `appType: 'react'` so existing branching in page objects continues to work for both.
+Both MudBlazor and MUI render semantic HTML, so role-based selectors (`getByRole`, `getByText`) work across all apps. Only the navigation page object branches on `appType` since Blazor renders nav links and React renders nav buttons. The two React projects share identical page logic; only the generated `src/api/` and `src/api-swr/` differ (fetch vs axios). `specs/swr-tasks.spec.ts` (SWR hooks) and `specs/accounts-infinite.spec.ts` (React Query and SWR infinite hooks) cover React-only pages and skip on Blazor. They share the same `appType: 'react'` so existing branching in page objects continues to work for both.
 
 ## Prerequisites
 

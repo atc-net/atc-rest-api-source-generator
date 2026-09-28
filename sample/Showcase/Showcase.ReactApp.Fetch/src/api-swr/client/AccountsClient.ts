@@ -55,7 +55,7 @@ export type UpdateAccountByIdResult =
   | { status: 'parseError'; error: Error; response: Response };
 
 export type ListPaginatedAccountsResult =
-  | { status: 'ok'; data: PaginatedResult<Accounts>; response: Response }
+  | { status: 'ok'; data: PaginatedResult<Account>; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
@@ -77,6 +77,7 @@ export class AccountsClient {
         limit: query?.limit,
       },
       retry: { policy: retryPolicies.accountsFast },
+      arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<ListAccountsResult>;
   }
 
@@ -85,6 +86,7 @@ export class AccountsClient {
     return this.api.request<Account>('POST', '/accounts', {
       body,
       retry: { policy: retryPolicies.accountsFast, enabled: false },
+      arms: ['created', 'conflict', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateAccountResult>;
   }
 
@@ -92,6 +94,7 @@ export class AccountsClient {
   async getAccountById(accountId: string): Promise<GetAccountByIdResult> {
     return this.api.request<Account>('GET', `/accounts/${accountId}`, {
       retry: { policy: retryPolicies.accountsFast },
+      arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetAccountByIdResult>;
   }
 
@@ -99,6 +102,7 @@ export class AccountsClient {
   async deleteAccountById(accountId: string): Promise<DeleteAccountByIdResult> {
     return this.api.request<void>('DELETE', `/accounts/${accountId}`, {
       retry: { policy: retryPolicies.accountsFast },
+      arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeleteAccountByIdResult>;
   }
 
@@ -107,18 +111,20 @@ export class AccountsClient {
     return this.api.request<Account>('PUT', `/accounts/${accountId}`, {
       body,
       retry: { policy: retryPolicies.accountsFast },
+      arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdateAccountByIdResult>;
   }
 
   /** List all accounts paginated */
   async listPaginatedAccounts(query?: { pageSize?: number /* default: 10 */; pageIndex?: number /* default: 0 */; queryString?: string; continuation?: string }): Promise<ListPaginatedAccountsResult> {
-    return this.api.request<PaginatedResult<Accounts>>('GET', '/accounts/paginated', {
+    return this.api.request<PaginatedResult<Account>>('GET', '/accounts/paginated', {
       query: {
         pageSize: query?.pageSize,
         pageIndex: query?.pageIndex,
         queryString: query?.queryString,
         continuation: query?.continuation,
       },
+      arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<ListPaginatedAccountsResult>;
   }
 

@@ -42,6 +42,7 @@ const navGroups: NavGroup[] = [
       { label: 'List Accounts', href: '/accounts', icon: <ListIcon /> },
       { label: 'Paginated', href: '/accounts/paginated', icon: <TableChartIcon /> },
       { label: 'Async Enumerable', href: '/accounts/async-enumerable', icon: <StreamIcon /> },
+      { label: 'Infinite Scroll', href: '/accounts/infinite', icon: <TableChartIcon /> },
     ],
   },
   {

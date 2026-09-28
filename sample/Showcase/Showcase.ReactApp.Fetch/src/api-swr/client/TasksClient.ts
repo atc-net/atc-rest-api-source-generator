@@ -66,6 +66,7 @@ export class TasksClient {
       query: {
         limit: query?.limit,
       },
+      arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<ListTasksResult>;
   }
 
@@ -73,23 +74,29 @@ export class TasksClient {
   async createTask(body: Task): Promise<CreateTaskResult> {
     return this.api.request<Task>('POST', '/tasks', {
       body,
+      arms: ['created', 'conflict', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateTaskResult>;
   }
 
   /** Get a specific task */
   async getTaskById(taskId: string): Promise<GetTaskByIdResult> {
-    return this.api.request<Task>('GET', `/tasks/${taskId}`) as Promise<GetTaskByIdResult>;
+    return this.api.request<Task>('GET', `/tasks/${taskId}`, {
+      arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetTaskByIdResult>;
   }
 
   /** Delete a specific task */
   async deleteTaskById(taskId: string): Promise<DeleteTaskByIdResult> {
-    return this.api.request<void>('DELETE', `/tasks/${taskId}`) as Promise<DeleteTaskByIdResult>;
+    return this.api.request<void>('DELETE', `/tasks/${taskId}`, {
+      arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<DeleteTaskByIdResult>;
   }
 
   /** Update a specific task */
   async updateTaskById(taskId: string, body: Task): Promise<UpdateTaskByIdResult> {
     return this.api.request<Task>('PUT', `/tasks/${taskId}`, {
       body,
+      arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdateTaskByIdResult>;
   }
 }

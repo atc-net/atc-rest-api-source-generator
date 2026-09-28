@@ -24,6 +24,8 @@ export interface RequestOptions {
   headers?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
   responseType?: 'json' | 'blob' | 'text';
+  /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */
+  arms?: readonly string[];
   /** Retry for this request (the generated client passes it for operations with their own x-retry-* settings). */
   retry?: RequestRetry;
 }
@@ -54,6 +56,33 @@ async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Arr
   } finally {
     reader.releaseLock();
   }
+}
+
+const httpErrorArms: readonly string[] = ['badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError'];
+const successArms = ['ok', 'created', 'accepted', 'noContent'] as const;
+
+/**
+ * Folds a result whose status the operation's union does not declare into one it does: an undeclared
+ * error status into clientError (4xx) or serverError (5xx), an undeclared success into the declared one.
+ */
+function fitToArms<T>(result: ApiResult<T>, arms: readonly string[] | undefined): ApiResult<T> {
+  if (!arms || arms.includes(result.status)) {
+    return result;
+  }
+
+  if (httpErrorArms.includes(result.status) && 'error' in result && result.error instanceof ApiError) {
+    const status = result.error.status >= 500 ? 'serverError' : 'clientError';
+    return { status, error: result.error, response: result.response } as ApiResult<T>;
+  }
+
+  const declared = successArms.find((arm) => arms.includes(arm));
+  if (declared === undefined || !(successArms as readonly string[]).includes(result.status)) {
+    return result;
+  }
+
+  return declared === 'noContent'
+    ? { status: 'noContent', response: result.response } as ApiResult<T>
+    : { status: declared, data: ('data' in result ? result.data : undefined) as T, response: result.response } as ApiResult<T>;
 }
 
 export class ApiClient {
@@ -113,7 +142,7 @@ export class ApiClient {
       response = await interceptor(response);
     }
 
-    return this.handleResponse<T>(response, options?.responseType);
+    return fitToArms(await this.handleResponse<T>(response, options?.responseType), options?.arms);
   }
 
   async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {

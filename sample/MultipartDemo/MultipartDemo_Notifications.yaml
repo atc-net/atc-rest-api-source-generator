@@ -1,9 +1,4 @@
-openapi: 3.1.1
-info:
-  title: MultipartDemo API - Notifications
-  version: 1.0.0
-  description: Notification subscription and streaming endpoints
-
+openapi: "3.1.0"
 paths:
   /notifications/subscriptions:
     get:
@@ -11,50 +6,50 @@ paths:
       operationId: listSubscriptions
       tags:
         - notifications
-      description: |
-        Returns all active notification subscriptions for the current user.
       responses:
         '200':
-          description: Array of subscriptions
+          description: List of active subscriptions
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Subscriptions"
+                $ref: '#/components/schemas/Subscriptions'
     post:
-      summary: Create a notification subscription
+      summary: Create a new subscription
       operationId: createSubscription
       tags:
         - notifications
       description: |
-        Creates a new subscription to receive notifications via callback URL or SignalR.
+        Subscribe to receive notifications for specific event types.
         For web clients, use the SignalR hub at /hubs/notifications instead of HTTP callbacks.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateSubscriptionRequest"
+              $ref: '#/components/schemas/CreateSubscriptionRequest'
       responses:
         '201':
-          description: Subscription created successfully
+          description: Subscription created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Subscription"
+                $ref: '#/components/schemas/Subscription'
         '400':
           description: Invalid subscription request
+        '409':
+          description: Subscription already exists for this topic
 
   /notifications/subscriptions/{subscriptionId}:
     parameters:
       - name: subscriptionId
         in: path
         required: true
-        description: The subscription ID
         schema:
           type: string
           format: uuid
+        description: The subscription ID
     get:
-      summary: Get subscription by ID
+      summary: Get subscription details
       operationId: getSubscriptionById
       tags:
         - notifications
@@ -64,7 +59,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Subscription"
+                $ref: '#/components/schemas/Subscription'
         '404':
           description: Subscription not found
     delete:
@@ -74,20 +69,20 @@ paths:
         - notifications
       responses:
         '204':
-          description: Subscription cancelled successfully
+          description: Subscription cancelled
         '404':
           description: Subscription not found
 
   /notifications/stream:
     get:
-      summary: Stream notifications
+      summary: Stream notifications in real-time
       operationId: listNotifications
       tags:
         - notifications
-      x-return-async-enumerable: true
       description: |
-        Streams notifications in real-time using Server-Sent Events.
-        Alternative to SignalR for simple polling clients.
+        Server-Sent Events (SSE) endpoint for real-time notifications.
+        Alternative to WebSocket/SignalR for simple notification streaming.
+      x-return-async-enumerable: true
       parameters:
         - name: topics
           in: query
@@ -95,109 +90,15 @@ paths:
           required: false
           schema:
             type: string
+            default: system,user,data
       responses:
         '200':
           description: Stream of notification events
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/NotificationEvents"
+                $ref: '#/components/schemas/NotificationEvents'
 
-components:
-  schemas:
-    Subscription:
-      type: object
-      required:
-        - id
-        - name
-        - topics
-        - isActive
-        - createdAt
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-          minLength: 1
-          maxLength: 100
-        topics:
-          type: array
-          items:
-            type: string
-          minItems: 1
-        callbackUrl:
-          type: string
-          format: uri
-        connectionId:
-          type: string
-        isActive:
-          type: boolean
-        createdAt:
-          type: string
-          format: date-time
-        expiresAt:
-          type: string
-          format: date-time
-        lastNotificationAt:
-          type: string
-          format: date-time
-
-    Subscriptions:
-      type: array
-      items:
-        $ref: "#/components/schemas/Subscription"
-
-    CreateSubscriptionRequest:
-      type: object
-      required:
-        - name
-        - topics
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 100
-        topics:
-          type: array
-          items:
-            type: string
-          minItems: 1
-        callbackUrl:
-          type: string
-          format: uri
-        expiresInMinutes:
-          type: integer
-          minimum: 1
-          maximum: 10080
-          default: 60
-
-    NotificationEvent:
-      type: object
-      required:
-        - id
-        - type
-        - severity
-        - timestamp
-        - message
-      properties:
-        id:
-          type: string
-          format: uuid
-        type:
-          $ref: 'MultipartDemo.yaml#/components/schemas/NotificationType'
-        severity:
-          $ref: 'MultipartDemo.yaml#/components/schemas/NotificationSeverity'
-        timestamp:
-          type: string
-          format: date-time
-        message:
-          type: string
-        payload:
-          type: string
-          description: Event payload as JSON string
-
-    NotificationEvents:
-      type: array
-      items:
-        $ref: "#/components/schemas/NotificationEvent"
+  # ============================================
+  # TESTING - Exception handling test endpoints
+  # ============================================

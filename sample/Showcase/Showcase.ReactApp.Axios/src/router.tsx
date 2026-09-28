@@ -4,6 +4,7 @@ import IndexPage from './pages/IndexPage';
 import AccountsPage from './pages/AccountsPage';
 import AccountsPaginatedPage from './pages/AccountsPaginatedPage';
 import AccountsStreamingPage from './pages/AccountsStreamingPage';
+import AccountsInfinitePage from './pages/AccountsInfinitePage';
 import TasksPage from './pages/TasksPage';
 import SwrTasksPage from './pages/SwrTasksPage';
 import UsersPage from './pages/UsersPage';
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
       { path: '/accounts', element: <AccountsPage /> },
       { path: '/accounts/paginated', element: <AccountsPaginatedPage /> },
       { path: '/accounts/async-enumerable', element: <AccountsStreamingPage /> },
+      { path: '/accounts/infinite', element: <AccountsInfinitePage /> },
       { path: '/tasks', element: <TasksPage /> },
       { path: '/tasks/swr', element: <SwrTasksPage /> },
       { path: '/users', element: <UsersPage /> },

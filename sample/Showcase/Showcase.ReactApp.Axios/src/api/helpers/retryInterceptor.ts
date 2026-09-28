@@ -27,6 +27,11 @@ export function resolveRetryPolicy(
 /** Delays execution for the specified number of milliseconds. */
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+
     const timer = setTimeout(resolve, ms);
     signal?.addEventListener('abort', () => {
       clearTimeout(timer);
@@ -169,8 +174,9 @@ export async function retryWithBackoff(
 
       await sleep(delay, signal);
     } catch (error) {
-      // Caller-initiated aborts always propagate; per-attempt timeouts are retryable.
-      if (error instanceof DOMException && error.name === 'AbortError' && !timeoutFired) {
+      // Caller-initiated aborts always propagate (whatever the abort reason, e.g. Axios' CanceledError);
+      // per-attempt timeouts are retryable.
+      if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError' && !timeoutFired)) {
         throw error;
       }
 

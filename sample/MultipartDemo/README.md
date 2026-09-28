@@ -5,22 +5,23 @@ Demonstrates multi-part OpenAPI specification splitting, where a large API spec 
 ## Spec Organization
 
 ```
-MultipartDemo.yaml              <-- Main spec (base document with shared definitions)
-MultipartDemo_Accounts.yaml     <-- Account management endpoints
-MultipartDemo_Common.yaml       <-- Shared schemas referenced across domains
-MultipartDemo_Files.yaml        <-- File upload/download endpoints
-MultipartDemo_Notifications.yaml <-- Notification endpoints
-MultipartDemo_Tasks.yaml        <-- Task management endpoints
-MultipartDemo_Users.yaml        <-- User management endpoints
-MultipartDemo.Merged.yaml       <-- Pre-merged output (for reference/debugging)
+MultipartDemo.yaml              <-- Base: info, servers, security, rate limit / retry settings, webhooks, all components (paths: {})
+MultipartDemo_Accounts.yaml     <-- /accounts endpoints
+MultipartDemo_Files.yaml        <-- /files endpoints (upload / download)
+MultipartDemo_Notifications.yaml <-- /notifications endpoints
+MultipartDemo_Tasks.yaml        <-- /tasks endpoints
+MultipartDemo_Testing.yaml      <-- /testing endpoints
+MultipartDemo_Users.yaml        <-- /users endpoints
+MultipartDemo.Merged.yaml       <-- The merged document (generated with `spec merge`, for reference)
 ```
 
 ## How It Works
 
-1. The base spec (`MultipartDemo.yaml`) defines shared components and uses the `x-multi-part` extension to list all part files.
-2. Each part file (`MultipartDemo_{Domain}.yaml`) contains paths and schemas for a specific domain.
-3. At build time, the source generator detects all YAML files, merges them using the naming convention (`{BaseName}_{PartName}.yaml`), and generates code from the unified document.
-4. The merged spec can also be produced via the CLI: `atc-rest-api-gen spec merge -s MultipartDemo.yaml -o MultipartDemo.Merged.yaml`
+1. The base spec (`MultipartDemo.yaml`) holds everything shared - the document settings, the webhooks and every component - and no paths.
+2. Each part file (`MultipartDemo_{Domain}.yaml`) holds the paths of one domain; its `$ref`s point at the base's components. A part has no `info` section (ATC_API_MPT007).
+3. Every project adds the base and the parts as `AdditionalFiles` (`..\MultipartDemo.yaml` and `..\MultipartDemo_*.yaml`). At build time the source generator finds the parts by the naming convention (`{BaseName}_{PartName}.yaml`), merges them, and generates code from the merged document.
+4. The spec deliberately keeps the OpenAPI 3.0 `nullable: true` spelling in a 3.1 document (see the note at the top of `MultipartDemo.yaml`).
+5. The merged spec can also be produced via the CLI: `atc-rest-api-gen spec merge -s MultipartDemo.yaml -o MultipartDemo.Merged.yaml`
 
 ## Projects
 

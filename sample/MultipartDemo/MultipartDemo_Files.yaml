@@ -1,11 +1,7 @@
-openapi: 3.1.1
-info:
-  title: MultipartDemo API - Files
-  version: 1.0.0
-  description: File management endpoints
-
+openapi: "3.1.0"
 paths:
   /files/{id}:
+    # Files - extended timeout for large files
     x-ratelimit-policy: files
     x-ratelimit-permit-limit: 30
     x-ratelimit-window-seconds: 60
@@ -16,104 +12,116 @@ paths:
     parameters:
       - name: id
         in: path
+        description: The file id
         required: true
-        description: The id of the file to retrieve
         schema:
           type: string
-          format: uuid
     get:
-      summary: Get file by ID (binary download)
       operationId: getFileById
-      tags:
-        - files
+      summary: Get File By Id
+      description: Get File By Id
+      tags: []
+      # Public endpoint - no auth required for file downloads
+      security: []
       responses:
         '200':
-          description: File content
+          description: OK
           content:
             application/octet-stream:
               schema:
                 type: string
                 format: binary
+          headers: {}
         '404':
-          description: File not found
-
+          description: Not Found
   /files/form-data/singleObject:
+    # File uploads - strict rate limits, no retry
     x-ratelimit-policy: file-uploads
     x-ratelimit-permit-limit: 10
     x-ratelimit-window-seconds: 60
     x-ratelimit-algorithm: token-bucket
-    x-retry-enabled: false
+    x-ratelimit-queue-limit: 5
     post:
-      summary: Upload a single file with metadata
-      operationId: uploadSingleFileFormData
-      tags:
-        - files
+      operationId: uploadSingleObjectWithFileAsFormData
+      summary: Upload a file as FormData
+      description: Upload a file as FormData
+      # No retry for file uploads - extended timeout instead
+      x-retry-enabled: false
+      x-retry-timeout-seconds: 300
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad Request
       requestBody:
-        required: true
         content:
           multipart/form-data:
             schema:
-              $ref: "#/components/schemas/FileAsFormDataRequest"
-      responses:
-        '201':
-          description: File uploaded successfully
-          headers:
-            Location:
-              description: URL of the created resource
-              schema:
-                type: string
-                format: uri
-        '400':
-          description: Invalid file
-
-  /files/form-data/multipleObjects:
+              $ref: '#/components/schemas/FileAsFormDataRequest'
+    parameters: []
+  /files/form-data/singleObjectMultiFile:
+    # Inherit file-uploads policy
     x-ratelimit-policy: file-uploads
-    x-retry-enabled: false
     post:
-      summary: Upload multiple files with metadata
-      operationId: uploadMultipleFilesFormData
-      tags:
-        - files
+      operationId: uploadSingleObjectWithFilesAsFormData
+      summary: Upload files as FormData
+      description: Upload files as FormData
+      # No retry for file uploads
+      x-retry-enabled: false
+      x-retry-timeout-seconds: 300
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad Request
       requestBody:
-        required: true
         content:
           multipart/form-data:
             schema:
-              $ref: "#/components/schemas/FilesAsFormDataRequest"
+              $ref: '#/components/schemas/FilesAsFormDataRequest'
+    parameters: []
+  /files/form-data/singleFile:
+    # Inherit file-uploads policy
+    x-ratelimit-policy: file-uploads
+    post:
+      operationId: uploadSingleFileAsFormData
+      summary: Upload a file as OctetStream
+      description: Upload a file as OctetStream
+      # No retry for file uploads
+      x-retry-enabled: false
+      x-retry-timeout-seconds: 300
       responses:
-        '201':
-          description: Files uploaded successfully
-        '400':
-          description: Invalid files
+        '200':
+          description: OK
+      requestBody:
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+    parameters: []
+  /files/form-data/multiFile:
+    # Inherit file-uploads policy
+    x-ratelimit-policy: file-uploads
+    post:
+      summary: Upload multi files as form data
+      description: Upload multi files as form data
+      operationId: uploadMultiFilesAsFormData
+      # No retry for file uploads
+      x-retry-enabled: false
+      x-retry-timeout-seconds: 300
+      responses:
+        '200':
+          description: OK
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: array
+              items:
+                type: string
+                format: binary
 
-components:
-  schemas:
-    FileAsFormDataRequest:
-      type: object
-      required:
-        - file
-        - description
-      properties:
-        file:
-          type: string
-          format: binary
-        fileName:
-          type: string
-          maxLength: 255
-        description:
-          type: string
-          maxLength: 500
-
-    FilesAsFormDataRequest:
-      type: object
-      required:
-        - files
-      properties:
-        files:
-          type: array
-          items:
-            type: string
-            format: binary
-        category:
-          type: string
-          maxLength: 100
+  # ============================================
+  # NOTIFICATIONS - Subscription management
+  # ============================================

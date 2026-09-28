@@ -83,6 +83,7 @@ export class UsersClient {
         limit: query?.limit,
       },
       retry: { policy: retryPolicies.users },
+      arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<ListUsersResult>;
   }
 
@@ -91,6 +92,7 @@ export class UsersClient {
     return this.api.request<Users>('QUERY', '/users', {
       body,
       retry: { policy: retryPolicies.users },
+      arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<QueryUsersResult>;
   }
 
@@ -99,6 +101,7 @@ export class UsersClient {
     return this.api.request<User>('POST', '/users', {
       body,
       retry: { policy: retryPolicies.users, enabled: false },
+      arms: ['created', 'badRequest', 'conflict', 'unauthorized', 'forbidden', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateUserResult>;
   }
 
@@ -106,6 +109,7 @@ export class UsersClient {
   async getUserById(userId: string): Promise<GetUserByIdResult> {
     return this.api.request<User>('GET', `/users/${userId}`, {
       retry: { policy: retryPolicies.users },
+      arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetUserByIdResult>;
   }
 
@@ -114,6 +118,7 @@ export class UsersClient {
     return this.api.request<User>('PUT', `/users/${userId}`, {
       body,
       retry: { policy: retryPolicies.users },
+      arms: ['ok', 'badRequest', 'notFound', 'conflict', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdateUserByIdResult>;
   }
 
@@ -121,6 +126,7 @@ export class UsersClient {
   async deleteUserById(userId: string): Promise<DeleteUserByIdResult> {
     return this.api.request<void>('DELETE', `/users/${userId}`, {
       retry: { policy: retryPolicies.users },
+      arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeleteUserByIdResult>;
   }
 }

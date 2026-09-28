@@ -51,24 +51,31 @@ export class NotificationsClient {
 
   /** List all notification subscriptions */
   async listSubscriptions(): Promise<ListSubscriptionsResult> {
-    return this.api.request<Subscriptions>('GET', '/notifications/subscriptions') as Promise<ListSubscriptionsResult>;
+    return this.api.request<Subscriptions>('GET', '/notifications/subscriptions', {
+      arms: ['ok', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListSubscriptionsResult>;
   }
 
   /** Create a new subscription */
   async createSubscription(body: CreateSubscriptionRequest): Promise<CreateSubscriptionResult> {
     return this.api.request<Subscription>('POST', '/notifications/subscriptions', {
       body,
+      arms: ['created', 'badRequest', 'conflict', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateSubscriptionResult>;
   }
 
   /** Get subscription details */
   async getSubscriptionById(subscriptionId: string): Promise<GetSubscriptionByIdResult> {
-    return this.api.request<Subscription>('GET', `/notifications/subscriptions/${subscriptionId}`) as Promise<GetSubscriptionByIdResult>;
+    return this.api.request<Subscription>('GET', `/notifications/subscriptions/${subscriptionId}`, {
+      arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetSubscriptionByIdResult>;
   }
 
   /** Cancel a subscription */
   async deleteSubscription(subscriptionId: string): Promise<DeleteSubscriptionResult> {
-    return this.api.request<void>('DELETE', `/notifications/subscriptions/${subscriptionId}`) as Promise<DeleteSubscriptionResult>;
+    return this.api.request<void>('DELETE', `/notifications/subscriptions/${subscriptionId}`, {
+      arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<DeleteSubscriptionResult>;
   }
 
   /** Stream notifications in real-time */

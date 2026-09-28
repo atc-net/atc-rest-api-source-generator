@@ -35,11 +35,14 @@ export class TestingClient {
   async getExceptionTest(code: number): Promise<GetExceptionTestResult> {
     return this.api.request<ExceptionTestResponse>('GET', `/testing/exception/${code}`, {
       retry: { enabled: false },
+      arms: ['ok', 'notFound', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetExceptionTestResult>;
   }
 
   /** Test error responses */
   async getErrorResponseTest(status: number): Promise<GetErrorResponseTestResult> {
-    return this.api.request<void>('POST', `/testing/error-responses/${status}`) as Promise<GetErrorResponseTestResult>;
+    return this.api.request<void>('POST', `/testing/error-responses/${status}`, {
+      arms: ['noContent', 'badRequest', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetErrorResponseTestResult>;
   }
 }

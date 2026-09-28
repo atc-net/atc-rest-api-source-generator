@@ -64,6 +64,7 @@ export class FilesClient {
     return this.api.request<Blob>('GET', `/files/${id}`, {
       responseType: 'blob',
       retry: { policy: retryPolicies.files },
+      arms: ['ok', 'notFound', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetFileByIdResult>;
   }
 
@@ -78,6 +79,7 @@ export class FilesClient {
         return formData;
       })(),
       retry: { enabled: false, timeoutMs: 300000 },
+      arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UploadSingleObjectWithFileAsFormDataResult>;
   }
 
@@ -90,6 +92,7 @@ export class FilesClient {
         return formData;
       })(),
       retry: { enabled: false, timeoutMs: 300000 },
+      arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UploadSingleObjectWithFilesAsFormDataResult>;
   }
 
@@ -98,6 +101,7 @@ export class FilesClient {
     return this.api.request<void>('POST', '/files/form-data/singleFile', {
       body: file,
       retry: { enabled: false, timeoutMs: 300000 },
+      arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UploadSingleFileAsFormDataResult>;
   }
 
@@ -112,6 +116,7 @@ export class FilesClient {
         return formData;
       })(),
       retry: { enabled: false, timeoutMs: 300000 },
+      arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UploadMultiFilesAsFormDataResult>;
   }
 }

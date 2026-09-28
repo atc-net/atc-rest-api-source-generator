@@ -1,27 +1,694 @@
-openapi: 3.0.4
+openapi: '3.1.2'
 info:
-  title: MultipartDemo API
-  description: "A demonstration of multi-part OpenAPI specification files.\nThis base file references domain-specific parts for Accounts, Tasks, Users, Files, and Notifications.\n"
+  title: My Demo API - Full
+  description: This is a sample server for a demo api.
   license:
     name: MIT
   version: 1.0.0
 servers:
-  - url: http://localhost:5000
-    description: Local development server
-paths: { }
+  - url: http://demo.swagger.io/v1
+  - url: http://demo/scalar/v1
+paths:
+  /accounts:
+    get:
+      tags:
+        - accounts
+      summary: List all accounts
+      operationId: listAccounts
+      parameters:
+        - name: limit
+          in: query
+          description: How many items to return at one time (max 100)
+          schema:
+            maximum: 100
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: Array of accounts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Accounts'
+    post:
+      tags:
+        - accounts
+      summary: Create account
+      operationId: createAccount
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Account'
+        required: true
+      responses:
+        '201':
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '409':
+          description: Account conflict
+      x-retry-enabled: false
+      x-cache-enabled: false
+    x-ratelimit-policy: accounts
+    x-ratelimit-permit-limit: 100
+    x-ratelimit-window-seconds: 60
+    x-retry-policy: accounts-fast
+    x-retry-max-attempts: 2
+    x-retry-delay-seconds: 0.5
+    x-retry-timeout-seconds: 10
+    x-cache-type: output
+    x-cache-policy: accounts
+    x-cache-expiration-seconds: 60
+    x-cache-vary-by-query:
+      - limit
+    x-cache-tags:
+      - accounts
+  '/accounts/{accountId}':
+    get:
+      tags:
+        - accounts
+      summary: Get a specific account
+      operationId: getAccountById
+      parameters:
+        - name: accountId
+          in: path
+          description: The id of the account to retrieve
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Expected response to a valid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '404':
+          description: Account not found
+    delete:
+      tags:
+        - accounts
+      summary: Delete a specific account
+      operationId: deleteAccountById
+      parameters:
+        - name: accountId
+          in: path
+          description: The id of the account to delete
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Account deleted successfully
+        '404':
+          description: Account not found
+    put:
+      tags:
+        - accounts
+      summary: Update a specific account
+      operationId: updateAccountById
+      parameters:
+        - name: accountId
+          in: path
+          description: The id of the account to update
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Account'
+        required: true
+      responses:
+        '200':
+          description: Expected response to a valid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '404':
+          description: Account not found
+    x-ratelimit-policy: accounts
+    x-retry-policy: accounts-fast
+  /accounts/paginated:
+    get:
+      tags:
+        - accounts
+      summary: List all accounts paginated
+      operationId: listPaginatedAccounts
+      parameters:
+        - $ref: '#/components/parameters/pageSize'
+        - $ref: '#/components/parameters/pageIndex'
+        - $ref: '#/components/parameters/queryString'
+        - $ref: '#/components/parameters/continuation'
+      responses:
+        '200':
+          description: Array of paginated accounts
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResult'
+                  - type: object
+                    properties:
+                      results:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Accounts'
+  /accounts/async-enumerable:
+    get:
+      tags:
+        - accounts
+      summary: List all accounts async-enumerable
+      operationId: listAsyncEnumerableAccounts
+      responses:
+        '200':
+          description: Array of streaming accounts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Accounts'
+      x-return-async-enumerable: true
+  '/files/{id}':
+    get:
+      summary: Get File By Id
+      description: Get File By Id
+      operationId: getFileById
+      responses:
+        '200':
+          description: OK
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Not Found
+      security: [ ]
+    parameters:
+      - name: id
+        in: path
+        description: The file id
+        required: true
+        schema:
+          type: string
+    x-ratelimit-policy: files
+    x-ratelimit-permit-limit: 30
+    x-ratelimit-window-seconds: 60
+    x-retry-policy: files
+    x-retry-max-attempts: 3
+    x-retry-delay-seconds: 2
+    x-retry-timeout-seconds: 120
+  /files/form-data/singleObject:
+    post:
+      summary: Upload a file as FormData
+      description: Upload a file as FormData
+      operationId: uploadSingleObjectWithFileAsFormData
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FileAsFormDataRequest'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad Request
+      x-retry-enabled: false
+      x-retry-timeout-seconds: 300
+    x-ratelimit-policy: file-uploads
+    x-ratelimit-permit-limit: 10
+    x-ratelimit-window-seconds: 60
+    x-ratelimit-algorithm: token-bucket
+    x-ratelimit-queue-limit: 5
+  /files/form-data/singleObjectMultiFile:
+    post:
+      summary: Upload files as FormData
+      description: Upload files as FormData
+      operationId: uploadSingleObjectWithFilesAsFormData
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FilesAsFormDataRequest'
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad Request
+      x-retry-enabled: false
+      x-retry-timeout-seconds: 300
+    x-ratelimit-policy: file-uploads
+  /files/form-data/singleFile:
+    post:
+      summary: Upload a file as OctetStream
+      description: Upload a file as OctetStream
+      operationId: uploadSingleFileAsFormData
+      requestBody:
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: OK
+      x-retry-enabled: false
+      x-retry-timeout-seconds: 300
+    x-ratelimit-policy: file-uploads
+  /files/form-data/multiFile:
+    post:
+      summary: Upload multi files as form data
+      description: Upload multi files as form data
+      operationId: uploadMultiFilesAsFormData
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: array
+              items:
+                type: string
+                format: binary
+      responses:
+        '200':
+          description: OK
+      x-retry-enabled: false
+      x-retry-timeout-seconds: 300
+    x-ratelimit-policy: file-uploads
+  /notifications/subscriptions:
+    get:
+      tags:
+        - notifications
+      summary: List all notification subscriptions
+      operationId: listSubscriptions
+      responses:
+        '200':
+          description: List of active subscriptions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscriptions'
+    post:
+      tags:
+        - notifications
+      summary: Create a new subscription
+      description: "Subscribe to receive notifications for specific event types.\nFor web clients, use the SignalR hub at /hubs/notifications instead of HTTP callbacks.\n"
+      operationId: createSubscription
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubscriptionRequest'
+        required: true
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Invalid subscription request
+        '409':
+          description: Subscription already exists for this topic
+  '/notifications/subscriptions/{subscriptionId}':
+    get:
+      tags:
+        - notifications
+      summary: Get subscription details
+      operationId: getSubscriptionById
+      responses:
+        '200':
+          description: Subscription details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '404':
+          description: Subscription not found
+    delete:
+      tags:
+        - notifications
+      summary: Cancel a subscription
+      operationId: deleteSubscription
+      responses:
+        '204':
+          description: Subscription cancelled
+        '404':
+          description: Subscription not found
+    parameters:
+      - name: subscriptionId
+        in: path
+        description: The subscription ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /notifications/stream:
+    get:
+      tags:
+        - notifications
+      summary: Stream notifications in real-time
+      description: "Server-Sent Events (SSE) endpoint for real-time notifications.\nAlternative to WebSocket/SignalR for simple notification streaming.\n"
+      operationId: listNotifications
+      parameters:
+        - name: topics
+          in: query
+          description: Comma-separated list of topics to subscribe to
+          schema:
+            type: string
+            default: 'system,user,data'
+      responses:
+        '200':
+          description: Stream of notification events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationEvents'
+      x-return-async-enumerable: true
+  /tasks:
+    get:
+      tags:
+        - tasks
+      summary: List all tasks
+      operationId: listTasks
+      parameters:
+        - name: limit
+          in: query
+          description: How many items to return at one time (max 100)
+          schema:
+            maximum: 100
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: Array of tasks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tasks'
+    post:
+      tags:
+        - tasks
+      summary: Create task
+      operationId: createTask
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '409':
+          description: Task conflict
+  '/tasks/{taskId}':
+    get:
+      tags:
+        - tasks
+      summary: Get a specific task
+      operationId: getTaskById
+      parameters:
+        - name: taskId
+          in: path
+          description: The id of the task to retrieve
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Expected response to a valid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Task not found
+    delete:
+      tags:
+        - tasks
+      summary: Delete a specific task
+      operationId: deleteTaskById
+      parameters:
+        - name: taskId
+          in: path
+          description: The id of the task to delete
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Task deleted successfully
+        '404':
+          description: Task not found
+    put:
+      tags:
+        - tasks
+      summary: Update a specific task
+      operationId: updateTaskById
+      parameters:
+        - name: taskId
+          in: path
+          description: The id of the task to update
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      responses:
+        '200':
+          description: Expected response to a valid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Task not found
+  '/testing/exception/{code}':
+    get:
+      tags:
+        - testing
+      summary: Test exception handling
+      description: "Throws different exceptions based on the code parameter to test GlobalErrorHandlingMiddleware.\n\nSupported codes:\n- 0: Success (no exception)\n- 1: General Exception → 500 Internal Server Error\n- 2: ArgumentException → 400 Bad Request\n- 3: ArgumentNullException → 400 Bad Request\n- 4: InvalidOperationException → 409 Conflict\n- 5: UnauthorizedAccessException → 401 Unauthorized\n- 6: NotImplementedException → 501 Not Implemented\n- 7: TimeoutException → 504 Gateway Timeout\n- 8: ValidationException (DataAnnotations) → 400 Bad Request\n- 9: KeyNotFoundException → 500 Internal Server Error (default)\n- 10: NullReferenceException → 500 Internal Server Error\n- 11: TaskCanceledException → 504 Gateway Timeout\n"
+      operationId: getExceptionTest
+      parameters:
+        - name: code
+          in: path
+          description: "The exception code to throw (0-11).\nCode 0 returns success, other codes throw specific exceptions.\n"
+          required: true
+          schema:
+            maximum: 11
+            minimum: 0
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: Success response (when code is 0)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExceptionTestResponse'
+        '404':
+          description: Not Found (invalid code)
+      security: [ ]
+    x-retry-enabled: false
+  /users:
+    get:
+      tags:
+        - users
+      summary: List all users
+      operationId: listUsers
+      parameters:
+        - name: search
+          in: query
+          description: Search by name or email
+          schema:
+            type: string
+        - name: country
+          in: query
+          description: Filter by country
+          schema:
+            type: string
+        - name: role
+          in: query
+          description: 'Filter by role (Admin, Manager, Employee, Guest)'
+          schema:
+            enum:
+              - Admin
+              - Manager
+              - Employee
+              - Guest
+            type: string
+        - name: isActive
+          in: query
+          description: Filter by active status
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          description: How many items to return at one time (max 100)
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+            default: 25
+      responses:
+        '200':
+          description: Array of users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Users'
+    post:
+      tags:
+        - users
+      summary: Create user
+      operationId: createUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+        required: true
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Validation error
+        '409':
+          description: User with this email already exists
+      security:
+        - oauth2:
+            - users:write
+            - admin
+      x-retry-enabled: false
+      x-cache-enabled: false
+    x-ratelimit-policy: users
+    x-ratelimit-permit-limit: 50
+    x-ratelimit-window-seconds: 60
+    x-ratelimit-algorithm: fixed
+    x-retry-policy: users
+    x-retry-max-attempts: 3
+    x-retry-delay-seconds: 1
+    x-cache-type: hybrid
+    x-cache-policy: users
+    x-cache-expiration-seconds: 300
+    x-cache-mode: hybrid
+    x-cache-vary-by-query:
+      - search
+      - country
+      - role
+      - isActive
+      - limit
+    x-cache-tags:
+      - users
+  '/users/{userId}':
+    get:
+      tags:
+        - users
+      summary: Get a specific user
+      operationId: getUserById
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+    put:
+      tags:
+        - users
+      summary: Update a specific user
+      operationId: updateUserById
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+        required: true
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Validation error
+        '404':
+          description: User not found
+        '409':
+          description: Email already in use
+      x-cache-enabled: false
+    delete:
+      tags:
+        - users
+      summary: Delete a specific user
+      operationId: deleteUserById
+      responses:
+        '204':
+          description: User deleted successfully
+        '404':
+          description: User not found
+      security:
+        - oauth2:
+            - users:write
+            - admin
+      x-ratelimit-policy: users-delete
+      x-ratelimit-permit-limit: 10
+      x-ratelimit-window-seconds: 60
+      x-cache-enabled: false
+    parameters:
+      - name: userId
+        in: path
+        description: The id of the user
+        required: true
+        schema:
+          type: string
+          format: uuid
+    x-ratelimit-policy: users
+    x-retry-policy: users
+    x-cache-type: hybrid
+    x-cache-policy: user-detail
+    x-cache-expiration-seconds: 600
+    x-cache-sliding-expiration-seconds: 120
+    x-cache-mode: hybrid
+    x-cache-tags:
+      - users
+      - user-detail
 components:
   schemas:
     SystemNotification:
+      title: SystemNotification
       required:
         - id
         - type
-        - severity
         - timestamp
         - message
       type: object
       properties:
         id:
           type: string
+          description: Unique notification ID
           format: uuid
         type:
           $ref: '#/components/schemas/NotificationType'
@@ -29,49 +696,55 @@ components:
           $ref: '#/components/schemas/NotificationSeverity'
         timestamp:
           type: string
+          description: When the event occurred
           format: date-time
         message:
           type: string
+          description: Human-readable notification message
         data:
-          type: string
-          description: Optional JSON data as string
+          type:
+            - 'null'
+            - string
+          description: Additional event-specific data as JSON string
         metrics:
           $ref: '#/components/schemas/SystemMetrics'
+      description: System-wide notification event
     SystemMetrics:
-      required:
-        - cpuUsage
-        - memoryUsage
-        - activeConnections
-        - requestsPerSecond
-        - averageResponseTime
-        - uptime
+      title: SystemMetrics
       type: object
       properties:
         cpuUsage:
           maximum: 100
           minimum: 0
           type: number
+          description: CPU usage percentage
           format: double
         memoryUsage:
           maximum: 100
           minimum: 0
           type: number
+          description: Memory usage percentage
           format: double
         activeConnections:
           minimum: 0
           type: integer
-          format: int32
+          description: Number of active connections
         requestsPerSecond:
           minimum: 0
           type: number
+          description: Current requests per second
           format: double
         averageResponseTime:
           minimum: 0
           type: number
+          description: Average response time in milliseconds
           format: double
         uptime:
           type: string
+          description: 'System uptime duration (e.g., "2d 5h 30m")'
+      description: Real-time system metrics
     UserActivityEvent:
+      title: UserActivityEvent
       required:
         - id
         - userId
@@ -91,12 +764,19 @@ components:
           type: string
           format: date-time
         ipAddress:
-          type: string
+          type:
+            - 'null'
+            - string
         userAgent:
-          type: string
+          type:
+            - 'null'
+            - string
         details:
-          type: string
-          description: Optional details as JSON string
+          type:
+            - 'null'
+            - string
+          description: Additional details as JSON string
+      description: User activity webhook payload
     UserAction:
       enum:
         - Login
@@ -106,7 +786,9 @@ components:
         - AccountCreated
         - AccountDeleted
       type: string
+      description: Type of user action
     DataChangeEvent:
+      title: DataChangeEvent
       required:
         - id
         - entityType
@@ -120,28 +802,39 @@ components:
           format: uuid
         entityType:
           type: string
+          description: 'Type of entity (e.g., "User", "Account", "Task")'
         entityId:
           type: string
+          description: ID of the affected entity
         operation:
           $ref: '#/components/schemas/DataOperation'
         timestamp:
           type: string
           format: date-time
         performedBy:
-          type: string
+          type:
+            - 'null'
+            - string
+          description: User who performed the operation
           format: uuid
         previousValue:
-          type: string
-          description: Previous value as JSON string
+          type:
+            - 'null'
+            - string
+          description: Previous entity state as JSON string (for updates)
         newValue:
-          type: string
-          description: New value as JSON string
+          type:
+            - 'null'
+            - string
+          description: New entity state as JSON string (for creates/updates)
+      description: Data change webhook payload
     DataOperation:
       enum:
         - Created
         - Updated
         - Deleted
       type: string
+      description: Type of data operation
     NotificationType:
       enum:
         - System
@@ -150,6 +843,7 @@ components:
         - Alert
         - Metric
       type: string
+      description: Category of notification
     NotificationSeverity:
       enum:
         - Info
@@ -157,29 +851,616 @@ components:
         - Error
         - Critical
       type: string
+      description: Severity level of the notification
+    Subscription:
+      title: Subscription
+      required:
+        - id
+        - topics
+        - createdAt
+        - isActive
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          maxLength: 100
+          type:
+            - 'null'
+            - string
+          description: Optional friendly name for the subscription
+        topics:
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationType'
+          description: Event types to subscribe to
+        callbackUrl:
+          type:
+            - 'null'
+            - string
+          description: HTTP callback URL for webhook delivery (optional)
+          format: uri
+        connectionId:
+          type:
+            - 'null'
+            - string
+          description: SignalR connection ID for real-time delivery
+        isActive:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type:
+            - 'null'
+            - string
+          description: Optional expiration time
+          format: date-time
+        lastNotificationAt:
+          type:
+            - 'null'
+            - string
+          format: date-time
+      description: Notification subscription
+    Subscriptions:
+      title: Subscriptions
+      type: array
+      items:
+        $ref: '#/components/schemas/Subscription'
+    CreateSubscriptionRequest:
+      title: CreateSubscriptionRequest
+      required:
+        - topics
+      type: object
+      properties:
+        name:
+          maxLength: 100
+          type:
+            - 'null'
+            - string
+        topics:
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationType'
+          description: Event types to subscribe to
+        callbackUrl:
+          type:
+            - 'null'
+            - string
+          description: HTTP callback URL (use for server-to-server webhooks)
+          format: uri
+        expiresInMinutes:
+          maximum: 43200
+          minimum: 1
+          type:
+            - 'null'
+            - integer
+          description: Subscription duration in minutes (max 30 days)
+    NotificationEvent:
+      title: NotificationEvent
+      required:
+        - id
+        - type
+        - timestamp
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        severity:
+          $ref: '#/components/schemas/NotificationSeverity'
+        timestamp:
+          type: string
+          format: date-time
+        message:
+          type:
+            - 'null'
+            - string
+        payload:
+          oneOf:
+            - $ref: '#/components/schemas/SystemNotification'
+            - $ref: '#/components/schemas/UserActivityEvent'
+            - $ref: '#/components/schemas/DataChangeEvent'
+      description: Generic notification event for streaming
+    NotificationEvents:
+      title: NotificationEvents
+      type: array
+      items:
+        $ref: '#/components/schemas/NotificationEvent'
+    ExceptionTestResponse:
+      title: ExceptionTestResponse
+      required:
+        - code
+        - message
+        - timestamp
+      type: object
+      properties:
+        code:
+          type: integer
+          description: The exception code that was requested
+          format: int32
+        message:
+          type: string
+          description: Success message when no exception was thrown
+        timestamp:
+          type: string
+          description: When the request was processed
+          format: date-time
+    Account:
+      title: Account
+      required:
+        - id
+        - name
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        tag:
+          type: string
+    Accounts:
+      title: Accounts
+      maxItems: 100
+      type: array
+      items:
+        $ref: '#/components/schemas/Account'
+    FileAsFormDataRequest:
+      title: FileAsFormDataRequest
+      required:
+        - itemName
+        - items
+      type: object
+      properties:
+        itemName:
+          type: string
+        file:
+          type:
+            - 'null'
+            - string
+          format: binary
+        items:
+          type: array
+          items:
+            type: string
+    FilesAsFormDataRequest:
+      title: FilesAsFormDataRequest
+      required:
+        - files
+      type: object
+      properties:
+        files:
+          type: array
+          items:
+            type: string
+            format: binary
+    Task:
+      title: Task
+      required:
+        - id
+        - name
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        tag:
+          type: string
+    Tasks:
+      title: Tasks
+      maxItems: 100
+      type: array
+      items:
+        $ref: '#/components/schemas/Task'
+    User:
+      title: User
+      required:
+        - id
+        - firstName
+        - lastName
+        - email
+        - dateOfBirth
+        - role
+        - address
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the user
+          format: uuid
+        firstName:
+          maxLength: 50
+          minLength: 2
+          type: string
+          description: User's first name
+        lastName:
+          maxLength: 50
+          minLength: 2
+          type: string
+          description: User's last name
+        email:
+          maxLength: 254
+          type: string
+          description: User's email address
+          format: email
+        phone:
+          pattern: '^\+?[1-9]\d{6,14}$'
+          type:
+            - 'null'
+            - string
+          description: Phone number in E.164 format
+        website:
+          maxLength: 2048
+          type:
+            - 'null'
+            - string
+          description: User's personal website
+          format: uri
+        dateOfBirth:
+          type: string
+          description: User's date of birth
+          format: date
+        age:
+          maximum: 150
+          minimum: 0
+          type: integer
+          description: Calculated age based on date of birth
+          readOnly: true
+        bio:
+          maxLength: 1000
+          type:
+            - 'null'
+            - string
+          description: Short biography
+        avatarUrl:
+          type:
+            - 'null'
+            - string
+          description: URL to user's avatar image
+          format: uri
+        isActive:
+          type: boolean
+          description: Whether the user account is active
+          default: true
+        role:
+          $ref: '#/components/schemas/UserRole'
+        address:
+          $ref: '#/components/schemas/Address'
+        createdAt:
+          type: string
+          description: When the user was created
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          description: When the user was last updated
+          format: date-time
+          readOnly: true
+    CreateUserRequest:
+      title: CreateUserRequest
+      required:
+        - firstName
+        - lastName
+        - email
+        - dateOfBirth
+        - role
+        - address
+      type: object
+      properties:
+        firstName:
+          maxLength: 50
+          minLength: 2
+          type: string
+        lastName:
+          maxLength: 50
+          minLength: 2
+          type: string
+        email:
+          maxLength: 254
+          type: string
+          format: email
+        phone:
+          pattern: '^\+?[1-9]\d{6,14}$'
+          type:
+            - 'null'
+            - string
+        website:
+          maxLength: 2048
+          type:
+            - 'null'
+            - string
+          format: uri
+        dateOfBirth:
+          type: string
+          format: date
+        bio:
+          maxLength: 1000
+          type:
+            - 'null'
+            - string
+        avatarUrl:
+          type:
+            - 'null'
+            - string
+          format: uri
+        isActive:
+          type: boolean
+          default: true
+        role:
+          $ref: '#/components/schemas/UserRole'
+        address:
+          $ref: '#/components/schemas/AddressRequest'
+    UpdateUserRequest:
+      title: UpdateUserRequest
+      required:
+        - firstName
+        - lastName
+        - email
+        - dateOfBirth
+        - role
+        - address
+      type: object
+      properties:
+        firstName:
+          maxLength: 50
+          minLength: 2
+          type: string
+        lastName:
+          maxLength: 50
+          minLength: 2
+          type: string
+        email:
+          maxLength: 254
+          type: string
+          format: email
+        phone:
+          pattern: '^\+?[1-9]\d{6,14}$'
+          type:
+            - 'null'
+            - string
+        website:
+          maxLength: 2048
+          type:
+            - 'null'
+            - string
+          format: uri
+        dateOfBirth:
+          type: string
+          format: date
+        bio:
+          maxLength: 1000
+          type:
+            - 'null'
+            - string
+        avatarUrl:
+          type:
+            - 'null'
+            - string
+          format: uri
+        isActive:
+          type: boolean
+        role:
+          $ref: '#/components/schemas/UserRole'
+        address:
+          $ref: '#/components/schemas/AddressRequest'
+    Address:
+      title: Address
+      required:
+        - street
+        - city
+        - postalCode
+        - country
+      type: object
+      properties:
+        street:
+          maxLength: 200
+          minLength: 1
+          type: string
+          description: Street address
+        city:
+          maxLength: 100
+          minLength: 1
+          type: string
+          description: City name
+        state:
+          maxLength: 100
+          type:
+            - 'null'
+            - string
+          description: State or region
+        postalCode:
+          maxLength: 20
+          minLength: 2
+          type: string
+          description: Postal/ZIP code
+        country:
+          maxLength: 100
+          minLength: 2
+          type: string
+          description: Country name
+        countryCode:
+          maxLength: 3
+          minLength: 2
+          pattern: '^[A-Z]{2,3}$'
+          type:
+            - 'null'
+            - string
+          description: ISO 3166-1 country code
+        latitude:
+          maximum: 90
+          minimum: -90
+          type:
+            - 'null'
+            - number
+          description: Geographic latitude
+          format: double
+        longitude:
+          maximum: 180
+          minimum: -180
+          type:
+            - 'null'
+            - number
+          description: Geographic longitude
+          format: double
+    AddressRequest:
+      title: AddressRequest
+      required:
+        - street
+        - city
+        - postalCode
+        - country
+      type: object
+      properties:
+        street:
+          maxLength: 200
+          minLength: 1
+          type: string
+        city:
+          maxLength: 100
+          minLength: 1
+          type: string
+        state:
+          maxLength: 100
+          type:
+            - 'null'
+            - string
+        postalCode:
+          maxLength: 20
+          minLength: 2
+          type: string
+        country:
+          maxLength: 100
+          minLength: 2
+          type: string
+        countryCode:
+          maxLength: 3
+          minLength: 2
+          pattern: '^[A-Z]{2,3}$'
+          type:
+            - 'null'
+            - string
+        latitude:
+          maximum: 90
+          minimum: -90
+          type:
+            - 'null'
+            - number
+          format: double
+        longitude:
+          maximum: 180
+          minimum: -180
+          type:
+            - 'null'
+            - number
+          format: double
+    UserRole:
+      enum:
+        - Admin
+        - Manager
+        - Employee
+        - Guest
+      type: string
+      description: User's role in the system
+    Users:
+      title: Users
+      maxItems: 100
+      type: array
+      items:
+        $ref: '#/components/schemas/User'
+    PaginatedResult:
+      title: PaginatedResult
+      type: object
+      properties:
+        pageSize:
+          type: integer
+        pageIndex:
+          type: integer
+        queryString:
+          type:
+            - 'null'
+            - string
+        continuation:
+          type:
+            - 'null'
+            - string
+        count:
+          type: integer
+        totalCount:
+          type: integer
+        results:
+          type: array
+          items: { }
+  parameters:
+    continuation:
+      name: continuation
+      in: query
+      schema:
+        type:
+          - 'null'
+          - string
+    filter:
+      name: filter
+      in: query
+      schema:
+        type: string
+    pageIndex:
+      name: pageIndex
+      in: query
+      description: The number of items to skip before starting to collect the result set.
+      schema:
+        minimum: 0
+        type: integer
+        default: 0
+    pageSize:
+      name: pageSize
+      in: query
+      description: The numbers of items to return.
+      schema:
+        maximum: 100
+        minimum: 1
+        type: integer
+        default: 10
+    queryString:
+      name: queryString
+      in: query
+      description: Search query string.
+      schema:
+        type:
+          - 'null'
+          - string
   securitySchemes:
     bearer_auth:
       type: http
       description: JWT Bearer token authentication
       scheme: bearer
       bearerFormat: JWT
+    oauth2:
+      type: oauth2
+      description: OAuth2 with Authorization Code flow
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.com/authorize
+          tokenUrl: https://auth.example.com/token
+          scopes:
+            users:read: Read access to user data
+            users:write: Write access to user data
+            admin: Full administrative access
     api_key:
       type: apiKey
-      description: API Key authentication
+      description: API key authentication
       name: X-API-Key
       in: header
 security:
   - bearer_auth: [ ]
-x-multi-part:
-  enabled: true
-  discovery: explicit
-  parts:
-    - MultipartDemo_Accounts.yaml
-    - MultipartDemo_Tasks.yaml
-    - MultipartDemo_Users.yaml
-    - MultipartDemo_Files.yaml
-    - MultipartDemo_Notifications.yaml
-    - MultipartDemo_Common.yaml
 x-ratelimit-policy: global
 x-ratelimit-permit-limit: 1000
 x-ratelimit-window-seconds: 60
@@ -191,3 +1472,54 @@ x-retry-backoff: exponential
 x-retry-use-jitter: true
 x-retry-timeout-seconds: 30
 x-retry-handle-429: true
+webhooks:
+  systemNotification:
+    post:
+      tags:
+        - webhooks
+      summary: System notification webhook
+      description: "Webhook triggered for system-wide notifications.\nEvents are sent every 10 seconds with system metrics and alerts.\n"
+      operationId: onSystemNotification
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemNotification'
+        required: true
+      responses:
+        '200':
+          description: Notification acknowledged
+        '202':
+          description: Notification accepted for processing
+  userActivity:
+    post:
+      tags:
+        - webhooks
+      summary: User activity webhook
+      description: "Webhook triggered when user activity occurs (login, logout, profile update).\n"
+      operationId: onUserActivity
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserActivityEvent'
+        required: true
+      responses:
+        '200':
+          description: Event acknowledged
+  dataChange:
+    post:
+      tags:
+        - webhooks
+      summary: Data change webhook
+      description: "Webhook triggered when data is created, updated, or deleted.\nSubscribers receive real-time updates about entity changes.\n"
+      operationId: onDataChange
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataChangeEvent'
+        required: true
+      responses:
+        '200':
+          description: Event acknowledged

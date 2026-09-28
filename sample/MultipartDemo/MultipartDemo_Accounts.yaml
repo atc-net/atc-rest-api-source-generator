@@ -1,18 +1,16 @@
-openapi: 3.1.1
-info:
-  title: MultipartDemo API - Accounts
-  version: 1.0.0
-  description: Account management endpoints
-
+openapi: "3.1.0"
 paths:
   /accounts:
+    # Path-level rate limiting - moderate limits for account operations
     x-ratelimit-policy: accounts
     x-ratelimit-permit-limit: 100
     x-ratelimit-window-seconds: 60
+    # Path-level resilience - fast retry for account operations
     x-retry-policy: accounts-fast
     x-retry-max-attempts: 2
     x-retry-delay-seconds: 0.5
     x-retry-timeout-seconds: 10
+    # Output Caching - endpoint-level caching with .CacheOutput()
     x-cache-type: output
     x-cache-policy: accounts
     x-cache-expiration-seconds: 60
@@ -46,7 +44,12 @@ paths:
       operationId: createAccount
       tags:
         - accounts
+      # Disable retry for non-idempotent POST
       x-retry-enabled: false
+      # Opt out of the path-level output cache. The ASP.NET Core output-cache middleware
+      # stores GET/HEAD responses only, so inheriting it here would emit a .CacheOutput(...)
+      # call that never caches - see ATC_API_CACHE001.
+      x-cache-enabled: false
       requestBody:
         required: true
         content:
@@ -62,8 +65,8 @@ paths:
                 $ref: "#/components/schemas/Account"
         '409':
           description: Account conflict
-
   /accounts/{accountId}:
+    # Inherit accounts policy
     x-ratelimit-policy: accounts
     x-retry-policy: accounts-fast
     get:
@@ -131,7 +134,6 @@ paths:
                 $ref: "#/components/schemas/Account"
         '404':
           description: Account not found
-
   /accounts/paginated:
     get:
       summary: List all accounts paginated
@@ -157,7 +159,6 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/Accounts'
-
   /accounts/async-enumerable:
     get:
       summary: List all accounts async-enumerable
@@ -172,33 +173,3 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Accounts"
-
-components:
-  schemas:
-    Account:
-      type: object
-      required:
-        - id
-        - name
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-          minLength: 1
-          maxLength: 100
-        description:
-          type: string
-          maxLength: 500
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-
-    Accounts:
-      type: array
-      items:
-        $ref: "#/components/schemas/Account"
