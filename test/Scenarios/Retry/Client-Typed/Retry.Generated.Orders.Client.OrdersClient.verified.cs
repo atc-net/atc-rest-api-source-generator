@@ -41,7 +41,9 @@ public sealed class OrdersClient : IOrdersClient
     public async Task<List<Order>> ListOrdersAsync(CancellationToken cancellationToken = default)
     {
         var url = "/orders";
-        return (await httpClient.GetFromJsonAsync<List<Order>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Order>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Order> CreateOrderAsync(
@@ -59,7 +61,9 @@ public sealed class OrdersClient : IOrdersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/orders/{parameters.OrderId}";
-        return (await httpClient.GetFromJsonAsync<Order>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task DeleteOrderAsync(

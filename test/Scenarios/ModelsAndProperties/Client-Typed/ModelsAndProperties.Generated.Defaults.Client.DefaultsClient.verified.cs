@@ -41,7 +41,9 @@ public sealed class DefaultsClient : IDefaultsClient
     public async Task<DefaultValues> GetDefaultsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/defaults";
-        return (await httpClient.GetFromJsonAsync<DefaultValues>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<DefaultValues>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

@@ -41,7 +41,9 @@ public sealed class ProductsClient : IProductsClient
     public async Task<List<Product>> ListProductsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/products";
-        return (await httpClient.GetFromJsonAsync<List<Product>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Product>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Product> GetProductByIdAsync(
@@ -49,7 +51,9 @@ public sealed class ProductsClient : IProductsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/products/{parameters.ProductId}";
-        return (await httpClient.GetFromJsonAsync<Product>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<Product>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

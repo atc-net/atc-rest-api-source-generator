@@ -34,7 +34,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .WithName("ListPets")
             .WithSummary("List all pets")
             .Produces<List<Pet>>()
-            .ProducesValidationProblem()
+            .Produces<Error>(StatusCodes.Status500InternalServerError, contentType: "application/json")
             .ProducesValidationProblem();
 
         pets
@@ -42,7 +42,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .WithName("CreatePets")
             .WithSummary("Create a pet")
             .Produces(StatusCodes.Status201Created)
-            .ProducesValidationProblem()
+            .Produces<Error>(StatusCodes.Status500InternalServerError, contentType: "application/json")
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         pets
@@ -50,7 +50,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .WithName("ShowPetById")
             .WithSummary("Info for a specific pet")
             .Produces<Pet>()
-            .ProducesValidationProblem()
+            .Produces<Error>(StatusCodes.Status500InternalServerError, contentType: "application/json")
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound);
     }

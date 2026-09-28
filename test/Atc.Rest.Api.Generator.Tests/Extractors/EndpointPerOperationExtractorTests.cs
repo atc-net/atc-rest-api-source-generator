@@ -637,9 +637,10 @@ public class EndpointPerOperationExtractorTests
         // 500 (ProblemDetails) should have null ContentObject fallback
         Assert.Contains("IsInternalServerError && ContentObject is null", operationFile.ResultClassContent, StringComparison.Ordinal);
 
-        // 400 uses ValidationProblemDetails, NOT ProblemDetails - should NOT have these fallbacks
-        Assert.DoesNotContain("IsBadRequest && ContentObject is string message", operationFile.ResultClassContent, StringComparison.Ordinal);
-        Assert.DoesNotContain("IsBadRequest && ContentObject is null", operationFile.ResultClassContent, StringComparison.Ordinal);
+        // 400 uses ValidationProblemDetails and has the same fallbacks, through CreateValidation
+        Assert.Contains("IsBadRequest && ContentObject is string message", operationFile.ResultClassContent, StringComparison.Ordinal);
+        Assert.Contains("IsBadRequest && ContentObject is null", operationFile.ResultClassContent, StringComparison.Ordinal);
+        Assert.Contains("ProblemDetailsFactory.CreateValidation(HttpStatusCode.BadRequest, message)", operationFile.ResultClassContent, StringComparison.Ordinal);
     }
 
     [Fact]

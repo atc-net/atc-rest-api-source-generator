@@ -39,8 +39,8 @@ public sealed class GetSessionResult : IResult
     /// <summary>
     /// 401 Unauthorized - Invalid or expired session.
     /// </summary>
-    public static GetSessionResult Unauthorized()
-        => new(TypedResults.Unauthorized());
+    public static GetSessionResult Unauthorized(string? message = null)
+        => new(TypedResults.Problem(detail: message, statusCode: 401));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

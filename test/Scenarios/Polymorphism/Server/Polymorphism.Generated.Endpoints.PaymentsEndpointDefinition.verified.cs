@@ -42,7 +42,7 @@ public sealed class PaymentsEndpointDefinition : IEndpointDefinition
             .WithName("CreatePayment")
             .WithSummary("Create a payment")
             .Produces<PaymentMethod>(StatusCodes.Status201Created)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
@@ -53,6 +53,7 @@ public sealed class PaymentsEndpointDefinition : IEndpointDefinition
             .WithSummary("Get a specific payment")
             .Produces<PaymentMethod>()
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }

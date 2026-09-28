@@ -41,7 +41,9 @@ public sealed class SchemaSummaryFieldsClient : ISchemaSummaryFieldsClient
     public async Task<List<Pet>> ListPetsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/pets";
-        return (await httpClient.GetFromJsonAsync<List<Pet>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Pet>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Pet> CreatePetAsync(
@@ -59,7 +61,9 @@ public sealed class SchemaSummaryFieldsClient : ISchemaSummaryFieldsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/pets/{parameters.PetId}";
-        return (await httpClient.GetFromJsonAsync<Pet>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

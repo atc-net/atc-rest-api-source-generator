@@ -20,6 +20,8 @@ public interface IGetOrderByIdEndpointResult : IEndpointResponse
 
     bool IsNotFound { get; }
 
+    bool IsBadRequest { get; }
+
     bool IsUnauthorized { get; }
 
     bool IsForbidden { get; }
@@ -31,6 +33,8 @@ public interface IGetOrderByIdEndpointResult : IEndpointResponse
     Order OkContent { get; }
 
     ProblemDetails NotFoundContent { get; }
+
+    ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails UnauthorizedContent { get; }
 

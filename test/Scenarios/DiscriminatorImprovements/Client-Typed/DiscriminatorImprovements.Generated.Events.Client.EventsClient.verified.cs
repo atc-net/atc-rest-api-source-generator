@@ -41,7 +41,9 @@ public sealed class EventsClient : IEventsClient
     public async Task<List<Event>> ListEventsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/events";
-        return (await httpClient.GetFromJsonAsync<List<Event>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Event>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

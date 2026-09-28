@@ -41,7 +41,9 @@ public sealed class PaymentsClient : IPaymentsClient
     public async Task<List<PaymentMethod>> ListPaymentsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/payments";
-        return (await httpClient.GetFromJsonAsync<List<PaymentMethod>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<PaymentMethod>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<PaymentMethod> CreatePaymentAsync(
@@ -59,7 +61,9 @@ public sealed class PaymentsClient : IPaymentsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/payments/{parameters.PaymentId}";
-        return (await httpClient.GetFromJsonAsync<PaymentMethod>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<PaymentMethod>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

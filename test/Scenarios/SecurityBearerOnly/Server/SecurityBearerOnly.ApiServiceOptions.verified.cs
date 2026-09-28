@@ -30,4 +30,11 @@ public class ApiServiceOptions
     /// Enable security policies. Auto-detected from security schemes.
     /// </summary>
     public bool UseSecurity { get; set; } = true;
+
+    /// <summary>
+    /// Register RFC 9457 ProblemDetails (<c>AddProblemDetails()</c>), so errors raised outside the handlers
+    /// (malformed requests, unknown routes, empty error results) get an <c>application/problem+json</c> body.
+    /// Turn off when the host configures ProblemDetails itself. Default: true.
+    /// </summary>
+    public bool UseProblemDetails { get; set; } = true;
 }

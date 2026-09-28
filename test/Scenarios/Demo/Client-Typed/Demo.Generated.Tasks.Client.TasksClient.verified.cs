@@ -55,7 +55,9 @@ public sealed class TasksClient : ITasksClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<List<Demo.Generated.Tasks.Models.Task>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Demo.Generated.Tasks.Models.Task>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async System.Threading.Tasks.Task<Demo.Generated.Tasks.Models.Task> CreateTaskAsync(
@@ -73,7 +75,9 @@ public sealed class TasksClient : ITasksClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/tasks/{Uri.EscapeDataString(parameters.TaskId)}";
-        return (await httpClient.GetFromJsonAsync<Demo.Generated.Tasks.Models.Task>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<Demo.Generated.Tasks.Models.Task>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async System.Threading.Tasks.Task DeleteTaskByIdAsync(

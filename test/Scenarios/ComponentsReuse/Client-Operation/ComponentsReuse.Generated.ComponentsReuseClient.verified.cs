@@ -41,7 +41,9 @@ public sealed class ComponentsReuseClient : IComponentsReuseClient
     public async Task<List<Item>> ListItemsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/items";
-        return (await httpClient.GetFromJsonAsync<List<Item>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Item>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Item> GetItemByIdAsync(
@@ -49,7 +51,9 @@ public sealed class ComponentsReuseClient : IComponentsReuseClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/items/{Uri.EscapeDataString(parameters.Id)}";
-        return (await httpClient.GetFromJsonAsync<Item>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<Item>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

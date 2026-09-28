@@ -1267,7 +1267,7 @@ using Microsoft.AspNetCore.Builder;
         {
             foreach (var response in operation.Responses)
             {
-                if (response.Value is not OpenApiResponse openApiResponse)
+                if (response.Value is not { } openApiResponse)
                 {
                     continue;
                 }
@@ -1275,17 +1275,11 @@ using Microsoft.AspNetCore.Builder;
                 var statusCode = response.Key;
                 definedCodes.Add(statusCode);
 
-                // Handle "default" response
-                if (statusCode.Equals("default", StringComparison.OrdinalIgnoreCase))
+                // Error responses (4xx, 5xx, default): describe exactly what the result factories write.
+                if (ErrorResponseShapeResolver.IsErrorStatusCode(statusCode))
                 {
                     builder.AppendLine();
-                    builder.Append("    .ProducesValidationProblem()");
-                    continue;
-                }
-
-                // Get the StatusCodes constant name
-                if (!HttpStatusCodeHelper.TryGetStatusCodesConstant(statusCode, out var statusCodeConstant))
-                {
+                    builder.Append(BuildErrorProducesCall(statusCode, openApiResponse, openApiDoc, operation, projectName, segment, systemTypeResolver, registry));
                     continue;
                 }
 
@@ -1309,18 +1303,21 @@ using Microsoft.AspNetCore.Builder;
                     continue;
                 }
 
+                // The StatusCodes constant, or the numeric literal for codes without one (425, 499, ...)
+                var statusCodeExpression = HttpStatusCodeHelper.ToStatusCodesExpression(statusCodeInt);
+
                 builder.AppendLine();
 
                 switch (statusCodeInt)
                 {
                     // 4xx and 5xx use ProducesProblem
                     case >= 400:
-                        builder.Append($"    .ProducesProblem(StatusCodes.{statusCodeConstant})");
+                        builder.Append($"    .ProducesProblem({statusCodeExpression})");
                         break;
 
                     // 2xx success codes: 204 and 205 never have content
                     case >= 200 and < 300 when statusCodeInt == 204 || statusCodeInt == 205:
-                        builder.Append($"    .Produces(StatusCodes.{statusCodeConstant})");
+                        builder.Append($"    .Produces({statusCodeExpression})");
                         break;
                     case >= 200 and < 300 when statusCodeInt == 200:
                     {
@@ -1328,7 +1325,7 @@ using Microsoft.AspNetCore.Builder;
                         // defaults to "application/json".
                         if (textResponseMediaType is not null)
                         {
-                            builder.Append($"    .Produces<{contentType}>(StatusCodes.{statusCodeConstant}, contentType: \"{textResponseMediaType}\")");
+                            builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\")");
                         }
                         else if (string.IsNullOrEmpty(contentType) &&
                                  operation.IsStreamingResponse() &&
@@ -1338,13 +1335,13 @@ using Microsoft.AspNetCore.Builder;
                             // declared media type (text/event-stream, application/jsonl, ...) so
                             // OpenAPI/Swagger reflects the actual streamed framing rather than the
                             // application/json default.
-                            builder.Append($"    .Produces(StatusCodes.{statusCodeConstant}, contentType: \"{streamingResponse.MediaType}\")");
+                            builder.Append($"    .Produces({statusCodeExpression}, contentType: \"{streamingResponse.MediaType}\")");
                         }
                         else
                         {
                             // 200 is the default status code for Produces<T>()
                             builder.Append(string.IsNullOrEmpty(contentType)
-                                ? $"    .Produces(StatusCodes.{statusCodeConstant})"
+                                ? $"    .Produces({statusCodeExpression})"
                                 : $"    .Produces<{contentType}>()");
                         }
 
@@ -1353,17 +1350,17 @@ using Microsoft.AspNetCore.Builder;
 
                     // Other 2xx codes need explicit status code
                     case >= 200 and < 300 when textResponseMediaType is not null:
-                        builder.Append($"    .Produces<{contentType}>(StatusCodes.{statusCodeConstant}, contentType: \"{textResponseMediaType}\")");
+                        builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\")");
                         break;
                     case >= 200 and < 300 when !string.IsNullOrEmpty(contentType):
-                        builder.Append($"    .Produces<{contentType}>(StatusCodes.{statusCodeConstant})");
+                        builder.Append($"    .Produces<{contentType}>({statusCodeExpression})");
                         break;
                     case >= 200 and < 300:
-                        builder.Append($"    .Produces(StatusCodes.{statusCodeConstant})");
+                        builder.Append($"    .Produces({statusCodeExpression})");
                         break;
                     default:
                         // 1xx and 3xx use simple Produces
-                        builder.Append($"    .Produces(StatusCodes.{statusCodeConstant})");
+                        builder.Append($"    .Produces({statusCodeExpression})");
                         break;
                 }
             }
@@ -1431,6 +1428,28 @@ using Microsoft.AspNetCore.Builder;
             builder.AppendLine();
             builder.Append("    .ProducesProblem(StatusCodes.Status504GatewayTimeout)");
         }
+    }
+
+    /// <summary>
+    /// The <c>.Produces*</c> call describing one error response exactly as the result factories write it
+    /// (see <see cref="ErrorResponseShapeResolver.ToProducesCall"/>).
+    /// </summary>
+    private static string BuildErrorProducesCall(
+        string statusCode,
+        IOpenApiResponse response,
+        OpenApiDocument openApiDoc,
+        OpenApiOperation operation,
+        string projectName,
+        string segment,
+        SystemTypeConflictResolver systemTypeResolver,
+        TypeConflictRegistry? registry)
+    {
+        var shape = ErrorResponseShapeResolver.Resolve(response);
+        var modelTypeName = shape.Kind == ErrorResponseKind.JsonObject
+            ? GetResponseContentType(shape.Schema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry, ErrorResponseShapeResolver.InlineTypeContext(statusCode))
+            : null;
+
+        return "    " + ErrorResponseShapeResolver.ToProducesCall(statusCode, shape, modelTypeName);
     }
 
     private static MethodParameters GenerateEndpointMethod(
@@ -1735,7 +1754,8 @@ using Microsoft.AspNetCore.Builder;
         string projectName,
         string segment,
         SystemTypeConflictResolver systemTypeResolver,
-        TypeConflictRegistry? registry)
+        TypeConflictRegistry? registry,
+        string inlineContext = "Response")
     {
         if (schema is null)
         {
@@ -1772,7 +1792,7 @@ using Microsoft.AspNetCore.Builder;
         if (schemaType == "object" && schema.Properties is not null && schema.Properties.Count > 0)
         {
             // Generate inline type name using the same pattern as ResultClassExtractor
-            return InlineSchemaExtractor.GenerateInlineTypeName(operationId, "Response");
+            return InlineSchemaExtractor.GenerateInlineTypeName(operationId, inlineContext);
         }
 
         // Fall back to ToCSharpTypeWithGenericSupport for other cases (allOf, primitives, etc.)

@@ -73,7 +73,7 @@ public sealed class DeleteSubscriptionResult : IResult
     /// 404 Not Found - Subscription not found.
     /// </summary>
     public static DeleteSubscriptionResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

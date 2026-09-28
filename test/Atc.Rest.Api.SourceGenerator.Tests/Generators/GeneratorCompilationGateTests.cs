@@ -31,6 +31,11 @@ public class GeneratorCompilationGateTests
     /// The third family - polymorphic <c>oneOf</c>/<c>anyOf</c> bases that were referenced but never
     /// emitted - has been fixed, and its eight entries removed from this list by the ratchet.
     /// </para>
+    /// <para>
+    /// A fourth - server segments whose only models are inline (anonymous) schemas, emitted into the
+    /// segment <c>Models</c> namespace but not imported - has been fixed too, removing the
+    /// <c>SecurityHybrid</c> and <c>SecurityStandard</c> Server/ServerDomain entries.
+    /// </para>
     /// </summary>
     private static readonly HashSet<string> KnownNonCompilingCombinations = new(StringComparer.Ordinal)
     {
@@ -47,17 +52,13 @@ public class GeneratorCompilationGateTests
         "PetStoreFull/Server",
         "PetStoreFull/Client-Operation",
         "PetStoreFull/Client-Typed",
-        "SecurityHybrid/Server",
         "SecurityHybrid/Client-Typed",
-        "SecurityStandard/Server",
         "SecurityStandard/Client-Typed",
 
         // Derivative: a ServerDomain compilation includes the server output it implements against,
-        // so these four inherit the failure of their Server row above rather than adding one. They
-        // will go green when that row does; there is nothing separate to fix here.
+        // so it inherits the failure of its Server row above rather than adding one. It will go
+        // green when that row does; there is nothing separate to fix here.
         "PetStoreFull/ServerDomain",
-        "SecurityHybrid/ServerDomain",
-        "SecurityStandard/ServerDomain",
     };
 
     public static IEnumerable<object[]> AllScenarioGenerators

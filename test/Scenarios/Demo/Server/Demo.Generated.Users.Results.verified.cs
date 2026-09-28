@@ -79,16 +79,13 @@ public sealed class CreateUserResult : IResult
     /// 400 Bad Request - Validation error.
     /// </summary>
     public static CreateUserResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// 409 Conflict - User with this email already exists.
     /// </summary>
     public static CreateUserResult Conflict(string? message = null)
-        => new(TypedResults.Conflict(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 409));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -130,7 +127,7 @@ public sealed class GetUserByIdResult : IResult
     /// 404 Not Found - User not found.
     /// </summary>
     public static GetUserByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -172,22 +169,19 @@ public sealed class UpdateUserByIdResult : IResult
     /// 400 Bad Request - Validation error.
     /// </summary>
     public static UpdateUserByIdResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// 404 Not Found - User not found.
     /// </summary>
     public static UpdateUserByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     /// <summary>
     /// 409 Conflict - Email already in use.
     /// </summary>
     public static UpdateUserByIdResult Conflict(string? message = null)
-        => new(TypedResults.Conflict(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 409));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -226,7 +220,7 @@ public sealed class DeleteUserByIdResult : IResult
     /// 404 Not Found - User not found.
     /// </summary>
     public static DeleteUserByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

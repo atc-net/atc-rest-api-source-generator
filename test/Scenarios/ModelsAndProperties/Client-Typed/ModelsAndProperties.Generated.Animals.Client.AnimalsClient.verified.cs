@@ -41,7 +41,9 @@ public sealed class AnimalsClient : IAnimalsClient
     public async Task<List<Animal>> ListAnimalsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/animals";
-        return (await httpClient.GetFromJsonAsync<List<Animal>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Animal>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

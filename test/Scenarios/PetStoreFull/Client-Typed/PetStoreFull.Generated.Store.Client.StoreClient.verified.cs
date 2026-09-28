@@ -40,7 +40,9 @@ public sealed class StoreClient : IStoreClient
     public async Task<object> GetInventoryAsync(CancellationToken cancellationToken = default)
     {
         var url = "/store/inventory";
-        return (await httpClient.GetFromJsonAsync<object>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<object>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Order> PlaceOrderAsync(
@@ -58,7 +60,9 @@ public sealed class StoreClient : IStoreClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/store/order/{parameters.OrderId}";
-        return (await httpClient.GetFromJsonAsync<Order>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task DeleteOrderAsync(

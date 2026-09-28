@@ -30,6 +30,13 @@ public class ApiMiddlewareOptions
     public bool UseAuthorization { get; set; } = true;
 
     /// <summary>
+    /// Write a ProblemDetails body for error responses that have none (<c>UseStatusCodePages()</c>).
+    /// Only applied when ProblemDetails is registered (see <c>ApiServiceOptions.UseProblemDetails</c>);
+    /// without it, status code pages would write plain text. Default: true.
+    /// </summary>
+    public bool UseStatusCodePages { get; set; } = true;
+
+    /// <summary>
     /// Configure global error handling options.
     /// </summary>
     public Action<GlobalErrorHandlingOptions>? ConfigureErrorHandling { get; set; }

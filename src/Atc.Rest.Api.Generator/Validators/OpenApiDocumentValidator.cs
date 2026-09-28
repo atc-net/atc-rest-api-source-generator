@@ -1750,7 +1750,7 @@ public static class OpenApiDocumentValidator
         {
             foreach (var parameter in operation.Parameters)
             {
-                if (parameter is OpenApiParameter p)
+                if (parameter.Resolve().Parameter is { } p)
                 {
                     var serialization = p.GetParameterSerialization();
                     if (!serialization.IsSupported)

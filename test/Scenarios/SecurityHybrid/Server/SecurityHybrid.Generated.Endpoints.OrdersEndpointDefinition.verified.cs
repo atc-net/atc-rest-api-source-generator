@@ -63,6 +63,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .WithSummary("Get order by ID")
             .Produces<Order>()
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -77,6 +78,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .WithSummary("Delete an order")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -91,6 +93,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .WithSummary("Get order tracking")
             .Produces<GetOrderTrackingResponse>()
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .AllowAnonymous();

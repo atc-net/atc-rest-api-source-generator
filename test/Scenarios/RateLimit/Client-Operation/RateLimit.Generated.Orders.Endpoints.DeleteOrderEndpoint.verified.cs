@@ -52,6 +52,7 @@ public sealed class DeleteOrderEndpoint : IDeleteOrderEndpoint
         var responseBuilder = httpMessageFactory.FromResponse(response);
         responseBuilder.AddSuccessResponse(HttpStatusCode.NoContent);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
+        responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.TooManyRequests);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);

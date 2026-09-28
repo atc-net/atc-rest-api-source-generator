@@ -34,7 +34,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .WithName("CreateOrder")
             .WithSummary("Create an order")
             .Produces<Order>(StatusCodes.Status201Created)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
@@ -45,6 +45,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .WithSummary("Get an order")
             .Produces<Order>()
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }

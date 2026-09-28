@@ -39,8 +39,8 @@ public sealed class GetCurrentUserResult : IResult
     /// <summary>
     /// 401 Unauthorized - Unauthorized.
     /// </summary>
-    public static GetCurrentUserResult Unauthorized()
-        => new(TypedResults.Unauthorized());
+    public static GetCurrentUserResult Unauthorized(string? message = null)
+        => new(TypedResults.Problem(detail: message, statusCode: 401));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -81,8 +81,8 @@ public sealed class GetCurrentUserProfileResult : IResult
     /// <summary>
     /// 401 Unauthorized - Unauthorized.
     /// </summary>
-    public static GetCurrentUserProfileResult Unauthorized()
-        => new(TypedResults.Unauthorized());
+    public static GetCurrentUserProfileResult Unauthorized(string? message = null)
+        => new(TypedResults.Problem(detail: message, statusCode: 401));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

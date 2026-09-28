@@ -42,7 +42,7 @@ public sealed class OwnersEndpointDefinition : IEndpointDefinition
             .WithName("CreateOwner")
             .WithSummary("Create a new owner")
             .Produces<Owner>(StatusCodes.Status201Created)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
@@ -53,6 +53,7 @@ public sealed class OwnersEndpointDefinition : IEndpointDefinition
             .WithSummary("Get an owner by ID")
             .Produces<Owner>()
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }

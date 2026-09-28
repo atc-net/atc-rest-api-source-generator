@@ -79,7 +79,7 @@ public sealed class GetItemByIdResult : IResult
     /// 404 Not Found - Not found.
     /// </summary>
     public static GetItemByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

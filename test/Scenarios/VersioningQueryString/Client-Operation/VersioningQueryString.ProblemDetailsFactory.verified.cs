@@ -21,8 +21,46 @@ public static class ProblemDetailsFactory
             Type: GetTypeUri(statusCode),
             Title: GetTitle(statusCode),
             Status: (int)statusCode,
-            Detail: string.IsNullOrWhiteSpace(message) ? null : message,
+            Detail: ToDetail(message),
             Instance: null);
+
+    /// <summary>
+    /// Creates a ValidationProblemDetails instance (without errors) from a status code and optional message.
+    /// </summary>
+    public static ValidationProblemDetails CreateValidation(HttpStatusCode statusCode, string? message = null)
+        => new(
+            Type: GetTypeUri(statusCode),
+            Title: GetTitle(statusCode),
+            Status: (int)statusCode,
+            Detail: ToDetail(message),
+            Instance: null,
+            Errors: null);
+
+    /// <summary>
+    /// The message as detail text: a JSON string body (<c>"text"</c>) is unwrapped to its value.
+    /// </summary>
+    private static string? ToDetail(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return null;
+        }
+
+        var trimmed = message!.Trim();
+        if (trimmed.Length >= 2 && trimmed[0] == '"' && trimmed[trimmed.Length - 1] == '"')
+        {
+            try
+            {
+                return System.Text.Json.JsonSerializer.Deserialize<string>(trimmed);
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                // Not a JSON string after all: keep the text as it is.
+            }
+        }
+
+        return message;
+    }
 
     private static string GetTypeUri(HttpStatusCode statusCode) => statusCode switch
     {

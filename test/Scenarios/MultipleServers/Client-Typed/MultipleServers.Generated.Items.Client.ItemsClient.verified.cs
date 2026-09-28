@@ -55,7 +55,9 @@ public sealed class ItemsClient : IItemsClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<List<Item>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Item>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Item> GetItemByIdAsync(
@@ -63,7 +65,9 @@ public sealed class ItemsClient : IItemsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/items/{parameters.ItemId}";
-        return (await httpClient.GetFromJsonAsync<Item>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<Item>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

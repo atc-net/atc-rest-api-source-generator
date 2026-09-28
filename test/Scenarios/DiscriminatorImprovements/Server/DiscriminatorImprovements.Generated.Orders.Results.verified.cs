@@ -40,10 +40,7 @@ public sealed class CreateOrderResult : IResult
     /// 400 Bad Request - Invalid order data.
     /// </summary>
     public static CreateOrderResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -85,7 +82,7 @@ public sealed class GetOrderByIdResult : IResult
     /// 404 Not Found - Order not found.
     /// </summary>
     public static GetOrderByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

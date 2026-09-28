@@ -41,7 +41,9 @@ public sealed class ItemsClient : IItemsClient
     public async Task<List<Item>> ListItemsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/items";
-        return (await httpClient.GetFromJsonAsync<List<Item>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Item>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

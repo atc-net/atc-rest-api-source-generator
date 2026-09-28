@@ -40,7 +40,7 @@ public sealed class GetFileByIdResult : IResult
     /// 404 Not Found - Not Found.
     /// </summary>
     public static GetFileByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -79,10 +79,7 @@ public sealed class UploadFormDataFileResult : IResult
     /// 400 Bad Request - Bad Request.
     /// </summary>
     public static UploadFormDataFileResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -121,10 +118,7 @@ public sealed class UploadFormDataFilesResult : IResult
     /// 400 Bad Request - Bad Request.
     /// </summary>
     public static UploadFormDataFilesResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

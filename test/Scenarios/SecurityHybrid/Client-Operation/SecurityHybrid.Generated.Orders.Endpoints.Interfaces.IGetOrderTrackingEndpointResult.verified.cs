@@ -20,6 +20,8 @@ public interface IGetOrderTrackingEndpointResult : IEndpointResponse
 
     bool IsNotFound { get; }
 
+    bool IsBadRequest { get; }
+
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
@@ -27,6 +29,8 @@ public interface IGetOrderTrackingEndpointResult : IEndpointResponse
     GetOrderTrackingResponse OkContent { get; }
 
     ProblemDetails NotFoundContent { get; }
+
+    ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

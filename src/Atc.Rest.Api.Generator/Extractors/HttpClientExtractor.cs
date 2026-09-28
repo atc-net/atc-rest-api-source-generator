@@ -478,7 +478,7 @@ public static class HttpClientExtractor
             // Plain text content returns string
             returnType = "string";
         }
-        else if (response is OpenApiResponse openApiResp &&
+        else if (response is { } openApiResp &&
                  openApiResp.Headers is not null &&
                  openApiResp.Headers.TryGetValue("Location", out var locationHeader) &&
                  locationHeader.Schema is OpenApiSchema { Format: "uri" })
@@ -977,15 +977,10 @@ public static class HttpClientExtractor
             builder.AppendLine("var response = await httpClient.GetAsync(url, cancellationToken);");
             AppendResponseCompletion(builder, resultStyle, ResponsePayloadKind.Text, returnType, isLastStatement: true);
         }
-        else if (hasReturnType && resultStyle != TypedClientResultStyleType.Result)
-        {
-            // Throw style can use the GetFromJsonAsync shortcut, which throws on a non-success status
-            // and never materializes an HttpResponseMessage. Result style needs the response itself to
-            // build the envelope, so it falls through to the GetAsync branch below.
-            builder.Append($"return (await httpClient.GetFromJsonAsync<{returnType}>(url, jsonSerializerOptions, cancellationToken))!;");
-        }
         else
         {
+            // No GetFromJsonAsync shortcut for the Throw style: its exception drops the error body, whereas
+            // EnsureSuccessAsync (emitted by AppendResponseCompletion) keeps it in the message.
             builder.AppendLine("var response = await httpClient.GetAsync(url, cancellationToken);");
 
             AppendResponseCompletion(

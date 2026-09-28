@@ -41,7 +41,9 @@ public sealed class CategoriesClient : ICategoriesClient
     public async Task<List<Category>> ListCategoriesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/categories";
-        return (await httpClient.GetFromJsonAsync<List<Category>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Category>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

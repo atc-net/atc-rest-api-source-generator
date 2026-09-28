@@ -54,6 +54,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .WithSummary("Get user by ID with HybridCache and sliding expiration")
             .Produces<User>()
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
@@ -74,6 +75,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .WithSummary("Delete user (no caching)")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }

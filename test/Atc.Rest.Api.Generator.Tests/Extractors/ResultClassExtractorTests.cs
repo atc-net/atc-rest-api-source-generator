@@ -242,8 +242,8 @@ public class ResultClassExtractorTests
         Assert.True(param.IsNullableType);
         Assert.Equal("null", param.DefaultValue);
 
-        // Verify Content uses TypedResults.NotFound(message)
-        Assert.Contains("TypedResults.NotFound(message)", notFoundMethod.Content, StringComparison.Ordinal);
+        // Verify Content writes an RFC 9457 ProblemDetails with the message as detail
+        Assert.Contains("TypedResults.Problem(detail: message, statusCode: 404)", notFoundMethod.Content, StringComparison.Ordinal);
     }
 
     // ========== 409 Conflict Tests ==========
@@ -306,8 +306,8 @@ public class ResultClassExtractorTests
         Assert.True(param.IsNullableType);
         Assert.Equal("null", param.DefaultValue);
 
-        // Verify Content uses TypedResults.Conflict(message)
-        Assert.Contains("TypedResults.Conflict(message)", conflictMethod.Content, StringComparison.Ordinal);
+        // Verify Content writes an RFC 9457 ProblemDetails with the message as detail
+        Assert.Contains("TypedResults.Problem(detail: message, statusCode: 409)", conflictMethod.Content, StringComparison.Ordinal);
     }
 
     // ========== 410 Gone Tests (Generic Fallback) ==========
@@ -355,7 +355,7 @@ public class ResultClassExtractorTests
         var method = resultClass.Methods?.FirstOrDefault(m => m.Name == "Gone");
         Assert.NotNull(method);
 
-        Assert.Contains("TypedResults.Problem(message, statusCode: 410)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("TypedResults.Problem(detail: message, statusCode: 410)", method.Content, StringComparison.Ordinal);
         Assert.NotNull(method.DocumentationTags);
         Assert.Contains("410", method.DocumentationTags.Summary, StringComparison.Ordinal);
     }
@@ -417,11 +417,12 @@ public class ResultClassExtractorTests
         var preconditionFailedMethod = resultClass.Methods?.FirstOrDefault(m => m.Name == "PreconditionFailed");
         Assert.NotNull(preconditionFailedMethod);
 
-        // Verify no parameters
-        Assert.Null(preconditionFailedMethod.Parameters);
+        // Verify the optional message (2.x "PreconditionFailed()" still compiles)
+        Assert.NotNull(preconditionFailedMethod.Parameters);
+        Assert.Equal("message", Assert.Single(preconditionFailedMethod.Parameters).Name);
 
-        // Verify Content uses TypedResults.StatusCode(StatusCodes.Status412PreconditionFailed)
-        Assert.Contains("TypedResults.StatusCode(StatusCodes.Status412PreconditionFailed)", preconditionFailedMethod.Content, StringComparison.Ordinal);
+        // Verify Content writes an RFC 9457 ProblemDetails
+        Assert.Contains("TypedResults.Problem(detail: message, statusCode: 412)", preconditionFailedMethod.Content, StringComparison.Ordinal);
 
         // Verify documentation
         Assert.NotNull(preconditionFailedMethod.DocumentationTags);
@@ -539,7 +540,7 @@ public class ResultClassExtractorTests
         Assert.True(param.IsNullableType);
         Assert.Equal("null", param.DefaultValue);
 
-        Assert.Contains("TypedResults.Problem(message, statusCode: 413)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("TypedResults.Problem(detail: message, statusCode: 413)", method.Content, StringComparison.Ordinal);
         Assert.NotNull(method.DocumentationTags);
         Assert.Contains("413", method.DocumentationTags.Summary, StringComparison.Ordinal);
     }
@@ -609,8 +610,8 @@ public class ResultClassExtractorTests
         Assert.True(param.IsNullableType);
         Assert.Equal("null", param.DefaultValue);
 
-        // Verify Content uses TypedResults.UnprocessableEntity(message)
-        Assert.Contains("TypedResults.UnprocessableEntity(message)", unprocessableEntityMethod.Content, StringComparison.Ordinal);
+        // Verify Content writes an RFC 9457 ProblemDetails with the message as detail
+        Assert.Contains("TypedResults.Problem(detail: message, statusCode: 422)", unprocessableEntityMethod.Content, StringComparison.Ordinal);
 
         // Verify documentation
         Assert.NotNull(unprocessableEntityMethod.DocumentationTags);
@@ -734,7 +735,7 @@ public class ResultClassExtractorTests
         Assert.True(param.IsNullableType);
         Assert.Equal("null", param.DefaultValue);
 
-        Assert.Contains("TypedResults.Problem(message, statusCode: 503)", method.Content, StringComparison.Ordinal);
+        Assert.Contains("TypedResults.Problem(detail: message, statusCode: 503)", method.Content, StringComparison.Ordinal);
         Assert.NotNull(method.DocumentationTags);
         Assert.Contains("503", method.DocumentationTags.Summary, StringComparison.Ordinal);
         Assert.Contains("Service Unavailable", method.DocumentationTags.Summary, StringComparison.Ordinal);

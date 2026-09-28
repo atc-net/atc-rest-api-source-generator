@@ -5,6 +5,7 @@ using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using SecurityHybrid.Generated.Reports.Models;
 
 namespace SecurityHybrid.Generated.Reports.Results;
 

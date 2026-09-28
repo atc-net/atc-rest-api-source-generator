@@ -42,7 +42,9 @@ public sealed class ModelsClient : IModelsClient
     public async Task<List<ComprehensiveModel>> ListModelsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/models";
-        return (await httpClient.GetFromJsonAsync<List<ComprehensiveModel>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<ComprehensiveModel>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<ComprehensiveModel> CreateModelAsync(
@@ -60,7 +62,9 @@ public sealed class ModelsClient : IModelsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/models/{parameters.ModelId}";
-        return (await httpClient.GetFromJsonAsync<ComprehensiveModel>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<ComprehensiveModel>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

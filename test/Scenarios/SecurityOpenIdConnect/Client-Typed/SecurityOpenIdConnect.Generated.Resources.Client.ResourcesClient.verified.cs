@@ -41,7 +41,9 @@ public sealed class ResourcesClient : IResourcesClient
     public async Task<List<Resource>> ListResourcesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/resources";
-        return (await httpClient.GetFromJsonAsync<List<Resource>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Resource>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Resource> CreateResourceAsync(
@@ -59,7 +61,9 @@ public sealed class ResourcesClient : IResourcesClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/resources/{parameters.ResourceId}";
-        return (await httpClient.GetFromJsonAsync<Resource>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<Resource>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task DeleteResourceAsync(

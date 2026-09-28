@@ -40,10 +40,7 @@ public sealed class CreateTestItemWithModelResult : IResult
     /// 400 Bad Request - Validation error.
     /// </summary>
     public static CreateTestItemWithModelResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -82,10 +79,7 @@ public sealed class CreateTestItemWithLocationHeaderResult : IResult
     /// 400 Bad Request - Validation error.
     /// </summary>
     public static CreateTestItemWithLocationHeaderResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -127,10 +121,7 @@ public sealed class CreateTestItemWithLocationInBodyResult : IResult
     /// 400 Bad Request - Validation error.
     /// </summary>
     public static CreateTestItemWithLocationInBodyResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -169,10 +160,7 @@ public sealed class CreateTestItemEmptyResult : IResult
     /// 400 Bad Request - Validation error.
     /// </summary>
     public static CreateTestItemEmptyResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

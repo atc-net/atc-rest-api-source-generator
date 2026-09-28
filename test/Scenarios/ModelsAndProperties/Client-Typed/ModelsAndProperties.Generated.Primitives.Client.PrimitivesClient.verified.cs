@@ -41,7 +41,9 @@ public sealed class PrimitivesClient : IPrimitivesClient
     public async Task<PrimitiveTypes> GetPrimitiveTypesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/primitives";
-        return (await httpClient.GetFromJsonAsync<PrimitiveTypes>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<PrimitiveTypes>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

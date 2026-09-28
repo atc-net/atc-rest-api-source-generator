@@ -115,7 +115,11 @@ public partial class AddPetEndpointResult : EndpointResponse, IAddPetEndpointRes
     public ValidationProblemDetails BadRequestContent
         => IsBadRequest && ContentObject is ValidationProblemDetails result
             ? result
-            : throw InvalidContentAccessException<ValidationProblemDetails>(HttpStatusCode.BadRequest, "BadRequestContent");
+            : IsBadRequest && ContentObject is string message
+                ? ProblemDetailsFactory.CreateValidation(HttpStatusCode.BadRequest, message)
+                : IsBadRequest && ContentObject is null
+                    ? ProblemDetailsFactory.CreateValidation(HttpStatusCode.BadRequest)
+                    : throw InvalidContentAccessException<ValidationProblemDetails>(HttpStatusCode.BadRequest, "BadRequestContent");
 
     public ProblemDetails UnprocessableEntityContent
         => IsUnprocessableEntity && ContentObject is ProblemDetails result

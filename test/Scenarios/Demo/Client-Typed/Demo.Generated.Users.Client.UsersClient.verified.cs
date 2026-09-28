@@ -75,7 +75,9 @@ public sealed class UsersClient : IUsersClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<List<User>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<User>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async System.Threading.Tasks.Task<User> CreateUserAsync(
@@ -93,7 +95,9 @@ public sealed class UsersClient : IUsersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/users/{parameters.UserId}";
-        return (await httpClient.GetFromJsonAsync<User>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<User>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async System.Threading.Tasks.Task<User> UpdateUserByIdAsync(

@@ -42,7 +42,9 @@ public sealed class CatsClient : ICatsClient
     public async Task<List<Cat>> ListCatsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/cats";
-        return (await httpClient.GetFromJsonAsync<List<Cat>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Cat>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

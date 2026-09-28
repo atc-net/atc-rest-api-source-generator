@@ -151,6 +151,7 @@ public static class UnifiedServiceCollectionExtractor
         builder.AppendLine(4, "/// <returns>The service collection for method chaining.</returns>");
         builder.AppendLine(4, "/// <remarks>");
         builder.AppendLine(4, "/// This method registers:");
+        builder.AppendLine(4, "/// - RFC 9457 ProblemDetails (AddProblemDetails), unless turned off");
 
         if (hasRateLimiting)
         {
@@ -186,6 +187,14 @@ public static class UnifiedServiceCollectionExtractor
 
         // Note: Handlers and validators are registered from Domain project, not here
         // because the Contracts project doesn't have access to Domain
+
+        // ProblemDetails: framework and middleware errors get application/problem+json bodies
+        builder.AppendLine();
+        builder.AppendLine(8, "// Register RFC 9457 ProblemDetails for errors raised outside the handlers");
+        builder.AppendLine(8, "if (options.UseProblemDetails)");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "services.AddProblemDetails();");
+        builder.AppendLine(8, "}");
 
         // Optional: rate limiting
         if (hasRateLimiting)

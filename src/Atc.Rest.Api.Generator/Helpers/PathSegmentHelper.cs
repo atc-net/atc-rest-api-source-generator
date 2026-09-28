@@ -330,7 +330,7 @@ public static class PathSegmentHelper
             {
                 foreach (var response in operation.Responses)
                 {
-                    if (response.Value is OpenApiResponse { Content: not null } openApiResponse)
+                    if (response.Value is { Content: not null } openApiResponse)
                     {
                         foreach (var content in openApiResponse.Content)
                         {
@@ -603,6 +603,12 @@ public static class PathSegmentHelper
 
         foreach (var schemaName in schemaNames)
         {
+            if (BuiltInErrorContractNames.IsReserved(schemaName))
+            {
+                // Never materialized as a model (bound to the framework type), so no Models using.
+                continue;
+            }
+
             if (sharedSchemas.Contains(schemaName))
             {
                 // Shared schema - use root Models namespace
@@ -826,8 +832,10 @@ public static class PathSegmentHelper
         string pathSegment,
         HashSet<string> sharedSchemas)
     {
+        // Built-in error contracts (ProblemDetails / ValidationProblemDetails) are never materialized as
+        // segment models - they bind to the framework / built-in types - so they don't make a Models namespace.
         var segmentSchemas = GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
-        return segmentSchemas.Count > 0 ||
+        return segmentSchemas.Any(s => !BuiltInErrorContractNames.IsReserved(s)) ||
                PathSegmentHasInlineModels(openApiDoc, pathSegment);
     }
 

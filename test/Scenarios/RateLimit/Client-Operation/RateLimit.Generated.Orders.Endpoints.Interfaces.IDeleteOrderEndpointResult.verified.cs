@@ -20,6 +20,8 @@ public interface IDeleteOrderEndpointResult : IEndpointResponse
 
     bool IsNotFound { get; }
 
+    bool IsBadRequest { get; }
+
     bool IsTooManyRequests { get; }
 
     bool IsInternalServerError { get; }
@@ -27,6 +29,8 @@ public interface IDeleteOrderEndpointResult : IEndpointResponse
     bool IsGatewayTimeout { get; }
 
     ProblemDetails NotFoundContent { get; }
+
+    ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails TooManyRequestsContent { get; }
 

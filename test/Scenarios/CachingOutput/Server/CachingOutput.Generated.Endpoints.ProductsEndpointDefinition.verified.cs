@@ -58,6 +58,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .WithSummary("Get product by ID with output caching")
             .Produces<Product>()
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .CacheOutput(OutputCachePolicies.ProductDetail);
@@ -68,6 +69,7 @@ public sealed class ProductsEndpointDefinition : IEndpointDefinition
             .WithSummary("Delete product (no caching)")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }

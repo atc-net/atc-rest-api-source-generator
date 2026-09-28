@@ -444,7 +444,15 @@ public static class EndpointPerOperationExtractor
     /// <param name="PropertyName">The property-friendly name (e.g., "Ok", "NotFound") - used for Is{value}, {value}Content.</param>
     /// <param name="ContentType">The content type returned by this response.</param>
     /// <param name="IsSuccess">Whether this is a success (2xx) response.</param>
-    private sealed record ResponseInfo(string StatusCode, string StatusEnumName, string PropertyName, string? ContentType, bool IsSuccess, string? TextMediaType = null);
+    private sealed record ResponseInfo(string StatusCode, string StatusEnumName, string PropertyName, string? ContentType, bool IsSuccess, string? TextMediaType = null)
+    {
+        /// <summary>
+        /// The <c>HttpStatusCode</c> expression for this status: the enum member, or a numeric cast for
+        /// codes the enum does not define (418, 499, ...).
+        /// </summary>
+        public string StatusCodeExpression
+            => HttpStatusCodeHelper.ToHttpStatusCodeExpression(int.Parse(StatusCode, NumberStyles.Integer, CultureInfo.InvariantCulture));
+    }
 
     private static List<ResponseInfo> ExtractResponses(
         OpenApiOperation operation,
@@ -479,6 +487,25 @@ public static class EndpointPerOperationExtractor
             // Determine content type from response body (headers like Location are metadata, not content)
             string? contentType = null;
             string? textMediaType = null;
+
+            // Error responses: the same resolution the server uses for its factories, so a client generated
+            // from a spec parses what a server generated from that spec writes (+json media types included).
+            if (!isSuccess)
+            {
+                var shape = ErrorResponseShapeResolver.Resolve(response.Value);
+                (contentType, textMediaType) = shape.Kind switch
+                {
+                    ErrorResponseKind.Problem when shape.IsDeclared => ("ProblemDetails", null),
+                    ErrorResponseKind.ValidationProblem => ("ValidationProblemDetails", null),
+                    ErrorResponseKind.JsonObject => (GetSchemaTypeName(shape.Schema, openApiDoc, registry, operationId, pathSegment, ErrorResponseShapeResolver.InlineTypeContext(statusCodeStr), inlineSchemas, isAsyncEnumerable: false), null),
+                    ErrorResponseKind.JsonString => ("string", null),
+                    ErrorResponseKind.Text => ("string", shape.MediaType),
+                    _ => (GetErrorContentType(errorResponseFormat, customErrorTypeName, statusCodeStr), (string?)null),
+                };
+
+                responses.Add(new ResponseInfo(statusCodeStr, statusEnumName, propertyName, contentType, isSuccess, textMediaType));
+                continue;
+            }
 
             // Check for JSON content
             // Note: Binary/octet-stream endpoints are handled by IsBinaryEndpoint() and skip result class generation
@@ -1215,27 +1242,27 @@ public static class EndpointPerOperationExtractor
                     if (responseInfo.TextMediaType is not null)
                     {
                         // Raw text body (text/plain, text/csv, ...) — bypass the JSON contract serializer.
-                        sb.AppendLine($"responseBuilder.AddSuccessTextResponse(HttpStatusCode.{responseInfo.StatusEnumName});");
+                        sb.AppendLine($"responseBuilder.AddSuccessTextResponse({responseInfo.StatusCodeExpression});");
                     }
                     else if (responseInfo.ContentType is null)
                     {
                         // Empty response - use non-generic AddSuccessResponse
-                        sb.AppendLine($"responseBuilder.AddSuccessResponse(HttpStatusCode.{responseInfo.StatusEnumName});");
+                        sb.AppendLine($"responseBuilder.AddSuccessResponse({responseInfo.StatusCodeExpression});");
                     }
                     else
                     {
-                        sb.AppendLine($"responseBuilder.AddSuccessResponse<{responseInfo.ContentType}>(HttpStatusCode.{responseInfo.StatusEnumName});");
+                        sb.AppendLine($"responseBuilder.AddSuccessResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression});");
                     }
                 }
                 else if (responseInfo.TextMediaType is not null)
                 {
                     // Raw text error body — same bypass for the error path.
-                    sb.AppendLine($"responseBuilder.AddErrorTextResponse(HttpStatusCode.{responseInfo.StatusEnumName});");
+                    sb.AppendLine($"responseBuilder.AddErrorTextResponse({responseInfo.StatusCodeExpression});");
                 }
                 else
                 {
                     // Error responses always have a type (ProblemDetails is the fallback)
-                    sb.AppendLine($"responseBuilder.AddErrorResponse<{responseInfo.ContentType}>(HttpStatusCode.{responseInfo.StatusEnumName});");
+                    sb.AppendLine($"responseBuilder.AddErrorResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression});");
                 }
             }
 
@@ -1386,12 +1413,12 @@ public static class EndpointPerOperationExtractor
             if (response.ContentType is null)
             {
                 sb.AppendLine(4, $"public static {operationName}EndpointResult {response.PropertyName}()");
-                sb.AppendLine(8, $"=> Create(HttpStatusCode.{response.StatusEnumName}, contentObject: null);");
+                sb.AppendLine(8, $"=> Create({response.StatusCodeExpression}, contentObject: null);");
             }
             else
             {
                 sb.AppendLine(4, $"public static {operationName}EndpointResult {response.PropertyName}({response.ContentType} content)");
-                sb.AppendLine(8, $"=> Create(HttpStatusCode.{response.StatusEnumName}, content);");
+                sb.AppendLine(8, $"=> Create({response.StatusCodeExpression}, content);");
             }
 
             sb.AppendLine();
@@ -1412,7 +1439,7 @@ public static class EndpointPerOperationExtractor
         foreach (var response in responses)
         {
             sb.AppendLine(4, $"public bool Is{response.PropertyName}");
-            sb.AppendLine(8, $"=> StatusCode == HttpStatusCode.{response.StatusEnumName};");
+            sb.AppendLine(8, $"=> StatusCode == {response.StatusCodeExpression};");
             sb.AppendLine();
         }
 
@@ -1423,18 +1450,19 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine(8, $"=> Is{response.PropertyName} && ContentObject is {response.ContentType} result");
             sb.AppendLine(12, "? result");
 
-            // For ProblemDetails, add fallback for plain text responses and null ContentObject
-            if (response.ContentType == "ProblemDetails")
+            // For ProblemDetails / ValidationProblemDetails, add fallback for plain text responses and null ContentObject
+            if (response.ContentType is "ProblemDetails" or "ValidationProblemDetails")
             {
+                var create = response.ContentType == "ProblemDetails" ? "Create" : "CreateValidation";
                 sb.AppendLine(12, $": Is{response.PropertyName} && ContentObject is string message");
-                sb.AppendLine(16, $"? ProblemDetailsFactory.Create(HttpStatusCode.{response.StatusEnumName}, message)");
+                sb.AppendLine(16, $"? ProblemDetailsFactory.{create}({response.StatusCodeExpression}, message)");
                 sb.AppendLine(16, $": Is{response.PropertyName} && ContentObject is null");
-                sb.AppendLine(20, $"? ProblemDetailsFactory.Create(HttpStatusCode.{response.StatusEnumName})");
-                sb.AppendLine(20, $": throw InvalidContentAccessException<{response.ContentType}>(HttpStatusCode.{response.StatusEnumName}, \"{response.PropertyName}Content\");");
+                sb.AppendLine(20, $"? ProblemDetailsFactory.{create}({response.StatusCodeExpression})");
+                sb.AppendLine(20, $": throw InvalidContentAccessException<{response.ContentType}>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
             }
             else
             {
-                sb.AppendLine(12, $": throw InvalidContentAccessException<{response.ContentType}>(HttpStatusCode.{response.StatusEnumName}, \"{response.PropertyName}Content\");");
+                sb.AppendLine(12, $": throw InvalidContentAccessException<{response.ContentType}>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
             }
 
             sb.AppendLine();

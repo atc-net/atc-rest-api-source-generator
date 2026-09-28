@@ -25,6 +25,7 @@ public static class UnifiedServiceCollectionExtensions
     /// <returns>The service collection for method chaining.</returns>
     /// <remarks>
     /// This method registers:
+    /// - RFC 9457 ProblemDetails (AddProblemDetails), unless turned off
     /// - Security policies (auto-detected)
     /// 
     /// Note: You also need to register handlers and validators from your Domain project:
@@ -37,6 +38,12 @@ public static class UnifiedServiceCollectionExtensions
     {
         var options = new ApiServiceOptions();
         configure?.Invoke(options);
+
+        // Register RFC 9457 ProblemDetails for errors raised outside the handlers
+        if (options.UseProblemDetails)
+        {
+            services.AddProblemDetails();
+        }
 
         // Register security policies from OpenAPI security schemes
         if (options.UseSecurity)

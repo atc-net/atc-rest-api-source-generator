@@ -42,7 +42,9 @@ public sealed class HttpMethodsClient : IHttpMethodsClient
     public async Task<List<Resource>> ListResourcesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/resources";
-        return (await httpClient.GetFromJsonAsync<List<Resource>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Resource>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<Resource>> QueryResourcesAsync(

@@ -52,7 +52,9 @@ public sealed class ReadOnlyWriteOnlyClient : IReadOnlyWriteOnlyClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/users/{parameters.UserId}";
-        return (await httpClient.GetFromJsonAsync<User>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<User>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

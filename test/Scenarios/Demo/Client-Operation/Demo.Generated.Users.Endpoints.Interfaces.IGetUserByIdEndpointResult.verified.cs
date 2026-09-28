@@ -20,6 +20,8 @@ public interface IGetUserByIdEndpointResult : IEndpointResponse
 
     bool IsNotFound { get; }
 
+    bool IsBadRequest { get; }
+
     bool IsInternalServerError { get; }
 
     bool IsGatewayTimeout { get; }
@@ -27,6 +29,8 @@ public interface IGetUserByIdEndpointResult : IEndpointResponse
     User OkContent { get; }
 
     ProblemDetails NotFoundContent { get; }
+
+    ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails InternalServerErrorContent { get; }
 

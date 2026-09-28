@@ -162,7 +162,7 @@ public static class CodeGenerationService
                 {
                     foreach (var response in op.Responses.Values)
                     {
-                        if (response is OpenApiResponse resp && resp.Content is not null)
+                        if (response is { Content: not null } resp)
                         {
                             foreach (var mediaType in resp.Content.Values)
                             {
@@ -180,7 +180,7 @@ public static class CodeGenerationService
                 {
                     foreach (var param in op.Parameters)
                     {
-                        if (param is OpenApiParameter p && SchemaReferencesName(p.Schema, schemaName))
+                        if (param.Resolve().Parameter is { } p && SchemaReferencesName(p.Schema, schemaName))
                         {
                             return GetGroupNameForOperation(op, pathKey);
                         }

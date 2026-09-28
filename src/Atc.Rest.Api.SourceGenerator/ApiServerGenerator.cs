@@ -361,6 +361,11 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Detect shared schemas (used by multiple path segments) for deduplication
         var sharedSchemas = PathSegmentHelper.GetSharedSchemas(openApiDoc);
 
+        // A spec-defined ProblemDetails / ValidationProblemDetails is not materialized: the server binds
+        // those names to Microsoft.AspNetCore.Mvc (every generated Results file imports it), and a second,
+        // generated type of the same name would make every reference ambiguous (CS0104).
+        sharedSchemas.RemoveWhere(BuiltInErrorContractNames.IsReserved);
+
         // Generate shared models/enums first (under common namespace without segment suffix)
         if (sharedSchemas.Count > 0)
         {
@@ -424,6 +429,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
             var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
 
+            // Same as for the shared set: ProblemDetails / ValidationProblemDetails bind to the framework types.
+            segmentSchemas.RemoveWhere(BuiltInErrorContractNames.IsReserved);
+
             // Generate segment-specific models (excluding shared ones)
             // Include shared models using directive so segment types can reference shared types
             if (segmentSchemas.Count > 0)
@@ -461,8 +469,10 @@ public class ApiServerGenerator : IIncrementalGenerator
                     effectiveSegment);
             }
 
-            // Determine if this segment has its own models namespace
-            var hasSegmentModels = segmentSchemas.Count > 0;
+            // Determine if this segment has its own models namespace. Inline (anonymous) request/response
+            // schemas - error responses included - are emitted into it too, so they must count here.
+            var hasSegmentModels = segmentSchemas.Count > 0 ||
+                                   PathSegmentHelper.PathSegmentHasInlineModels(openApiDoc, pathSegment);
 
             // Generate parameter classes
             GenerateParameterClasses(
@@ -1372,6 +1382,12 @@ public class ApiServerGenerator : IIncrementalGenerator
                     namespaceFound = true;
                 }
             }
+        }
+
+        // 429 factories wrap their result to add Retry-After; emit the wrapper once per Results namespace.
+        if (allGeneratedCode.ToString().Contains("new RetryAfterHttpResult("))
+        {
+            allGeneratedCode.AppendLine(ResultClassExtractor.RetryAfterHttpResultSource());
         }
 
         var normalizeForSourceOutput = allGeneratedCode

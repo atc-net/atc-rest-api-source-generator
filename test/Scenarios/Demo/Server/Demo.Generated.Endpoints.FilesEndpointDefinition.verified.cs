@@ -35,6 +35,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .WithSummary("Get File By Id")
             .Produces(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
@@ -43,7 +44,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .WithName("UploadFormDataFile")
             .WithSummary("Upload a file as FormData")
             .Produces(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
@@ -55,7 +56,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .WithName("UploadFormDataFiles")
             .WithSummary("Upload files as FormData")
             .Produces(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)

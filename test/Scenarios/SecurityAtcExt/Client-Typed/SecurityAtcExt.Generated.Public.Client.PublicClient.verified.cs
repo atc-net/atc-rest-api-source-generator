@@ -40,7 +40,9 @@ public sealed class PublicClient : IPublicClient
     public async Task<HealthStatus> GetHealthAsync(CancellationToken cancellationToken = default)
     {
         var url = "/public/health";
-        return (await httpClient.GetFromJsonAsync<HealthStatus>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<HealthStatus>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

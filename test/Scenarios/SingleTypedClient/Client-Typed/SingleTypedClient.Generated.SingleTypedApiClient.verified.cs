@@ -41,7 +41,9 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
     public async Task<List<Account>> ListAccountsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/accounts";
-        return (await httpClient.GetFromJsonAsync<List<Account>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Account>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Account> GetAccountByIdAsync(
@@ -49,13 +51,17 @@ public sealed class SingleTypedApiClient : ISingleTypedApiClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/accounts/{Uri.EscapeDataString(parameters.AccountId)}";
-        return (await httpClient.GetFromJsonAsync<Account>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<Account>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<Order>> ListOrdersAsync(CancellationToken cancellationToken = default)
     {
         var url = "/orders";
-        return (await httpClient.GetFromJsonAsync<List<Order>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Order>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Order> CreateOrderAsync(

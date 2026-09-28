@@ -36,8 +36,10 @@ public sealed class GetInventoryResult : IResult
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static GetInventoryResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static GetInventoryResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -79,22 +81,21 @@ public sealed class PlaceOrderResult : IResult
     /// 400 Bad Request - Invalid input.
     /// </summary>
     public static PlaceOrderResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// 422 Unprocessable Entity - Validation exception.
     /// </summary>
     public static PlaceOrderResult UnprocessableEntity(string? message = null)
-        => new(TypedResults.UnprocessableEntity(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 422));
 
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static PlaceOrderResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static PlaceOrderResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -136,22 +137,21 @@ public sealed class GetOrderByIdResult : IResult
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
     public static GetOrderByIdResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// 404 Not Found - Order not found.
     /// </summary>
     public static GetOrderByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static GetOrderByIdResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static GetOrderByIdResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -190,22 +190,21 @@ public sealed class DeleteOrderResult : IResult
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
     public static DeleteOrderResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// 404 Not Found - Order not found.
     /// </summary>
     public static DeleteOrderResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static DeleteOrderResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static DeleteOrderResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

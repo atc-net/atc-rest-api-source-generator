@@ -41,7 +41,9 @@ public sealed class ShapesClient : IShapesClient
     public async Task<List<Shape>> ListShapesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/shapes";
-        return (await httpClient.GetFromJsonAsync<List<Shape>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Shape>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Shape> CreateShapeAsync(

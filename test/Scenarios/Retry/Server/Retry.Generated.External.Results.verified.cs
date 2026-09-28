@@ -37,10 +37,10 @@ public sealed class ProcessPaymentResult : IResult
         => Ok(response);
 
     /// <summary>
-    /// 503 ServiceUnavailable - Service Unavailable.
+    /// 503 Service Unavailable - Service Unavailable.
     /// </summary>
     public static ProcessPaymentResult ServiceUnavailable(string? message = null)
-        => new(TypedResults.Problem(message, statusCode: 503));
+        => new(TypedResults.Problem(detail: message, statusCode: 503));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

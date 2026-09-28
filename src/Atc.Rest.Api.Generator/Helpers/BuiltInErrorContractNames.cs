@@ -10,6 +10,11 @@ namespace Atc.Rest.Api.Generator.Helpers;
 /// resolves the unqualified name against the enclosing namespace and always binds to the built-in,
 /// leaving the spec-derived record emitted but unreferenced.
 /// </para>
+/// <para>
+/// The server never materializes them either: it binds both names to
+/// <c>Microsoft.AspNetCore.Mvc</c>, which every generated Results file imports, so a generated
+/// namesake would make every reference ambiguous (CS0104).
+/// </para>
 /// </summary>
 public static class BuiltInErrorContractNames
 {

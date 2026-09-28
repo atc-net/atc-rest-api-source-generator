@@ -39,7 +39,9 @@ public sealed class DataClient : IDataClient
     public async Task<GetDataResponse> GetDataAsync(CancellationToken cancellationToken = default)
     {
         var url = "/data";
-        return (await httpClient.GetFromJsonAsync<GetDataResponse>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<GetDataResponse>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

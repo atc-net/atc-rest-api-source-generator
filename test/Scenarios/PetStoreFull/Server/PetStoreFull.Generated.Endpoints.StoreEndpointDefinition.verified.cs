@@ -34,7 +34,7 @@ public sealed class StoreEndpointDefinition : IEndpointDefinition
             .WithName("GetInventory")
             .WithSummary("Returns pet inventories by status.")
             .Produces<object>()
-            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("api_key")
@@ -45,9 +45,9 @@ public sealed class StoreEndpointDefinition : IEndpointDefinition
             .WithName("PlaceOrder")
             .WithSummary("Place an order for a pet.")
             .Produces<Order>()
-            .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         store
@@ -55,18 +55,18 @@ public sealed class StoreEndpointDefinition : IEndpointDefinition
             .WithName("GetOrderById")
             .WithSummary("Find purchase order by ID.")
             .Produces<Order>()
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesValidationProblem();
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         store
             .MapDelete("order/{orderId}", DeleteOrder)
             .WithName("DeleteOrder")
             .WithSummary("Delete purchase order by identifier.")
             .Produces(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesValidationProblem();
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 
     internal async Task<IResult> GetInventory(

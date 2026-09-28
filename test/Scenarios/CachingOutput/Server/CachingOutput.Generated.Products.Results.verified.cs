@@ -115,7 +115,7 @@ public sealed class GetProductByIdResult : IResult
     /// 404 Not Found - Not Found.
     /// </summary>
     public static GetProductByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -154,7 +154,7 @@ public sealed class DeleteProductResult : IResult
     /// 404 Not Found - Not Found.
     /// </summary>
     public static DeleteProductResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

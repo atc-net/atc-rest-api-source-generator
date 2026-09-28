@@ -43,7 +43,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .WithName("CreatePet")
             .WithSummary("Create a new pet")
             .Produces<Pet>(StatusCodes.Status201Created)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
@@ -54,6 +54,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .WithSummary("Get a pet by ID")
             .Produces<Pet>()
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
@@ -74,6 +75,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .WithSummary("Delete a pet")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }

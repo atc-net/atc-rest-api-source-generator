@@ -28,10 +28,15 @@
     <!-- Likewise for the OpenID Connect security scenario, whose emitted authentication wiring
          lives outside the ASP.NET Core shared framework. -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.12" />
-    <!-- Present in the test host, but the harness hides it from a scenario unless that scenario's
-         Server marker sets a MinimalApi mode to "Enabled" - otherwise every "Auto" scenario would
-         silently switch to the package-backed output. -->
-    <PackageReference Include="Atc.Rest.MinimalApi" Version="2.0.41" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Atc.Rest.MinimalApi is present in the test host, but the harness hides it from a scenario unless
+         that scenario's Server marker sets a MinimalApi mode to "Enabled" - otherwise every "Auto"
+         scenario would silently switch to the package-backed output.
+         TEMP (3.0 development): direct reference to the unreleased atc-rest-minimalapi 3.0.
+         Replace with <PackageReference Include="Atc.Rest.MinimalApi" Version="3.0.0" /> before release. -->
+    <ProjectReference Include="..\..\..\atc-rest-minimalapi\src\Atc.Rest.MinimalApi\Atc.Rest.MinimalApi.csproj" />
   </ItemGroup>
 
   <!-- ASP.NET Core shared framework, so generated server/client output (which uses

@@ -41,7 +41,9 @@ public sealed class AddressesClient : IAddressesClient
     public async Task<List<Address>> ListAddressesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/addresses";
-        return (await httpClient.GetFromJsonAsync<List<Address>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Address>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Address> CreateAddressAsync(

@@ -79,7 +79,7 @@ public sealed class CreateTaskResult : IResult
     /// 409 Conflict - Task conflict.
     /// </summary>
     public static CreateTaskResult Conflict(string? message = null)
-        => new(TypedResults.Conflict(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 409));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -121,7 +121,7 @@ public sealed class GetTaskByIdResult : IResult
     /// 404 Not Found - Task not found.
     /// </summary>
     public static GetTaskByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -160,7 +160,7 @@ public sealed class DeleteTaskByIdResult : IResult
     /// 404 Not Found - Task not found.
     /// </summary>
     public static DeleteTaskByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -202,7 +202,7 @@ public sealed class UpdateTaskByIdResult : IResult
     /// 404 Not Found - Task not found.
     /// </summary>
     public static UpdateTaskByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

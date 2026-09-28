@@ -41,7 +41,9 @@ public sealed class DictionariesClient : IDictionariesClient
     public async Task<DictionaryTypes> GetDictionaryTypesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/dictionaries";
-        return (await httpClient.GetFromJsonAsync<DictionaryTypes>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<DictionaryTypes>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

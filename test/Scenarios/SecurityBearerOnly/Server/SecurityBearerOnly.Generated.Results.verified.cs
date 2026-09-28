@@ -39,14 +39,14 @@ public sealed class GetCurrentUserResult : IResult
     /// <summary>
     /// 401 Unauthorized - Not authenticated.
     /// </summary>
-    public static GetCurrentUserResult Unauthorized()
-        => new(TypedResults.Unauthorized());
+    public static GetCurrentUserResult Unauthorized(string? message = null)
+        => new(TypedResults.Problem(detail: message, statusCode: 401));
 
     /// <summary>
     /// 403 Forbidden - Not a known user.
     /// </summary>
-    public static GetCurrentUserResult Forbidden()
-        => new(TypedResults.Forbid());
+    public static GetCurrentUserResult Forbidden(string? message = null)
+        => new(TypedResults.Problem(detail: message, statusCode: 403));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

@@ -115,7 +115,11 @@ public partial class UploadFileEndpointResult : EndpointResponse, IUploadFileEnd
     public ValidationProblemDetails BadRequestContent
         => IsBadRequest && ContentObject is ValidationProblemDetails result
             ? result
-            : throw InvalidContentAccessException<ValidationProblemDetails>(HttpStatusCode.BadRequest, "BadRequestContent");
+            : IsBadRequest && ContentObject is string message
+                ? ProblemDetailsFactory.CreateValidation(HttpStatusCode.BadRequest, message)
+                : IsBadRequest && ContentObject is null
+                    ? ProblemDetailsFactory.CreateValidation(HttpStatusCode.BadRequest)
+                    : throw InvalidContentAccessException<ValidationProblemDetails>(HttpStatusCode.BadRequest, "BadRequestContent");
 
     public ProblemDetails NotFoundContent
         => IsNotFound && ContentObject is ProblemDetails result

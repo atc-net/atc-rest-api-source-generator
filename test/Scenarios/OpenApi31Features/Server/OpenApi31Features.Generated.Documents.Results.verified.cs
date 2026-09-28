@@ -41,10 +41,7 @@ public sealed class CreateDocumentResult : IResult
     /// 400 Bad Request - Bad request.
     /// </summary>
     public static CreateDocumentResult BadRequest(Error? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.StatusCode(400) : TypedResults.Json(errors, contentType: "application/json", statusCode: 400));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

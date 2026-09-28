@@ -20,6 +20,8 @@ public interface IGetProductByIdEndpointResult : IEndpointResponse
 
     bool IsNotFound { get; }
 
+    bool IsBadRequest { get; }
+
     bool IsUnauthorized { get; }
 
     bool IsForbidden { get; }
@@ -31,6 +33,8 @@ public interface IGetProductByIdEndpointResult : IEndpointResponse
     Product OkContent { get; }
 
     ProblemDetails NotFoundContent { get; }
+
+    ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails UnauthorizedContent { get; }
 

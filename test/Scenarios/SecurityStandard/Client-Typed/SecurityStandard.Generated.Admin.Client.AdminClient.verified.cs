@@ -40,7 +40,9 @@ public sealed class AdminClient : IAdminClient
     public async Task<AdminSettings> GetAdminSettingsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/admin/settings";
-        return (await httpClient.GetFromJsonAsync<AdminSettings>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<AdminSettings>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<AdminSettings> UpdateAdminSettingsAsync(

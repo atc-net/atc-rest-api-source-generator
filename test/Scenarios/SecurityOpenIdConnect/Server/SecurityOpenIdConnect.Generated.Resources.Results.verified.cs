@@ -42,8 +42,8 @@ public sealed class ListResourcesResult : IResult
     /// <summary>
     /// 401 Unauthorized - Unauthorized.
     /// </summary>
-    public static ListResourcesResult Unauthorized()
-        => new(TypedResults.Unauthorized());
+    public static ListResourcesResult Unauthorized(string? message = null)
+        => new(TypedResults.Problem(detail: message, statusCode: 401));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -85,16 +85,13 @@ public sealed class CreateResourceResult : IResult
     /// 400 Bad Request - Bad Request.
     /// </summary>
     public static CreateResourceResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// 401 Unauthorized - Unauthorized.
     /// </summary>
-    public static CreateResourceResult Unauthorized()
-        => new(TypedResults.Unauthorized());
+    public static CreateResourceResult Unauthorized(string? message = null)
+        => new(TypedResults.Problem(detail: message, statusCode: 401));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -135,14 +132,14 @@ public sealed class GetResourceByIdResult : IResult
     /// <summary>
     /// 401 Unauthorized - Unauthorized.
     /// </summary>
-    public static GetResourceByIdResult Unauthorized()
-        => new(TypedResults.Unauthorized());
+    public static GetResourceByIdResult Unauthorized(string? message = null)
+        => new(TypedResults.Problem(detail: message, statusCode: 401));
 
     /// <summary>
     /// 404 Not Found - Not Found.
     /// </summary>
     public static GetResourceByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -180,20 +177,20 @@ public sealed class DeleteResourceResult : IResult
     /// <summary>
     /// 401 Unauthorized - Unauthorized.
     /// </summary>
-    public static DeleteResourceResult Unauthorized()
-        => new(TypedResults.Unauthorized());
+    public static DeleteResourceResult Unauthorized(string? message = null)
+        => new(TypedResults.Problem(detail: message, statusCode: 401));
 
     /// <summary>
     /// 403 Forbidden - Forbidden - not owner.
     /// </summary>
-    public static DeleteResourceResult Forbidden()
-        => new(TypedResults.Forbid());
+    public static DeleteResourceResult Forbidden(string? message = null)
+        => new(TypedResults.Problem(detail: message, statusCode: 403));
 
     /// <summary>
     /// 404 Not Found - Not Found.
     /// </summary>
     public static DeleteResourceResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

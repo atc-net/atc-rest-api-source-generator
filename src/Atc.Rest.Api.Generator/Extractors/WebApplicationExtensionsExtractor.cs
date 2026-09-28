@@ -132,6 +132,7 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine(4, "/// <returns>The WebApplication for method chaining.</returns>");
         builder.AppendLine(4, "/// <remarks>");
         builder.AppendLine(4, "/// This method configures:");
+        builder.AppendLine(4, "/// - Status code pages writing ProblemDetails for empty error responses (when ProblemDetails is registered)");
 
         if (hasRateLimiting)
         {
@@ -152,6 +153,17 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine(4, "{");
         builder.AppendLine(8, "var options = new ApiMiddlewareOptions();");
         builder.AppendLine(8, "configure?.Invoke(options);");
+
+        // Status code pages first, so every empty error response below (rate limiter, auth, routing,
+        // endpoints) gets a ProblemDetails body. Only with ProblemDetails registered: on its own,
+        // UseStatusCodePages() writes text/plain.
+        builder.AppendLine();
+        builder.AppendLine(8, "// ProblemDetails body for error responses that have none (needs AddProblemDetails)");
+        builder.AppendLine(8, "if (options.UseStatusCodePages &&");
+        builder.AppendLine(8, "    app.Services.GetService(typeof(global::Microsoft.AspNetCore.Http.IProblemDetailsService)) is not null)");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "app.UseStatusCodePages();");
+        builder.AppendLine(8, "}");
 
         // Rate limiter (optional)
         if (hasRateLimiting)

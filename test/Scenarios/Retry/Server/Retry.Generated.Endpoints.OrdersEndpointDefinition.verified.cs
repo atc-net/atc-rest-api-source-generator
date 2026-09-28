@@ -53,6 +53,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .WithSummary("Get order (inherits orders-fast)")
             .Produces<Order>()
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
@@ -62,6 +63,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .WithSummary("Delete order (idempotent - can retry)")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }

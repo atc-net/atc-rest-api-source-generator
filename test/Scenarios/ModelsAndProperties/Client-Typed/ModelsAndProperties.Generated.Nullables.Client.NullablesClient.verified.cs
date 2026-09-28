@@ -41,7 +41,9 @@ public sealed class NullablesClient : INullablesClient
     public async Task<NullableTypes> GetNullablesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/nullables";
-        return (await httpClient.GetFromJsonAsync<NullableTypes>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<NullableTypes>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

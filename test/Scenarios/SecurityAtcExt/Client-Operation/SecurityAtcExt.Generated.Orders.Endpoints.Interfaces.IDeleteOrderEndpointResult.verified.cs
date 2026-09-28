@@ -20,6 +20,8 @@ public interface IDeleteOrderEndpointResult : IEndpointResponse
 
     bool IsNotFound { get; }
 
+    bool IsBadRequest { get; }
+
     bool IsUnauthorized { get; }
 
     bool IsForbidden { get; }
@@ -29,6 +31,8 @@ public interface IDeleteOrderEndpointResult : IEndpointResponse
     bool IsGatewayTimeout { get; }
 
     ProblemDetails NotFoundContent { get; }
+
+    ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails UnauthorizedContent { get; }
 

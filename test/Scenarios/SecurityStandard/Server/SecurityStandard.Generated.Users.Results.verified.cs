@@ -79,7 +79,7 @@ public sealed class GetUserByIdResult : IResult
     /// 404 Not Found - Not Found.
     /// </summary>
     public static GetUserByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

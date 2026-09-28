@@ -38,6 +38,12 @@ public partial class DeleteUserByIdEndpointResult : EndpointResponse, IDeleteUse
         => Create(HttpStatusCode.NotFound, content);
 
     /// <summary>
+    /// Creates a result representing HTTP BadRequest.
+    /// </summary>
+    public static DeleteUserByIdEndpointResult BadRequest(ValidationProblemDetails content)
+        => Create(HttpStatusCode.BadRequest, content);
+
+    /// <summary>
     /// Creates a result representing HTTP InternalServerError.
     /// </summary>
     public static DeleteUserByIdEndpointResult InternalServerError(ProblemDetails content)
@@ -65,6 +71,9 @@ public partial class DeleteUserByIdEndpointResult : EndpointResponse, IDeleteUse
     public bool IsNotFound
         => StatusCode == HttpStatusCode.NotFound;
 
+    public bool IsBadRequest
+        => StatusCode == HttpStatusCode.BadRequest;
+
     public bool IsInternalServerError
         => StatusCode == HttpStatusCode.InternalServerError;
 
@@ -79,6 +88,15 @@ public partial class DeleteUserByIdEndpointResult : EndpointResponse, IDeleteUse
                 : IsNotFound && ContentObject is null
                     ? ProblemDetailsFactory.Create(HttpStatusCode.NotFound)
                     : throw InvalidContentAccessException<ProblemDetails>(HttpStatusCode.NotFound, "NotFoundContent");
+
+    public ValidationProblemDetails BadRequestContent
+        => IsBadRequest && ContentObject is ValidationProblemDetails result
+            ? result
+            : IsBadRequest && ContentObject is string message
+                ? ProblemDetailsFactory.CreateValidation(HttpStatusCode.BadRequest, message)
+                : IsBadRequest && ContentObject is null
+                    ? ProblemDetailsFactory.CreateValidation(HttpStatusCode.BadRequest)
+                    : throw InvalidContentAccessException<ValidationProblemDetails>(HttpStatusCode.BadRequest, "BadRequestContent");
 
     public ProblemDetails InternalServerErrorContent
         => IsInternalServerError && ContentObject is ProblemDetails result

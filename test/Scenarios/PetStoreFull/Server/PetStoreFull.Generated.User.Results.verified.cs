@@ -39,8 +39,10 @@ public sealed class CreateUserResult : IResult
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static CreateUserResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static CreateUserResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -81,8 +83,10 @@ public sealed class CreateUsersWithListInputResult : IResult
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static CreateUsersWithListInputResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static CreateUsersWithListInputResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -124,16 +128,15 @@ public sealed class LoginUserResult : IResult
     /// 400 Bad Request - Invalid username/password supplied.
     /// </summary>
     public static LoginUserResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static LoginUserResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static LoginUserResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -171,8 +174,10 @@ public sealed class LogoutUserResult : IResult
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static LogoutUserResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static LogoutUserResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -214,22 +219,21 @@ public sealed class GetUserByNameResult : IResult
     /// 400 Bad Request - Invalid username supplied.
     /// </summary>
     public static GetUserByNameResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// 404 Not Found - User not found.
     /// </summary>
     public static GetUserByNameResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static GetUserByNameResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static GetUserByNameResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -268,22 +272,21 @@ public sealed class UpdateUserResult : IResult
     /// 400 Bad Request - bad request.
     /// </summary>
     public static UpdateUserResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// 404 Not Found - user not found.
     /// </summary>
     public static UpdateUserResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static UpdateUserResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static UpdateUserResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -322,22 +325,21 @@ public sealed class DeleteUserResult : IResult
     /// 400 Bad Request - Invalid username supplied.
     /// </summary>
     public static DeleteUserResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// 404 Not Found - User not found.
     /// </summary>
     public static DeleteUserResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static DeleteUserResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static DeleteUserResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

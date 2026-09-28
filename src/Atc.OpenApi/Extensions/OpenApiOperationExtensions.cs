@@ -83,19 +83,37 @@ public static class OpenApiOperationExtensions
         /// <param name="statusCode">The HTTP status code.</param>
         /// <param name="contentType">The content type (default: application/json).</param>
         /// <returns>The schema or null if not found.</returns>
+        /// <remarks>
+        /// With the default <c>application/json</c>, a response that only declares another JSON media type
+        /// (a <c>+json</c> suffix such as <c>application/problem+json</c> or <c>application/vnd.x+json</c>)
+        /// yields that media type's schema.
+        /// </remarks>
         public IOpenApiSchema? GetResponseSchema(
             string statusCode,
             string contentType = "application/json")
         {
-            if (operation is { Responses: not null } &&
-                operation.Responses.TryGetValue(statusCode, out var response) &&
-                response.Content is not null &&
-                response.Content.TryGetValue(contentType, out var mediaType))
+            if (operation is not { Responses: not null } ||
+                !operation.Responses.TryGetValue(statusCode, out var response) ||
+                response.Content is null)
+            {
+                return null;
+            }
+
+            if (response.Content.TryGetValue(contentType, out var mediaType))
             {
                 return mediaType.Schema;
             }
 
-            return null;
+            if (!string.Equals(contentType, "application/json", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return response.Content
+                .Where(kv => kv.Key.Split(';')[0].Trim().EndsWith("+json", StringComparison.OrdinalIgnoreCase) && kv.Value?.Schema is not null)
+                .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(kv => kv.Value!.Schema)
+                .FirstOrDefault();
         }
 
         /// <summary>
@@ -532,7 +550,15 @@ public static class OpenApiOperationExtensions
 
             foreach (var paramInterface in operation.Parameters)
             {
-                if (paramInterface is OpenApiParameter param && param.In == location)
+                // Resolve $ref parameters (components/parameters) as well as inline ones.
+                var param = paramInterface switch
+                {
+                    OpenApiParameter direct => direct,
+                    OpenApiParameterReference reference => reference.Target as OpenApiParameter,
+                    _ => null,
+                };
+
+                if (param is not null && param.In == location)
                 {
                     yield return param;
                 }

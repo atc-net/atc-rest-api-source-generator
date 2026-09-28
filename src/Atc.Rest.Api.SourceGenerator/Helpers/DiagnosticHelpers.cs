@@ -1934,7 +1934,7 @@ internal static class DiagnosticHelpers
 
                 foreach (var response in operation.Responses.Values)
                 {
-                    if (response is OpenApiResponse { Links.Count: > 0 })
+                    if (response is { Links.Count: > 0 })
                     {
                         return true;
                     }

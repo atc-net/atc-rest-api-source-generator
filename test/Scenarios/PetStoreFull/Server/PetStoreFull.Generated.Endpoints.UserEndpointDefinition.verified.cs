@@ -34,7 +34,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .WithName("CreateUser")
             .WithSummary("Create user.")
             .Produces<User>()
-            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict);
 
@@ -43,7 +43,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .WithName("CreateUsersWithListInput")
             .WithSummary("Creates list of users with given input array.")
             .Produces<User>()
-            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict);
 
@@ -52,33 +52,33 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .WithName("LoginUser")
             .WithSummary("Logs user into the system.")
             .Produces<string>()
-            .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesValidationProblem();
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         user
             .MapGet("logout", LogoutUser)
             .WithName("LogoutUser")
             .WithSummary("Logs out current logged in user session.")
             .Produces(StatusCodes.Status200OK)
-            .ProducesValidationProblem();
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         user
             .MapGet("{username}", GetUserByName)
             .WithName("GetUserByName")
             .WithSummary("Get user by user name.")
             .Produces<User>()
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesValidationProblem();
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         user
             .MapPut("{username}", UpdateUser)
             .WithName("UpdateUser")
             .WithSummary("Update user resource.")
             .Produces(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
         user
@@ -86,9 +86,9 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .WithName("DeleteUser")
             .WithSummary("Delete user resource.")
             .Produces(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesValidationProblem();
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 
     internal async Task<IResult> CreateUser(

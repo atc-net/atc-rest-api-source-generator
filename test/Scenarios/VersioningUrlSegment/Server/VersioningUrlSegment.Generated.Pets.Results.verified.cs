@@ -79,10 +79,7 @@ public sealed class CreatePetResult : IResult
     /// 400 Bad Request - Bad Request.
     /// </summary>
     public static CreatePetResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -124,7 +121,7 @@ public sealed class GetPetByIdResult : IResult
     /// 404 Not Found - Not Found.
     /// </summary>
     public static GetPetByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -166,7 +163,7 @@ public sealed class UpdatePetResult : IResult
     /// 404 Not Found - Not Found.
     /// </summary>
     public static UpdatePetResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -205,7 +202,7 @@ public sealed class DeletePetResult : IResult
     /// 404 Not Found - Not Found.
     /// </summary>
     public static DeletePetResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

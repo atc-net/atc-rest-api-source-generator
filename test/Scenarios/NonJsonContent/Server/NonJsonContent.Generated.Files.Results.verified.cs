@@ -39,7 +39,7 @@ public sealed class DownloadFileResult : IResult
     /// 404 Not Found - File not found.
     /// </summary>
     public static DownloadFileResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

@@ -43,7 +43,7 @@ public sealed class PetsEndpointDefinition : IEndpointDefinition
             .WithName("CreatePet")
             .WithSummary("Create a pet")
             .Produces<Pet>(StatusCodes.Status201Created)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);

@@ -457,22 +457,20 @@ public static class EndpointRegistrationExtractor
             {
                 var statusCode = response.Key;
 
-                // Handle "default" response
-                if (statusCode.Equals("default", StringComparison.OrdinalIgnoreCase))
+                // Error responses (4xx, 5xx, default): the same metadata the endpoint definitions emit.
+                if (ErrorResponseShapeResolver.IsErrorStatusCode(statusCode))
                 {
-                    producesLines.Add("    .ProducesValidationProblem()");
-                    continue;
-                }
-
-                // Skip if status code is not in our map
-                if (!HttpStatusCodeHelper.TryGetStatusCodesConstant(statusCode, out var statusConstant))
-                {
+                    var shape = ErrorResponseShapeResolver.Resolve(response.Value);
+                    var modelTypeName = shape is { Kind: ErrorResponseKind.JsonObject, Schema: not null }
+                        ? shape.Schema.ToCSharpType(true)
+                        : null;
+                    producesLines.Add("    " + ErrorResponseShapeResolver.ToProducesCall(statusCode, shape, modelTypeName));
                     continue;
                 }
 
                 // Get response content type
                 string? contentType = null;
-                if (response.Value is OpenApiResponse openApiResponse &&
+                if (response.Value is { } openApiResponse &&
                     openApiResponse.Content?.TryGetValue("application/json", out var mediaType) == true &&
                     mediaType.Schema is not null)
                 {
@@ -487,17 +485,20 @@ public static class EndpointRegistrationExtractor
                     continue;
                 }
 
+                // The StatusCodes constant, or the numeric literal for codes without one (425, 499, ...)
+                var statusCodeExpression = HttpStatusCodeHelper.ToStatusCodesExpression(code);
+
                 // Generate appropriate Produces call based on status code category
                 switch (code)
                 {
                     // 4xx and 5xx use ProducesProblem
                     case >= 400:
-                        producesLines.Add($"    .ProducesProblem(StatusCodes.{statusConstant})");
+                        producesLines.Add($"    .ProducesProblem({statusCodeExpression})");
                         break;
 
                     // 204 and 205 never have content
                     case 204 or 205:
-                        producesLines.Add($"    .Produces(StatusCodes.{statusConstant})");
+                        producesLines.Add($"    .Produces({statusCodeExpression})");
                         break;
 
                     // 200 is the default status code for Produces<T>()
@@ -507,12 +508,12 @@ public static class EndpointRegistrationExtractor
 
                     // Other 2xx codes need explicit status code
                     case >= 200 and < 300 when !string.IsNullOrEmpty(contentType):
-                        producesLines.Add($"    .Produces<{contentType}>(StatusCodes.{statusConstant})");
+                        producesLines.Add($"    .Produces<{contentType}>({statusCodeExpression})");
                         break;
 
                     // Fallback for any other codes
                     default:
-                        producesLines.Add($"    .Produces(StatusCodes.{statusConstant})");
+                        producesLines.Add($"    .Produces({statusCodeExpression})");
                         break;
                 }
             }

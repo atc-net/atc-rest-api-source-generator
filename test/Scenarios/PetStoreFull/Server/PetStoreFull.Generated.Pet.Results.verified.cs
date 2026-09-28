@@ -40,28 +40,27 @@ public sealed class UpdatePetResult : IResult
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
     public static UpdatePetResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// 404 Not Found - Pet not found.
     /// </summary>
     public static UpdatePetResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     /// <summary>
     /// 422 Unprocessable Entity - Validation exception.
     /// </summary>
     public static UpdatePetResult UnprocessableEntity(string? message = null)
-        => new(TypedResults.UnprocessableEntity(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 422));
 
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static UpdatePetResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static UpdatePetResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -103,22 +102,21 @@ public sealed class AddPetResult : IResult
     /// 400 Bad Request - Invalid input.
     /// </summary>
     public static AddPetResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// 422 Unprocessable Entity - Validation exception.
     /// </summary>
     public static AddPetResult UnprocessableEntity(string? message = null)
-        => new(TypedResults.UnprocessableEntity(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 422));
 
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static AddPetResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static AddPetResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -163,16 +161,15 @@ public sealed class FindPetsByStatusResult : IResult
     /// 400 Bad Request - Invalid status value.
     /// </summary>
     public static FindPetsByStatusResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static FindPetsByStatusResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static FindPetsByStatusResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -217,16 +214,15 @@ public sealed class FindPetsByTagsResult : IResult
     /// 400 Bad Request - Invalid tag value.
     /// </summary>
     public static FindPetsByTagsResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static FindPetsByTagsResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static FindPetsByTagsResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -268,22 +264,21 @@ public sealed class GetPetByIdResult : IResult
     /// 400 Bad Request - Invalid ID supplied.
     /// </summary>
     public static GetPetByIdResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// 404 Not Found - Pet not found.
     /// </summary>
     public static GetPetByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static GetPetByIdResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static GetPetByIdResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -325,16 +320,15 @@ public sealed class UpdatePetWithFormResult : IResult
     /// 400 Bad Request - Invalid input.
     /// </summary>
     public static UpdatePetWithFormResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static UpdatePetWithFormResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static UpdatePetWithFormResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -373,16 +367,15 @@ public sealed class DeletePetResult : IResult
     /// 400 Bad Request - Invalid pet value.
     /// </summary>
     public static DeletePetResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static DeletePetResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static DeletePetResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -424,22 +417,21 @@ public sealed class UploadFileResult : IResult
     /// 400 Bad Request - No file uploaded.
     /// </summary>
     public static UploadFileResult BadRequest(ValidationProblemDetails? errors = null)
-        => new(
-                errors is null
-                    ? TypedResults.BadRequest()
-                    : TypedResults.BadRequest(errors));
+        => new(errors is null ? TypedResults.Problem(statusCode: 400) : TypedResults.ValidationProblem(errors.Errors, detail: errors.Detail, instance: errors.Instance, title: errors.Title, type: errors.Type, extensions: errors.Extensions));
 
     /// <summary>
     /// 404 Not Found - Pet not found.
     /// </summary>
     public static UploadFileResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     /// <summary>
     /// Default error response - Unexpected error.
     /// </summary>
-    public static UploadFileResult Error(string message)
-        => new(TypedResults.Problem(message));
+    public static UploadFileResult Error(
+        string? message = null,
+        int statusCode = 500)
+        => new(TypedResults.Problem(detail: message, statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

@@ -56,7 +56,9 @@ public sealed class AccountsClient : IAccountsClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<List<Account>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Account>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async System.Threading.Tasks.Task<Account> CreateAccountAsync(
@@ -74,7 +76,9 @@ public sealed class AccountsClient : IAccountsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/accounts/{Uri.EscapeDataString(parameters.AccountId)}";
-        return (await httpClient.GetFromJsonAsync<Account>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<Account>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async System.Threading.Tasks.Task DeleteAccountByIdAsync(
@@ -128,7 +132,9 @@ public sealed class AccountsClient : IAccountsClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<PaginatedResult<Account>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<PaginatedResult<Account>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async IAsyncEnumerable<Account> ListAsyncEnumerableAccountsAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)

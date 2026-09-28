@@ -42,8 +42,10 @@ public sealed class ListPetsResult : IResult
     /// <summary>
     /// Default error response - unexpected error.
     /// </summary>
-    public static ListPetsResult Error(Error error)
-        => new(TypedResults.Json(error, statusCode: 500));
+    public static ListPetsResult Error(
+        Error error,
+        int statusCode = 500)
+        => new(TypedResults.Json(error, contentType: "application/json", statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -81,8 +83,10 @@ public sealed class CreatePetsResult : IResult
     /// <summary>
     /// Default error response - unexpected error.
     /// </summary>
-    public static CreatePetsResult Error(Error error)
-        => new(TypedResults.Json(error, statusCode: 500));
+    public static CreatePetsResult Error(
+        Error error,
+        int statusCode = 500)
+        => new(TypedResults.Json(error, contentType: "application/json", statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -123,8 +127,10 @@ public sealed class ShowPetByIdResult : IResult
     /// <summary>
     /// Default error response - unexpected error.
     /// </summary>
-    public static ShowPetByIdResult Error(Error error)
-        => new(TypedResults.Json(error, statusCode: 500));
+    public static ShowPetByIdResult Error(
+        Error error,
+        int statusCode = 500)
+        => new(TypedResults.Json(error, contentType: "application/json", statusCode: statusCode));
 
     public Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

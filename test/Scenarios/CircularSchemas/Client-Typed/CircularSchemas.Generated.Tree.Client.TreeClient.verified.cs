@@ -40,7 +40,9 @@ public sealed class TreeClient : ITreeClient
     public async Task<TreeNode> GetTreeAsync(CancellationToken cancellationToken = default)
     {
         var url = "/tree";
-        return (await httpClient.GetFromJsonAsync<TreeNode>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<TreeNode>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

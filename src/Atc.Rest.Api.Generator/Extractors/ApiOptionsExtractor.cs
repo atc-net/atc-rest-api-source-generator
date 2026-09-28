@@ -141,6 +141,15 @@ public static class ApiOptionsExtractor
         builder.AppendLine(4, "/// Enable security policies. Auto-detected from security schemes.");
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, $"public bool UseSecurity {{ get; set; }} = {BoolToString(hasSecurity)};");
+        builder.AppendLine();
+
+        // UseProblemDetails - always on by default
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// Register RFC 9457 ProblemDetails (<c>AddProblemDetails()</c>), so errors raised outside the handlers");
+        builder.AppendLine(4, "/// (malformed requests, unknown routes, empty error results) get an <c>application/problem+json</c> body.");
+        builder.AppendLine(4, "/// Turn off when the host configures ProblemDetails itself. Default: true.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "public bool UseProblemDetails { get; set; } = true;");
 
         builder.AppendLine("}");
     }
@@ -180,6 +189,15 @@ public static class ApiOptionsExtractor
         builder.AppendLine(4, "/// Enable authorization middleware. Auto-detected from security schemes.");
         builder.AppendLine(4, "/// </summary>");
         builder.AppendLine(4, $"public bool UseAuthorization {{ get; set; }} = {BoolToString(hasSecurity)};");
+        builder.AppendLine();
+
+        // UseStatusCodePages - always on by default
+        builder.AppendLine(4, "/// <summary>");
+        builder.AppendLine(4, "/// Write a ProblemDetails body for error responses that have none (<c>UseStatusCodePages()</c>).");
+        builder.AppendLine(4, "/// Only applied when ProblemDetails is registered (see <c>ApiServiceOptions.UseProblemDetails</c>);");
+        builder.AppendLine(4, "/// without it, status code pages would write plain text. Default: true.");
+        builder.AppendLine(4, "/// </summary>");
+        builder.AppendLine(4, "public bool UseStatusCodePages { get; set; } = true;");
         builder.AppendLine();
 
         // ConfigureErrorHandling - always available

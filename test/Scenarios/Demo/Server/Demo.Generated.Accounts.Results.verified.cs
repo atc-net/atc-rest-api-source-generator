@@ -79,7 +79,7 @@ public sealed class CreateAccountResult : IResult
     /// 409 Conflict - Account conflict.
     /// </summary>
     public static CreateAccountResult Conflict(string? message = null)
-        => new(TypedResults.Conflict(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 409));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -121,7 +121,7 @@ public sealed class GetAccountByIdResult : IResult
     /// 404 Not Found - Account not found.
     /// </summary>
     public static GetAccountByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -160,7 +160,7 @@ public sealed class DeleteAccountByIdResult : IResult
     /// 404 Not Found - Account not found.
     /// </summary>
     public static DeleteAccountByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);
@@ -202,7 +202,7 @@ public sealed class UpdateAccountByIdResult : IResult
     /// 404 Not Found - Account not found.
     /// </summary>
     public static UpdateAccountByIdResult NotFound(string? message = null)
-        => new(TypedResults.NotFound(message));
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
 
     public System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
         => innerResult.ExecuteAsync(httpContext);

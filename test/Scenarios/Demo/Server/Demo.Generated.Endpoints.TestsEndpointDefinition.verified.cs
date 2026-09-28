@@ -34,7 +34,7 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
             .WithName("CreateTestItemWithModel")
             .WithSummary("Create and return the created model")
             .Produces<TestItem>(StatusCodes.Status201Created)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
@@ -44,7 +44,7 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
             .WithName("CreateTestItemWithLocationHeader")
             .WithSummary("Create and return location header")
             .Produces(StatusCodes.Status201Created)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
@@ -54,7 +54,7 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
             .WithName("CreateTestItemWithLocationInBody")
             .WithSummary("Create and return location in body")
             .Produces<Uri>(StatusCodes.Status201Created)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
@@ -64,7 +64,7 @@ public sealed class TestsEndpointDefinition : IEndpointDefinition
             .WithName("CreateTestItemEmpty")
             .WithSummary("Create with empty response")
             .Produces(StatusCodes.Status201Created)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);

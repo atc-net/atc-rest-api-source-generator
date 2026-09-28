@@ -176,7 +176,7 @@ public static class ResultClassExtractor
         {
             foreach (var response in operationValue.Responses)
             {
-                if (response.Value is not OpenApiResponse openApiResponse)
+                if (response.Value is not { } openApiResponse)
                 {
                     continue;
                 }
@@ -307,7 +307,7 @@ public static class ResultClassExtractor
         string projectName,
         string className,
         string statusCode,
-        OpenApiResponse responseValue,
+        IOpenApiResponse responseValue,
         bool isAsyncEnumerable,
         StreamingFraming streamingFraming,
         TypeConflictRegistry? registry,
@@ -317,6 +317,13 @@ public static class ResultClassExtractor
     {
         var methods = new List<MethodParameters>();
         var description = responseValue.Summary ?? responseValue.Description ?? string.Empty;
+
+        // Error responses (4xx, 5xx, default) follow the error contract: what the spec declares is what the
+        // factory takes and writes; nothing declared means an RFC 9457 ProblemDetails.
+        if (ErrorResponseShapeResolver.IsErrorStatusCode(statusCode))
+        {
+            return GenerateErrorFactoryMethods(openApiDoc, className, description, statusCode, responseValue, registry, operationId, pathSegment, inlineSchemas);
+        }
 
         // Check for binary file download response first
         var isFileDownload = false;
@@ -382,43 +389,9 @@ public static class ResultClassExtractor
             case "204":
                 methods.Add(GenerateNoContentMethod(className, description));
                 break;
-            case "400":
-                methods.Add(GenerateBadRequestMethod(className, description, contentType));
-                break;
-            case "401":
-                methods.Add(GenerateUnauthorizedMethod(className, description));
-                break;
-            case "403":
-                methods.Add(GenerateForbiddenMethod(className, description));
-                break;
-            case "404":
-                methods.Add(GenerateNotFoundMethod(className, description));
-                break;
-            case "409":
-                methods.Add(GenerateConflictMethod(className, description));
-                break;
-            case "412":
-                methods.Add(GeneratePreconditionFailedMethod(className, description));
-                break;
-            case "422":
-                methods.Add(GenerateUnprocessableEntityMethod(className, description));
-                break;
-            case "429":
-                methods.Add(GenerateTooManyRequestsMethod(className, description));
-                break;
-            case "500":
-                methods.Add(GenerateInternalServerErrorMethod(className, description, contentType));
-                break;
-            case "504":
-                methods.Add(GenerateGatewayTimeoutMethod(className, description, contentType));
-                break;
             default:
             {
-                if (statusCode.Equals("default", StringComparison.OrdinalIgnoreCase))
-                {
-                    methods.Add(GenerateErrorMethod(className, description, contentType));
-                }
-                else if (int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var statusCodeInt))
+                if (int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var statusCodeInt))
                 {
                     var methodName = HttpStatusCodeHelper.ToEnumName(statusCodeInt);
                     methods.Add(GenerateGenericStatusCodeMethod(className, description, statusCode, methodName));
@@ -430,6 +403,259 @@ public static class ResultClassExtractor
 
         return methods;
     }
+
+    /// <summary>
+    /// Generates the factory methods for one error response (4xx, 5xx or <c>default</c>).
+    /// </summary>
+    /// <remarks>
+    /// <list type="bullet">
+    ///   <item>Nothing declared, or a schema named <c>ProblemDetails</c> / <c>ValidationProblemDetails</c>:
+    ///   an RFC 9457 ProblemDetails (<c>application/problem+json</c>) whose status is the response status.
+    ///   The 2.x call shapes keep compiling: <c>X(string? message = null)</c>, 400 with
+    ///   <c>ValidationProblemDetails?</c>, 500/504 with <c>ProblemDetails?</c>, 429 with <c>int? retryAfterSeconds</c>.
+    ///   A declared problem schema adds an <c>X(ProblemDetails problem)</c> overload.</item>
+    ///   <item>Any other JSON schema <c>T</c>: <c>X(T? error = null)</c> writes <c>T</c> with the declared media type.</item>
+    ///   <item>A JSON string or text: <c>X(string? message = null)</c> writes it as declared.</item>
+    ///   <item>A declared body left empty (<c>X()</c>) has no body; 429 always sets <c>Retry-After</c> when given.</item>
+    /// </list>
+    /// </remarks>
+    private static List<MethodParameters> GenerateErrorFactoryMethods(
+        OpenApiDocument openApiDoc,
+        string className,
+        string description,
+        string statusCode,
+        IOpenApiResponse responseValue,
+        TypeConflictRegistry? registry,
+        string operationId,
+        string pathSegment,
+        Dictionary<string, ResultClassInlineSchemaInfo>? inlineSchemas)
+    {
+        var shape = ErrorResponseShapeResolver.Resolve(responseValue);
+        var isDefault = !int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var code);
+        var name = isDefault ? "Error" : HttpStatusCodeHelper.ToEnumName(code);
+        var status = isDefault ? "statusCode" : code.ToString(CultureInfo.InvariantCulture);
+        var doc = isDefault
+            ? $"Default error response - {description}"
+            : $"{statusCode} {Regex.Replace(HttpStatusCodeHelper.ToEnumName(code), "(?<=[a-z])(?=[A-Z])", " ", RegexOptions.None, TimeSpan.FromSeconds(1))} - {description}";
+        var isTooManyRequests = code == 429;
+
+        // default: the status is a parameter (default 500), so "any other status" stays expressible.
+        List<ParameterBaseParameters> statusParameter = isDefault
+            ? [CreateParameter("int", "statusCode", nullable: false, isReference: false, defaultValue: "500")]
+            : [];
+
+        string Wrap(string result)
+            => isTooManyRequests
+                ? $"new(new RetryAfterHttpResult({result}, retryAfterSeconds))"
+                : $"new({result})";
+
+        var methods = new List<MethodParameters>();
+
+        if (shape.IsProblem)
+        {
+            var problemFromMessage = $"TypedResults.Problem(detail: message, statusCode: {status})";
+
+            if (code == 400)
+            {
+                // 2.x shape: BadRequest(ValidationProblemDetails? errors = null) (or the declared ProblemDetails).
+                var errorsType = shape is { Kind: ErrorResponseKind.Problem, IsDeclared: true } ? "ProblemDetails" : "ValidationProblemDetails";
+                var fromErrors = errorsType == "ValidationProblemDetails"
+                    ? ValidationProblemExpression("errors", "400")
+                    : ProblemExpression("errors", "400");
+                methods.Add(CreateErrorFactory(
+                    className,
+                    doc,
+                    name,
+                    [CreateParameter(errorsType, "errors", nullable: true, isReference: true, defaultValue: "null")],
+                    $"new(errors is null ? TypedResults.Problem(statusCode: 400) : {fromErrors})"));
+            }
+            else if (code is 500 or 504)
+            {
+                // 2.x shape: X(ProblemDetails? error = null).
+                methods.Add(CreateErrorFactory(
+                    className,
+                    doc,
+                    name,
+                    [CreateParameter("ProblemDetails", "error", nullable: true, isReference: true, defaultValue: "null")],
+                    $"new(error is null ? TypedResults.Problem(statusCode: {status}) : {ProblemExpression("error", status)})"));
+            }
+            else if (isTooManyRequests)
+            {
+                // 2.x shape: TooManyRequests(int? retryAfterSeconds = null), plus the message.
+                methods.Add(CreateErrorFactory(
+                    className,
+                    doc,
+                    name,
+                    [
+                        CreateParameter("int", "retryAfterSeconds", nullable: true, isReference: false, defaultValue: "null"),
+                        CreateParameter("string", "message", nullable: true, isReference: true, defaultValue: "null"),
+                    ],
+                    Wrap(problemFromMessage)));
+            }
+            else
+            {
+                methods.Add(CreateErrorFactory(
+                    className,
+                    doc,
+                    name,
+                    isDefault
+                        ? [CreateParameter("string", "message", nullable: true, isReference: true, defaultValue: "null"), .. statusParameter]
+                        : [CreateParameter("string", "message", nullable: true, isReference: true, defaultValue: "null")],
+                    $"new({problemFromMessage})"));
+            }
+
+            // A declared problem schema also accepts the problem object itself (400/500/504 already do).
+            if (shape.IsDeclared && code is not (400 or 500 or 504))
+            {
+                var problemType = shape.Kind == ErrorResponseKind.ValidationProblem ? "ValidationProblemDetails" : "ProblemDetails";
+                var fromProblem = shape.Kind == ErrorResponseKind.ValidationProblem
+                    ? ValidationProblemExpression("problem", status)
+                    : ProblemExpression("problem", status);
+                List<ParameterBaseParameters> parameters = [CreateParameter(problemType, "problem", nullable: false, isReference: true, defaultValue: null), .. statusParameter];
+                if (isTooManyRequests)
+                {
+                    parameters.Add(CreateParameter("int", "retryAfterSeconds", nullable: true, isReference: false, defaultValue: "null"));
+                }
+
+                methods.Add(CreateErrorFactory(className, doc, name, parameters, Wrap(fromProblem)));
+            }
+
+            return methods;
+        }
+
+        // A declared, non-problem body: the handler's value is written as declared.
+        var (valueType, valueName, written) = shape.Kind switch
+        {
+            ErrorResponseKind.Text => (
+                "string",
+                "message",
+                $"TypedResults.Text(message, \"{shape.MediaType}\", statusCode: {status})"),
+            ErrorResponseKind.JsonString => (
+                "string",
+                "message",
+                $"TypedResults.Json(message, contentType: \"{shape.MediaType}\", statusCode: {status})"),
+            _ => (
+                GetSchemaTypeName(shape.Schema, openApiDoc, registry, operationId, pathSegment, ErrorResponseShapeResolver.InlineTypeContext(statusCode), inlineSchemas),
+                code == 400 ? "errors" : "error",
+                $"TypedResults.Json({(code == 400 ? "errors" : "error")}, contentType: \"{shape.MediaType}\", statusCode: {status})"),
+        };
+
+        if (isDefault)
+        {
+            // 2.x shape: Error(T error) - the value is required, the status optional.
+            methods.Add(CreateErrorFactory(
+                className,
+                doc,
+                name,
+                [CreateParameter(valueType, valueName, nullable: false, isReference: true, defaultValue: null), .. statusParameter],
+                $"new({written})"));
+
+            return methods;
+        }
+
+        List<ParameterBaseParameters> valueParameters = [CreateParameter(valueType, valueName, nullable: true, isReference: true, defaultValue: "null")];
+        if (isTooManyRequests)
+        {
+            valueParameters.Add(CreateParameter("int", "retryAfterSeconds", nullable: true, isReference: false, defaultValue: "null"));
+        }
+
+        methods.Add(CreateErrorFactory(
+            className,
+            doc,
+            name,
+            valueParameters,
+            Wrap($"{valueName} is null ? TypedResults.StatusCode({status}) : {written}")));
+
+        return methods;
+    }
+
+    /// <summary>
+    /// A ProblemDetails built from a caller's problem object, with the response status.
+    /// </summary>
+    private static string ProblemExpression(
+        string variable,
+        string status)
+        => $"TypedResults.Problem(detail: {variable}.Detail, instance: {variable}.Instance, statusCode: {status}, title: {variable}.Title, type: {variable}.Type, extensions: {variable}.Extensions)";
+
+    /// <summary>
+    /// A validation ProblemDetails built from a caller's <c>ValidationProblemDetails</c>, with the response status.
+    /// </summary>
+    private static string ValidationProblemExpression(
+        string variable,
+        string status)
+        => status == "400"
+            ? $"TypedResults.ValidationProblem({variable}.Errors, detail: {variable}.Detail, instance: {variable}.Instance, title: {variable}.Title, type: {variable}.Type, extensions: {variable}.Extensions)"
+            : $"TypedResults.Problem(new HttpValidationProblemDetails({variable}.Errors) {{ Detail = {variable}.Detail, Instance = {variable}.Instance, Status = {status}, Title = {variable}.Title, Type = {variable}.Type }})";
+
+    private static MethodParameters CreateErrorFactory(
+        string className,
+        string documentation,
+        string name,
+        List<ParameterBaseParameters> parameters,
+        string content)
+        => new(
+            DocumentationTags: new CodeDocumentationTags(documentation),
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.PublicStatic,
+            ReturnGenericTypeName: null,
+            ReturnTypeName: className,
+            Name: name,
+            Parameters: parameters,
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: true,
+            Content: content);
+
+    private static ParameterBaseParameters CreateParameter(
+        string typeName,
+        string name,
+        bool nullable,
+        bool isReference,
+        string? defaultValue)
+        => new(
+            Attributes: null,
+            GenericTypeName: null,
+            IsGenericListType: false,
+            TypeName: typeName,
+            IsNullableType: nullable,
+            IsReferenceType: isReference,
+            Name: name,
+            DefaultValue: defaultValue);
+
+    /// <summary>
+    /// The source of the <c>IResult</c> wrapper that adds a <c>Retry-After</c> header, emitted once into a
+    /// Results file whose factories use it (429 responses).
+    /// </summary>
+    public static string RetryAfterHttpResultSource()
+        => $$"""
+
+            /// <summary>
+            /// Writes the wrapped result with a <c>Retry-After</c> header (in seconds), when one is given.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal sealed class RetryAfterHttpResult : IResult
+            {
+                private readonly IResult inner;
+                private readonly int? retryAfterSeconds;
+
+                public RetryAfterHttpResult(
+                    IResult inner,
+                    int? retryAfterSeconds)
+                {
+                    this.inner = inner;
+                    this.retryAfterSeconds = retryAfterSeconds;
+                }
+
+                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+                {
+                    if (retryAfterSeconds is not null)
+                    {
+                        httpContext.Response.Headers.RetryAfter = retryAfterSeconds.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
+                    }
+
+                    return inner.ExecuteAsync(httpContext);
+                }
+            }
+            """;
 
     private static List<MethodParameters> GenerateOkMethods(
         string projectName,
@@ -790,93 +1016,6 @@ public static class ResultClassExtractor
             Content: "new(TypedResults.NoContent())");
     }
 
-    private static MethodParameters GenerateNotFoundMethod(
-        string className,
-        string description)
-    {
-        var doc = new CodeDocumentationTags($"404 Not Found - {description}");
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "NotFound",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: "string",
-                    IsNullableType: true,
-                    IsReferenceType: true,
-                    Name: "message",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.NotFound(message))");
-    }
-
-    private static MethodParameters GenerateErrorMethod(
-        string className,
-        string description,
-        string? contentType)
-    {
-        var doc = new CodeDocumentationTags($"Default error response - {description}");
-
-        if (!string.IsNullOrEmpty(contentType))
-        {
-            return new MethodParameters(
-                DocumentationTags: doc,
-                Attributes: null,
-                DeclarationModifier: DeclarationModifiers.PublicStatic,
-                ReturnGenericTypeName: null,
-                ReturnTypeName: className,
-                Name: "Error",
-                Parameters: new List<ParameterBaseParameters>
-                {
-                    new(
-                        Attributes: null,
-                        GenericTypeName: null,
-                        IsGenericListType: false,
-                        TypeName: contentType!,
-                        IsNullableType: false,
-                        IsReferenceType: true,
-                        Name: "error",
-                        DefaultValue: null),
-                },
-                AlwaysBreakDownParameters: false,
-                UseExpressionBody: true,
-                Content: "new(TypedResults.Json(error, statusCode: 500))");
-        }
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "Error",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: "string",
-                    IsNullableType: false,
-                    IsReferenceType: true,
-                    Name: "message",
-                    DefaultValue: null),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.Problem(message))");
-    }
-
     /// <summary>
     /// Generates an Accepted (202) factory method.
     /// These methods are ONLY generated when the response is explicitly defined in the OpenAPI spec.
@@ -929,249 +1068,6 @@ public static class ResultClassExtractor
             AlwaysBreakDownParameters: false,
             UseExpressionBody: true,
             Content: "new(TypedResults.StatusCode(StatusCodes.Status202Accepted))");
-    }
-
-    private static MethodParameters GenerateBadRequestMethod(
-        string className,
-        string description,
-        string? contentType)
-    {
-        var doc = new CodeDocumentationTags($"400 Bad Request - {description}");
-        var errorTypeName = !string.IsNullOrEmpty(contentType) ? contentType : "ValidationProblemDetails";
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "BadRequest",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: errorTypeName!,
-                    IsNullableType: true,
-                    IsReferenceType: true,
-                    Name: "errors",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(\n        errors is null\n            ? TypedResults.BadRequest()\n            : TypedResults.BadRequest(errors))");
-    }
-
-    private static MethodParameters GenerateUnauthorizedMethod(
-        string className,
-        string description)
-    {
-        var doc = new CodeDocumentationTags($"401 Unauthorized - {description}");
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "Unauthorized",
-            Parameters: null,
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.Unauthorized())");
-    }
-
-    private static MethodParameters GenerateForbiddenMethod(
-        string className,
-        string description)
-    {
-        var doc = new CodeDocumentationTags($"403 Forbidden - {description}");
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "Forbidden",
-            Parameters: null,
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.Forbid())");
-    }
-
-    private static MethodParameters GenerateConflictMethod(
-        string className,
-        string description)
-    {
-        var doc = new CodeDocumentationTags($"409 Conflict - {description}");
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "Conflict",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: "string",
-                    IsNullableType: true,
-                    IsReferenceType: true,
-                    Name: "message",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.Conflict(message))");
-    }
-
-    private static MethodParameters GenerateUnprocessableEntityMethod(
-        string className,
-        string description)
-    {
-        var doc = new CodeDocumentationTags($"422 Unprocessable Entity - {description}");
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "UnprocessableEntity",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: "string",
-                    IsNullableType: true,
-                    IsReferenceType: true,
-                    Name: "message",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.UnprocessableEntity(message))");
-    }
-
-    private static MethodParameters GeneratePreconditionFailedMethod(
-        string className,
-        string description)
-    {
-        var doc = new CodeDocumentationTags($"412 Precondition Failed - {description}");
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "PreconditionFailed",
-            Parameters: null,
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.StatusCode(StatusCodes.Status412PreconditionFailed))");
-    }
-
-    private static MethodParameters GenerateTooManyRequestsMethod(
-        string className,
-        string description)
-    {
-        var doc = new CodeDocumentationTags($"429 Too Many Requests - {description}");
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "TooManyRequests",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: "int",
-                    IsNullableType: true,
-                    IsReferenceType: false,
-                    Name: "retryAfterSeconds",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(TypedResults.StatusCode(429))");
-    }
-
-    private static MethodParameters GenerateInternalServerErrorMethod(
-        string className,
-        string description,
-        string? contentType)
-    {
-        var doc = new CodeDocumentationTags($"500 Internal Server Error - {description}");
-        var errorTypeName = !string.IsNullOrEmpty(contentType) ? contentType : "ProblemDetails";
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "InternalServerError",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: errorTypeName!,
-                    IsNullableType: true,
-                    IsReferenceType: true,
-                    Name: "error",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(\n        error is null\n            ? TypedResults.StatusCode(500)\n            : TypedResults.Json(error, statusCode: 500))");
-    }
-
-    private static MethodParameters GenerateGatewayTimeoutMethod(
-        string className,
-        string description,
-        string? contentType)
-    {
-        var doc = new CodeDocumentationTags($"504 Gateway Timeout - {description}");
-        var errorTypeName = !string.IsNullOrEmpty(contentType) ? contentType : "ProblemDetails";
-
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: "GatewayTimeout",
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: errorTypeName!,
-                    IsNullableType: true,
-                    IsReferenceType: true,
-                    Name: "error",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: "new(\n        error is null\n            ? TypedResults.StatusCode(504)\n            : TypedResults.Json(error, statusCode: 504))");
     }
 
     private static MethodParameters GenerateGenericStatusCodeMethod(

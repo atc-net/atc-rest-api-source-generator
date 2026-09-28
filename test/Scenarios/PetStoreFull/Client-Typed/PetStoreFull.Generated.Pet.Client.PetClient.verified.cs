@@ -73,7 +73,9 @@ public sealed class PetClient : IPetClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<List<Pet>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Pet>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<Pet>> FindPetsByTagsAsync(
@@ -92,7 +94,9 @@ public sealed class PetClient : IPetClient
             url += "?" + string.Join("&", queryParams);
         }
 
-        return (await httpClient.GetFromJsonAsync<List<Pet>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Pet>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Pet> GetPetByIdAsync(
@@ -100,7 +104,9 @@ public sealed class PetClient : IPetClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/pet/{parameters.PetId}";
-        return (await httpClient.GetFromJsonAsync<Pet>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<Pet> UpdatePetWithFormAsync(

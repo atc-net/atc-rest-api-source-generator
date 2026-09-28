@@ -34,7 +34,7 @@ public sealed class NotificationsEndpointDefinition : IEndpointDefinition
             .WithName("SendNotification")
             .WithSummary("Send a notification")
             .Produces(StatusCodes.Status202Accepted)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);

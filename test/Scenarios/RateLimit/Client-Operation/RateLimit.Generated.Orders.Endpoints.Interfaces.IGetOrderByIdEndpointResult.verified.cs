@@ -20,6 +20,8 @@ public interface IGetOrderByIdEndpointResult : IEndpointResponse
 
     bool IsNotFound { get; }
 
+    bool IsBadRequest { get; }
+
     bool IsTooManyRequests { get; }
 
     bool IsInternalServerError { get; }
@@ -29,6 +31,8 @@ public interface IGetOrderByIdEndpointResult : IEndpointResponse
     Order OkContent { get; }
 
     ProblemDetails NotFoundContent { get; }
+
+    ValidationProblemDetails BadRequestContent { get; }
 
     ProblemDetails TooManyRequestsContent { get; }
 

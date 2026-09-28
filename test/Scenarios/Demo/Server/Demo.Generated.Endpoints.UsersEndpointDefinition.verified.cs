@@ -43,7 +43,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .WithName("CreateUser")
             .WithSummary("Create user")
             .Produces<User>(StatusCodes.Status201Created)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
@@ -54,6 +54,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .WithSummary("Get a specific user")
             .Produces<User>()
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
@@ -62,7 +63,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .WithName("UpdateUserById")
             .WithSummary("Update a specific user")
             .Produces<User>()
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -74,6 +75,7 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .WithSummary("Delete a specific user")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }

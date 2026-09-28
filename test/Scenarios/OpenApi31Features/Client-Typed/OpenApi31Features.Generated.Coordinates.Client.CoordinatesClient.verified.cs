@@ -42,13 +42,17 @@ public sealed class CoordinatesClient : ICoordinatesClient
     public async Task<Coordinate> GetCoordinatesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/coordinates";
-        return (await httpClient.GetFromJsonAsync<Coordinate>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<Coordinate>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task<List<Coordinate>> ListCoordinatesAsync(CancellationToken cancellationToken = default)
     {
         var url = "/coordinates/list";
-        return (await httpClient.GetFromJsonAsync<List<Coordinate>>(url, jsonSerializerOptions, cancellationToken))!;
+        var response = await httpClient.GetAsync(url, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<Coordinate>>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

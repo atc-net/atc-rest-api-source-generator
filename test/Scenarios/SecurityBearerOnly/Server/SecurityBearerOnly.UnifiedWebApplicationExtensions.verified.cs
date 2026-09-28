@@ -25,6 +25,7 @@ public static class UnifiedWebApplicationExtensions
     /// <returns>The WebApplication for method chaining.</returns>
     /// <remarks>
     /// This method configures:
+    /// - Status code pages writing ProblemDetails for empty error responses (when ProblemDetails is registered)
     /// - Authentication and authorization middleware (auto-detected)
     /// - Global error handling middleware
     /// - All API endpoints
@@ -35,6 +36,13 @@ public static class UnifiedWebApplicationExtensions
     {
         var options = new ApiMiddlewareOptions();
         configure?.Invoke(options);
+
+        // ProblemDetails body for error responses that have none (needs AddProblemDetails)
+        if (options.UseStatusCodePages &&
+            app.Services.GetService(typeof(global::Microsoft.AspNetCore.Http.IProblemDetailsService)) is not null)
+        {
+            app.UseStatusCodePages();
+        }
 
         // Authentication and authorization middleware
         if (options.UseAuthentication)

@@ -48,7 +48,7 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
             .WithName("CreateResource")
             .WithSummary("Create a new resource")
             .Produces<Resource>(StatusCodes.Status201Created)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status409Conflict)
