@@ -47,23 +47,30 @@ export class OrdersClient {
 
   /** List orders (orders-standard policy) */
   async listOrders(): Promise<ListOrdersResult> {
-    return this.api.request<Order[]>('GET', '/orders') as Promise<ListOrdersResult>;
+    return this.api.request<Order[]>('GET', '/orders', {
+      arms: ['ok', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListOrdersResult>;
   }
 
   /** Create order (orders-standard policy) */
   async createOrder(body: CreateOrderRequest): Promise<CreateOrderResult> {
     return this.api.request<Order>('POST', '/orders', {
       body,
+      arms: ['created', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateOrderResult>;
   }
 
   /** Get order (inherits orders-standard) */
   async getOrderById(orderId: string): Promise<GetOrderByIdResult> {
-    return this.api.request<Order>('GET', `/orders/${orderId}`) as Promise<GetOrderByIdResult>;
+    return this.api.request<Order>('GET', `/orders/${orderId}`, {
+      arms: ['ok', 'notFound', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetOrderByIdResult>;
   }
 
   /** Delete order (strict policy override) */
   async deleteOrder(orderId: string): Promise<DeleteOrderResult> {
-    return this.api.request<void>('DELETE', `/orders/${orderId}`) as Promise<DeleteOrderResult>;
+    return this.api.request<void>('DELETE', `/orders/${orderId}`, {
+      arms: ['noContent', 'notFound', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<DeleteOrderResult>;
   }
 }

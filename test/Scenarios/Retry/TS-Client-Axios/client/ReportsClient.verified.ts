@@ -24,6 +24,7 @@ export class ReportsClient {
     return this.api.request<void>('POST', '/reports/generate', {
       body,
       retry: { enabled: false, timeoutMs: 600000 },
+      arms: ['accepted', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GenerateReportResult>;
   }
 }

@@ -54,6 +54,7 @@ export class FilesClient {
   async getFileById(id: string): Promise<GetFileByIdResult> {
     return this.api.request<Blob>('GET', `/files/${id}`, {
       responseType: 'blob',
+      arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetFileByIdResult>;
   }
 
@@ -67,6 +68,7 @@ export class FilesClient {
         for (const item of data.items ?? []) formData.append('items', String(item));
         return formData;
       })(),
+      arms: ['ok', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UploadFormDataFileResult>;
   }
 
@@ -78,6 +80,7 @@ export class FilesClient {
         for (const f of data.files ?? []) formData.append('files', f);
         return formData;
       })(),
+      arms: ['ok', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UploadFormDataFilesResult>;
   }
 
@@ -85,6 +88,7 @@ export class FilesClient {
   async uploadSingleFileAsFormData(file: Blob | File): Promise<UploadSingleFileAsFormDataResult> {
     return this.api.request<void>('POST', '/files/form-data/singleFile', {
       body: file,
+      arms: ['ok', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UploadSingleFileAsFormDataResult>;
   }
 
@@ -98,6 +102,7 @@ export class FilesClient {
         }
         return formData;
       })(),
+      arms: ['ok', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UploadMultiFilesAsFormDataResult>;
   }
 }

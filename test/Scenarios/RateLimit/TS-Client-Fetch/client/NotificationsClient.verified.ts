@@ -23,6 +23,7 @@ export class NotificationsClient {
   async sendNotification(body: Notification): Promise<SendNotificationResult> {
     return this.api.request<void>('POST', '/notifications', {
       body,
+      arms: ['accepted', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<SendNotificationResult>;
   }
 }

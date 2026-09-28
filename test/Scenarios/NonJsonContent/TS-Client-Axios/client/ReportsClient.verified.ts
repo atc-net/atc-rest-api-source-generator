@@ -20,6 +20,7 @@ export class ReportsClient {
   async getTextReport(): Promise<GetTextReportResult> {
     return this.api.request<string>('GET', '/reports/text', {
       responseType: 'text',
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetTextReportResult>;
   }
 }

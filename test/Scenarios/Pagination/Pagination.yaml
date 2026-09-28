@@ -1,0 +1,277 @@
+openapi: 3.1.0
+info:
+  title: Pagination
+  version: 1.0.0
+  description: |
+    Paginated reads for the TypeScript infinite hooks (React Query useInfiniteQuery, SWR useSWRInfinite):
+    generic pagination bases (array alias, primitive, nullable and named-model items), a header token,
+    a hyphenated query token, and shapes that are NOT paginated (a required token, an integer cursor).
+servers:
+  - url: /api/v1
+paths:
+  /accounts:
+    get:
+      operationId: listAccounts
+      summary: Accounts, items through an array alias
+      parameters:
+        - $ref: '#/components/parameters/continuation'
+        - $ref: '#/components/parameters/pageSize'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResult'
+                  - type: object
+                    properties:
+                      results:
+                        $ref: '#/components/schemas/Accounts'
+    post:
+      operationId: createAccount
+      summary: Create an account (revalidates the infinite list)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Account'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+  /tags:
+    get:
+      operationId: listTags
+      summary: Tags, primitive items
+      parameters:
+        - $ref: '#/components/parameters/continuation'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResult'
+                  - type: object
+                    properties:
+                      results:
+                        type: array
+                        items:
+                          type: string
+  /archive:
+    get:
+      operationId: listArchivedAccounts
+      summary: Archived accounts, nullable items array
+      parameters:
+        - $ref: '#/components/parameters/continuation'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResult'
+                  - type: object
+                    properties:
+                      results:
+                        type: [array, 'null']
+                        items:
+                          $ref: '#/components/schemas/Account'
+  /pages:
+    get:
+      operationId: listAccountPages
+      summary: A named page model over the generic base
+      parameters:
+        - $ref: '#/components/parameters/continuation'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountPage'
+  /orgs/{orgId}/devices:
+    get:
+      operationId: listOrgDevices
+      summary: Devices of an org, token in a header
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-continuation
+          in: header
+          schema:
+            type: string
+        - name: x-tenant
+          in: header
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevicePage'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /events:
+    get:
+      operationId: listEvents
+      summary: Events, a hyphenated query token
+      parameters:
+        - name: page-token
+          in: query
+          schema:
+            type: string
+        - name: page-size
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventPage'
+  /logs:
+    get:
+      operationId: listLogs
+      summary: Not paginated, the token parameter is required
+      parameters:
+        - name: continuation
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogPage'
+  /metrics:
+    get:
+      operationId: listMetrics
+      summary: Not paginated, the cursor is an integer
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricPage'
+components:
+  parameters:
+    continuation:
+      name: continuation
+      in: query
+      schema:
+        type: [string, 'null']
+    pageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+  schemas:
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    Accounts:
+      type: array
+      items:
+        $ref: '#/components/schemas/Account'
+    PaginatedResult:
+      type: object
+      properties:
+        continuation:
+          type: [string, 'null']
+        results:
+          type: array
+          items: {}
+    AccountPage:
+      allOf:
+        - $ref: '#/components/schemas/PaginatedResult'
+        - type: object
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/Account'
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+    DevicePage:
+      type: object
+      properties:
+        continuationToken:
+          type: [string, 'null']
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Device'
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+    EventPage:
+      type: object
+      properties:
+        nextPageToken:
+          type: string
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+    LogPage:
+      type: object
+      properties:
+        continuation:
+          type: string
+        lines:
+          type: array
+          items:
+            type: string
+    MetricPage:
+      type: object
+      properties:
+        cursor:
+          type: integer
+        values:
+          type: array
+          items:
+            type: number
+    Problem:
+      type: object
+      properties:
+        title:
+          type: string
+        detail:
+          type: string

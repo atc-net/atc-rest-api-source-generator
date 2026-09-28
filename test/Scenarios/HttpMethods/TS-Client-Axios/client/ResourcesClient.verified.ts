@@ -32,18 +32,23 @@ export class ResourcesClient {
 
   /** List resources */
   async listResources(): Promise<ListResourcesResult> {
-    return this.api.request<Resource[]>('GET', '/resources') as Promise<ListResourcesResult>;
+    return this.api.request<Resource[]>('GET', '/resources', {
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListResourcesResult>;
   }
 
   /** Query resources with a body */
   async queryResources(body: ResourceQuery): Promise<QueryResourcesResult> {
     return this.api.request<Resource[]>('QUERY', '/resources', {
       body,
+      arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<QueryResourcesResult>;
   }
 
   /** Link a resource (custom verb) */
   async linkResource(): Promise<LinkResourceResult> {
-    return this.api.request<void>('LINK', '/resources') as Promise<LinkResourceResult>;
+    return this.api.request<void>('LINK', '/resources', {
+      arms: ['noContent', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<LinkResourceResult>;
   }
 }

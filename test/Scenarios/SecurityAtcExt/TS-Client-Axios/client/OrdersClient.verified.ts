@@ -57,28 +57,37 @@ export class OrdersClient {
 
   /** List orders (requires auth) */
   async listOrders(): Promise<ListOrdersResult> {
-    return this.api.request<Order[]>('GET', '/orders') as Promise<ListOrdersResult>;
+    return this.api.request<Order[]>('GET', '/orders', {
+      arms: ['ok', 'unauthorized', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListOrdersResult>;
   }
 
   /** Create order (requires auth) */
   async createOrder(body: CreateOrderRequest): Promise<CreateOrderResult> {
     return this.api.request<Order>('POST', '/orders', {
       body,
+      arms: ['created', 'badRequest', 'unauthorized', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateOrderResult>;
   }
 
   /** Get order (manager role inherited) */
   async getOrderById(orderId: string): Promise<GetOrderByIdResult> {
-    return this.api.request<Order>('GET', `/orders/${orderId}`) as Promise<GetOrderByIdResult>;
+    return this.api.request<Order>('GET', `/orders/${orderId}`, {
+      arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetOrderByIdResult>;
   }
 
   /** Delete order (override to admin only) */
   async deleteOrder(orderId: string): Promise<DeleteOrderResult> {
-    return this.api.request<void>('DELETE', `/orders/${orderId}`) as Promise<DeleteOrderResult>;
+    return this.api.request<void>('DELETE', `/orders/${orderId}`, {
+      arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<DeleteOrderResult>;
   }
 
   /** Get tracking (public override) */
   async getOrderTracking(orderId: string): Promise<GetOrderTrackingResult> {
-    return this.api.request<TrackingInfo>('GET', `/orders/${orderId}/tracking`) as Promise<GetOrderTrackingResult>;
+    return this.api.request<TrackingInfo>('GET', `/orders/${orderId}/tracking`, {
+      arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetOrderTrackingResult>;
   }
 }

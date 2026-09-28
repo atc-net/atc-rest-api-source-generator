@@ -28,11 +28,15 @@ export class MeClient {
 
   /** Get current user profile */
   async getCurrentUser(): Promise<GetCurrentUserResult> {
-    return this.api.request<UserProfile>('GET', '/me') as Promise<GetCurrentUserResult>;
+    return this.api.request<UserProfile>('GET', '/me', {
+      arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetCurrentUserResult>;
   }
 
   /** Get detailed user profile */
   async getCurrentUserProfile(): Promise<GetCurrentUserProfileResult> {
-    return this.api.request<UserProfile>('GET', '/me/profile') as Promise<GetCurrentUserProfileResult>;
+    return this.api.request<UserProfile>('GET', '/me/profile', {
+      arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetCurrentUserProfileResult>;
   }
 }

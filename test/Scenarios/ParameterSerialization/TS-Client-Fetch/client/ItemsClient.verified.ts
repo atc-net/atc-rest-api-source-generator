@@ -32,6 +32,7 @@ export class ItemsClient {
         // Note: browsers forbid setting the Cookie header via fetch; Node.js only.
         'Cookie': cookies?.session != null ? `session=${cookies.session}` : undefined,
       },
+      arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<ListItemsResult>;
   }
 }

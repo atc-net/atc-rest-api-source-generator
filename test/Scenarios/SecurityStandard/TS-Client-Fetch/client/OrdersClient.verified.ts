@@ -50,23 +50,30 @@ export class OrdersClient {
 
   /** List all orders */
   async listOrders(): Promise<ListOrdersResult> {
-    return this.api.request<Order[]>('GET', '/orders') as Promise<ListOrdersResult>;
+    return this.api.request<Order[]>('GET', '/orders', {
+      arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListOrdersResult>;
   }
 
   /** Create a new order */
   async createOrder(body: CreateOrderRequest): Promise<CreateOrderResult> {
     return this.api.request<Order>('POST', '/orders', {
       body,
+      arms: ['created', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateOrderResult>;
   }
 
   /** Get order by ID */
   async getOrderById(orderId: string): Promise<GetOrderByIdResult> {
-    return this.api.request<Order>('GET', `/orders/${orderId}`) as Promise<GetOrderByIdResult>;
+    return this.api.request<Order>('GET', `/orders/${orderId}`, {
+      arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetOrderByIdResult>;
   }
 
   /** Delete an order */
   async deleteOrder(orderId: string): Promise<DeleteOrderResult> {
-    return this.api.request<void>('DELETE', `/orders/${orderId}`) as Promise<DeleteOrderResult>;
+    return this.api.request<void>('DELETE', `/orders/${orderId}`, {
+      arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<DeleteOrderResult>;
   }
 }

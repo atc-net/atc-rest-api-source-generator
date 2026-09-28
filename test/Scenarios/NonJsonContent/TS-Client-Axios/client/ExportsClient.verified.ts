@@ -20,6 +20,7 @@ export class ExportsClient {
   async exportCsv(): Promise<ExportCsvResult> {
     return this.api.request<string>('GET', '/exports/csv', {
       responseType: 'text',
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
     }) as Promise<ExportCsvResult>;
   }
 }

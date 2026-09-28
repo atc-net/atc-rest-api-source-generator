@@ -19,6 +19,7 @@ export class CountClient {
   async getCount(): Promise<GetCountResult> {
     return this.api.request<number>('GET', '/count', {
       parseSchema: z.number(),
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetCountResult>;
   }
 }

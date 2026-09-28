@@ -23,22 +23,6 @@ internal static class TypeScriptHookModel
 
         foreach (var info in hookInfos)
         {
-            // Paginated-streaming ops get an `<methodName>Infinite` key entry for
-            // the useInfiniteQuery hook. The streaming hook itself still skips a key.
-            if (info.IsPaginatedStreaming)
-            {
-                var infiniteKeyName = info.MethodName.ToCamelCase().ToTypeScriptIdentifier() + "Infinite";
-                if (info.QueryParams.Count > 0)
-                {
-                    var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
-                    sb.Append("  ").Append(infiniteKeyName).Append(": (query?: ").Append(queryType).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(infiniteKeyName).Append("', query").AppendLine("] as const,");
-                }
-                else
-                {
-                    sb.Append("  ").Append(infiniteKeyName).Append(": () => [...").Append(segmentCamel).Append("Keys.all, '").Append(infiniteKeyName).AppendLine("'] as const,");
-                }
-            }
-
             // Stream hooks manage their own state and don't go through useQuery — no key needed.
             if (info.IsStreaming || !info.IsQuery)
             {
@@ -46,63 +30,90 @@ internal static class TypeScriptHookModel
             }
 
             var keyName = DeriveKeyName(info.MethodName, segmentCamel);
+            AppendKeyEntry(sb, segmentCamel, keyName, info, info.QueryParams, KeyHeaders(info, info.HeaderParams), namingStrategy, convertDates, brandedIds);
 
-            // Build key function param list and key spread values incrementally.
-            // Order: pathParams..., body, querystringParams (individual)..., query?
-            // Headers and cookies are intentionally excluded — they fragment the cache
-            // per-request rather than per-resource, which breaks cache sharing.
-            var keyFuncParts = new List<string>();
-            var keySpreadValues = new List<string>();
-
-            foreach (var p in info.PathParams)
+            // A paginated read also gets an `<key>Infinite` entry: the same inputs, without the
+            // continuation token (each page adds it to the key itself).
+            if (info.Pagination is not null)
             {
-                var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                keyFuncParts.Add(pName + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path));
-                keySpreadValues.Add(pName);
-            }
-
-            // A read that carries a body (OpenAPI 3.2 QUERY) is identified by that body, so it
-            // has to participate in the cache key — otherwise every distinct criteria set would
-            // collide on one entry. React Query hashes the key structurally, so the body object
-            // is used directly rather than a digest: a digest would cost the same serialization
-            // and lose readability in the devtools.
-            if (info.HasBody)
-            {
-                keyFuncParts.Add("body: " + info.BodyType);
-                keySpreadValues.Add("body");
-            }
-
-            foreach (var p in info.QuerystringParams)
-            {
-                var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-                keyFuncParts.Add(pName + "?: string");
-                keySpreadValues.Add(pName);
-            }
-
-            if (info.QueryParams.Count > 0)
-            {
-                var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
-                keyFuncParts.Add("query?: " + queryType);
-                keySpreadValues.Add("query");
-            }
-
-            if (keyFuncParts.Count > 0)
-            {
-                var spreadSuffix = keySpreadValues.Count > 0
-                    ? ", " + string.Join(", ", keySpreadValues)
-                    : string.Empty;
-                sb.Append("  ").Append(keyName).Append(": (").Append(string.Join(", ", keyFuncParts)).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).Append('\'').Append(spreadSuffix).AppendLine("] as const,");
-            }
-            else
-            {
-                // Simple key with no params
-                sb.Append("  ").Append(keyName).Append(": () => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).AppendLine("'] as const,");
+                var (infiniteQueryParams, infiniteHeaderParams) = InfiniteHookParameters(info);
+                AppendKeyEntry(sb, segmentCamel, keyName + "Infinite", info, infiniteQueryParams, KeyHeaders(info, infiniteHeaderParams), namingStrategy, convertDates, brandedIds);
             }
         }
 
         sb.AppendLine("};");
         sb.AppendLine();
         sb.Append("export { ").Append(segmentCamel).AppendLine("Keys };");
+    }
+
+    private static void AppendKeyEntry(
+        StringBuilder sb,
+        string segmentCamel,
+        string keyName,
+        HookInfo info,
+        List<OpenApiParameter> queryParams,
+        List<OpenApiParameter> keyHeaders,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates,
+        bool brandedIds)
+    {
+        // Build key function param list and key spread values incrementally.
+        // Order: pathParams..., body, querystringParams (individual)..., query?
+        // Headers and cookies are intentionally excluded — they fragment the cache
+        // per-request rather than per-resource, which breaks cache sharing.
+        var keyFuncParts = new List<string>();
+        var keySpreadValues = new List<string>();
+
+        foreach (var p in info.PathParams)
+        {
+            var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            keyFuncParts.Add(pName + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path));
+            keySpreadValues.Add(pName);
+        }
+
+        // A read that carries a body (OpenAPI 3.2 QUERY) is identified by that body, so it
+        // has to participate in the cache key — otherwise every distinct criteria set would
+        // collide on one entry. React Query hashes the key structurally, so the body object
+        // is used directly rather than a digest: a digest would cost the same serialization
+        // and lose readability in the devtools.
+        if (info.HasBody)
+        {
+            keyFuncParts.Add("body: " + info.BodyType);
+            keySpreadValues.Add("body");
+        }
+
+        foreach (var p in info.QuerystringParams)
+        {
+            var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            keyFuncParts.Add(pName + "?: string");
+            keySpreadValues.Add(pName);
+        }
+
+        if (queryParams.Count > 0)
+        {
+            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, namingStrategy, convertDates);
+            keyFuncParts.Add("query?: " + queryType);
+            keySpreadValues.Add("query");
+        }
+
+        if (keyHeaders.Count > 0)
+        {
+            keyFuncParts.Add("headers?: " + TypeScriptOperationHelper.BuildHeaderTypeInline(keyHeaders, convertDates));
+            keySpreadValues.Add("headers");
+        }
+
+        if (keyFuncParts.Count > 0)
+        {
+            var spreadSuffix = keySpreadValues.Count > 0
+                ? ", " + string.Join(", ", keySpreadValues)
+                : string.Empty;
+            sb.Append("  ").Append(keyName).Append(": (").Append(string.Join(", ", keyFuncParts)).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).Append('\'').Append(spreadSuffix).AppendLine("] as const,");
+        }
+        else
+        {
+            // Simple key with no params
+            sb.Append("  ").Append(keyName).Append(": () => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).AppendLine("'] as const,");
+        }
     }
 
     /// <summary>
@@ -501,13 +512,12 @@ internal static class TypeScriptHookModel
                       && !isFileDownload
                       && !isStreaming;
 
-        // Paginated-streaming ops get a useInfiniteQuery sibling. PageReturnType is
-        // the full response schema (PaginationResult<Item>) — i.e. the schema treated as
-        // non-streaming — so the queryFn's data type lines up with the Page companion.
-        var isPaginatedStreaming = operation.IsPaginatedStreamingOperation();
-        var pageReturnType = isPaginatedStreaming
-            ? TypeScriptOperationHelper.GetReturnType(operation, isStreaming: false, isFileDownload: false)
-            : string.Empty;
+        // A paginated read - its response carries a continuation token that the operation takes back
+        // as a query or header parameter - also gets an infinite hook.
+        // The page type must be a real type (an inline response object is `unknown`) to read the token from it.
+        var pagination = isQuery && returnType is not ("unknown" or "void" or "any")
+            ? GetPagination(operation, queryParams, headerParams)
+            : null;
 
         return new HookInfo(
             MethodName: methodName,
@@ -526,8 +536,7 @@ internal static class TypeScriptHookModel
             FileUploadParam: fileUploadParam,
             FileUploadArgName: fileUploadArgName,
             Success2xxDiscriminators: TypeScriptOperationHelper.CollectDeclared2xxDiscriminators(operation),
-            IsPaginatedStreaming: isPaginatedStreaming,
-            PageReturnType: pageReturnType,
+            Pagination: pagination,
             Summary: operation.Summary,
             Description: operation.Description,
             Deprecated: operation.Deprecated,
@@ -628,6 +637,179 @@ internal static class TypeScriptHookModel
         return (true, "data: FormData", "data");
     }
 
+    /// <summary>
+    /// How a paginated read pages: the response's continuation-token property and the operation's
+    /// parameter that sends it back.
+    /// </summary>
+    /// <param name="TokenProperty">The token property as declared in the response schema (e.g. <c>continuation</c>).</param>
+    /// <param name="Parameter">The query or header parameter that takes the token back.</param>
+    /// <param name="IsHeader">Whether <paramref name="Parameter"/> is a header parameter.</param>
+    internal sealed record HookPagination(
+        string TokenProperty,
+        OpenApiParameter Parameter,
+        bool IsHeader);
+
+    /// <summary>
+    /// The parameter names (lower case, without <c>x-</c>, <c>-</c> and <c>_</c>) that take a continuation
+    /// token back, besides the response's own token property name.
+    /// </summary>
+    private static readonly HashSet<string> ContinuationParameterNames = new(StringComparer.Ordinal)
+    {
+        "continuation",
+        "continuationtoken",
+        "pagetoken",
+        "nextpagetoken",
+        "cursor",
+    };
+
+    /// <summary>
+    /// Detects a paginated read: a response continuation-token property (see
+    /// <c>GetPaginationTokenProperty</c>) and a query - or else header - parameter that takes it back.
+    /// </summary>
+    internal static HookPagination? GetPagination(
+        OpenApiOperation operation,
+        List<OpenApiParameter> queryParams,
+        List<OpenApiParameter> headerParams)
+    {
+        var tokenProperty = operation.GetPaginationTokenProperty();
+        if (tokenProperty is null)
+        {
+            return null;
+        }
+
+        // The first page is requested without a token, so the parameter is optional; and a token is a string.
+        var wanted = NormalizeParameterName(tokenProperty);
+        bool IsContinuation(OpenApiParameter p)
+        {
+            var name = NormalizeParameterName(p.Name);
+            return !p.Required &&
+                   OpenApiOperationExtensions.IsStringSchema(p.Schema) &&
+                   (string.Equals(name, wanted, StringComparison.Ordinal) || ContinuationParameterNames.Contains(name));
+        }
+
+        if (queryParams.FirstOrDefault(IsContinuation) is { } queryParam)
+        {
+            return new HookPagination(tokenProperty, queryParam, IsHeader: false);
+        }
+
+        return headerParams.FirstOrDefault(IsContinuation) is { } headerParam
+            ? new HookPagination(tokenProperty, headerParam, IsHeader: true)
+            : null;
+    }
+
+    private static string NormalizeParameterName(string? name)
+    {
+        var lower = (name ?? string.Empty).ToLowerInvariant();
+        if (lower.StartsWith("x-", StringComparison.Ordinal))
+        {
+            lower = lower[2..];
+        }
+
+        return lower.Replace("-", string.Empty, StringComparison.Ordinal).Replace("_", string.Empty, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The headers a query key includes. Headers normally stay out of keys (correlation ids and the like would
+    /// fragment the cache), but an operation that pages through a header is identified by its headers: without
+    /// them, two pages would share one cache entry.
+    /// </summary>
+    internal static List<OpenApiParameter> KeyHeaders(
+        HookInfo info,
+        List<OpenApiParameter> headerParams)
+        => info.Pagination is { IsHeader: true } ? headerParams : [];
+
+    /// <summary>
+    /// The query / header parameters an infinite hook exposes: the operation's own, without the one that
+    /// carries the continuation token (the hook sends that itself).
+    /// </summary>
+    internal static (List<OpenApiParameter> QueryParams, List<OpenApiParameter> HeaderParams) InfiniteHookParameters(
+        HookInfo info)
+    {
+        var pagination = info.Pagination!;
+        return (
+            info.QueryParams.Where(p => !ReferenceEquals(p, pagination.Parameter)).ToList(),
+            info.HeaderParams.Where(p => !ReferenceEquals(p, pagination.Parameter)).ToList());
+    }
+
+    /// <summary>
+    /// The client call of an infinite hook: the query hook's call, with the continuation token merged into
+    /// the query (or headers) bag.
+    /// </summary>
+    /// <param name="info">The operation.</param>
+    /// <param name="tokenExpression">The expression holding the token (<c>string | null | undefined</c>).</param>
+    /// <param name="namingStrategy">The naming strategy of the client's query bag.</param>
+    internal static string BuildInfiniteClientCallArgs(
+        HookInfo info,
+        string tokenExpression,
+        TypeScriptNamingStrategy namingStrategy)
+    {
+        var pagination = info.Pagination!;
+        var (queryParams, headerParams) = InfiniteHookParameters(info);
+        var args = new List<string>();
+
+        foreach (var param in info.PathParams)
+        {
+            args.Add((param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+        }
+
+        if (info.HasBody)
+        {
+            args.Add("body");
+        }
+
+        foreach (var param in info.QuerystringParams)
+        {
+            args.Add((param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+        }
+
+        var token = tokenExpression + " ?? undefined";
+        if (!pagination.IsHeader)
+        {
+            var key = TypeScriptOperationHelper.PropertyKey((pagination.Parameter.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+            args.Add(queryParams.Count > 0
+                ? "{ ...query, " + key + ": " + token + " }"
+                : "{ " + key + ": " + token + " }");
+        }
+        else if (info.QueryParams.Count > 0)
+        {
+            args.Add("query");
+        }
+
+        if (pagination.IsHeader)
+        {
+            var key = "'" + pagination.Parameter.Name + "'";
+            args.Add(headerParams.Count > 0
+                ? "{ ...headers, " + key + ": " + token + " }"
+                : "{ " + key + ": " + token + " }");
+        }
+        else if (info.HeaderParams.Count > 0)
+        {
+            args.Add("headers");
+        }
+
+        if (info.CookieParams.Count > 0)
+        {
+            args.Add("cookies");
+        }
+
+        return string.Join(", ", args);
+    }
+
+    /// <summary>
+    /// Reads the continuation token of a page: <c>page.continuation</c>, or <c>page['next-token']</c>
+    /// when the property name is not an identifier.
+    /// </summary>
+    internal static string TokenAccess(
+        string pageVariable,
+        HookPagination pagination,
+        TypeScriptNamingStrategy namingStrategy)
+    {
+        var name = pagination.TokenProperty.ApplyNamingStrategy(namingStrategy);
+        return name.All(c => char.IsLetterOrDigit(c) || c is '_' or '$') && !char.IsDigit(name[0])
+            ? pageVariable + "." + name
+            : pageVariable + "['" + name + "']";
+    }
+
     internal sealed record HookInfo(
         string MethodName,
         string HttpMethod,
@@ -645,8 +827,7 @@ internal static class TypeScriptHookModel
         string FileUploadParam,
         string FileUploadArgName,
         List<string> Success2xxDiscriminators,
-        bool IsPaginatedStreaming,
-        string PageReturnType,
+        HookPagination? Pagination,
         string? Summary,
         string? Description,
         bool Deprecated,

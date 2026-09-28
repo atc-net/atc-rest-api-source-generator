@@ -19,6 +19,8 @@ export class ItemsClient {
 
   /** List items as JSON */
   async listItems(): Promise<ListItemsResult> {
-    return this.api.request<Item[]>('GET', '/items') as Promise<ListItemsResult>;
+    return this.api.request<Item[]>('GET', '/items', {
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListItemsResult>;
   }
 }

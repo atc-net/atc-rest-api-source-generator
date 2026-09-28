@@ -45,6 +45,7 @@ export class OrdersClient {
   async listOrders(): Promise<ListOrdersResult> {
     return this.api.request<Order[]>('GET', '/orders', {
       retry: { policy: retryPolicies.ordersFast },
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
     }) as Promise<ListOrdersResult>;
   }
 
@@ -53,6 +54,7 @@ export class OrdersClient {
     return this.api.request<Order>('POST', '/orders', {
       body,
       retry: { policy: retryPolicies.ordersFast, enabled: false },
+      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateOrderResult>;
   }
 
@@ -60,6 +62,7 @@ export class OrdersClient {
   async getOrderById(orderId: string): Promise<GetOrderByIdResult> {
     return this.api.request<Order>('GET', `/orders/${orderId}`, {
       retry: { policy: retryPolicies.ordersFast },
+      arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetOrderByIdResult>;
   }
 
@@ -67,6 +70,7 @@ export class OrdersClient {
   async deleteOrder(orderId: string): Promise<DeleteOrderResult> {
     return this.api.request<void>('DELETE', `/orders/${orderId}`, {
       retry: { policy: retryPolicies.ordersDelete },
+      arms: ['noContent', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeleteOrderResult>;
   }
 }

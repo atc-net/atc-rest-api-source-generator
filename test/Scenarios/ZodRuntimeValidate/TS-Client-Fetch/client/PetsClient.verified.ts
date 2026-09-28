@@ -29,12 +29,14 @@ export class PetsClient {
   async getPet(petId: string): Promise<GetPetResult> {
     return this.api.request<Pet>('GET', `/pets/${petId}`, {
       parseSchema: PetSchema,
+      arms: ['ok', 'badRequest', 'notFound', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetPetResult>;
   }
 
   async listPets(): Promise<ListPetsResult> {
     return this.api.request<Pet[]>('GET', '/pets', {
       parseSchema: z.array(PetSchema),
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
     }) as Promise<ListPetsResult>;
   }
 }

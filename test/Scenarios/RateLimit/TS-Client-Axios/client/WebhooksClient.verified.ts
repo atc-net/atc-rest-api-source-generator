@@ -24,6 +24,7 @@ export class WebhooksClient {
   async receiveWebhook(body: WebhookPayload): Promise<ReceiveWebhookResult> {
     return this.api.request<void>('POST', '/webhooks', {
       body,
+      arms: ['ok', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<ReceiveWebhookResult>;
   }
 }

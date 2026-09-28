@@ -24,6 +24,7 @@ export class ExportsClient {
   async createExport(body: ExportRequest): Promise<CreateExportResult> {
     return this.api.request<void>('POST', '/exports', {
       body,
+      arms: ['accepted', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateExportResult>;
   }
 }

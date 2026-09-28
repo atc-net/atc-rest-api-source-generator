@@ -27,11 +27,15 @@ export class ItemsClient {
 
   /** List items */
   async listItems(): Promise<ListItemsResult> {
-    return this.api.request<Item[]>('GET', '/items') as Promise<ListItemsResult>;
+    return this.api.request<Item[]>('GET', '/items', {
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListItemsResult>;
   }
 
   /** Get item by ID */
   async getItemById(id: string): Promise<GetItemByIdResult> {
-    return this.api.request<Item>('GET', `/items/${id}`) as Promise<GetItemByIdResult>;
+    return this.api.request<Item>('GET', `/items/${id}`, {
+      arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetItemByIdResult>;
   }
 }

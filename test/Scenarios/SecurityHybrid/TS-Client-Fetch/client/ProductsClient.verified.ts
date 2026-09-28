@@ -29,11 +29,15 @@ export class ProductsClient {
 
   /** List products */
   async listProducts(): Promise<ListProductsResult> {
-    return this.api.request<Product[]>('GET', '/products') as Promise<ListProductsResult>;
+    return this.api.request<Product[]>('GET', '/products', {
+      arms: ['ok', 'unauthorized', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListProductsResult>;
   }
 
   /** Get product by ID */
   async getProductById(productId: string): Promise<GetProductByIdResult> {
-    return this.api.request<Product>('GET', `/products/${productId}`) as Promise<GetProductByIdResult>;
+    return this.api.request<Product>('GET', `/products/${productId}`, {
+      arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetProductByIdResult>;
   }
 }

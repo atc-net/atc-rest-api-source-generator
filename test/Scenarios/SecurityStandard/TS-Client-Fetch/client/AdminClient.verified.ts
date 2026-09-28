@@ -28,13 +28,16 @@ export class AdminClient {
 
   /** Get admin settings */
   async getAdminSettings(): Promise<GetAdminSettingsResult> {
-    return this.api.request<AdminSettings>('GET', '/admin/settings') as Promise<GetAdminSettingsResult>;
+    return this.api.request<AdminSettings>('GET', '/admin/settings', {
+      arms: ['ok', 'unauthorized', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetAdminSettingsResult>;
   }
 
   /** Update admin settings */
   async updateAdminSettings(body: AdminSettings): Promise<UpdateAdminSettingsResult> {
     return this.api.request<AdminSettings>('PUT', '/admin/settings', {
       body,
+      arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdateAdminSettingsResult>;
   }
 }

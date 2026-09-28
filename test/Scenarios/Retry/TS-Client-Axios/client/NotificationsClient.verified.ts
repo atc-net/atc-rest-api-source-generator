@@ -25,6 +25,7 @@ export class NotificationsClient {
     return this.api.request<void>('POST', '/notifications', {
       body,
       retry: { policy: retryPolicies.notificationsConstant, enabled: false },
+      arms: ['accepted', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<SendNotificationResult>;
   }
 }

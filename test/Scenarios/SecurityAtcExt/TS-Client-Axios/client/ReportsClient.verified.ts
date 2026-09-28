@@ -21,6 +21,8 @@ export class ReportsClient {
 
   /** List reports (admin OR manager) */
   async listReports(): Promise<ListReportsResult> {
-    return this.api.request<Report[]>('GET', '/reports') as Promise<ListReportsResult>;
+    return this.api.request<Report[]>('GET', '/reports', {
+      arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListReportsResult>;
   }
 }

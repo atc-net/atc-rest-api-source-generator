@@ -50,23 +50,30 @@ export class ResourcesClient {
 
   /** List user resources */
   async listResources(): Promise<ListResourcesResult> {
-    return this.api.request<Resource[]>('GET', '/resources') as Promise<ListResourcesResult>;
+    return this.api.request<Resource[]>('GET', '/resources', {
+      arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListResourcesResult>;
   }
 
   /** Create a new resource */
   async createResource(body: CreateResourceRequest): Promise<CreateResourceResult> {
     return this.api.request<Resource>('POST', '/resources', {
       body,
+      arms: ['created', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateResourceResult>;
   }
 
   /** Get resource by ID */
   async getResourceById(resourceId: string): Promise<GetResourceByIdResult> {
-    return this.api.request<Resource>('GET', `/resources/${resourceId}`) as Promise<GetResourceByIdResult>;
+    return this.api.request<Resource>('GET', `/resources/${resourceId}`, {
+      arms: ['ok', 'unauthorized', 'notFound', 'badRequest', 'forbidden', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetResourceByIdResult>;
   }
 
   /** Delete a resource */
   async deleteResource(resourceId: string): Promise<DeleteResourceResult> {
-    return this.api.request<void>('DELETE', `/resources/${resourceId}`) as Promise<DeleteResourceResult>;
+    return this.api.request<void>('DELETE', `/resources/${resourceId}`, {
+      arms: ['noContent', 'unauthorized', 'forbidden', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<DeleteResourceResult>;
   }
 }

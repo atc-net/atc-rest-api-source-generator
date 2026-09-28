@@ -11,7 +11,7 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Gates;
 ///   <item><description>a query whose path parameter is missing makes no request; with it, path, query and header values reach the wire;</description></item>
 ///   <item><description>an error is the client's <c>ApiError</c> after exactly one request, and <c>shouldRetryOnError: true</c> turns SWR's retry back on;</description></item>
 ///   <item><description>a mutation sends its argument as the body, and a mounted query of the segment fetches again afterwards;</description></item>
-///   <item><description>the infinite hook sends the previous page's continuation token and stops when there is none.</description></item>
+///   <item><description>the infinite hook of a paginated read sends the previous page's token through the operation's own continuation query parameter, keeps its other query values, and stops when there is none.</description></item>
 /// </list>
 /// Self-skips without a Node toolchain, but fails under CI.
 /// </summary>
@@ -82,10 +82,34 @@ public sealed class TypeScriptSwrHooksRuntimeGateTests
                         $ref: '#/components/schemas/Pet'
                 '404':
                   description: Not Found
+          /items:
+            post:
+              operationId: createItem
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Item'
+              responses:
+                '201':
+                  description: Created
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Item'
           /items/pages:
             get:
               operationId: listItemPages
-              x-return-async-enumerable: true
+              parameters:
+                - name: pageSize
+                  in: query
+                  schema:
+                    type: integer
+                - name: continuation
+                  in: query
+                  schema:
+                    type: string
               responses:
                 '200':
                   description: OK
@@ -150,7 +174,7 @@ public sealed class TypeScriptSwrHooksRuntimeGateTests
         import { SWRConfig } from 'swr';
         import { ApiProvider } from './generated/hooks/ApiProvider';
         import { useGetPetById, useListPets, useCreatePet } from './generated/hooks/usePets';
-        import { useListItemPagesInfinite } from './generated/hooks/useItems';
+        import { useListItemPagesInfinite, useCreateItem } from './generated/hooks/useItems';
         import { ApiError } from './generated/errors/ApiError';
 
         (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -165,8 +189,9 @@ public sealed class TypeScriptSwrHooksRuntimeGateTests
           if (path === '/pets') return { status: 200, body: [{ name: 'a' }] };
           if (path === '/pets/missing') return { status: 404, body: { title: 'Not Found', status: 404, detail: 'No such pet.' } };
           if (path.startsWith('/pets/')) return { status: 200, body: { name: path.split('/')[2] } };
+          if (call.method === 'POST' && path === '/items') return { status: 201, body: JSON.parse(call.body ?? '{}') };
           if (path === '/items/pages') {
-            return call.headers['x-continuation'] === 't1'
+            return new URL(call.url).searchParams.get('continuation') === 't1'
               ? { status: 200, body: { continuationToken: null, items: [{ id: 2 }] } }
               : { status: 200, body: { continuationToken: 't1', items: [{ id: 1 }] } };
           }
@@ -219,6 +244,7 @@ public sealed class TypeScriptSwrHooksRuntimeGateTests
           );
         }
 
+        const tokenOf = (c: Call) => new URL(c.url).searchParams.get('continuation');
         const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
         const callsTo = (path: string, method = 'GET') => calls.filter((c) => c.method === method && c.url.replace('http://localhost', '').split('?')[0] === path);
 
@@ -266,12 +292,14 @@ public sealed class TypeScriptSwrHooksRuntimeGateTests
 
           // I1: the infinite hook passes the continuation token and stops without one (the first page is not
           // revalidated on setSize, so the page requests are exactly one per page).
-          const i1 = renderHook(() => useListItemPagesInfinite({ revalidateFirstPage: false }), { wrapper });
+          const i1 = renderHook(() => useListItemPagesInfinite({ pageSize: 2 }, { revalidateFirstPage: false }), { wrapper });
           await waitFor(() => { if (i1.result.current.data?.length !== 1) throw new Error('pending'); });
           await act(async () => { await i1.result.current.setSize(2); });
           await waitFor(() => { if (i1.result.current.data?.length !== 2) throw new Error('pending'); });
           const pages = callsTo('/items/pages');
-          check('I1 token', pages[1]?.headers['x-continuation'] === 't1', 'headers ' + JSON.stringify(pages[1]?.headers));
+          check('I1 token', pages[1] !== undefined && tokenOf(pages[1]) === 't1', 'urls ' + JSON.stringify(pages.map((c) => c.url)));
+          check('I1 first page without token', pages[0] !== undefined && tokenOf(pages[0]) === null, 'url ' + pages[0]?.url);
+          check('I1 own query kept', pages.every((c) => new URL(c.url).searchParams.get('pageSize') === '2'), 'urls ' + JSON.stringify(pages.map((c) => c.url)));
           await act(async () => { await i1.result.current.setSize(3); });
           await sleep(100);
           check('I1 stops', callsTo('/items/pages').length === 2, callsTo('/items/pages').length + ' page requests');
@@ -286,11 +314,20 @@ public sealed class TypeScriptSwrHooksRuntimeGateTests
           await waitFor(() => { if (i2.result.current.data?.length !== 2) throw new Error('pending'); });
           await act(async () => { await i2.result.current.setSize(3); });
           await sleep(100);
-          const i2Tokens = callsTo('/items/pages').slice(i2Start).map((c) => c.headers['x-continuation']);
+          const i2Tokens = callsTo('/items/pages').slice(i2Start).map(tokenOf);
           check('I2 token', i2Tokens.includes('t1'), 'tokens ' + JSON.stringify(i2Tokens));
-          check('I2 no other token', i2Tokens.every((t) => t === undefined || t === 't1'), 'tokens ' + JSON.stringify(i2Tokens));
+          check('I2 no other token', i2Tokens.every((t) => t === null || t === 't1'), 'tokens ' + JSON.stringify(i2Tokens));
           check('I2 stops', i2.result.current.data?.length === 2, 'pages ' + i2.result.current.data?.length);
           i2.unmount();
+
+          // I3: a mutation of the segment revalidates its mounted infinite list too (SWR keeps infinite lists
+          // under $inf$ keys, which its filter-mode mutate skips).
+          const i3 = renderHook(() => ({ list: useListItemPagesInfinite(), create: useCreateItem() }), { wrapper });
+          await waitFor(() => { if (i3.result.current.list.data?.length !== 1) throw new Error('pending'); });
+          const i3Before = callsTo('/items/pages').length;
+          await act(async () => { await i3.result.current.create.trigger({ id: 9 }); });
+          await waitFor(() => { if (callsTo('/items/pages').length <= i3Before) throw new Error('pending'); }, { timeout: 3000 });
+          i3.unmount();
 
           if (failures.length > 0) {
             console.error('SWR HOOK FAILURES:\n' + failures.join('\n'));

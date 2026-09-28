@@ -25,6 +25,7 @@ export class ExternalClient {
     return this.api.request<PaymentResult>('POST', '/external/payment', {
       body,
       retry: { policy: retryPolicies.externalService, enabled: false },
+      arms: ['ok', 'serverError', 'badRequest', 'conflict', 'clientError', 'parseError'],
     }) as Promise<ProcessPaymentResult>;
   }
 }

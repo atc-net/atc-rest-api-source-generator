@@ -23,6 +23,7 @@ export class DocumentsClient {
   async createDocument(body: DocumentRequest): Promise<CreateDocumentResult> {
     return this.api.request<DocumentResponse>('POST', '/documents', {
       body,
+      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateDocumentResult>;
   }
 }

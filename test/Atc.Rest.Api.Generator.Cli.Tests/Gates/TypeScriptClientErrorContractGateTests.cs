@@ -169,6 +169,7 @@ public sealed class TypeScriptClientErrorContractGateTests
     // Mocked global fetch: `respond` installs the next Response the client receives.
     private const string FetchHarness = """
         import { ApiClient } from './generated/client/ApiClient';
+        import { ItemsClient } from './generated/client/ItemsClient';
 
         let nextResponse: () => Response = () => new Response(null, { status: 500 });
         let calls = 0;
@@ -196,6 +197,7 @@ public sealed class TypeScriptClientErrorContractGateTests
     private const string AxiosHarness = """
         import axios from 'axios';
         import { ApiClient } from './generated/client/ApiClient';
+        import { ItemsClient } from './generated/client/ItemsClient';
 
         let currentAdapter: (config: any) => Promise<any> = () => Promise.reject(new Error('no adapter configured'));
         let calls = 0;
@@ -296,6 +298,18 @@ public sealed class TypeScriptClientErrorContractGateTests
           const r10 = await client.request('get', '/items/1');
           check('E10 body', r10.error?.body?.code === 'E422', 'expected body.code, got ' + JSON.stringify(r10.error?.body));
           check('E10 message', r10.error?.message === 'Not allowed.', 'expected body.message as message, got ' + JSON.stringify(r10.error?.message));
+
+          // E11: through the generated client, a status the operation's union does not declare is folded into one it
+          // does (getItem declares 200 and 404, plus the auto 400): 409/401/418 -> clientError, 503 -> serverError,
+          // 201 -> ok; a declared 404 stays notFound. An exhaustive switch over GetItemResult sees every result.
+          const items = new ItemsClient(client);
+          const folds: [number, string, string][] = [[409, 'application/problem+json', 'clientError'], [401, 'application/problem+json', 'clientError'], [418, 'text/plain', 'clientError'], [503, 'application/problem+json', 'serverError'], [404, 'application/problem+json', 'notFound'], [201, 'application/json', 'ok']];
+          for (const [status, contentType, expected] of folds) {
+            respond(status === 201 ? JSON.stringify('created') : JSON.stringify({ title: 't', status, detail: 'd' }), contentType, status);
+            const r = await items.getItem(1);
+            check('E11 ' + status, r.status === expected, 'expected ' + expected + ', got ' + r.status);
+            check('E11 ' + status + ' keeps the HTTP status', r.error === undefined || r.error.status === status, 'error.status ' + r.error?.status);
+          }
 
           if (failures.length > 0) {
             console.error('ERROR-CONTRACT FAILURES:\n' + failures.join('\n'));

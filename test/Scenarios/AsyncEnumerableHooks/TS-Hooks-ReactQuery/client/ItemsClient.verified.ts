@@ -3,13 +3,6 @@ import { ApiClient } from './ApiClient';
 import type { Item, ItemLogs, Items, PaginationResult } from '../models';
 import type { ApiError, ValidationError } from '../errors';
 
-export type ListItemPagesPageResult =
-  | { status: 'ok'; data: (PaginationResult & { items?: Item[] }); response: Response }
-  | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'clientError'; error: ApiError; response: Response }
-  | { status: 'serverError'; error: ApiError; response: Response }
-  | { status: 'parseError'; error: Error; response: Response };
-
 export type GetItemLogsResult =
   | { status: 'ok'; data: ItemLogs; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
@@ -51,18 +44,6 @@ export class ItemsClient {
       signal,
     });
   }
-  /** Stream paginated items (async-enumerable with PaginationResult) */
-
-  async listItemPagesPage(query?: { pageSize?: number }, headers?: { 'x-continuation'?: string }): Promise<ListItemPagesPageResult> {
-    return this.api.request<(PaginationResult & { items?: Item[] })>('GET', '/items/pages', {
-      query: {
-        pageSize: query?.pageSize,
-      },
-      headers: {
-        'x-continuation': headers?.['x-continuation'],
-      },
-    }) as Promise<ListItemPagesPageResult>;
-  }
 
   /** Get logs for an item with filters (path + query, no streaming) */
   async getItemLogs(itemId: string, query?: { logLevel?: 'debug' | 'info' | 'warn' | 'error'; from?: Date }): Promise<GetItemLogsResult> {
@@ -71,6 +52,7 @@ export class ItemsClient {
         logLevel: query?.logLevel,
         from: query?.from?.toISOString(),
       },
+      arms: ['ok', 'badRequest', 'notFound', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetItemLogsResult>;
   }
 
@@ -81,6 +63,7 @@ export class ItemsClient {
         createdAfter: query?.createdAfter?.toISOString(),
         createdBefore: query?.createdBefore?.toISOString(),
       },
+      arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<SearchItemsResult>;
   }
 }

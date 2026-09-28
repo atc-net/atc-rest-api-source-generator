@@ -118,6 +118,7 @@ export class PetClient {
   async updatePet(body: Pet): Promise<UpdatePetResult> {
     return this.api.request<Pet>('PUT', '/pet', {
       body,
+      arms: ['ok', 'badRequest', 'notFound', 'unprocessableEntity', 'unauthorized', 'forbidden', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdatePetResult>;
   }
 
@@ -125,6 +126,7 @@ export class PetClient {
   async addPet(body: Pet): Promise<AddPetResult> {
     return this.api.request<Pet>('POST', '/pet', {
       body,
+      arms: ['ok', 'badRequest', 'unprocessableEntity', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<AddPetResult>;
   }
 
@@ -134,6 +136,7 @@ export class PetClient {
       query: {
         status: query?.status,
       },
+      arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<FindPetsByStatusResult>;
   }
 
@@ -143,12 +146,15 @@ export class PetClient {
       query: {
         tags: query?.tags,
       },
+      arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<FindPetsByTagsResult>;
   }
 
   /** Find pet by ID. */
   async getPetById(petId: number): Promise<GetPetByIdResult> {
-    return this.api.request<Pet>('GET', `/pet/${petId}`) as Promise<GetPetByIdResult>;
+    return this.api.request<Pet>('GET', `/pet/${petId}`, {
+      arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetPetByIdResult>;
   }
 
   /** Updates a pet in the store with form data. */
@@ -158,6 +164,7 @@ export class PetClient {
         name: query?.name,
         status: query?.status,
       },
+      arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdatePetWithFormResult>;
   }
 
@@ -167,6 +174,7 @@ export class PetClient {
       headers: {
         'api_key': headers?.['api_key'],
       },
+      arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeletePetResult>;
   }
 
@@ -177,6 +185,7 @@ export class PetClient {
       query: {
         additionalMetadata: query?.additionalMetadata,
       },
+      arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UploadFileResult>;
   }
 }

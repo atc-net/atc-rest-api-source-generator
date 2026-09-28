@@ -106,6 +106,7 @@ export class UserClient {
   async createUser(body: User): Promise<CreateUserResult> {
     return this.api.request<User>('POST', '/user', {
       body,
+      arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateUserResult>;
   }
 
@@ -113,6 +114,7 @@ export class UserClient {
   async createUsersWithListInput(body: User[]): Promise<CreateUsersWithListInputResult> {
     return this.api.request<User>('POST', '/user/createWithList', {
       body,
+      arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateUsersWithListInputResult>;
   }
 
@@ -124,28 +126,36 @@ export class UserClient {
         password: query?.password,
       },
       responseType: 'text',
+      arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<LoginUserResult>;
   }
 
   /** Logs out current logged in user session. */
   async logoutUser(): Promise<LogoutUserResult> {
-    return this.api.request<void>('GET', '/user/logout') as Promise<LogoutUserResult>;
+    return this.api.request<void>('GET', '/user/logout', {
+      arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<LogoutUserResult>;
   }
 
   /** Get user by user name. */
   async getUserByName(username: string): Promise<GetUserByNameResult> {
-    return this.api.request<User>('GET', `/user/${username}`) as Promise<GetUserByNameResult>;
+    return this.api.request<User>('GET', `/user/${username}`, {
+      arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetUserByNameResult>;
   }
 
   /** Update user resource. */
   async updateUser(username: string, body: User): Promise<UpdateUserResult> {
     return this.api.request<void>('PUT', `/user/${username}`, {
       body,
+      arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdateUserResult>;
   }
 
   /** Delete user resource. */
   async deleteUser(username: string): Promise<DeleteUserResult> {
-    return this.api.request<void>('DELETE', `/user/${username}`) as Promise<DeleteUserResult>;
+    return this.api.request<void>('DELETE', `/user/${username}`, {
+      arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<DeleteUserResult>;
   }
 }

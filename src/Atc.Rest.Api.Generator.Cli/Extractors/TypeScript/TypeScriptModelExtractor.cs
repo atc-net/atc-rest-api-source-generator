@@ -465,6 +465,17 @@ public static class TypeScriptModelExtractor
         var brandImports = new SortedSet<string>(StringComparer.Ordinal);
         var extendsTypeName = extendsTypeNames.Count > 0 ? string.Join(", ", extendsTypeNames) : null;
 
+        // A generic pagination base (emitted as Base<T>) takes the item type from the inline member.
+        if (schema.AllOf is { Count: > 0 } &&
+            TypeScriptTypeMapper.TryGetGenericPagination(schema.AllOf, out var paginationBase, out var paginationItem, out var paginationItemSchema))
+        {
+            extendsTypeName = paginationBase + "<" + paginationItem + ">";
+            if (paginationItemSchema is not null)
+            {
+                importTypes.Add(paginationItemSchema);
+            }
+        }
+
         // Detect generic pagination pattern: array property with empty items (items: {})
         var genericArrayPropName = DetectGenericArrayProperty(properties);
         var isGeneric = genericArrayPropName is not null;

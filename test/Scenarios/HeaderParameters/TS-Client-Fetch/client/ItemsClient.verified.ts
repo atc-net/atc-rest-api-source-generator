@@ -46,6 +46,7 @@ export class ItemsClient {
         'x-continuation': headers?.['x-continuation'],
         'x-correlation-id': headers?.['x-correlation-id'],
       },
+      arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<ListItemsResult>;
   }
 
@@ -55,6 +56,7 @@ export class ItemsClient {
       headers: {
         'X-Request-Id': headers?.['X-Request-Id'],
       },
+      arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetItemByIdResult>;
   }
 }

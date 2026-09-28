@@ -28,11 +28,15 @@ export class ReportsClient {
 
   /** List all reports */
   async listReports(): Promise<ListReportsResult> {
-    return this.api.request<unknown[]>('GET', '/reports') as Promise<ListReportsResult>;
+    return this.api.request<unknown[]>('GET', '/reports', {
+      arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListReportsResult>;
   }
 
   /** Get a report by ID */
   async getReport(reportId: string): Promise<GetReportResult> {
-    return this.api.request<unknown>('GET', `/reports/${reportId}`) as Promise<GetReportResult>;
+    return this.api.request<unknown>('GET', `/reports/${reportId}`, {
+      arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetReportResult>;
   }
 }

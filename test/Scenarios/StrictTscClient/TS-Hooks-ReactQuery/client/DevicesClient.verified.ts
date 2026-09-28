@@ -23,6 +23,7 @@ export class DevicesClient {
   async updateDevice(id: string, body: unknown): Promise<UpdateDeviceResult> {
     return this.api.request<Device>('POST', `/devices/${id}`, {
       body,
+      arms: ['ok', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdateDeviceResult>;
   }
 }

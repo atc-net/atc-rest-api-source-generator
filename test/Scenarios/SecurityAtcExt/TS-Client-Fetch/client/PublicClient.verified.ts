@@ -18,6 +18,8 @@ export class PublicClient {
 
   /** Health check (public) */
   async getHealth(): Promise<GetHealthResult> {
-    return this.api.request<HealthStatus>('GET', '/public/health') as Promise<GetHealthResult>;
+    return this.api.request<HealthStatus>('GET', '/public/health', {
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetHealthResult>;
   }
 }

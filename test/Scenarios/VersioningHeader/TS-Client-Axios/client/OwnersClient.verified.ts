@@ -35,18 +35,23 @@ export class OwnersClient {
 
   /** List all owners */
   async listOwners(): Promise<ListOwnersResult> {
-    return this.api.request<Owner[]>('GET', '/owners') as Promise<ListOwnersResult>;
+    return this.api.request<Owner[]>('GET', '/owners', {
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListOwnersResult>;
   }
 
   /** Create a new owner */
   async createOwner(body: CreateOwnerRequest): Promise<CreateOwnerResult> {
     return this.api.request<Owner>('POST', '/owners', {
       body,
+      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateOwnerResult>;
   }
 
   /** Get an owner by ID */
   async getOwnerById(ownerId: string): Promise<GetOwnerByIdResult> {
-    return this.api.request<Owner>('GET', `/owners/${ownerId}`) as Promise<GetOwnerByIdResult>;
+    return this.api.request<Owner>('GET', `/owners/${ownerId}`, {
+      arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetOwnerByIdResult>;
   }
 }

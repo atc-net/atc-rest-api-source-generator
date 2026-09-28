@@ -17,6 +17,8 @@ export class PingClient {
   }
 
   async ping(): Promise<PingResult> {
-    return this.api.request<void>('POST', '/ping') as Promise<PingResult>;
+    return this.api.request<void>('POST', '/ping', {
+      arms: ['noContent', 'conflict', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<PingResult>;
   }
 }

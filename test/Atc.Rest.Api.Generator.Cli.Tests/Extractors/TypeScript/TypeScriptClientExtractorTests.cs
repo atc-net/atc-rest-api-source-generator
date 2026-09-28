@@ -1089,10 +1089,10 @@ public class TypeScriptClientExtractorTests
     }
 
     [Fact]
-    public void Extract_PaginatedStreamingWithSpecDeclaredContinuation_DoesNotDuplicateHeader()
+    public void Extract_PaginatedStreamingWithSpecDeclaredContinuation_HasNoPageCompanion()
     {
-        // When the spec already declares an x-continuation header param the
-        // Page companion must not synthesize a second one (TS2300 / TS1117).
+        // A stream of pages gets no single-page companion; the declared x-continuation header stays a
+        // plain parameter of the streaming method.
         const string yaml = """
                             openapi: 3.0.0
                             info: { title: T, version: 1.0.0 }
@@ -1130,12 +1130,8 @@ public class TypeScriptClientExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc, headerContent: null));
 
-        Assert.DoesNotContain("'x-continuation'?: string; 'x-continuation'?: string", content, StringComparison.Ordinal);
-
-        // The request object literal must carry the continuation key exactly once per method.
-        var pageMethodBody = content[content.IndexOf("getInsightsDevicesPage", StringComparison.Ordinal)..];
-        var objectLiteralOccurrences = CountOccurrences(pageMethodBody, "'x-continuation': headers?.['x-continuation'],");
-        Assert.Equal(1, objectLiteralOccurrences);
+        Assert.Contains("async *getInsightsDevices(", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("getInsightsDevicesPage", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1315,21 +1311,6 @@ public class TypeScriptClientExtractorTests
 
         // No array-joining must appear.
         Assert.DoesNotContain("join(", content, StringComparison.Ordinal);
-    }
-
-    private static int CountOccurrences(
-        string haystack,
-        string needle)
-    {
-        var count = 0;
-        var index = 0;
-        while ((index = haystack.IndexOf(needle, index, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            index += needle.Length;
-        }
-
-        return count;
     }
 
     [Fact]

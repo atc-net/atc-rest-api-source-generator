@@ -53,6 +53,11 @@ public static class TypeScriptRetryInterceptorExtractor
         sb.AppendLine("/** Delays execution for the specified number of milliseconds. */");
         sb.AppendLine("function sleep(ms: number, signal?: AbortSignal): Promise<void> {");
         sb.AppendLine("  return new Promise((resolve, reject) => {");
+        sb.AppendLine("    if (signal?.aborted) {");
+        sb.AppendLine("      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));");
+        sb.AppendLine("      return;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
         sb.AppendLine("    const timer = setTimeout(resolve, ms);");
         sb.AppendLine("    signal?.addEventListener('abort', () => {");
         sb.AppendLine("      clearTimeout(timer);");
@@ -203,8 +208,9 @@ public static class TypeScriptRetryInterceptorExtractor
         sb.AppendLine();
         sb.AppendLine("      await sleep(delay, signal);");
         sb.AppendLine("    } catch (error) {");
-        sb.AppendLine("      // Caller-initiated aborts always propagate; per-attempt timeouts are retryable.");
-        sb.AppendLine("      if (error instanceof DOMException && error.name === 'AbortError' && !timeoutFired) {");
+        sb.AppendLine("      // Caller-initiated aborts always propagate (whatever the abort reason, e.g. Axios' CanceledError);");
+        sb.AppendLine("      // per-attempt timeouts are retryable.");
+        sb.AppendLine("      if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError' && !timeoutFired)) {");
         sb.AppendLine("        throw error;");
         sb.AppendLine("      }");
         sb.AppendLine();

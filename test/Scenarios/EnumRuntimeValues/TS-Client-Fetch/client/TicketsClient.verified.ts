@@ -24,6 +24,7 @@ export class TicketsClient {
       query: {
         status: query?.status,
       },
+      arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetTicketsResult>;
   }
 }

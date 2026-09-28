@@ -60,6 +60,7 @@ export class UsersClient {
         isActive: query?.isActive,
         limit: query?.limit,
       },
+      arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<ListUsersResult>;
   }
 
@@ -67,23 +68,29 @@ export class UsersClient {
   async createUser(body: CreateUserRequest): Promise<CreateUserResult> {
     return this.api.request<User>('POST', '/users', {
       body,
+      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateUserResult>;
   }
 
   /** Get a specific user */
   async getUserById(userId: string): Promise<GetUserByIdResult> {
-    return this.api.request<User>('GET', `/users/${userId}`) as Promise<GetUserByIdResult>;
+    return this.api.request<User>('GET', `/users/${userId}`, {
+      arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetUserByIdResult>;
   }
 
   /** Update a specific user */
   async updateUserById(userId: string, body: UpdateUserRequest): Promise<UpdateUserByIdResult> {
     return this.api.request<User>('PUT', `/users/${userId}`, {
       body,
+      arms: ['ok', 'badRequest', 'notFound', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdateUserByIdResult>;
   }
 
   /** Delete a specific user */
   async deleteUserById(userId: string): Promise<DeleteUserByIdResult> {
-    return this.api.request<void>('DELETE', `/users/${userId}`) as Promise<DeleteUserByIdResult>;
+    return this.api.request<void>('DELETE', `/users/${userId}`, {
+      arms: ['noContent', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<DeleteUserByIdResult>;
   }
 }

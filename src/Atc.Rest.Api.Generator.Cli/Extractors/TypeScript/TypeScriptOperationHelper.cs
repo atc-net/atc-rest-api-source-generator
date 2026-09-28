@@ -219,9 +219,10 @@ public static class TypeScriptOperationHelper
     /// <param name="isFileDownload">When true, the success arm's data type is <c>Blob</c>.</param>
     /// <param name="isTextDownload">When true, the success arm's data type is <c>string</c>.</param>
     /// <param name="httpClient">Selects <c>Response</c> (Fetch) vs <c>AxiosResponse</c> for the response field.</param>
-    /// <returns>The type alias declaration plus the set of model/error type names that
-    /// must be imported alongside it.</returns>
-    public static (string Declaration, HashSet<string> Imports) BuildPerOperationResultType(
+    /// <returns>The type alias declaration, the set of model/error type names that must be imported
+    /// alongside it, and the union's discriminators (the client passes them as <c>arms</c>, so the
+    /// ApiClient folds a status the union does not declare into one it does).</returns>
+    public static (string Declaration, HashSet<string> Imports, List<string> Arms) BuildPerOperationResultType(
         OpenApiOperation operation,
         string typeName,
         bool isFileDownload,
@@ -232,6 +233,7 @@ public static class TypeScriptOperationHelper
         var responseType = httpClient == TypeScriptHttpClient.Axios ? "AxiosResponse" : "Response";
         var imports = new HashSet<string>(StringComparer.Ordinal);
         var successArms = new List<string>();
+        var successDiscriminators = new List<string>();
         var seenSuccess = new HashSet<string>(StringComparer.Ordinal);
 
         // Error arms: discriminator -> base error type + the body types seen for it. A body type of
@@ -295,6 +297,7 @@ public static class TypeScriptOperationHelper
                 if (arm is not null && discriminator is not null && seenSuccess.Add(discriminator))
                 {
                     successArms.Add(arm);
+                    successDiscriminators.Add(discriminator);
                 }
             }
         }
@@ -370,7 +373,7 @@ public static class TypeScriptOperationHelper
             sb.AppendLine(i == arms.Count - 1 ? ";" : string.Empty);
         }
 
-        return (sb.ToString(), imports);
+        return (sb.ToString(), imports, [.. successDiscriminators, .. errorArms.Select(a => a.Discriminator), "parseError"]);
     }
 
     /// <summary>
@@ -693,6 +696,8 @@ public static class TypeScriptOperationHelper
         return parts.Count == 0 ? null : string.Join(" | ", parts);
     }
 
+    private static readonly Regex BlockCommentPattern = new(@"/\*.*?\*/", RegexOptions.Singleline, TimeSpan.FromSeconds(1));
+
     /// <summary>
     /// Returns true when <paramref name="identifier"/> appears in <paramref name="text"/>
     /// as a standalone TypeScript identifier (bounded by non-identifier characters), so
@@ -711,6 +716,9 @@ public static class TypeScriptOperationHelper
         {
             return false;
         }
+
+        // A name in a JSDoc block (an operation summary such as "List accounts") is not a use of the type.
+        text = BlockCommentPattern.Replace(text, string.Empty);
 
         var index = 0;
         while ((index = text.IndexOf(identifier, index, StringComparison.Ordinal)) >= 0)
@@ -885,22 +893,13 @@ public static class TypeScriptOperationHelper
                 }
                 else if (subSchema is OpenApiSchema { Properties.Count: > 0 } inlineSchema)
                 {
-                    // Pagination pattern: allOf [$ref PaginationResult, { items: Item[] }].
-                    // ToTypeScriptReturnType folds the array item into the generic argument
-                    // (PaginationResult<Item>), so the item type must be imported too —
-                    // otherwise it surfaces as TS2304 "Cannot find name 'Item'".
+                    // The inline members' types surface in the allOf's TypeScript type: as the generic
+                    // argument of a pagination base (PaginatedResult<Item>, also through an array alias
+                    // `results: $ref Accounts`) or as members of an intersection. Collect what they
+                    // reference (callers narrow the import line to the names actually used).
                     foreach (var prop in inlineSchema.Properties.Values)
                     {
-                        if (prop is OpenApiSchema { Type: var t } arrayProp &&
-                            t?.HasFlag(JsonSchemaType.Array) == true &&
-                            arrayProp.Items is OpenApiSchemaReference itemRefInAllOf)
-                        {
-                            var itemName = itemRefInAllOf.Reference.Id ?? itemRefInAllOf.Id;
-                            if (itemName is not null)
-                            {
-                                importTypes.Add(itemName);
-                            }
-                        }
+                        CollectSchemaRefTypes(prop, importTypes);
                     }
                 }
             }
@@ -1015,6 +1014,27 @@ public static class TypeScriptOperationHelper
     /// <summary>
     /// Builds a TypeScript inline type for query parameters (e.g., { limit?: number; offset?: number }).
     /// </summary>
+    /// <summary>
+    /// An object-literal / type-literal key: the name itself when it is an identifier, otherwise quoted
+    /// (<c>'page-token'</c>), as the <c>Original</c> naming strategy keeps hyphenated names.
+    /// </summary>
+    public static string PropertyKey(string name)
+        => IsIdentifier(name) ? name : "'" + name + "'";
+
+    /// <summary>
+    /// Optional-chained property access: <c>query?.pageSize</c>, or <c>query?.['page-token']</c> for a name that
+    /// is not an identifier.
+    /// </summary>
+    public static string OptionalPropertyAccess(
+        string variable,
+        string name)
+        => IsIdentifier(name) ? variable + "?." + name : variable + "?.['" + name + "']";
+
+    private static bool IsIdentifier(string name)
+        => name.Length > 0 &&
+           (char.IsLetter(name[0]) || name[0] is '_' or '$') &&
+           name.All(c => char.IsLetterOrDigit(c) || c is '_' or '$');
+
     public static string BuildQueryTypeInline(
         List<OpenApiParameter> queryParams,
         TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase,
@@ -1023,7 +1043,7 @@ public static class TypeScriptOperationHelper
         var parts = new List<string>();
         foreach (var param in queryParams)
         {
-            var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var paramName = PropertyKey((param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
             var paramType = GetParameterType(param, convertDates);
             parts.Add(paramName + "?: " + paramType + FormatDefaultComment(param));
         }

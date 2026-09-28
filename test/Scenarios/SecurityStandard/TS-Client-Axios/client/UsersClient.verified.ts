@@ -29,11 +29,15 @@ export class UsersClient {
 
   /** List all users */
   async listUsers(): Promise<ListUsersResult> {
-    return this.api.request<User[]>('GET', '/users') as Promise<ListUsersResult>;
+    return this.api.request<User[]>('GET', '/users', {
+      arms: ['ok', 'unauthorized', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListUsersResult>;
   }
 
   /** Get user by ID */
   async getUserById(userId: string): Promise<GetUserByIdResult> {
-    return this.api.request<User>('GET', `/users/${userId}`) as Promise<GetUserByIdResult>;
+    return this.api.request<User>('GET', `/users/${userId}`, {
+      arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetUserByIdResult>;
   }
 }

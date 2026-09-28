@@ -18,6 +18,8 @@ export class DefaultsClient {
 
   /** Get default values model */
   async getDefaults(): Promise<GetDefaultsResult> {
-    return this.api.request<DefaultValues>('GET', '/defaults') as Promise<GetDefaultsResult>;
+    return this.api.request<DefaultValues>('GET', '/defaults', {
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetDefaultsResult>;
   }
 }

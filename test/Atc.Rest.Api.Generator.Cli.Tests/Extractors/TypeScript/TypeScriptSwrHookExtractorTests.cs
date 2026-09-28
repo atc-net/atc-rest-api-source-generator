@@ -593,8 +593,100 @@ public class TypeScriptSwrHookExtractorTests
     }
 
     [Fact]
-    public void Extract_PaginatedStream_GetsAnInfiniteHookOverThePageCompanion()
+    public void Extract_PaginatedRead_GetsAnInfiniteHookThroughItsContinuationParameter()
     {
+        // A plain paginated GET: the response's token property (continuation) goes back through the
+        // operation's own continuation query parameter; the hook's own query leaves it out.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items/paginated:
+                                get:
+                                  operationId: listPaginatedItems
+                                  parameters:
+                                    - { name: pageSize, in: query, schema: { type: integer } }
+                                    - { name: continuation, in: query, schema: { type: string } }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            allOf:
+                                              - $ref: '#/components/schemas/PaginatedResult'
+                                              - type: object
+                                                properties:
+                                                  results:
+                                                    type: array
+                                                    items:
+                                                      $ref: '#/components/schemas/Item'
+                            components:
+                              schemas:
+                                Item: { type: object, properties: { id: { type: string } } }
+                                PaginatedResult:
+                                  type: object
+                                  properties:
+                                    continuation: { type: string, nullable: true }
+                                    results: { type: array, items: {} }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptSwrHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.Contains("import useSWRInfinite, { type SWRInfiniteConfiguration } from 'swr/infinite';", content, StringComparison.Ordinal);
+        Assert.Contains("export function useListPaginatedItems(query?: { pageSize?: number; continuation?: string }", content, StringComparison.Ordinal);
+        Assert.Contains("export function useListPaginatedItemsInfinite(query?: { pageSize?: number }, config?: SWRInfiniteConfiguration<PaginatedResult<Item>, ApiError>)", content, StringComparison.Ordinal);
+        Assert.Contains("listPaginatedInfinite: (query?: { pageSize?: number })", content, StringComparison.Ordinal);
+        Assert.Contains("if (previousPage && !previousPage.continuation) {", content, StringComparison.Ordinal);
+        Assert.Contains("return [...itemsKeys.listPaginatedInfinite(query), previousPage ? (previousPage.continuation ?? null) : null] as const;", content, StringComparison.Ordinal);
+        Assert.Contains("api.items.listPaginatedItems({ ...query, continuation: token ?? undefined })", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PaginatedReadWithContinuationHeader_SendsTheTokenAsThatHeader()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items/{shelf}:
+                                get:
+                                  operationId: listShelfItems
+                                  parameters:
+                                    - { name: shelf, in: path, required: true, schema: { type: string } }
+                                    - { name: x-continuation, in: header, schema: { type: string } }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/ItemPage'
+                            components:
+                              schemas:
+                                ItemPage:
+                                  type: object
+                                  properties:
+                                    continuationToken: { type: string, nullable: true }
+                                    items: { type: array, items: { type: string } }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptSwrHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.Contains("export function useListShelfItemsInfinite(shelf: string, config?: SWRInfiniteConfiguration<ItemPage, ApiError>)", content, StringComparison.Ordinal);
+        Assert.Contains("if (!shelf) {", content, StringComparison.Ordinal);
+        Assert.Contains("if (previousPage && !previousPage.continuationToken) {", content, StringComparison.Ordinal);
+        Assert.Contains("api.items.listShelfItems(shelf, { 'x-continuation': token ?? undefined })", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PaginatedStream_GetsNoInfiniteHook()
+    {
+        // A stream of pages is one response: there is nothing to page through with a token.
         const string yaml = """
                             openapi: 3.0.0
                             info: { title: T, version: 1.0.0 }
@@ -603,6 +695,8 @@ public class TypeScriptSwrHookExtractorTests
                                 get:
                                   operationId: listItemPages
                                   x-return-async-enumerable: true
+                                  parameters:
+                                    - { name: continuation, in: query, schema: { type: string } }
                                   responses:
                                     '200':
                                       description: OK
@@ -630,10 +724,36 @@ public class TypeScriptSwrHookExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptSwrHookExtractor.Extract(doc, headerContent: null));
 
-        Assert.Contains("import useSWRInfinite, { type SWRInfiniteConfiguration } from 'swr/infinite';", content, StringComparison.Ordinal);
-        Assert.Contains("export function useListItemPagesInfinite(", content, StringComparison.Ordinal);
-        Assert.Contains("if (previousPage && !previousPage.continuationToken) {", content, StringComparison.Ordinal);
-        Assert.Contains("api.items.listItemPagesPage(token ? { 'x-continuation': token } : undefined)", content, StringComparison.Ordinal);
         Assert.Contains("export function useListItemPagesStream(", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("Infinite", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_ResponseWithTokenButNoContinuationParameter_GetsNoInfiniteHook()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items:
+                                get:
+                                  operationId: listItems
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: object
+                                            properties:
+                                              continuation: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptSwrHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.Contains("export function useListItems(", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("Infinite", content, StringComparison.Ordinal);
     }
 }

@@ -24,11 +24,15 @@ export class CoordinatesClient {
 
   /** Get coordinates */
   async getCoordinates(): Promise<GetCoordinatesResult> {
-    return this.api.request<Coordinate>('GET', '/coordinates') as Promise<GetCoordinatesResult>;
+    return this.api.request<Coordinate>('GET', '/coordinates', {
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetCoordinatesResult>;
   }
 
   /** List all coordinates */
   async listCoordinates(): Promise<ListCoordinatesResult> {
-    return this.api.request<Coordinate[]>('GET', '/coordinates/list') as Promise<ListCoordinatesResult>;
+    return this.api.request<Coordinate[]>('GET', '/coordinates/list', {
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListCoordinatesResult>;
   }
 }

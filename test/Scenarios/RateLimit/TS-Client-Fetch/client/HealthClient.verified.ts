@@ -19,6 +19,8 @@ export class HealthClient {
 
   /** Health check (global rate limit) */
   async getHealth(): Promise<GetHealthResult> {
-    return this.api.request<HealthStatus>('GET', '/health') as Promise<GetHealthResult>;
+    return this.api.request<HealthStatus>('GET', '/health', {
+      arms: ['ok', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetHealthResult>;
   }
 }

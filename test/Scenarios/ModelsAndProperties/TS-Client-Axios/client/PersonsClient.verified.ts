@@ -25,6 +25,7 @@ export class PersonsClient {
       query: {
         gender: query?.gender,
       },
+      arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<ListPersonsResult>;
   }
 }

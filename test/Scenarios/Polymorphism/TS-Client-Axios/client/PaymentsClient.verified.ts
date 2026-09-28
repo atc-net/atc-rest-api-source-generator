@@ -35,18 +35,23 @@ export class PaymentsClient {
 
   /** List all payments */
   async listPayments(): Promise<ListPaymentsResult> {
-    return this.api.request<PaymentMethod[]>('GET', '/payments') as Promise<ListPaymentsResult>;
+    return this.api.request<PaymentMethod[]>('GET', '/payments', {
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListPaymentsResult>;
   }
 
   /** Create a payment */
   async createPayment(body: PaymentMethod): Promise<CreatePaymentResult> {
     return this.api.request<PaymentMethod>('POST', '/payments', {
       body,
+      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreatePaymentResult>;
   }
 
   /** Get a specific payment */
   async getPaymentById(paymentId: string): Promise<GetPaymentByIdResult> {
-    return this.api.request<PaymentMethod>('GET', `/payments/${paymentId}`) as Promise<GetPaymentByIdResult>;
+    return this.api.request<PaymentMethod>('GET', `/payments/${paymentId}`, {
+      arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetPaymentByIdResult>;
   }
 }

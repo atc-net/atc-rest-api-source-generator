@@ -27,13 +27,16 @@ export class AddressesClient {
 
   /** List addresses */
   async listAddresses(): Promise<ListAddressesResult> {
-    return this.api.request<Address[]>('GET', '/addresses') as Promise<ListAddressesResult>;
+    return this.api.request<Address[]>('GET', '/addresses', {
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListAddressesResult>;
   }
 
   /** Create address */
   async createAddress(body: Address): Promise<CreateAddressResult> {
     return this.api.request<Address>('POST', '/addresses', {
       body,
+      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateAddressResult>;
   }
 }

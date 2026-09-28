@@ -895,11 +895,67 @@ public class TypeScriptReactQueryHookExtractorTests
     }
 
     [Fact]
-    public void Extract_PaginatedStreamingOperation_EmitsBothStreamAndInfiniteHooks()
+    public void Extract_PaginatedRead_EmitsAnInfiniteHookThroughItsContinuationParameter()
     {
-        // Operations with x-return-async-enumerable + allOf(PaginationResult, ...) get
-        // BOTH the streaming hook (Option A) AND a useInfiniteQuery sibling (Option B)
-        // that consumes a synthesized non-streaming Page companion on the client.
+        // A plain paginated GET gets its query hook AND a useInfiniteQuery sibling: the response's
+        // token property goes back through the operation's own continuation query parameter.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info: { title: t, version: '1' }
+                            paths:
+                              /items/paginated:
+                                get:
+                                  operationId: listPaginatedItems
+                                  parameters:
+                                    - { name: pageSize, in: query, schema: { type: integer } }
+                                    - { name: continuation, in: query, schema: { type: string } }
+                                    - { name: x-tenant, in: header, schema: { type: string } }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            allOf:
+                                              - $ref: '#/components/schemas/PaginatedResult'
+                                              - type: object
+                                                properties:
+                                                  results:
+                                                    type: array
+                                                    items:
+                                                      $ref: '#/components/schemas/Item'
+                            components:
+                              schemas:
+                                Item:
+                                  type: object
+                                  properties:
+                                    id: { type: string }
+                                PaginatedResult:
+                                  type: object
+                                  properties:
+                                    continuation:
+                                      type: string
+                                      nullable: true
+                                    results: { type: array, items: {} }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.Contains("import { useQuery, useInfiniteQuery } from '@tanstack/react-query';", content, StringComparison.Ordinal);
+        Assert.Contains("export function useListPaginatedItems(query?: { pageSize?: number; continuation?: string }, headers?: { 'x-tenant'?: string }", content, StringComparison.Ordinal);
+        Assert.Contains("export function useListPaginatedItemsInfinite(query?: { pageSize?: number }, headers?: { 'x-tenant'?: string }) {", content, StringComparison.Ordinal);
+        Assert.Contains("queryKey: itemsKeys.listPaginatedInfinite(query),", content, StringComparison.Ordinal);
+        Assert.Contains("listPaginatedInfinite: (query?: { pageSize?: number })", content, StringComparison.Ordinal);
+        Assert.Contains("api.items.listPaginatedItems({ ...query, continuation: pageParam ?? undefined }, headers)", content, StringComparison.Ordinal);
+        Assert.Contains("getNextPageParam: (lastPage) => lastPage.continuation || undefined,", content, StringComparison.Ordinal);
+        Assert.Contains("retry: false,", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PaginatedStreamingOperation_EmitsOnlyTheStreamHook()
+    {
         const string yaml = """
                             openapi: 3.0.3
                             info: { title: t, version: '1' }
@@ -909,9 +965,7 @@ public class TypeScriptReactQueryHookExtractorTests
                                   operationId: listItemPages
                                   x-return-async-enumerable: true
                                   parameters:
-                                    - name: pageSize
-                                      in: query
-                                      schema: { type: integer }
+                                    - { name: continuation, in: query, schema: { type: string } }
                                   responses:
                                     '200':
                                       description: OK
@@ -928,46 +982,27 @@ public class TypeScriptReactQueryHookExtractorTests
                                                       $ref: '#/components/schemas/Item'
                             components:
                               schemas:
-                                Item:
-                                  type: object
-                                  properties:
-                                    id: { type: string }
+                                Item: { type: object }
                                 PaginationResult:
                                   type: object
                                   properties:
-                                    continuationToken:
-                                      type: string
-                                      nullable: true
+                                    continuationToken: { type: string, nullable: true }
                             """;
         var doc = ParseYaml(yaml);
         Assert.NotNull(doc);
 
         var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
 
-        // Streaming hook stays (Option A) for the "show everything as it arrives" UX.
         Assert.Contains("export function useListItemPagesStream(", content, StringComparison.Ordinal);
-
-        // Infinite hook arrives (Option B) for the "paginated with fetchNextPage" UX.
-        Assert.Contains("import { useInfiniteQuery", content, StringComparison.Ordinal);
-        Assert.Contains("export function useListItemPagesInfinite(", content, StringComparison.Ordinal);
-        Assert.Contains("return useInfiniteQuery({", content, StringComparison.Ordinal);
-
-        // Continuation header is threaded through from useInfiniteQuery's pageParam.
-        Assert.Contains("pageParam ? { 'x-continuation': pageParam } : undefined", content, StringComparison.Ordinal);
-
-        // getNextPageParam wires the next continuationToken into the next iteration.
-        Assert.Contains("getNextPageParam: (lastPage) => lastPage.continuationToken", content, StringComparison.Ordinal);
-
-        // The key factory has an entry for the infinite hook so its cache lives under
-        // the segment's `all` prefix.
-        Assert.Contains("listItemPagesInfinite:", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("useInfiniteQuery", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("Infinite", content, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Extract_PaginatedStreamingOperation_ClientGainsPageCompanion()
+    public void Extract_PaginatedStreamingOperation_ClientHasNoPageCompanion()
     {
-        // The client extractor emits a `<methodName>Page` non-streaming companion
-        // alongside the existing async-generator method. The hook above relies on this.
+        // A stream of pages is one response (a JSON array of pages from the generated server), so
+        // the client has no single-page companion to page through with a token.
         const string yaml = """
                             openapi: 3.0.3
                             info: { title: t, version: '1' }
@@ -1003,17 +1038,9 @@ public class TypeScriptReactQueryHookExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc, headerContent: null));
 
-        // Streaming async-generator stays.
         Assert.Contains("async *listItemPages(", content, StringComparison.Ordinal);
-
-        // Page companion adds the synthesized continuation header and returns the per-op
-        // result type, not the streaming item type.
-        Assert.Contains("async listItemPagesPage(", content, StringComparison.Ordinal);
-        Assert.Contains("'x-continuation'?: string", content, StringComparison.Ordinal);
-        Assert.Contains("Promise<ListItemPagesPageResult>", content, StringComparison.Ordinal);
-
-        // PaginationResult is not a generic pagination base (no untyped array), so the allOf is an intersection.
-        Assert.Contains("data: (PaginationResult & { items?: Item[] })", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("listItemPagesPage", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("x-continuation", content, StringComparison.Ordinal);
     }
 
     [Fact]

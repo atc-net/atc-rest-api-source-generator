@@ -251,14 +251,9 @@ public static class TypeScriptTypeMapper
         var refs = allOf.OfType<OpenApiSchemaReference>().ToList();
         var inlineMembers = allOf.OfType<OpenApiSchema>().Where(s => s.Properties is { Count: > 0 }).ToList();
 
-        if (refs.Count == 1 &&
-            IsGenericPaginationBase(refs[0].Target) &&
-            inlineMembers.SelectMany(s => s.Properties!.Values)
-                .OfType<OpenApiSchema>()
-                .FirstOrDefault(p => p.Type == JsonSchemaType.Array && p.Items is OpenApiSchemaReference)
-                ?.Items is OpenApiSchemaReference itemRef)
+        if (TryGetGenericPagination(allOf, out var baseName, out var itemType, out _))
         {
-            return $"{refs[0].Reference.Id ?? refs[0].Id}<{itemRef.Reference.Id ?? itemRef.Id}>";
+            return $"{baseName}<{itemType}>";
         }
 
         var parts = refs
@@ -283,6 +278,81 @@ public static class TypeScriptTypeMapper
             // Parenthesized so it stays one type where callers embed it (`readonly X[]`, `X | null`).
             _ => "(" + string.Join(" & ", parts) + ")",
         };
+    }
+
+    /// <summary>
+    /// Recognizes the generic pagination form of an <c>allOf</c>: exactly one <c>$ref</c>, to a generic pagination
+    /// base (emitted as <c>Base&lt;T&gt;</c>), and an inline member whose array property supplies the item type.
+    /// </summary>
+    /// <remarks>
+    /// The array property may be an array (also a nullable one, <c>type: [array, 'null']</c>) or a <c>$ref</c> to
+    /// an array alias. An item that is itself an array alias (<c>items: $ref Accounts</c>, Accounts = Account[]) is
+    /// unwrapped to its element, as the C# generator does: the server writes the page's items as one flat array.
+    /// </remarks>
+    /// <param name="allOf">The <c>allOf</c> members.</param>
+    /// <param name="baseName">The pagination base's schema name.</param>
+    /// <param name="itemType">The TypeScript item type (a schema name or a primitive type).</param>
+    /// <param name="itemSchemaName">The item's schema name to import, or <see langword="null"/> for a primitive.</param>
+    /// <returns><see langword="true"/> for the generic pagination form.</returns>
+    public static bool TryGetGenericPagination(
+        IList<IOpenApiSchema> allOf,
+        out string baseName,
+        out string itemType,
+        out string? itemSchemaName)
+    {
+        if (allOf is null)
+        {
+            throw new ArgumentNullException(nameof(allOf));
+        }
+
+        baseName = string.Empty;
+        itemType = string.Empty;
+        itemSchemaName = null;
+
+        var refs = allOf.OfType<OpenApiSchemaReference>().ToList();
+        if (refs.Count != 1 ||
+            !IsGenericPaginationBase(refs[0].Target) ||
+            (refs[0].Reference.Id ?? refs[0].Id) is not { } name)
+        {
+            return false;
+        }
+
+        var items = allOf
+            .OfType<OpenApiSchema>()
+            .Where(s => s.Properties is { Count: > 0 })
+            .SelectMany(s => s.Properties!.Values)
+            .Select(p => p switch
+            {
+                OpenApiSchemaReference { Target: { Type: { } aliasType } alias } when aliasType.HasFlag(JsonSchemaType.Array) => alias.Items,
+                OpenApiSchema { Type: { } arrayType } array when arrayType.HasFlag(JsonSchemaType.Array) => array.Items,
+                _ => null,
+            })
+            .FirstOrDefault(i => i is not null);
+
+        switch (items)
+        {
+            case OpenApiSchemaReference itemRef:
+                var element = itemRef.Target is OpenApiSchema { Type: { } itemTargetType, Items: OpenApiSchemaReference elementRef } &&
+                              itemTargetType.HasFlag(JsonSchemaType.Array)
+                    ? elementRef
+                    : itemRef;
+                itemSchemaName = element.Reference.Id ?? element.Id;
+                if (itemSchemaName is null)
+                {
+                    return false;
+                }
+
+                itemType = itemSchemaName;
+                break;
+            case OpenApiSchema itemSchema when itemSchema.Type is not null:
+                itemType = itemSchema.ToTypeScriptReturnType();
+                break;
+            default:
+                return false;
+        }
+
+        baseName = name;
+        return true;
     }
 
     /// <summary>

@@ -115,19 +115,19 @@ public static class TypeScriptSwrHookExtractor
             if (info.IsStreaming)
             {
                 AppendStreamHook(body, info, segmentCamel, namingStrategy, convertDates, brandedIds);
-                if (info.IsPaginatedStreaming)
+            }
+            else if (info.IsQuery)
+            {
+                AppendQueryHook(body, info, segmentCamel, namingStrategy, convertDates, brandedIds);
+                if (info.Pagination is not null)
                 {
                     body.AppendLine();
                     AppendInfiniteHook(body, info, segmentCamel, namingStrategy, convertDates, brandedIds);
                 }
             }
-            else if (info.IsQuery)
-            {
-                AppendQueryHook(body, info, segmentCamel, namingStrategy, convertDates, brandedIds);
-            }
             else
             {
-                AppendMutationHook(body, info, segmentCamel, namingStrategy, convertDates, brandedIds);
+                AppendMutationHook(body, info, segmentCamel, namingStrategy, convertDates, brandedIds, revalidateInfinite: hookInfos.Any(h => h.Pagination is not null));
             }
         }
 
@@ -154,7 +154,7 @@ public static class TypeScriptSwrHookExtractor
         var hasQueries = hookInfos.Any(h => h.IsQuery && !h.IsStreaming);
         var hasMutations = hookInfos.Any(h => !h.IsQuery && !h.IsStreaming);
         var hasStreams = hookInfos.Any(h => h.IsStreaming);
-        var hasInfinite = hookInfos.Any(h => h.IsPaginatedStreaming);
+        var hasInfinite = hookInfos.Any(h => h.Pagination is not null);
 
         if (hasStreams)
         {
@@ -275,6 +275,11 @@ public static class TypeScriptSwrHookExtractor
             keyArgs.Add("query");
         }
 
+        if (KeyHeaders(info, info.HeaderParams).Count > 0)
+        {
+            keyArgs.Add("headers");
+        }
+
         if (info.HeaderParams.Count > 0)
         {
             hookParams.Add("headers?: " + TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams, convertDates));
@@ -330,7 +335,8 @@ public static class TypeScriptSwrHookExtractor
         string segmentCamel,
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
-        bool brandedIds)
+        bool brandedIds,
+        bool revalidateInfinite)
     {
         var hookName = "use" + info.MethodName.ToPascalCaseForDotNet();
         var isVoidReturn = info.ReturnType == "void";
@@ -352,7 +358,7 @@ public static class TypeScriptSwrHookExtractor
         AppendHookJsDoc(sb, info);
         sb.Append("export function ").Append(hookName).Append('(').Append(string.Join(", ", hookParams)).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
-        sb.AppendLine("  const { mutate } = useSWRConfig();");
+        sb.AppendLine(revalidateInfinite ? "  const { mutate, cache } = useSWRConfig();" : "  const { mutate } = useSWRConfig();");
         sb.Append("  return useSWRMutation<").Append(dataType).Append(", ApiError, ").Append(keyType).Append(", ").Append(variablesType).AppendLine(">(");
         sb.Append("    ").Append(segmentCamel).AppendLine("Keys.all,");
         if (argPattern is null)
@@ -372,6 +378,16 @@ public static class TypeScriptSwrHookExtractor
         sb.AppendLine("      ...config,");
         sb.AppendLine("      onSuccess: (data, key, currentConfig) => {");
         sb.Append("        void mutate((cacheKey) => Array.isArray(cacheKey) && cacheKey[0] === '").Append(segmentCamel).AppendLine("');");
+        if (revalidateInfinite)
+        {
+            // The filter above skips infinite lists (SWR keeps them under $inf$ keys): revalidate the segment's ones by key.
+            sb.AppendLine("        for (const cacheKey of cache.keys()) {");
+            sb.Append("          if (cacheKey.startsWith('$inf$@\"").Append(segmentCamel).AppendLine("\",')) {");
+            sb.AppendLine("            void mutate(cacheKey);");
+            sb.AppendLine("          }");
+            sb.AppendLine("        }");
+        }
+
         sb.AppendLine("        config?.onSuccess?.(data, key, currentConfig);");
         sb.AppendLine("      },");
         sb.AppendLine("    },");
@@ -380,8 +396,9 @@ public static class TypeScriptSwrHookExtractor
     }
 
     /// <summary>
-    /// useSWRInfinite over the non-streaming <c>&lt;methodName&gt;Page</c> companion of a paginated stream;
-    /// each page passes the previous page's continuation token in the <c>x-continuation</c> header.
+    /// useSWRInfinite over a paginated read: the query hook's inputs without the continuation parameter;
+    /// each page sends the previous page's token through that parameter, and the pages end at the first
+    /// page without a token.
     /// </summary>
     private static void AppendInfiniteHook(
         StringBuilder sb,
@@ -391,55 +408,94 @@ public static class TypeScriptSwrHookExtractor
         bool convertDates,
         bool brandedIds)
     {
+        var pagination = info.Pagination!;
         var hookName = "use" + info.MethodName.ToPascalCaseForDotNet() + "Infinite";
-        var pageMethodName = info.MethodName + "Page";
-        var infiniteKeyName = info.MethodName.ToCamelCase().ToTypeScriptIdentifier() + "Infinite";
+        var keyName = DeriveKeyName(info.MethodName, segmentCamel) + "Infinite";
+        var dataType = info.ReturnType;
+        var (queryParams, headerParams) = InfiniteHookParameters(info);
 
         var hookParams = new List<string>();
-        var callArgs = new List<string>();
-        foreach (var p in info.PathParams)
+        var keyArgs = new List<string>();
+        foreach (var param in info.PathParams)
         {
-            var name = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            hookParams.Add(name + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path));
-            callArgs.Add(name);
+            var name = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            hookParams.Add(name + ": " + TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path));
+            keyArgs.Add(name);
         }
 
-        var keyArgs = info.QueryParams.Count > 0 ? "query" : string.Empty;
-        if (info.QueryParams.Count > 0)
+        if (info.HasBody)
         {
-            hookParams.Add("query?: " + TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates));
-            callArgs.Add("query");
+            hookParams.Add("body: " + info.BodyType);
+            keyArgs.Add("body");
         }
 
-        hookParams.Add("config?: SWRInfiniteConfiguration<" + info.PageReturnType + ", ApiError>");
-        callArgs.Add("token ? { 'x-continuation': token } : undefined");
+        foreach (var param in info.QuerystringParams)
+        {
+            var name = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            hookParams.Add(name + "?: string");
+            keyArgs.Add(name);
+        }
+
+        if (queryParams.Count > 0)
+        {
+            hookParams.Add("query?: " + TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, namingStrategy, convertDates));
+            keyArgs.Add("query");
+        }
+
+        if (KeyHeaders(info, headerParams).Count > 0)
+        {
+            keyArgs.Add("headers");
+        }
+
+        if (headerParams.Count > 0)
+        {
+            hookParams.Add("headers?: " + TypeScriptOperationHelper.BuildHeaderTypeInline(headerParams, convertDates));
+        }
+
+        if (info.CookieParams.Count > 0)
+        {
+            hookParams.Add("cookies?: " + BuildCookieTypeInline(info.CookieParams, namingStrategy));
+        }
+
+        hookParams.Add("config?: SWRInfiniteConfiguration<" + dataType + ", ApiError>");
+
+        // No request while a path parameter or the body of a QUERY read is missing (as the query hook).
+        var guards = new List<string>();
+        if (info.PathParams.Count > 0)
+        {
+            guards.Add("!" + (info.PathParams[0].Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+        }
+
+        if (info.HasBody)
+        {
+            guards.Add("!body");
+        }
+
+        var previousToken = TokenAccess("previousPage", pagination, namingStrategy);
 
         AppendHookJsDoc(sb, info);
         sb.Append("export function ").Append(hookName).Append('(').Append(string.Join(", ", hookParams)).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
-        sb.Append("  return useSWRInfinite<").Append(info.PageReturnType).AppendLine(", ApiError>(");
+        sb.Append("  return useSWRInfinite<").Append(dataType).AppendLine(", ApiError>(");
         sb.AppendLine("    (_pageIndex, previousPage) => {");
-        sb.AppendLine("      if (previousPage && !previousPage.continuationToken) {");
+        if (guards.Count > 0)
+        {
+            sb.Append("      if (").Append(string.Join(" || ", guards)).AppendLine(") {");
+            sb.AppendLine("        return null;");
+            sb.AppendLine("      }");
+            sb.AppendLine();
+        }
+
+        sb.Append("      if (previousPage && !").Append(previousToken).AppendLine(") {");
         sb.AppendLine("        return null;");
         sb.AppendLine("      }");
         sb.AppendLine();
-        sb.Append("      return [...").Append(segmentCamel).Append("Keys.").Append(infiniteKeyName).Append('(').Append(keyArgs).AppendLine("), previousPage?.continuationToken ?? null] as const;");
+        sb.Append("      return [...").Append(segmentCamel).Append("Keys.").Append(keyName).Append('(').Append(string.Join(", ", keyArgs)).Append("), previousPage ? (").Append(previousToken).AppendLine(" ?? null) : null] as const;");
         sb.AppendLine("    },");
         sb.AppendLine("    async (key: readonly unknown[]) => {");
         sb.AppendLine("      const token = key[key.length - 1] as string | null;");
-        sb.Append("      const result = await api.").Append(segmentCamel).Append('.').Append(pageMethodName).Append('(').Append(string.Join(", ", callArgs)).AppendLine(");");
-        sb.AppendLine("      if (result.status === 'ok') {");
-        sb.AppendLine("        return result.data;");
-        sb.AppendLine("      }");
-        sb.AppendLine("      if ('error' in result && result.error instanceof ApiError) {");
-        sb.AppendLine("        throw result.error;");
-        sb.AppendLine("      }");
-        sb.AppendLine("      throw new ApiError(");
-        sb.AppendLine("        result.response.status,");
-        sb.AppendLine("        result.response.statusText,");
-        sb.AppendLine("        'error' in result ? result.error.message : 'Request failed',");
-        sb.AppendLine("        result.response,");
-        sb.AppendLine("      );");
+        sb.Append("      const result = await api.").Append(segmentCamel).Append('.').Append(info.MethodName).Append('(').Append(BuildInfiniteClientCallArgs(info, "token", namingStrategy)).AppendLine(");");
+        AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
         sb.AppendLine("    },");
         AppendNoRetryConfig(sb);
         sb.AppendLine("  );");

@@ -11,6 +11,28 @@ namespace Atc.OpenApi.Extensions;
 [SuppressMessage("", "S3928:The parameter name 'schema'", Justification = "OK - CLang14 - extension")]
 public static class OpenApiOperationExtensions
 {
+    /// <summary>
+    /// The names of a paginated response's continuation-token property, in order of preference.
+    /// </summary>
+    private static readonly string[] PaginationTokenPropertyNames =
+    [
+        "continuationToken",
+        "continuation",
+        "nextPageToken",
+        "nextCursor",
+        "cursor",
+    ];
+
+    /// <summary>
+    /// Whether a schema is a string (also a nullable one, <c>type: [string, 'null']</c>).
+    /// </summary>
+    /// <param name="schema">The schema.</param>
+    /// <returns><see langword="true"/> for a string schema.</returns>
+    public static bool IsStringSchema(IOpenApiSchema? schema)
+        => schema?.Type is { } type &&
+           type.HasFlag(JsonSchemaType.String) &&
+           (type | JsonSchemaType.String | JsonSchemaType.Null) == (JsonSchemaType.String | JsonSchemaType.Null);
+
     /// <param name="operation">The OpenAPI operation.</param>
     extension(OpenApiOperation operation)
     {
@@ -331,45 +353,49 @@ public static class OpenApiOperationExtensions
             => operation.IsAsyncEnumerableOperation() || operation.GetStreamingItemSchema() is not null;
 
         /// <summary>
-        /// Checks if the operation is a paginated-streaming operation: it has
-        /// <c>x-return-async-enumerable: true</c> AND its 200/201 response is an
-        /// <c>allOf</c> referencing a schema whose name matches a pagination wrapper
-        /// (PaginationResult / PaginatedResult / PagedResult). When true, the TypeScript
-        /// emitter produces both a streaming async-generator method and a non-streaming
-        /// <c>&lt;methodName&gt;Page</c> companion that feeds <c>useInfiniteQuery</c>.
+        /// Gets the continuation-token property of a paginated response: a property of the 200 response
+        /// (directly, or in one of its <c>allOf</c> parts - typically a pagination wrapper such as
+        /// <c>PaginatedResult</c>) named <c>continuationToken</c>, <c>continuation</c>, <c>nextPageToken</c>,
+        /// <c>nextCursor</c> or <c>cursor</c>. The caller pages by sending that value back through the
+        /// operation's own continuation parameter.
         /// </summary>
-        public bool IsPaginatedStreamingOperation()
+        /// <returns>The property name as declared in the schema, or <see langword="null"/>.</returns>
+        public string? GetPaginationTokenProperty()
         {
-            if (!operation.IsAsyncEnumerableOperation())
+            if (operation.IsStreamingResponse())
             {
-                return false;
+                return null;
             }
 
-            var schema = operation.GetResponseSchema("200") ?? operation.GetResponseSchema("201");
-            if (schema is not OpenApiSchema actualSchema || actualSchema.AllOf is not { Count: > 0 })
+            var schema = operation.GetResponseSchema("200");
+            if (schema is null)
             {
-                return false;
+                return null;
             }
 
-            foreach (var part in actualSchema.AllOf)
+            var candidates = new List<IOpenApiSchema> { schema };
+            if (schema.AllOf is { Count: > 0 } allOf)
             {
-                if (part is OpenApiSchemaReference partRef)
+                candidates.AddRange(allOf);
+            }
+
+            foreach (var tokenName in PaginationTokenPropertyNames)
+            {
+                foreach (var candidate in candidates)
                 {
-                    var name = partRef.Reference.Id ?? partRef.Id;
-                    if (name is not null && IsPaginationWrapperName(name))
+                    // A continuation token is an opaque string.
+                    var match = candidate.Properties?.FirstOrDefault(p =>
+                        string.Equals(p.Key, tokenName, StringComparison.OrdinalIgnoreCase) &&
+                        IsStringSchema(p.Value));
+                    if (match?.Key is { } key)
                     {
-                        return true;
+                        return key;
                     }
                 }
             }
 
-            return false;
+            return null;
         }
-
-        private static bool IsPaginationWrapperName(string name)
-            => name.Equals("PaginationResult", StringComparison.Ordinal)
-                || name.Equals("PaginatedResult", StringComparison.Ordinal)
-                || name.Equals("PagedResult", StringComparison.Ordinal);
 
         /// <summary>
         /// Checks if the operation has a NotFound (404) response.

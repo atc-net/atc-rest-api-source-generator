@@ -112,6 +112,8 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("  headers?: Record<string, string | number | boolean | undefined>;");
         sb.AppendLine("  signal?: AbortSignal;");
         sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
+        sb.AppendLine("  /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */");
+        sb.AppendLine("  arms?: readonly string[];");
         if (hasRetry)
         {
             sb.AppendLine("  /** Retry for this request (the generated client passes it for operations with their own x-retry-* settings). */");
@@ -161,6 +163,7 @@ public static class TypeScriptAxiosApiClientExtractor
         bool hasRetry,
         bool zodRuntimeValidate)
     {
+        TypeScriptResultArms.AppendFitToArms(sb);
         sb.AppendLine("export class ApiClient {");
         sb.AppendLine("  private readonly baseUrl: string;");
         sb.AppendLine("  private readonly client: AxiosInstance;");
@@ -385,11 +388,11 @@ public static class TypeScriptAxiosApiClientExtractor
 
         if (zodRuntimeValidate)
         {
-            sb.AppendLine("    return this.handleResponse<T>(response, options?.parseSchema);");
+            sb.AppendLine("    return fitToArms(await this.handleResponse<T>(response, options?.parseSchema), options?.arms);");
         }
         else
         {
-            sb.AppendLine("    return this.handleResponse<T>(response);");
+            sb.AppendLine("    return fitToArms(await this.handleResponse<T>(response), options?.arms);");
         }
 
         sb.AppendLine("  }");

@@ -19,6 +19,8 @@ export class DogsClient {
 
   /** List dogs */
   async listDogs(): Promise<ListDogsResult> {
-    return this.api.request<Dog[]>('GET', '/dogs') as Promise<ListDogsResult>;
+    return this.api.request<Dog[]>('GET', '/dogs', {
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListDogsResult>;
   }
 }

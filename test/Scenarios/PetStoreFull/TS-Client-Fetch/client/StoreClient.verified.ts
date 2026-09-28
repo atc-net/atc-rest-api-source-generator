@@ -64,23 +64,30 @@ export class StoreClient {
 
   /** Returns pet inventories by status. */
   async getInventory(): Promise<GetInventoryResult> {
-    return this.api.request<unknown>('GET', '/store/inventory') as Promise<GetInventoryResult>;
+    return this.api.request<unknown>('GET', '/store/inventory', {
+      arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetInventoryResult>;
   }
 
   /** Place an order for a pet. */
   async placeOrder(body: Order): Promise<PlaceOrderResult> {
     return this.api.request<Order>('POST', '/store/order', {
       body,
+      arms: ['ok', 'badRequest', 'unprocessableEntity', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<PlaceOrderResult>;
   }
 
   /** Find purchase order by ID. */
   async getOrderById(orderId: number): Promise<GetOrderByIdResult> {
-    return this.api.request<Order>('GET', `/store/order/${orderId}`) as Promise<GetOrderByIdResult>;
+    return this.api.request<Order>('GET', `/store/order/${orderId}`, {
+      arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetOrderByIdResult>;
   }
 
   /** Delete purchase order by identifier. */
   async deleteOrder(orderId: number): Promise<DeleteOrderResult> {
-    return this.api.request<void>('DELETE', `/store/order/${orderId}`) as Promise<DeleteOrderResult>;
+    return this.api.request<void>('DELETE', `/store/order/${orderId}`, {
+      arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<DeleteOrderResult>;
   }
 }

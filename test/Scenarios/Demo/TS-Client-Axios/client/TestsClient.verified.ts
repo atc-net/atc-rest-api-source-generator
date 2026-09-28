@@ -47,6 +47,7 @@ export class TestsClient {
   async createTestItemWithModel(body: CreateTestItemRequest): Promise<CreateTestItemWithModelResult> {
     return this.api.request<TestItem>('POST', '/tests/create/create-model', {
       body,
+      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateTestItemWithModelResult>;
   }
 
@@ -54,6 +55,7 @@ export class TestsClient {
   async createTestItemWithLocationHeader(body: CreateTestItemRequest): Promise<CreateTestItemWithLocationHeaderResult> {
     return this.api.request<void>('POST', '/tests/create/create-location-header', {
       body,
+      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateTestItemWithLocationHeaderResult>;
   }
 
@@ -61,6 +63,7 @@ export class TestsClient {
   async createTestItemWithLocationInBody(body: CreateTestItemRequest): Promise<CreateTestItemWithLocationInBodyResult> {
     return this.api.request<string>('POST', '/tests/create/create-location-body', {
       body,
+      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateTestItemWithLocationInBodyResult>;
   }
 
@@ -68,6 +71,7 @@ export class TestsClient {
   async createTestItemEmpty(body: CreateTestItemRequest): Promise<CreateTestItemEmptyResult> {
     return this.api.request<void>('POST', '/tests/create/create-empty', {
       body,
+      arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateTestItemEmptyResult>;
   }
 }

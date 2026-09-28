@@ -19,6 +19,8 @@ export class CountriesClient {
 
   /** List countries */
   async listCountries(): Promise<ListCountriesResult> {
-    return this.api.request<Country[]>('GET', '/countries') as Promise<ListCountriesResult>;
+    return this.api.request<Country[]>('GET', '/countries', {
+      arms: ['ok', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ListCountriesResult>;
   }
 }
