@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Atc.Rest.Client.Builder;
 using Microsoft.Extensions.Http;
 using Retry.Generated;
+using Retry.Generated.Resilience;
 using Retry.Generated.Notifications.Endpoints.Interfaces;
 using Retry.Generated.Notifications.Endpoints.Results;
 using Retry.Generated.Notifications.Models;
@@ -47,6 +48,7 @@ public sealed class SendNotificationEndpoint : ISendNotificationEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.NotificationsConstant);
         using var response = await client.SendAsync(requestMessage, cancellationToken);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

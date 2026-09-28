@@ -3,11 +3,13 @@
 
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using Retry.Generated.Orders.Models;
+using Retry.Generated.Resilience;
 
 namespace Retry.Generated.Orders.Client;
 
@@ -41,7 +43,9 @@ public sealed class OrdersClient : IOrdersClient
     public async Task<List<Order>> ListOrdersAsync(CancellationToken cancellationToken = default)
     {
         var url = "/orders";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersFast);
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<Order>>(jsonSerializerOptions, cancellationToken))!;
     }
@@ -51,7 +55,10 @@ public sealed class OrdersClient : IOrdersClient
         CancellationToken cancellationToken = default)
     {
         var url = "/orders";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
+        ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.OrdersFast);
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
     }
@@ -61,7 +68,9 @@ public sealed class OrdersClient : IOrdersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/orders/{parameters.OrderId}";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersFast);
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
     }
@@ -71,7 +80,9 @@ public sealed class OrdersClient : IOrdersClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/orders/{parameters.OrderId}";
-        var response = await httpClient.DeleteAsync(url, cancellationToken);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Delete, url);
+        ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersDelete);
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

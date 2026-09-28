@@ -328,6 +328,12 @@ public static class HttpClientExtractor
             usings.Add($"{projectName}.Generated.Streaming");
         }
 
+        // Operations with their own retry settings (x-retry-*) tell the generated resilience handler.
+        if (contentForAnalysis.IndexOf("ApiResilienceRequest.", StringComparison.Ordinal) >= 0)
+        {
+            usings.Add($"{projectName}.Generated.Resilience");
+        }
+
         // multipart/mixed extracts the response Content-Type boundary via LINQ (.FirstOrDefault) —
         // ensure System.Linq is imported (the content-scan type map doesn't cover LINQ calls).
         if (contentForAnalysis.IndexOf(".FirstOrDefault(", StringComparison.Ordinal) >= 0)
@@ -797,25 +803,32 @@ public static class HttpClientExtractor
             builder.AppendLine();
         }
 
+        // Per-operation retry (x-retry-*): the statement that tells the resilience handler how to run
+        // this request, for a given request variable — null when the handler default already matches.
+        IOpenApiPathItem? pathItem = null;
+        _ = openApiDoc.Paths?.TryGetValue(path, out pathItem);
+        string? Stamp(string requestVariable)
+            => ResilienceRequestHelper.BuildStampStatement(operation, pathItem, openApiDoc, httpMethod, requestVariable);
+
         switch (httpMethod)
         {
             case "GET":
-                GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), hasReturnType, builder, headerParams, cookieParams, resultStyle);
+                GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), hasReturnType, builder, headerParams, cookieParams, resultStyle, Stamp);
                 break;
             case "POST":
-                GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder, resultStyle);
+                GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder, resultStyle, Stamp("requestMessage"));
                 break;
             case "PUT":
-                GeneratePutMethodBody(operation, returnType, hasParameters, hasReturnType, builder, resultStyle);
+                GeneratePutMethodBody(operation, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage"));
                 break;
             case "DELETE":
-                GenerateDeleteMethodBody(returnType, hasReturnType, builder, resultStyle);
+                GenerateDeleteMethodBody(returnType, hasReturnType, builder, resultStyle, Stamp("requestMessage"));
                 break;
             default:
                 // Non-standard verbs: OpenAPI 3.2 `query` and `additionalOperations`
                 // (e.g. LINK), plus PATCH. No dedicated HttpClient JSON helper exists,
                 // so build the request explicitly and dispatch by body/return presence.
-                GenerateGenericMethodBody(httpMethod, operation, returnType, hasParameters, hasReturnType, builder, resultStyle);
+                GenerateGenericMethodBody(httpMethod, operation, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage"));
                 break;
         }
 
@@ -833,18 +846,26 @@ public static class HttpClientExtractor
         StringBuilder builder,
         List<(OpenApiParameter Param, string? ReferenceId)> headerParams,
         List<(OpenApiParameter Param, string? ReferenceId)> cookieParams,
-        TypedClientResultStyleType resultStyle)
+        TypedClientResultStyleType resultStyle,
+        Func<string, string?> resilienceStamp)
     {
         // Special handling for async enumerable streaming
         if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
         {
             if (resultStyle == TypedClientResultStyleType.Result)
             {
-                AppendStreamingResultBody(builder, streamingItemType!, streamingFraming);
+                AppendStreamingResultBody(builder, streamingItemType!, streamingFraming, resilienceStamp("requestMessage"));
                 return;
             }
 
-            builder.AppendLine("using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);");
+            AppendSend(
+                builder,
+                "using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);",
+                resilienceStamp("requestMessage"),
+                "HttpMethod.Get",
+                contentExpression: null,
+                responseHeadersRead: true,
+                disposeResponse: true);
             builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
             builder.AppendLine();
             builder.AppendLine("var stream = await response.Content.ReadAsStreamAsync(cancellationToken);");
@@ -956,6 +977,11 @@ public static class HttpClientExtractor
                 builder.AppendLine();
             }
 
+            if (resilienceStamp("request") is { } requestStamp)
+            {
+                builder.AppendLine(requestStamp);
+            }
+
             builder.AppendLine("var response = await httpClient.SendAsync(request, cancellationToken);");
 
             AppendResponseCompletion(
@@ -968,20 +994,20 @@ public static class HttpClientExtractor
         else if (hasReturnType && returnType == "byte[]")
         {
             // Binary content download - use ReadAsByteArrayAsync
-            builder.AppendLine("var response = await httpClient.GetAsync(url, cancellationToken);");
+            AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken);", resilienceStamp("requestMessage"), "HttpMethod.Get", contentExpression: null);
             AppendResponseCompletion(builder, resultStyle, ResponsePayloadKind.Binary, returnType, isLastStatement: true);
         }
         else if (hasReturnType && returnType == "string")
         {
             // Text content - use ReadAsStringAsync
-            builder.AppendLine("var response = await httpClient.GetAsync(url, cancellationToken);");
+            AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken);", resilienceStamp("requestMessage"), "HttpMethod.Get", contentExpression: null);
             AppendResponseCompletion(builder, resultStyle, ResponsePayloadKind.Text, returnType, isLastStatement: true);
         }
         else
         {
             // No GetFromJsonAsync shortcut for the Throw style: its exception drops the error body, whereas
             // EnsureSuccessAsync (emitted by AppendResponseCompletion) keeps it in the message.
-            builder.AppendLine("var response = await httpClient.GetAsync(url, cancellationToken);");
+            AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken);", resilienceStamp("requestMessage"), "HttpMethod.Get", contentExpression: null);
 
             AppendResponseCompletion(
                 builder,
@@ -1006,9 +1032,16 @@ public static class HttpClientExtractor
     private static void AppendStreamingResultBody(
         StringBuilder builder,
         string streamingItemType,
-        StreamingFraming streamingFraming)
+        StreamingFraming streamingFraming,
+        string? resilienceStamp)
     {
-        builder.AppendLine("var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);");
+        AppendSend(
+            builder,
+            "var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);",
+            resilienceStamp,
+            "HttpMethod.Get",
+            contentExpression: null,
+            responseHeadersRead: true);
         builder.AppendLine();
         builder.AppendLine("if (!response.IsSuccessStatusCode)");
         builder.AppendLine("{");
@@ -1073,7 +1106,8 @@ public static class HttpClientExtractor
         bool hasParameters,
         bool hasReturnType,
         StringBuilder builder,
-        TypedClientResultStyleType resultStyle)
+        TypedClientResultStyleType resultStyle,
+        string? resilienceStamp)
     {
         var hasJsonBody = operation.RequestBody?.Content?.ContainsKey("application/json") ?? false;
         var requestAccess = hasParameters ? "parameters.Request" : "request";
@@ -1090,6 +1124,11 @@ public static class HttpClientExtractor
         if (hasJsonBody)
         {
             builder.AppendLine($"requestMessage.Content = JsonContent.Create({requestAccess}, options: jsonSerializerOptions);");
+        }
+
+        if (resilienceStamp is not null)
+        {
+            builder.AppendLine(resilienceStamp);
         }
 
         builder.AppendLine();
@@ -1111,7 +1150,8 @@ public static class HttpClientExtractor
         bool hasReturnType,
         bool hasLocationHeader,
         StringBuilder builder,
-        TypedClientResultStyleType resultStyle)
+        TypedClientResultStyleType resultStyle,
+        string? resilienceStamp)
     {
         var hasJsonBody = operation.RequestBody?.Content?.ContainsKey("application/json") ?? false;
         var requestAccess = hasParameters
@@ -1176,22 +1216,27 @@ public static class HttpClientExtractor
             }
 
             builder.AppendLine();
-            builder.AppendLine("var response = await httpClient.PostAsync(url, content, cancellationToken);");
+            AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken);", resilienceStamp, "HttpMethod.Post", "content");
         }
         else if (schemaBasedMultipartSchema is not null && hasParameters)
         {
             // Schema-based multipart/form-data with object containing file properties
             GenerateSchemaBasedMultipartFormData(builder, schemaBasedMultipartSchema, requestAccess);
             builder.AppendLine();
-            builder.AppendLine("var response = await httpClient.PostAsync(url, content, cancellationToken);");
+            AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken);", resilienceStamp, "HttpMethod.Post", "content");
         }
         else if (hasJsonBody)
         {
-            builder.AppendLine($"var response = await httpClient.PostAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);");
+            AppendSend(
+                builder,
+                $"var response = await httpClient.PostAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);",
+                resilienceStamp,
+                "HttpMethod.Post",
+                $"JsonContent.Create({requestAccess}, options: jsonSerializerOptions)");
         }
         else
         {
-            builder.AppendLine("var response = await httpClient.PostAsync(url, null, cancellationToken);");
+            AppendSend(builder, "var response = await httpClient.PostAsync(url, null, cancellationToken);", resilienceStamp, "HttpMethod.Post", contentExpression: null);
         }
 
         if (hasLocationHeader)
@@ -1224,15 +1269,20 @@ public static class HttpClientExtractor
         bool hasParameters,
         bool hasReturnType,
         StringBuilder builder,
-        TypedClientResultStyleType resultStyle)
+        TypedClientResultStyleType resultStyle,
+        string? resilienceStamp)
     {
         var hasJsonBody = operation.RequestBody?.Content?.ContainsKey("application/json") ?? false;
         var requestAccess = hasParameters ? "parameters.Request" : "request";
 
-        builder.AppendLine(
+        AppendSend(
+            builder,
             hasJsonBody
                 ? $"var response = await httpClient.PutAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);"
-                : "var response = await httpClient.PutAsync(url, null, cancellationToken);");
+                : "var response = await httpClient.PutAsync(url, null, cancellationToken);",
+            resilienceStamp,
+            "HttpMethod.Put",
+            hasJsonBody ? $"JsonContent.Create({requestAccess}, options: jsonSerializerOptions)" : null);
 
         AppendResponseCompletion(
             builder,
@@ -1246,9 +1296,10 @@ public static class HttpClientExtractor
         string returnType,
         bool hasReturnType,
         StringBuilder builder,
-        TypedClientResultStyleType resultStyle)
+        TypedClientResultStyleType resultStyle,
+        string? resilienceStamp)
     {
-        builder.AppendLine("var response = await httpClient.DeleteAsync(url, cancellationToken);");
+        AppendSend(builder, "var response = await httpClient.DeleteAsync(url, cancellationToken);", resilienceStamp, "HttpMethod.Delete", contentExpression: null);
 
         AppendResponseCompletion(
             builder,
@@ -1256,6 +1307,39 @@ public static class HttpClientExtractor
             hasReturnType ? ResponsePayloadKind.Json : ResponsePayloadKind.None,
             returnType,
             isLastStatement: true);
+    }
+
+    /// <summary>
+    /// Emits the send for an operation: the verb helper call (<c>GetAsync</c>, <c>PostAsJsonAsync</c>, ...) as
+    /// before, or — when the operation has its own retry settings (x-retry-*) — the same request built as an
+    /// <c>HttpRequestMessage</c> carrying the resilience stamp the API resilience handler reads.
+    /// </summary>
+    private static void AppendSend(
+        StringBuilder builder,
+        string plainSendStatement,
+        string? resilienceStamp,
+        string httpMethodExpression,
+        string? contentExpression,
+        bool responseHeadersRead = false,
+        bool disposeResponse = false)
+    {
+        if (resilienceStamp is null)
+        {
+            builder.AppendLine(plainSendStatement);
+            return;
+        }
+
+        builder.AppendLine($"using var requestMessage = new HttpRequestMessage({httpMethodExpression}, url);");
+        if (contentExpression is not null)
+        {
+            builder.AppendLine($"requestMessage.Content = {contentExpression};");
+        }
+
+        builder.AppendLine(resilienceStamp);
+
+        var completion = responseHeadersRead ? "HttpCompletionOption.ResponseHeadersRead, " : string.Empty;
+        var declaration = disposeResponse ? "using var" : "var";
+        builder.AppendLine($"{declaration} response = await httpClient.SendAsync(requestMessage, {completion}cancellationToken);");
     }
 
     private static string GetParameterType(

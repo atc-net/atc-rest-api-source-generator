@@ -2,11 +2,13 @@
 #nullable enable
 
 using System.CodeDom.Compiler;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using Retry.Generated.External.Models;
+using Retry.Generated.Resilience;
 
 namespace Retry.Generated.External.Client;
 

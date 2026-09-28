@@ -3,14 +3,14 @@
 
 using System;
 using System.CodeDom.Compiler;
+using System.Globalization;
 using System.Net;
 using System.Net.Http;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
 using Polly;
 using Polly.Timeout;
-
-using Retry.Generated.Resilience;
 
 namespace Retry.Generated.Resilience;
 
@@ -21,247 +21,343 @@ namespace Retry.Generated.Resilience;
 public static class ResilienceServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds a resilience handler to the HTTP client builder based on OpenAPI extensions.
+    /// Adds the API resilience handler to the HTTP client builder. Each request runs the policy its
+    /// operation declares in the OpenAPI specification (<c>x-retry-*</c>); requests that declare none use
+    /// <paramref name="policyName"/>. POST and PATCH are not retried unless their operation opts in,
+    /// and a request that is not retried still gets its policy's timeout and circuit breaker.
     /// </summary>
     /// <param name="builder">The HTTP client builder.</param>
-    /// <param name="policyName">The resilience policy name.</param>
+    /// <param name="policyName">The default resilience policy (see <see cref="ResiliencePolicies"/>).</param>
     /// <returns>The HTTP client builder for method chaining.</returns>
     public static IHttpClientBuilder AddApiResilience(
         this IHttpClientBuilder builder,
         string policyName)
     {
-        switch (policyName)
-        {
-            case ResiliencePolicies.ExternalService:
-                ConfigureExternalService(builder);
-                break;
-            case ResiliencePolicies.NotificationsConstant:
-                ConfigureNotificationsConstant(builder);
-                break;
-            case ResiliencePolicies.OrdersDelete:
-                ConfigureOrdersDelete(builder);
-                break;
-            case ResiliencePolicies.OrdersFast:
-                ConfigureOrdersFast(builder);
-                break;
-            case ResiliencePolicies.Standard:
-                ConfigureStandard(builder);
-                break;
-        }
+        builder
+            .AddResilienceHandler("ApiResilience", static (pipeline, context) => ConfigurePipeline(pipeline, context.InstanceName))
+            .SelectPipelineBy(_ => request => SelectPipelineKey(request, policyName));
 
         return builder;
     }
 
-    private static void ConfigureExternalService(IHttpClientBuilder builder)
+    private static string SelectPipelineKey(
+        HttpRequestMessage request,
+        string defaultPolicyName)
     {
-        builder.AddResilienceHandler(ResiliencePolicies.ExternalService, pipeline =>
+        if (request.Options.TryGetValue(ApiResilienceRequest.PipelineKey, out var stamp))
         {
+            var (policyName, retry, timeoutSeconds) = ApiResilienceRequest.ParsePipelineKey(stamp);
+            return ApiResilienceRequest.BuildPipelineKey(
+                IsKnownPolicy(policyName) ? policyName : defaultPolicyName,
+                retry,
+                timeoutSeconds);
+        }
+
+        // POST and PATCH are not idempotent: resending one after a timeout or 5xx can apply it twice.
+        var retryByDefault = request.Method != HttpMethod.Post && request.Method != HttpMethod.Patch;
+        return ApiResilienceRequest.BuildPipelineKey(defaultPolicyName, retryByDefault, timeoutSeconds: null);
+    }
+
+    private static bool IsKnownPolicy(string policyName)
+        => policyName switch
+        {
+            ResiliencePolicies.ExternalService => true,
+            ResiliencePolicies.NotificationsConstant => true,
+            ResiliencePolicies.OrdersDelete => true,
+            ResiliencePolicies.OrdersFast => true,
+            ResiliencePolicies.Standard => true,
+            _ => false,
+        };
+
+    private static void ConfigurePipeline(
+        ResiliencePipelineBuilder<HttpResponseMessage> pipeline,
+        string pipelineKey)
+    {
+        var (policyName, retry, timeoutSeconds) = ApiResilienceRequest.ParsePipelineKey(pipelineKey);
+        switch (policyName)
+        {
+            case ResiliencePolicies.ExternalService:
+                ConfigureExternalService(pipeline, retry, timeoutSeconds);
+                break;
+            case ResiliencePolicies.NotificationsConstant:
+                ConfigureNotificationsConstant(pipeline, retry, timeoutSeconds);
+                break;
+            case ResiliencePolicies.OrdersDelete:
+                ConfigureOrdersDelete(pipeline, retry, timeoutSeconds);
+                break;
+            case ResiliencePolicies.OrdersFast:
+                ConfigureOrdersFast(pipeline, retry, timeoutSeconds);
+                break;
+            case ResiliencePolicies.Standard:
+                ConfigureStandard(pipeline, retry, timeoutSeconds);
+                break;
+        }
+    }
+
+    private static void ConfigureExternalService(
+        ResiliencePipelineBuilder<HttpResponseMessage> pipeline,
+        bool retry,
+        double? timeoutSeconds)
+    {
+        var timeout = TimeSpan.FromSeconds(timeoutSeconds ?? 60);
+
+        if (retry)
+        {
+            var maxRetryAfter = timeout;
+
             pipeline.AddRetry(new HttpRetryStrategyOptions
             {
                 MaxRetryAttempts = 5,
                 Delay = TimeSpan.FromSeconds(3),
                 BackoffType = DelayBackoffType.Exponential,
                 UseJitter = true,
-                DelayGenerator = static args =>
-                {
-                    if (args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests)
-                    {
-                        var retryAfter = args.Outcome.Result.Headers.RetryAfter;
-                        if (retryAfter?.Delta is { } delta)
-                        {
-                            return new ValueTask<TimeSpan?>(delta);
-                        }
-
-                        if (retryAfter?.Date is { } date)
-                        {
-                            var delay = date - DateTimeOffset.UtcNow;
-                            return new ValueTask<TimeSpan?>(delay > TimeSpan.Zero ? delay : null);
-                        }
-                    }
-
-                    return new ValueTask<TimeSpan?>((TimeSpan?)null);
-                },
+                DelayGenerator = static args => new ValueTask<TimeSpan?>(ApiResilienceRequest.GetRetryAfter(args.Outcome.Result)),
                 ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
                     .HandleResult(response => response.StatusCode >= HttpStatusCode.InternalServerError ||
                                               response.StatusCode == HttpStatusCode.RequestTimeout ||
-                                              response.StatusCode == HttpStatusCode.TooManyRequests)
+                                              (response.StatusCode == HttpStatusCode.TooManyRequests &&
+                                               !(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter)))
                     .Handle<HttpRequestException>()
                     .Handle<TimeoutRejectedException>(),
             });
+        }
 
-            pipeline.AddTimeout(TimeSpan.FromSeconds(60));
+        pipeline.AddTimeout(timeout);
 
-            pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
-            {
-                SamplingDuration = TimeSpan.FromSeconds(30),
-                FailureRatio = 0.5,
-                MinimumThroughput = 10,
-                BreakDuration = TimeSpan.FromSeconds(30),
-            });
+        pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+        {
+            SamplingDuration = TimeSpan.FromSeconds(30),
+            FailureRatio = 0.5,
+            MinimumThroughput = 10,
+            BreakDuration = TimeSpan.FromSeconds(30),
         });
     }
 
-    private static void ConfigureNotificationsConstant(IHttpClientBuilder builder)
+    private static void ConfigureNotificationsConstant(
+        ResiliencePipelineBuilder<HttpResponseMessage> pipeline,
+        bool retry,
+        double? timeoutSeconds)
     {
-        builder.AddResilienceHandler(ResiliencePolicies.NotificationsConstant, pipeline =>
+        var timeout = TimeSpan.FromSeconds(timeoutSeconds ?? 30);
+
+        if (retry)
         {
+            var maxRetryAfter = timeout;
+
             pipeline.AddRetry(new HttpRetryStrategyOptions
             {
                 MaxRetryAttempts = 3,
                 Delay = TimeSpan.FromSeconds(5),
                 BackoffType = DelayBackoffType.Constant,
                 UseJitter = false,
-                DelayGenerator = static args =>
-                {
-                    if (args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests)
-                    {
-                        var retryAfter = args.Outcome.Result.Headers.RetryAfter;
-                        if (retryAfter?.Delta is { } delta)
-                        {
-                            return new ValueTask<TimeSpan?>(delta);
-                        }
-
-                        if (retryAfter?.Date is { } date)
-                        {
-                            var delay = date - DateTimeOffset.UtcNow;
-                            return new ValueTask<TimeSpan?>(delay > TimeSpan.Zero ? delay : null);
-                        }
-                    }
-
-                    return new ValueTask<TimeSpan?>((TimeSpan?)null);
-                },
+                DelayGenerator = static args => new ValueTask<TimeSpan?>(ApiResilienceRequest.GetRetryAfter(args.Outcome.Result)),
                 ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
                     .HandleResult(response => response.StatusCode >= HttpStatusCode.InternalServerError ||
                                               response.StatusCode == HttpStatusCode.RequestTimeout ||
-                                              response.StatusCode == HttpStatusCode.TooManyRequests)
+                                              (response.StatusCode == HttpStatusCode.TooManyRequests &&
+                                               !(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter)))
                     .Handle<HttpRequestException>()
                     .Handle<TimeoutRejectedException>(),
             });
+        }
 
-            pipeline.AddTimeout(TimeSpan.FromSeconds(30));
-        });
+        pipeline.AddTimeout(timeout);
     }
 
-    private static void ConfigureOrdersDelete(IHttpClientBuilder builder)
+    private static void ConfigureOrdersDelete(
+        ResiliencePipelineBuilder<HttpResponseMessage> pipeline,
+        bool retry,
+        double? timeoutSeconds)
     {
-        builder.AddResilienceHandler(ResiliencePolicies.OrdersDelete, pipeline =>
+        var timeout = TimeSpan.FromSeconds(timeoutSeconds ?? 30);
+
+        if (retry)
         {
+            var maxRetryAfter = timeout;
+
             pipeline.AddRetry(new HttpRetryStrategyOptions
             {
                 MaxRetryAttempts = 5,
                 Delay = TimeSpan.FromSeconds(2),
                 BackoffType = DelayBackoffType.Exponential,
                 UseJitter = true,
-                DelayGenerator = static args =>
-                {
-                    if (args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests)
-                    {
-                        var retryAfter = args.Outcome.Result.Headers.RetryAfter;
-                        if (retryAfter?.Delta is { } delta)
-                        {
-                            return new ValueTask<TimeSpan?>(delta);
-                        }
-
-                        if (retryAfter?.Date is { } date)
-                        {
-                            var delay = date - DateTimeOffset.UtcNow;
-                            return new ValueTask<TimeSpan?>(delay > TimeSpan.Zero ? delay : null);
-                        }
-                    }
-
-                    return new ValueTask<TimeSpan?>((TimeSpan?)null);
-                },
+                DelayGenerator = static args => new ValueTask<TimeSpan?>(ApiResilienceRequest.GetRetryAfter(args.Outcome.Result)),
                 ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
                     .HandleResult(response => response.StatusCode >= HttpStatusCode.InternalServerError ||
                                               response.StatusCode == HttpStatusCode.RequestTimeout ||
-                                              response.StatusCode == HttpStatusCode.TooManyRequests)
+                                              (response.StatusCode == HttpStatusCode.TooManyRequests &&
+                                               !(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter)))
                     .Handle<HttpRequestException>()
                     .Handle<TimeoutRejectedException>(),
             });
+        }
 
-            pipeline.AddTimeout(TimeSpan.FromSeconds(30));
-        });
+        pipeline.AddTimeout(timeout);
     }
 
-    private static void ConfigureOrdersFast(IHttpClientBuilder builder)
+    private static void ConfigureOrdersFast(
+        ResiliencePipelineBuilder<HttpResponseMessage> pipeline,
+        bool retry,
+        double? timeoutSeconds)
     {
-        builder.AddResilienceHandler(ResiliencePolicies.OrdersFast, pipeline =>
+        var timeout = TimeSpan.FromSeconds(timeoutSeconds ?? 10);
+
+        if (retry)
         {
+            var maxRetryAfter = timeout;
+
             pipeline.AddRetry(new HttpRetryStrategyOptions
             {
                 MaxRetryAttempts = 2,
                 Delay = TimeSpan.FromSeconds(0.5),
                 BackoffType = DelayBackoffType.Exponential,
                 UseJitter = true,
-                DelayGenerator = static args =>
-                {
-                    if (args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests)
-                    {
-                        var retryAfter = args.Outcome.Result.Headers.RetryAfter;
-                        if (retryAfter?.Delta is { } delta)
-                        {
-                            return new ValueTask<TimeSpan?>(delta);
-                        }
-
-                        if (retryAfter?.Date is { } date)
-                        {
-                            var delay = date - DateTimeOffset.UtcNow;
-                            return new ValueTask<TimeSpan?>(delay > TimeSpan.Zero ? delay : null);
-                        }
-                    }
-
-                    return new ValueTask<TimeSpan?>((TimeSpan?)null);
-                },
+                DelayGenerator = static args => new ValueTask<TimeSpan?>(ApiResilienceRequest.GetRetryAfter(args.Outcome.Result)),
                 ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
                     .HandleResult(response => response.StatusCode >= HttpStatusCode.InternalServerError ||
                                               response.StatusCode == HttpStatusCode.RequestTimeout ||
-                                              response.StatusCode == HttpStatusCode.TooManyRequests)
+                                              (response.StatusCode == HttpStatusCode.TooManyRequests &&
+                                               !(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter)))
                     .Handle<HttpRequestException>()
                     .Handle<TimeoutRejectedException>(),
             });
+        }
 
-            pipeline.AddTimeout(TimeSpan.FromSeconds(10));
-        });
+        pipeline.AddTimeout(timeout);
     }
 
-    private static void ConfigureStandard(IHttpClientBuilder builder)
+    private static void ConfigureStandard(
+        ResiliencePipelineBuilder<HttpResponseMessage> pipeline,
+        bool retry,
+        double? timeoutSeconds)
     {
-        builder.AddResilienceHandler(ResiliencePolicies.Standard, pipeline =>
+        var timeout = TimeSpan.FromSeconds(timeoutSeconds ?? 30);
+
+        if (retry)
         {
+            var maxRetryAfter = timeout;
+
             pipeline.AddRetry(new HttpRetryStrategyOptions
             {
                 MaxRetryAttempts = 3,
                 Delay = TimeSpan.FromSeconds(1),
                 BackoffType = DelayBackoffType.Exponential,
                 UseJitter = true,
-                DelayGenerator = static args =>
-                {
-                    if (args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests)
-                    {
-                        var retryAfter = args.Outcome.Result.Headers.RetryAfter;
-                        if (retryAfter?.Delta is { } delta)
-                        {
-                            return new ValueTask<TimeSpan?>(delta);
-                        }
-
-                        if (retryAfter?.Date is { } date)
-                        {
-                            var delay = date - DateTimeOffset.UtcNow;
-                            return new ValueTask<TimeSpan?>(delay > TimeSpan.Zero ? delay : null);
-                        }
-                    }
-
-                    return new ValueTask<TimeSpan?>((TimeSpan?)null);
-                },
+                DelayGenerator = static args => new ValueTask<TimeSpan?>(ApiResilienceRequest.GetRetryAfter(args.Outcome.Result)),
                 ShouldHandle = new PredicateBuilder<HttpResponseMessage>()
                     .HandleResult(response => response.StatusCode >= HttpStatusCode.InternalServerError ||
                                               response.StatusCode == HttpStatusCode.RequestTimeout ||
-                                              response.StatusCode == HttpStatusCode.TooManyRequests)
+                                              (response.StatusCode == HttpStatusCode.TooManyRequests &&
+                                               !(ApiResilienceRequest.GetRetryAfter(response) > maxRetryAfter)))
                     .Handle<HttpRequestException>()
                     .Handle<TimeoutRejectedException>(),
             });
+        }
 
-            pipeline.AddTimeout(TimeSpan.FromSeconds(30));
-        });
+        pipeline.AddTimeout(timeout);
+    }
+}
+
+/// <summary>
+/// Tells the API resilience handler (<see cref="ResilienceServiceCollectionExtensions.AddApiResilience"/>)
+/// how to run one request. The generated clients set it for operations with their own <c>x-retry-*</c>
+/// settings; hand-written requests may use it too.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class ApiResilienceRequest
+{
+    /// <summary>
+    /// The longest Retry-After a 429 may ask for when the policy has no timeout; longer goes back to the caller.
+    /// </summary>
+    public const double MaxRetryAfterSeconds = 30;
+
+    private const string NoRetryMarker = "no-retry";
+    private const string TimeoutPrefix = "timeout=";
+
+    /// <summary>
+    /// Gets the request option that carries the pipeline for a request.
+    /// </summary>
+    public static HttpRequestOptionsKey<string> PipelineKey { get; } = new("Atc.Rest.Api.ResiliencePipeline");
+
+    /// <summary>
+    /// Runs the request with <paramref name="policyName"/> (the client default when null) and retries it,
+    /// also when it is a POST or PATCH.
+    /// </summary>
+    /// <param name="request">The request.</param>
+    /// <param name="policyName">The policy (see <see cref="ResiliencePolicies"/>), or null for the client default.</param>
+    public static void UsePolicy(
+        HttpRequestMessage request,
+        string? policyName = null)
+        => request?.Options.Set(PipelineKey, BuildPipelineKey(policyName ?? string.Empty, retry: true, timeoutSeconds: null));
+
+    /// <summary>
+    /// Sends the request once. The policy's timeout and circuit breaker still apply.
+    /// </summary>
+    /// <param name="request">The request.</param>
+    /// <param name="policyName">The policy (see <see cref="ResiliencePolicies"/>), or null for the client default.</param>
+    /// <param name="timeoutSeconds">A per-attempt timeout replacing the policy's, or null to keep it.</param>
+    public static void DisableRetry(
+        HttpRequestMessage request,
+        string? policyName = null,
+        double? timeoutSeconds = null)
+        => request?.Options.Set(PipelineKey, BuildPipelineKey(policyName ?? string.Empty, retry: false, timeoutSeconds));
+
+    /// <summary>
+    /// Gets the delay a 429 response asks for in its Retry-After header, or null.
+    /// </summary>
+    /// <param name="response">The response.</param>
+    /// <returns>The requested delay, or null when the response is not a 429 or has no usable Retry-After.</returns>
+    public static TimeSpan? GetRetryAfter(HttpResponseMessage? response)
+    {
+        if (response?.StatusCode != HttpStatusCode.TooManyRequests)
+        {
+            return null;
+        }
+
+        var retryAfter = response.Headers.RetryAfter;
+        if (retryAfter?.Delta is { } delta)
+        {
+            return delta;
+        }
+
+        if (retryAfter?.Date is { } date)
+        {
+            var delay = date - DateTimeOffset.UtcNow;
+            return delay > TimeSpan.Zero ? delay : null;
+        }
+
+        return null;
+    }
+
+    internal static string BuildPipelineKey(
+        string policyName,
+        bool retry,
+        double? timeoutSeconds)
+    {
+        var key = retry ? policyName : policyName + "|" + NoRetryMarker;
+        return timeoutSeconds is { } seconds
+            ? key + "|" + TimeoutPrefix + seconds.ToString(CultureInfo.InvariantCulture)
+            : key;
+    }
+
+    internal static (string PolicyName, bool Retry, double? TimeoutSeconds) ParsePipelineKey(string key)
+    {
+        var parts = key.Split('|');
+        var retry = true;
+        double? timeoutSeconds = null;
+        for (var i = 1; i < parts.Length; i++)
+        {
+            if (parts[i] == NoRetryMarker)
+            {
+                retry = false;
+            }
+            else if (parts[i].StartsWith(TimeoutPrefix, StringComparison.Ordinal) &&
+                 double.TryParse(parts[i].Substring(TimeoutPrefix.Length), NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
+            {
+                timeoutSeconds = seconds;
+            }
+        }
+
+        return (parts[0], retry, timeoutSeconds);
     }
 }

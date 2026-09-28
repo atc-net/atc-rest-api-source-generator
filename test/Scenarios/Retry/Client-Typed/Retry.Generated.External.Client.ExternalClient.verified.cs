@@ -2,11 +2,13 @@
 #nullable enable
 
 using System.CodeDom.Compiler;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using Retry.Generated.External.Models;
+using Retry.Generated.Resilience;
 
 namespace Retry.Generated.External.Client;
 
@@ -42,7 +44,10 @@ public sealed class ExternalClient : IExternalClient
         CancellationToken cancellationToken = default)
     {
         var url = "/external/payment";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
+        ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.ExternalService);
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<PaymentResult>(jsonSerializerOptions, cancellationToken))!;
     }

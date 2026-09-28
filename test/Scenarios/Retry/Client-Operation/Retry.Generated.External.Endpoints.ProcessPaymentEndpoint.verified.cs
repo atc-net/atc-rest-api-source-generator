@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Atc.Rest.Client.Builder;
 using Microsoft.Extensions.Http;
 using Retry.Generated;
+using Retry.Generated.Resilience;
 using Retry.Generated.External.Endpoints.Interfaces;
 using Retry.Generated.External.Endpoints.Results;
 using Retry.Generated.External.Models;
@@ -47,6 +48,7 @@ public sealed class ProcessPaymentEndpoint : IProcessPaymentEndpoint
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
+        ApiResilienceRequest.DisableRetry(requestMessage, ResiliencePolicies.ExternalService);
         using var response = await client.SendAsync(requestMessage, cancellationToken);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

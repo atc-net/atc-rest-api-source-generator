@@ -3,11 +3,13 @@
 
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using Retry.Generated.Orders.Models;
+using Retry.Generated.Resilience;
 
 namespace Retry.Generated.Orders.Client;
 

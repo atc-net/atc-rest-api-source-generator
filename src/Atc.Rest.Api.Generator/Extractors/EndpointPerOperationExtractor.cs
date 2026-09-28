@@ -371,6 +371,7 @@ public static class EndpointPerOperationExtractor
             path,
             httpMethod,
             operation,
+            pathItem,
             pathLevelParameters,
             openApiDoc,
             hasParameters,
@@ -733,6 +734,7 @@ public static class EndpointPerOperationExtractor
         string path,
         string httpMethod,
         OpenApiOperation operation,
+        IOpenApiPathItem pathItem,
         IList<IOpenApiParameter>? pathLevelParameters,
         OpenApiDocument openApiDoc,
         bool hasParameters,
@@ -760,6 +762,10 @@ public static class EndpointPerOperationExtractor
         // multipart/mixed extracts the response Content-Type boundary via LINQ — needs System
         // (StringComparison) and System.Linq (FirstOrDefault), which are not otherwise imported.
         var isMultipartStreaming = usesStreamReaders && endpointFraming == StreamingFraming.MultipartMixed;
+
+        // Per-operation retry (x-retry-*): tells the API resilience handler how to run this request
+        // when it differs from the handler default (its policy for safe methods, no retry for POST/PATCH).
+        var resilienceStamp = ResilienceRequestHelper.BuildStampStatement(operation, pathItem, openApiDoc, httpMethod, "requestMessage");
 
         // Build header with usings
         var headerBuilder = new StringBuilder();
@@ -797,6 +803,11 @@ public static class EndpointPerOperationExtractor
 
         headerBuilder.AppendLine("using Microsoft.Extensions.Http;");
         headerBuilder.AppendLine($"using {projectName}.Generated;");
+        if (resilienceStamp is not null)
+        {
+            headerBuilder.AppendLine($"using {projectName}.Generated.Resilience;");
+        }
+
         if (usesStreamReaders)
         {
             headerBuilder.AppendLine($"using {projectName}.Generated.Streaming;");
@@ -931,6 +942,7 @@ public static class EndpointPerOperationExtractor
             isBinaryEndpoint,
             isAsyncEnumerable,
             streamingItemType,
+            resilienceStamp,
             useServersBasePath);
 
         // Determine return type: BinaryEndpointResponse for binary, StreamingEndpointResponse for streaming, custom result class otherwise
@@ -1001,6 +1013,7 @@ public static class EndpointPerOperationExtractor
         bool isBinaryEndpoint,
         bool isAsyncEnumerable,
         string? streamingItemType,
+        string? resilienceStamp,
         bool useServersBasePath = true)
     {
         var sb = new StringBuilder();
@@ -1162,6 +1175,10 @@ public static class EndpointPerOperationExtractor
         // Build and send request. Standard verbs use the HttpMethod static property;
         // OpenAPI 3.2 custom additionalOperations verbs (e.g. LINK) are constructed by name.
         sb.AppendLine($"using var requestMessage = requestBuilder.Build({EndpointMapHelper.BuildHttpMethodExpression(httpMethod)});");
+        if (resilienceStamp is not null)
+        {
+            sb.AppendLine(resilienceStamp);
+        }
 
         // Use ResponseHeadersRead for streaming (IAsyncEnumerable) to enable true HTTP streaming
         // instead of buffering the entire response before iteration.

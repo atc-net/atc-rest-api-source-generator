@@ -2,11 +2,13 @@
 #nullable enable
 
 using System.CodeDom.Compiler;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using Retry.Generated.Reports.Models;
+using Retry.Generated.Resilience;
 
 namespace Retry.Generated.Reports.Client;
 
@@ -42,7 +44,10 @@ public sealed class ReportsClient : IReportsClient
         CancellationToken cancellationToken = default)
     {
         var url = "/reports/generate";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
+        ApiResilienceRequest.DisableRetry(requestMessage, timeoutSeconds: 600);
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

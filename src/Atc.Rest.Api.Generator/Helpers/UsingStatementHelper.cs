@@ -74,6 +74,7 @@ public static class UsingStatementHelper
         ["PostAsJsonAsync"] = NamespaceConstants.SystemNetHttpJson,
         ["PutAsJsonAsync"] = NamespaceConstants.SystemNetHttpJson,
         ["GetFromJsonAsync"] = NamespaceConstants.SystemNetHttpJson,
+        ["JsonContent.Create"] = NamespaceConstants.SystemNetHttpJson,
 
         // System.Runtime.CompilerServices
         ["[EnumeratorCancellation]"] = "System.Runtime.CompilerServices",

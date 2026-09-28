@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Atc.Rest.Client.Builder;
 using Microsoft.Extensions.Http;
 using Retry.Generated;
+using Retry.Generated.Resilience;
 using Retry.Generated.Orders.Endpoints.Interfaces;
 using Retry.Generated.Orders.Endpoints.Results;
 using Retry.Generated.Orders.Models;
@@ -47,6 +48,7 @@ public sealed class GetOrderByIdEndpoint : IGetOrderByIdEndpoint
         requestBuilder.WithPathParameter("orderId", parameters.OrderId);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
+        ApiResilienceRequest.UsePolicy(requestMessage, ResiliencePolicies.OrdersFast);
         using var response = await client.SendAsync(requestMessage, cancellationToken);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);

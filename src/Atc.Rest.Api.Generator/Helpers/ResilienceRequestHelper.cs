@@ -1,0 +1,60 @@
+namespace Atc.Rest.Api.Generator.Helpers;
+
+/// <summary>
+/// Emits the statement a generated C# client uses to tell the API resilience handler how to run one
+/// operation's request (<c>ApiResilienceRequest.UsePolicy</c> / <c>DisableRetry</c>). Uses the same
+/// resolution as the TypeScript client (<see cref="OpenApiRetryExtensions.ResolveOperationRetry"/>).
+/// </summary>
+public static class ResilienceRequestHelper
+{
+    /// <summary>
+    /// Returns the stamp statement for an operation, or null when the handler's own behavior already
+    /// matches (its default policy for safe methods, no retry for POST/PATCH) or the specification has
+    /// no retry configuration at all.
+    /// </summary>
+    /// <param name="operation">The OpenAPI operation.</param>
+    /// <param name="pathItem">The path item containing the operation.</param>
+    /// <param name="document">The OpenAPI document.</param>
+    /// <param name="httpMethod">The HTTP method of the operation.</param>
+    /// <param name="requestVariable">The name of the <c>HttpRequestMessage</c> variable.</param>
+    /// <returns>The statement (ending in a semicolon), or null.</returns>
+    public static string? BuildStampStatement(
+        OpenApiOperation operation,
+        IOpenApiPathItem? pathItem,
+        OpenApiDocument document,
+        string httpMethod,
+        string requestVariable)
+    {
+        if (operation is null ||
+            pathItem is null ||
+            document is null ||
+            !document.HasRetryConfiguration())
+        {
+            return null;
+        }
+
+        var retry = operation.ResolveOperationRetry(pathItem, document, httpMethod);
+        if (retry.IsClientDefault(httpMethod))
+        {
+            return null;
+        }
+
+        var arguments = new List<string> { requestVariable };
+        if (retry.PolicyName is not null)
+        {
+            arguments.Add("ResiliencePolicies." + ResiliencePoliciesExtractor.GenerateConstantName(retry.PolicyName));
+        }
+
+        if (retry.Mode == OperationRetryMode.Retry)
+        {
+            return $"ApiResilienceRequest.UsePolicy({string.Join(", ", arguments)});";
+        }
+
+        if (retry.TimeoutSeconds is { } timeoutSeconds)
+        {
+            arguments.Add("timeoutSeconds: " + timeoutSeconds.ToString(CultureInfo.InvariantCulture));
+        }
+
+        return $"ApiResilienceRequest.DisableRetry({string.Join(", ", arguments)});";
+    }
+}
