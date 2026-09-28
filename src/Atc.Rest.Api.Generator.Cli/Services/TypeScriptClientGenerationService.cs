@@ -85,7 +85,7 @@ public static class TypeScriptClientGenerationService
         }
         else if (config.HooksStyle == TypeScriptHooksStyle.Swr && clientCount > 0)
         {
-            hookCount = WriteSwrHooks(openApiDoc, outputPath, headerContent, enumNameSet, config.NamingStrategy, dryRun, config.BrandedIds);
+            hookCount = WriteSwrHooks(openApiDoc, outputPath, headerContent, enumNameSet, config.NamingStrategy, dryRun, config.BrandedIds, config.ConvertDates, writableSchemas);
         }
 
         // Step 6b: Generate Zod schemas (if configured)
@@ -345,8 +345,16 @@ public static class TypeScriptClientGenerationService
             .Concat(arrayTypeAliases.Select(a => a.Name))
             .Concat(unionTypeAliases.Select(u => u.Name));
 
+        // The Writable request variants (readOnly/writeOnly split) are never validated at runtime, so they
+        // have no .zod file - the barrel must not re-export one.
+        var modelNames = models.Select(m => m.Name).ToHashSet(StringComparer.Ordinal);
+        var writableVariants = modelNames
+            .Where(n => n.EndsWith(TypeScriptModelExtractor.WritableSuffix, StringComparison.Ordinal) &&
+                        modelNames.Contains(n[..^TypeScriptModelExtractor.WritableSuffix.Length]))
+            .ToHashSet(StringComparer.Ordinal);
+
         var barrelParams = includeZod
-            ? TypeScriptBarrelExportExtractor.CreateWithZod(headerContent, allModelNames)
+            ? TypeScriptBarrelExportExtractor.CreateWithZod(headerContent, allModelNames, namesWithoutZod: writableVariants)
             : TypeScriptBarrelExportExtractor.Create(headerContent, allModelNames);
         var barrelGenerator = new GenerateContentForBarrelExport(barrelParams);
         var barrelContent = barrelGenerator.Generate();
@@ -579,9 +587,11 @@ public static class TypeScriptClientGenerationService
         HashSet<string> enumNameSet,
         TypeScriptNamingStrategy namingStrategy,
         bool dryRun,
-        bool brandedIds)
+        bool brandedIds,
+        bool convertDates,
+        HashSet<string> writableSchemas)
     {
-        var hooks = TypeScriptSwrHookExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, brandedIds);
+        var hooks = TypeScriptSwrHookExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, brandedIds, convertDates, writableSchemas);
         if (hooks.Count == 0)
         {
             return 0;
@@ -652,6 +662,19 @@ public static class TypeScriptClientGenerationService
             }
 
             zodCount += zodModels.Count;
+        }
+
+        // Generate Zod union schemas (oneOf / anyOf type aliases)
+        var zodUnions = TypeScriptZodModelExtractor.ExtractUnionTypeAliases(openApiDoc, config);
+        if (zodUnions.Count > 0)
+        {
+            var modelsDir = Path.Combine(outputPath, "models");
+            foreach (var (name, content) in zodUnions)
+            {
+                WriteTsFile(Path.Combine(modelsDir, $"{name}.zod.ts"), content, dryRun);
+            }
+
+            zodCount += zodUnions.Count;
         }
 
         // Generate Zod array type alias schemas

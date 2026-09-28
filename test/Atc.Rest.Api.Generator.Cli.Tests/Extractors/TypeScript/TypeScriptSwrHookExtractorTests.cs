@@ -75,7 +75,7 @@ public class TypeScriptSwrHookExtractorTests
         var (_, content) = Assert.Single(TypeScriptSwrHookExtractor.Extract(doc, headerContent: null));
 
         Assert.Contains("import useSWR, { type SWRConfiguration } from 'swr';", content, StringComparison.Ordinal);
-        Assert.Contains("export function useListPets(config?: SWRConfiguration) {", content, StringComparison.Ordinal);
+        Assert.Contains("export function useListPets(config?: SWRConfiguration<string[], ApiError>) {", content, StringComparison.Ordinal);
         Assert.Contains("{ shouldRetryOnError: false, ...config },", content, StringComparison.Ordinal);
     }
 
@@ -221,7 +221,7 @@ public class TypeScriptSwrHookExtractorTests
         Assert.Contains("import useSWR, { type SWRConfiguration } from 'swr';", content, StringComparison.Ordinal);
         Assert.Contains("export function useListItemsStream(", content, StringComparison.Ordinal);
         Assert.Contains("export function useListAllItems(", content, StringComparison.Ordinal);
-        Assert.Contains("return useSWR(", content, StringComparison.Ordinal);
+        Assert.Contains("return useSWR<string[], ApiError>(", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -333,9 +333,10 @@ public class TypeScriptSwrHookExtractorTests
         var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
-        Assert.Contains("export function useQueryResources(body: ResourceQuery, config?: SWRConfiguration) {", content, StringComparison.Ordinal);
-        Assert.Contains("useSWR(", content, StringComparison.Ordinal);
-        Assert.Contains("'queryResources', body] as const,", content, StringComparison.Ordinal);
+        Assert.Contains("export function useQueryResources(body: ResourceQuery, config?: SWRConfiguration<string[], ApiError>) {", content, StringComparison.Ordinal);
+        Assert.Contains("return useSWR<string[], ApiError>(", content, StringComparison.Ordinal);
+        Assert.Contains("'query', body] as const,", content, StringComparison.Ordinal);
+        Assert.Contains("body ? resourcesKeys.query(body) : null,", content, StringComparison.Ordinal);
         Assert.Contains("api.resources.queryResources(body)", content, StringComparison.Ordinal);
         Assert.DoesNotContain("useSWRMutation", content, StringComparison.Ordinal);
     }
@@ -362,7 +363,7 @@ public class TypeScriptSwrHookExtractorTests
         var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
-        Assert.Contains("export function useLinkResource()", content, StringComparison.Ordinal);
+        Assert.Contains("export function useLinkResource(config?: SWRMutationConfiguration<", content, StringComparison.Ordinal);
         Assert.Contains("useSWRMutation", content, StringComparison.Ordinal);
     }
 
@@ -389,7 +390,8 @@ public class TypeScriptSwrHookExtractorTests
         var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
-        Assert.Contains("return api.pets.createPets();", content, StringComparison.Ordinal);
+        Assert.Contains("    async () => {", content, StringComparison.Ordinal);
+        Assert.Contains("const result = await api.pets.createPets();", content, StringComparison.Ordinal);
         Assert.DoesNotContain("arg as never", content, StringComparison.Ordinal);
     }
 
@@ -418,7 +420,9 @@ public class TypeScriptSwrHookExtractorTests
         var result = TypeScriptSwrHookExtractor.Extract(doc, headerContent: null);
         var (_, content) = Assert.Single(result);
 
-        Assert.Contains("arg as never", content, StringComparison.Ordinal);
+        Assert.Contains("async (_key, { arg }) => {", content, StringComparison.Ordinal);
+        Assert.Contains("const body = arg;", content, StringComparison.Ordinal);
+        Assert.Contains("const result = await api.pets.createPet(body);", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -523,4 +527,113 @@ public class TypeScriptSwrHookExtractorTests
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document
             : null;
+
+    [Fact]
+    public void Extract_QueryHook_TakesEveryParameterAndGuardsOnThePathParameter()
+    {
+        // Same shape as the React Query hook: path, query and header parameters flow into the client
+        // call, the key carries path + query, and no request is made while the id is missing.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets/{petId}:
+                                get:
+                                  operationId: getPetById
+                                  parameters:
+                                    - { name: petId, in: path, required: true, schema: { type: string } }
+                                    - { name: expand, in: query, schema: { type: boolean } }
+                                    - { name: x-tenant, in: header, schema: { type: string } }
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema: { $ref: '#/components/schemas/Pet' }
+                            components:
+                              schemas:
+                                Pet: { type: object, properties: { name: { type: string } } }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptSwrHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.Contains("import type { Pet } from '../models';", content, StringComparison.Ordinal);
+        Assert.Contains("export function useGetPetById(petId: string, query?: { expand?: boolean }, headers?: {", content, StringComparison.Ordinal);
+        Assert.Contains("config?: SWRConfiguration<Pet, ApiError>) {", content, StringComparison.Ordinal);
+        Assert.Contains("petId ? petsKeys.petById(petId, query) : null,", content, StringComparison.Ordinal);
+        Assert.Contains("const result = await api.pets.getPetById(petId, query, headers);", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_MutationHook_RevalidatesTheSegmentsQueriesOnSuccess()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets/{petId}:
+                                delete:
+                                  operationId: deletePet
+                                  parameters:
+                                    - { name: petId, in: path, required: true, schema: { type: string } }
+                                  responses:
+                                    '204': { description: No Content }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptSwrHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.Contains("return useSWRMutation<void, ApiError, typeof petsKeys.all, string>(", content, StringComparison.Ordinal);
+        Assert.Contains("const petId = arg;", content, StringComparison.Ordinal);
+        Assert.Contains("void mutate((cacheKey) => Array.isArray(cacheKey) && cacheKey[0] === 'pets');", content, StringComparison.Ordinal);
+        Assert.Contains("config?.onSuccess?.(data, key, currentConfig);", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_PaginatedStream_GetsAnInfiniteHookOverThePageCompanion()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /items/pages:
+                                get:
+                                  operationId: listItemPages
+                                  x-return-async-enumerable: true
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            allOf:
+                                              - $ref: '#/components/schemas/PaginationResult'
+                                              - type: object
+                                                properties:
+                                                  items:
+                                                    type: array
+                                                    items:
+                                                      $ref: '#/components/schemas/Item'
+                            components:
+                              schemas:
+                                Item: { type: object }
+                                PaginationResult:
+                                  type: object
+                                  properties:
+                                    continuationToken: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptSwrHookExtractor.Extract(doc, headerContent: null));
+
+        Assert.Contains("import useSWRInfinite, { type SWRInfiniteConfiguration } from 'swr/infinite';", content, StringComparison.Ordinal);
+        Assert.Contains("export function useListItemPagesInfinite(", content, StringComparison.Ordinal);
+        Assert.Contains("if (previousPage && !previousPage.continuationToken) {", content, StringComparison.Ordinal);
+        Assert.Contains("api.items.listItemPagesPage(token ? { 'x-continuation': token } : undefined)", content, StringComparison.Ordinal);
+        Assert.Contains("export function useListItemPagesStream(", content, StringComparison.Ordinal);
+    }
 }
