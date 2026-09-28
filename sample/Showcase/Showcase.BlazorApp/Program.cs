@@ -26,15 +26,6 @@ builder.Services
     })
     .AddApiResilience(ResiliencePolicies.Standard);
 
-// Register a separate HttpClient for testing WITHOUT resilience (no retries)
-// This allows testing exception handling without retry interference
-builder.Services
-    .AddHttpClient("Showcase-Testing", client =>
-    {
-        client.BaseAddress = new Uri(apiBaseAddress);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", demoToken);
-    });
-
 // Register all generated endpoints (includes IHttpMessageFactory registration)
 builder.Services.AddShowcaseEndpoints();
 

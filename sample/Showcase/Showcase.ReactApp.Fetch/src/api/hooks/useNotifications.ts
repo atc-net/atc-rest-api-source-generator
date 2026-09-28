@@ -34,6 +34,7 @@ export function useListSubscriptions(options?: Omit<UseQueryOptions<Subscription
         result.response,
       );
     },
+    retry: false,
     ...options,
   });
 }
@@ -87,6 +88,7 @@ export function useGetSubscriptionById(subscriptionId: string, options?: Omit<Us
       );
     },
     enabled: !!subscriptionId,
+    retry: false,
     ...options,
   });
 }

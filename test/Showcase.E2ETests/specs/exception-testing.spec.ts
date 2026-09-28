@@ -39,6 +39,15 @@ test.describe('Exception Testing Page', () => {
     await expect(exceptionPage.errorResponsesTable).toContainText('The name must be at most 20 characters.');
   });
 
+  // /testing is x-retry-enabled: false in the spec, so its 5xx and 429 answers are not retried
+  // (with retries, "Run All" waited for the back-off of every 500/501/504 - about a minute).
+  test('runs all exception tests without retrying them', async () => {
+    const started = Date.now();
+    await exceptionPage.runAllTests();
+    await expect(exceptionPage.page.getByText('12/12 passed')).toBeVisible({ timeout: 15_000 });
+    expect(Date.now() - started).toBeLessThan(15_000);
+  });
+
   test('shows the Retry-After of a 429', async () => {
     await exceptionPage.requestErrorResponse(429);
     await expect(exceptionPage.errorResponsesTable).toContainText('Slow down - try again in 30 seconds.');

@@ -2,6 +2,7 @@
 import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { ApiError, ValidationError } from '../errors';
+import { retryPolicies } from '../helpers/retryConfig';
 
 export type GetFileByIdResult =
   | { status: 'ok'; data: Blob; response: AxiosResponse }
@@ -63,6 +64,7 @@ export class FilesClient {
   async getFileById(id: string): Promise<GetFileByIdResult> {
     return this.api.request<Blob>('GET', `/files/${id}`, {
       responseType: 'blob',
+      retry: { policy: retryPolicies.files },
     }) as Promise<GetFileByIdResult>;
   }
 
@@ -76,6 +78,7 @@ export class FilesClient {
         for (const item of data.items ?? []) formData.append('items', String(item));
         return formData;
       })(),
+      retry: { enabled: false, timeoutMs: 300000 },
     }) as Promise<UploadSingleObjectWithFileAsFormDataResult>;
   }
 
@@ -87,6 +90,7 @@ export class FilesClient {
         for (const f of data.files ?? []) formData.append('files', f);
         return formData;
       })(),
+      retry: { enabled: false, timeoutMs: 300000 },
     }) as Promise<UploadSingleObjectWithFilesAsFormDataResult>;
   }
 
@@ -94,6 +98,7 @@ export class FilesClient {
   async uploadSingleFileAsFormData(file: Blob | File): Promise<UploadSingleFileAsFormDataResult> {
     return this.api.request<void>('POST', '/files/form-data/singleFile', {
       body: file,
+      retry: { enabled: false, timeoutMs: 300000 },
     }) as Promise<UploadSingleFileAsFormDataResult>;
   }
 
@@ -107,6 +112,7 @@ export class FilesClient {
         }
         return formData;
       })(),
+      retry: { enabled: false, timeoutMs: 300000 },
     }) as Promise<UploadMultiFilesAsFormDataResult>;
   }
 }

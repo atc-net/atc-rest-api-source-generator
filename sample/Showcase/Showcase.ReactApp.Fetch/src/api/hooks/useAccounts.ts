@@ -35,6 +35,7 @@ export function useListAccounts(query?: { limit?: number }, options?: Omit<UseQu
         result.response,
       );
     },
+    retry: false,
     ...options,
   });
 }
@@ -88,6 +89,7 @@ export function useGetAccountById(accountId: string, options?: Omit<UseQueryOpti
       );
     },
     enabled: !!accountId,
+    retry: false,
     ...options,
   });
 }
@@ -168,6 +170,7 @@ export function useListPaginatedAccounts(query?: { pageSize?: number /* default:
         result.response,
       );
     },
+    retry: false,
     ...options,
   });
 }

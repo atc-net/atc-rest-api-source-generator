@@ -23,11 +23,4 @@ export const tasksClient = new TasksClient(apiClient);
 export const usersClient = new UsersClient(apiClient);
 export const filesClient = new FilesClient(apiClient);
 export const notificationsClient = new NotificationsClient(apiClient);
-// The testing endpoints exist to show the raw error responses, so they are called without retries
-// (the spec marks them x-retry-enabled: false, which the TypeScript client does not yet honor per operation).
-const testingApiClient = new ApiClient(apiBaseUrl + '/api/v1', {
-  getAccessToken: () => demoToken,
-  retryPolicy: false,
-});
-
-export const testingClient = new TestingClient(testingApiClient);
+export const testingClient = new TestingClient(apiClient);

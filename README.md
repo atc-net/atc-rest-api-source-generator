@@ -17,7 +17,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | ⏱️ **Rate Limiting**             | Server-side rate limiting from `x-ratelimit-*` extensions                        |
 |            | 💾 **Caching**                   | Output caching and HybridCache support from `x-cache-*` extensions               |
 | **Client** | 🔌 **Type-Safe Client**          | Strongly-typed HTTP client with full IntelliSense                                |
-|            | 🔄 **Resilience**                | Client-side retry/circuit breaker from `x-retry-*` extensions                    |
+|            | 🔄 **Resilience**                | Per-operation retry/circuit breaker from `x-retry-*`; POST/PATCH never resent unasked |
 |            | 🔗 **URL Encoding**              | Automatic RFC 3986 compliant encoding - no more broken URLs                      |
 | **Models** | 🎯 **Enum Support**              | Generates C# enums from OpenAPI string enums                                     |
 |            | 📊 **Pagination**                | Generic `PaginatedResult<T>` from `allOf` composition                            |

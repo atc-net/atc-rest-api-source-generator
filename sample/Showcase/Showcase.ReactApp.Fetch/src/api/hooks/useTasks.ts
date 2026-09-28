@@ -33,6 +33,7 @@ export function useListTasks(query?: { limit?: number }, options?: Omit<UseQuery
         result.response,
       );
     },
+    retry: false,
     ...options,
   });
 }
@@ -86,6 +87,7 @@ export function useGetTaskById(taskId: string, options?: Omit<UseQueryOptions<Ta
       );
     },
     enabled: !!taskId,
+    retry: false,
     ...options,
   });
 }

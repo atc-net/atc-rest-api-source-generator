@@ -2,6 +2,7 @@
 import { ApiClient } from './ApiClient';
 import type { Account, Accounts, PaginatedResult } from '../models';
 import type { ApiError, ValidationError } from '../errors';
+import { retryPolicies } from '../helpers/retryConfig';
 
 export type ListAccountsResult =
   | { status: 'ok'; data: Accounts; response: Response }
@@ -75,6 +76,7 @@ export class AccountsClient {
       query: {
         limit: query?.limit,
       },
+      retry: { policy: retryPolicies.accountsFast },
     }) as Promise<ListAccountsResult>;
   }
 
@@ -82,23 +84,29 @@ export class AccountsClient {
   async createAccount(body: Account): Promise<CreateAccountResult> {
     return this.api.request<Account>('POST', '/accounts', {
       body,
+      retry: { policy: retryPolicies.accountsFast, enabled: false },
     }) as Promise<CreateAccountResult>;
   }
 
   /** Get a specific account */
   async getAccountById(accountId: string): Promise<GetAccountByIdResult> {
-    return this.api.request<Account>('GET', `/accounts/${accountId}`) as Promise<GetAccountByIdResult>;
+    return this.api.request<Account>('GET', `/accounts/${accountId}`, {
+      retry: { policy: retryPolicies.accountsFast },
+    }) as Promise<GetAccountByIdResult>;
   }
 
   /** Delete a specific account */
   async deleteAccountById(accountId: string): Promise<DeleteAccountByIdResult> {
-    return this.api.request<void>('DELETE', `/accounts/${accountId}`) as Promise<DeleteAccountByIdResult>;
+    return this.api.request<void>('DELETE', `/accounts/${accountId}`, {
+      retry: { policy: retryPolicies.accountsFast },
+    }) as Promise<DeleteAccountByIdResult>;
   }
 
   /** Update a specific account */
   async updateAccountById(accountId: string, body: Account): Promise<UpdateAccountByIdResult> {
     return this.api.request<Account>('PUT', `/accounts/${accountId}`, {
       body,
+      retry: { policy: retryPolicies.accountsFast },
     }) as Promise<UpdateAccountByIdResult>;
   }
 

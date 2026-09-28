@@ -3,6 +3,7 @@ import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { CreateUserRequest, UpdateUserRequest, User, UserQuery, Users } from '../models';
 import type { ApiError, ValidationError } from '../errors';
+import { retryPolicies } from '../helpers/retryConfig';
 
 export type ListUsersResult =
   | { status: 'ok'; data: Users; response: AxiosResponse }
@@ -82,6 +83,7 @@ export class UsersClient {
         isActive: query?.isActive,
         limit: query?.limit,
       },
+      retry: { policy: retryPolicies.users },
     }) as Promise<ListUsersResult>;
   }
 
@@ -89,6 +91,7 @@ export class UsersClient {
   async queryUsers(body: UserQuery): Promise<QueryUsersResult> {
     return this.api.request<Users>('QUERY', '/users', {
       body,
+      retry: { policy: retryPolicies.users },
     }) as Promise<QueryUsersResult>;
   }
 
@@ -96,23 +99,29 @@ export class UsersClient {
   async createUser(body: CreateUserRequest): Promise<CreateUserResult> {
     return this.api.request<User>('POST', '/users', {
       body,
+      retry: { policy: retryPolicies.users, enabled: false },
     }) as Promise<CreateUserResult>;
   }
 
   /** Get a specific user */
   async getUserById(userId: string): Promise<GetUserByIdResult> {
-    return this.api.request<User>('GET', `/users/${userId}`) as Promise<GetUserByIdResult>;
+    return this.api.request<User>('GET', `/users/${userId}`, {
+      retry: { policy: retryPolicies.users },
+    }) as Promise<GetUserByIdResult>;
   }
 
   /** Update a specific user */
   async updateUserById(userId: string, body: UpdateUserRequest): Promise<UpdateUserByIdResult> {
     return this.api.request<User>('PUT', `/users/${userId}`, {
       body,
+      retry: { policy: retryPolicies.users },
     }) as Promise<UpdateUserByIdResult>;
   }
 
   /** Delete a specific user */
   async deleteUserById(userId: string): Promise<DeleteUserByIdResult> {
-    return this.api.request<void>('DELETE', `/users/${userId}`) as Promise<DeleteUserByIdResult>;
+    return this.api.request<void>('DELETE', `/users/${userId}`, {
+      retry: { policy: retryPolicies.users },
+    }) as Promise<DeleteUserByIdResult>;
   }
 }

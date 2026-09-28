@@ -33,6 +33,7 @@ export function useGetExceptionTest(code: number, options?: Omit<UseQueryOptions
       );
     },
     enabled: !!code,
+    retry: false,
     ...options,
   });
 }

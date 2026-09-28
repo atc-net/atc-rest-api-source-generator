@@ -2,9 +2,9 @@
 import { ApiError, errorMessage } from '../errors/ApiError';
 import { ValidationError } from '../errors/ValidationError';
 import type { ApiResult } from '../types/ApiResult';
-import { retryWithBackoff } from '../helpers/retryInterceptor';
+import { resolveRetryPolicy, retryWithBackoff } from '../helpers/retryInterceptor';
 import { defaultRetryPolicy } from '../helpers/retryConfig';
-import type { RetryPolicy } from '../helpers/retryConfig';
+import type { RequestRetry, RetryPolicy } from '../helpers/retryConfig';
 
 export type FetchRequestInterceptor = (url: string, init: RequestInit) => RequestInit | Promise<RequestInit>;
 export type FetchResponseInterceptor = (response: Response) => Response | Promise<Response>;
@@ -24,6 +24,8 @@ export interface RequestOptions {
   headers?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
   responseType?: 'json' | 'blob' | 'text';
+  /** Retry for this request (the generated client passes it for operations with their own x-retry-* settings). */
+  retry?: RequestRetry;
 }
 
 export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
@@ -94,12 +96,13 @@ export class ApiClient {
     }
 
     let response: Response;
-    if (this.retryPolicy) {
+    const retryPolicy = resolveRetryPolicy(method, this.retryPolicy, options?.retry);
+    if (retryPolicy) {
       // Wire the per-attempt signal through so policy.timeoutMs actually cancels the
       // in-flight fetch and parent aborts propagate to every retry attempt.
       response = await retryWithBackoff(
         (attemptSignal) => fetch(url, { ...init, signal: attemptSignal }),
-        this.retryPolicy,
+        retryPolicy,
         options?.signal,
       );
     } else {

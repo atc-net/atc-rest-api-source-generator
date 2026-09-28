@@ -34,6 +34,7 @@ export function useListUsers(query?: { search?: string; country?: string; role?:
         result.response,
       );
     },
+    retry: false,
     ...options,
   });
 }
@@ -59,6 +60,7 @@ export function useQueryUsers(body: UserQuery, options?: Omit<UseQueryOptions<Us
       );
     },
     enabled: !!body,
+    retry: false,
     ...options,
   });
 }
@@ -112,6 +114,7 @@ export function useGetUserById(userId: string, options?: Omit<UseQueryOptions<Us
       );
     },
     enabled: !!userId,
+    retry: false,
     ...options,
   });
 }

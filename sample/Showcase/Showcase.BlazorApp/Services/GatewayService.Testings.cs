@@ -16,12 +16,11 @@ public sealed partial class GatewayService
     {
         var parameters = new Showcase.Generated.Testing.Client.GetExceptionTestParameters(Code: code);
 
-        // Use "Showcase-Testing" HttpClient which has NO resilience/retry configured
-        // This ensures we get the actual error response without retry interference
+        // The spec marks /testing with x-retry-enabled: false, so the resilience handler sends it once
+        // and the actual error response comes back without retries.
         var result = await getExceptionTestEndpoint
             .ExecuteAsync(
                 parameters,
-                httpClientName: "Showcase-Testing",
                 cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
@@ -94,7 +93,6 @@ public sealed partial class GatewayService
         var result = await getErrorResponseTestEndpoint
             .ExecuteAsync(
                 parameters,
-                httpClientName: "Showcase-Testing",
                 cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
