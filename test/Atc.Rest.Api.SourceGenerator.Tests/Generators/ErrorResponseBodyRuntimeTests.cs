@@ -10,7 +10,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// involved. The handlers are derived from the factory methods the server generator actually emits,
 /// which keeps the harness working when those signatures change.
 /// </remarks>
-public class ErrorResponseBodyRuntimeTests
+public partial class ErrorResponseBodyRuntimeTests
 {
     private const string ProjectName = "ErrorBodies";
     private const string ValidReason = "ok";
@@ -342,6 +342,10 @@ public class ErrorResponseBodyRuntimeTests
         "throw-argument",
         "throw-invalid-operation",
         "throw-timeout",
+        "throw-canceled",
+        "throw-unauthorized-access",
+        "throw-argument-null",
+        "throw-bad-http-request",
     ];
 
     private static readonly string[] FaultModes =
@@ -362,6 +366,28 @@ public class ErrorResponseBodyRuntimeTests
         "throw",
         .. AllErrorStatusCodes.Select(c => $"d{c}"),
     ];
+
+    /// <summary>
+    /// Error responses the generated server never writes - a proxy's page, another framework's body, a malformed or
+    /// untyped one - served on the <c>getFault</c> route (<c>/faults/stub-…</c>: 503 is declared without content, 502
+    /// is not declared) and on the <c>setAllJsonProblem</c> route (every status declared as the <c>ApiProblem</c>
+    /// model), so every generated client reads them.
+    /// </summary>
+    internal static readonly Dictionary<string, (int Status, string? ContentType, string Body, string Description)> StubResponses = new(StringComparer.Ordinal)
+    {
+        ["stub-xml"] = (503, "application/xml", "<error><message>xml down</message></error>", "XML"),
+        ["stub-octet"] = (503, "application/octet-stream", "binary down", "application/octet-stream"),
+        ["stub-untyped"] = (503, null, "untyped down", "a body without a Content-Type"),
+        ["stub-empty"] = (503, null, string.Empty, "no body, no Content-Type"),
+        ["stub-html"] = (502, "text/html; charset=utf-8", "<html><body><h1>502 Bad Gateway</h1></body></html>", "a proxy's HTML page (undeclared 502)"),
+        ["stub-invalid-json"] = (503, "application/json", "{\"detail\": \"cut", "malformed JSON"),
+        ["stub-empty-json"] = (503, "application/json", string.Empty, "an empty body under application/json"),
+        ["stub-blank-json"] = (503, "application/json", "   ", "a whitespace body under application/json"),
+        ["stub-problem-casing"] = (503, "Application/Problem+JSON; charset=utf-8", "{\"title\":\"Casing\",\"status\":503,\"detail\":\"casing down\"}", "a ProblemDetails under a mixed-case media type"),
+        ["stub-vendor-json"] = (503, "application/vnd.error+json", "{\"message\":\"vendor down\"}", "a vendor +json object"),
+        ["stub-utf8-text"] = (503, "text/plain; charset=utf-8", "nede: æøå – 🚫", "non-ASCII text"),
+        ["stub-json-string"] = (503, "application/json", "\"42\"", "a JSON string that reads like a number"),
+    };
 
     internal static readonly string[] ErrorResponseFormats =
     [
@@ -416,6 +442,8 @@ public class ErrorResponseBodyRuntimeTests
     public void Dump_GeneratedSources()
     {
         var root = Environment.GetEnvironmentVariable("ERRORBODY_DUMP_DIR") ?? Path.Combine(Path.GetTempPath(), "errorbody-dump");
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, ProjectName + ".yaml"), Yaml);
         Dump(Path.Combine(root, "Server"), GenerateServer());
         foreach (var format in ErrorResponseFormats)
         {
@@ -1089,6 +1117,7 @@ public class ErrorResponseBodyRuntimeTests
         await using var host = await ErrorBodyHost.StartAsync();
         var client = GenerateClientAssembly(ClientOperationMarker("ProblemDetails"), BuildOperationProbeSource);
         var rows = await RunProbeAsync(client.Assembly, host.BaseAddress);
+        var wire = (await host.CaptureWireAsync()).ToDictionary(w => w.Case, StringComparer.Ordinal);
 
         var mismatches = new List<string>();
         foreach (var row in rows)
@@ -1105,7 +1134,10 @@ public class ErrorResponseBodyRuntimeTests
                 ("setAllNone" or "setAllFrameworkProblem", not null) => "ProblemDetails ",
                 ("setAllJsonProblem", not null) => "ApiProblem ",
                 ("setAllJsonString" or "setAllTextPlain", not null) when withValue => $"string \"{code} message from handler\"",
-                ("setAllJsonString" or "setAllTextPlain", not null) => "string ",
+
+                // No body from the handler: the host wiring's ProblemDetails, whose message (detail, else title) the
+                // string accessor gives - not the ProblemDetails' JSON text.
+                ("setAllJsonString" or "setAllTextPlain", not null) => $"string {JsonSerializer.Serialize(ProblemMessage(wire[name].Body))}",
                 ("setProblemJson", null) when mode is "bad" or "missing" or "conflict" or "invalid" => "ApiProblem ",
                 _ => null,
             };
@@ -1138,6 +1170,17 @@ public class ErrorResponseBodyRuntimeTests
         }
 
         Assert.True(mismatches.Count == 0, $"{mismatches.Count} client mismatches:\n" + string.Join("\n", mismatches));
+    }
+
+    /// <summary>
+    /// The message of a ProblemDetails body: its <c>detail</c>, else its <c>title</c>, else empty.
+    /// </summary>
+    internal static string ProblemMessage(string body)
+    {
+        var problem = JsonNode.Parse(body)!.AsObject();
+        return problem["detail"] is JsonValue detail && ((string?)detail)?.Length > 0
+            ? (string)detail!
+            : (string?)problem["title"] ?? string.Empty;
     }
 
     /// <summary>
@@ -1261,7 +1304,7 @@ public class ErrorResponseBodyRuntimeTests
         var rows = await RunProbeAsync(client.Assembly, host.BaseAddress);
 
         var getFailures = rows
-            .Where(r => r[0].StartsWith("getFault/", StringComparison.Ordinal) && !r[0].EndsWith("/ok", StringComparison.Ordinal))
+            .Where(r => r[0].StartsWith("getFault/", StringComparison.Ordinal) && !r[0].EndsWith("/ok", StringComparison.Ordinal) && !r[0].Contains("/stub-", StringComparison.Ordinal))
             .ToList();
 
         Assert.NotEmpty(getFailures);
@@ -1270,6 +1313,105 @@ public class ErrorResponseBodyRuntimeTests
             Assert.StartsWith("HttpRequestException: HTTP ", r[1], StringComparison.Ordinal);
             Assert.Contains("\"status\":", r[1], StringComparison.Ordinal);
         });
+    }
+
+    /// <summary>
+    /// The typed client (Result style) keeps the error body of a binary (download) operation in <c>Content</c>, as
+    /// for every other operation - 2.x left it empty.
+    /// </summary>
+    [Fact]
+    public async Task TypedClientResult_KeepsTheErrorBodyForDownloads()
+    {
+        const string yaml = """
+            openapi: 3.0.3
+            info:
+              title: ErrorBodies
+              version: 1.0.0
+            paths:
+              /files/{name}:
+                get:
+                  operationId: getFile
+                  parameters:
+                    - name: name
+                      in: path
+                      required: true
+                      schema:
+                        type: string
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/octet-stream:
+                          schema:
+                            type: string
+                            format: binary
+            """;
+        const string probe = """"
+            using ErrorBodies.Generated;
+
+            namespace ErrorBodies.RuntimeTest;
+
+            public static class Probe
+            {
+                public static async Task<string> RunAsync()
+                {
+                    using var http = new HttpClient(new StubHandler()) { BaseAddress = new Uri("http://stub/") };
+                    var result = await new ErrorBodiesClient(http).GetFileAsync(new GetFileParameters("missing"));
+                    return $"{(int)result.StatusCode} IsSuccess={result.IsSuccess} Content={result.Content}";
+                }
+
+                private sealed class StubHandler : HttpMessageHandler
+                {
+                    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+                        => Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.NotFound)
+                        {
+                            Content = new StringContent("""{"title":"Not Found","status":404,"detail":"no such file"}""", System.Text.Encoding.UTF8, "application/problem+json"),
+                        });
+                }
+            }
+            """";
+
+        var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", ClientTypedMarker("Result"), includeMinimalApi: false, yaml);
+        sources.Add(("Probe.cs", probe));
+        var assembly = CompilationVerificationHarness.EmitAndLoad(sources);
+        var run = assembly.GetType("ErrorBodies.RuntimeTest.Probe", throwOnError: true)!.GetMethod("RunAsync")!;
+        var outcome = await (Task<string>)run.Invoke(null, [])!;
+
+        Assert.Equal("""404 IsSuccess=False Content={"title":"Not Found","status":404,"detail":"no such file"}""", outcome);
+    }
+
+    /// <summary>
+    /// An error body Atc.Rest.Client kept as bytes (a media type that is neither JSON nor text) is decoded by the
+    /// Content-Type charset - UTF-8 without one - and a success response is left alone.
+    /// </summary>
+    [Fact]
+    public void ClientWithTextErrorBody_DecodesByTheContentTypeCharset()
+    {
+        var sources = Generate(new ApiClientGenerator(), ".atc-rest-api-client", ClientOperationMarker("ProblemDetails"));
+        var assembly = CompilationVerificationHarness.EmitAndLoad(sources);
+        var withText = assembly.GetType("ErrorBodies.Generated.ProblemDetailsFactory", throwOnError: true)!.GetMethod("WithTextErrorBody")!;
+
+        Atc.Rest.Client.EndpointResponse Decode(
+            bool isSuccess,
+            byte[] bytes,
+            string contentType)
+            => (Atc.Rest.Client.EndpointResponse)withText.Invoke(null, [
+                new Atc.Rest.Client.EndpointResponse(
+                    isSuccess,
+                    isSuccess ? HttpStatusCode.OK : HttpStatusCode.ServiceUnavailable,
+                    string.Empty,
+                    bytes,
+                    new Dictionary<string, IEnumerable<string>>(StringComparer.Ordinal) { ["Content-Type"] = [contentType] }),
+            ])!;
+
+        const string text = "<fejl>æøå</fejl>";
+        Assert.Equal(text, Decode(isSuccess: false, Encoding.Latin1.GetBytes(text), "application/xml; charset=iso-8859-1").Content);
+        Assert.Equal(text, Decode(isSuccess: false, Encoding.UTF8.GetBytes(text), "application/xml").Content);
+        Assert.Equal(text, Decode(isSuccess: false, Encoding.UTF8.GetBytes(text), "application/xml; charset=unknown-charset").Content);
+
+        var success = Decode(isSuccess: true, Encoding.UTF8.GetBytes(text), "application/octet-stream");
+        Assert.Equal(string.Empty, success.Content);
+        Assert.IsType<byte[]>(success.ContentObject);
     }
 
     /// <summary>
@@ -1361,14 +1503,9 @@ public class ErrorResponseBodyRuntimeTests
                     problems.Add("body is not a ProblemDetails with the response status");
                 }
 
-                if (!empty && code != 429 && !wire.Body.Contains(" handler", StringComparison.Ordinal))
+                if (!empty && !wire.Body.Contains(" handler", StringComparison.Ordinal))
                 {
                     problems.Add("the handler's value is missing from the ProblemDetails");
-                }
-
-                if (!empty && code == 429 && !string.Equals(wire.RetryAfter, "30", StringComparison.Ordinal))
-                {
-                    problems.Add($"Retry-After '{wire.RetryAfter}'");
                 }
 
                 break;
@@ -1381,6 +1518,12 @@ public class ErrorResponseBodyRuntimeTests
             case "setAllTextPlain":
                 ExpectDeclaredBody("text/plain", $"{code} message from handler", contains: false);
                 break;
+        }
+
+        // TooManyRequests(value, retryAfterSeconds) sets Retry-After for every declaration; TooManyRequests() sets none.
+        if (code == 429 && !string.Equals(wire.RetryAfter, empty ? null : "30", StringComparison.Ordinal))
+        {
+            problems.Add($"Retry-After '{wire.RetryAfter}'");
         }
 
         return problems.Count == 0
@@ -1703,6 +1846,10 @@ public class ErrorResponseBodyRuntimeTests
         }
 
         cases.AddRange(FaultModes.Select(mode => new ProbeCase("getFault", "Faults", mode, Reason: null, IsPut: false)));
+        cases.AddRange(StubResponses.Keys.Select(mode => new ProbeCase("getFault", "Faults", mode, Reason: null, IsPut: false)));
+
+        // The same bodies where the specification declares a model (ApiProblem) for every status.
+        cases.AddRange(StubResponses.Keys.Select(mode => new ProbeCase("setAllJsonProblem", "AllJsonProblem", mode, ValidReason, IsPut: true)));
         cases.AddRange(DefaultErrorModes.Select(mode => new ProbeCase("getDefaultError", "DefaultError", mode, Reason: null, IsPut: false)));
 
         return cases;
@@ -1876,7 +2023,7 @@ public class ErrorResponseBodyRuntimeTests
                         break;
                     }
 
-                    return [name, ((int)response.StatusCode).ToString(System.Globalization.CultureInfo.InvariantCulture), response.IsSuccess.ToString(), Show(response.ContentObject), accessor];
+                    return [name, ((int)response.StatusCode).ToString(System.Globalization.CultureInfo.InvariantCulture), response.IsSuccess.ToString(), Show(response.ContentObject), accessor, response.Content];
                 }
 
                 private static string Show(object? value)
@@ -2173,6 +2320,26 @@ public class ErrorResponseBodyRuntimeTests
                 .Invoke(null, [builder.Services, serviceOptions]);
 
             var webApp = builder.Build();
+
+            // Bodies the generated server never writes (any route ending in a stub mode), in front of the generated endpoints.
+            webApp.Use(async (context, next) =>
+            {
+                var lastSegment = context.Request.Path.Value?.Split('/')[^1] ?? string.Empty;
+                if (lastSegment.StartsWith("stub-", StringComparison.Ordinal) &&
+                    StubResponses.TryGetValue(lastSegment, out var stub))
+                {
+                    context.Response.StatusCode = stub.Status;
+                    if (stub.ContentType is not null)
+                    {
+                        context.Response.ContentType = stub.ContentType;
+                    }
+
+                    await context.Response.Body.WriteAsync(Encoding.UTF8.GetBytes(stub.Body), context.RequestAborted);
+                    return;
+                }
+
+                await next(context);
+            });
             webApp.Urls.Add("http://127.0.0.1:0");
 
             appExtensions
@@ -2333,6 +2500,10 @@ public class ErrorResponseBodyRuntimeTests
                         "throw-argument" => "throw new System.ArgumentException(\"argument rejected by handler\")",
                         "throw-invalid-operation" => "throw new System.InvalidOperationException(\"invalid operation in handler\")",
                         "throw-timeout" => "throw new System.TimeoutException(\"handler timed out\")",
+                        "throw-canceled" => "throw new System.OperationCanceledException(\"canceled in handler\")",
+                        "throw-unauthorized-access" => "throw new System.UnauthorizedAccessException(\"access denied in handler\")",
+                        "throw-argument-null" => "throw new System.ArgumentNullException(\"reason\", \"null argument in handler\")",
+                        "throw-bad-http-request" => "throw new Microsoft.AspNetCore.Http.BadHttpRequestException(\"payload too large in handler\", 413)",
                         "throw-not-implemented" => "throw new System.NotImplementedException(\"not implemented in handler\")",
                         _ when operationId == "getDefaultError" && mode.StartsWith('d') => $"{resultType}.Error(new ErrorBodies.Generated.Models.ErrorResponse(\"c{mode[1..]}\", \"{mode[1..]} default from handler\"), {mode[1..]})",
                         _ => BuildFactoryCall(resultType, mode, available),

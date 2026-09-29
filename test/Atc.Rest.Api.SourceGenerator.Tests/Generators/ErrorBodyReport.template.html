@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Error Body Matrix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #f5f7f8; --surface: #ffffff; --surface-2: #eef2f3; --ink: #162226; --muted: #566a6f; --line: #d8e1e3;
+    --accent: #0e6470; --accent-soft: #e0eff1; --code-bg: #edf2f3;
+    --pass: #1d7a46; --pass-soft: #e2f3e8; --lossy: #8a5a00; --lossy-soft: #fbefd6;
+    --fail: #a3312b; --fail-soft: #fbe5e3; --platform: #4c5aa6; --platform-soft: #e8eaf8; --na: #7b8a8e; --na-soft: #eef1f2;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0f1719; --surface: #152023; --surface-2: #1a282c; --ink: #e2ebed; --muted: #97adb1; --line: #283a3e;
+      --accent: #5fc4cf; --accent-soft: #163236; --code-bg: #1b292d;
+      --pass: #6fd39a; --pass-soft: #163426; --lossy: #e6b65a; --lossy-soft: #392d13; --fail: #f08a82; --fail-soft: #3c1c1a;
+      --platform: #a6b2f2; --platform-soft: #1f2442; --na: #8a9a9e; --na-soft: #1d2a2d;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f1719; --surface: #152023; --surface-2: #1a282c; --ink: #e2ebed; --muted: #97adb1; --line: #283a3e;
+    --accent: #5fc4cf; --accent-soft: #163236; --code-bg: #1b292d;
+    --pass: #6fd39a; --pass-soft: #163426; --lossy: #e6b65a; --lossy-soft: #392d13; --fail: #f08a82; --fail-soft: #3c1c1a;
+    --platform: #a6b2f2; --platform-soft: #1f2442; --na: #8a9a9e; --na-soft: #1d2a2d;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 400 14px/1.55 "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif; padding-inline: 16px; padding-block: 24px 64px; }
+  main { max-width: 1400px; margin: 0 auto; display: grid; gap: 24px; }
+  h1, h2, h3 { margin: 0; line-height: 1.25; text-wrap: balance; }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 19px; font-weight: 600; }
+  h3 { font-size: 15px; font-weight: 600; }
+  p { margin: 0; max-width: 78ch; }
+  a { color: var(--accent); }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, Consolas, monospace; font-size: 0.9em; }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  .eyebrow { font: 500 11.5px/1 "IBM Plex Mono", ui-monospace, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+  header { display: grid; gap: 10px; }
+  .lead { font-size: 16px; }
+  .meta { color: var(--muted); font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tabs button { font: inherit; font-weight: 500; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); padding: 8px 12px; cursor: pointer; }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+  .tabs button:focus-visible, .chipbox label:focus-within, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  section[hidden] { display: none !important; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; align-content: start; }
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 2px; }
+  .stat b { font-size: 22px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 12.5px; }
+  .v { display: inline-block; font: 500 11px/1.2 "IBM Plex Mono", ui-monospace, monospace; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+  .v.pass { background: var(--pass-soft); color: var(--pass); } .v.lossy { background: var(--lossy-soft); color: var(--lossy); }
+  .v.fail { background: var(--fail-soft); color: var(--fail); } .v.platform { background: var(--platform-soft); color: var(--platform); }
+  .v.na { background: var(--na-soft); color: var(--na); }
+  .legend { display: grid; gap: 8px; align-content: start; }
+  .legend div { display: flex; gap: 10px; align-items: baseline; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  thead th { position: sticky; top: 0; background: var(--surface-2); font: 500 11px/1.3 "IBM Plex Mono", ui-monospace, monospace; letter-spacing: 0.03em; color: var(--muted); z-index: 1; }
+  tbody tr:hover td { background: var(--surface-2); }
+  td.num, th.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  .pivot td { white-space: nowrap; }
+  .bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; min-width: 90px; background: var(--na-soft); }
+  .bar i { display: block; height: 100%; }
+  .bar .pass { background: var(--pass); } .bar .lossy { background: var(--lossy); } .bar .fail { background: var(--fail); } .bar .platform { background: var(--platform); }
+  .counts { font: 11px/1.4 "IBM Plex Mono", ui-monospace, monospace; color: var(--muted); }
+  .filters { display: grid; gap: 12px; }
+  .filters .row { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+  .filters .label { font: 500 11px/1 "IBM Plex Mono", ui-monospace, monospace; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); min-width: 92px; }
+  .chipbox { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 0; min-width: 0; }
+  .filters .row > .chipbox:only-of-type { flex: 1 1 0; }
+  .filters .row label.chipbox { flex: 0 0 auto; }
+  .chipbox label { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; cursor: pointer; background: var(--surface); font-size: 12.5px; user-select: none; }
+  .chipbox input { margin: 0; accent-color: var(--accent); }
+  .chipbox label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  select, input[type="search"] { font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); }
+  .btn { font: inherit; font-size: 12.5px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  .matrix td.cell { cursor: pointer; min-width: 150px; max-width: 280px; }
+  .matrix td.cell .s { display: block; margin-top: 3px; color: var(--muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; word-break: break-word; }
+  .compact .matrix td.cell .s { display: none; }
+  .matrix td.wire { min-width: 190px; max-width: 300px; font-size: 11.5px; }
+  .matrix td.wire .ct { font-family: "IBM Plex Mono", ui-monospace, monospace; color: var(--muted); }
+  .matrix td.status { font: 600 13px/1.3 "IBM Plex Mono", ui-monospace, monospace; white-space: nowrap; }
+  .matrix td.status small { display: block; font: 400 11px/1.3 "IBM Plex Sans", sans-serif; color: var(--muted); white-space: normal; }
+  .matrix th.decl { background: var(--accent-soft); color: var(--accent); }
+  .same { font: 500 10.5px/1 "IBM Plex Mono", monospace; color: var(--pass); }
+  .diff { font: 500 10.5px/1 "IBM Plex Mono", monospace; color: var(--lossy); }
+  dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); max-width: min(900px, calc(100vw - 32px)); width: 100%; padding: 0; }
+  dialog::backdrop { background: rgb(0 0 0 / 0.45); }
+  dialog .inner { padding: 18px; display: grid; gap: 12px; max-height: 85vh; overflow: auto; }
+  dialog pre { margin: 0; background: var(--code-bg); padding: 10px 12px; border-radius: 6px; overflow-x: auto; font: 12px/1.5 "IBM Plex Mono", ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }
+  dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; font-size: 13px; }
+  dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; word-break: break-word; }
+  .note { background: var(--accent-soft); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; }
+  .axes td, .axes th { font-size: 13px; }
+  ul.tight { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+  .ask { border-left: 3px solid var(--lossy); padding: 4px 0 4px 12px; display: grid; gap: 4px; }
+  .ask.done { border-left-color: var(--pass); }
+  .empty { padding: 24px; color: var(--muted); text-align: center; }
+  @media (prefers-reduced-motion: no-preference) { .bar i { transition: width 0.3s ease; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">atc-rest-api-source-generator 3.0 · proven by an end-to-end run</div>
+    <h1>Error Body Matrix</h1>
+    <p class="lead">What the generated server writes for every HTTP error status and every way a specification can declare it, and what each generated client makes of those bytes. Every cell is a recorded result of a real run: the generated server on Kestrel, each generated client calling it over HTTP.</p>
+    <div class="meta" id="provenance"></div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="overview">Overview</button>
+    <button role="tab" aria-selected="false" data-tab="matrix">Matrix</button>
+    <button role="tab" aria-selected="false" data-tab="method">How it was tested</button>
+    <button role="tab" aria-selected="false" data-tab="readiness">3.0 readiness</button>
+  </nav>
+
+  <section id="tab-overview" role="tabpanel">
+    <div class="stats" id="stats"></div>
+    <div class="grid-2">
+      <div class="panel">
+        <h2>Verdicts</h2>
+        <div class="legend">
+          <div><span class="v pass">pass</span><span>The client exposes what the documented contract says: the right status, accessor, type and arm, every field of the body as on the wire, no exception.</span></div>
+          <div><span class="v lossy">lossy</span><span>The client does what the documentation says and does not throw, but the typed value cannot hold some fields of the body - the cell names them; they stay in the raw body (<code>Content</code>). E.g. the custom error model reading a ProblemDetails, or a string accessor reading a validation 400.</span></div>
+          <div><span class="v fail">fail</span><span>The contract is broken: a wrong status, accessor, type, arm or field value, or an exception.</span></div>
+          <div><span class="v platform">platform</span><span>Outside the generated code: the runtime itself refuses the response (reproduced with a plain call).</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Reading the axes</h2>
+        <p>The server has one mode: it writes what the specification declares. <b>TypedClient</b> and <b>EndpointPerOperation</b> are generation modes of the <b>C# client</b>, and <code>errorResponseFormat</code> is read by the C# EndpointPerOperation client only - it decides how a status with <i>nothing</i> declared is read. The TypeScript clients have one mode. So the matrix is one server against eight clients, per declaration style and status.</p>
+        <div class="table-wrap"><table class="axes"><tbody id="axes"></tbody></table></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Per client and declaration</h2>
+      <p>Counts over every status code, with and without a handler value. Click a cell to open the matrix filtered to it.</p>
+      <div class="table-wrap"><table class="pivot" id="pivot"></table></div>
+    </div>
+    <div class="panel">
+      <h2>Findings from this run</h2>
+      <div id="findings"></div>
+    </div>
+  </section>
+
+  <section id="tab-matrix" role="tabpanel" hidden>
+    <div class="panel filters">
+      <div class="row"><span class="label">Declared</span><div class="chipbox" id="f-decl"></div></div>
+      <div class="row"><span class="label">Clients</span><div class="chipbox" id="f-client"></div></div>
+      <div class="row"><span class="label">Scenario</span><div class="chipbox" id="f-group"></div></div>
+      <div class="row">
+        <span class="label">Handler</span>
+        <select id="f-handler"><option value="all">value and empty call</option><option value="value">with a value</option><option value="empty">empty call</option></select>
+        <span class="label">Status</span>
+        <input type="search" id="f-status" placeholder="404, 4xx, 50…" size="12">
+        <span class="label">Show</span>
+        <select id="f-verdict"><option value="all">all rows</option><option value="nonpass">rows with a non-pass cell</option><option value="fail">rows with a fail</option><option value="lossy">rows with a lossy cell</option><option value="formatsdiffer">rows where the C# formats differ</option></select>
+        <label class="chipbox"><label><input type="checkbox" id="f-compact"> compact cells</label></label>
+        <button class="btn" id="f-reset">Reset</button>
+      </div>
+      <div class="counts" id="f-count"></div>
+    </div>
+    <div class="table-wrap" id="matrix-wrap"><table class="matrix" id="matrix"></table></div>
+  </section>
+
+  <section id="tab-method" role="tabpanel" hidden>
+    <div class="panel" id="method"></div>
+  </section>
+
+  <section id="tab-readiness" role="tabpanel" hidden>
+    <div class="panel" id="readiness"></div>
+  </section>
+
+  <dialog id="detail"><div class="inner" id="detail-inner"></div></dialog>
+</main>
+
+<script>
+const REPORT = /*__REPORT_DATA__*/null;
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const VERDICTS = ['pass', 'lossy', 'fail', 'platform'];
+const GROUP_LABELS = { sweep: 'Status sweep', handler: 'Handler errors', exception: 'Exceptions → status', validation: 'Validation 400', fault: 'Faults', default: '`default` response', stub: 'Foreign bodies (stub)', framework: 'Framework errors', success: 'Success' };
+const DECL_SHORT = { setAllNone: 'None', setAllJsonProblem: 'JSON model', setAllJsonString: 'JSON string', setAllTextPlain: 'text/plain', setAllFrameworkProblem: 'ProblemDetails', setProblemJson: 'problem+json model', setRefResponse: '$ref response', getFault: 'Faults', getDefaultError: 'default', '(framework)': 'Framework' };
+
+// Groups that belong to one declaration column (the others are scenarios of their own).
+const DECL_GROUPS = ['sweep', 'handler', 'exception', 'success'];
+const STORE = 'ebm2:';
+function store(key, value) { try { localStorage.setItem(STORE + key, JSON.stringify(value)); } catch { /* storage unavailable */ } }
+function load(key, fallback) { try { const v = localStorage.getItem(STORE + key); return v === null ? fallback : JSON.parse(v); } catch { return fallback; } }
+
+function renderMissing() {
+  document.querySelector('main').insertAdjacentHTML('beforeend', '<div class="panel"><p>This page was opened as a template: no run data is embedded. Generate it with the <code>Report_EndToEndErrorBodyMatrix</code> test.</p></div>');
+}
+
+if (!REPORT) {
+  renderMissing();
+} else {
+  const cases = REPORT.cases;
+  const clients = REPORT.clients;
+  const epoIds = clients.filter((c) => c.format).map((c) => c.id);
+
+  // Provenance
+  const p = REPORT.provenance;
+  $('#provenance').innerHTML = [
+    `Run ${esc(REPORT.generatedAt)} (${esc(REPORT.durationSeconds)} s)`,
+    `commit <span class="mono">${esc(p.commit)}</span>${p.uncommittedFiles ? ` + ${esc(p.uncommittedFiles)} uncommitted files (working tree <span class="mono" title="git stash create">${esc(String(p.workingTreeStash ?? '').slice(0, 10))}</span>, ${esc(Object.keys(p.untrackedFiles ?? {}).length)} untracked source files hashed)` : ''}`,
+    `.NET ${esc(p.dotnet)} · Node ${esc(p.node)}`,
+    esc(p.os),
+    `${cases.length} cases × ${clients.length} clients`,
+  ].map((s) => `<span>${s}</span>`).join('');
+
+  // Stats
+  const all = [];
+  for (const c of cases) { all.push({ v: c.wire.verdict }); for (const id in c.clients) all.push({ v: c.clients[id].verdict }); }
+  const cnt = (v) => all.filter((x) => x.v === v).length;
+  $('#stats').innerHTML = [
+    ['Cells checked', all.length], ['pass', cnt('pass')], ['lossy', cnt('lossy')], ['fail', cnt('fail')], ['platform', cnt('platform')],
+    ['Status codes', new Set(cases.map((c) => c.status)).size],
+  ].map(([k, v]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join('');
+
+  // Axes
+  $('#axes').innerHTML = `<tr><th>Declaration (the spec)</th><th>What it is</th></tr>` +
+    REPORT.declarations.map((d) => `<tr><td><b>${esc(DECL_SHORT[d.id] ?? d.id)}</b></td><td>${esc(d.label)}<br><code>${esc(d.spec)}</code></td></tr>`).join('') +
+    `<tr><th>Client</th><th>Configuration</th></tr>` +
+    clients.map((c) => `<tr><td><b>${esc(c.group)}</b></td><td>${esc(c.label)}${c.format ? '' : ' <span class="v na">errorResponseFormat not read</span>'}</td></tr>`).join('');
+
+  // Pivot
+  const SCENARIO_COLS = ['validation', 'fault', 'default', 'stub'];
+  const colKeys = [...REPORT.declarations.map((d) => d.id), ...SCENARIO_COLS];
+  const colLabel = (k) => SCENARIO_COLS.includes(k) ? GROUP_LABELS[k] : (DECL_SHORT[k] ?? k);
+  const inCol = (c, k) => SCENARIO_COLS.includes(k) ? c.group === k : (c.operation === k && DECL_GROUPS.includes(c.group));
+  function tally(list) { const t = { pass: 0, lossy: 0, fail: 0, platform: 0 }; for (const v of list) if (t[v] !== undefined) t[v]++; return t; }
+  function barHtml(t) {
+    const total = VERDICTS.reduce((s, v) => s + t[v], 0) || 1;
+    return `<div class="bar">${VERDICTS.map((v) => t[v] ? `<i class="${v}" style="width:${(t[v] / total * 100).toFixed(1)}%"></i>` : '').join('')}</div>` +
+      `<div class="counts">${VERDICTS.filter((v) => t[v]).map((v) => `${t[v]} ${v}`).join(' · ')}</div>`;
+  }
+  let pivot = `<thead><tr><th>Client</th><th>Server wire</th>${colKeys.map((k) => `<th>${esc(colLabel(k))}</th>`).join('')}</tr></thead><tbody>`;
+  const wireTally = tally(cases.filter((c) => c.group !== 'framework').map((c) => c.wire.verdict));
+  pivot += `<tr><td><b>Server</b> <span class="counts">(the wire)</span></td><td>${barHtml(wireTally)}</td>${colKeys.map((k) => `<td data-col="${k}" data-client="">${barHtml(tally(cases.filter((c) => inCol(c, k)).map((c) => c.wire.verdict)))}</td>`).join('')}</tr>`;
+  for (const cl of clients) {
+    pivot += `<tr><td><b>${esc(cl.group)}</b><br><span class="counts">${esc(cl.label)}</span></td><td></td>` +
+      colKeys.map((k) => `<td style="cursor:pointer" data-col="${k}" data-client="${cl.id}">${barHtml(tally(cases.filter((c) => inCol(c, k) && c.clients[cl.id]).map((c) => c.clients[cl.id].verdict)))}</td>`).join('') + '</tr>';
+  }
+  pivot += '</tbody>';
+  $('#pivot').innerHTML = pivot;
+  $('#pivot').addEventListener('click', (e) => {
+    const td = e.target.closest('td[data-col]');
+    if (!td) return;
+    const col = td.dataset.col;
+    state.decl = REPORT.declarations.some((d) => d.id === col) ? [col] : REPORT.declarations.map((d) => d.id);
+    state.group = REPORT.declarations.some((d) => d.id === col) ? [...DECL_GROUPS] : [col];
+    if (td.dataset.client) state.client = [td.dataset.client];
+    state.verdict = 'all';
+    syncFilters(); selectTab('matrix'); renderMatrix();
+  });
+
+  // Findings: every non-pass client verdict, grouped by client + reason.
+  const findings = new Map();
+  for (const c of cases) {
+    for (const id in c.clients) {
+      const cell = c.clients[id];
+      if (cell.verdict === 'pass') continue;
+      const reason = cell.why.replace(/\b\d{3}\b/g, 'NNN');
+      const key = `${cell.verdict}|${id}|${reason}`;
+      if (!findings.has(key)) findings.set(key, { verdict: cell.verdict, client: id, reason, cases: [] });
+      findings.get(key).cases.push(c);
+    }
+  }
+  const order = { fail: 0, platform: 1, lossy: 2 };
+  const rows = [...findings.values()].sort((a, b) => order[a.verdict] - order[b.verdict] || b.cases.length - a.cases.length);
+  const clientLabel = (id) => { const c = clients.find((x) => x.id === id); return c ? `${c.group} · ${c.label}` : id; };
+  const findingsTable = (list) => `<div class="table-wrap"><table><thead><tr><th>Verdict</th><th>Client</th><th>What</th><th class="num">Cells</th><th>Where</th></tr></thead><tbody>${list.map((r) => {
+      const ops = [...new Set(r.cases.map((c) => DECL_SHORT[c.operation] ?? c.operation))].join(', ');
+      return `<tr><td><span class="v ${r.verdict}">${r.verdict}</span></td><td>${esc(clientLabel(r.client))}</td><td>${esc(r.reason)}</td><td class="num">${r.cases.length}</td><td>${esc(ops)}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+  const serious = rows.filter((r) => r.verdict !== 'lossy');
+  const lossy = rows.filter((r) => r.verdict === 'lossy');
+  const lossyCells = lossy.reduce((s, r) => s + r.cases.length, 0);
+  $('#findings').innerHTML =
+    (serious.length === 0 ? '<p><span class="v pass">0 fail</span> No client breaks the contract anywhere in the matrix.</p>' : findingsTable(serious)) +
+    (lossy.length === 0 ? '' : `<details><summary style="cursor:pointer;margin-top:10px"><span class="v lossy">lossy</span> ${lossyCells} cells in ${lossy.length} groups - read as configured, information only in the raw body (expand)</summary><div style="margin-top:10px">${findingsTable(lossy)}</div></details>`);
+
+  // Filters
+  const state = {
+    decl: load('decl', REPORT.declarations.map((d) => d.id)),
+    client: load('client', clients.map((c) => c.id)),
+    group: load('group', Object.keys(GROUP_LABELS)),
+    handler: load('handler', 'all'),
+    status: '',
+    verdict: load('verdict', 'all'),
+    compact: load('compact', false),
+  };
+  function chips(container, items, key) {
+    $(container).innerHTML = items.map((it) => `<label><input type="checkbox" value="${esc(it.id)}"> ${esc(it.label)}</label>`).join('');
+    $(container).addEventListener('change', () => {
+      state[key] = [...$(container).querySelectorAll('input:checked')].map((i) => i.value);
+      store(key, state[key]); renderMatrix();
+    });
+  }
+  chips('#f-decl', REPORT.declarations.map((d) => ({ id: d.id, label: DECL_SHORT[d.id] ?? d.id })), 'decl');
+  chips('#f-client', clients.map((c) => ({ id: c.id, label: `${c.group.replace('C# EndpointPerOperation', 'C# EPO')} · ${c.label.replace('errorResponseFormat: ', '').replace('typedClientResultStyle: ', '')}` })), 'client');
+  chips('#f-group', Object.entries(GROUP_LABELS).map(([id, label]) => ({ id, label })), 'group');
+  function syncFilters() {
+    for (const [sel, key] of [['#f-decl', 'decl'], ['#f-client', 'client'], ['#f-group', 'group']]) {
+      for (const input of $(sel).querySelectorAll('input')) input.checked = state[key].includes(input.value);
+    }
+    $('#f-handler').value = state.handler; $('#f-verdict').value = state.verdict; $('#f-status').value = state.status;
+    $('#f-compact').checked = state.compact; document.body.classList.toggle('compact', state.compact);
+  }
+  $('#f-handler').addEventListener('change', (e) => { state.handler = e.target.value; store('handler', state.handler); renderMatrix(); });
+  $('#f-verdict').addEventListener('change', (e) => { state.verdict = e.target.value; store('verdict', state.verdict); renderMatrix(); });
+  $('#f-status').addEventListener('input', (e) => { state.status = e.target.value.trim(); renderMatrix(); });
+  $('#f-compact').addEventListener('change', (e) => { state.compact = e.target.checked; store('compact', state.compact); document.body.classList.toggle('compact', state.compact); });
+  $('#f-reset').addEventListener('click', () => {
+    state.decl = REPORT.declarations.map((d) => d.id); state.client = clients.map((c) => c.id);
+    state.group = Object.keys(GROUP_LABELS); state.handler = 'all'; state.status = ''; state.verdict = 'all';
+    for (const k of ['decl', 'client', 'group', 'handler', 'verdict']) store(k, state[k]);
+    syncFilters(); renderMatrix();
+  });
+
+  function statusMatches(status) {
+    const q = state.status.toLowerCase();
+    if (!q) return true;
+    const s = String(status);
+    if (/^\dxx$/.test(q)) return s[0] === q[0];
+    return s.startsWith(q);
+  }
+  function handlerMatches(c) {
+    if (state.handler === 'all') return true;
+    const empty = c.mode.endsWith('-empty') || /\(\)$/.test(c.handler);
+    return state.handler === 'empty' ? empty : !empty;
+  }
+  function formatsDiffer(c) {
+    const vals = epoIds.map((id) => c.clients[id]?.summary.replace(/^\d{3} · /, '')).filter((x) => x !== undefined);
+    return new Set(vals).size > 1;
+  }
+
+  function renderMatrix() {
+    const shownClients = clients.filter((c) => state.client.includes(c.id));
+    // Rows: one per (declaration-or-scenario, status, handler); columns: wire + each client.
+    const visible = cases.filter((c) => state.group.includes(c.group) &&
+      ((!DECL_GROUPS.includes(c.group) && c.group !== 'validation') || state.decl.includes(c.operation)) &&
+      statusMatches(c.status) && handlerMatches(c) && (() => {
+        const cells = shownClients.map((cl) => c.clients[cl.id]?.verdict).filter(Boolean);
+        switch (state.verdict) {
+          case 'nonpass': return cells.some((v) => v !== 'pass') || c.wire.verdict !== 'pass';
+          case 'fail': return cells.includes('fail') || c.wire.verdict === 'fail';
+          case 'lossy': return cells.includes('lossy');
+          case 'formatsdiffer': return formatsDiffer(c);
+          default: return true;
+        }
+      })());
+    visible.sort((a, b) => a.status - b.status || String(a.operation).localeCompare(String(b.operation)) || a.mode.localeCompare(b.mode));
+    $('#f-count').textContent = `${visible.length} of ${cases.length} cases · ${shownClients.length} of ${clients.length} clients`;
+    if (visible.length === 0) { $('#matrix').innerHTML = '<tbody><tr><td class="empty">No case matches the filters.</td></tr></tbody>'; return; }
+
+    let html = `<thead><tr><th>Status</th><th class="decl">Declared / scenario</th><th>Handler</th><th>Server wire</th>${shownClients.map((c) => `<th title="${esc(c.group + ' · ' + c.label)}">${esc(c.group.replace('C# EndpointPerOperation', 'C# EPO'))}<br>${esc(c.label.replace('errorResponseFormat: ', '').replace('typedClientResultStyle: ', ''))}</th>`).join('')}</tr></thead><tbody>`;
+    for (const c of visible) {
+      const idx = cases.indexOf(c);
+      const same = epoIds.every((id) => shownClients.some((s) => s.id === id)) && c.group === 'sweep' && c.operation !== 'setAllNone'
+        ? (formatsDiffer(c) ? '<span class="diff">C# formats differ</span>' : '<span class="same">C# formats identical</span>') : '';
+      html += `<tr>
+        <td class="status">${esc(c.status)}<small>${esc(GROUP_LABELS[c.group] ?? c.group)}</small></td>
+        <td>${esc(DECL_SHORT[c.operation] ?? c.operation)}<br>${same}</td>
+        <td class="mono" style="font-size:11.5px">${esc(c.handler)}</td>
+        <td class="wire cell" data-case="${idx}" data-client=""><span class="v ${c.wire.verdict}">${c.wire.verdict}</span> <span class="ct">${esc(c.wire.mediaType)}</span><span class="s">${esc(c.wire.bodyKind)} · ${esc(c.wire.body.slice(0, 140))}</span></td>
+        ${shownClients.map((cl) => { const cell = c.clients[cl.id]; return cell
+          ? `<td class="cell" data-case="${idx}" data-client="${cl.id}"><span class="v ${cell.verdict}">${cell.verdict}</span><span class="s">${esc(cell.summary)}</span></td>`
+          : `<td class="cell"><span class="v na">not reachable</span><span class="s">no generated method calls it</span></td>`; }).join('')}
+      </tr>`;
+    }
+    $('#matrix').innerHTML = html + '</tbody>';
+  }
+  $('#matrix').addEventListener('click', (e) => {
+    const td = e.target.closest('td[data-case]');
+    if (td) openDetail(cases[Number(td.dataset.case)], td.dataset.client);
+  });
+
+  function pretty(body) { try { return JSON.stringify(JSON.parse(body), null, 2); } catch { return body; } }
+  function openDetail(c, clientId) {
+    const cl = clients.find((x) => x.id === clientId);
+    const cell = clientId ? c.clients[clientId] : null;
+    $('#detail-inner').innerHTML = `
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:start"><h2>${esc(c.status)} · ${esc(DECL_SHORT[c.operation] ?? c.operation)}</h2><button class="btn" id="detail-close">Close</button></div>
+      <dl class="kv">
+        <dt>Case</dt><dd class="mono">${esc(c.id)}</dd>
+        <dt>Scenario</dt><dd>${esc(GROUP_LABELS[c.group] ?? c.group)}</dd>
+        <dt>Handler</dt><dd class="mono">${esc(c.handler)}</dd>
+        <dt>Wire</dt><dd><span class="v ${c.wire.verdict}">${c.wire.verdict}</span> ${esc(c.wire.status)} · <span class="mono">${esc(c.wire.contentType)}</span> · ${esc(c.wire.bodyKind)}${c.wire.retryAfter ? ` · Retry-After ${esc(c.wire.retryAfter)}` : ''}</dd>
+        <dt>Wire verdict</dt><dd>${esc(c.wire.why)}</dd>
+      </dl>
+      <h3>Body on the wire</h3><pre>${esc(pretty(c.wire.body))}</pre>
+      ${cell ? `<h3>${esc(cl.group)} · ${esc(cl.label)}</h3>
+        <dl class="kv"><dt>Verdict</dt><dd><span class="v ${cell.verdict}">${cell.verdict}</span> ${esc(cell.why)}</dd></dl>
+        <pre>${esc(cell.summary)}</pre>` : ''}
+      <h3>All clients</h3>
+      <div class="table-wrap"><table><tbody>${clients.map((x) => { const y = c.clients[x.id]; return y ? `<tr><td>${esc(x.group)}<br><span class="counts">${esc(x.label)}</span></td><td><span class="v ${y.verdict}">${y.verdict}</span></td><td>${esc(y.summary)}</td></tr>` : ''; }).join('')}</tbody></table></div>`;
+    $('#detail-close').addEventListener('click', () => $('#detail').close());
+    $('#detail').showModal();
+  }
+  $('#detail').addEventListener('click', (e) => { if (e.target === $('#detail')) $('#detail').close(); });
+
+  syncFilters();
+  renderMatrix();
+
+  // How it was tested
+  $('#method').innerHTML = `
+    <h2>How every cell was produced</h2>
+    <ul class="tight">
+      <li><b>Server.</b> The source generator generates the server from one specification: 42 error statuses (every registered 4xx/5xx plus 499 and 599) declared five ways - nothing, a JSON model, a JSON string, text/plain, <code>ProblemDetails</code>; a model under <code>application/problem+json</code> for 400/404/409/422; a <code>$ref</code> to <code>components/responses</code> for 404/422; faults (500/503 declared without a body) and a <code>default</code> response. The code is compiled and hosted on Kestrel (Production environment) with its generated host wiring (<code>AddProblemDetails</code> + <code>UseStatusCodePages</code>, the ValidationFilter and the global error handler). Handlers call each generated factory with a value and empty, and throw <code>ArgumentException</code>, <code>ArgumentNullException</code>, <code>InvalidOperationException</code>, <code>InvalidDataException</code>, <code>UnauthorizedAccessException</code>, <code>TimeoutException</code>, <code>OperationCanceledException</code>, <code>NotImplementedException</code> and <code>BadHttpRequestException(413)</code>, checked against the documented exception &rarr; status mapping.</li>
+      <li><b>Foreign bodies.</b> A stub in front of the generated endpoints answers with bodies the generated server never writes - XML, <code>application/octet-stream</code>, no Content-Type, a proxy's HTML 502, malformed / empty / whitespace JSON, a JSON string that reads like a number (<code>"42"</code>), a mixed-case <code>Application/Problem+JSON</code>, a vendor <code>+json</code> object, non-ASCII text. It does so on two routes: <code>getFault</code> (503 declared without a body, 502 not declared) and <code>setAllJsonProblem</code> (every status declared as a model), so the ProblemDetails, string, custom-model and declared-model accessors all meet them. The C# charset decoding of non-text bodies has its own test (<code>ClientWithTextErrorBody_DecodesByTheContentTypeCharset</code>).</li>
+      <li><b>Wire.</b> Every case is sent once with <code>HttpClient</code>; status, <code>Content-Type</code>, <code>Retry-After</code> and the raw body are recorded, and the body kind is classified from the bytes.</li>
+      <li><b>C# clients.</b> The source generator generates each client (EndpointPerOperation with each <code>errorResponseFormat</code> - Custom with the Monta sample's <code>customErrorResponseModel</code> - and the TypedClient in both result styles); a probe calls every case against the host and records the status, <code>IsSuccess</code>, the typed accessor and its value (or its exception).</li>
+      <li><b>TypeScript clients.</b> The CLI executable (<code>atc-rest-api-gen generate client-typescript</code>) generates the Fetch and the Axios client; a Node harness (<code>tsx</code>) calls every case over HTTP and records the result arm, the error class, <code>message</code>, <code>detail</code>, <code>body</code> and <code>errors</code>. Every client must report every case.</li>
+      <li><b>Verdicts.</b> Each cell is judged by rules written from the documented contract (wiki: <i>Working with Error Responses</i>): the expected accessor, type and arm come from the specification (never from the generated client), and every typed value is compared field by field with the body on the wire. <span class="v lossy">lossy</span> is only given with the exact fields the typed value cannot hold; any other difference is a <span class="v fail">fail</span>. The same rules run as the test <code>EndToEnd_EveryClientReadsWhatTheServerWrites</code>, which fails on any fail; this page is its data. The test <code>MatrixVerdicts_FailRegressedResults</code> is a negative control: for each rule - wire (success, validation, handler value, default body, exceptions, Retry-After, stub), EndpointPerOperation (success, IsSuccess, value, JSON-text string, custom field, default accessor, undeclared <code>Content</code>, non-JSON bodies, the fields a lossy names), TypedClient Throw and Result, TypeScript (arm, generated arms, class, status, body, fields, message, validation errors, success arm) - it asserts that a correct result passes and a regressed one fails, so a pass is evidence rather than the absence of a check.</li>
+      <li><b>Not exercised.</b> Secured and rate-limited operations (a 401/403 from the authentication handler, the generated rate limiter's 429, <code>WWW-Authenticate</code>); validation exceptions thrown by handler code; the framework's 413/415 and bad parameter values; the Development environment (5xx <code>detail</code>); OpenAPI 3.1/3.2 specifications; a server without Atc.Rest.MinimalApi or with the ValidationFilter / global error handler switched off; <code>x-retry-*</code> policies; network failures, timeouts and cancellation; 1xx and 3xx statuses, HEAD, 2xx other than 200/204; binary and streaming operations (the C# EndpointPerOperation limit is documented; the TypedClient Result download case has its own test); the React Query / SWR hooks, Zod runtime validation, date conversion and naming strategies (the error path is the same <code>ApiError</code>); a browser runtime (the TypeScript clients run in Node - CORS, header exposure and Axios' <code>Blob</code> error bodies on downloads are not observed); text bodies in a charset other than UTF-8 in the TypeScript clients. Node's fetch rejects every 407 response, so the Fetch client cannot be observed on 407.</li>
+    </ul>
+    <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*Report_EndToEndErrorBodyMatrix" --explicit only</code> writes this page and <code>issues/return-body-report.json</code>.</p></div>
+    <div id="review"></div>`;
+  $('#review').innerHTML = REPORT.review ? `<h3>Independent review</h3>${REPORT.review}` : '';
+
+  // Readiness
+  $('#readiness').innerHTML = REPORT.readiness ?? '<p>No readiness notes embedded.</p>';
+}
+
+// Tabs
+function selectTab(name) {
+  for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-selected', String(b.dataset.tab === name));
+  for (const s of document.querySelectorAll('section[role="tabpanel"]')) s.hidden = s.id !== 'tab-' + name;
+  store('tab', name);
+}
+for (const b of document.querySelectorAll('.tabs button')) b.addEventListener('click', () => selectTab(b.dataset.tab));
+selectTab(location.hash && document.getElementById('tab-' + location.hash.slice(1)) ? location.hash.slice(1) : load('tab', 'overview'));
+</script>
+</body>
+</html>

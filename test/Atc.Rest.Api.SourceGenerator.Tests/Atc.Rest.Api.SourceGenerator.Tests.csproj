@@ -55,6 +55,11 @@
     <ProjectReference Include="..\..\src\Atc.Rest.Api.SourceGenerator\Atc.Rest.Api.SourceGenerator.csproj">
       <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
     </ProjectReference>
+    <!-- Build order only: the end-to-end error-body tests run the CLI executable to generate the TypeScript clients. -->
+    <ProjectReference Include="..\..\src\Atc.Rest.Api.Generator.Cli\Atc.Rest.Api.Generator.Cli.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <SkipGetTargetFrameworkProperties>true</SkipGetTargetFrameworkProperties>
+    </ProjectReference>
   </ItemGroup>
 
   <!-- Include runtime assemblies so they are properly registered in deps.json -->
