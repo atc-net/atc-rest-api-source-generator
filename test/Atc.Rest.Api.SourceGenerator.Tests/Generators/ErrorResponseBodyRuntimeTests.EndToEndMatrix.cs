@@ -22,6 +22,7 @@ public partial class ErrorResponseBodyRuntimeTests
     private const string VerdictLossy = "lossy";
     private const string VerdictFail = "fail";
     private const string VerdictPlatform = "platform";
+    private const string VerdictNotApplicable = "na";
     private const string CustomModel = "ErrorResponse (custom)";
     private const string DefaultModel = "ErrorResponse";
 
@@ -59,6 +60,8 @@ public partial class ErrorResponseBodyRuntimeTests
     ];
 
     private static readonly int[] NamedArmStatuses = [400, 401, 403, 404, 409, 422, 429];
+
+    private static readonly JsonObject SuccessItem = new() { ["name"] = "thing" };
 
     internal static readonly (string Id, string Group, string Label, string? Format)[] MatrixClients =
     [
@@ -312,6 +315,23 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(VerdictPass, WireVerdict(valueCase, new WireResult(valueCase.Name, 500, "application/problem+json", """{"title":"InternalServerError","status":500,"detail":"500 problem from handler"}""")).Verdict);
         Assert.Equal(VerdictFail, WireVerdict(valueCase, new WireResult(valueCase.Name, 500, "application/problem+json", """{"title":"InternalServerError","status":500}""")).Verdict);
 
+        // Statuses below 400: a redirect's Location, a no-body status, the declared body; 304 is never an error.
+        var movedCase = new ProbeCase("getStatus301", "Statuses", "s301", Reason: null, IsPut: false);
+        Assert.Equal(VerdictPass, WireVerdict(movedCase, new WireResult(movedCase.Name, 301, "(none)", "(empty)", Location: RedirectTarget)).Verdict);
+        Assert.Equal(VerdictFail, WireVerdict(movedCase, new WireResult(movedCase.Name, 301, "application/problem+json", """{"status":301}""")).Verdict);
+        var resetCase = new ProbeCase("getStatus205", "Statuses", "s205", Reason: null, IsPut: false);
+        Assert.Equal(VerdictFail, WireVerdict(resetCase, new WireResult(resetCase.Name, 205, "application/problem+json", """{"status":205}""")).Verdict);
+        var partialCase = new ProbeCase("getStatus206", "Statuses", "s206", Reason: null, IsPut: false);
+        Assert.Equal(VerdictPass, WireVerdict(partialCase, new WireResult(partialCase.Name, 206, "application/json", """{"name":"thing"}""")).Verdict);
+        Assert.Equal(VerdictFail, WireVerdict(partialCase, new WireResult(partialCase.Name, 206, "application/problem+json", """{"status":206}""")).Verdict);
+        var notModifiedCase = new ProbeCase("getStatus304", "Statuses", "s304", Reason: null, IsPut: false);
+        var notModifiedWire = new WireResult(notModifiedCase.Name, 304, "(none)", "(empty)");
+        Assert.Equal(VerdictPass, (string)StatusEndpointPerOperationVerdict(notModifiedCase, notModifiedWire, ["case", "304", "False", "null", "IsNotModified (no content property)", string.Empty])["verdict"]!);
+        Assert.Equal(VerdictFail, (string)StatusEndpointPerOperationVerdict(notModifiedCase, notModifiedWire, ["case", "304", "False", "null", """NotModifiedContent => ProblemDetails {"Status":304}""", string.Empty])["verdict"]!);
+        Assert.Equal(VerdictPass, (string)StatusTypeScriptVerdict(notModifiedCase, notModifiedWire, new JsonObject { ["arm"] = "notModified", ["httpStatus"] = 304 })["verdict"]!);
+        Assert.Equal(VerdictFail, (string)StatusTypeScriptVerdict(notModifiedCase, notModifiedWire, new JsonObject { ["arm"] = "serverError", ["httpStatus"] = 304 })["verdict"]!);
+        Assert.Equal(VerdictFail, (string)StatusTypeScriptVerdict(partialCase, notModifiedWire with { Status = 206 }, new JsonObject { ["arm"] = "ok", ["httpStatus"] = 206, ["data"] = null })["verdict"]!);
+
         // TypedClient Throw: the exception carries the status and the body.
         Assert.Equal(VerdictPass, (string)TypedClientVerdict(noneWire, throwStyle: true, ["case", $"HttpRequestException: HTTP 404 (Not Found): {problem404}"])["verdict"]!);
         Assert.Equal(VerdictFail, (string)TypedClientVerdict(noneWire, throwStyle: true, ["case", "HttpRequestException: HTTP 404 (Not Found): "])["verdict"]!);
@@ -320,6 +340,24 @@ public partial class ErrorResponseBodyRuntimeTests
         // TypedClient Result: an error has no parsed model.
         Assert.Equal(VerdictPass, (string)TypedClientVerdict(noneWire, throwStyle: false, ["case", $"404 IsSuccess=False Content={problem404} ContentObject=null"])["verdict"]!);
         Assert.Equal(VerdictFail, (string)TypedClientVerdict(noneWire, throwStyle: false, ["case", $"404 IsSuccess=False Content={problem404} ContentObject=Item"])["verdict"]!);
+    }
+
+    /// <summary>
+    /// Every value of <c>System.Net.HttpStatusCode</c> (aliases counted once) is in the matrix: the statuses below 400
+    /// each have an operation, the 4xx/5xx are swept by every error declaration.
+    /// </summary>
+    [Fact]
+    public void Matrix_CoversEveryHttpStatusCode()
+    {
+        var inMatrix = NonErrorStatusCodes.Concat(AllErrorStatusCodes).ToHashSet();
+        var missing = Enum.GetValues<HttpStatusCode>()
+            .Select(c => (int)c)
+            .Distinct()
+            .Where(c => !inMatrix.Contains(c))
+            .Order()
+            .ToList();
+
+        Assert.True(missing.Count == 0, "HttpStatusCode values not in the matrix: " + string.Join(", ", missing));
     }
 
     private static List<string> FailingCells(JsonObject matrix)
@@ -352,7 +390,7 @@ public partial class ErrorResponseBodyRuntimeTests
         await using var host = await ErrorBodyHost.StartAsync();
 
         var matrixCases = host.Cases
-            .Where(c => MatrixDeclarations.Any(d => d.OperationId == c.OperationId) || c.OperationId is "getFault" or "getDefaultError")
+            .Where(c => MatrixDeclarations.Any(d => d.OperationId == c.OperationId) || c.OperationId is "getFault" or "getDefaultError" || c.OperationId.StartsWith("getStatus", StringComparison.Ordinal))
             .ToList();
 
         var wire = (await host.CaptureWireAsync()).ToDictionary(w => w.Case, StringComparer.Ordinal);
@@ -377,12 +415,38 @@ public partial class ErrorResponseBodyRuntimeTests
         foreach (var probeCase in matrixCases)
         {
             var observed = wire[probeCase.Name];
+            var caseStatus = observed.Status;
             var wireVerdict = WireVerdict(probeCase, observed);
             var clients = new JsonObject();
-            foreach (var client in MatrixClients)
+
+            // A 1xx is never a final response (RFC 9110 §15.2): the generator must write no factory for it, and there
+            // is nothing a client could call or read.
+            if (probeCase.OperationId.StartsWith("getStatus", StringComparison.Ordinal) && StatusKind(SweepStatus(probeCase.Mode)!.Value) == "informational")
+            {
+                var factoryName = HttpStatusCodeHelper.ToEnumName(SweepStatus(probeCase.Mode)!.Value);
+                observed = new WireResult(probeCase.Name, 0, "(none)", $"(no factory: no handler can return a 1xx - the probe's request only reached the test harness's fallback, a {observed.Status})");
+                caseStatus = SweepStatus(probeCase.Mode)!.Value;
+                wireVerdict = host.Factories[probeCase.OperationId].ContainsKey(factoryName)
+                    ? (VerdictFail, $"a {factoryName} factory was generated for a status that is never a final response")
+                    : (VerdictPass, "no factory is generated: a 1xx is never a final response (RFC 9110 §15.2); ATC_API_OPR030 warns");
+                foreach (var client in MatrixClients)
+                {
+                    clients[client.Id] = Cell(VerdictNotApplicable, "not applicable: nothing to call or read for a status that is never a final response", "-");
+                }
+            }
+
+            foreach (var client in MatrixClients.Where(c => !clients.ContainsKey(c.Id)))
             {
                 JsonObject cell;
-                if (client.Id.StartsWith("ts-", StringComparison.Ordinal))
+                if (probeCase.OperationId.StartsWith("getStatus", StringComparison.Ordinal))
+                {
+                    cell = client.Id.StartsWith("ts-", StringComparison.Ordinal)
+                        ? StatusTypeScriptVerdict(probeCase, observed, typeScript[client.Id].Results.GetValueOrDefault(probeCase.Name))
+                        : client.Format is not null
+                            ? StatusEndpointPerOperationVerdict(probeCase, observed, rows[client.Id].GetValueOrDefault(probeCase.Name))
+                            : StatusTypedClientVerdict(probeCase, observed, client.Id.EndsWith("Throw", StringComparison.Ordinal), rows[client.Id].GetValueOrDefault(probeCase.Name));
+                }
+                else if (client.Id.StartsWith("ts-", StringComparison.Ordinal))
                 {
                     var (results, arms) = typeScript[client.Id];
                     cell = TypeScriptVerdict(probeCase, observed, results.GetValueOrDefault(probeCase.Name), arms.GetValueOrDefault(MethodKey(probeCase)) ?? []);
@@ -406,7 +470,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 ["group"] = CaseGroup(probeCase),
                 ["mode"] = probeCase.Mode,
                 ["handler"] = HandlerCall(probeCase),
-                ["status"] = observed.Status,
+                ["status"] = caseStatus,
                 ["wire"] = new JsonObject
                 {
                     ["status"] = observed.Status,
@@ -415,6 +479,7 @@ public partial class ErrorResponseBodyRuntimeTests
                     ["bodyKind"] = BodyKind(observed),
                     ["body"] = observed.Body,
                     ["retryAfter"] = observed.RetryAfter,
+                    ["location"] = observed.Location,
                     ["verdict"] = wireVerdict.Verdict,
                     ["why"] = wireVerdict.Why,
                 },
@@ -455,6 +520,14 @@ public partial class ErrorResponseBodyRuntimeTests
             ["generatedAt"] = started.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture),
             ["durationSeconds"] = System.Math.Round((DateTimeOffset.Now - started).TotalSeconds, 1),
             ["provenance"] = Provenance(),
+            ["statusCodes"] = new JsonArray([
+                .. NonErrorStatusCodes.Concat(AllErrorStatusCodes).Order().Select(code => (JsonNode)new JsonObject
+                {
+                    ["code"] = code,
+                    ["name"] = HttpStatusCodeHelper.ToEnumName(code),
+                    ["inEnum"] = Enum.IsDefined(typeof(HttpStatusCode), code),
+                }),
+            ]),
             ["declarations"] = new JsonArray([.. MatrixDeclarations.Select(d => (JsonNode)new JsonObject { ["id"] = d.OperationId, ["label"] = d.Label, ["spec"] = d.Spec })]),
             ["clients"] = new JsonArray([.. MatrixClients.Select(c => (JsonNode)new JsonObject { ["id"] = c.Id, ["group"] = c.Group, ["label"] = c.Label, ["format"] = c.Format })]),
             ["cases"] = casesArray,
@@ -468,6 +541,7 @@ public partial class ErrorResponseBodyRuntimeTests
         => probeCase switch
         {
             { Reason: TooLongReason } => "validation",
+            _ when probeCase.OperationId.StartsWith("getStatus", StringComparison.Ordinal) => "status",
             _ when StubResponses.ContainsKey(probeCase.Mode) => "stub",
             { OperationId: "getFault" } => "fault",
             { OperationId: "getDefaultError" } => "default",
@@ -487,6 +561,18 @@ public partial class ErrorResponseBodyRuntimeTests
         if (StubResponses.TryGetValue(probeCase.Mode, out var stub))
         {
             return $"none - a stub answers: {stub.Description}";
+        }
+
+        if (probeCase.OperationId.StartsWith("getStatus", StringComparison.Ordinal) && SweepStatus(probeCase.Mode) is { } statusCode)
+        {
+            var statusFactory = statusCode == 200 ? "Ok" : HttpStatusCodeHelper.ToEnumName(statusCode);
+            return StatusKind(statusCode) switch
+            {
+                "informational" => "none - no factory is generated for a 1xx",
+                "redirect" => $"{statusFactory}(new Uri(\"{RedirectTarget}\"))",
+                "body" => $"{statusFactory}(item)",
+                _ => $"{statusFactory}()",
+            };
         }
 
         if (SweepStatus(probeCase.Mode) is { } code)
@@ -602,6 +688,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 (codes, type) = ([500, 503], "none");
                 break;
             case "getDefaultError":
+            case { } statusOperation when statusOperation.StartsWith("getStatus", StringComparison.Ordinal):
                 return null;
             default:
                 throw new InvalidOperationException($"The matrix has no declaration rule for '{operationId}'");
@@ -748,6 +835,11 @@ public partial class ErrorResponseBodyRuntimeTests
         if (wire.Status != status)
         {
             return (VerdictFail, $"expected status {status}");
+        }
+
+        if (probeCase.OperationId.StartsWith("getStatus", StringComparison.Ordinal))
+        {
+            return StatusWireVerdict(probeCase, wire);
         }
 
         if (StubResponses.TryGetValue(probeCase.Mode, out var stub))
@@ -907,7 +999,9 @@ public partial class ErrorResponseBodyRuntimeTests
             return Cell(VerdictFail, onDefault ? "expected IsDefaultError / DefaultErrorContent" : "expected the status's own accessor, not DefaultErrorContent", summary);
         }
 
-        if (!string.Equals(type, expectedType, StringComparison.Ordinal))
+        // A ValidationProblemDetails is a ProblemDetails (a declared ProblemDetails 400 is read as one).
+        if (!string.Equals(type, expectedType, StringComparison.Ordinal) &&
+            !(expectedType == "ProblemDetails" && type == "ValidationProblemDetails"))
         {
             return Cell(VerdictFail, $"expected {expectedType}, got {type}", summary);
         }
@@ -988,7 +1082,7 @@ public partial class ErrorResponseBodyRuntimeTests
             return Cell(VerdictFail, $"{type}: {string.Join(", ", differs)} differ from the body", summary);
         }
 
-        if (type == "ProblemDetails" && wire["errors"] is not null)
+        if (type == "ProblemDetails" && wire["errors"] is not null && !fields.ContainsKey("errors"))
         {
             return Cell(VerdictLossy, "a ProblemDetails: the field errors are only untyped, in Extensions[\"errors\"]", summary);
         }
@@ -1073,6 +1167,178 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         return Cell(VerdictFail, $"{type} from a body that is no JSON object", summary);
+    }
+
+    /// <summary>
+    /// What RFC 9110 gives a status below 400 (the wiki is silent on them): a 1xx is never a final response
+    /// (§15.2); 204, 205 and 304 carry no body (§15.3.5, §15.3.6, §15.4.5); the redirects carry a Location
+    /// (§15.4); every other declared status sends its declared body.
+    /// </summary>
+    private static string StatusKind(int code)
+        => code switch
+        {
+            < 200 => "informational",
+            204 or 205 or 304 => "no-body",
+            _ when RedirectStatusCodes.Contains(code) => "redirect",
+            _ when StatusCodesWithBody.Contains(code) => "body",
+            _ => "status-only",
+        };
+
+    private static (string Verdict, string Why) StatusWireVerdict(
+        ProbeCase probeCase,
+        WireResult wire)
+    {
+        var code = SweepStatus(probeCase.Mode)!.Value;
+        if (StatusKind(code) == "informational")
+        {
+            return (VerdictFail, $"a {code} is no final response (RFC 9110 §15.2): the generator should write no factory for it");
+        }
+
+        if (wire.Status != code)
+        {
+            return (VerdictFail, $"expected status {code}");
+        }
+
+        var empty = wire.Body == "(empty)";
+        return StatusKind(code) switch
+        {
+            "body" => string.Equals(wire.MediaType, "application/json", StringComparison.Ordinal) && JsonNode.DeepEquals(TryParseJson(wire.Body), SuccessItem)
+                ? (VerdictPass, "the declared body")
+                : (VerdictFail, "expected the declared body (application/json)"),
+            "redirect" => string.Equals(wire.Location, RedirectTarget, StringComparison.Ordinal) && empty
+                ? (VerdictPass, "Location set, no body")
+                : (VerdictFail, $"expected Location '{RedirectTarget}' and no body"),
+            _ => empty
+                ? (VerdictPass, "no body")
+                : (VerdictFail, "expected no body"),
+        };
+    }
+
+    /// <summary>
+    /// The C# EndpointPerOperation client below 400: <c>IsSuccess</c> is true for a 2xx only (as
+    /// <c>HttpResponseMessage.IsSuccessStatusCode</c>); a declared status has its <c>Is…</c> (and <c>…Content</c> for a
+    /// body) and is never read as an error; a redirect is followed (HttpClient's default) to its target's 200.
+    /// </summary>
+    private static JsonObject StatusEndpointPerOperationVerdict(
+        ProbeCase probeCase,
+        WireResult wire,
+        string[]? row)
+    {
+        if (row is null)
+        {
+            return Cell(VerdictFail, "the client produced no result", "(missing)");
+        }
+
+        var code = SweepStatus(probeCase.Mode)!.Value;
+        var accessor = row[4];
+        var summary = $"{row[1]} · IsSuccess={row[2]} · {accessor}";
+        var kind = StatusKind(code);
+        if (kind == "informational")
+        {
+            return Cell(VerdictFail, "a 1xx is no final response: it should not be generated", summary);
+        }
+
+        var itemAccessor = new Regex(@"^\w+Content => Item \{""Name"":""thing""\}$", RegexOptions.None, TimeSpan.FromSeconds(1));
+        var noContentAccessor = new Regex(@"^Is\w+ \(no content property\)$", RegexOptions.None, TimeSpan.FromSeconds(1));
+
+        // A redirect is followed to its target's 200, which the redirect operation does not declare: no typed
+        // accessor, the target's body in Content.
+        if (kind == "redirect")
+        {
+            return row[1] == "200" && row[2] == "True" && accessor == "(none)" && row.Length > 5 &&
+                   JsonNode.DeepEquals(TryParseJson(row[5]), SuccessItem)
+                ? Cell(VerdictPass, "followed to its target: 200, IsSuccess, the target's body in Content", summary)
+                : Cell(VerdictFail, "expected the redirect followed: 200, IsSuccess and the target's body in Content", summary);
+        }
+
+        var (status, success, pattern, what) = kind switch
+        {
+            "body" => (code, code < 300 ? "True" : "False", itemAccessor, "the declared body in its accessor"),
+            _ => (code, code < 300 ? "True" : "False", noContentAccessor, "its Is… accessor, no body"),
+        };
+
+        return row[1] == status.ToString(CultureInfo.InvariantCulture) && row[2] == success && pattern.IsMatch(accessor)
+            ? Cell(VerdictPass, $"{status}, IsSuccess {success}, {what}", summary)
+            : Cell(VerdictFail, $"expected {status}, IsSuccess {success} and {what}", summary);
+    }
+
+    private static JsonObject StatusTypedClientVerdict(
+        ProbeCase probeCase,
+        WireResult wire,
+        bool throwStyle,
+        string[]? row)
+    {
+        if (row is null)
+        {
+            return Cell(VerdictFail, "the client produced no result", "(missing)");
+        }
+
+        var code = SweepStatus(probeCase.Mode)!.Value;
+        var outcome = row[1];
+        var kind = StatusKind(code);
+        if (kind == "informational")
+        {
+            return Cell(VerdictFail, "a 1xx is no final response: it should not be generated", outcome);
+        }
+
+        // A redirect is followed to its target's 200; a 2xx succeeds; any other 3xx is no success.
+        var finalStatus = kind == "redirect" ? 200 : code;
+        var success = finalStatus < 300;
+        var body = kind is "body" or "redirect" ? SuccessItem.ToJsonString() : string.Empty;
+        if (throwStyle)
+        {
+            return success
+                ? outcome == "returned normally" ? Cell(VerdictPass, "returned normally", outcome) : Cell(VerdictFail, "a success threw", outcome)
+                : outcome.StartsWith($"HttpRequestException: HTTP {finalStatus} ", StringComparison.Ordinal) && outcome.EndsWith(": " + body, StringComparison.Ordinal)
+                    ? Cell(VerdictPass, "HttpRequestException with the status and the body (not a success)", outcome)
+                    : Cell(VerdictFail, $"expected HttpRequestException for {finalStatus}", outcome);
+        }
+
+        // A redirect operation declares no success model: the followed target's body is only in Content.
+        var expected = $"{finalStatus} IsSuccess={success} Content={body} ContentObject={(success && body.Length > 0 && kind != "redirect" ? "Item" : "null")}";
+        return string.Equals(outcome, expected, StringComparison.Ordinal)
+            ? Cell(VerdictPass, success ? "IsSuccess with the body" : "IsSuccess = false, the raw body in Content", outcome)
+            : Cell(VerdictFail, $"expected '{expected}'", outcome);
+    }
+
+    /// <summary>
+    /// The TypeScript clients below 400: a 2xx with a body is <c>ok</c> (<c>created</c> / <c>accepted</c> for 201 / 202)
+    /// with the data; 204 and 205 are <c>noContent</c>; a redirect is followed (fetch and axios) to its target's
+    /// <c>ok</c>; 304 is <c>notModified</c> and any other 3xx <c>redirection</c> - never an error arm.
+    /// </summary>
+    private static JsonObject StatusTypeScriptVerdict(
+        ProbeCase probeCase,
+        WireResult wire,
+        JsonObject? result)
+    {
+        if (result is null)
+        {
+            return Cell(VerdictFail, "the client produced no result", "(missing)");
+        }
+
+        var code = SweepStatus(probeCase.Mode)!.Value;
+        var kind = StatusKind(code);
+        var arm = (string?)result["arm"] ?? "(none)";
+        var status = (int?)result["httpStatus"] ?? 0;
+        var summary = result["threw"] is { } threw ? Short((string)threw!) : $"{status} · {arm}" + (result["data"] is { } data ? $" · data: {Short(data.ToJsonString())}" : string.Empty);
+        if (kind == "informational")
+        {
+            return Cell(VerdictFail, "a 1xx is no final response: it should not be generated", summary);
+        }
+
+        var (expectedStatus, expectedArm, withData) = kind switch
+        {
+            "redirect" => (200, "ok", true),
+            "no-body" when code == 304 => (304, "notModified", false),
+            "no-body" => (code, "noContent", false),
+            _ when code >= 300 => (code, "redirection", kind == "body"),
+            _ => (code, code switch { 201 => "created", 202 => "accepted", _ => "ok" }, true),
+        };
+
+        var dataMatches = !withData || JsonNode.DeepEquals(result["data"], SuccessItem);
+        return status == expectedStatus && arm == expectedArm && dataMatches
+            ? Cell(VerdictPass, $"{expectedArm}{(withData ? " with the data" : string.Empty)}{(kind == "redirect" ? " (followed)" : string.Empty)}", summary)
+            : Cell(VerdictFail, $"expected {expectedStatus} · {expectedArm}{(withData ? " with the data" : string.Empty)}", summary);
     }
 
     private static JsonNode? TryParseJson(string text)
@@ -1620,12 +1886,13 @@ public partial class ErrorResponseBodyRuntimeTests
           const record: Record<string, unknown> = { name: c.name };
           try {
             const client = api[c.property];
-            const r = c.isPut
-              ? await client[c.method](c.mode, { reason: c.reason })
-              : await client[c.method](c.mode);
+            // A 1xx is no final response: never wait for one longer than 8 s.
+            const call = c.isPut ? client[c.method](c.mode, { reason: c.reason }) : client[c.method](c.mode);
+            const r = await Promise.race([call, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout: no final response in 8 s')), 8000))]) as any;
             const res = r.response;
             const headers = res?.headers;
             record.arm = r.status;
+            record.data = 'data' in r ? (r.data === undefined ? null : r.data) : null;
             record.httpStatus = res?.status;
             record.statusText = res?.statusText ?? null;
             record.contentType = typeof headers?.get === 'function' ? headers.get('content-type') : headers?.['content-type'] ?? null;

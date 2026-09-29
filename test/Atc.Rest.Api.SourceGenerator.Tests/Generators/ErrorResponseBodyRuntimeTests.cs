@@ -17,6 +17,11 @@ public partial class ErrorResponseBodyRuntimeTests
     private const string TooLongReason = "far-too-long";
 
     /// <summary>
+    /// Where the redirect statuses point: the 200 operation of the status set.
+    /// </summary>
+    internal const string RedirectTarget = "/statuses/200/s200";
+
+    /// <summary>
     /// Two operations with only a success and a <c>default</c> response: a problem-shaped default
     /// (<c>application/problem+json</c>) and a plain JSON one. The <c>{code}</c> path parameter makes the
     /// generator add 400 and 404 besides 500.
@@ -388,6 +393,23 @@ public partial class ErrorResponseBodyRuntimeTests
         ["stub-utf8-text"] = (503, "text/plain; charset=utf-8", "nede: æøå – 🚫", "non-ASCII text"),
         ["stub-json-string"] = (503, "application/json", "\"42\"", "a JSON string that reads like a number"),
     };
+
+    /// <summary>
+    /// Every <c>System.Net.HttpStatusCode</c> value below 400 (1xx, 2xx, 3xx, aliases counted once). Each has its own
+    /// operation <c>getStatus{code}</c> (<c>/statuses/{code}/{mode}</c>) - an operation declares one 2xx
+    /// (ATC_API_OPR018).
+    /// </summary>
+    internal static readonly int[] NonErrorStatusCodes = [.. Enum.GetValues<HttpStatusCode>().Select(c => (int)c).Where(c => c < 400).Distinct().Order()];
+
+    /// <summary>
+    /// The statuses below 400 declared with a JSON body (<c>Item</c>): the 2xx that carry content, and 300.
+    /// </summary>
+    internal static readonly int[] StatusCodesWithBody = [200, 201, 202, 203, 206, 207, 208, 226, 300];
+
+    /// <summary>
+    /// The redirects: declared with a <c>Location</c> header, no body.
+    /// </summary>
+    internal static readonly int[] RedirectStatusCodes = [301, 302, 303, 307, 308];
 
     internal static readonly string[] ErrorResponseFormats =
     [
@@ -1130,7 +1152,7 @@ public partial class ErrorResponseBodyRuntimeTests
 
             string? expected = (operationId, code) switch
             {
-                ("setAllNone", 400) => "ValidationProblemDetails ",
+                ("setAllNone" or "setAllFrameworkProblem", 400) => "ValidationProblemDetails ",
                 ("setAllNone" or "setAllFrameworkProblem", not null) => "ProblemDetails ",
                 ("setAllJsonProblem", not null) => "ApiProblem ",
                 ("setAllJsonString" or "setAllTextPlain", not null) when withValue => $"string \"{code} message from handler\"",
@@ -1378,6 +1400,62 @@ public partial class ErrorResponseBodyRuntimeTests
         var outcome = await (Task<string>)run.Invoke(null, [])!;
 
         Assert.Equal("""404 IsSuccess=False Content={"title":"Not Found","status":404,"detail":"no such file"}""", outcome);
+    }
+
+    /// <summary>
+    /// A redirect the HttpClient does not follow (<c>AllowAutoRedirect = false</c>) is the redirect operation's own
+    /// status: <c>Is{Status}</c> (no content), not <c>IsSuccess</c>, never an error accessor - the matrix's redirect cells
+    /// show the default, where the client follows it.
+    /// </summary>
+    [Fact]
+    public async Task Redirects_NotFollowed_AreTheirOwnAccessors()
+    {
+        await using var host = await ErrorBodyHost.StartAsync();
+        var client = GenerateClientAssembly(ClientOperationMarker("ProblemDetails"), cases => WithoutRedirects(BuildOperationProbeSource(cases)));
+        var rows = await RunProbeAsync(client.Assembly, host.BaseAddress);
+
+        foreach (var code in RedirectStatusCodes)
+        {
+            var row = rows.Single(r => r[0] == $"getStatus{code}/s{code}");
+            Assert.Equal(code.ToString(CultureInfo.InvariantCulture), row[1]);
+            Assert.Equal("False", row[2]);
+            Assert.Equal($"Is{HttpStatusCodeHelper.ToEnumName(code)} (no content property)", row[4]);
+        }
+
+        static string WithoutRedirects(string probe)
+        {
+            // The generated client's named HttpClient, configured last: its handler does not follow redirects.
+            const string registration = "services.AddErrorBodiesEndpoints();";
+            Assert.Contains(registration, probe, StringComparison.Ordinal);
+            return probe.Replace(
+                registration,
+                registration + " services.AddHttpClient(Constants.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });",
+                StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
+    /// A declared 1xx is never a final response (RFC 9110 §15.2): the server gets no factory and no endpoint metadata
+    /// for it, and the EndpointPerOperation client no <c>Is…</c> accessor.
+    /// </summary>
+    [Fact]
+    public void InformationalStatus_GetsNoFactoryMetadataOrAccessor()
+    {
+        var server = string.Join("\n", GenerateServer().Select(s => s.Source));
+        var client = string.Join("\n", Generate(new ApiClientGenerator(), ".atc-rest-api-client", ClientOperationMarker("ProblemDetails")).Select(s => s.Source));
+
+        foreach (var code in NonErrorStatusCodes.Where(c => c < 200))
+        {
+            var name = HttpStatusCodeHelper.ToEnumName(code);
+            Assert.DoesNotContain($"public static GetStatus{code}Result {name}(", server, StringComparison.Ordinal);
+            Assert.DoesNotContain($".Produces({HttpStatusCodeHelper.ToStatusCodesExpression(code)})", server, StringComparison.Ordinal);
+            Assert.DoesNotContain($"public bool Is{name}", client, StringComparison.Ordinal);
+        }
+
+        // The statuses below 400 that are final responses do get theirs - e.g. a redirect takes its location.
+        Assert.Contains("public static GetStatus303Result SeeOther(System.Uri location)", server, StringComparison.Ordinal);
+        Assert.Contains("public static GetStatus206Result PartialContent(Item response)", server, StringComparison.Ordinal);
+        Assert.Contains("public bool IsNotModified", client, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -1699,6 +1777,38 @@ public partial class ErrorResponseBodyRuntimeTests
             }
         }
 
+        // Every status below 400 that HttpStatusCode defines, one operation each: a JSON body where HTTP carries one,
+        // a Location header for the redirects, nothing for the others.
+        foreach (var code in NonErrorStatusCodes)
+        {
+            sb.AppendLine(CultureInfo.InvariantCulture, $"  /statuses/{code}/{{mode}}:");
+            sb.AppendLine("    get:");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"      operationId: getStatus{code}");
+            sb.AppendLine("      parameters:");
+            sb.AppendLine("        - name: mode");
+            sb.AppendLine("          in: path");
+            sb.AppendLine("          required: true");
+            sb.AppendLine("          schema:");
+            sb.AppendLine("            type: string");
+            sb.AppendLine("      responses:");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"        '{code}':");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"          description: Status {code}");
+            if (StatusCodesWithBody.Contains(code))
+            {
+                sb.AppendLine("          content:");
+                sb.AppendLine("            application/json:");
+                sb.AppendLine("              schema:");
+                sb.AppendLine("                $ref: '#/components/schemas/Item'");
+            }
+            else if (RedirectStatusCodes.Contains(code))
+            {
+                sb.AppendLine("          headers:");
+                sb.AppendLine("            Location:");
+                sb.AppendLine("              schema:");
+                sb.AppendLine("                type: string");
+            }
+        }
+
         sb.AppendLine("""
               /faults/{mode}:
                 get:
@@ -1835,6 +1945,12 @@ public partial class ErrorResponseBodyRuntimeTests
             {
                 if (ResolveFactory(mode, available) is null && !mode.StartsWith("throw", StringComparison.Ordinal))
                 {
+                    // A declared status always has a factory: a missing one is a generator bug, not a case to skip.
+                    if (SweepStatus(mode) is not null && !mode.EndsWith("-empty", StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException($"The server generator wrote no factory for {operation.OperationId}/{mode}");
+                    }
+
                     continue;
                 }
 
@@ -1846,6 +1962,9 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         cases.AddRange(FaultModes.Select(mode => new ProbeCase("getFault", "Faults", mode, Reason: null, IsPut: false)));
+
+        // Every status below 400 - also one the generator writes no factory for (the case shows what is sent).
+        cases.AddRange(NonErrorStatusCodes.Select(code => new ProbeCase($"getStatus{code}", "Statuses", $"s{code}", Reason: null, IsPut: false)));
         cases.AddRange(StubResponses.Keys.Select(mode => new ProbeCase("getFault", "Faults", mode, Reason: null, IsPut: false)));
 
         // The same bodies where the specification declares a model (ApiProblem) for every status.
@@ -1879,7 +1998,7 @@ public partial class ErrorResponseBodyRuntimeTests
         // Sweep modes: the generator names each factory after HttpStatusCodeHelper.ToEnumName.
         var sweepStatus = SweepStatus(mode);
         (string Name, bool Empty) wanted = sweepStatus is not null
-            ? (HttpStatusCodeHelper.ToEnumName(sweepStatus.Value), mode.EndsWith("-empty", StringComparison.Ordinal))
+            ? (sweepStatus == 200 ? "Ok" : HttpStatusCodeHelper.ToEnumName(sweepStatus.Value), mode.EndsWith("-empty", StringComparison.Ordinal))
             : mode switch
         {
             "ok" => (available.ContainsKey("NoContent") ? "NoContent" : "Ok", false),
@@ -1918,7 +2037,8 @@ public partial class ErrorResponseBodyRuntimeTests
         var operations = SetOperations
             .Select(o => (o.OperationId, o.Segment))
             .Append(("getFault", "Faults"))
-            .Append(("getDefaultError", "DefaultError"));
+            .Append(("getDefaultError", "DefaultError"))
+            .Concat(NonErrorStatusCodes.Select(code => ($"getStatus{code}", "Statuses")));
 
         foreach (var (operationId, segment) in operations)
         {
@@ -1972,7 +2092,11 @@ public partial class ErrorResponseBodyRuntimeTests
                 public static async Task<List<string[]>> RunAsync(string baseUrl)
                 {
                     var services = new ServiceCollection();
-                    services.AddHttpClient(Constants.HttpClientName, c => c.BaseAddress = new Uri(baseUrl));
+                    services.AddHttpClient(Constants.HttpClientName, c =>
+                    {
+                        c.BaseAddress = new Uri(baseUrl);
+                        c.Timeout = TimeSpan.FromSeconds(10);
+                    });
                     services.AddErrorBodiesEndpoints();
                     using var provider = services.BuildServiceProvider();
                     var rows = new List<string[]>();
@@ -1984,7 +2108,8 @@ public partial class ErrorResponseBodyRuntimeTests
             var parameters = probeCase.IsPut
                 ? $"new {pascal}Parameters(\"{probeCase.Mode}\", new SetRequest(\"{probeCase.Reason}\"))"
                 : $"new {pascal}Parameters(\"{probeCase.Mode}\")";
-            sb.AppendLine(CultureInfo.InvariantCulture, $"        rows.Add(Describe(\"{probeCase.Name}\", await provider.GetRequiredService<I{pascal}Endpoint>().ExecuteAsync({parameters})));");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"        try {{ rows.Add(Describe(\"{probeCase.Name}\", await provider.GetRequiredService<I{pascal}Endpoint>().ExecuteAsync({parameters}))); }}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"        catch (Exception ex) {{ rows.Add([\"{probeCase.Name}\", \"0\", \"False\", \"-\", $\"CALL THREW {{ex.GetType().Name}}: {{ex.Message}}\", string.Empty]); }}");
         }
 
         sb.AppendLine("""
@@ -2052,7 +2177,7 @@ public partial class ErrorResponseBodyRuntimeTests
             {
                 public static async Task<List<string[]>> RunAsync(string baseUrl)
                 {
-                    using var http = new HttpClient { BaseAddress = new Uri(baseUrl) };
+                    using var http = new HttpClient { BaseAddress = new Uri(baseUrl), Timeout = TimeSpan.FromSeconds(10) };
                     var rows = new List<string[]>();
             """);
 
@@ -2219,7 +2344,8 @@ public partial class ErrorResponseBodyRuntimeTests
         int Status,
         string ContentType,
         string Body,
-        string? RetryAfter = null)
+        string? RetryAfter = null,
+        string? Location = null)
     {
         /// <summary>
         /// The media type without parameters (<c>application/problem+json</c>), or <c>(none)</c>.
@@ -2238,6 +2364,7 @@ public partial class ErrorResponseBodyRuntimeTests
     private sealed class ErrorBodyHost : IAsyncDisposable
     {
         private readonly WebApplication app;
+        private readonly HttpClientHandler handler;
         private readonly HttpClient client;
 
         private ErrorBodyHost(
@@ -2249,7 +2376,10 @@ public partial class ErrorResponseBodyRuntimeTests
             Factories = factories;
             ProducesMetadata = producesMetadata;
             BaseAddress = new Uri(app.Urls.First());
-            client = new HttpClient { BaseAddress = BaseAddress };
+
+            // The wire as sent: a redirect is recorded, not followed.
+            handler = new HttpClientHandler { AllowAutoRedirect = false, CheckCertificateRevocationList = true };
+            client = new HttpClient(handler) { BaseAddress = BaseAddress };
             Cases = BuildCases(factories);
         }
 
@@ -2405,18 +2535,7 @@ public partial class ErrorResponseBodyRuntimeTests
             var results = new List<WireResult>();
             foreach (var probeCase in Cases)
             {
-                var path = probeCase.IsPut
-                    ? SetOperations.Single(o => o.OperationId == probeCase.OperationId).Path
-                    : probeCase.OperationId == "getFault" ? "faults" : "default-error";
-                using var request = new HttpRequestMessage(
-                    probeCase.IsPut ? HttpMethod.Put : HttpMethod.Get,
-                    $"/{path}/{probeCase.Mode}");
-                if (probeCase.IsPut)
-                {
-                    request.Content = JsonContent.Create(new { reason = probeCase.Reason });
-                }
-
-                results.Add(await SendAsync(probeCase.Name, request));
+                results.Add(await SendCaseAsync(probeCase));
             }
 
             // Failures raised by the framework before any generated code runs.
@@ -2447,6 +2566,7 @@ public partial class ErrorResponseBodyRuntimeTests
         public async ValueTask DisposeAsync()
         {
             client.Dispose();
+            handler.Dispose();
             await app.StopAsync(TestContext.Current.CancellationToken);
             await app.DisposeAsync();
         }
@@ -2477,6 +2597,7 @@ public partial class ErrorResponseBodyRuntimeTests
             var operations = SetOperations
                 .Select(o => (o.OperationId, o.Segment, Modes: ModesFor(o)))
                 .Append(("getFault", "Faults", FaultModes))
+                .Concat(NonErrorStatusCodes.Select(code => ($"getStatus{code}", "Statuses", (string[])[$"s{code}"])))
                 .Append(("getDefaultError", "DefaultError", DefaultErrorModes));
 
             foreach (var (operationId, segment, modes) in operations)
@@ -2569,6 +2690,7 @@ public partial class ErrorResponseBodyRuntimeTests
 
             var argument = overload.ParameterType switch
             {
+                "System.Uri" => $"new System.Uri(\"{RedirectTarget}\", System.UriKind.Relative)",
                 "string" => $"\"{status} message from handler\"",
                 "ValidationProblemDetails" => "new ValidationProblemDetails(new System.Collections.Generic.Dictionary<string, string[]> { [\"reason\"] = [\"reason rejected by handler\"] })",
                 "ProblemDetails" => $"new ProblemDetails {{ Title = \"{name}\", Status = {status}, Detail = \"{status} problem from handler\" }}",
@@ -2589,18 +2711,52 @@ public partial class ErrorResponseBodyRuntimeTests
             };
         }
 
+        private async Task<WireResult> SendCaseAsync(ProbeCase probeCase)
+        {
+            using var request = new HttpRequestMessage(
+                probeCase.IsPut ? HttpMethod.Put : HttpMethod.Get,
+                $"/{PathOf(probeCase)}/{probeCase.Mode}");
+            if (probeCase.IsPut)
+            {
+                request.Content = JsonContent.Create(new { reason = probeCase.Reason });
+            }
+
+            return await SendAsync(probeCase.Name, request);
+        }
+
+        private static string PathOf(ProbeCase probeCase)
+            => probeCase.IsPut
+                ? SetOperations.Single(o => o.OperationId == probeCase.OperationId).Path
+                : probeCase.OperationId switch
+                {
+                    "getFault" => "faults",
+                    { } id when id.StartsWith("getStatus", StringComparison.Ordinal) => $"statuses/{id["getStatus".Length..]}",
+                    _ => "default-error",
+                };
+
         private async Task<WireResult> SendAsync(
             string name,
             HttpRequestMessage request)
         {
-            using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
-            var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-            return new WireResult(
-                name,
-                (int)response.StatusCode,
-                response.Content.Headers.ContentType?.ToString() ?? "(none)",
-                body.Length == 0 ? "(empty)" : body,
-                response.Headers.RetryAfter?.ToString());
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(5));
+            try
+            {
+                using var response = await client.SendAsync(request, timeout.Token);
+                var body = await response.Content.ReadAsStringAsync(timeout.Token);
+                return new WireResult(
+                    name,
+                    (int)response.StatusCode,
+                    response.Content.Headers.ContentType?.ToString() ?? "(none)",
+                    body.Length == 0 ? "(empty)" : body,
+                    response.Headers.RetryAfter?.ToString(),
+                    response.Headers.Location?.ToString());
+            }
+            catch (Exception ex) when (ex is OperationCanceledException or HttpRequestException)
+            {
+                // No final response (e.g. a 1xx status written as the response): recorded, not thrown.
+                return new WireResult(name, 0, "(none)", $"(no response: {ex.GetType().Name}: {ex.Message})");
+            }
         }
     }
 }

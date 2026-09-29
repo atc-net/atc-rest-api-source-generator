@@ -63,6 +63,14 @@
   .v.fail { background: var(--fail-soft); color: var(--fail); } .v.platform { background: var(--platform-soft); color: var(--platform); }
   .v.na { background: var(--na-soft); color: var(--na); }
   .legend { display: grid; gap: 8px; align-content: start; }
+  .codes { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+  .code { border: 1px solid var(--line); border-radius: 8px; padding: 8px 9px; background: var(--surface); cursor: pointer; display: grid; gap: 4px; text-align: left; font: inherit; color: inherit; }
+  .code:hover { border-color: var(--accent); }
+  .code b { font: 600 15px/1 "IBM Plex Mono", ui-monospace, monospace; }
+  .code span { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+  .code .bar { height: 6px; }
+  .code.nf { border-style: dashed; }
+  .codes-legend { font-size: 12px; color: var(--muted); margin-top: 8px; }
   .legend div { display: flex; gap: 10px; align-items: baseline; }
   .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
   table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
@@ -117,7 +125,7 @@
   <header>
     <div class="eyebrow">atc-rest-api-source-generator 3.0 · proven by an end-to-end run</div>
     <h1>Error Body Matrix</h1>
-    <p class="lead">What the generated server writes for every HTTP error status and every way a specification can declare it, and what each generated client makes of those bytes. Every cell is a recorded result of a real run: the generated server on Kestrel, each generated client calling it over HTTP.</p>
+    <p class="lead">What the generated server writes for every HTTP status (every <code>System.Net.HttpStatusCode</code> value, plus 418, 425, 499 and 599) and every way a specification can declare it, and what each generated client makes of those bytes. Every cell is a recorded result of a real run: the generated server on Kestrel, each generated client calling it over HTTP.</p>
     <div class="meta" id="provenance"></div>
   </header>
 
@@ -138,6 +146,7 @@
           <div><span class="v lossy">lossy</span><span>The client does what the documentation says and does not throw, but the typed value cannot hold some fields of the body - the cell names them; they stay in the raw body (<code>Content</code>). E.g. the custom error model reading a ProblemDetails, or a string accessor reading a validation 400.</span></div>
           <div><span class="v fail">fail</span><span>The contract is broken: a wrong status, accessor, type, arm or field value, or an exception.</span></div>
           <div><span class="v platform">platform</span><span>Outside the generated code: the runtime itself refuses the response (reproduced with a plain call).</span></div>
+          <div><span class="v na">na</span><span>Not applicable: a 1xx status is never a final response (RFC 9110 §15.2), so no factory, accessor or arm exists - the server row checks that none is generated.</span></div>
         </div>
       </div>
       <div class="panel">
@@ -145,6 +154,12 @@
         <p>The server has one mode: it writes what the specification declares. <b>TypedClient</b> and <b>EndpointPerOperation</b> are generation modes of the <b>C# client</b>, and <code>errorResponseFormat</code> is read by the C# EndpointPerOperation client only - it decides how a status with <i>nothing</i> declared is read. The TypeScript clients have one mode. So the matrix is one server against eight clients, per declaration style and status.</p>
         <div class="table-wrap"><table class="axes"><tbody id="axes"></tbody></table></div>
       </div>
+    </div>
+    <div class="panel">
+      <h2>Every status code</h2>
+      <p>One tile per status: the verdicts of the server and all eight clients over every case of that status. Click a tile to open the matrix filtered to it.</p>
+      <div class="codes" id="codes"></div>
+      <div class="codes-legend">A dashed tile is a status that is not a <code>System.Net.HttpStatusCode</code> value (418, 425, 499, 599 - swept as well).</div>
     </div>
     <div class="panel">
       <h2>Per client and declaration</h2>
@@ -194,7 +209,7 @@ const REPORT = /*__REPORT_DATA__*/null;
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const VERDICTS = ['pass', 'lossy', 'fail', 'platform'];
-const GROUP_LABELS = { sweep: 'Status sweep', handler: 'Handler errors', exception: 'Exceptions → status', validation: 'Validation 400', fault: 'Faults', default: '`default` response', stub: 'Foreign bodies (stub)', framework: 'Framework errors', success: 'Success' };
+const GROUP_LABELS = { status: 'Statuses 1xx-3xx', sweep: 'Status sweep', handler: 'Handler errors', exception: 'Exceptions → status', validation: 'Validation 400', fault: 'Faults', default: '`default` response', stub: 'Foreign bodies (stub)', framework: 'Framework errors', success: 'Success' };
 const DECL_SHORT = { setAllNone: 'None', setAllJsonProblem: 'JSON model', setAllJsonString: 'JSON string', setAllTextPlain: 'text/plain', setAllFrameworkProblem: 'ProblemDetails', setProblemJson: 'problem+json model', setRefResponse: '$ref response', getFault: 'Faults', getDefaultError: 'default', '(framework)': 'Framework' };
 
 // Groups that belong to one declaration column (the others are scenarios of their own).
@@ -212,6 +227,9 @@ if (!REPORT) {
 } else {
   const cases = REPORT.cases;
   const clients = REPORT.clients;
+  for (const c of cases) {
+    if (c.operation.startsWith('getStatus')) DECL_SHORT[c.operation] = 'HTTP ' + c.operation.slice('getStatus'.length);
+  }
   const epoIds = clients.filter((c) => c.format).map((c) => c.id);
 
   // Provenance
@@ -240,7 +258,7 @@ if (!REPORT) {
     clients.map((c) => `<tr><td><b>${esc(c.group)}</b></td><td>${esc(c.label)}${c.format ? '' : ' <span class="v na">errorResponseFormat not read</span>'}</td></tr>`).join('');
 
   // Pivot
-  const SCENARIO_COLS = ['validation', 'fault', 'default', 'stub'];
+  const SCENARIO_COLS = ['status', 'validation', 'fault', 'default', 'stub'];
   const colKeys = [...REPORT.declarations.map((d) => d.id), ...SCENARIO_COLS];
   const colLabel = (k) => SCENARIO_COLS.includes(k) ? GROUP_LABELS[k] : (DECL_SHORT[k] ?? k);
   const inCol = (c, k) => SCENARIO_COLS.includes(k) ? c.group === k : (c.operation === k && DECL_GROUPS.includes(c.group));
@@ -270,12 +288,37 @@ if (!REPORT) {
     syncFilters(); selectTab('matrix'); renderMatrix();
   });
 
+  // Every status code: one tile each.
+  const byCode = new Map();
+  for (const c of cases) {
+    if (!c.status) continue;
+    if (!byCode.has(c.status)) byCode.set(c.status, []);
+    byCode.get(c.status).push(c);
+  }
+  $('#codes').innerHTML = (REPORT.statusCodes ?? []).map((sc) => {
+    const list = byCode.get(sc.code) ?? [];
+    const verdicts = list.flatMap((c) => [c.wire.verdict, ...Object.values(c.clients).map((x) => x.verdict)]);
+    const t = tally(verdicts);
+    const na = verdicts.filter((v) => v === 'na').length;
+    return `<button class="code${sc.inEnum ? '' : ' nf'}" data-code="${sc.code}" title="${esc(sc.name)} - ${list.length} cases"><b>${sc.code}</b><span>${esc(sc.name)}</span>${barHtml(t)}${na ? `<span>${na} n/a</span>` : ''}</button>`;
+  }).join('');
+  $('#codes').addEventListener('click', (e) => {
+    const tile = e.target.closest('[data-code]');
+    if (!tile) return;
+    state.decl = REPORT.declarations.map((d) => d.id);
+    state.group = Object.keys(GROUP_LABELS);
+    state.client = clients.map((c) => c.id);
+    state.status = tile.dataset.code;
+    state.verdict = 'all';
+    syncFilters(); selectTab('matrix'); renderMatrix();
+  });
+
   // Findings: every non-pass client verdict, grouped by client + reason.
   const findings = new Map();
   for (const c of cases) {
     for (const id in c.clients) {
       const cell = c.clients[id];
-      if (cell.verdict === 'pass') continue;
+      if (cell.verdict === 'pass' || cell.verdict === 'na') continue;
       const reason = cell.why.replace(/\b\d{3}\b/g, 'NNN');
       const key = `${cell.verdict}|${id}|${reason}`;
       if (!findings.has(key)) findings.set(key, { verdict: cell.verdict, client: id, reason, cases: [] });
@@ -339,6 +382,7 @@ if (!REPORT) {
     if (!q) return true;
     const s = String(status);
     if (/^\dxx$/.test(q)) return s[0] === q[0];
+    if (/^\d{3}$/.test(q)) return s === q;
     return s.startsWith(q);
   }
   function handlerMatches(c) {
@@ -424,6 +468,7 @@ if (!REPORT) {
     <h2>How every cell was produced</h2>
     <ul class="tight">
       <li><b>Server.</b> The source generator generates the server from one specification: 42 error statuses (every registered 4xx/5xx plus 499 and 599) declared five ways - nothing, a JSON model, a JSON string, text/plain, <code>ProblemDetails</code>; a model under <code>application/problem+json</code> for 400/404/409/422; a <code>$ref</code> to <code>components/responses</code> for 404/422; faults (500/503 declared without a body) and a <code>default</code> response. The code is compiled and hosted on Kestrel (Production environment) with its generated host wiring (<code>AddProblemDetails</code> + <code>UseStatusCodePages</code>, the ValidationFilter and the global error handler). Handlers call each generated factory with a value and empty, and throw <code>ArgumentException</code>, <code>ArgumentNullException</code>, <code>InvalidOperationException</code>, <code>InvalidDataException</code>, <code>UnauthorizedAccessException</code>, <code>TimeoutException</code>, <code>OperationCanceledException</code>, <code>NotImplementedException</code> and <code>BadHttpRequestException(413)</code>, checked against the documented exception &rarr; status mapping.</li>
+      <li><b>Statuses below 400.</b> Every <code>HttpStatusCode</code> value from 100 to 308 has its own operation (<code>/statuses/{code}/{mode}</code> - an operation declares one 2xx, ATC_API_OPR018): a JSON body where HTTP carries one (200-202, 203, 206-208, 226, 300), a <code>Location</code> header for the redirects (301, 302, 303, 307, 308, pointing at the 200 operation), nothing for 204, 205, 304, 305, 306. The wire is captured without following redirects; the clients follow them as they do by default. The rules come from RFC 9110 where the wiki is silent: a 1xx is never a final response, 204/205/304 carry no body, a redirect carries a <code>Location</code>, and a 3xx is never read as an error body (in C# <code>IsSuccess</code> stays 2xx-only, as <code>HttpResponseMessage.IsSuccessStatusCode</code>, so the TypedClient's <code>Throw</code> style still throws for a 3xx it did not follow). The redirect cells show the clients following the redirect (their default); the generated accessors of a redirect that is <i>not</i> followed are checked by <code>Redirects_NotFollowed_AreTheirOwnAccessors</code>.</li>
       <li><b>Foreign bodies.</b> A stub in front of the generated endpoints answers with bodies the generated server never writes - XML, <code>application/octet-stream</code>, no Content-Type, a proxy's HTML 502, malformed / empty / whitespace JSON, a JSON string that reads like a number (<code>"42"</code>), a mixed-case <code>Application/Problem+JSON</code>, a vendor <code>+json</code> object, non-ASCII text. It does so on two routes: <code>getFault</code> (503 declared without a body, 502 not declared) and <code>setAllJsonProblem</code> (every status declared as a model), so the ProblemDetails, string, custom-model and declared-model accessors all meet them. The C# charset decoding of non-text bodies has its own test (<code>ClientWithTextErrorBody_DecodesByTheContentTypeCharset</code>).</li>
       <li><b>Wire.</b> Every case is sent once with <code>HttpClient</code>; status, <code>Content-Type</code>, <code>Retry-After</code> and the raw body are recorded, and the body kind is classified from the bytes.</li>
       <li><b>C# clients.</b> The source generator generates each client (EndpointPerOperation with each <code>errorResponseFormat</code> - Custom with the Monta sample's <code>customErrorResponseModel</code> - and the TypedClient in both result styles); a probe calls every case against the host and records the status, <code>IsSuccess</code>, the typed accessor and its value (or its exception).</li>
