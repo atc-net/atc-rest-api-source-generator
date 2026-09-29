@@ -169,6 +169,13 @@ public partial class ErrorResponseBodyRuntimeTests
 
         // The custom model, read leniently from a ProblemDetails.
         Assert.Contains(rows, r => r.StartsWith("problemDefault/404: 404 IsNotFound NotFoundContent => ErrorResponse {\"status\":\"404\"", StringComparison.Ordinal));
+
+        // A status the client adds itself (400/404/500) is split by media type under Custom too, as under the other
+        // formats: the declared default's body (application/json) is the default error, not the custom model.
+        foreach (var code in (string[])["400", "404", "500"])
+        {
+            Assert.Contains(rows, r => r.StartsWith($"jsonDefault/{code}: {code} IsDefaultError DefaultErrorContent => ErrorResponse {{\"Code\":\"E{code}\"", StringComparison.Ordinal));
+        }
     }
 
     /// <summary>
@@ -292,6 +299,25 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(["type", "title", "detail"], customCell["loss"]!["fields"]!.AsArray().Select(f => (string)f!), StringComparer.Ordinal);
         Assert.Equal("ErrorResponse (custom)", (string)customCell["loss"]!["into"]!);
 
+        // The suggested assessment of a lossy cell: every rule, and no rule for a loss nobody has rated yet.
+        JsonObject AssessedCase(
+            string group,
+            string operation,
+            string mode = "ok",
+            string mediaType = "application/json")
+            => new() { ["group"] = group, ["operation"] = operation, ["mode"] = mode, ["wire"] = new JsonObject { ["mediaType"] = mediaType } };
+        Assert.Equal(AssessCustomOverDefault, AssessLoss(AssessedCase("default", "getDefaultError"), Loss(LossFields, CustomModel, ["code"])));
+        Assert.Equal(AssessCustomFormat, AssessLoss(AssessedCase("default", "getDefaultError", "throw", "application/problem+json"), Loss(LossFields, CustomModel, ["type", "title", "instance"])));
+        Assert.Equal(AssessCustomFormat, AssessLoss(AssessedCase("sweep", "setAllNone"), Loss(LossFields, CustomModel, ["type", "title"])));
+        Assert.Equal(AssessForeignBody, AssessLoss(AssessedCase("stub", "setAllJsonProblem"), Loss(LossNotJson, "ApiProblem", [])));
+        Assert.Equal(AssessPlainTextOnlyValidation, AssessLoss(AssessedCase("validation", "setAllNone"), Loss(LossErrorsAsString, "string", ["errors"])));
+        Assert.Equal(AssessStringDeclaredValidation, AssessLoss(AssessedCase("validation", "setAllTextPlain"), Loss(LossErrorsAsString, "string", ["errors"])));
+        Assert.Equal(AssessModelDeclaredValidation, AssessLoss(AssessedCase("validation", "setProblemJson"), Loss(LossFields, "ApiProblem", ["errors"])));
+        Assert.Equal(AssessEmptyCallDeclaredModel, AssessLoss(AssessedCase("handler", "setRefResponse", "missing-empty"), Loss(LossFields, "RefOnlyError", ["type", "title", "status"])));
+        Assert.Null(AssessLoss(AssessedCase("handler", "setProblemJson", "missing"), Loss(LossFields, "ApiProblem", ["extra"])));
+        string[] levels = [AssessLevelGood, AssessLevelImprove, AssessLevelFix, AssessLevelDesign];
+        Assert.All(LossAssessments, a => Assert.Contains(a.Level, levels, StringComparer.Ordinal));
+
         // Wire: the validation 400, the success body, a 4xx exception's ProblemDetails.
         Assert.Equal(VerdictPass, WireVerdict(validationCase, validationWire).Verdict);
         Assert.Equal(VerdictFail, WireVerdict(validationCase, validationWire with { Body = """{"title":"x","status":400}""" }).Verdict);
@@ -392,6 +418,12 @@ public partial class ErrorResponseBodyRuntimeTests
                 if ((string?)cell.Value!["verdict"] == VerdictLossy && cell.Value["loss"]?["kind"] is null)
                 {
                     failures.Add($"{name} [{cell.Key}]: lossy without a loss kind - {(string?)cell.Value["why"]}");
+                }
+
+                // Every lossy cell is rated (ErrorResponseBodyRuntimeTests.LossAssessment.cs): a new loss is rated on purpose.
+                if ((string?)cell.Value["verdict"] == VerdictLossy && cell.Value["assessment"] is null)
+                {
+                    failures.Add($"{name} [{cell.Key}]: lossy without an assessment - add a rule for {cell.Value["loss"]?.ToJsonString()}");
                 }
             }
         }
@@ -545,6 +577,7 @@ public partial class ErrorResponseBodyRuntimeTests
             ]),
             ["declarations"] = new JsonArray([.. MatrixDeclarations.Select(d => (JsonNode)new JsonObject { ["id"] = d.OperationId, ["label"] = d.Label, ["spec"] = d.Spec })]),
             ["clients"] = new JsonArray([.. MatrixClients.Select(c => (JsonNode)new JsonObject { ["id"] = c.Id, ["group"] = c.Group, ["label"] = c.Label, ["format"] = c.Format })]),
+            ["assessments"] = AssessLossyCells(casesArray),
             ["cases"] = casesArray,
         };
     }
@@ -746,11 +779,9 @@ public partial class ErrorResponseBodyRuntimeTests
         var operationId = probeCase.OperationId;
         if (WritesDefaultBody(probeCase))
         {
-            // A status the client adds itself is split by media type - except with Custom, which reads those
-            // statuses as the custom model.
-            return format == "Custom" && IsAddedByClient(operationId, status)
-                ? (false, CustomModel)
-                : (true, DefaultModel);
+            // A status the client adds itself is split by media type - with every format, Custom included: the
+            // default body (application/json) is the default error, a problem+json body the status's own model.
+            return (true, DefaultModel);
         }
 
         var declared = DeclaredError(operationId, status);
@@ -1048,6 +1079,14 @@ public partial class ErrorResponseBodyRuntimeTests
         if (body is not JsonObject wireObject)
         {
             return NonObjectBody(expectedType, valueObject, wire.Status, rawBody, body, summary);
+        }
+
+        // The field errors a model cannot hold, read by BadRequestValidationErrors (the probe's 7th column): they
+        // count as held only when they equal the body's errors.
+        if (row.Length > 6 && row[6].Length > 0 && JsonNode.Parse(row[6]) is JsonObject validationErrors)
+        {
+            valueObject["errors"] = validationErrors;
+            summary += $" + ValidationErrors {row[6]}";
         }
 
         return CompareModel(expectedType, valueObject, wireObject, summary);

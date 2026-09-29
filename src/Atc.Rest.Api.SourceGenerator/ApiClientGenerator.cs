@@ -1518,6 +1518,13 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(12, ": CreateValidation(statusCode, content);");
         sb.AppendLine();
         sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// Reads the field errors of a validation problem (its <c>errors</c>) from the raw response body - a body read");
+        sb.AppendLine(4, "/// as a declared model that cannot hold them; <see langword=\"null\"/> when the body has none.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "public static System.Collections.Generic.Dictionary<string, string[]>? ValidationErrorsFromContent(string? content)");
+        sb.AppendLine(8, "=> TryRead<ValidationProblemDetails>(content)?.Errors;");
+        sb.AppendLine();
+        sb.AppendLine(4, "/// <summary>");
         sb.AppendLine(4, "/// Reads an error model (the declared one, or the configured custom one) from the raw response body - a body");
         sb.AppendLine(4, "/// the client could not read as it (e.g. a number where the model has a string, or another shape) - accepting");
         sb.AppendLine(4, "/// any JSON value for a string property. A body that is no JSON object gives an empty model; the raw body stays");

@@ -1251,8 +1251,8 @@ public partial class ErrorResponseBodyRuntimeTests
     ///   instead of throwing;</item>
     ///   <item>a plain JSON default, while the API answers with a ProblemDetails sent as <c>application/json</c>:
     ///   the ProblemDetails accessors still give that ProblemDetails;</item>
-    ///   <item><c>errorResponseFormat: Custom</c>: the custom model registered for the generator-added statuses
-    ///   is read as that model, whatever the media type.</item>
+    ///   <item><c>errorResponseFormat: Custom</c>: the declared default body is the default error on the
+    ///   generator-added statuses too, and their custom-model accessors read the same body.</item>
     /// </list>
     /// </summary>
     [Theory]
@@ -1277,7 +1277,11 @@ public partial class ErrorResponseBodyRuntimeTests
         {
             if (string.Equals(errorResponseFormat, "Custom", StringComparison.Ordinal))
             {
-                // The custom model is what the client was told every generator-added status carries.
+                // The custom model stands for the generator-added statuses, yet the declared default body is the
+                // default error, as with every format: a problem-shaped default always, a JSON default because the
+                // body is not application/problem+json. The custom accessor still reads the same body.
+                AssertRow($"problemDefault/{code}: {code} IsDefaultError DefaultErrorContent => ApiProblem .*\"code\":\"E{code}\"");
+                AssertRow($"jsonDefault/{code}: {code} IsDefaultError DefaultErrorContent => ErrorResponse .*\"code\":\"E{code}\"");
                 AssertRow($"problemDefault/{code}: {code} Is{name} {name}Content => ApiError .*\"code\":\"E{code}\"");
                 AssertRow($"jsonDefault/{code}: {code} Is{name} {name}Content => ApiError .*\"code\":\"E{code}\"");
                 continue;
@@ -2177,7 +2181,14 @@ public partial class ErrorResponseBodyRuntimeTests
                         break;
                     }
 
-                    return [name, ((int)response.StatusCode).ToString(System.Globalization.CultureInfo.InvariantCulture), response.IsSuccess.ToString(), Show(response.ContentObject), accessor, response.Content];
+                    // The field errors a model cannot hold (BadRequestValidationErrors), when the status has them.
+                    var validationErrors = type.GetProperties()
+                        .Where(p => p.Name.EndsWith("ValidationErrors", StringComparison.Ordinal))
+                        .Select(p => p.GetValue(response))
+                        .FirstOrDefault(v => v is not null);
+                    var errors = validationErrors is null ? string.Empty : System.Text.Json.JsonSerializer.Serialize(validationErrors);
+
+                    return [name, ((int)response.StatusCode).ToString(System.Globalization.CultureInfo.InvariantCulture), response.IsSuccess.ToString(), Show(response.ContentObject), accessor, response.Content, errors];
                 }
 
                 private static string Show(object? value)

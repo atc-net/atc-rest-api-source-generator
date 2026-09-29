@@ -1656,6 +1656,15 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine();
         }
 
+        // A 400 read as a model that cannot hold field errors (a declared model, or the custom one): the generated
+        // ValidationFilter still writes a ValidationProblemDetails, so its errors are read from the raw body.
+        if (responses.Find(r => r.StatusCode == "400") is { ContentType: not (null or "string" or "ProblemDetails" or "ValidationProblemDetails") } badRequest)
+        {
+            sb.AppendLine(4, $"public System.Collections.Generic.Dictionary<string, string[]>? {badRequest.PropertyName}ValidationErrors");
+            sb.AppendLine(8, $"=> Is{badRequest.PropertyName} ? ProblemDetailsFactory.ValidationErrorsFromContent(Content) : null;");
+            sb.AppendLine();
+        }
+
         if (defaultResponse?.ContentType is { } defaultType)
         {
             var name = defaultResponse.PropertyName;
@@ -2006,8 +2015,11 @@ public static class EndpointPerOperationExtractor
     /// The generator-added error responses (400 validation, 404, 409, 500, 504, …) whose type differs from the
     /// <c>default</c> response's. Such a status is written either by the framework (a ProblemDetails, sent as
     /// <c>application/problem+json</c>) or by the handler's <c>Error(…)</c> factory (the default body), so the
-    /// client decides by the response media type. A <c>ValidationProblemDetails</c> under a <c>ProblemDetails</c>
-    /// default is not shared: it is the richer ProblemDetails, so the 400 stays a <c>ValidationProblemDetails</c>.
+    /// client decides by the response media type. That holds for every <c>errorResponseFormat</c>: an added status
+    /// is a ProblemDetails, a ValidationProblemDetails or - with Custom - the custom model, and a body that is not
+    /// <c>application/problem+json</c> is the declared default's either way. A <c>ValidationProblemDetails</c> under
+    /// a <c>ProblemDetails</c> default is not shared: it is the richer ProblemDetails, so the 400 stays a
+    /// <c>ValidationProblemDetails</c>.
     /// </summary>
     private static List<ResponseInfo> SharedWithDefault(
         List<ResponseInfo> responses,
@@ -2016,7 +2028,7 @@ public static class EndpointPerOperationExtractor
             ? []
             : responses
                 .Where(r => r.IsAutoAdded &&
-                            r.ContentType is "ProblemDetails" or "ValidationProblemDetails" &&
+                            r.ContentType is not null &&
                             !string.Equals(r.ContentType, defaultResponse.ContentType, StringComparison.Ordinal) &&
                             !(string.Equals(r.ContentType, "ValidationProblemDetails", StringComparison.Ordinal) &&
                               string.Equals(defaultResponse.ContentType, "ProblemDetails", StringComparison.Ordinal)))

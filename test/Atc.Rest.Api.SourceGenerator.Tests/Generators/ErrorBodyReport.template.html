@@ -12,7 +12,7 @@
     --bg: #f5f7f8; --surface: #ffffff; --surface-2: #eef2f3; --ink: #162226; --muted: #566a6f; --line: #d8e1e3;
     --accent: #0e6470; --accent-soft: #e0eff1; --code-bg: #edf2f3;
     --pass: #1d7a46; --pass-soft: #e2f3e8; --lossy: #8a5a00; --lossy-soft: #fbefd6;
-    --fail: #a3312b; --fail-soft: #fbe5e3; --platform: #4c5aa6; --platform-soft: #e8eaf8; --na: #7b8a8e; --na-soft: #eef1f2;
+    --fail: #a3312b; --fail-soft: #fbe5e3; --platform: #4c5aa6; --platform-soft: #e8eaf8; --na: #7b8a8e; --na-soft: #eef1f2; --design: #1f5fae; --design-soft: #e3edf9;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
@@ -21,7 +21,7 @@
       --bg: #0f1719; --surface: #152023; --surface-2: #1a282c; --ink: #e2ebed; --muted: #97adb1; --line: #283a3e;
       --accent: #5fc4cf; --accent-soft: #163236; --code-bg: #1b292d;
       --pass: #6fd39a; --pass-soft: #163426; --lossy: #e6b65a; --lossy-soft: #392d13; --fail: #f08a82; --fail-soft: #3c1c1a;
-      --platform: #a6b2f2; --platform-soft: #1f2442; --na: #8a9a9e; --na-soft: #1d2a2d;
+      --platform: #a6b2f2; --platform-soft: #1f2442; --na: #8a9a9e; --na-soft: #1d2a2d; --design: #7fb2f0; --design-soft: #16263d;
     }
   }
   :root[data-theme="dark"] {
@@ -29,7 +29,7 @@
     --bg: #0f1719; --surface: #152023; --surface-2: #1a282c; --ink: #e2ebed; --muted: #97adb1; --line: #283a3e;
     --accent: #5fc4cf; --accent-soft: #163236; --code-bg: #1b292d;
     --pass: #6fd39a; --pass-soft: #163426; --lossy: #e6b65a; --lossy-soft: #392d13; --fail: #f08a82; --fail-soft: #3c1c1a;
-    --platform: #a6b2f2; --platform-soft: #1f2442; --na: #8a9a9e; --na-soft: #1d2a2d;
+    --platform: #a6b2f2; --platform-soft: #1f2442; --na: #8a9a9e; --na-soft: #1d2a2d; --design: #7fb2f0; --design-soft: #16263d;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
@@ -63,6 +63,14 @@
   .v.fail { background: var(--fail-soft); color: var(--fail); } .v.platform { background: var(--platform-soft); color: var(--platform); }
   .v.na { background: var(--na-soft); color: var(--na); }
   .lk { display: inline-block; font: 500 10.5px/1.2 "IBM Plex Mono", ui-monospace, monospace; padding: 1px 6px; margin-left: 4px; border-radius: 4px; border: 1px solid var(--lossy); color: var(--lossy); white-space: nowrap; vertical-align: 1px; }
+  .lk.good { border-color: var(--pass); color: var(--pass); background: var(--pass-soft); }
+  .lk.by-design { border-color: var(--design); color: var(--design); background: var(--design-soft); }
+  .lk.improve { border-color: var(--lossy); color: var(--lossy); background: var(--lossy-soft); }
+  .lk.fix { border-color: var(--fail); color: var(--fail); background: var(--fail-soft); }
+  .lvl { display: inline-block; font: 600 10.5px/1.2 "IBM Plex Mono", ui-monospace, monospace; padding: 2px 7px; border-radius: 4px; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.04em; }
+  .lvl.good { background: var(--pass-soft); color: var(--pass); } .lvl.by-design { background: var(--design-soft); color: var(--design); }
+  .lvl.improve { background: var(--lossy-soft); color: var(--lossy); } .lvl.fix { background: var(--fail-soft); color: var(--fail); }
+  table.review td { vertical-align: top; } table.review .why { color: var(--muted); font-size: 12.5px; } table.review tr[data-assess] { cursor: pointer; } table.review tr[data-assess]:hover td { background: var(--surface-2); }
   .legend .loss-legend { display: grid; min-width: 0; gap: 8px; padding-left: 12px; border-left: 2px solid var(--lossy-soft); font-size: 12.5px; }
   .legend .loss-legend > div { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; align-items: baseline; }
   .loss-legend .n { font: 500 11px/1 "IBM Plex Mono", monospace; color: var(--muted); }
@@ -147,7 +155,7 @@
         <h2>Verdicts</h2>
         <div class="legend">
           <div><span class="v pass">pass</span><span>The client exposes what the documented contract says: the right status, accessor, type and arm, every field of the body as on the wire, no exception.</span></div>
-          <div><span class="v lossy">lossy</span><span>The client does what the documentation says and does not throw, but the typed value cannot hold some fields of the body - the cell names them; they stay in the raw body (<code>Content</code>). E.g. the custom error model reading a ProblemDetails, or a string accessor reading a validation 400. The badge next to it says what was lost:</span></div>
+          <div><span class="v lossy">lossy</span><span>The client does what the documentation says and does not throw, but the typed value cannot hold some fields of the body - the cell names them; they stay in the raw body (<code>Content</code>). E.g. the custom error model reading a ProblemDetails, or a string accessor reading a validation 400. The badge next to it says what was lost; its colour is our <i>suggested</i> assessment (see <b>Design review</b> below): <span class="lvl good">good</span> <span class="lvl by-design">by design</span> <span class="lvl improve">design iteration</span> <span class="lvl fix">fix</span>.</span></div>
           <div class="loss-legend" id="loss-legend"></div>
           <div><span class="v fail">fail</span><span>The contract is broken: a wrong status, accessor, type, arm or field value, or an exception.</span></div>
           <div><span class="v platform">platform</span><span>Outside the generated code: the runtime itself refuses the response (reproduced with a plain call).</span></div>
@@ -172,6 +180,11 @@
       <div class="table-wrap"><table class="pivot" id="pivot"></table></div>
     </div>
     <div class="panel">
+      <h2>Design review: the lossy cells</h2>
+      <p>Every lossy cell, grouped by a <b>suggested assessment</b> - a judgement for the team to confirm or change, not a measurement (the rules are in <code>ErrorResponseBodyRuntimeTests.LossAssessment.cs</code>; a lossy cell no rule rates fails the run). Click a row to see its cells in the matrix.</p>
+      <div id="review-lossy"></div>
+    </div>
+    <div class="panel">
       <h2>Findings from this run</h2>
       <div id="findings"></div>
     </div>
@@ -190,7 +203,8 @@
         <span class="label">Show</span>
         <select id="f-verdict"><option value="all">all rows</option><option value="nonpass">rows with a non-pass cell</option><option value="fail">rows with a fail</option><option value="lossy">rows with a lossy cell</option><option value="formatsdiffer">rows where the C# formats differ</option></select>
         <label class="chipbox"><label><input type="checkbox" id="f-compact"> compact cells</label></label>
-        <button class="btn" id="f-reset">Reset</button>
+        <button class="btn" id="f-reset" title="Check every chip and show all rows">Reset</button>
+        <button class="btn" id="f-clear" title="Un-check every chip, to pick a few">Clear</button>
       </div>
       <div class="counts" id="f-count"></div>
     </div>
@@ -241,10 +255,20 @@ const LOSS_KINDS = {
     text: 'Read as a ProblemDetails: the field <code>errors</code> are only untyped, in <code>Extensions["errors"]</code>.',
   },
 };
+const LEVELS = {
+  'fix': { label: 'fix', text: 'not good - we think it has to change' },
+  'improve': { label: 'design iteration', text: 'acceptable, but worth another design iteration' },
+  'by-design': { label: 'by design', text: 'a trade-off chosen by configuration or by the specification' },
+  'good': { label: 'good', text: 'the best a client can do with that body' },
+};
+const ASSESS = Object.fromEntries((REPORT?.assessments ?? []).map((a) => [a.id, a]));
 const lossBadge = (cell) => {
   const l = cell?.verdict === 'lossy' ? cell.loss : null;
   const k = l && LOSS_KINDS[l.kind];
-  return k ? `<span class="lk" title="${esc(k.title(l))}">${esc(k.badge(l))}</span>` : '';
+  if (!k) return '';
+  const a = ASSESS[cell.assessment];
+  const title = k.title(l) + (a ? ` · suggested: ${LEVELS[a.level]?.label ?? a.level} - ${a.title}` : '');
+  return `<span class="lk ${esc(a?.level ?? '')}" title="${esc(title)}">${esc(k.badge(l))}</span>`;
 };
 const GROUP_LABELS = { status: 'Statuses 1xx-3xx', sweep: 'Status sweep', handler: 'Handler errors', exception: 'Exceptions → status', validation: 'Validation 400', fault: 'Faults', default: '`default` response', stub: 'Foreign bodies (stub)', framework: 'Framework errors', success: 'Success' };
 const DECL_SHORT = { setAllNone: 'None', setAllJsonProblem: 'JSON model', setAllJsonString: 'JSON string', setAllTextPlain: 'text/plain', setAllFrameworkProblem: 'ProblemDetails', setProblemJson: 'problem+json model', setRefResponse: '$ref response', getFault: 'Faults', getDefaultError: 'default', '(framework)': 'Framework' };
@@ -384,6 +408,24 @@ if (!REPORT) {
     const sample = { verdict: 'lossy', loss: { kind, into: 'the model', fields: ['type', 'title'] } };
     return `<div><span>${lossBadge(sample)}</span><span><b>${esc(k.name)}</b> <span class="n">${lossCount[kind] ?? 0} cells</span> - ${k.text}</span></div>`;
   }).join('');
+  const assessCells = {};
+  for (const c of cases) for (const id in c.clients) { const x = c.clients[id]; if (x.verdict === 'lossy' && x.assessment) (assessCells[x.assessment] ??= []).push({ c, id }); }
+  const levelOrder = { 'fix': 0, 'improve': 1, 'by-design': 2, 'good': 3 };
+  const assessments = [...(REPORT.assessments ?? [])].sort((a, b) => levelOrder[a.level] - levelOrder[b.level]);
+  $('#review-lossy').innerHTML = `<div class="table-wrap"><table class="review"><thead><tr><th>Suggested</th><th>What</th><th class="num">Cells</th><th>Where</th><th>Proposal</th></tr></thead><tbody>${assessments.map((a) => {
+    const hits = assessCells[a.id] ?? [];
+    const where = [...new Set(hits.map((h) => clientLabel(h.id).replace('C# EndpointPerOperation · errorResponseFormat: ', 'EPO ')))].join(', ');
+    const decls = [...new Set(hits.map((h) => DECL_SHORT[h.c.operation] ?? h.c.operation))].join(', ');
+    return `<tr data-assess="${esc(a.id)}"><td><span class="lvl ${esc(a.level)}" title="${esc(LEVELS[a.level]?.text)}">${esc(LEVELS[a.level]?.label ?? a.level)}</span></td><td><b>${esc(a.title)}</b><br><span class="why">${esc(a.why)}</span></td><td class="num">${hits.length}</td><td>${esc(where)}<br><span class="counts">${esc(decls)}</span></td><td>${esc(a.proposal)}</td></tr>`;
+  }).join('')}</tbody></table></div>`;
+  $('#f-verdict').insertAdjacentHTML('beforeend', assessments.map((a) => `<option value="assess:${esc(a.id)}">${esc(LEVELS[a.level]?.label ?? a.level)}: ${esc(a.title)} (${(assessCells[a.id] ?? []).length})</option>`).join(''));
+  $('#review-lossy').addEventListener('click', (e) => {
+    const tr = e.target.closest('tr[data-assess]');
+    if (!tr) return;
+    state.verdict = 'assess:' + tr.dataset.assess; state.decl = REPORT.declarations.map((d) => d.id); state.client = clients.map((c) => c.id); state.group = Object.keys(GROUP_LABELS); state.handler = 'all'; state.status = '';
+    for (const k of ['decl', 'client', 'group', 'handler', 'verdict']) store(k, state[k]);
+    syncFilters(); renderMatrix(); selectTab('matrix');
+  });
   $('#f-verdict').insertAdjacentHTML('beforeend', Object.entries(LOSS_KINDS).map(([kind, k]) => `<option value="loss:${kind}">lossy: ${esc(k.name)} (${lossCount[kind] ?? 0})</option>`).join(''));
 
   // Filters
@@ -417,6 +459,11 @@ if (!REPORT) {
   $('#f-verdict').addEventListener('change', (e) => { state.verdict = e.target.value; store('verdict', state.verdict); renderMatrix(); });
   $('#f-status').addEventListener('input', (e) => { state.status = e.target.value.trim(); renderMatrix(); });
   $('#f-compact').addEventListener('change', (e) => { state.compact = e.target.checked; store('compact', state.compact); document.body.classList.toggle('compact', state.compact); });
+  $('#f-clear').addEventListener('click', () => {
+    state.decl = []; state.client = []; state.group = [];
+    for (const k of ['decl', 'client', 'group']) store(k, state[k]);
+    syncFilters(); renderMatrix();
+  });
   $('#f-reset').addEventListener('click', () => {
     state.decl = REPORT.declarations.map((d) => d.id); state.client = clients.map((c) => c.id);
     state.group = Object.keys(GROUP_LABELS); state.handler = 'all'; state.status = ''; state.verdict = 'all';
@@ -449,6 +496,9 @@ if (!REPORT) {
       ((!DECL_GROUPS.includes(c.group) && c.group !== 'validation') || state.decl.includes(c.operation)) &&
       statusMatches(c.status) && handlerMatches(c) && (() => {
         const cells = shownClients.map((cl) => c.clients[cl.id]?.verdict).filter(Boolean);
+        if (state.verdict.startsWith('assess:')) {
+          return shownClients.some((cl) => c.clients[cl.id]?.verdict === 'lossy' && c.clients[cl.id].assessment === state.verdict.slice(7));
+        }
         if (state.verdict.startsWith('loss:')) {
           return shownClients.some((cl) => c.clients[cl.id]?.verdict === 'lossy' && c.clients[cl.id].loss?.kind === state.verdict.slice(5));
         }
@@ -501,7 +551,7 @@ if (!REPORT) {
       </dl>
       <h3>Body on the wire</h3><pre>${esc(pretty(c.wire.body))}</pre>
       ${cell ? `<h3>${esc(cl.group)} · ${esc(cl.label)}</h3>
-        <dl class="kv"><dt>Verdict</dt><dd><span class="v ${cell.verdict}">${cell.verdict}</span>${lossBadge(cell)} ${esc(cell.why)}</dd>${cell.verdict === 'lossy' && LOSS_KINDS[cell.loss?.kind] ? `<dt>Lost</dt><dd>${LOSS_KINDS[cell.loss.kind].text}</dd>` : ''}</dl>
+        <dl class="kv"><dt>Verdict</dt><dd><span class="v ${cell.verdict}">${cell.verdict}</span>${lossBadge(cell)} ${esc(cell.why)}</dd>${cell.verdict === 'lossy' && LOSS_KINDS[cell.loss?.kind] ? `<dt>Lost</dt><dd>${LOSS_KINDS[cell.loss.kind].text}</dd>` : ''}${ASSESS[cell.assessment] ? `<dt>Assessment</dt><dd><span class="lvl ${esc(ASSESS[cell.assessment].level)}">${esc(LEVELS[ASSESS[cell.assessment].level]?.label)}</span> <b>${esc(ASSESS[cell.assessment].title)}</b> <span class="counts">(suggested)</span><br>${esc(ASSESS[cell.assessment].why)}<br><i>Proposal:</i> ${esc(ASSESS[cell.assessment].proposal)}</dd>` : ''}</dl>
         <pre>${esc(cell.summary)}</pre>` : ''}
       <h3>All clients</h3>
       <div class="table-wrap"><table><tbody>${clients.map((x) => { const y = c.clients[x.id]; return y ? `<tr><td>${esc(x.group)}<br><span class="counts">${esc(x.label)}</span></td><td><span class="v ${y.verdict}">${y.verdict}</span>${lossBadge(y)}</td><td>${esc(y.summary)}</td></tr>` : ''; }).join('')}</tbody></table></div>`;

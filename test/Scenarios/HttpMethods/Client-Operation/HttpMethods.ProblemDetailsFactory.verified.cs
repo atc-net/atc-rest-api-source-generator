@@ -55,6 +55,13 @@ public static class ProblemDetailsFactory
             : CreateValidation(statusCode, content);
 
     /// <summary>
+    /// Reads the field errors of a validation problem (its <c>errors</c>) from the raw response body - a body read
+    /// as a declared model that cannot hold them; <see langword="null"/> when the body has none.
+    /// </summary>
+    public static System.Collections.Generic.Dictionary<string, string[]>? ValidationErrorsFromContent(string? content)
+        => TryRead<ValidationProblemDetails>(content)?.Errors;
+
+    /// <summary>
     /// Reads an error model (the declared one, or the configured custom one) from the raw response body - a body
     /// the client could not read as it (e.g. a number where the model has a string, or another shape) - accepting
     /// any JSON value for a string property. A body that is no JSON object gives an empty model; the raw body stays
