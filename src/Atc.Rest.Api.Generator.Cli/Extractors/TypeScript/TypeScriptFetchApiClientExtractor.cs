@@ -10,12 +10,19 @@ public static class TypeScriptFetchApiClientExtractor
     /// </summary>
     /// <param name="headerContent">Optional auto-generated file header.</param>
     /// <param name="convertDates">When true, emits dateReviver/dateReplacer for automatic Date conversion.</param>
+    /// <param name="hasRetry">When true, the spec declares retry (x-retry-*): the client retries through helpers/retryInterceptor.ts.</param>
+    /// <param name="zodRuntimeValidate">When true, responses are validated against their Zod schema.</param>
+    /// <param name="hasWireNames">
+    /// When true, the TypeScript models' property names differ from the API's for some keys: bodies, responses,
+    /// error bodies and stream items are renamed through <c>helpers/wireNames.ts</c>.
+    /// </param>
     /// <returns>The TypeScript file content.</returns>
     public static string Generate(
         string? headerContent,
         bool convertDates = false,
         bool hasRetry = false,
-        bool zodRuntimeValidate = false)
+        bool zodRuntimeValidate = false,
+        bool hasWireNames = false)
     {
         var sb = new StringBuilder();
 
@@ -24,7 +31,7 @@ public static class TypeScriptFetchApiClientExtractor
             sb.Append(headerContent);
         }
 
-        AppendImports(sb, hasRetry, zodRuntimeValidate);
+        AppendImports(sb, hasRetry, zodRuntimeValidate, hasWireNames);
 
         if (convertDates)
         {
@@ -32,9 +39,9 @@ public static class TypeScriptFetchApiClientExtractor
         }
 
         AppendApiClientOptionsInterface(sb, hasRetry);
-        AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate);
+        AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames);
         TypeScriptOperationHelper.AppendParseEventStreamHelper(sb);
-        AppendApiClientClass(sb, convertDates, hasRetry, zodRuntimeValidate);
+        AppendApiClientClass(sb, convertDates, hasRetry, zodRuntimeValidate, hasWireNames);
 
         return sb.ToString();
     }
@@ -42,10 +49,16 @@ public static class TypeScriptFetchApiClientExtractor
     private static void AppendImports(
         StringBuilder sb,
         bool hasRetry,
-        bool zodRuntimeValidate)
+        bool zodRuntimeValidate,
+        bool hasWireNames)
     {
         sb.AppendLine("import { ApiError, errorMessage } from '../errors/ApiError';");
         sb.AppendLine("import { ValidationError } from '../errors/ValidationError';");
+        if (hasWireNames)
+        {
+            sb.AppendLine("import { fromWire, toWire, type WireShapes } from '../helpers/wireNames';");
+        }
+
         sb.AppendLine("import type { ApiResult } from '../types/ApiResult';");
 
         if (hasRetry)
@@ -92,7 +105,8 @@ public static class TypeScriptFetchApiClientExtractor
     private static void AppendRequestOptionsInterface(
         StringBuilder sb,
         bool hasRetry,
-        bool zodRuntimeValidate)
+        bool zodRuntimeValidate,
+        bool hasWireNames)
     {
         sb.AppendLine("export interface RequestOptions {");
         sb.AppendLine("  body?: unknown;");
@@ -114,6 +128,12 @@ public static class TypeScriptFetchApiClientExtractor
             // z.array, primitive, discriminated union. ApiClient only needs to call
             // .safeParse() on it; the broad ZodTypeAny captures every shape.
             sb.AppendLine("  parseSchema?: ZodTypeAny;");
+        }
+
+        if (hasWireNames)
+        {
+            sb.AppendLine("  /** How to rename the keys of the body, the response and the error bodies between the API's property names and the models' (the generated client passes it). */");
+            sb.AppendLine("  wire?: WireShapes;");
         }
 
         sb.AppendLine("}");
@@ -152,7 +172,8 @@ public static class TypeScriptFetchApiClientExtractor
         StringBuilder sb,
         bool convertDates,
         bool hasRetry,
-        bool zodRuntimeValidate)
+        bool zodRuntimeValidate,
+        bool hasWireNames)
     {
         TypeScriptResultArms.AppendFitToArms(sb);
         sb.AppendLine("export class ApiClient {");
@@ -181,11 +202,16 @@ public static class TypeScriptFetchApiClientExtractor
             AppendSetStrictModeMethod(sb);
         }
 
-        AppendRequestMethod(sb, convertDates, hasRetry, zodRuntimeValidate);
-        AppendRequestStreamMethod(sb, convertDates);
+        AppendRequestMethod(sb, convertDates, hasRetry, zodRuntimeValidate, hasWireNames);
+        if (hasWireNames)
+        {
+            TypeScriptOperationHelper.AppendRenamingRequestStream(sb);
+        }
+
+        AppendRequestStreamMethod(sb, convertDates, hasWireNames);
         AppendBuildUrlMethod(sb);
         AppendGetHeadersMethod(sb);
-        AppendHandleResponseMethod(sb, convertDates, zodRuntimeValidate);
+        AppendHandleResponseMethod(sb, convertDates, zodRuntimeValidate, hasWireNames);
 
         sb.AppendLine("}");
     }
@@ -230,9 +256,11 @@ public static class TypeScriptFetchApiClientExtractor
         StringBuilder sb,
         bool convertDates,
         bool hasRetry,
-        bool zodRuntimeValidate)
+        bool zodRuntimeValidate,
+        bool hasWireNames)
     {
-        var stringify = convertDates ? "JSON.stringify(options.body, dateReplacer)" : "JSON.stringify(options.body)";
+        var body = hasWireNames ? "toWire(options.body, options.wire?.body)" : "options.body";
+        var stringify = convertDates ? $"JSON.stringify({body}, dateReplacer)" : $"JSON.stringify({body})";
 
         sb.AppendLine("  async request<T>(method: string, path: string, options?: RequestOptions): Promise<ApiResult<T>> {");
         sb.AppendLine("    const url = this.buildUrl(path, options?.query);");
@@ -289,13 +317,14 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("      response = await interceptor(response);");
         sb.AppendLine("    }");
         sb.AppendLine();
+        var wireArgument = hasWireNames ? ", options?.wire" : string.Empty;
         if (zodRuntimeValidate)
         {
-            sb.AppendLine("    return fitToArms(await this.handleResponse<T>(response, options?.responseType, options?.parseSchema), options?.arms);");
+            sb.Append("    return fitToArms(await this.handleResponse<T>(response, options?.responseType, options?.parseSchema").Append(wireArgument).AppendLine("), options?.arms);");
         }
         else
         {
-            sb.AppendLine("    return fitToArms(await this.handleResponse<T>(response, options?.responseType), options?.arms);");
+            sb.Append("    return fitToArms(await this.handleResponse<T>(response, options?.responseType").Append(wireArgument).AppendLine("), options?.arms);");
         }
 
         sb.AppendLine("  }");
@@ -304,7 +333,8 @@ public static class TypeScriptFetchApiClientExtractor
 
     private static void AppendRequestStreamMethod(
         StringBuilder sb,
-        bool convertDates)
+        bool convertDates,
+        bool hasWireNames)
     {
         var jsonParse = convertDates
             ? "JSON.parse(buffer.substring(objStart, objEnd + 1), dateReviver)"
@@ -316,13 +346,18 @@ public static class TypeScriptFetchApiClientExtractor
             ? "JSON.parse(bodyText, dateReviver)"
             : "JSON.parse(bodyText)";
 
-        sb.AppendLine("  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {");
+        // With renaming, requestStream (above) renames each item this reader yields.
+        sb.AppendLine(hasWireNames
+            ? "  private async *readStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {"
+            : "  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {");
         sb.AppendLine("    const url = this.buildUrl(path, options?.query);");
         sb.AppendLine("    const headers = await this.getHeaders(options?.headers);");
         sb.AppendLine();
+        TypeScriptOperationHelper.AppendStreamRequestBody(sb, convertDates, hasWireNames);
         sb.AppendLine("    let init: RequestInit = {");
         sb.AppendLine("      method,");
         sb.AppendLine("      headers,");
+        sb.AppendLine("      body: streamBody,");
         sb.AppendLine("      signal: options?.signal,");
         sb.AppendLine("    };");
         sb.AppendLine();
@@ -349,7 +384,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("    let buffer = '';");
         sb.AppendLine();
         sb.AppendLine("    if (framing === 'sse') {");
-        sb.AppendLine("      yield* parseEventStream<T>(reader, decoder);");
+        sb.AppendLine(convertDates ? "      yield* parseEventStream<T>(reader, decoder, dateReviver);" : "      yield* parseEventStream<T>(reader, decoder);");
         sb.AppendLine("      return;");
         sb.AppendLine("    }");
         sb.AppendLine();
@@ -483,22 +518,24 @@ public static class TypeScriptFetchApiClientExtractor
     private static void AppendHandleResponseMethod(
         StringBuilder sb,
         bool convertDates,
-        bool zodRuntimeValidate)
+        bool zodRuntimeValidate,
+        bool hasWireNames)
     {
         var parseJson = convertDates
             ? "JSON.parse(await response.text(), dateReviver)"
             : "await response.json()";
 
+        var wireParameter = hasWireNames ? ", wire?: WireShapes" : string.Empty;
         var signature = zodRuntimeValidate
-            ? "  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text', parseSchema?: ZodTypeAny): Promise<ApiResult<T>> {"
-            : "  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text'): Promise<ApiResult<T>> {";
+            ? "  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text', parseSchema?: ZodTypeAny" + wireParameter + "): Promise<ApiResult<T>> {"
+            : "  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text'" + wireParameter + "): Promise<ApiResult<T>> {";
         sb.AppendLine(signature);
         sb.AppendLine("    if (response.status === 204) {");
         sb.AppendLine("      return { status: 'noContent', response };");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    const contentType = (response.headers.get('Content-Type') ?? '').toLowerCase();");
-        sb.AppendLine("    const isText = responseType === 'text' || (!responseType && (contentType.startsWith('text/') || contentType.includes('application/xml')));");
+        sb.AppendLine("    const isText = responseType === 'text' || (!responseType && (contentType.startsWith('text/') || contentType.includes('application/xml') || contentType.includes('+xml')));");
 
         // Treat +json suffixes (application/problem+json, application/vnd.api+json) as JSON too,
         // so RFC-7807 error bodies parse and their title/errors reach the badRequest arm instead
@@ -512,6 +549,15 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("      } catch (parseError) {");
         sb.AppendLine("        return { status: 'parseError', error: parseError as Error, response };");
         sb.AppendLine("      }");
+
+        if (hasWireNames)
+        {
+            // The API's property names -> the models' (before a schema check, which speaks the models' names).
+            sb.AppendLine();
+            sb.AppendLine("      if (isJson && wire?.response) {");
+            sb.AppendLine("        data = fromWire(data, wire.response);");
+            sb.AppendLine("      }");
+        }
 
         if (zodRuntimeValidate)
         {
@@ -544,13 +590,13 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    // The error body is detected from the actual Content-Type (an operation's success responseType");
-        sb.AppendLine("    // says nothing about its errors): a ProblemDetails / declared model / JSON string, or text.");
+        sb.AppendLine("    // says nothing about its errors): a ProblemDetails / declared model / JSON string, or text (text/*, XML).");
         sb.AppendLine("    // Malformed or empty bodies are non-fatal - the message then falls back to the status text.");
         sb.AppendLine("    let errorBody: unknown = undefined;");
         sb.AppendLine("    try {");
         sb.AppendLine("      if (contentType.includes('application/json') || contentType.includes('+json')) {");
         sb.Append("        errorBody = ").Append(parseJson).AppendLine(";");
-        sb.AppendLine("      } else if (contentType.startsWith('text/')) {");
+        sb.AppendLine("      } else if (contentType.startsWith('text/') || contentType.includes('application/xml') || contentType.includes('+xml')) {");
         sb.AppendLine("        const text = await response.text();");
         sb.AppendLine("        errorBody = text.length > 0 ? text : undefined;");
         sb.AppendLine("      }");
@@ -560,6 +606,18 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine();
         sb.AppendLine("    const message = errorMessage(response.status, response.statusText, errorBody);");
         sb.AppendLine();
+
+        // With renaming, `body` is the declared error model under the models' names, while the message, the
+        // ProblemDetails fields and the validation errors (keyed by the field names sent) come from the wire body.
+        var errorBodyArguments = "errorBody";
+        if (hasWireNames)
+        {
+            sb.AppendLine("    const shape = wire?.errors?.[String(response.status)] ?? wire?.errors?.['default'];");
+            sb.AppendLine("    const body = shape ? fromWire(errorBody, shape) : errorBody;");
+            sb.AppendLine();
+            errorBodyArguments = "body, errorBody";
+        }
+
         sb.AppendLine("    if (response.status === 400) {");
         sb.AppendLine("      // Always badRequest: a 400 without validation errors carries an empty errors map.");
         sb.AppendLine("      const errors = errorBody !== null && typeof errorBody === 'object' && typeof (errorBody as { errors?: unknown }).errors === 'object' && (errorBody as { errors?: unknown }).errors !== null");
@@ -567,12 +625,12 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("        : {};");
         sb.AppendLine("      return {");
         sb.AppendLine("        status: 'badRequest',");
-        sb.AppendLine("        error: new ValidationError(response.status, response.statusText, message, errors, response, errorBody),");
+        sb.Append("        error: new ValidationError(response.status, response.statusText, message, errors, response, ").Append(errorBodyArguments).AppendLine("),");
         sb.AppendLine("        response,");
         sb.AppendLine("      };");
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.AppendLine("    const apiError = new ApiError(response.status, response.statusText, message, response, errorBody);");
+        sb.Append("    const apiError = new ApiError(response.status, response.statusText, message, response, ").Append(errorBodyArguments).AppendLine(");");
         sb.AppendLine();
         sb.AppendLine("    switch (response.status) {");
         sb.AppendLine("      case 401:");

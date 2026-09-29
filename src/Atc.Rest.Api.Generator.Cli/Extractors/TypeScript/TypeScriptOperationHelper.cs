@@ -268,6 +268,7 @@ public static class TypeScriptOperationHelper
         }
 
         var hasDefaultResponse = false;
+        string? defaultBodyType = null;
 
         if (operation.Responses is not null)
         {
@@ -276,6 +277,7 @@ public static class TypeScriptOperationHelper
                 if (string.Equals(statusCode, "default", StringComparison.OrdinalIgnoreCase))
                 {
                     hasDefaultResponse = true;
+                    defaultBodyType = ResolveErrorBodyType(response, imports);
                     continue;
                 }
 
@@ -303,12 +305,18 @@ public static class TypeScriptOperationHelper
         }
 
         // `default:` fans out to the common error arms — without this, a spec that uses
-        // `default` (PetStore style) would emit a per-op type missing every error case.
+        // `default` (PetStore style) would emit a per-op type missing every error case. Those arms carry
+        // the default body, so they are typed with it (the validation 400 stays the filter's ValidationError).
         if (hasDefaultResponse)
         {
             foreach (var (discriminator, errorType) in DefaultResponseErrorArms)
             {
-                AddErrorArm(discriminator, errorType, null, onlyIfMissing: true);
+                // The catch-alls may already hold a declared status' body (a 402 model): add the default body to it.
+                AddErrorArm(
+                    discriminator,
+                    errorType,
+                    discriminator == "badRequest" ? null : defaultBodyType,
+                    onlyIfMissing: discriminator is not ("clientError" or "serverError"));
             }
         }
 
@@ -347,10 +355,14 @@ public static class TypeScriptOperationHelper
             }
         }
 
-        // Any API can answer with an unmapped 4xx (405, 413, 415, ... from the framework) or a 5xx. These
-        // catch-all arms also carry statuses with other bodies, so they are always merged as untyped.
-        AddErrorArm("clientError", "ApiError", null);
-        AddErrorArm("serverError", "ApiError", null);
+        // Any API can answer with an unmapped 4xx (405, 413, 415, ... from the framework) or a 5xx. Without a
+        // `default` these catch-all arms carry statuses with other bodies, so they are merged as untyped; with a
+        // `default` the specification says what any other status carries, and they keep its type.
+        if (!hasDefaultResponse || defaultBodyType is null)
+        {
+            AddErrorArm("clientError", "ApiError", null);
+            AddErrorArm("serverError", "ApiError", null);
+        }
 
         var arms = new List<string>(successArms);
         foreach (var (discriminator, baseType, bodies) in errorArms)
@@ -1088,13 +1100,48 @@ public static class TypeScriptOperationHelper
     }
 
     /// <summary>
+    /// Emits the ApiClient's <c>requestStream</c> for a specification whose models rename keys: it reads the items
+    /// with <c>readStream</c> and renames each from the API's property names to the models'. Shared by the Axios and
+    /// Fetch ApiClient extractors.
+    /// </summary>
+    /// <summary>
+    /// Emits the request body of a streamed read - a POST or QUERY search sends its criteria - as JSON (renamed to
+    /// the API's property names and with dates as ISO strings, like <c>request</c>), into <c>streamBody</c>.
+    /// Shared by the Axios and Fetch ApiClient extractors; expects a <c>headers: Headers</c> local.
+    /// </summary>
+    internal static void AppendStreamRequestBody(
+        StringBuilder sb,
+        bool convertDates,
+        bool hasWireNames)
+    {
+        var value = hasWireNames ? "toWire(options.body, options.wire?.body)" : "options.body";
+        var stringify = convertDates ? $"JSON.stringify({value}, dateReplacer)" : $"JSON.stringify({value})";
+        sb.Append("    const streamBody = options?.body !== undefined ? ").Append(stringify).AppendLine(" : undefined;");
+        sb.AppendLine("    if (streamBody !== undefined) {");
+        sb.AppendLine("      headers.set('Content-Type', 'application/json');");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+    }
+
+    internal static void AppendRenamingRequestStream(StringBuilder sb)
+    {
+        sb.AppendLine("  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {");
+        sb.AppendLine("    const shape = options?.wire?.response;");
+        sb.AppendLine("    for await (const item of this.readStream<unknown>(method, path, options, framing)) {");
+        sb.AppendLine("      yield fromWire<T>(item, shape);");
+        sb.AppendLine("    }");
+        sb.AppendLine("  }");
+        sb.AppendLine();
+    }
+
+    /// <summary>
     /// Emits the module-level parseEventStream async generator function shared by both
     /// Axios and Fetch ApiClient extractors. Centralising the SSE parsing logic here
     /// ensures the two clients stay in sync without copying the block.
     /// </summary>
     internal static void AppendParseEventStreamHelper(StringBuilder sb)
     {
-        sb.AppendLine("async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {");
+        sb.AppendLine("async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, reviver?: (key: string, value: unknown) => unknown): AsyncGenerator<T> {");
         sb.AppendLine("  let buffer = '';");
         sb.AppendLine("  try {");
         sb.AppendLine("    while (true) {");
@@ -1111,7 +1158,7 @@ public static class TypeScriptOperationHelper
         sb.AppendLine("          .map((l) => l.slice(5).trimStart())");
         sb.AppendLine("          .join('\\n');");
         sb.AppendLine("        if (data.length > 0) {");
-        sb.AppendLine("          yield JSON.parse(data) as T;");
+        sb.AppendLine("          yield JSON.parse(data, reviver) as T;");
         sb.AppendLine("        }");
         sb.AppendLine("      }");
         sb.AppendLine("    }");

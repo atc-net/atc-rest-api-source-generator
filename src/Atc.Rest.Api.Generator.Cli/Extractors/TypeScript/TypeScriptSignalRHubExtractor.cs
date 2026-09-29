@@ -34,7 +34,8 @@ public static class TypeScriptSignalRHubExtractor
     /// </summary>
     public static List<(string FileName, string Content)> Extract(
         OpenApiDocument openApiDoc,
-        string? headerContent)
+        string? headerContent,
+        TypeScriptWireNames? wireNames = null)
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
@@ -43,7 +44,7 @@ public static class TypeScriptSignalRHubExtractor
         foreach (var hub in hubs)
         {
             var fileName = "use" + hub.Key.ToPascalCase() + "Hub";
-            var content = GenerateHookFile(hub, headerContent);
+            var content = GenerateHookFile(hub, headerContent, wireNames);
             results.Add((fileName, content));
         }
 
@@ -109,7 +110,8 @@ public static class TypeScriptSignalRHubExtractor
 
     private static string GenerateHookFile(
         HubDefinition hub,
-        string? headerContent)
+        string? headerContent,
+        TypeScriptWireNames? wireNames)
     {
         var sb = new StringBuilder();
         if (headerContent is not null)
@@ -117,8 +119,20 @@ public static class TypeScriptSignalRHubExtractor
             sb.Append(headerContent);
         }
 
+        // An event payload whose model renames keys arrives with the API's property names: rename it first.
+        var payloadShapes = hub.Events
+            .Where(e => e.PayloadType is not null)
+            .Select(e => (e.Name, Shape: wireNames?.ShapeOfModel(e.PayloadType!)))
+            .Where(e => e.Shape is not null)
+            .ToDictionary(e => e.Name, e => e.Shape!, StringComparer.Ordinal);
+
         sb.AppendLine("import { useCallback, useEffect, useRef, useState } from 'react';");
         sb.AppendLine("import { HubConnectionBuilder, HubConnection } from '@microsoft/signalr';");
+        if (payloadShapes.Count > 0)
+        {
+            sb.AppendLine("import { fromWire } from '../helpers/wireNames';");
+        }
+
         sb.AppendLine("import { useApiService } from './useApiService';");
 
         var payloadImports = new SortedSet<string>(StringComparer.Ordinal);
@@ -179,8 +193,17 @@ public static class TypeScriptSignalRHubExtractor
         foreach (var ev in hub.Events)
         {
             var payload = ev.PayloadType ?? "unknown";
-            sb.Append("    connection.on('").Append(ev.Name).Append("', (event: ").Append(payload).AppendLine(") => {");
-            sb.Append("      callbacksRef.current.on").Append(ev.Name).AppendLine("?.(event);");
+            if (payloadShapes.TryGetValue(ev.Name, out var shape))
+            {
+                sb.Append("    connection.on('").Append(ev.Name).AppendLine("', (event: unknown) => {");
+                sb.Append("      callbacksRef.current.on").Append(ev.Name).Append("?.(fromWire<").Append(payload).Append(">(event, ").Append(shape).AppendLine("));");
+            }
+            else
+            {
+                sb.Append("    connection.on('").Append(ev.Name).Append("', (event: ").Append(payload).AppendLine(") => {");
+                sb.Append("      callbacksRef.current.on").Append(ev.Name).AppendLine("?.(event);");
+            }
+
             sb.AppendLine("    });");
             sb.AppendLine();
         }

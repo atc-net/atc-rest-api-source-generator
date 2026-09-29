@@ -38,7 +38,7 @@ export interface RequestOptions {
 
 export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
 
-async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {
+async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, reviver?: (key: string, value: unknown) => unknown): AsyncGenerator<T> {
   let buffer = '';
   try {
     while (true) {
@@ -55,7 +55,7 @@ async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Arr
           .map((l) => l.slice(5).trimStart())
           .join('\n');
         if (data.length > 0) {
-          yield JSON.parse(data) as T;
+          yield JSON.parse(data, reviver) as T;
         }
       }
     }
@@ -219,9 +219,15 @@ export class ApiClient {
       }
     }
 
+    const streamBody = options?.body !== undefined ? JSON.stringify(options.body) : undefined;
+    if (streamBody !== undefined) {
+      headers.set('Content-Type', 'application/json');
+    }
+
     const response = await fetch(url, {
       method,
       headers,
+      body: streamBody,
       signal: options?.signal,
     });
 
@@ -232,7 +238,7 @@ export class ApiClient {
       try {
         if (errorContentType.includes('application/json') || errorContentType.includes('+json')) {
           errorBody = await response.json();
-        } else if (errorContentType.startsWith('text/')) {
+        } else if (errorContentType.startsWith('text/') || errorContentType.includes('application/xml') || errorContentType.includes('+xml')) {
           const text = await response.text();
           errorBody = text.length > 0 ? text : undefined;
         }
@@ -350,7 +356,7 @@ export class ApiClient {
     return url.toString();
   }
 
-  private handleResponse<T>(response: AxiosResponse<T>): ApiResult<T> {
+  private async handleResponse<T>(response: AxiosResponse<T>): Promise<ApiResult<T>> {
     if (response.status === 204) {
       return { status: 'noContent', response };
     }
@@ -376,16 +382,28 @@ export class ApiClient {
     }
 
     let errorBody: unknown = response.data instanceof UnparseableBody ? undefined : response.data;
+    if (typeof Blob !== 'undefined' && errorBody instanceof Blob) {
+      // A download's error arrives as a Blob (responseType 'blob'): read it like any other error body.
+      errorBody = await errorBody.text();
+    }
+
     if (typeof errorBody === 'string') {
       const errorContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '').toLowerCase();
       if (errorBody.length === 0) {
         errorBody = undefined;
       } else if (errorContentType.includes('application/json') || errorContentType.includes('+json')) {
-        try {
-          errorBody = JSON.parse(errorBody);
-        } catch {
-          // Already the parsed value of a JSON string body: keep it.
+        // Only a responseType 'text' request left a JSON body unparsed; otherwise a string here is the parsed
+        // value of a JSON-string body ("42" stays the string '42').
+        if (response.config?.responseType === 'text') {
+          try {
+            errorBody = JSON.parse(errorBody);
+          } catch {
+            errorBody = undefined;
+          }
         }
+      } else if (!(errorContentType.startsWith('text/') || errorContentType.includes('application/xml') || errorContentType.includes('+xml'))) {
+        // Neither JSON nor text (e.g. application/octet-stream, or no Content-Type): no body, as in the Fetch client.
+        errorBody = undefined;
       }
     }
 

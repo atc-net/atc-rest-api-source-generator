@@ -7,28 +7,28 @@ import type { ApiError, ValidationError } from '../errors';
 export type ListItemsResult =
   | { status: 'ok'; data: Items; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
-  | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
-  | { status: 'notFound'; error: ApiError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
-  | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
-  | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
-  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
-  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
-  | { status: 'parseError'; error: Error; response: AxiosResponse };
+  | { status: 'unauthorized'; error: ApiError<Error>; response: AxiosResponse }
+  | { status: 'forbidden'; error: ApiError<Error>; response: AxiosResponse }
+  | { status: 'notFound'; error: ApiError<Error>; response: AxiosResponse }
+  | { status: 'conflict'; error: ApiError<Error>; response: AxiosResponse }
+  | { status: 'unprocessableEntity'; error: ApiError<Error>; response: AxiosResponse }
+  | { status: 'tooManyRequests'; error: ApiError<Error>; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError<Error>; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError<Error>; response: AxiosResponse }
+  | { status: 'parseError'; error: globalThis.Error; response: AxiosResponse };
 
 export type GetItemByIdResult =
   | { status: 'ok'; data: Item; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError<Error>; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
-  | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
-  | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
-  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
-  | { status: 'unprocessableEntity'; error: ApiError; response: AxiosResponse }
-  | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
-  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
-  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
-  | { status: 'parseError'; error: Error; response: AxiosResponse };
+  | { status: 'unauthorized'; error: ApiError<Error>; response: AxiosResponse }
+  | { status: 'forbidden'; error: ApiError<Error>; response: AxiosResponse }
+  | { status: 'conflict'; error: ApiError<Error>; response: AxiosResponse }
+  | { status: 'unprocessableEntity'; error: ApiError<Error>; response: AxiosResponse }
+  | { status: 'tooManyRequests'; error: ApiError<Error>; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError<Error>; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError<Error>; response: AxiosResponse }
+  | { status: 'parseError'; error: globalThis.Error; response: AxiosResponse };
 
 export class ItemsClient {
   private readonly api: ApiClient;

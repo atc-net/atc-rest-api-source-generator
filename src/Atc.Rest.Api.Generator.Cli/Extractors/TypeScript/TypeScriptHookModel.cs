@@ -29,7 +29,7 @@ internal static class TypeScriptHookModel
                 continue;
             }
 
-            var keyName = DeriveKeyName(info.MethodName, segmentCamel);
+            var keyName = KeyNameOf(info, segmentCamel);
             AppendKeyEntry(sb, segmentCamel, keyName, info, info.QueryParams, KeyHeaders(info, info.HeaderParams), namingStrategy, convertDates, brandedIds);
 
             // A paginated read also gets an `<key>Infinite` entry: the same inputs, without the
@@ -398,6 +398,63 @@ internal static class TypeScriptHookModel
     /// Strips the segment prefix and converts remainder to camelCase.
     /// Examples: listAccounts -> list, getAccountById -> detail, listPaginatedAccounts -> listPaginated.
     /// </summary>
+    /// <summary>
+    /// Gives every query of a segment its key name, unique within the segment's key factory: the short name
+    /// <see cref="DeriveKeyName"/> derives, or - when that is taken (by <c>all</c>, another query, or a paginated
+    /// read's <c>…Infinite</c> key) - the method name, which is unique per operation. Two equal names would be
+    /// duplicate properties of the key factory and share cache entries.
+    /// </summary>
+    internal static List<HookInfo> AssignKeyNames(
+        List<HookInfo> hookInfos,
+        string segmentCamel)
+    {
+        var used = new HashSet<string>(StringComparer.Ordinal) { "all" };
+        var result = new List<HookInfo>(hookInfos.Count);
+        foreach (var info in hookInfos)
+        {
+            if (info.IsStreaming || !info.IsQuery)
+            {
+                result.Add(info);
+                continue;
+            }
+
+            var keyName = KeyNameOf(info, segmentCamel);
+            if (IsTaken(keyName, info))
+            {
+                keyName = info.MethodName;
+                var suffix = 1;
+                while (IsTaken(keyName, info))
+                {
+                    suffix++;
+                    keyName = info.MethodName + suffix.ToString(CultureInfo.InvariantCulture);
+                }
+            }
+
+            used.Add(keyName);
+            if (info.Pagination is not null)
+            {
+                used.Add(keyName + "Infinite");
+            }
+
+            result.Add(info with { KeyName = keyName });
+        }
+
+        return result;
+
+        bool IsTaken(
+            string name,
+            HookInfo info)
+            => used.Contains(name) || (info.Pagination is not null && used.Contains(name + "Infinite"));
+    }
+
+    /// <summary>
+    /// The key name of a query: the one <see cref="AssignKeyNames"/> gave it.
+    /// </summary>
+    internal static string KeyNameOf(
+        HookInfo info,
+        string segmentCamel)
+        => info.KeyName ?? DeriveKeyName(info.MethodName, segmentCamel);
+
     internal static string DeriveKeyName(
         string methodName,
         string segmentCamel)
@@ -831,7 +888,8 @@ internal static class TypeScriptHookModel
         string? Summary,
         string? Description,
         bool Deprecated,
-        string Path);
+        string Path,
+        string? KeyName = null);
 
     /// <summary>
     /// The shape of a mutation hook: the hook-scoped parameters (path params beside a body, query,

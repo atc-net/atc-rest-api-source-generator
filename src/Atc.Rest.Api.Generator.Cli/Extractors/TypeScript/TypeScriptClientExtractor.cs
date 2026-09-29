@@ -22,10 +22,12 @@ public static class TypeScriptClientExtractor
         TypeScriptHttpClient httpClient = TypeScriptHttpClient.Fetch,
         HashSet<string>? writableSchemas = null,
         bool brandedIds = false,
-        bool zodRuntimeValidate = false)
+        bool zodRuntimeValidate = false,
+        TypeScriptWireNames? wireNames = null)
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
+        wireNames ??= new TypeScriptWireNames(openApiDoc, namingStrategy);
         var results = new List<(string ClassName, string Content)>();
         var segments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
         writableSchemas ??= new HashSet<string>(StringComparer.Ordinal);
@@ -39,7 +41,7 @@ public static class TypeScriptClientExtractor
             }
 
             var className = segment + "Client";
-            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy, convertDates, httpClient, writableSchemas, brandedIds, zodRuntimeValidate);
+            var content = GenerateClientClass(className, operations, openApiDoc, headerContent, enumNames, namingStrategy, convertDates, httpClient, writableSchemas, brandedIds, zodRuntimeValidate, wireNames);
             results.Add((className, content));
         }
 
@@ -57,7 +59,8 @@ public static class TypeScriptClientExtractor
         TypeScriptHttpClient httpClient,
         HashSet<string> writableSchemas,
         bool brandedIds,
-        bool zodRuntimeValidate)
+        bool zodRuntimeValidate,
+        TypeScriptWireNames wireNames)
     {
         var sb = new StringBuilder();
         var importTypes = new HashSet<string>(StringComparer.Ordinal);
@@ -255,10 +258,14 @@ public static class TypeScriptClientExtractor
         // import for nothing and fail strict tsc under noUnusedLocals.
         var bodySb = new StringBuilder();
 
-        // Emit per-operation result-type aliases before the class.
+        // Emit per-operation result-type aliases before the class. A spec model named `Error` imported into this
+        // file shadows the global Error that the parseError arm carries: name the JS one explicitly then.
+        var modelShadowsError = importTypes.Contains("Error");
         foreach (var declaration in perOpDeclarations)
         {
-            bodySb.Append(declaration);
+            bodySb.Append(modelShadowsError
+                ? declaration.Replace("status: 'parseError'; error: Error;", "status: 'parseError'; error: globalThis.Error;", StringComparison.Ordinal)
+                : declaration);
             bodySb.AppendLine();
         }
 
@@ -276,7 +283,7 @@ public static class TypeScriptClientExtractor
             bodySb.AppendLine();
             perOpResultTypes.TryGetValue(operation, out var resultTypeName);
             perOpArms.TryGetValue(operation, out var armsOption);
-            AppendMethod(bodySb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, armsOption, writableSchemas, brandedIds, zodRuntimeValidate);
+            AppendMethod(bodySb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, armsOption, writableSchemas, brandedIds, zodRuntimeValidate, wireNames);
         }
 
         bodySb.AppendLine("}");
@@ -430,7 +437,8 @@ public static class TypeScriptClientExtractor
         string? armsOption,
         HashSet<string> writableSchemas,
         bool brandedIds,
-        bool zodRuntimeValidate)
+        bool zodRuntimeValidate,
+        TypeScriptWireNames wireNames)
     {
         var isStreaming = operation.IsStreamingResponse();
         var isFileDownload = operation.HasFileDownload();
@@ -456,6 +464,9 @@ public static class TypeScriptClientExtractor
         // does on its own (its default policy for safe methods, no retry for POST/PATCH).
         var retryOption = BuildRetryOption(operation, path, httpMethod, openApiDoc);
 
+        // How to rename the body's, the response's and the error bodies' keys between the wire and the models.
+        var wireOption = wireNames.OperationOption(operation, isStreaming, isFileUpload, isFileDownload || isTextDownload);
+
         // Emit a /** ... */ block when the spec has anything worth saying
         // about this operation — summary, description, or deprecated marker. The same
         // block applies to the Page companion below (it shares the operation).
@@ -477,7 +488,8 @@ public static class TypeScriptClientExtractor
                 _ => null,
             };
 
-            AppendStreamingMethod(sb, methodName, path, pathParams, queryParams, headerParams, returnType, namingStrategy, convertDates, brandedIds, streamFramingArg);
+            var streamBodyType = !isFileUpload && bodySchema is not null ? BodyTypeOf(bodySchema, writableSchemas) : null;
+            AppendStreamingMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, returnType, streamBodyType, namingStrategy, convertDates, brandedIds, streamFramingArg, wireOption);
         }
         else
         {
@@ -487,7 +499,7 @@ public static class TypeScriptClientExtractor
             var zodSpec = zodRuntimeValidate
                 ? TypeScriptOperationHelper.TryGetResponseZodSchemaSpec(operation)
                 : null;
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption);
         }
     }
 
@@ -597,7 +609,8 @@ public static class TypeScriptClientExtractor
         bool brandedIds,
         ZodResponseSchemaSpec? zodSpec,
         string? retryOption,
-        string? armsOption = null)
+        string? armsOption = null,
+        string? wireOption = null)
     {
         // Build parameter list
         var paramList = BuildParameterList(pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path);
@@ -620,7 +633,7 @@ public static class TypeScriptClientExtractor
             sb.Append("    const _basePath = ").Append(interpolatedPath).AppendLine(";");
             if (querystringParams.Count == 1)
             {
-                var qsName = (querystringParams[0].Name ?? string.Empty).ToCamelCase();
+                var qsName = (querystringParams[0].Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
                 sb.Append("    const _url = ").Append(qsName).Append(" ? `${_basePath}?${").Append(qsName).AppendLine("}` : _basePath;");
             }
             else
@@ -628,7 +641,7 @@ public static class TypeScriptClientExtractor
                 sb.AppendLine("    const _rawParts = [");
                 foreach (var qsParam in querystringParams)
                 {
-                    var qsName = (qsParam.Name ?? string.Empty).ToCamelCase();
+                    var qsName = (qsParam.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
                     sb.Append("      ").Append(qsName).AppendLine(",");
                 }
 
@@ -654,7 +667,7 @@ public static class TypeScriptClientExtractor
 
         var urlArg = hasQuerystring ? "_url" : interpolatedPath;
 
-        if (hasQuery || hasHeaders || hasBody || isFileUpload || isFileDownload || isTextDownload || emitParseSchema || retryOption is not null || armsOption is not null)
+        if (hasQuery || hasHeaders || hasBody || isFileUpload || isFileDownload || isTextDownload || emitParseSchema || retryOption is not null || armsOption is not null || wireOption is not null)
         {
             sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(urlArg).AppendLine(", {");
 
@@ -674,7 +687,7 @@ public static class TypeScriptClientExtractor
 
             if (hasHeaders)
             {
-                AppendHeadersObject(sb, headerParams, cookieParams, convertDates);
+                AppendHeadersObject(sb, headerParams, cookieParams, convertDates, namingStrategy);
             }
 
             if (isFileDownload)
@@ -694,6 +707,11 @@ public static class TypeScriptClientExtractor
             if (retryOption is not null)
             {
                 sb.Append("      retry: ").Append(retryOption).AppendLine(",");
+            }
+
+            if (wireOption is not null)
+            {
+                sb.Append("      wire: ").Append(wireOption).AppendLine(",");
             }
 
             // The result arms of the per-op union: a status it does not declare is folded into one it does.
@@ -716,14 +734,17 @@ public static class TypeScriptClientExtractor
         StringBuilder sb,
         string methodName,
         string path,
+        string httpMethod,
         List<OpenApiParameter> pathParams,
         List<OpenApiParameter> queryParams,
         List<OpenApiParameter> headerParams,
         string itemType,
+        string? bodyType,
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
         bool brandedIds,
-        string? streamFramingArg = null)
+        string? streamFramingArg = null,
+        string? wireOption = null)
     {
         // Build parameter list (streaming methods may have query / header params + signal)
         var paramParts = new List<string>();
@@ -733,6 +754,12 @@ public static class TypeScriptClientExtractor
             var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
             var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, path);
             paramParts.Add(paramName + ": " + paramType);
+        }
+
+        // A streamed search (POST or QUERY) sends its criteria as the body.
+        if (bodyType is not null)
+        {
+            paramParts.Add("body: " + bodyType);
         }
 
         if (queryParams.Count > 0)
@@ -757,9 +784,16 @@ public static class TypeScriptClientExtractor
         var hasQuery = queryParams.Count > 0;
         var hasHeaders = headerParams.Count > 0;
 
-        if (hasQuery || hasHeaders)
+        var hasBody = bodyType is not null;
+        var method = "'" + httpMethod.ToUpperInvariant() + "'";
+        if (hasQuery || hasHeaders || hasBody)
         {
-            sb.Append("    yield* this.api.requestStream<").Append(itemType).Append(">('GET', ").Append(interpolatedPath).AppendLine(", {");
+            sb.Append("    yield* this.api.requestStream<").Append(itemType).Append(">(").Append(method).Append(", ").Append(interpolatedPath).AppendLine(", {");
+            if (hasBody)
+            {
+                sb.AppendLine("      body,");
+            }
+
             if (hasQuery)
             {
                 AppendQueryObject(sb, queryParams, namingStrategy, convertDates);
@@ -767,20 +801,26 @@ public static class TypeScriptClientExtractor
 
             if (hasHeaders)
             {
-                AppendHeadersObject(sb, headerParams, cookieParams: null, convertDates);
+                AppendHeadersObject(sb, headerParams, cookieParams: null, convertDates, namingStrategy);
             }
 
             sb.AppendLine("      signal,");
+            if (wireOption is not null)
+            {
+                sb.Append("      wire: ").Append(wireOption).AppendLine(",");
+            }
+
             sb.AppendLine(streamFramingArg is null
                 ? "    });"
                 : $"    }}, {streamFramingArg});");
         }
         else
         {
-            sb.Append("    yield* this.api.requestStream<").Append(itemType).Append(">('GET', ").Append(interpolatedPath);
+            var options = wireOption is null ? "{ signal }" : "{ signal, wire: " + wireOption + " }";
+            sb.Append("    yield* this.api.requestStream<").Append(itemType).Append(">(").Append(method).Append(", ").Append(interpolatedPath);
             sb.AppendLine(streamFramingArg is null
-                ? ", { signal });"
-                : $", {{ signal }}, {streamFramingArg});");
+                ? $", {options});"
+                : $", {options}, {streamFramingArg});");
         }
 
         sb.AppendLine("  }");
@@ -820,20 +860,7 @@ public static class TypeScriptClientExtractor
             }
             else
             {
-                // When the body schema is a direct $ref to a schema with the readOnly/writeOnly
-                // split, route the parameter to the Writable variant — that's the type with the
-                // readOnly properties dropped, matching the OpenAPI contract for request bodies.
-                var bodyType = bodySchema.ToTypeScriptReturnType();
-                if (bodySchema is OpenApiSchemaReference bodyRef)
-                {
-                    var refName = bodyRef.Reference.Id ?? bodyRef.Id;
-                    if (refName is not null && writableSchemas.Contains(refName))
-                    {
-                        bodyType = refName + TypeScriptModelExtractor.WritableSuffix;
-                    }
-                }
-
-                parts.Add("body: " + bodyType);
+                parts.Add("body: " + BodyTypeOf(bodySchema, writableSchemas));
             }
         }
 
@@ -869,13 +896,32 @@ public static class TypeScriptClientExtractor
         return string.Join(", ", parts);
     }
 
+    /// <summary>
+    /// The type of a JSON request body parameter. When the body schema is a direct $ref to a schema with the
+    /// readOnly/writeOnly split, it is the Writable variant - the type with the readOnly properties dropped,
+    /// matching the OpenAPI contract for request bodies.
+    /// </summary>
+    private static string BodyTypeOf(
+        IOpenApiSchema bodySchema,
+        HashSet<string> writableSchemas)
+    {
+        if (bodySchema is OpenApiSchemaReference bodyRef &&
+            (bodyRef.Reference.Id ?? bodyRef.Id) is { } refName &&
+            writableSchemas.Contains(refName))
+        {
+            return refName + TypeScriptModelExtractor.WritableSuffix;
+        }
+
+        return bodySchema.ToTypeScriptReturnType();
+    }
+
     private static string BuildCookieTypeInline(
         List<OpenApiParameter> cookieParams,
         TypeScriptNamingStrategy namingStrategy)
     {
         var props = cookieParams.Select(p =>
         {
-            var name = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            var name = TypeScriptOperationHelper.PropertyKey((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
             var optional = p.Required ? string.Empty : "?";
             return name + optional + ": string";
         });
@@ -1062,7 +1108,8 @@ public static class TypeScriptClientExtractor
         StringBuilder sb,
         List<OpenApiParameter> headerParams,
         List<OpenApiParameter>? cookieParams,
-        bool convertDates)
+        bool convertDates,
+        TypeScriptNamingStrategy namingStrategy)
     {
         // Header names are emitted verbatim (no naming-strategy transform). HTTP header
         // names commonly contain dashes — both the key on the wire and the inline-type
@@ -1080,7 +1127,7 @@ public static class TypeScriptClientExtractor
 
         if (cookieParams is { Count: > 0 })
         {
-            AppendCookieHeader(sb, cookieParams);
+            AppendCookieHeader(sb, cookieParams, namingStrategy);
         }
 
         sb.AppendLine("      },");
@@ -1095,24 +1142,26 @@ public static class TypeScriptClientExtractor
     /// </remarks>
     private static void AppendCookieHeader(
         StringBuilder sb,
-        List<OpenApiParameter> cookieParams)
+        List<OpenApiParameter> cookieParams,
+        TypeScriptNamingStrategy namingStrategy)
     {
+        // The cookies object uses the same (naming-strategy) property names as its type (BuildCookieTypeInline).
         sb.AppendLine("        // Note: browsers forbid setting the Cookie header via fetch; Node.js only.");
         if (cookieParams.Count == 1)
         {
             var param = cookieParams[0];
-            var propName = (param.Name ?? string.Empty).ToCamelCase();
+            var access = TypeScriptOperationHelper.OptionalPropertyAccess("cookies", (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
             var rawName = param.Name ?? string.Empty;
-            sb.Append("        'Cookie': cookies?.").Append(propName).Append(" != null ? `").Append(rawName).Append("=${cookies.").Append(propName).AppendLine("}` : undefined,");
+            sb.Append("        'Cookie': ").Append(access).Append(" != null ? `").Append(rawName).Append("=${").Append(access).AppendLine("}` : undefined,");
         }
         else
         {
             sb.AppendLine("        'Cookie': [");
             foreach (var param in cookieParams)
             {
-                var propName = (param.Name ?? string.Empty).ToCamelCase();
+                var access = TypeScriptOperationHelper.OptionalPropertyAccess("cookies", (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
                 var rawName = param.Name ?? string.Empty;
-                sb.Append("          cookies?.").Append(propName).Append(" && `").Append(rawName).Append("=${cookies.").Append(propName).AppendLine("}`,");
+                sb.Append("          ").Append(access).Append(" && `").Append(rawName).Append("=${").Append(access).AppendLine("}`,");
             }
 
             sb.AppendLine("        ].filter(Boolean).join('; ') || undefined,");

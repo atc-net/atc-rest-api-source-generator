@@ -10,10 +10,15 @@ public static class TypeScriptErrorExtractor
     /// </summary>
     /// <param name="headerContent">Optional auto-generated file header.</param>
     /// <param name="httpClient">The HTTP client library to use.</param>
+    /// <param name="hasWireNames">
+    /// When true, the models rename keys: the constructor also takes the body as it came over the wire, which the
+    /// ProblemDetails fields are read from while <c>body</c> holds the declared model under the models' names.
+    /// </param>
     /// <returns>The TypeScript file content.</returns>
     public static string GenerateApiError(
         string? headerContent,
-        TypeScriptHttpClient httpClient = TypeScriptHttpClient.Fetch)
+        TypeScriptHttpClient httpClient = TypeScriptHttpClient.Fetch,
+        bool hasWireNames = false)
     {
         var sb = new StringBuilder();
 
@@ -48,15 +53,28 @@ public static class TypeScriptErrorExtractor
         sb.AppendLine("  readonly detail?: string;");
         sb.AppendLine("  readonly instance?: string;");
         sb.AppendLine();
-        sb.Append("  constructor(status: number, statusText: string, message: string, response?: ").Append(responseType).AppendLine(", body?: TBody) {");
+        if (hasWireNames)
+        {
+            sb.AppendLine("  /**");
+            sb.AppendLine("   * @param body The error body; the declared error model under the models' property names.");
+            sb.AppendLine("   * @param wireBody The body as it came over the wire (its ProblemDetails fields); defaults to `body`.");
+            sb.AppendLine("   */");
+            sb.Append("  constructor(status: number, statusText: string, message: string, response?: ").Append(responseType).AppendLine(", body?: TBody, wireBody: unknown = body) {");
+        }
+        else
+        {
+            sb.Append("  constructor(status: number, statusText: string, message: string, response?: ").Append(responseType).AppendLine(", body?: TBody) {");
+        }
+
+        var source = hasWireNames ? "wireBody" : "body";
         sb.AppendLine("    super(message);");
         sb.AppendLine("    this.name = 'ApiError';");
         sb.AppendLine("    this.status = status;");
         sb.AppendLine("    this.statusText = statusText;");
         sb.AppendLine("    this.response = response;");
         sb.AppendLine("    this.body = body;");
-        sb.AppendLine("    if (body !== null && typeof body === 'object') {");
-        sb.AppendLine("      const problem = body as Record<string, unknown>;");
+        sb.Append("    if (").Append(source).Append(" !== null && typeof ").Append(source).AppendLine(" === 'object') {");
+        sb.Append("      const problem = ").Append(source).AppendLine(" as Record<string, unknown>;");
         sb.AppendLine("      this.type = typeof problem.type === 'string' ? problem.type : undefined;");
         sb.AppendLine("      this.title = typeof problem.title === 'string' ? problem.title : undefined;");
         sb.AppendLine("      this.detail = typeof problem.detail === 'string' ? problem.detail : undefined;");
@@ -98,7 +116,8 @@ public static class TypeScriptErrorExtractor
     /// <returns>The TypeScript file content.</returns>
     public static string GenerateValidationError(
         string? headerContent,
-        TypeScriptHttpClient httpClient = TypeScriptHttpClient.Fetch)
+        TypeScriptHttpClient httpClient = TypeScriptHttpClient.Fetch,
+        bool hasWireNames = false)
     {
         var sb = new StringBuilder();
 
@@ -130,8 +149,18 @@ public static class TypeScriptErrorExtractor
         sb.AppendLine("    errors: Record<string, string[]>,");
         sb.Append("    response?: ").Append(responseType).AppendLine(",");
         sb.AppendLine("    body?: TBody,");
-        sb.AppendLine("  ) {");
-        sb.AppendLine("    super(status, statusText, message, response, body);");
+        if (hasWireNames)
+        {
+            sb.AppendLine("    wireBody: unknown = body,");
+            sb.AppendLine("  ) {");
+            sb.AppendLine("    super(status, statusText, message, response, body, wireBody);");
+        }
+        else
+        {
+            sb.AppendLine("  ) {");
+            sb.AppendLine("    super(status, statusText, message, response, body);");
+        }
+
         sb.AppendLine("    this.name = 'ValidationError';");
         sb.AppendLine("    this.errors = errors;");
         sb.AppendLine("  }");

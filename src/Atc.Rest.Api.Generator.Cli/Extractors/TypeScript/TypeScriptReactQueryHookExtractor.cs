@@ -162,6 +162,7 @@ public static class TypeScriptReactQueryHookExtractor
 
         // Write query key factory
         var segmentCamel = segment.ToCamelCase();
+        hookInfos = AssignKeyNames(hookInfos, segmentCamel);
         AppendQueryKeyFactory(bodySb, segmentCamel, hookInfos, namingStrategy, convertDates, brandedIds);
 
         // Write hook functions
@@ -302,6 +303,12 @@ public static class TypeScriptReactQueryHookExtractor
             optionImports.Add("UseMutationOptions");
         }
 
+        if (needsUseInfiniteQuery)
+        {
+            optionImports.Add("InfiniteData");
+            optionImports.Add("UseInfiniteQueryOptions");
+        }
+
         if (optionImports.Count > 0)
         {
             sb.Append("import type { ").Append(string.Join(", ", optionImports)).AppendLine(" } from '@tanstack/react-query';");
@@ -376,7 +383,7 @@ public static class TypeScriptReactQueryHookExtractor
         var hookName = useSuspenseSuffix ? baseHookName + "Suspense" : baseHookName;
         var queryFn = isSuspense ? "useSuspenseQuery" : "useQuery";
         var optionsType = isSuspense ? "UseSuspenseQueryOptions" : "UseQueryOptions";
-        var keyName = DeriveKeyName(info.MethodName, segmentCamel);
+        var keyName = KeyNameOf(info, segmentCamel);
         var segmentProperty = segmentCamel;
 
         // Build hook parameter list
@@ -530,7 +537,7 @@ public static class TypeScriptReactQueryHookExtractor
     {
         var pagination = info.Pagination!;
         var hookName = "use" + info.MethodName.ToPascalCaseForDotNet() + "Infinite";
-        var keyName = DeriveKeyName(info.MethodName, segmentCamel) + "Infinite";
+        var keyName = KeyNameOf(info, segmentCamel) + "Infinite";
         var (queryParams, headerParams) = InfiniteHookParameters(info);
 
         var hookParams = new List<string>();
@@ -576,6 +583,12 @@ public static class TypeScriptReactQueryHookExtractor
             hookParams.Add("cookies?: " + BuildCookieTypeInline(info.CookieParams, namingStrategy));
         }
 
+        // The same override point as the query hooks: everything but what the hook computes itself.
+        var pageType = info.ReturnType;
+        hookParams.Add(
+            "options?: Omit<UseInfiniteQueryOptions<" + pageType + ", ApiError, InfiniteData<" + pageType +
+            ", string | undefined>, readonly unknown[], string | undefined>, 'queryKey' | 'queryFn' | 'initialPageParam' | 'getNextPageParam'>");
+
         AppendHookJsDoc(sb, info);
         sb.Append("export function ").Append(hookName).Append('(').Append(string.Join(", ", hookParams)).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
@@ -607,6 +620,7 @@ public static class TypeScriptReactQueryHookExtractor
 
         // The ApiClient owns retry (x-retry-*); React Query's own retry would multiply the attempts.
         sb.AppendLine("    retry: false,");
+        sb.AppendLine("    ...options,");
         sb.AppendLine("  });");
         sb.AppendLine("}");
     }

@@ -10,7 +10,7 @@ export type CreateDocumentResult =
   | { status: 'conflict'; error: ApiError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
-  | { status: 'parseError'; error: Error; response: AxiosResponse };
+  | { status: 'parseError'; error: globalThis.Error; response: AxiosResponse };
 
 export class DocumentsClient {
   private readonly api: ApiClient;

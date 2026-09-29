@@ -62,6 +62,45 @@ public class TypeScriptReactQueryHookExtractorTests
     }
 
     [Fact]
+    public void Extract_QueryKeyNames_AreUniqueWithinTheSegment()
+    {
+        // listAccounts and list both derive "list", allAccounts derives "all" (the factory's own base key):
+        // each would be a duplicate property of accountsKeys (TS1117) and share cache entries.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /accounts:
+                                get:
+                                  operationId: listAccounts
+                                  responses:
+                                    '200': { description: OK, content: { application/json: { schema: { type: string } } } }
+                              /accounts/list:
+                                get:
+                                  operationId: list
+                                  responses:
+                                    '200': { description: OK, content: { application/json: { schema: { type: string } } } }
+                              /accounts/all:
+                                get:
+                                  operationId: allAccounts
+                                  responses:
+                                    '200': { description: OK, content: { application/json: { schema: { type: string } } } }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptReactQueryHookExtractor.Extract(doc, headerContent: null));
+
+        var keyFactory = content[content.IndexOf("const accountsKeys = {", StringComparison.Ordinal)..content.IndexOf("};", StringComparison.Ordinal)];
+        var keyNames = Regex.Matches(keyFactory, @"^  (?<key>\w+):", RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(m => m.Groups["key"].Value)
+            .ToList();
+        Assert.Equal(keyNames.Distinct(StringComparer.Ordinal).Count(), keyNames.Count);
+        Assert.Equal(["all", "list", "list2", "allAccounts"], keyNames);
+        Assert.Contains("accountsKeys.allAccounts()", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Extract_QueryHook_LeavesRetryToTheApiClient()
     {
         // The ApiClient retries per operation (x-retry-*); React Query's own retry would multiply the
@@ -945,7 +984,9 @@ public class TypeScriptReactQueryHookExtractorTests
 
         Assert.Contains("import { useQuery, useInfiniteQuery } from '@tanstack/react-query';", content, StringComparison.Ordinal);
         Assert.Contains("export function useListPaginatedItems(query?: { pageSize?: number; continuation?: string }, headers?: { 'x-tenant'?: string }", content, StringComparison.Ordinal);
-        Assert.Contains("export function useListPaginatedItemsInfinite(query?: { pageSize?: number }, headers?: { 'x-tenant'?: string }) {", content, StringComparison.Ordinal);
+        Assert.Contains("export function useListPaginatedItemsInfinite(query?: { pageSize?: number }, headers?: { 'x-tenant'?: string }, options?: Omit<UseInfiniteQueryOptions<", content, StringComparison.Ordinal);
+        Assert.Contains("'queryKey' | 'queryFn' | 'initialPageParam' | 'getNextPageParam'>) {", content, StringComparison.Ordinal);
+        Assert.Contains("    retry: false,\n    ...options,\n  });", content.Replace("\r\n", "\n", StringComparison.Ordinal), StringComparison.Ordinal);
         Assert.Contains("queryKey: itemsKeys.listPaginatedInfinite(query),", content, StringComparison.Ordinal);
         Assert.Contains("listPaginatedInfinite: (query?: { pageSize?: number })", content, StringComparison.Ordinal);
         Assert.Contains("api.items.listPaginatedItems({ ...query, continuation: pageParam ?? undefined }, headers)", content, StringComparison.Ordinal);

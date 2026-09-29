@@ -6,28 +6,28 @@ import type { ApiError, ValidationError } from '../errors';
 export type ListItemsResult =
   | { status: 'ok'; data: Items; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'unauthorized'; error: ApiError; response: Response }
-  | { status: 'forbidden'; error: ApiError; response: Response }
-  | { status: 'notFound'; error: ApiError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
-  | { status: 'unprocessableEntity'; error: ApiError; response: Response }
-  | { status: 'tooManyRequests'; error: ApiError; response: Response }
-  | { status: 'clientError'; error: ApiError; response: Response }
-  | { status: 'serverError'; error: ApiError; response: Response }
-  | { status: 'parseError'; error: Error; response: Response };
+  | { status: 'unauthorized'; error: ApiError<Error>; response: Response }
+  | { status: 'forbidden'; error: ApiError<Error>; response: Response }
+  | { status: 'notFound'; error: ApiError<Error>; response: Response }
+  | { status: 'conflict'; error: ApiError<Error>; response: Response }
+  | { status: 'unprocessableEntity'; error: ApiError<Error>; response: Response }
+  | { status: 'tooManyRequests'; error: ApiError<Error>; response: Response }
+  | { status: 'clientError'; error: ApiError<Error>; response: Response }
+  | { status: 'serverError'; error: ApiError<Error>; response: Response }
+  | { status: 'parseError'; error: globalThis.Error; response: Response };
 
 export type GetItemByIdResult =
   | { status: 'ok'; data: Item; response: Response }
   | { status: 'notFound'; error: ApiError<Error>; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
-  | { status: 'unauthorized'; error: ApiError; response: Response }
-  | { status: 'forbidden'; error: ApiError; response: Response }
-  | { status: 'conflict'; error: ApiError; response: Response }
-  | { status: 'unprocessableEntity'; error: ApiError; response: Response }
-  | { status: 'tooManyRequests'; error: ApiError; response: Response }
-  | { status: 'clientError'; error: ApiError; response: Response }
-  | { status: 'serverError'; error: ApiError; response: Response }
-  | { status: 'parseError'; error: Error; response: Response };
+  | { status: 'unauthorized'; error: ApiError<Error>; response: Response }
+  | { status: 'forbidden'; error: ApiError<Error>; response: Response }
+  | { status: 'conflict'; error: ApiError<Error>; response: Response }
+  | { status: 'unprocessableEntity'; error: ApiError<Error>; response: Response }
+  | { status: 'tooManyRequests'; error: ApiError<Error>; response: Response }
+  | { status: 'clientError'; error: ApiError<Error>; response: Response }
+  | { status: 'serverError'; error: ApiError<Error>; response: Response }
+  | { status: 'parseError'; error: globalThis.Error; response: Response };
 
 export class ItemsClient {
   private readonly api: ApiClient;

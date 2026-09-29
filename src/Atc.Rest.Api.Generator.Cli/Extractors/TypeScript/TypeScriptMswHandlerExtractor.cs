@@ -339,7 +339,12 @@ public static class TypeScriptMswHandlerExtractor
             }
 
             first = false;
-            var propName = prop.Key.ApplyNamingStrategy(namingStrategy);
+
+            // The mock stands in for the server, so it answers with the API's property names - the client renames
+            // them to the models' names like any real response.
+            var propName = Regex.IsMatch(prop.Key, "^[A-Za-z_$][A-Za-z0-9_$]*$", RegexOptions.None, TimeSpan.FromSeconds(1))
+                ? prop.Key
+                : "'" + prop.Key.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("'", "\\'", StringComparison.Ordinal) + "'";
             var value = GenerateMockValue(prop.Value, prop.Key, openApiDoc, namingStrategy, depth + 1);
             sb.Append(propName).Append(": ").Append(value);
         }

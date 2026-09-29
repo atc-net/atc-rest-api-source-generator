@@ -106,6 +106,7 @@ public static class TypeScriptSwrHookExtractor
         }
 
         var segmentCamel = segment.ToCamelCase();
+        hookInfos = AssignKeyNames(hookInfos, segmentCamel);
         var body = new StringBuilder();
         AppendQueryKeyFactory(body, segmentCamel, hookInfos, namingStrategy, convertDates, brandedIds);
 
@@ -244,7 +245,7 @@ public static class TypeScriptSwrHookExtractor
         bool brandedIds)
     {
         var hookName = "use" + info.MethodName.ToPascalCaseForDotNet();
-        var keyName = DeriveKeyName(info.MethodName, segmentCamel);
+        var keyName = KeyNameOf(info, segmentCamel);
         var dataType = info.ReturnType == "void" ? "void" : info.ReturnType;
 
         var hookParams = new List<string>();
@@ -410,7 +411,7 @@ public static class TypeScriptSwrHookExtractor
     {
         var pagination = info.Pagination!;
         var hookName = "use" + info.MethodName.ToPascalCaseForDotNet() + "Infinite";
-        var keyName = DeriveKeyName(info.MethodName, segmentCamel) + "Infinite";
+        var keyName = KeyNameOf(info, segmentCamel) + "Infinite";
         var dataType = info.ReturnType;
         var (queryParams, headerParams) = InfiniteHookParameters(info);
 

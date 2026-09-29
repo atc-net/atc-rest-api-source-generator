@@ -35,8 +35,11 @@ public static class TypeScriptClientGenerationService
         var unionTypeAliases = TypeScriptModelExtractor.ExtractUnionTypeAliases(openApiDoc, config);
         var modelCount = WriteModels(models, arrayTypeAliases, unionTypeAliases, outputPath, headerContent, config.GenerateZodSchemas, dryRun);
 
+        // The keys the models rename (the naming strategy) - the client renames them on the way in and out.
+        var wireNames = new TypeScriptWireNames(openApiDoc, config.NamingStrategy);
+
         // Step 3: Generate error types
-        var errorTypeCount = WriteErrorTypes(outputPath, headerContent, config.HttpClient, dryRun);
+        var errorTypeCount = WriteErrorTypes(outputPath, headerContent, config.HttpClient, wireNames.HasRenames, dryRun);
 
         // Step 4: Generate ApiResult type
         var typeCount = WriteApiResultType(outputPath, headerContent, config.HttpClient, config.ZodRuntimeValidate, dryRun);
@@ -44,15 +47,22 @@ public static class TypeScriptClientGenerationService
         // Step 5: Generate client classes
         var specHasRetry = openApiDoc.HasRetryConfiguration();
         var writableSchemas = TypeScriptModelExtractor.CollectSchemasWithWritableVariant(openApiDoc);
-        var (clientCount, segmentClientNames) = WriteClients(openApiDoc, outputPath, headerContent, enumNameSet, config.HttpClient, config.NamingStrategy, config.ConvertDates, specHasRetry, dryRun, writableSchemas, config.BrandedIds, config.ZodRuntimeValidate);
+        var (clientCount, segmentClientNames) = WriteClients(openApiDoc, outputPath, headerContent, enumNameSet, config.HttpClient, config.NamingStrategy, config.ConvertDates, specHasRetry, dryRun, writableSchemas, config.BrandedIds, config.ZodRuntimeValidate, wireNames);
 
-        // Step 5b: Generate helpers (pagination, retry)
+        // Step 5b: Generate helpers (pagination, retry, key renaming)
         var hasRetry = clientCount > 0 && specHasRetry;
         var hasPagination = clientCount > 0 && HasPaginationSchemas(openApiDoc);
-        if (hasPagination || hasRetry)
+        var wireNamesContent = wireNames.GenerateFile(headerContent);
+        if (hasPagination || hasRetry || wireNamesContent is not null)
         {
             var helpersDir = Path.Combine(outputPath, "helpers");
             var helperModules = new List<string>();
+
+            if (wireNamesContent is not null)
+            {
+                WriteTsFile(Path.Combine(helpersDir, "wireNames.ts"), wireNamesContent, dryRun);
+                helperModules.Add("wireNames");
+            }
 
             if (hasPagination)
             {
@@ -112,7 +122,7 @@ public static class TypeScriptClientGenerationService
 
         // Step 6f: Emit SignalR-style hub hooks when the doc declares an
         // x-signalr-hubs vendor extension. One hook file per declared hub.
-        var hubsEmitted = WriteSignalRHubFiles(openApiDoc, outputPath, headerContent, dryRun);
+        var hubsEmitted = WriteSignalRHubFiles(openApiDoc, outputPath, headerContent, wireNames, dryRun);
 
         // Step 6g: Emit branded ID type aliases when --branded-ids is set. The file
         // lives under types/ so it joins the existing type-only barrel. typeCount is
@@ -405,14 +415,15 @@ public static class TypeScriptClientGenerationService
         string outputPath,
         string? headerContent,
         TypeScriptHttpClient httpClient,
+        bool hasWireNames,
         bool dryRun)
     {
         var errorsDir = Path.Combine(outputPath, "errors");
 
-        var apiErrorContent = TypeScriptErrorExtractor.GenerateApiError(headerContent, httpClient);
+        var apiErrorContent = TypeScriptErrorExtractor.GenerateApiError(headerContent, httpClient, hasWireNames);
         WriteTsFile(Path.Combine(errorsDir, "ApiError.ts"), apiErrorContent, dryRun);
 
-        var validationErrorContent = TypeScriptErrorExtractor.GenerateValidationError(headerContent, httpClient);
+        var validationErrorContent = TypeScriptErrorExtractor.GenerateValidationError(headerContent, httpClient, hasWireNames);
         WriteTsFile(Path.Combine(errorsDir, "ValidationError.ts"), validationErrorContent, dryRun);
 
         // Generate barrel export for errors (not type-only, they are classes)
@@ -465,9 +476,10 @@ public static class TypeScriptClientGenerationService
         bool dryRun,
         HashSet<string> writableSchemas,
         bool brandedIds,
-        bool zodRuntimeValidate)
+        bool zodRuntimeValidate,
+        TypeScriptWireNames wireNames)
     {
-        var clients = TypeScriptClientExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates, httpClient, writableSchemas, brandedIds, zodRuntimeValidate);
+        var clients = TypeScriptClientExtractor.Extract(openApiDoc, headerContent, enumNameSet, namingStrategy, convertDates, httpClient, writableSchemas, brandedIds, zodRuntimeValidate, wireNames);
         if (clients.Count == 0)
         {
             return (0, Array.Empty<string>());
@@ -477,8 +489,8 @@ public static class TypeScriptClientGenerationService
 
         // Write base ApiClient (fetch or axios)
         var apiClientContent = httpClient == TypeScriptHttpClient.Axios
-            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, convertDates, hasRetry, zodRuntimeValidate)
-            : TypeScriptFetchApiClientExtractor.Generate(headerContent, convertDates, hasRetry, zodRuntimeValidate);
+            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, convertDates, hasRetry, zodRuntimeValidate, wireNames.HasRenames)
+            : TypeScriptFetchApiClientExtractor.Generate(headerContent, convertDates, hasRetry, zodRuntimeValidate, wireNames.HasRenames);
         WriteTsFile(Path.Combine(clientDir, "ApiClient.ts"), apiClientContent, dryRun);
 
         // Write per-segment client files
@@ -799,9 +811,10 @@ public static class TypeScriptClientGenerationService
         OpenApiDocument openApiDoc,
         string outputPath,
         string? headerContent,
+        TypeScriptWireNames wireNames,
         bool dryRun)
     {
-        var hubs = TypeScriptSignalRHubExtractor.Extract(openApiDoc, headerContent);
+        var hubs = TypeScriptSignalRHubExtractor.Extract(openApiDoc, headerContent, wireNames);
         if (hubs.Count == 0)
         {
             return false;

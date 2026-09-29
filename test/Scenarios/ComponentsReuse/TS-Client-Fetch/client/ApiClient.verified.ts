@@ -25,7 +25,7 @@ export interface RequestOptions {
 
 export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
 
-async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {
+async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, reviver?: (key: string, value: unknown) => unknown): AsyncGenerator<T> {
   let buffer = '';
   try {
     while (true) {
@@ -42,7 +42,7 @@ async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Arr
           .map((l) => l.slice(5).trimStart())
           .join('\n');
         if (data.length > 0) {
-          yield JSON.parse(data) as T;
+          yield JSON.parse(data, reviver) as T;
         }
       }
     }
@@ -128,9 +128,15 @@ export class ApiClient {
     const url = this.buildUrl(path, options?.query);
     const headers = await this.getHeaders(options?.headers);
 
+    const streamBody = options?.body !== undefined ? JSON.stringify(options.body) : undefined;
+    if (streamBody !== undefined) {
+      headers.set('Content-Type', 'application/json');
+    }
+
     let init: RequestInit = {
       method,
       headers,
+      body: streamBody,
       signal: options?.signal,
     };
 
@@ -280,7 +286,7 @@ export class ApiClient {
     }
 
     const contentType = (response.headers.get('Content-Type') ?? '').toLowerCase();
-    const isText = responseType === 'text' || (!responseType && (contentType.startsWith('text/') || contentType.includes('application/xml')));
+    const isText = responseType === 'text' || (!responseType && (contentType.startsWith('text/') || contentType.includes('application/xml') || contentType.includes('+xml')));
     const isJson = responseType ? responseType === 'json' : (!isText && (contentType.includes('application/json') || contentType.includes('+json')));
 
     if (response.ok) {
@@ -299,13 +305,13 @@ export class ApiClient {
     }
 
     // The error body is detected from the actual Content-Type (an operation's success responseType
-    // says nothing about its errors): a ProblemDetails / declared model / JSON string, or text.
+    // says nothing about its errors): a ProblemDetails / declared model / JSON string, or text (text/*, XML).
     // Malformed or empty bodies are non-fatal - the message then falls back to the status text.
     let errorBody: unknown = undefined;
     try {
       if (contentType.includes('application/json') || contentType.includes('+json')) {
         errorBody = await response.json();
-      } else if (contentType.startsWith('text/')) {
+      } else if (contentType.startsWith('text/') || contentType.includes('application/xml') || contentType.includes('+xml')) {
         const text = await response.text();
         errorBody = text.length > 0 ? text : undefined;
       }
