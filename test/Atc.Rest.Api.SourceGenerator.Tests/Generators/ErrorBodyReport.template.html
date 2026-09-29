@@ -34,7 +34,7 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; }
   body { background: var(--bg); color: var(--ink); font: 400 14px/1.55 "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif; padding-inline: 16px; padding-block: 24px 64px; }
-  main { max-width: 1400px; margin: 0 auto; display: grid; gap: 24px; }
+  main { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
   h1, h2, h3 { margin: 0; line-height: 1.25; text-wrap: balance; }
   h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
   h2 { font-size: 19px; font-weight: 600; }
@@ -62,6 +62,10 @@
   .v.pass { background: var(--pass-soft); color: var(--pass); } .v.lossy { background: var(--lossy-soft); color: var(--lossy); }
   .v.fail { background: var(--fail-soft); color: var(--fail); } .v.platform { background: var(--platform-soft); color: var(--platform); }
   .v.na { background: var(--na-soft); color: var(--na); }
+  .lk { display: inline-block; font: 500 10.5px/1.2 "IBM Plex Mono", ui-monospace, monospace; padding: 1px 6px; margin-left: 4px; border-radius: 4px; border: 1px solid var(--lossy); color: var(--lossy); white-space: nowrap; vertical-align: 1px; }
+  .legend .loss-legend { display: grid; min-width: 0; gap: 8px; padding-left: 12px; border-left: 2px solid var(--lossy-soft); font-size: 12.5px; }
+  .legend .loss-legend > div { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; align-items: baseline; }
+  .loss-legend .n { font: 500 11px/1 "IBM Plex Mono", monospace; color: var(--muted); }
   .legend { display: grid; gap: 8px; align-content: start; }
   .codes { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
   .code { border: 1px solid var(--line); border-radius: 8px; padding: 8px 9px; background: var(--surface); cursor: pointer; display: grid; gap: 4px; text-align: left; font: inherit; color: inherit; }
@@ -143,7 +147,8 @@
         <h2>Verdicts</h2>
         <div class="legend">
           <div><span class="v pass">pass</span><span>The client exposes what the documented contract says: the right status, accessor, type and arm, every field of the body as on the wire, no exception.</span></div>
-          <div><span class="v lossy">lossy</span><span>The client does what the documentation says and does not throw, but the typed value cannot hold some fields of the body - the cell names them; they stay in the raw body (<code>Content</code>). E.g. the custom error model reading a ProblemDetails, or a string accessor reading a validation 400.</span></div>
+          <div><span class="v lossy">lossy</span><span>The client does what the documentation says and does not throw, but the typed value cannot hold some fields of the body - the cell names them; they stay in the raw body (<code>Content</code>). E.g. the custom error model reading a ProblemDetails, or a string accessor reading a validation 400. The badge next to it says what was lost:</span></div>
+          <div class="loss-legend" id="loss-legend"></div>
           <div><span class="v fail">fail</span><span>The contract is broken: a wrong status, accessor, type, arm or field value, or an exception.</span></div>
           <div><span class="v platform">platform</span><span>Outside the generated code: the runtime itself refuses the response (reproduced with a plain call).</span></div>
           <div><span class="v na">na</span><span>Not applicable: a 1xx status is never a final response (RFC 9110 §15.2), so no factory, accessor or arm exists - the server row checks that none is generated.</span></div>
@@ -209,6 +214,38 @@ const REPORT = /*__REPORT_DATA__*/null;
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const VERDICTS = ['pass', 'lossy', 'fail', 'platform'];
+// What a lossy cell lost (cell.loss, set by the test's verdict code from the run): the badge next to "lossy".
+const LOSS_KINDS = {
+  'fields': {
+    name: 'model lacks fields',
+    badge: (l) => '−' + l.fields.join(' −'),
+    title: (l) => `${l.into} has no property for ${l.fields.join(', ')} - they are only in Content`,
+    text: 'The declared (or configured) model has no property for these body fields - typically a custom error model or a narrow schema reading the host\'s ProblemDetails. Add the fields to the schema, or read them from <code>Content</code>.',
+  },
+  'not-json': {
+    name: 'body not JSON',
+    badge: () => 'not JSON',
+    title: (l) => `the body is no JSON object: every ${l.into} field is null - the text is only in Content`,
+    text: 'A model is declared, but the body is text or HTML (a proxy, a stub, a plain-text handler), so every field is null. The text is in <code>Content</code>.',
+  },
+  'errors-as-string': {
+    name: 'errors as string',
+    badge: () => 'errors → string',
+    title: () => 'a string accessor: the ValidationProblemDetails\' title - its field errors are only in Content',
+    text: 'A string is declared, but a validation 400 arrives: the string is its title, the field <code>errors</code> are only in <code>Content</code>. Declare a ValidationProblemDetails to get them typed.',
+  },
+  'errors-untyped': {
+    name: 'errors untyped',
+    badge: () => 'errors untyped',
+    title: () => 'a ProblemDetails: the field errors are only untyped, in Extensions["errors"]',
+    text: 'Read as a ProblemDetails: the field <code>errors</code> are only untyped, in <code>Extensions["errors"]</code>.',
+  },
+};
+const lossBadge = (cell) => {
+  const l = cell?.verdict === 'lossy' ? cell.loss : null;
+  const k = l && LOSS_KINDS[l.kind];
+  return k ? `<span class="lk" title="${esc(k.title(l))}">${esc(k.badge(l))}</span>` : '';
+};
 const GROUP_LABELS = { status: 'Statuses 1xx-3xx', sweep: 'Status sweep', handler: 'Handler errors', exception: 'Exceptions → status', validation: 'Validation 400', fault: 'Faults', default: '`default` response', stub: 'Foreign bodies (stub)', framework: 'Framework errors', success: 'Success' };
 const DECL_SHORT = { setAllNone: 'None', setAllJsonProblem: 'JSON model', setAllJsonString: 'JSON string', setAllTextPlain: 'text/plain', setAllFrameworkProblem: 'ProblemDetails', setProblemJson: 'problem+json model', setRefResponse: '$ref response', getFault: 'Faults', getDefaultError: 'default', '(framework)': 'Framework' };
 
@@ -237,6 +274,7 @@ if (!REPORT) {
   $('#provenance').innerHTML = [
     `Run ${esc(REPORT.generatedAt)} (${esc(REPORT.durationSeconds)} s)`,
     `commit <span class="mono">${esc(p.commit)}</span>${p.uncommittedFiles ? ` + ${esc(p.uncommittedFiles)} uncommitted files (working tree <span class="mono" title="git stash create">${esc(String(p.workingTreeStash ?? '').slice(0, 10))}</span>, ${esc(Object.keys(p.untrackedFiles ?? {}).length)} untracked source files hashed)` : ''}`,
+    ...Object.entries(p.siblings ?? {}).map(([repo, rev]) => `${esc(repo)} <span class="mono">${esc(rev)}</span>`),
     `.NET ${esc(p.dotnet)} · Node ${esc(p.node)}`,
     esc(p.os),
     `${cases.length} cases × ${clients.length} clients`,
@@ -321,7 +359,7 @@ if (!REPORT) {
       if (cell.verdict === 'pass' || cell.verdict === 'na') continue;
       const reason = cell.why.replace(/\b\d{3}\b/g, 'NNN');
       const key = `${cell.verdict}|${id}|${reason}`;
-      if (!findings.has(key)) findings.set(key, { verdict: cell.verdict, client: id, reason, cases: [] });
+      if (!findings.has(key)) findings.set(key, { verdict: cell.verdict, client: id, reason, sample: cell, cases: [] });
       findings.get(key).cases.push(c);
     }
   }
@@ -330,7 +368,7 @@ if (!REPORT) {
   const clientLabel = (id) => { const c = clients.find((x) => x.id === id); return c ? `${c.group} · ${c.label}` : id; };
   const findingsTable = (list) => `<div class="table-wrap"><table><thead><tr><th>Verdict</th><th>Client</th><th>What</th><th class="num">Cells</th><th>Where</th></tr></thead><tbody>${list.map((r) => {
       const ops = [...new Set(r.cases.map((c) => DECL_SHORT[c.operation] ?? c.operation))].join(', ');
-      return `<tr><td><span class="v ${r.verdict}">${r.verdict}</span></td><td>${esc(clientLabel(r.client))}</td><td>${esc(r.reason)}</td><td class="num">${r.cases.length}</td><td>${esc(ops)}</td></tr>`;
+      return `<tr><td><span class="v ${r.verdict}">${r.verdict}</span></td><td>${esc(clientLabel(r.client))}</td><td>${lossBadge(r.sample)} ${esc(r.reason)}</td><td class="num">${r.cases.length}</td><td>${esc(ops)}</td></tr>`;
     }).join('')}</tbody></table></div>`;
   const serious = rows.filter((r) => r.verdict !== 'lossy');
   const lossy = rows.filter((r) => r.verdict === 'lossy');
@@ -338,6 +376,15 @@ if (!REPORT) {
   $('#findings').innerHTML =
     (serious.length === 0 ? '<p><span class="v pass">0 fail</span> No client breaks the contract anywhere in the matrix.</p>' : findingsTable(serious)) +
     (lossy.length === 0 ? '' : `<details><summary style="cursor:pointer;margin-top:10px"><span class="v lossy">lossy</span> ${lossyCells} cells in ${lossy.length} groups - read as configured, information only in the raw body (expand)</summary><div style="margin-top:10px">${findingsTable(lossy)}</div></details>`);
+
+  // Why lossy: one line per loss kind with its cell count; each kind is also a matrix filter.
+  const lossCount = {};
+  for (const c of cases) for (const id in c.clients) { const x = c.clients[id]; if (x.verdict === 'lossy') lossCount[x.loss?.kind] = (lossCount[x.loss?.kind] ?? 0) + 1; }
+  $('#loss-legend').innerHTML = Object.entries(LOSS_KINDS).map(([kind, k]) => {
+    const sample = { verdict: 'lossy', loss: { kind, into: 'the model', fields: ['type', 'title'] } };
+    return `<div><span>${lossBadge(sample)}</span><span><b>${esc(k.name)}</b> <span class="n">${lossCount[kind] ?? 0} cells</span> - ${k.text}</span></div>`;
+  }).join('');
+  $('#f-verdict').insertAdjacentHTML('beforeend', Object.entries(LOSS_KINDS).map(([kind, k]) => `<option value="loss:${kind}">lossy: ${esc(k.name)} (${lossCount[kind] ?? 0})</option>`).join(''));
 
   // Filters
   const state = {
@@ -402,6 +449,9 @@ if (!REPORT) {
       ((!DECL_GROUPS.includes(c.group) && c.group !== 'validation') || state.decl.includes(c.operation)) &&
       statusMatches(c.status) && handlerMatches(c) && (() => {
         const cells = shownClients.map((cl) => c.clients[cl.id]?.verdict).filter(Boolean);
+        if (state.verdict.startsWith('loss:')) {
+          return shownClients.some((cl) => c.clients[cl.id]?.verdict === 'lossy' && c.clients[cl.id].loss?.kind === state.verdict.slice(5));
+        }
         switch (state.verdict) {
           case 'nonpass': return cells.some((v) => v !== 'pass') || c.wire.verdict !== 'pass';
           case 'fail': return cells.includes('fail') || c.wire.verdict === 'fail';
@@ -425,7 +475,7 @@ if (!REPORT) {
         <td class="mono" style="font-size:11.5px">${esc(c.handler)}</td>
         <td class="wire cell" data-case="${idx}" data-client=""><span class="v ${c.wire.verdict}">${c.wire.verdict}</span> <span class="ct">${esc(c.wire.mediaType)}</span><span class="s">${esc(c.wire.bodyKind)} · ${esc(c.wire.body.slice(0, 140))}</span></td>
         ${shownClients.map((cl) => { const cell = c.clients[cl.id]; return cell
-          ? `<td class="cell" data-case="${idx}" data-client="${cl.id}"><span class="v ${cell.verdict}">${cell.verdict}</span><span class="s">${esc(cell.summary)}</span></td>`
+          ? `<td class="cell" data-case="${idx}" data-client="${cl.id}"><span class="v ${cell.verdict}">${cell.verdict}</span>${lossBadge(cell)}<span class="s">${esc(cell.summary)}</span></td>`
           : `<td class="cell"><span class="v na">not reachable</span><span class="s">no generated method calls it</span></td>`; }).join('')}
       </tr>`;
     }
@@ -451,10 +501,10 @@ if (!REPORT) {
       </dl>
       <h3>Body on the wire</h3><pre>${esc(pretty(c.wire.body))}</pre>
       ${cell ? `<h3>${esc(cl.group)} · ${esc(cl.label)}</h3>
-        <dl class="kv"><dt>Verdict</dt><dd><span class="v ${cell.verdict}">${cell.verdict}</span> ${esc(cell.why)}</dd></dl>
+        <dl class="kv"><dt>Verdict</dt><dd><span class="v ${cell.verdict}">${cell.verdict}</span>${lossBadge(cell)} ${esc(cell.why)}</dd>${cell.verdict === 'lossy' && LOSS_KINDS[cell.loss?.kind] ? `<dt>Lost</dt><dd>${LOSS_KINDS[cell.loss.kind].text}</dd>` : ''}</dl>
         <pre>${esc(cell.summary)}</pre>` : ''}
       <h3>All clients</h3>
-      <div class="table-wrap"><table><tbody>${clients.map((x) => { const y = c.clients[x.id]; return y ? `<tr><td>${esc(x.group)}<br><span class="counts">${esc(x.label)}</span></td><td><span class="v ${y.verdict}">${y.verdict}</span></td><td>${esc(y.summary)}</td></tr>` : ''; }).join('')}</tbody></table></div>`;
+      <div class="table-wrap"><table><tbody>${clients.map((x) => { const y = c.clients[x.id]; return y ? `<tr><td>${esc(x.group)}<br><span class="counts">${esc(x.label)}</span></td><td><span class="v ${y.verdict}">${y.verdict}</span>${lossBadge(y)}</td><td>${esc(y.summary)}</td></tr>` : ''; }).join('')}</tbody></table></div>`;
     $('#detail-close').addEventListener('click', () => $('#detail').close());
     $('#detail').showModal();
   }

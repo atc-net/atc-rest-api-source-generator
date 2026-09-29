@@ -23,6 +23,12 @@ public partial class ErrorResponseBodyRuntimeTests
     private const string VerdictFail = "fail";
     private const string VerdictPlatform = "platform";
     private const string VerdictNotApplicable = "na";
+
+    // What a lossy cell lost, shown as a badge next to the verdict (the report's legend explains each kind).
+    private const string LossFields = "fields";
+    private const string LossNotJson = "not-json";
+    private const string LossErrorsAsString = "errors-as-string";
+    private const string LossErrorsUntyped = "errors-untyped";
     private const string CustomModel = "ErrorResponse (custom)";
     private const string DefaultModel = "ErrorResponse";
 
@@ -282,6 +288,9 @@ public partial class ErrorResponseBodyRuntimeTests
         var customCell = EndpointPerOperationVerdict(noneCase, noneWire, "Custom", ["case", "404", "False", "-", """NotFoundContent => ErrorResponse {"status":"404","message":null,"readableMessage":null,"errorCode":null,"context":null}""", string.Empty]);
         Assert.Equal(VerdictLossy, (string)customCell["verdict"]!);
         Assert.Contains("type, title, detail", (string)customCell["why"]!, StringComparison.Ordinal);
+        Assert.Equal(LossFields, (string)customCell["loss"]!["kind"]!);
+        Assert.Equal(["type", "title", "detail"], customCell["loss"]!["fields"]!.AsArray().Select(f => (string)f!), StringComparer.Ordinal);
+        Assert.Equal("ErrorResponse (custom)", (string)customCell["loss"]!["into"]!);
 
         // Wire: the validation 400, the success body, a 4xx exception's ProblemDetails.
         Assert.Equal(VerdictPass, WireVerdict(validationCase, validationWire).Verdict);
@@ -377,6 +386,12 @@ public partial class ErrorResponseBodyRuntimeTests
                 if ((string?)cell.Value!["verdict"] == VerdictFail)
                 {
                     failures.Add($"{name} [{cell.Key}]: {(string?)cell.Value["why"]} - {(string?)cell.Value["summary"]}");
+                }
+
+                // The report's badge says what a lossy cell lost: a lossy verdict without a loss kind is a bug here.
+                if ((string?)cell.Value!["verdict"] == VerdictLossy && cell.Value["loss"]?["kind"] is null)
+                {
+                    failures.Add($"{name} [{cell.Key}]: lossy without a loss kind - {(string?)cell.Value["why"]}");
                 }
             }
         }
@@ -1021,7 +1036,7 @@ public partial class ErrorResponseBodyRuntimeTests
             }
 
             return isProblem && body?["errors"] is not null
-                ? Cell(VerdictLossy, "a string: the ValidationProblemDetails' title - its field errors are only in Content", summary)
+                ? Cell(VerdictLossy, "a string: the ValidationProblemDetails' title - its field errors are only in Content", summary, Loss(LossErrorsAsString, "string", ["errors"]))
                 : Cell(VerdictPass, isProblem ? "the ProblemDetails' message (detail, else title)" : "the body as a string", summary);
         }
 
@@ -1084,7 +1099,7 @@ public partial class ErrorResponseBodyRuntimeTests
 
         if (type == "ProblemDetails" && wire["errors"] is not null && !fields.ContainsKey("errors"))
         {
-            return Cell(VerdictLossy, "a ProblemDetails: the field errors are only untyped, in Extensions[\"errors\"]", summary);
+            return Cell(VerdictLossy, "a ProblemDetails: the field errors are only untyped, in Extensions[\"errors\"]", summary, Loss(LossErrorsUntyped, type, ["errors"]));
         }
 
         var lost = wire
@@ -1092,7 +1107,7 @@ public partial class ErrorResponseBodyRuntimeTests
             .Select(w => w.Key)
             .ToList();
         return lost.Count > 0
-            ? Cell(VerdictLossy, $"{type} has no {string.Join(", ", lost)} - only in Content", summary)
+            ? Cell(VerdictLossy, $"{type} has no {string.Join(", ", lost)} - only in Content", summary, Loss(LossFields, type, lost))
             : Cell(VerdictPass, $"{type}, every field as on the wire", summary);
 
         static bool SameValue(
@@ -1162,7 +1177,7 @@ public partial class ErrorResponseBodyRuntimeTests
                                   (f.Value is JsonValue d && (d.GetValueKind() == JsonValueKind.False || (d.GetValueKind() == JsonValueKind.Number && d.GetValue<decimal>() == 0))))
                 ? string.IsNullOrWhiteSpace(rawBody)
                     ? Cell(VerdictPass, "no body: every field null", summary)
-                    : Cell(VerdictLossy, "the body is no JSON object: every field null, the body only in Content", summary)
+                    : Cell(VerdictLossy, "the body is no JSON object: every field null, the body only in Content", summary, Loss(LossNotJson, type, []))
                 : Cell(VerdictFail, "the body is no JSON object, yet fields are set", summary);
         }
 
@@ -1595,12 +1610,35 @@ public partial class ErrorResponseBodyRuntimeTests
     private static JsonObject Cell(
         string verdict,
         string why,
-        string summary)
-        => new()
+        string summary,
+        JsonObject? loss = null)
+    {
+        var cell = new JsonObject
         {
             ["verdict"] = verdict,
             ["why"] = why,
             ["summary"] = summary,
+        };
+        if (loss is not null)
+        {
+            cell["loss"] = loss;
+        }
+
+        return cell;
+    }
+
+    /// <summary>
+    /// What a lossy cell lost: the kind, the type the client read the body into, and the body fields it cannot hold.
+    /// </summary>
+    private static JsonObject Loss(
+        string kind,
+        string into,
+        IReadOnlyList<string> fields)
+        => new()
+        {
+            ["kind"] = kind,
+            ["into"] = into,
+            ["fields"] = new JsonArray([.. fields.Select(f => (JsonNode?)JsonValue.Create(f))]),
         };
 
     private static string MethodKey(ProbeCase probeCase)
@@ -1639,14 +1677,46 @@ public partial class ErrorResponseBodyRuntimeTests
         return new JsonObject
         {
             ["commit"] = RunTool("git", "rev-parse --short HEAD", root).Output.Trim(),
-            ["uncommittedFiles"] = RunTool("git", "status --porcelain", root).Output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length,
+            ["uncommittedFiles"] = GitStatusEntries(RunTool("git", "status --porcelain", root).Output),
             ["workingTreeStash"] = GitHash(stash.Output) ?? $"(no hash: exit {stash.ExitCode}, {Short(stash.Output)})",
             ["untrackedFiles"] = untrackedHashes,
+
+            // The unreleased sibling repositories the run was built against (TEMP project references).
+            ["siblings"] = new JsonObject
+            {
+                ["atc-rest-minimalapi"] = SiblingRevision(root, "atc-rest-minimalapi"),
+                ["atc-rest-client"] = SiblingRevision(root, "atc-rest-client"),
+            },
             ["dotnet"] = Environment.Version.ToString(),
             ["node"] = RunTool("node", "--version", root).Output.Trim(),
             ["os"] = System.Runtime.InteropServices.RuntimeInformation.OSDescription,
         };
     }
+
+    /// <summary>
+    /// A sibling repository next to this one: its branch, commit and whether its working tree has changes.
+    /// </summary>
+    private static string SiblingRevision(
+        string root,
+        string repository)
+    {
+        var directory = Path.Combine(Path.GetDirectoryName(root)!, repository);
+        if (!Directory.Exists(directory))
+        {
+            return "(not found)";
+        }
+
+        var branch = RunTool("git", "rev-parse --abbrev-ref HEAD", directory).Output.Trim().Split('\n')[^1].Trim();
+        var commit = GitHash(RunTool("git", "rev-parse HEAD", directory).Output)?[..8] ?? "(unknown)";
+        var dirty = GitStatusEntries(RunTool("git", "status --porcelain --untracked-files=no", directory).Output) > 0;
+        return $"{branch} @ {commit}{(dirty ? " + uncommitted changes" : string.Empty)}";
+    }
+
+    // RunTool merges stderr (git's line-ending warnings) and ends each stream with a blank line: count the entries only.
+    private static int GitStatusEntries(string output)
+        => output
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Count(l => !l.StartsWith("warning:", StringComparison.Ordinal));
 
     // git writes line-ending warnings to stderr, which RunTool merges into the output: keep the hash only.
     private static string? GitHash(string output)
