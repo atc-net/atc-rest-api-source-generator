@@ -1435,6 +1435,35 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
+    /// The Atc.Rest.Client the generated EndpointPerOperation client runs on reads an error body of any media type as
+    /// text (<c>Content</c>), without the generated <c>WithTextErrorBody</c> fallback. 2.0.36 left <c>Content</c> empty for
+    /// <c>application/xml</c> / <c>application/octet-stream</c>; this guards the (temporarily project-referenced) fix.
+    /// </summary>
+    [Fact]
+    public async Task AtcRestClient_ReadsAnErrorBodyOfAnyMediaTypeAsText()
+    {
+        using var provider = Atc.Rest.Client.Options.ServiceCollectionExtensions
+            .AddAtcRestClientCore(new ServiceCollection())
+            .BuildServiceProvider();
+        var factory = provider.GetRequiredService<Atc.Rest.Client.Builder.IHttpMessageFactory>();
+
+        foreach (var mediaType in (string[])["application/xml", "application/octet-stream"])
+        {
+            using var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+            {
+                Content = new StringContent("<error>down</error>", Encoding.UTF8, mediaType),
+            };
+
+            var result = await factory
+                .FromResponse(response)
+                .BuildResponseAsync(r => r, TestContext.Current.CancellationToken);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal("<error>down</error>", result.Content);
+        }
+    }
+
+    /// <summary>
     /// A declared 1xx is never a final response (RFC 9110 §15.2): the server gets no factory and no endpoint metadata
     /// for it, and the EndpointPerOperation client no <c>Is…</c> accessor.
     /// </summary>

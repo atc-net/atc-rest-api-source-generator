@@ -19,9 +19,6 @@
          produced by the real Roslyn generators rather than a parallel orchestration. -->
     <PackageReference Include="Verify.XunitV3" Version="32.0.0" />
     <PackageReference Include="Microsoft.OpenApi.YamlReader" Version="3.10.2" />
-    <!-- Referenced only so the assemblies are present in the test host (TRUSTED_PLATFORM_ASSEMBLIES),
-         enabling real C# compilation of generated client/server output in CompilationVerificationTests. -->
-    <PackageReference Include="Atc.Rest.Client" Version="2.0.36" />
     <!-- Same purpose: the resilience/retry scenarios emit code against Polly, so those assemblies
          must be present in the test host for the compilation gate to resolve them. -->
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.10.0" />
@@ -37,6 +34,12 @@
          TEMP (3.0 development): direct reference to the unreleased atc-rest-minimalapi 3.0.
          Replace with <PackageReference Include="Atc.Rest.MinimalApi" Version="3.0.0" /> before release. -->
     <ProjectReference Include="..\..\..\atc-rest-minimalapi\src\Atc.Rest.MinimalApi\Atc.Rest.MinimalApi.csproj" />
+    <!-- Referenced so the assemblies are present in the test host (TRUSTED_PLATFORM_ASSEMBLIES), enabling real C#
+         compilation and runs of generated client output (CompilationVerificationTests, the error-body matrix).
+         TEMP (3.0 development): direct reference to the unreleased atc-rest-client fix (error bodies of any media
+         type are read as text; branch fix/error-body-read-as-string-for-non-text-media-types).
+         Replace with <PackageReference Include="Atc.Rest.Client" Version="<released version>" /> before release. -->
+    <ProjectReference Include="..\..\..\atc-rest-client\src\Atc.Rest.Client\Atc.Rest.Client.csproj" />
   </ItemGroup>
 
   <!-- ASP.NET Core shared framework, so generated server/client output (which uses

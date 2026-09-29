@@ -6,7 +6,6 @@
 
   <ItemGroup>
     <PackageReference Include="Atc" Version="3.0.186" />
-    <PackageReference Include="Atc.Rest.Client" Version="2.0.36" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.12" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.12" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.10.0" />
@@ -16,6 +15,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Atc.Rest.Api.SourceGenerator\Atc.Rest.Api.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <!-- TEMP (3.0 development): direct reference to the unreleased atc-rest-client fix (error bodies of any media
+         type are read as text). Replace with <PackageReference Include="Atc.Rest.Client" Version="<released version>" />
+         before release. -->
+    <ProjectReference Include="..\..\..\..\atc-rest-client\src\Atc.Rest.Client\Atc.Rest.Client.csproj" />
   </ItemGroup>
 
   <ItemGroup>
