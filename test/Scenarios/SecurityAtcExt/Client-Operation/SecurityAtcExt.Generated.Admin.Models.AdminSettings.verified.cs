@@ -9,6 +9,6 @@ namespace SecurityAtcExt.Generated.Admin.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record AdminSettings(
-    bool MaintenanceMode,
-    int MaxOrdersPerDay,
+    bool? MaintenanceMode,
+    int? MaxOrdersPerDay,
     List<string> AllowedOrigins);

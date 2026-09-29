@@ -10,4 +10,4 @@ namespace SingleTypedClient.Generated.Models;
 public sealed record Account(
     string Id,
     string Name,
-    AccountStatus Status);
+    AccountStatus? Status);

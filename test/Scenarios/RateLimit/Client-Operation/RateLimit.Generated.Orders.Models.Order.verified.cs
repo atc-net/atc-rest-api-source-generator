@@ -13,5 +13,5 @@ public sealed record Order(
     [property: Required] Guid Id,
     [property: Required] string Status,
     string CustomerName,
-    double TotalAmount,
-    DateTimeOffset CreatedAt);
+    double? TotalAmount,
+    DateTimeOffset? CreatedAt);

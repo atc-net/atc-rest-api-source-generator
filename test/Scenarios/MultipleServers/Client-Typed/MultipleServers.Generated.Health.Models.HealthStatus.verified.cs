@@ -10,4 +10,4 @@ namespace MultipleServers.Generated.Health.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record HealthStatus(
     string Status,
-    DateTimeOffset Timestamp);
+    DateTimeOffset? Timestamp);

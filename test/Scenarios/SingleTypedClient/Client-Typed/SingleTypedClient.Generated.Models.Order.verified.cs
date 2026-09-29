@@ -10,4 +10,4 @@ namespace SingleTypedClient.Generated.Models;
 public sealed record Order(
     string Id,
     string AccountId,
-    double Total);
+    double? Total);

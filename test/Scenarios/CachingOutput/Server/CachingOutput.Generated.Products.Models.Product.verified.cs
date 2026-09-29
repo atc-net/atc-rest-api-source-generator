@@ -13,5 +13,5 @@ public sealed record Product(
     [property: Required] string Name,
     string Description,
     [property: Required] double Price,
-    Guid CategoryId,
-    DateTimeOffset CreatedAt);
+    Guid? CategoryId,
+    DateTimeOffset? CreatedAt);

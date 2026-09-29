@@ -12,9 +12,9 @@ namespace ModelsAndProperties.Generated.Enums.Models;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record EnumTypes(
-    GenderType GenderType,
-    StatusType StatusType,
-    ColorType ColorType,
-    PriorityType PriorityType,
+    GenderType? GenderType,
+    StatusType? StatusType,
+    ColorType? ColorType,
+    PriorityType? PriorityType,
     EnumTypesInlineEnum? InlineEnum,
-    RoleType RoleType);
+    RoleType? RoleType);

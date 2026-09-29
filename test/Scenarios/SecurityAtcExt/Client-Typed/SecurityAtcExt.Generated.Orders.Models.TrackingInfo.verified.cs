@@ -13,4 +13,4 @@ public sealed record TrackingInfo(
     [property: Required] Guid OrderId,
     [property: Required] string Status,
     string Location,
-    DateTimeOffset LastUpdated);
+    DateTimeOffset? LastUpdated);

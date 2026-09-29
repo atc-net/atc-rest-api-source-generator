@@ -13,4 +13,4 @@ namespace OpenApi32Features.Generated.Documents.Models;
 public sealed record DocumentResponse(
     [property: Required] Guid Id,
     [property: Required] string Name,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset? CreatedAt);

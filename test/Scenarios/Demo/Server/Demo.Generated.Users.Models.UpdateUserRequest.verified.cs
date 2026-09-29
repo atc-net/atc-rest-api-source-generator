@@ -17,6 +17,6 @@ public sealed record UpdateUserRequest(
     [property: Required] DateTimeOffset DateOfBirth,
     [property: MaxLength(1000)] string? Bio,
     Uri? AvatarUrl,
-    bool IsActive,
+    bool? IsActive,
     [property: Required] UserRole Role,
     [property: Required] AddressRequest Address);

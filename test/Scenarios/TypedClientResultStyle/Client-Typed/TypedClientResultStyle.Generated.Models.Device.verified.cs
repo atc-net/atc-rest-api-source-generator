@@ -10,4 +10,4 @@ namespace TypedClientResultStyle.Generated.Models;
 public sealed record Device(
     string Id,
     string Name,
-    DeviceStatus Status);
+    DeviceStatus? Status);

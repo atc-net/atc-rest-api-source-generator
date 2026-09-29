@@ -9,6 +9,6 @@ namespace SecurityStandard.Generated.Admin.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record AdminSettings(
-    bool MaintenanceMode,
-    int MaxUsersPerTenant,
+    bool? MaintenanceMode,
+    int? MaxUsersPerTenant,
     Dictionary<string, bool>? Features);

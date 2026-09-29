@@ -8,6 +8,6 @@ namespace EnumNamingConflicts.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Settings(
-    BooleanLike BooleanLike,
-    Visibility Visibility,
-    Priority Priority);
+    BooleanLike? BooleanLike,
+    Visibility? Visibility,
+    Priority? Priority);

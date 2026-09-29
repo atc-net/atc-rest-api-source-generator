@@ -13,4 +13,4 @@ public sealed record User(
     [property: Required, EmailAddress] string Email,
     [property: Required] string Name,
     string Role,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset? CreatedAt);

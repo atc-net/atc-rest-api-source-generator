@@ -12,4 +12,4 @@ public sealed record CreateProductRequest(
     [property: Required] string Name,
     string Description,
     [property: Required] double Price,
-    Guid CategoryId);
+    Guid? CategoryId);

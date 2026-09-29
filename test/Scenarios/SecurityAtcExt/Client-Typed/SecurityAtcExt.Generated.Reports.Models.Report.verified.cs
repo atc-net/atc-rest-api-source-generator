@@ -11,4 +11,4 @@ namespace SecurityAtcExt.Generated.Reports.Models;
 public sealed record Report(
     [property: Required] Guid Id,
     [property: Required] string Title,
-    DateTimeOffset GeneratedAt);
+    DateTimeOffset? GeneratedAt);

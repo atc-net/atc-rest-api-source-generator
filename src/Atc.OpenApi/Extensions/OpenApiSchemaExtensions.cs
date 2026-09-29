@@ -1179,11 +1179,15 @@ public static class OpenApiSchemaExtensions
             bool isRequired,
             TypeConflictRegistry? registry = null)
         {
-            // Handle schema references - references are never nullable based on required alone
+            // Handle schema references - a model reference is never nullable based on required alone, but an enum is
+            // a value type: optional makes it nullable, as for an inline enum.
             if (schema is OpenApiSchemaReference schemaRef)
             {
                 var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "object";
-                return ResolveTypeName(refName, registry);
+                var refTypeName = ResolveTypeName(refName, registry);
+                return !isRequired && schemaRef.Target?.Enum is { Count: > 0 }
+                    ? $"{refTypeName}?"
+                    : refTypeName;
             }
 
             // Handle actual schemas
@@ -1257,9 +1261,13 @@ public static class OpenApiSchemaExtensions
             // Handle primitive types using HasFlag for combined flags (e.g., String | Null)
             var baseType = schema1.Type.ToCSharpTypeName(schema1.Format, includeIFormFile: true);
 
-            // For models: all types (value and reference) are only nullable if nullable: true is set in the schema
-            // The required array means "must be present in JSON", not "cannot be null"
-            return isNullable ? $"{baseType}?" : baseType;
+            // For models: a reference type is only nullable if nullable: true is set in the schema (the required array
+            // means "must be present in JSON", not "cannot be null"). An optional value type is nullable too: a
+            // property left out of the JSON is then null, not a default (0, false) that looks like a sent value - unless
+            // the schema has a default, which is then what an absent property means.
+            return isNullable || (!isRequired && schema1.Default is null && CSharpTypeHelper.IsExtendedValueType(baseType))
+                ? $"{baseType}?"
+                : baseType;
         }
 
         /// <summary>

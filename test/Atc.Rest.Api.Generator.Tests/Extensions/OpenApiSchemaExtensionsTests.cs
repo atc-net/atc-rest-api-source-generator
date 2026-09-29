@@ -913,6 +913,76 @@ public class OpenApiSchemaExtensionsTests
         Assert.Equal("int", schema.ToCSharpTypeForModel(isRequired: true));
     }
 
+    // An optional value type is nullable: without it, a property left out of the JSON reads as the default (0, false)
+    // and cannot be told apart from a sent 0 / false. Optional reference types keep the schema's own nullability.
+    [Theory]
+    [InlineData(JsonSchemaType.Integer, null, "int?")]
+    [InlineData(JsonSchemaType.Integer, "int64", "long?")]
+    [InlineData(JsonSchemaType.Number, "double", "double?")]
+    [InlineData(JsonSchemaType.Boolean, null, "bool?")]
+    [InlineData(JsonSchemaType.String, "uuid", "Guid?")]
+    [InlineData(JsonSchemaType.String, "date-time", "DateTimeOffset?")]
+    [InlineData(JsonSchemaType.String, null, "string")]
+    public void ToCSharpTypeForModel_OptionalProperty_ValueTypesAreNullable(
+        JsonSchemaType type,
+        string? format,
+        string expected)
+    {
+        var schema = new OpenApiSchema { Type = type, Format = format };
+        Assert.Equal(expected, schema.ToCSharpTypeForModel(isRequired: false));
+        Assert.Equal(expected.TrimEnd('?'), schema.ToCSharpTypeForModel(isRequired: true));
+    }
+
+    // An optional value type with a default is not nullable: a property left out of the JSON is the default.
+    [Fact]
+    public void ToCSharpTypeForModel_OptionalPropertyWithDefault_IsNotNullable()
+    {
+        var schema = new OpenApiSchema { Type = JsonSchemaType.Boolean, Default = System.Text.Json.Nodes.JsonValue.Create(true) };
+        Assert.Equal("bool", schema.ToCSharpTypeForModel(isRequired: false));
+    }
+
+    [Fact]
+    public void ToCSharpTypeForModel_OptionalEnumReference_IsNullable()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Device:
+                                  type: object
+                                  properties:
+                                    deviceType:
+                                      $ref: '#/components/schemas/DeviceType'
+                                    owner:
+                                      $ref: '#/components/schemas/Owner'
+                                DeviceType:
+                                  type: string
+                                  enum:
+                                    - TypeA
+                                    - TypeB
+                                Owner:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+        var deviceSchema = document.Components.Schemas["Device"] as OpenApiSchema;
+
+        // An enum is a value type: optional means nullable, as for an inline enum.
+        Assert.Equal("DeviceType?", deviceSchema!.Properties["deviceType"].ToCSharpTypeForModel(isRequired: false));
+        Assert.Equal("DeviceType", deviceSchema.Properties["deviceType"].ToCSharpTypeForModel(isRequired: true));
+
+        // A model reference is a reference type: unchanged.
+        Assert.Equal("Owner", deviceSchema.Properties["owner"].ToCSharpTypeForModel(isRequired: false));
+    }
+
     [Fact]
     public void ToCSharpTypeForModel_ByteFormat_ReturnsByteArray()
     {

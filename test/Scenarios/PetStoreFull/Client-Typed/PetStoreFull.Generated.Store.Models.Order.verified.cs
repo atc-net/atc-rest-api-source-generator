@@ -9,9 +9,9 @@ namespace PetStoreFull.Generated.Store.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Order(
-    long Id,
-    long PetId,
-    int Quantity,
-    DateTimeOffset ShipDate,
+    long? Id,
+    long? PetId,
+    int? Quantity,
+    DateTimeOffset? ShipDate,
     OrderStatus? Status,
-    bool Complete);
+    bool? Complete);

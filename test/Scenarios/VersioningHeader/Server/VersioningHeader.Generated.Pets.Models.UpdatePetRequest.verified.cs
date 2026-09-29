@@ -12,5 +12,5 @@ public sealed record UpdatePetRequest(
     [property: Required, MinLength(1), MaxLength(100)] string Name,
     [property: Required] string Species,
     string? Breed,
-    [property: Range(0, long.MaxValue)] int Age,
+    [property: Range(0, long.MaxValue)] int? Age,
     Guid? OwnerId);

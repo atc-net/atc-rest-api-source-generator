@@ -14,9 +14,9 @@ namespace ModelsAndProperties.Generated.Primitives.Models;
 public sealed record PrimitiveTypes(
     [property: Required] string StringValue,
     [property: Required] int IntegerValue,
-    int IntegerInt32,
-    long IntegerInt64,
+    int? IntegerInt32,
+    long? IntegerInt64,
     [property: Required] double NumberValue,
-    float NumberFloat,
-    double NumberDouble,
+    float? NumberFloat,
+    double? NumberDouble,
     [property: Required] bool BooleanValue);

@@ -217,7 +217,7 @@ public sealed partial class WebhookDemo : IAsyncDisposable
             _ => Icons.Material.Filled.Notifications,
         };
 
-    private static Color GetSeverityColor(NotificationSeverity severity)
+    private static Color GetSeverityColor(NotificationSeverity? severity)
         => severity switch
         {
             NotificationSeverity.Info => Color.Info,
@@ -238,7 +238,7 @@ public sealed partial class WebhookDemo : IAsyncDisposable
             _ => Color.Default,
         };
 
-    private static Color GetSeverityChipColor(NotificationSeverity severity)
+    private static Color GetSeverityChipColor(NotificationSeverity? severity)
         => severity switch
         {
             NotificationSeverity.Info => Color.Info,

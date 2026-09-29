@@ -13,4 +13,4 @@ public sealed record UserProfile(
     [property: Required, EmailAddress] string Email,
     string DisplayName,
     Uri Picture,
-    bool EmailVerified);
+    bool? EmailVerified);

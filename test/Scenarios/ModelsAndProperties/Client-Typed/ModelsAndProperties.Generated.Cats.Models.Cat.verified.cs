@@ -10,5 +10,5 @@ namespace ModelsAndProperties.Generated.Cats.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Cat(
     [property: Required] string Name,
-    int Age,
-    bool Indoor);
+    int? Age,
+    bool? Indoor);

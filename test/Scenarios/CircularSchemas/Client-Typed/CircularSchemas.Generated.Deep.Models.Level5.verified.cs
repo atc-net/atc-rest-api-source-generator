@@ -9,4 +9,4 @@ namespace CircularSchemas.Generated.Deep.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Level5(
     string Name,
-    int Value);
+    int? Value);

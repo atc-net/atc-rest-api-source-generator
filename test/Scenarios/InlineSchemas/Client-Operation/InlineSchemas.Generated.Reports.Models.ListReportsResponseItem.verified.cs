@@ -11,4 +11,4 @@ namespace InlineSchemas.Generated.Reports.Models;
 public sealed record ListReportsResponseItem(
     [property: Required] string Id,
     [property: Required] string Name,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset? CreatedAt);

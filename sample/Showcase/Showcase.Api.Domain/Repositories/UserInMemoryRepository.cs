@@ -384,7 +384,7 @@ public sealed class UserInMemoryRepository
         DateOnly dateOfBirth,
         string? bio,
         string? avatarUrl,
-        bool isActive,
+        bool? isActive,
         UserRoleType role,
         AddressEntity address)
     {
@@ -406,7 +406,7 @@ public sealed class UserInMemoryRepository
             Age: CalculateAge(dateOfBirth),
             Bio: bio,
             AvatarUrl: avatarUrl ?? existing.AvatarUrl,
-            IsActive: isActive,
+            IsActive: isActive ?? existing.IsActive,
             Role: role,
             Address: address,
             CreatedAt: existing.CreatedAt,

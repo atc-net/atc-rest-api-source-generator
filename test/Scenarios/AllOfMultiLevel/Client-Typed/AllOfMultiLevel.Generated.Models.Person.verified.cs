@@ -10,4 +10,4 @@ namespace AllOfMultiLevel.Generated.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public record Person(
     [property: Required, EmailAddress] string Email,
-    [property: Range(0, 150)] int Age);
+    [property: Range(0, 150)] int? Age);

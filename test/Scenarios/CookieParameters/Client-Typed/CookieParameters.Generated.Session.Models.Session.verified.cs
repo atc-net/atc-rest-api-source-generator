@@ -11,4 +11,4 @@ namespace CookieParameters.Generated.Session.Models;
 public sealed record Session(
     string Id,
     string UserId,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset? CreatedAt);

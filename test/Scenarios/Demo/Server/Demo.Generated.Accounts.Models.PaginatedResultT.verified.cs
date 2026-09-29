@@ -9,10 +9,10 @@ namespace Demo.Generated.Accounts.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record PaginatedResult<T>(
-    int PageSize,
-    int PageIndex,
+    int? PageSize,
+    int? PageIndex,
     string? QueryString,
     string? Continuation,
-    int Count,
-    int TotalCount,
+    int? Count,
+    int? TotalCount,
     List<T> Results);

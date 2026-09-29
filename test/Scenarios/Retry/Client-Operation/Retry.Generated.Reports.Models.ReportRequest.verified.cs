@@ -10,5 +10,5 @@ namespace Retry.Generated.Reports.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ReportRequest(
     [property: Required] string ReportType,
-    DateTimeOffset DateFrom,
-    DateTimeOffset DateTo);
+    DateTimeOffset? DateFrom,
+    DateTimeOffset? DateTo);

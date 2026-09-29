@@ -20,8 +20,8 @@ public sealed record Person(
     [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone,
     Uri? Website,
     DateTimeOffset? DateOfBirth,
-    GenderType Gender,
+    GenderType? Gender,
     Address Address,
-    DateTimeOffset CreatedAt,
+    DateTimeOffset? CreatedAt,
     DateTimeOffset? UpdatedAt,
     bool IsActive = true);

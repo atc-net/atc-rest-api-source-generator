@@ -11,5 +11,5 @@ namespace SecurityOpenIdConnect.Generated.Resources.Models;
 public sealed record Resource(
     [property: Required] Guid Id,
     [property: Required] string Name,
-    Guid OwnerId,
-    DateTimeOffset CreatedAt);
+    Guid? OwnerId,
+    DateTimeOffset? CreatedAt);
