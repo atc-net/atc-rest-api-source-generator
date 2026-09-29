@@ -281,8 +281,13 @@ export class ApiClient {
   }
 
   private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text'): Promise<ApiResult<T>> {
-    if (response.status === 204) {
+    // 204 and 205 never carry a body; 304 neither (RFC 9110).
+    if (response.status === 204 || response.status === 205) {
       return { status: 'noContent', response };
+    }
+
+    if (response.status === 304) {
+      return { status: 'notModified', response };
     }
 
     const contentType = (response.headers.get('Content-Type') ?? '').toLowerCase();
@@ -302,6 +307,23 @@ export class ApiClient {
           ? 'accepted' as const
           : 'ok' as const;
       return { status, data: data as T, response };
+    }
+
+    // A 3xx fetch did not follow (300, 305, 306, or redirect: 'manual'): no error - its body, if any.
+    if (response.status >= 300 && response.status < 400) {
+      let data: unknown = undefined;
+      try {
+        if (contentType.includes('application/json') || contentType.includes('+json')) {
+          data = await response.json();
+        } else if (contentType.startsWith('text/') || contentType.includes('application/xml') || contentType.includes('+xml')) {
+          const text = await response.text();
+          data = text.length > 0 ? text : undefined;
+        }
+      } catch {
+        data = undefined;
+      }
+
+      return { status: 'redirection', data, response };
     }
 
     // The error body is detected from the actual Content-Type (an operation's success responseType

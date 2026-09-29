@@ -530,8 +530,13 @@ public static class TypeScriptFetchApiClientExtractor
             ? "  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text', parseSchema?: ZodTypeAny" + wireParameter + "): Promise<ApiResult<T>> {"
             : "  private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text'" + wireParameter + "): Promise<ApiResult<T>> {";
         sb.AppendLine(signature);
-        sb.AppendLine("    if (response.status === 204) {");
+        sb.AppendLine("    // 204 and 205 never carry a body; 304 neither (RFC 9110).");
+        sb.AppendLine("    if (response.status === 204 || response.status === 205) {");
         sb.AppendLine("      return { status: 'noContent', response };");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    if (response.status === 304) {");
+        sb.AppendLine("      return { status: 'notModified', response };");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    const contentType = (response.headers.get('Content-Type') ?? '').toLowerCase();");
@@ -587,6 +592,23 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("          ? 'accepted' as const");
         sb.AppendLine("          : 'ok' as const;");
         sb.AppendLine("      return { status, data: data as T, response };");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    // A 3xx fetch did not follow (300, 305, 306, or redirect: 'manual'): no error - its body, if any.");
+        sb.AppendLine("    if (response.status >= 300 && response.status < 400) {");
+        sb.AppendLine("      let data: unknown = undefined;");
+        sb.AppendLine("      try {");
+        sb.AppendLine("        if (contentType.includes('application/json') || contentType.includes('+json')) {");
+        sb.Append("          data = ").Append(parseJson).AppendLine(";");
+        sb.AppendLine("        } else if (contentType.startsWith('text/') || contentType.includes('application/xml') || contentType.includes('+xml')) {");
+        sb.AppendLine("          const text = await response.text();");
+        sb.AppendLine("          data = text.length > 0 ? text : undefined;");
+        sb.AppendLine("        }");
+        sb.AppendLine("      } catch {");
+        sb.AppendLine("        data = undefined;");
+        sb.AppendLine("      }");
+        sb.AppendLine();
+        sb.AppendLine("      return { status: 'redirection', data, response };");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    // The error body is detected from the actual Content-Type (an operation's success responseType");

@@ -323,8 +323,13 @@ export class ApiClient {
   }
 
   private async handleResponse<T>(response: AxiosResponse<T>): Promise<ApiResult<T>> {
-    if (response.status === 204) {
+    // 204 and 205 never carry a body; 304 neither (RFC 9110).
+    if (response.status === 204 || response.status === 205) {
       return { status: 'noContent', response };
+    }
+
+    if (response.status === 304) {
+      return { status: 'notModified', response };
     }
 
     if (response.status >= 200 && response.status < 300) {
@@ -345,6 +350,12 @@ export class ApiClient {
           ? 'accepted' as const
           : 'ok' as const;
       return { status, data: response.data, response };
+    }
+
+    // A 3xx axios did not follow (300, 305, 306, or maxRedirects: 0): no error - its body, if any.
+    if (response.status >= 300 && response.status < 400) {
+      const data = response.data instanceof UnparseableBody || response.data === '' ? undefined : response.data;
+      return { status: 'redirection', data, response };
     }
 
     let errorBody: unknown = response.data instanceof UnparseableBody ? undefined : response.data;

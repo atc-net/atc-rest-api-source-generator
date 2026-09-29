@@ -50,6 +50,8 @@ public static class TypeScriptApiResultExtractor
         sb.Append("  | { status: 'created'; data: T; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'accepted'; data: T; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'noContent'; response: ").Append(responseType).AppendLine(" }");
+        sb.Append("  | { status: 'notModified'; response: ").Append(responseType).AppendLine(" }");
+        sb.Append("  | { status: 'redirection'; data?: unknown; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'badRequest'; error: ValidationError; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'unauthorized'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
         sb.Append("  | { status: 'forbidden'; error: ApiError; response: ").Append(responseType).AppendLine(" }");
@@ -77,6 +79,7 @@ public static class TypeScriptApiResultExtractor
         AppendTypeGuard(sb, "isCreated", "created", hasData: true, responseType);
         AppendTypeGuard(sb, "isAccepted", "accepted", hasData: true, responseType);
         AppendTypeGuard(sb, "isNoContent", "noContent", hasData: false, responseType);
+        AppendTypeGuard(sb, "isNotModified", "notModified", hasData: false, responseType);
         AppendErrorTypeGuard(sb, "isBadRequest", "badRequest", "ValidationError", responseType);
         AppendErrorTypeGuard(sb, "isUnauthorized", "unauthorized", "ApiError", responseType);
         AppendErrorTypeGuard(sb, "isForbidden", "forbidden", "ApiError", responseType);

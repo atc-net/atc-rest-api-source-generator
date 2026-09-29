@@ -616,8 +616,13 @@ public static class TypeScriptAxiosApiClientExtractor
             ? "  private async handleResponse<T>(response: AxiosResponse<T>, parseSchema?: ZodTypeAny" + wireParameter + "): Promise<ApiResult<T>> {"
             : "  private async handleResponse<T>(response: AxiosResponse<T>" + wireParameter + "): Promise<ApiResult<T>> {";
         sb.AppendLine(signature);
-        sb.AppendLine("    if (response.status === 204) {");
+        sb.AppendLine("    // 204 and 205 never carry a body; 304 neither (RFC 9110).");
+        sb.AppendLine("    if (response.status === 204 || response.status === 205) {");
         sb.AppendLine("      return { status: 'noContent', response };");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    if (response.status === 304) {");
+        sb.AppendLine("      return { status: 'notModified', response };");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    if (response.status >= 200 && response.status < 300) {");
@@ -672,6 +677,12 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("          ? 'accepted' as const");
         sb.AppendLine("          : 'ok' as const;");
         sb.AppendLine("      return { status, data: response.data, response };");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    // A 3xx axios did not follow (300, 305, 306, or maxRedirects: 0): no error - its body, if any.");
+        sb.AppendLine("    if (response.status >= 300 && response.status < 400) {");
+        sb.AppendLine("      const data = response.data instanceof UnparseableBody || response.data === '' ? undefined : response.data;");
+        sb.AppendLine("      return { status: 'redirection', data, response };");
         sb.AppendLine("    }");
         sb.AppendLine();
 

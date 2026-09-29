@@ -8,6 +8,8 @@ export type ApiResult<T> =
   | { status: 'created'; data: T; response: Response }
   | { status: 'accepted'; data: T; response: Response }
   | { status: 'noContent'; response: Response }
+  | { status: 'notModified'; response: Response }
+  | { status: 'redirection'; data?: unknown; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
   | { status: 'forbidden'; error: ApiError; response: Response }
@@ -34,6 +36,10 @@ export function isAccepted<T>(result: ApiResult<T>): result is { status: 'accept
 
 export function isNoContent<T>(result: ApiResult<T>): result is { status: 'noContent'; response: Response } {
   return result.status === 'noContent';
+}
+
+export function isNotModified<T>(result: ApiResult<T>): result is { status: 'notModified'; response: Response } {
+  return result.status === 'notModified';
 }
 
 export function isBadRequest<T>(result: ApiResult<T>): result is { status: 'badRequest'; error: ValidationError; response: Response } {

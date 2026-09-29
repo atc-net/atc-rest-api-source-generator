@@ -302,6 +302,23 @@ public static class TypeScriptOperationHelper
                     successDiscriminators.Add(discriminator);
                 }
             }
+
+            // A declared redirect: ok (followed - the target's response, untyped unless a 2xx is declared) and
+            // redirection (not followed, e.g. redirect: 'manual' / maxRedirects: 0).
+            if (operation.Responses.Keys.Any(k => int.TryParse(k, NumberStyles.Integer, CultureInfo.InvariantCulture, out var code) && HttpStatusCodeHelper.IsRedirect(code)))
+            {
+                if (seenSuccess.Add("ok"))
+                {
+                    successArms.Add($"  | {{ status: 'ok'; data: unknown; response: {responseType} }}");
+                    successDiscriminators.Add("ok");
+                }
+
+                if (seenSuccess.Add("redirection"))
+                {
+                    successArms.Add($"  | {{ status: 'redirection'; data?: unknown; response: {responseType} }}");
+                    successDiscriminators.Add("redirection");
+                }
+            }
         }
 
         // `default:` fans out to the common error arms — without this, a spec that uses
@@ -470,10 +487,10 @@ public static class TypeScriptOperationHelper
             {
                 string? discriminator = key switch
                 {
-                    "200" => "ok",
+                    "200" or "203" or "206" or "207" or "208" or "226" => "ok",
                     "201" => "created",
                     "202" => "accepted",
-                    "204" => "noContent",
+                    "204" or "205" => "noContent",
                     _ => null,
                 };
 
@@ -523,8 +540,48 @@ public static class TypeScriptOperationHelper
             }
 
             case "204":
+            case "205":
                 discriminator = "noContent";
                 return $"  | {{ status: 'noContent'; response: {responseType} }}";
+
+            // The other 2xx with content (203, 206, 207, 208, 226) are ok, with their declared data.
+            case "203":
+            case "206":
+            case "207":
+            case "208":
+            case "226":
+            {
+                discriminator = "ok";
+                var dataType = ResolveSuccessDataType(statusCode, operation, isFileDownload, isTextDownload, imports);
+                return dataType is null
+                    ? $"  | {{ status: 'ok'; response: {responseType} }}"
+                    : $"  | {{ status: 'ok'; data: {dataType}; response: {responseType} }}";
+            }
+
+            // A redirect is followed by fetch / axios (their default): its target's response is what comes back. The
+            // redirect arms are added after the loop, so a declared 200 keeps its typed ok arm.
+            case "301":
+            case "302":
+            case "303":
+            case "307":
+            case "308":
+                return null;
+
+            case "304":
+                discriminator = "notModified";
+                return $"  | {{ status: 'notModified'; response: {responseType} }}";
+
+            // A 3xx the runtime does not follow (300, 305, 306): its body, if one is declared.
+            case "300":
+            case "305":
+            case "306":
+            {
+                discriminator = "redirection";
+                var dataType = operation.GetResponseSchema(statusCode) is not null
+                    ? ResolveSuccessDataType(statusCode, operation, isFileDownload: false, isTextDownload: false, imports)
+                    : null;
+                return $"  | {{ status: 'redirection'; data?: {dataType ?? "unknown"}; response: {responseType} }}";
+            }
         }
 
         // Error statuses are handled by BuildPerOperationResultType (ErrorArmFor).
