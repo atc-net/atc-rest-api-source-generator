@@ -10,7 +10,7 @@ namespace Callbacks30.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Subscription(
-    Guid? Id,
-    Uri? CallbackUrl,
-    List<string>? Events,
-    DateTimeOffset? CreatedAt);
+    Guid? Id = null,
+    Uri? CallbackUrl = null,
+    List<string>? Events = null,
+    DateTimeOffset? CreatedAt = null);

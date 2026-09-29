@@ -1506,11 +1506,16 @@ using Microsoft.AspNetCore.Builder;
             DefaultValue: null));
 
         // For form flattening, add individual form parameters instead of [AsParameters]
-        var formParameterNames = new List<(string ParamName, string PropName, string TypeName)>();
+        var formParameterNames = new List<(string ParamName, string PropName, string TypeName, bool IsRequired)>();
         var routeParameterNames = new List<(string ParamName, string PropName)>();
         if (requiresFormFlattening)
         {
             var (schemaName, properties) = operation.GetMultipartFormDataSchemaInfo();
+            var formRequired = operation.RequestBody?.Content is { } formContent &&
+                               formContent.TryGetValue("multipart/form-data", out var formMediaType) &&
+                               formMediaType.Schema?.Required is { } formRequiredNames
+                ? formRequiredNames
+                : new HashSet<string>(StringComparer.Ordinal);
             if (properties is not null)
             {
                 foreach (var kvp in properties)
@@ -1556,7 +1561,7 @@ using Microsoft.AspNetCore.Builder;
                         Name: paramName,
                         DefaultValue: null));
 
-                    formParameterNames.Add((paramName, pascalPropName, typeName));
+                    formParameterNames.Add((paramName, pascalPropName, typeName, formRequired.Contains(propName)));
                 }
             }
 
@@ -1664,11 +1669,20 @@ using Microsoft.AspNetCore.Builder;
             var requestTypeName = schemaName?.ToPascalCaseForDotNet() ?? "Request";
             var parameterClassName = $"{methodName}Parameters";
 
-            // Build constructor arguments for the request object
-            // Add null-coalescing for required parameters to handle nullable form binding
-            var requestArgs = string.Join(", ", formParameterNames.Select(p =>
+            // Build constructor arguments for the request object, by name (the record lists required properties first).
+            // A required value gets a fallback for nullable form binding; an optional one stays null when absent.
+            var requestArgs = string.Join(", ", formParameterNames.Select(p => $"{p.PropName}: {RequestArgument(p)}"));
+
+            static string RequestArgument(
+                (string ParamName, string PropName, string TypeName, bool IsRequired) p)
             {
                 var cleanTypeName = p.TypeName.TrimEnd('?');
+                if (!p.IsRequired)
+                {
+                    return cleanTypeName == "IFormFileCollection"
+                        ? $"{p.ParamName}?.ToList()"
+                        : p.ParamName;
+                }
 
                 // IFormFile types - handle collection conversion if needed
                 if (cleanTypeName.Contains("IFormFile", StringComparison.Ordinal))
@@ -1696,7 +1710,7 @@ using Microsoft.AspNetCore.Builder;
                 }
 
                 return p.ParamName;
-            }));
+            }
 
             // Build constructor arguments: path/query params first, then request (matching record order)
             var constructorArgs = string.Join(

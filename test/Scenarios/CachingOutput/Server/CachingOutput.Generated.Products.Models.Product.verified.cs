@@ -11,7 +11,7 @@ namespace CachingOutput.Generated.Products.Models;
 public sealed record Product(
     [property: Required] Guid Id,
     [property: Required] string Name,
-    string? Description,
     [property: Required] double Price,
-    Guid? CategoryId,
-    DateTimeOffset? CreatedAt);
+    string? Description = null,
+    Guid? CategoryId = null,
+    DateTimeOffset? CreatedAt = null);

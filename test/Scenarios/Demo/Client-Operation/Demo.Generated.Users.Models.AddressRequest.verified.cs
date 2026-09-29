@@ -11,9 +11,9 @@ namespace Demo.Generated.Users.Models;
 public sealed record AddressRequest(
     [property: Required, MinLength(1), MaxLength(200)] string Street,
     [property: Required, MinLength(1), MaxLength(100)] string City,
-    [property: MaxLength(100)] string? State,
     [property: Required, MinLength(2), MaxLength(20)] string PostalCode,
     [property: Required, MinLength(2), MaxLength(100)] string Country,
-    [property: MinLength(2), MaxLength(3), RegularExpression(@"^[A-Z]{2,3}$")] string? CountryCode,
-    [property: Range(-90, 90)] double? Latitude,
-    [property: Range(-180, 180)] double? Longitude);
+    [property: MaxLength(100)] string? State = null,
+    [property: MinLength(2), MaxLength(3), RegularExpression(@"^[A-Z]{2,3}$")] string? CountryCode = null,
+    [property: Range(-90, 90)] double? Latitude = null,
+    [property: Range(-180, 180)] double? Longitude = null);

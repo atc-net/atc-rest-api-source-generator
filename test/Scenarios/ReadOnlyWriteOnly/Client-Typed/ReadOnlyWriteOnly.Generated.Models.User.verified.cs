@@ -10,8 +10,8 @@ namespace ReadOnlyWriteOnly.Generated.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record User(
     [property: Required, EmailAddress] string Email,
-    string? DisplayName,
     Guid? Id = null,
     string? Password = null,
     DateTimeOffset? CreatedAt = null,
-    string? Secret = null);
+    string? Secret = null,
+    string? DisplayName = null);

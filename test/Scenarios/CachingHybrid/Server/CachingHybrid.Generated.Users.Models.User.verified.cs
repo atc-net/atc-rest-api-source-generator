@@ -12,5 +12,5 @@ public sealed record User(
     [property: Required] Guid Id,
     [property: Required, EmailAddress] string Email,
     [property: Required] string Name,
-    string? Role,
-    DateTimeOffset? CreatedAt);
+    string? Role = null,
+    DateTimeOffset? CreatedAt = null);

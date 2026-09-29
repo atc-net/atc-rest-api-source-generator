@@ -11,4 +11,4 @@ namespace VersioningQueryString.Generated.Owners.Models;
 public sealed record CreateOwnerRequest(
     [property: Required, MinLength(1), MaxLength(100)] string Name,
     [property: Required, EmailAddress] string Email,
-    string? Phone);
+    string? Phone = null);

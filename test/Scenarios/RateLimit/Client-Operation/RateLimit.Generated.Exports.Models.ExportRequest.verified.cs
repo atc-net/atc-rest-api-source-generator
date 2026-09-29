@@ -11,4 +11,4 @@ namespace RateLimit.Generated.Exports.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ExportRequest(
     [property: Required] string Format,
-    Dictionary<string, string>? Filters);
+    Dictionary<string, string>? Filters = null);

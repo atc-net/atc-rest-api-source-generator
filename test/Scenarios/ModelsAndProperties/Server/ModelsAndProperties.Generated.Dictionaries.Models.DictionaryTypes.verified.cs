@@ -13,9 +13,9 @@ namespace ModelsAndProperties.Generated.Dictionaries.Models;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DictionaryTypes(
-    Dictionary<string, string>? StringDictionary,
-    Dictionary<string, int>? IntegerDictionary,
-    Dictionary<string, double>? NumberDictionary,
-    Dictionary<string, bool>? BooleanDictionary,
-    Dictionary<string, Address>? AddressDictionary,
-    Dictionary<string, object>? StringArrayDictionary);
+    Dictionary<string, string>? StringDictionary = null,
+    Dictionary<string, int>? IntegerDictionary = null,
+    Dictionary<string, double>? NumberDictionary = null,
+    Dictionary<string, bool>? BooleanDictionary = null,
+    Dictionary<string, Address>? AddressDictionary = null,
+    Dictionary<string, object>? StringArrayDictionary = null);

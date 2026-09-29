@@ -6,6 +6,21 @@ namespace Atc.Rest.Api.Generator.Helpers;
 public static class DefaultValueHelper
 {
     /// <summary>
+    /// The C# default of a record constructor parameter: the schema's default, else <c>null</c> for an optional
+    /// (nullable) property - it may be absent, so neither System.Text.Json (<c>RespectRequiredConstructorParameters</c>)
+    /// nor code creating the record must supply it. A required property has no default.
+    /// </summary>
+    /// <param name="schemaDefault">The schema's default as a C# literal, or <see langword="null"/>.</param>
+    /// <param name="isRequired">Whether the property is in the schema's <c>required</c> list.</param>
+    /// <param name="isNullableType">Whether the parameter's type is nullable.</param>
+    /// <returns>The C# default value, or <see langword="null"/> for none.</returns>
+    public static string? ForRecordParameter(
+        string? schemaDefault,
+        bool isRequired,
+        bool isNullableType)
+        => schemaDefault ?? (!isRequired && isNullableType ? "null" : null);
+
+    /// <summary>
     /// Extracts the default value from an OpenAPI schema and formats it as a C# literal.
     /// </summary>
     /// <param name="schemaInterface">The OpenAPI schema interface.</param>

@@ -11,6 +11,6 @@ namespace SecurityOpenIdConnect.Generated.Me.Models;
 public sealed record UserProfile(
     [property: Required] Guid Id,
     [property: Required, EmailAddress] string Email,
-    string? DisplayName,
-    Uri? Picture,
-    bool? EmailVerified);
+    string? DisplayName = null,
+    Uri? Picture = null,
+    bool? EmailVerified = null);

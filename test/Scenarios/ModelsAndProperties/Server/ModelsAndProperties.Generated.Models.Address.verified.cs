@@ -12,8 +12,8 @@ namespace ModelsAndProperties.Generated.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Address(
     [property: Required, MaxLength(255)] string StreetName,
-    [property: MaxLength(20)] string? StreetNumber,
     [property: Required, MinLength(2), MaxLength(20)] string PostalCode,
     [property: Required, MaxLength(100)] string CityName,
-    [property: MaxLength(100)] string? State,
-    [property: Required] Country Country);
+    [property: Required] Country Country,
+    [property: MaxLength(20)] string? StreetNumber = null,
+    [property: MaxLength(100)] string? State = null);

@@ -8,5 +8,5 @@ namespace ComponentsReuse.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Item(
-    string? Id,
-    string? Name);
+    string? Id = null,
+    string? Name = null);

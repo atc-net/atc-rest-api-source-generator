@@ -11,5 +11,5 @@ public sealed record BankTransfer(
     [property: Required] string Type,
     [property: Required, MinLength(5), MaxLength(17)] string AccountNumber,
     [property: Required, MinLength(9), MaxLength(9), RegularExpression(@"^\d{9}$")] string RoutingNumber,
-    [property: MaxLength(100)] string? BankName,
-    [property: MaxLength(100)] string? AccountHolderName) : PaymentMethod;
+    [property: MaxLength(100)] string? BankName = null,
+    [property: MaxLength(100)] string? AccountHolderName = null) : PaymentMethod;

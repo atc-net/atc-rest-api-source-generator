@@ -11,4 +11,4 @@ namespace Retry.Generated.Reports.Models;
 public sealed record ReportJob(
     [property: Required] Guid JobId,
     [property: Required] string Status,
-    DateTimeOffset? EstimatedCompletionTime);
+    DateTimeOffset? EstimatedCompletionTime = null);

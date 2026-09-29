@@ -11,4 +11,4 @@ namespace Retry.Generated.External.Models;
 public sealed record PaymentRequest(
     [property: Required] Guid OrderId,
     [property: Required] double Amount,
-    string? Currency);
+    string? Currency = null);

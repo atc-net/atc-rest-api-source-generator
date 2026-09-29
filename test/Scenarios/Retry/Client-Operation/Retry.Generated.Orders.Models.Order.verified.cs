@@ -12,6 +12,6 @@ namespace Retry.Generated.Orders.Models;
 public sealed record Order(
     [property: Required] Guid Id,
     [property: Required] string Status,
-    string? CustomerName,
-    double? TotalAmount,
-    DateTimeOffset? CreatedAt);
+    string? CustomerName = null,
+    double? TotalAmount = null,
+    DateTimeOffset? CreatedAt = null);

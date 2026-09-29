@@ -104,7 +104,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
         [FromForm(Name = "items")] List<string>? items,
         CancellationToken cancellationToken)
     {
-        var request = new FileAsFormDataRequest(itemName ?? string.Empty, file!, items ?? new List<string>());
+        var request = new FileAsFormDataRequest(ItemName: itemName ?? string.Empty, File: file, Items: items ?? new List<string>());
         var parameters = new UploadFormDataFileParameters(request);
         return UploadFormDataFileResult.ToIResult(
             await handler.ExecuteAsync(
@@ -117,7 +117,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
         IFormFileCollection? files,
         CancellationToken cancellationToken)
     {
-        var request = new FilesAsFormDataRequest(files?.ToList() ?? new List<IFormFile>());
+        var request = new FilesAsFormDataRequest(Files: files?.ToList() ?? new List<IFormFile>());
         var parameters = new UploadFormDataFilesParameters(request);
         return UploadFormDataFilesResult.ToIResult(
             await handler.ExecuteAsync(

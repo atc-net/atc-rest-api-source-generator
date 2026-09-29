@@ -10,4 +10,4 @@ namespace HeaderParameters.Generated.Models;
 public sealed record Item(
     [property: Required] string Id,
     [property: Required] string Name,
-    string? Description);
+    string? Description = null);

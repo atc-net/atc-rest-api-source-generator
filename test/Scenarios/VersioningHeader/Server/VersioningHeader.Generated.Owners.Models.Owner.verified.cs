@@ -12,4 +12,4 @@ public sealed record Owner(
     [property: Required] Guid Id,
     [property: Required, MinLength(1), MaxLength(100)] string Name,
     [property: Required, EmailAddress] string Email,
-    string? Phone);
+    string? Phone = null);

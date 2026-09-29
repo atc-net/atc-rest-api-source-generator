@@ -10,4 +10,4 @@ namespace AllOfMultiLevel.Generated.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public record Entity(
     [property: Required] Guid Id,
-    DateTimeOffset? CreatedAt);
+    DateTimeOffset? CreatedAt = null);

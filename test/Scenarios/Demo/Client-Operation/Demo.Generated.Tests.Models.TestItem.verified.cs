@@ -14,5 +14,5 @@ namespace Demo.Generated.Tests.Models;
 public sealed record TestItem(
     [property: Required] Guid Id,
     [property: Required, MinLength(1), MaxLength(100)] string Name,
-    [property: MaxLength(500)] string? Description,
+    [property: MaxLength(500)] string? Description = null,
     DateTimeOffset? CreatedAt = null);

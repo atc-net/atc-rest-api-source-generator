@@ -10,6 +10,6 @@ namespace InlineSchemas.Generated.Reports.Models;
 public sealed record GetReportResponse(
     [property: Required] string Id,
     [property: Required] string Name,
-    string? Content,
-    string? Status,
-    object? Metadata);
+    string? Content = null,
+    string? Status = null,
+    object? Metadata = null);

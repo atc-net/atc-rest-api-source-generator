@@ -8,6 +8,6 @@ namespace TypedClientResultStyle.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Device(
-    string? Id,
-    string? Name,
-    DeviceStatus? Status);
+    string? Id = null,
+    string? Name = null,
+    DeviceStatus? Status = null);

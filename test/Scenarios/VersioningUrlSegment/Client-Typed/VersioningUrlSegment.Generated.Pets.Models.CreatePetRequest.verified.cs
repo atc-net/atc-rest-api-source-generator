@@ -11,6 +11,6 @@ namespace VersioningUrlSegment.Generated.Pets.Models;
 public sealed record CreatePetRequest(
     [property: Required, MinLength(1), MaxLength(100)] string Name,
     [property: Required] string Species,
-    string? Breed,
-    [property: Range(0, long.MaxValue)] int? Age,
-    Guid? OwnerId);
+    string? Breed = null,
+    [property: Range(0, long.MaxValue)] int? Age = null,
+    Guid? OwnerId = null);

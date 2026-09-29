@@ -11,5 +11,5 @@ namespace SecurityStandard.Generated.Users.Models;
 public sealed record User(
     [property: Required] Guid Id,
     [property: Required] string Username,
-    [property: EmailAddress] string? Email,
-    UserRole? Role);
+    [property: EmailAddress] string? Email = null,
+    UserRole? Role = null);

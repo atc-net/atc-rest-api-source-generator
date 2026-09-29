@@ -9,6 +9,6 @@ namespace CookieParameters.Generated.Session.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Session(
-    string? Id,
-    string? UserId,
-    DateTimeOffset? CreatedAt);
+    string? Id = null,
+    string? UserId = null,
+    DateTimeOffset? CreatedAt = null);

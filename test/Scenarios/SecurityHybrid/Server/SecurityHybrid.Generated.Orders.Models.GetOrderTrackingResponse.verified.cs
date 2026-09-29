@@ -8,6 +8,6 @@ namespace SecurityHybrid.Generated.Orders.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetOrderTrackingResponse(
-    string? OrderId,
-    string? Status,
-    string? Location);
+    string? OrderId = null,
+    string? Status = null,
+    string? Location = null);

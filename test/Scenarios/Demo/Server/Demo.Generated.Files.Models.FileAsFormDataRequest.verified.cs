@@ -11,5 +11,5 @@ namespace Demo.Generated.Files.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record FileAsFormDataRequest(
     [property: Required] string ItemName,
-    IFormFile? File,
-    [property: Required] List<string> Items);
+    [property: Required] List<string> Items,
+    IFormFile? File = null);

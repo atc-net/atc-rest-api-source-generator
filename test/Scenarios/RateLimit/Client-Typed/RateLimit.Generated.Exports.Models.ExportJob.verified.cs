@@ -12,4 +12,4 @@ namespace RateLimit.Generated.Exports.Models;
 public sealed record ExportJob(
     [property: Required] Guid Id,
     [property: Required] string Status,
-    DateTimeOffset? CreatedAt);
+    DateTimeOffset? CreatedAt = null);

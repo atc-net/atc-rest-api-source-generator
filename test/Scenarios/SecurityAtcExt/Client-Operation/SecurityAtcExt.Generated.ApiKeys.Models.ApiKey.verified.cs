@@ -11,5 +11,5 @@ namespace SecurityAtcExt.Generated.ApiKeys.Models;
 public sealed record ApiKey(
     [property: Required] Guid Id,
     [property: Required] string Name,
-    DateTimeOffset? CreatedAt,
-    DateTimeOffset? ExpiresAt);
+    DateTimeOffset? CreatedAt = null,
+    DateTimeOffset? ExpiresAt = null);

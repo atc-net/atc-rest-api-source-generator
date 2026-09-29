@@ -10,4 +10,4 @@ namespace InlineSchemas.Generated.Analytics.Models;
 public sealed record GetAnalyticsSummaryResponse(
     [property: Required] int TotalViews,
     [property: Required] int TotalReports,
-    string? Period);
+    string? Period = null);

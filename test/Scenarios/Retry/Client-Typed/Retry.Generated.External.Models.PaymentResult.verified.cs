@@ -11,4 +11,4 @@ namespace Retry.Generated.External.Models;
 public sealed record PaymentResult(
     [property: Required] Guid TransactionId,
     [property: Required] string Status,
-    DateTimeOffset? ProcessedAt);
+    DateTimeOffset? ProcessedAt = null);

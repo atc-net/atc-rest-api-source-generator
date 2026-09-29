@@ -8,11 +8,11 @@ namespace PetStoreFull.Generated.User.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record User(
-    long? Id,
-    string? Username,
-    string? FirstName,
-    string? LastName,
-    string? Email,
-    string? Password,
-    string? Phone,
-    int? UserStatus);
+    long? Id = null,
+    string? Username = null,
+    string? FirstName = null,
+    string? LastName = null,
+    string? Email = null,
+    string? Password = null,
+    string? Phone = null,
+    int? UserStatus = null);

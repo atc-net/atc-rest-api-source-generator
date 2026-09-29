@@ -14,14 +14,14 @@ namespace ModelsAndProperties.Generated.Arrays.Models;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ArrayTypes(
-    List<string>? StringArray,
-    List<int>? IntegerArray,
-    List<double>? NumberArray,
-    List<bool>? BooleanArray,
-    List<Guid>? UuidArray,
-    List<DateTimeOffset>? DateTimeArray,
-    [property: MinLength(1), MaxLength(10)] List<string>? LimitedArray,
-    List<string>? UniqueArray,
-    List<Address>? AddressArray,
-    List<StatusType>? StatusArray,
-    List<List<string>>? NestedStringArray);
+    List<string>? StringArray = null,
+    List<int>? IntegerArray = null,
+    List<double>? NumberArray = null,
+    List<bool>? BooleanArray = null,
+    List<Guid>? UuidArray = null,
+    List<DateTimeOffset>? DateTimeArray = null,
+    [property: MinLength(1), MaxLength(10)] List<string>? LimitedArray = null,
+    List<string>? UniqueArray = null,
+    List<Address>? AddressArray = null,
+    List<StatusType>? StatusArray = null,
+    List<List<string>>? NestedStringArray = null);

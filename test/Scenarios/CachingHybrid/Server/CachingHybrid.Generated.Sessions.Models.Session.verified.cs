@@ -11,6 +11,6 @@ namespace CachingHybrid.Generated.Sessions.Models;
 public sealed record Session(
     [property: Required] Guid Id,
     [property: Required] Guid UserId,
-    DateTimeOffset? CreatedAt,
-    DateTimeOffset? ExpiresAt,
-    string? IpAddress);
+    DateTimeOffset? CreatedAt = null,
+    DateTimeOffset? ExpiresAt = null,
+    string? IpAddress = null);

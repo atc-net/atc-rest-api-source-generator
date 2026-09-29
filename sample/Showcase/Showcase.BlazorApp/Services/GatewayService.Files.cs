@@ -84,7 +84,7 @@ public sealed partial class GatewayService
         CancellationToken cancellationToken = default)
     {
         var fileContent = new StreamFileContent(fileStream, fileName, contentType);
-        var request = new FileAsFormDataRequest(itemName, fileContent, [..items]);
+        var request = new FileAsFormDataRequest(ItemName: itemName, File: fileContent, Items: [..items]);
         var parameters = new UploadSingleObjectWithFileAsFormDataParameters(Request: request);
 
         var result = await uploadSingleObjectWithFileAsFormDataEndpoint

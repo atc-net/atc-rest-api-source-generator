@@ -8,5 +8,5 @@ namespace CircularSchemas.Generated.Deep.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Level3(
-    string? Name,
-    Level4? Child);
+    string? Name = null,
+    Level4? Child = null);

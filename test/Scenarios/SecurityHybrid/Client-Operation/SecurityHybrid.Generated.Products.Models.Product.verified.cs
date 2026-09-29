@@ -11,5 +11,5 @@ namespace SecurityHybrid.Generated.Products.Models;
 public sealed record Product(
     [property: Required] Guid Id,
     [property: Required] string Name,
-    double? Price,
-    bool? InStock);
+    double? Price = null,
+    bool? InStock = null);

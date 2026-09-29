@@ -12,5 +12,5 @@ namespace SecurityAtcExt.Generated.Orders.Models;
 public sealed record TrackingInfo(
     [property: Required] Guid OrderId,
     [property: Required] string Status,
-    string? Location,
-    DateTimeOffset? LastUpdated);
+    string? Location = null,
+    DateTimeOffset? LastUpdated = null);

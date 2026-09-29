@@ -13,4 +13,4 @@ namespace OpenApi32Features.Generated.Documents.Models;
 public sealed record DocumentRequest(
     [property: Required] string Name,
     [property: Required] string Content,
-    Dictionary<string, string>? Metadata);
+    Dictionary<string, string>? Metadata = null);

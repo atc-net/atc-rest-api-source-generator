@@ -11,4 +11,4 @@ namespace CachingOutput.Generated.Categories.Models;
 public sealed record Category(
     [property: Required] Guid Id,
     [property: Required] string Name,
-    string? Description);
+    string? Description = null);

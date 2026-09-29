@@ -10,4 +10,4 @@ namespace CachingHybrid.Generated.Health.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record HealthStatus(
     [property: Required] string Status,
-    DateTimeOffset? Timestamp);
+    DateTimeOffset? Timestamp = null);

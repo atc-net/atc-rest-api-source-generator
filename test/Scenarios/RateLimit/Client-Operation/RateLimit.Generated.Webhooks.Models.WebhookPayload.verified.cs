@@ -8,5 +8,5 @@ namespace RateLimit.Generated.Webhooks.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record WebhookPayload(
-    string? Event,
-    WebhookData? Data);
+    string? Event = null,
+    WebhookData? Data = null);

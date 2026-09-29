@@ -10,6 +10,6 @@ namespace CachingOutput.Generated.Products.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateProductRequest(
     [property: Required] string Name,
-    string? Description,
     [property: Required] double Price,
-    Guid? CategoryId);
+    string? Description = null,
+    Guid? CategoryId = null);

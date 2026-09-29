@@ -12,11 +12,11 @@ public sealed record UpdateUserRequest(
     [property: Required, MinLength(2), MaxLength(50)] string FirstName,
     [property: Required, MinLength(2), MaxLength(50)] string LastName,
     [property: Required, MaxLength(254), EmailAddress] string Email,
-    [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone,
-    Uri? Website,
     [property: Required] DateTimeOffset DateOfBirth,
-    [property: MaxLength(1000)] string? Bio,
-    Uri? AvatarUrl,
-    bool? IsActive,
     [property: Required] UserRole Role,
-    [property: Required] AddressRequest Address);
+    [property: Required] AddressRequest Address,
+    [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone = null,
+    Uri? Website = null,
+    [property: MaxLength(1000)] string? Bio = null,
+    Uri? AvatarUrl = null,
+    bool? IsActive = null);

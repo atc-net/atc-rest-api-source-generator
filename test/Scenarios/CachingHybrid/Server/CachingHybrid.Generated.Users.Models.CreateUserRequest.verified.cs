@@ -11,4 +11,4 @@ namespace CachingHybrid.Generated.Users.Models;
 public sealed record CreateUserRequest(
     [property: Required, EmailAddress] string Email,
     [property: Required] string Name,
-    string? Role);
+    string? Role = null);

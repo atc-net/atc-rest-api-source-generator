@@ -10,4 +10,4 @@ namespace AnyOfNoDiscriminator.Generated.Notifications.Models;
 public sealed record EmailNotification(
     [property: Required, EmailAddress] string To,
     [property: Required] string Subject,
-    string? Body);
+    string? Body = null);

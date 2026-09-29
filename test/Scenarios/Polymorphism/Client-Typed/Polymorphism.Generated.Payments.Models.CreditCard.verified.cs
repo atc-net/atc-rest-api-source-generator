@@ -11,5 +11,5 @@ public sealed record CreditCard(
     [property: Required] string Type,
     [property: Required, MinLength(13), MaxLength(19)] string CardNumber,
     [property: Required, RegularExpression(@"^\d{2}/\d{2}$")] string ExpiryDate,
-    [property: MinLength(3), MaxLength(4)] string? Cvv,
-    [property: MaxLength(100)] string? CardholderName) : PaymentMethod;
+    [property: MinLength(3), MaxLength(4)] string? Cvv = null,
+    [property: MaxLength(100)] string? CardholderName = null) : PaymentMethod;

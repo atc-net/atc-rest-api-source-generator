@@ -13,4 +13,4 @@ namespace SchemaSummaryFields.Generated.Models;
 public sealed record Pet(
     [property: Required] int Id,
     [property: Required] string Name,
-    PetStatus? Status);
+    PetStatus? Status = null);

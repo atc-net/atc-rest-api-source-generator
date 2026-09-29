@@ -11,6 +11,6 @@ public sealed record PushNotification(
     [property: Required] string Kind,
     [property: Required] string DeviceToken,
     [property: Required, MaxLength(100)] string Title,
-    [property: MaxLength(500)] string? Body,
-    [property: Range(0, long.MaxValue)] int? Badge,
-    string? Sound) : Notification;
+    [property: MaxLength(500)] string? Body = null,
+    [property: Range(0, long.MaxValue)] int? Badge = null,
+    string? Sound = null) : Notification;

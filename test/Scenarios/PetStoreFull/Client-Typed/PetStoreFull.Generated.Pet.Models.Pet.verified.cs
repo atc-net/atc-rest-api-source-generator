@@ -9,9 +9,9 @@ namespace PetStoreFull.Generated.Pet.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Pet(
-    long? Id,
     [property: Required] string Name,
-    Category? Category,
     [property: Required] List<string> PhotoUrls,
-    List<Tag>? Tags,
-    PetStatus? Status);
+    long? Id = null,
+    Category? Category = null,
+    List<Tag>? Tags = null,
+    PetStatus? Status = null);

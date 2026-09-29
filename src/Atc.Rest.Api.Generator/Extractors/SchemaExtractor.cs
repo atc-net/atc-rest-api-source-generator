@@ -845,8 +845,8 @@ public static class SchemaExtractor
                 ? attributesList
                 : null;
 
-            // Extract default value from schema
-            var defaultValue = ExtractSchemaDefault(prop.Value, cleanTypeName);
+            // Extract default value from schema (null for an optional property: it may be absent)
+            var defaultValue = DefaultValueHelper.ForRecordParameter(ExtractSchemaDefault(prop.Value, cleanTypeName), isRequired, isNullableType);
 
             // readOnly/writeOnly properties get a null default so they can be omitted in requests/responses
             var resolvedPropForRw = prop.Value is OpenApiSchemaReference propRefRw ? propRefRw.Target : prop.Value;
@@ -1085,8 +1085,8 @@ public static class SchemaExtractor
                 ? attributesList
                 : null;
 
-            // Extract default value from schema
-            var defaultValue = ExtractSchemaDefault(prop.Value, cleanTypeName);
+            // Extract default value from schema (null for an optional property: it may be absent)
+            var defaultValue = DefaultValueHelper.ForRecordParameter(ExtractSchemaDefault(prop.Value, cleanTypeName), isRequired, isNullableType);
 
             // readOnly/writeOnly properties get a null default so they can be omitted in requests/responses
             var resolvedPropForRw = prop.Value is OpenApiSchemaReference propRefRw ? propRefRw.Target : prop.Value;

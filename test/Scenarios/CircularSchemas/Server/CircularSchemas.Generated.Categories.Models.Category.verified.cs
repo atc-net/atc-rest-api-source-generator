@@ -9,7 +9,7 @@ namespace CircularSchemas.Generated.Categories.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Category(
-    string? Id,
-    string? Name,
-    Category? Parent,
-    List<Tag>? Tags);
+    string? Id = null,
+    string? Name = null,
+    Category? Parent = null,
+    List<Tag>? Tags = null);
