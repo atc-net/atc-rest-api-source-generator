@@ -86,12 +86,36 @@ public static class HttpStatusCodeHelper
     };
 
     /// <summary>
+    /// Whether the status is a redirect that carries a <c>Location</c> (RFC 9110 §15.4): 301, 302, 303, 307, 308.
+    /// </summary>
+    public static bool IsRedirect(int statusCode)
+        => statusCode is 301 or 302 or 303 or 307 or 308;
+
+    /// <summary>
     /// Converts an HTTP status code integer to a valid C# identifier name.
     /// For defined codes (e.g., 200 → "OK", 404 → "NotFound"), returns the enum name.
     /// For undefined codes (e.g., 499, 529), returns "Status{code}" (e.g., "Status499").
     /// </summary>
     public static string ToEnumName(int statusCode)
     {
+        // Codes with an alias in HttpStatusCode (Ambiguous, Moved, Redirect, RedirectMethod, RedirectKeepVerb,
+        // UnprocessableContent): always one fixed name, whichever alias Enum.ToString would pick.
+        switch (statusCode)
+        {
+            case 300:
+                return "MultipleChoices";
+            case 301:
+                return "MovedPermanently";
+            case 302:
+                return "Found";
+            case 303:
+                return "SeeOther";
+            case 307:
+                return "TemporaryRedirect";
+            case 422:
+                return "UnprocessableEntity";
+        }
+
         var httpStatusCode = (System.Net.HttpStatusCode)statusCode;
 
         if (Enum.IsDefined(typeof(System.Net.HttpStatusCode), statusCode))

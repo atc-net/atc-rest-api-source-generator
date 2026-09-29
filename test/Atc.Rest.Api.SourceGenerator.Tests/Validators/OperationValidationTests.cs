@@ -1953,6 +1953,45 @@ public class OperationValidationTests
         Assert.Contains("createPet", opr018.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("100")]
+    [InlineData("101")]
+    [InlineData("102")]
+    [InlineData("103")]
+    public void Validate_InformationalStatusCode_ReportsOPR030(
+        string statusCode)
+    {
+        // Arrange
+        var document = ParseYaml($$"""
+            openapi: 3.0.3
+            info:
+              title: Test
+              version: 1.0.0
+            paths:
+              /pets:
+                get:
+                  operationId: listPets
+                  responses:
+                    '200':
+                      description: OK
+                    '{{statusCode}}':
+                      description: Informational
+            """);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath);
+
+        // Assert
+        var opr030 = Assert.Single(diagnostics, d => d.RuleId == Generator.RuleIdentifiers.InformationalResponseStatusCode);
+        Assert.Equal(Generator.Models.DiagnosticSeverity.Warning, opr030.Severity);
+        Assert.Contains(statusCode, opr030.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Validate_Single2xxStatusCode_NoOPR018()
     {

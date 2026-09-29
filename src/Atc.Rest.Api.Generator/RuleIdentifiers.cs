@@ -593,6 +593,12 @@ public static class RuleIdentifiers
     /// </summary>
     public const string QueryOperationWithMutationResponse = "ATC_API_OPR029";
 
+    /// <summary>
+    /// ATC_API_OPR030: An operation declares an informational (<c>1xx</c>) response. A 1xx is never a final
+    /// response (RFC 9110 §15.2), so no factory, endpoint metadata or client accessor is generated for it.
+    /// </summary>
+    public const string InformationalResponseStatusCode = "ATC_API_OPR030";
+
     // ========== Webhook Rules (WBH) ==========
 
     /// <summary>

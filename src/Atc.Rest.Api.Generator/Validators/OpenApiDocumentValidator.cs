@@ -2230,6 +2230,16 @@ public static class OpenApiDocumentValidator
                 DiagnosticSeverity.Error,
                 sourceFilePath));
         }
+
+        // ATC_API_OPR030: an informational (1xx) status is never a final response
+        foreach (var informational in operation.Responses.Keys.Where(k => k.Length == 3 && k.StartsWith("1", StringComparison.Ordinal)))
+        {
+            diagnostics.Add(new DiagnosticMessage(
+                RuleIdentifiers.InformationalResponseStatusCode,
+                $"Operation '{operationId}' declares the informational status {informational}, which is never a final response (RFC 9110 §15.2): no factory or client accessor is generated for it.",
+                DiagnosticSeverity.Warning,
+                sourceFilePath));
+        }
     }
 
     /// <summary>

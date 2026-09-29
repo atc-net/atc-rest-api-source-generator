@@ -1397,6 +1397,11 @@ public class ApiServerGenerator : IIncrementalGenerator
             allGeneratedCode.AppendLine(ResultClassExtractor.RetryAfterHttpResultSource());
         }
 
+        if (allGeneratedCode.ToString().Contains("new LocationHttpResult("))
+        {
+            allGeneratedCode.AppendLine(ResultClassExtractor.LocationHttpResultSource());
+        }
+
         var normalizeForSourceOutput = allGeneratedCode
             .ToString()
             .NormalizeForSourceOutput();

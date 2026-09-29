@@ -402,10 +402,12 @@ public static class ResultClassExtractor
                 break;
             default:
             {
-                if (int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var statusCodeInt))
+                // An informational (1xx) status is never a final response (RFC 9110 §15.2): no factory
+                // (ATC_API_OPR030 warns about the declaration).
+                if (int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var statusCodeInt) &&
+                    statusCodeInt >= 200)
                 {
-                    var methodName = HttpStatusCodeHelper.ToEnumName(statusCodeInt);
-                    methods.Add(GenerateGenericStatusCodeMethod(className, description, statusCode, methodName));
+                    methods.Add(GenerateStatusMethod(className, description, statusCodeInt, contentType, isTextResponse, textResponseMediaType));
                 }
 
                 break;
@@ -642,6 +644,38 @@ public static class ResultClassExtractor
             IsReferenceType: isReference,
             Name: name,
             DefaultValue: defaultValue);
+
+    /// <summary>
+    /// The <c>LocationHttpResult</c> type the 303 factories use (ASP.NET Core has no redirect result for 303): the
+    /// wrapped result, written with a <c>Location</c> header.
+    /// </summary>
+    public static string LocationHttpResultSource()
+        => $$"""
+
+            /// <summary>
+            /// Writes the wrapped result with a <c>Location</c> header.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal sealed class LocationHttpResult : IResult
+            {
+                private readonly IResult inner;
+                private readonly string location;
+
+                public LocationHttpResult(
+                    IResult inner,
+                    string location)
+                {
+                    this.inner = inner;
+                    this.location = location;
+                }
+
+                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+                {
+                    httpContext.Response.Headers.Location = location;
+                    return inner.ExecuteAsync(httpContext);
+                }
+            }
+            """;
 
     /// <summary>
     /// The source of the <c>IResult</c> wrapper that adds a <c>Retry-After</c> header, emitted once into a
@@ -1092,36 +1126,70 @@ public static class ResultClassExtractor
             Content: "new(TypedResults.StatusCode(StatusCodes.Status202Accepted))");
     }
 
-    private static MethodParameters GenerateGenericStatusCodeMethod(
+    /// <summary>
+    /// The factory of a 2xx other than 200/201/202/204, or a 3xx (RFC 9110):
+    /// <list type="bullet">
+    ///   <item>301, 302, 303, 307, 308 take the <c>location</c> (a <c>Uri</c>, so a 2.x <c>X(message)</c> call does not
+    ///   compile into a redirect to the message) and write it as the <c>Location</c> header, no body.</item>
+    ///   <item>205 and 304 never carry a body (§15.3.6, §15.4.5).</item>
+    ///   <item>Any other status writes its declared body (JSON or text) with that status, or no body.</item>
+    /// </list>
+    /// </summary>
+    private static MethodParameters GenerateStatusMethod(
         string className,
         string description,
-        string statusCode,
-        string methodName)
+        int statusCode,
+        string? contentType,
+        bool isTextResponse,
+        string? textResponseMediaType)
     {
+        var methodName = HttpStatusCodeHelper.ToEnumName(statusCode);
         var doc = new CodeDocumentationTags($"{statusCode} {methodName} - {description}");
+        var status = statusCode.ToString(CultureInfo.InvariantCulture);
 
-        return new MethodParameters(
-            DocumentationTags: doc,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.PublicStatic,
-            ReturnGenericTypeName: null,
-            ReturnTypeName: className,
-            Name: methodName,
-            Parameters: new List<ParameterBaseParameters>
-            {
-                new(
-                    Attributes: null,
-                    GenericTypeName: null,
-                    IsGenericListType: false,
-                    TypeName: "string",
-                    IsNullableType: true,
-                    IsReferenceType: true,
-                    Name: "message",
-                    DefaultValue: "null"),
-            },
-            AlwaysBreakDownParameters: false,
-            UseExpressionBody: true,
-            Content: $"new(TypedResults.Problem(message, statusCode: {statusCode}))");
+        MethodParameters Method(
+            string? parameterType,
+            string parameterName,
+            string content)
+            => new(
+                DocumentationTags: doc,
+                Attributes: null,
+                DeclarationModifier: DeclarationModifiers.PublicStatic,
+                ReturnGenericTypeName: null,
+                ReturnTypeName: className,
+                Name: methodName,
+                Parameters: parameterType is null
+                    ? null
+                    : new List<ParameterBaseParameters>
+                    {
+                        new(
+                            Attributes: null,
+                            GenericTypeName: null,
+                            IsGenericListType: false,
+                            TypeName: parameterType,
+                            IsNullableType: false,
+                            IsReferenceType: true,
+                            Name: parameterName,
+                            DefaultValue: null),
+                    },
+                AlwaysBreakDownParameters: false,
+                UseExpressionBody: true,
+                Content: content);
+
+        return statusCode switch
+        {
+            301 => Method("System.Uri", "location", "new(TypedResults.Redirect(location.OriginalString, permanent: true, preserveMethod: false))"),
+            302 => Method("System.Uri", "location", "new(TypedResults.Redirect(location.OriginalString, permanent: false, preserveMethod: false))"),
+            303 => Method("System.Uri", "location", "new(new LocationHttpResult(TypedResults.StatusCode(303), location.OriginalString))"),
+            307 => Method("System.Uri", "location", "new(TypedResults.Redirect(location.OriginalString, permanent: false, preserveMethod: true))"),
+            308 => Method("System.Uri", "location", "new(TypedResults.Redirect(location.OriginalString, permanent: true, preserveMethod: true))"),
+            205 or 304 => Method(null, string.Empty, $"new(TypedResults.StatusCode({status}))"),
+            _ when isTextResponse && textResponseMediaType is not null =>
+                Method("string", "content", $"new(TypedResults.Text(content, \"{textResponseMediaType}\", statusCode: {status}))"),
+            _ when !string.IsNullOrEmpty(contentType) =>
+                Method(contentType, "response", $"new(TypedResults.Json(response, statusCode: {status}))"),
+            _ => Method(null, string.Empty, $"new(TypedResults.StatusCode({status}))"),
+        };
     }
 
     private static string GetSchemaTypeName(

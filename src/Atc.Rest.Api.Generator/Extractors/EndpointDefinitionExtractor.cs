@@ -1303,6 +1303,12 @@ using Microsoft.AspNetCore.Builder;
                     continue;
                 }
 
+                // An informational (1xx) status is never a final response: nothing to describe.
+                if (statusCodeInt < 200)
+                {
+                    continue;
+                }
+
                 // The StatusCodes constant, or the numeric literal for codes without one (425, 499, ...)
                 var statusCodeExpression = HttpStatusCodeHelper.ToStatusCodesExpression(statusCodeInt);
 
@@ -1358,8 +1364,16 @@ using Microsoft.AspNetCore.Builder;
                     case >= 200 and < 300:
                         builder.Append($"    .Produces({statusCodeExpression})");
                         break;
+
+                    // A 3xx with a body (e.g. 300 Multiple Choices) - never 304, which has none.
+                    case >= 300 and < 400 when statusCodeInt != 304 && textResponseMediaType is not null && !HttpStatusCodeHelper.IsRedirect(statusCodeInt):
+                        builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\")");
+                        break;
+                    case >= 300 and < 400 when statusCodeInt != 304 && !string.IsNullOrEmpty(contentType) && !HttpStatusCodeHelper.IsRedirect(statusCodeInt):
+                        builder.Append($"    .Produces<{contentType}>({statusCodeExpression})");
+                        break;
                     default:
-                        // 1xx and 3xx use simple Produces
+                        // Other 3xx: the status only (a redirect's Location is a header)
                         builder.Append($"    .Produces({statusCodeExpression})");
                         break;
                 }
