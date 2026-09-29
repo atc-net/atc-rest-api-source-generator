@@ -859,6 +859,20 @@ public static class OpenApiDocumentValidator
             // ATCAPI_SCH017: unevaluatedProperties (JSON Schema 2020-12)
             ValidateUnevaluatedProperties(diagnostics, sourceFilePath, schemaName, actualSchema);
 
+            // ATCAPI_SCH022: properties but no required list - every property optional, generated nullable
+            if (actualSchema.Properties is { Count: > 0 } &&
+                actualSchema.Required is not { Count: > 0 } &&
+                actualSchema.GetSchemaType() == "object")
+            {
+                diagnostics.Add(new DiagnosticMessage(
+                    RuleIdentifiers.SchemaWithoutRequiredProperties,
+                    $"Schema '{schemaName}' has properties but no 'required' list, so every property is optional and " +
+                    "generated nullable (with a '= null' default). List the properties the API always sends in 'required'. " +
+                    $"Location: #/components/schemas/{schemaName}",
+                    DiagnosticSeverity.Info,
+                    sourceFilePath));
+            }
+
             var schemaType = actualSchema.GetSchemaType();
 
             // Validate based on schema type

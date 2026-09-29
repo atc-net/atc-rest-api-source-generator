@@ -1,5 +1,6 @@
 {
     "validateSpecificationStrategy": "Standard",
     "includeDeprecated": false,
-    "generationMode": "EndpointPerOperation"
+    "generationMode": "EndpointPerOperation",
+    "strictRequiredProperties": true
 }

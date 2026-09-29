@@ -525,6 +525,12 @@ public static class CodeGenerationService
                 usings.Add(NamespaceConstants.System);
             }
 
+            // [JsonPropertyName] for a non-C# property name, [JsonRequired] with strictRequiredProperties
+            if (recordParams.Parameters?.Any(p => p.Attributes?.Any(a => a.Name.StartsWith("Json", StringComparison.Ordinal)) == true) == true)
+            {
+                usings.Add(NamespaceConstants.SystemTextJsonSerialization);
+            }
+
             var subFolder = GetSubFolder("Models", effectivePathSegment, generatorType, granularity);
 
             result.Add(new GeneratedType(

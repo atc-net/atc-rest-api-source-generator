@@ -436,6 +436,13 @@ public static class RuleIdentifiers
     /// </summary>
     public const string ProblemDetailsSchemaShadowedByBuiltIn = "ATC_API_SCH021";
 
+    /// <summary>
+    /// ATC_API_SCH022: An object schema has properties but no 'required' list, so every property is optional and
+    /// generated nullable with a '= null' default. Usually a specification gap: list the properties the API always
+    /// sends in 'required'. Info, Strict mode only.
+    /// </summary>
+    public const string SchemaWithoutRequiredProperties = "ATC_API_SCH022";
+
     // ========== Path Rules (PTH) ==========
 
     /// <summary>

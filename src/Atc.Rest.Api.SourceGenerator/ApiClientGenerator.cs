@@ -351,7 +351,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             // Create conflict registry for shared types (no segment)
             var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName);
 
-            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, sharedRegistry, config.IncludeDeprecated, config.GeneratePartialModels);
+            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, sharedRegistry, config.IncludeDeprecated, config.GeneratePartialModels, strictRequiredProperties: config.StrictRequiredProperties);
             GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
             GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
             PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
@@ -387,7 +387,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             // Include shared models using directive so segment types can reference shared types
             if (segmentSchemas.Count > 0)
             {
-                GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, includeSharedModelsUsing: sharedSchemas.Count > 0);
+                GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, includeSharedModelsUsing: sharedSchemas.Count > 0, strictRequiredProperties: config.StrictRequiredProperties);
                 GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
                 GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
                 PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
@@ -410,7 +410,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                     ? ErrorResponseFormatType.Custom
                     : config.ErrorResponseFormat;
 
-                var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, customErrorTypeName, config.ValidateSpecificationStrategy);
+                var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, customErrorTypeName, config.ValidateSpecificationStrategy, config.StrictRequiredProperties);
                 if (hasEndpoints)
                 {
                     generatedPathSegments.Add(effectiveSegment);
@@ -420,7 +420,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 var hasSegmentModelsTyped = segmentSchemas.Count > 0;
                 var hasSharedModelsTyped = sharedSchemas.Count > 0;
-                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy, config.ClientSuffix, clientName: null, packages.HasHttpClientFactory, config.TypedClientResultStyle);
+                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy, config.ClientSuffix, clientName: null, packages.HasHttpClientFactory, config.TypedClientResultStyle, config.StrictRequiredProperties);
             }
         }
 
@@ -610,7 +610,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         TypeConflictRegistry registry,
         bool includeDeprecated,
         bool generatePartialModels,
-        bool includeSharedModelsUsing = false)
+        bool includeSharedModelsUsing = false,
+        bool strictRequiredProperties = false)
     {
         // Use SchemaExtractor to extract specific schemas with inline enum support
         var (recordsParameters, inlineEnums) = SchemaExtractor.ExtractForSchemasWithInlineEnums(
@@ -642,6 +643,12 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         // For client-side, convert IFormFile types to IFileContent (from Atc.Rest.Client)
         recordsParameters = ConvertToClientTypes(recordsParameters);
+
+        // strictRequiredProperties: a response that leaves out a required property fails when it is read
+        if (strictRequiredProperties)
+        {
+            recordsParameters = AddJsonRequired(recordsParameters);
+        }
 
         var codeDocGenerator = new CodeDocumentationTagsGenerator();
 
@@ -755,6 +762,44 @@ public class ApiClientGenerator : IIncrementalGenerator
     /// <summary>
     /// Converts server-side types (IFormFile) to client-side types (IFileContent from Atc.Rest.Client) in the records parameters.
     /// </summary>
+    /// <summary>
+    /// Adds <c>[JsonRequired]</c> next to every <c>[Required]</c> of the client models (<c>strictRequiredProperties</c>),
+    /// so System.Text.Json rejects JSON that leaves a required property out. The server keeps DataAnnotations only:
+    /// its ValidationFilter answers a missing required property with a ValidationProblemDetails.
+    /// </summary>
+    private static RecordsParameters AddJsonRequired(
+        RecordsParameters recordsParameters)
+    {
+        var records = recordsParameters.Parameters
+            .Select(WithJsonRequired)
+            .ToList();
+
+        const string jsonSerializationUsing = "using System.Text.Json.Serialization;";
+        var header = recordsParameters.HeaderContent;
+        if (header is not null && !header.Contains(jsonSerializationUsing, StringComparison.Ordinal))
+        {
+            const string dataAnnotationsUsing = "using System.ComponentModel.DataAnnotations;";
+            header = header.Contains(dataAnnotationsUsing, StringComparison.Ordinal)
+                ? header.Replace(dataAnnotationsUsing, dataAnnotationsUsing + "\n" + jsonSerializationUsing)
+                : header + jsonSerializationUsing + "\n";
+        }
+
+        return recordsParameters with { HeaderContent = header, Parameters = records };
+    }
+
+    /// <summary>
+    /// The record with <c>[JsonRequired]</c> next to every <c>[Required]</c> (<c>strictRequiredProperties</c>).
+    /// </summary>
+    private static RecordParameters WithJsonRequired(RecordParameters record)
+        => record with
+        {
+            Parameters = record.Parameters?
+                .Select(param => param.Attributes?.Any(a => a.Name == "Required") == true
+                    ? param with { Attributes = [.. param.Attributes, new AttributeParameters("JsonRequired", null)] }
+                    : param)
+                .ToList(),
+        };
+
     private static RecordsParameters ConvertToClientTypes(
         RecordsParameters recordsParameters)
     {
@@ -872,7 +917,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         if (allSchemas.Count > 0)
         {
-            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels);
+            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, strictRequiredProperties: config.StrictRequiredProperties);
             GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
             GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
             PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
@@ -894,7 +939,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             config.ClientSuffix,
             config.ClientName,
             generateDiExtension,
-            config.TypedClientResultStyle);
+            config.TypedClientResultStyle,
+            config.StrictRequiredProperties);
 
         if (StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
         {
@@ -921,7 +967,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         string? clientSuffix = null,
         string? clientName = null,
         bool generateDiExtension = false,
-        TypedClientResultStyleType typedClientResultStyle = TypedClientResultStyleType.Throw)
+        TypedClientResultStyleType typedClientResultStyle = TypedClientResultStyleType.Throw,
+        bool strictRequiredProperties = false)
     {
         // An empty namespace segment means Single granularity: the client and its parameter
         // records are flattened into "{projectName}.Generated" rather than the per-area
@@ -1030,10 +1077,16 @@ public class ApiClientGenerator : IIncrementalGenerator
             }
         }
 
-        // Generate inline model files for any inline schemas discovered
+        // Generate inline model files for any inline schemas discovered - under Single granularity (an empty namespace
+        // segment) flat in "{projectName}.Generated.Models", where the client looks for them
         if (inlineSchemas.Count > 0)
         {
-            var inlineTypes = CodeGenerationService.GenerateInlineModels(inlineSchemas, projectName);
+            var inlineTypes = CodeGenerationService.GenerateInlineModels(
+                strictRequiredProperties
+                    ? inlineSchemas.ToDictionary(kvp => kvp.Key, kvp => kvp.Value with { RecordParameters = WithJsonRequired(kvp.Value.RecordParameters) }, StringComparer.Ordinal)
+                    : inlineSchemas,
+                projectName,
+                granularity: string.IsNullOrEmpty(namespaceSegment) ? ClientGranularityType.Single : ClientGranularityType.PerArea);
             foreach (var inlineType in inlineTypes)
             {
                 var inlineContent = CodeGenerationService.FormatAsFile(inlineType);
@@ -1118,7 +1171,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         string? httpClientName,
         ErrorResponseFormatType errorResponseFormat,
         string? customErrorTypeName,
-        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
+        bool strictRequiredProperties = false)
     {
         var clientNamespace = NamespaceBuilder.ForClient(projectName, namespaceSegment);
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, namespaceSegment);
@@ -1181,7 +1235,11 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Generate inline model types if any were discovered
         if (inlineSchemas.Count > 0)
         {
-            var inlineTypes = CodeGenerationService.GenerateInlineModels(inlineSchemas, projectName);
+            var inlineTypes = CodeGenerationService.GenerateInlineModels(
+                strictRequiredProperties
+                    ? inlineSchemas.ToDictionary(kvp => kvp.Key, kvp => kvp.Value with { RecordParameters = WithJsonRequired(kvp.Value.RecordParameters) }, StringComparer.Ordinal)
+                    : inlineSchemas,
+                projectName);
             foreach (var inlineType in inlineTypes)
             {
                 var inlineContent = CodeGenerationService.FormatAsFile(inlineType);

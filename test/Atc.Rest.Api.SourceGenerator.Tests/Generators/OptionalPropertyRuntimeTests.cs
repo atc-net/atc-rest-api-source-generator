@@ -23,6 +23,23 @@ public sealed class OptionalPropertyRuntimeTests
                     application/json:
                       schema:
                         $ref: '#/components/schemas/Pet'
+          /pets/summary:
+            get:
+              operationId: getPetSummary
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        required:
+                          - count
+                        properties:
+                          count:
+                            type: integer
+                          note:
+                            type: string
         components:
           schemas:
             Pet:
@@ -123,5 +140,212 @@ public sealed class OptionalPropertyRuntimeTests
             ],
             rows,
             StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Reads JSON that lacks a required property with the default web options (what the client uses): the value is
+    /// the missing one (<c>null</c>, <c>0</c>), or - with <c>strictRequiredProperties</c> - a <c>JsonException</c>.
+    /// </summary>
+    private const string MissingRequiredProbeSource = """"
+        using System.Text.Json;
+        using ErrorBodies.Generated.Models;
+
+        namespace ErrorBodies.RuntimeTest;
+
+        public static class MissingRequiredProbe
+        {
+            public static List<string> Run()
+            {
+                var rows = new List<string>();
+                // An inline response schema (no component): its required count, with the same rule.
+                var summary = typeof(Pet).Assembly.GetTypes().Single(t => t.Name.Contains("Summary", StringComparison.Ordinal) && t.GetProperty("Count") is not null);
+                foreach (var json in new[] { """{"count":2}""", """{"note":"x"}""" })
+                {
+                    try
+                    {
+                        var value = JsonSerializer.Deserialize(json, summary, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+                        rows.Add($"{json} => count {summary.GetProperty("Count")!.GetValue(value)}");
+                    }
+                    catch (JsonException)
+                    {
+                        rows.Add($"{json} => THROWS");
+                    }
+                }
+
+                foreach (var json in new[] { """{"id":1,"name":"Rex"}""", """{"id":1}""", """{"name":"Rex"}""" })
+                {
+                    try
+                    {
+                        var pet = JsonSerializer.Deserialize<Pet>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+                        rows.Add($"{json} => {pet.Id} {pet.Name ?? "null"}");
+                    }
+                    catch (JsonException ex)
+                    {
+                        rows.Add($"{json} => THROWS {(ex.Message.Contains("'name'", StringComparison.Ordinal) ? "name" : ex.Message.Contains("'id'", StringComparison.Ordinal) ? "id" : ex.Message)}");
+                    }
+                }
+
+                return rows;
+            }
+        }
+        """";
+
+    [Theory]
+    [InlineData("EndpointPerOperation", false)]
+    [InlineData("EndpointPerOperation", true)]
+    [InlineData("TypedClient", false)]
+    [InlineData("TypedClient", true)]
+    public void RequiredProperties_AreEnforcedOnlyWithStrictRequiredProperties(
+        string generationMode,
+        bool strictRequiredProperties)
+    {
+        var marker = $$"""
+            {
+              "generationMode": "{{generationMode}}",
+              "strictRequiredProperties": {{(strictRequiredProperties ? "true" : "false")}}
+            }
+            """;
+        var sources = ErrorResponseBodyRuntimeTests.Generate(new ApiClientGenerator(), ".atc-rest-api-client", marker, includeMinimalApi: false, Yaml);
+        sources.Add(("MissingRequiredProbe.cs", MissingRequiredProbeSource));
+        var assembly = CompilationVerificationHarness.EmitAndLoad(sources);
+        var rows = (List<string>)assembly.GetType("ErrorBodies.RuntimeTest.MissingRequiredProbe", throwOnError: true)!.GetMethod("Run")!.Invoke(null, [])!;
+
+        Assert.Equal(
+            strictRequiredProperties
+                ? ["""{"count":2} => count 2""", """{"note":"x"} => THROWS""", """{"id":1,"name":"Rex"} => 1 Rex""", """{"id":1} => THROWS name""", """{"name":"Rex"} => THROWS id"""]
+                : ["""{"count":2} => count 2""", """{"note":"x"} => count 0""", """{"id":1,"name":"Rex"} => 1 Rex""", """{"id":1} => 1 null""", """{"name":"Rex"} => 0 Rex"""],
+            rows,
+            StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Specifications that list optional properties (and properties with a default, or readOnly) before required
+    /// ones, in components, allOf inheritance and an inline response. C# requires every parameter with a default to
+    /// come after those without (CS1737), so the generated records must reorder them, whatever the spec order.
+    /// </summary>
+    private const string OrderingYaml = """
+        openapi: 3.0.3
+        info:
+          title: ErrorBodies
+          version: 1.0.0
+        paths:
+          /items:
+            post:
+              operationId: createItem
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Item'
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Account'
+          /items/{id}:
+            get:
+              operationId: getItem
+              parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Dog'
+          /items/summary:
+            get:
+              operationId: getItemSummary
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        required:
+                          - total
+                        properties:
+                          note:
+                            type: string
+                          total:
+                            type: integer
+        components:
+          schemas:
+            Item:
+              type: object
+              required:
+                - name
+              properties:
+                id:
+                  type: string
+                tag:
+                  type: string
+                  default: none
+                name:
+                  type: string
+            Account:
+              type: object
+              required:
+                - createdAt
+                - name
+              properties:
+                createdAt:
+                  type: string
+                  format: date-time
+                  readOnly: true
+                id:
+                  type: string
+                name:
+                  type: string
+            Animal:
+              type: object
+              required:
+                - kind
+              properties:
+                nickname:
+                  type: string
+                kind:
+                  type: string
+            Dog:
+              allOf:
+                - $ref: '#/components/schemas/Animal'
+                - type: object
+                  required:
+                    - breed
+                  properties:
+                    age:
+                      type: integer
+                    breed:
+                      type: string
+        """;
+
+    public static TheoryData<string> Generators()
+        => ["Server", "EndpointPerOperation", "TypedClient"];
+
+    [Theory]
+    [MemberData(nameof(Generators))]
+    public void OptionalBeforeRequiredInTheSpec_GeneratesValidRecords(
+        string generator)
+    {
+        var sources = generator == "Server"
+            ? ErrorResponseBodyRuntimeTests.Generate(new ApiServerGenerator(), ".atc-rest-api-server", ErrorResponseBodyRuntimeTests.ServerMarker, includeMinimalApi: true, OrderingYaml)
+            : ErrorResponseBodyRuntimeTests.Generate(new ApiClientGenerator(), ".atc-rest-api-client", $$"""{ "generationMode": "{{generator}}" }""", includeMinimalApi: false, OrderingYaml);
+
+        // Compiles: no parameter with a default before one without (CS1737), in any record.
+        var errors = CompilationVerificationHarness.CompileGeneratedSources(sources, includeMinimalApi: generator == "Server");
+        Assert.True(errors.Count == 0, string.Join(Environment.NewLine, errors));
+
+        // And the order is the required ones first, the spec order kept within each group.
+        var item = sources.Single(s => s.HintName.EndsWith(".Item.g.cs", StringComparison.Ordinal)).Source;
+        Assert.Matches(new Regex(@"record Item\(\s*\[property: Required\] string Name,\s*string\? Id = null,\s*string Tag = ""none""\);", RegexOptions.None, TimeSpan.FromSeconds(1)), item);
     }
 }

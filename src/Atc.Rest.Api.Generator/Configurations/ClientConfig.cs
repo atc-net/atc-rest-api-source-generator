@@ -64,6 +64,15 @@ public class ClientConfig : BaseConfig
     public bool GeneratePartialModels { get; set; }
 
     /// <summary>
+    /// Enforce the specification's <c>required</c> properties when reading JSON. Default: false.
+    /// When true, the required properties of the generated models get <c>[JsonRequired]</c>, so a response that
+    /// leaves one out fails with a <c>JsonException</c> naming it, instead of a <c>null</c> (or <c>0</c>) inside a
+    /// non-nullable property. Off by default: the specifications of third-party APIs often mark properties required
+    /// that the API sometimes omits.
+    /// </summary>
+    public bool StrictRequiredProperties { get; set; }
+
+    /// <summary>
     /// Error response format expected from the API. Default: ProblemDetails.
     /// Only applies to EndpointPerOperation generation mode.
     /// </summary>

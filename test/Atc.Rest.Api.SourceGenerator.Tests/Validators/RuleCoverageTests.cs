@@ -67,6 +67,9 @@ public class RuleCoverageTests
         ["ATC_API_OPR028"] = "QueryOperationWithoutRequestBody - Tested in Atc.Rest.Api.Generator.Tests.Validators.QueryOperationShapeValidationTests",
         ["ATC_API_OPR029"] = "QueryOperationWithMutationResponse - Tested in Atc.Rest.Api.Generator.Tests.Validators.QueryOperationShapeValidationTests",
 
+        // ========== Schema Rules (SCH) ==========
+        ["ATC_API_SCH022"] = "SchemaWithoutRequiredProperties - Tested in Atc.Rest.Api.Generator.Tests.Validators.SchemaWithoutRequiredValidationTests",
+
         // ========== Client Rules (CLT) ==========
         ["ATC_API_CLT001"] = "SingleClientTypeNameCollision - Tested in Atc.Rest.Api.Generator.Tests.Validators.SingleClientCollisionValidatorTests",
         ["ATC_API_CLT002"] = "ClientNameIgnoredForPerArea - Emitted by ApiClientGenerator, requires a Roslyn generator run with a clientName under PerArea",
