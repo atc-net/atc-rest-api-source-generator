@@ -10,4 +10,4 @@ namespace Retry.Generated.Notifications.Models;
 public sealed record Notification(
     [property: Required] string Recipient,
     [property: Required] string Message,
-    string Priority);
+    string? Priority);

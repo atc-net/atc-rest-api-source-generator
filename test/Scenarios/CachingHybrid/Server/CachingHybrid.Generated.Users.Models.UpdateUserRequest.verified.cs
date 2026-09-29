@@ -9,6 +9,6 @@ namespace CachingHybrid.Generated.Users.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdateUserRequest(
-    [property: EmailAddress] string Email,
-    string Name,
-    string Role);
+    [property: EmailAddress] string? Email,
+    string? Name,
+    string? Role);

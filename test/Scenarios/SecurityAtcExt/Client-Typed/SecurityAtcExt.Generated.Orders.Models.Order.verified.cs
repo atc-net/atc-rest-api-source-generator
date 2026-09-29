@@ -12,6 +12,6 @@ namespace SecurityAtcExt.Generated.Orders.Models;
 public sealed record Order(
     [property: Required] Guid Id,
     [property: Required] string Status,
-    string CustomerName,
+    string? CustomerName,
     double? TotalAmount,
     DateTimeOffset? CreatedAt);

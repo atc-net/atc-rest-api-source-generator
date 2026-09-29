@@ -8,6 +8,6 @@ namespace CachingHybrid.Generated.Settings.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Settings(
-    string Theme,
-    string Language,
-    string Timezone);
+    string? Theme,
+    string? Language,
+    string? Timezone);

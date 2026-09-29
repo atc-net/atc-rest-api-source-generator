@@ -21,7 +21,7 @@ public sealed record Person(
     Uri? Website,
     DateTimeOffset? DateOfBirth,
     GenderType? Gender,
-    Address Address,
+    Address? Address,
     DateTimeOffset? CreatedAt,
     DateTimeOffset? UpdatedAt,
     bool IsActive = true);

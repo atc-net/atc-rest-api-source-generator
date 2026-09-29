@@ -12,4 +12,4 @@ public record NamedEntity(
     [property: Required] Guid Id,
     DateTimeOffset? CreatedAt,
     [property: Required] string Name,
-    string Description);
+    string? Description);

@@ -11,5 +11,5 @@ namespace AllOfMultiLevel.Generated.Employees.Models;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Employee(
     [property: Required] string Department,
-    string Title,
+    string? Title,
     DateTimeOffset? HireDate);

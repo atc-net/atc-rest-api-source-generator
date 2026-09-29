@@ -10,4 +10,4 @@ namespace Demo.Generated.Tasks.Models;
 public sealed record Task(
     [property: Required] long Id,
     [property: Required] string Name,
-    string Tag);
+    string? Tag);

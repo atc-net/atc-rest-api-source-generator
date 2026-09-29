@@ -1169,8 +1169,8 @@ public static class OpenApiSchemaExtensions
 
         /// <summary>
         /// Maps an OpenAPI schema to a C# type string for model properties.
-        /// Only properties with nullable: true in the schema are made nullable.
-        /// The isRequired parameter only affects value types (which need ? to be optional).
+        /// A property is nullable when the schema says so (<c>nullable: true</c>, <c>type: [..., "null"]</c>), or when it
+        /// is optional (not in <c>required</c>) and has no <c>default</c>: a property left out of the JSON is null.
         /// </summary>
         /// <param name="isRequired">Whether the property is in the required array.</param>
         /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
@@ -1179,15 +1179,16 @@ public static class OpenApiSchemaExtensions
             bool isRequired,
             TypeConflictRegistry? registry = null)
         {
-            // Handle schema references - a model reference is never nullable based on required alone, but an enum is
-            // a value type: optional makes it nullable, as for an inline enum.
+            // Optional without a default: a property the JSON leaves out is null - for a value type not a default
+            // (0, false) that looks like a sent value, for a reference type not a "never null" the compiler trusts.
+            var isOptional = !isRequired && schema.Default is null;
+
+            // Handle schema references (a model, or an enum)
             if (schema is OpenApiSchemaReference schemaRef)
             {
                 var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "object";
                 var refTypeName = ResolveTypeName(refName, registry);
-                return !isRequired && schemaRef.Target?.Enum is { Count: > 0 }
-                    ? $"{refTypeName}?"
-                    : refTypeName;
+                return isOptional ? $"{refTypeName}?" : refTypeName;
             }
 
             // Handle actual schemas
@@ -1197,7 +1198,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // Check if schema has nullable: true (in OpenAPI 3.1/Microsoft.OpenApi 3.0.x, this is indicated by JsonSchemaType.Null flag)
-            var isNullable = schema1.IsNullable();
+            var isNullable = schema1.IsNullable() || isOptional;
 
             // Handle allOf compositions (commonly used for nullable $ref in OpenAPI 3.0)
             // Pattern: allOf: [ $ref: "#/..." ] with nullable: true
@@ -1261,11 +1262,7 @@ public static class OpenApiSchemaExtensions
             // Handle primitive types using HasFlag for combined flags (e.g., String | Null)
             var baseType = schema1.Type.ToCSharpTypeName(schema1.Format, includeIFormFile: true);
 
-            // For models: a reference type is only nullable if nullable: true is set in the schema (the required array
-            // means "must be present in JSON", not "cannot be null"). An optional value type is nullable too: a
-            // property left out of the JSON is then null, not a default (0, false) that looks like a sent value - unless
-            // the schema has a default, which is then what an absent property means.
-            return isNullable || (!isRequired && schema1.Default is null && CSharpTypeHelper.IsExtendedValueType(baseType))
+            return isNullable
                 ? $"{baseType}?"
                 : baseType;
         }

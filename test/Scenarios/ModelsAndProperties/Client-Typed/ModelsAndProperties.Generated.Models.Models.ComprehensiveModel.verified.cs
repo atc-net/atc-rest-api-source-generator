@@ -29,10 +29,10 @@ public sealed record ComprehensiveModel(
     [property: Range(0, long.MaxValue)] long? ViewCount,
     bool? IsVerified,
     [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? PhoneNumber,
-    Address Address,
+    Address? Address,
     GenderType? Gender,
     StatusType? Status,
-    [property: MaxLength(10)] List<string> Tags,
-    List<RoleType> Roles,
+    [property: MaxLength(10)] List<string>? Tags,
+    List<RoleType>? Roles,
     Dictionary<string, string>? Metadata,
     bool IsActive = true);

@@ -8,6 +8,6 @@ namespace SingleTypedClient.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Order(
-    string Id,
-    string AccountId,
+    string? Id,
+    string? AccountId,
     double? Total);

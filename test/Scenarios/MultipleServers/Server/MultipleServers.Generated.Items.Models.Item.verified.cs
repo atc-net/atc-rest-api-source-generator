@@ -11,4 +11,4 @@ namespace MultipleServers.Generated.Items.Models;
 public sealed record Item(
     [property: Required] Guid Id,
     [property: Required] string Name,
-    string Description);
+    string? Description);

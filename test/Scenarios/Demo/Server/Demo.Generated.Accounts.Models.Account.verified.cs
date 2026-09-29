@@ -11,4 +11,4 @@ namespace Demo.Generated.Accounts.Models;
 public sealed record Account(
     [property: Required] long Id,
     [property: Required] string Name,
-    string Tag);
+    string? Tag);

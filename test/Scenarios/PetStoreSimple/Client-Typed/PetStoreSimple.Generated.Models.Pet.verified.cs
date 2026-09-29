@@ -10,4 +10,4 @@ namespace PetStoreSimple.Generated.Models;
 public sealed record Pet(
     [property: Required] long Id,
     [property: Required] string Name,
-    string Tag);
+    string? Tag);

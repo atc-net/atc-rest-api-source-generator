@@ -8,6 +8,6 @@ namespace SingleTypedClient.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Account(
-    string Id,
-    string Name,
+    string? Id,
+    string? Name,
     AccountStatus? Status);

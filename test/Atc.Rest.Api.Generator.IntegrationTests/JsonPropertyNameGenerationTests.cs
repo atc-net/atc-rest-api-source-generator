@@ -74,7 +74,7 @@ public class JsonPropertyNameGenerationTests
 
         var response = models.Single(m => m.TypeName == "MyEnergyDataMarketDocumentResponse");
         Assert.Contains(
-            """[property: JsonPropertyName("MyEnergyData_MarketDocument")] MyEnergyDataMarketDocument MyEnergyDataMarketDocument""",
+            """[property: JsonPropertyName("MyEnergyData_MarketDocument")] MyEnergyDataMarketDocument? MyEnergyDataMarketDocument""",
             response.Content,
             StringComparison.Ordinal);
         Assert.DoesNotContain("JsonPropertyName(\"success\")", response.Content, StringComparison.Ordinal);

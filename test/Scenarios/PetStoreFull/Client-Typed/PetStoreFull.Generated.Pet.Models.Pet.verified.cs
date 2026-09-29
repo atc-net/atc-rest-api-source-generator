@@ -11,7 +11,7 @@ namespace PetStoreFull.Generated.Pet.Models;
 public sealed record Pet(
     long? Id,
     [property: Required] string Name,
-    Category Category,
+    Category? Category,
     [property: Required] List<string> PhotoUrls,
-    List<Tag> Tags,
+    List<Tag>? Tags,
     PetStatus? Status);

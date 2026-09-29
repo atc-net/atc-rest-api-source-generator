@@ -41,7 +41,7 @@ public class OpenApiSchemaExtensionsTests
         Assert.NotNull(customerProperty);
 
         // Act
-        var typeName = customerProperty.ToCSharpTypeForModel(isRequired: false);
+        var typeName = customerProperty.ToCSharpTypeForModel(isRequired: true);
 
         // Assert
         // Spec note: `nullable: true` only applies when `type` is in the same Schema Object,
@@ -169,7 +169,7 @@ public class OpenApiSchemaExtensionsTests
         var settingsProperty = deviceSchema.Properties["settings"];
 
         // Act
-        var typeName = settingsProperty.ToCSharpTypeForModel(isRequired: false);
+        var typeName = settingsProperty.ToCSharpTypeForModel(isRequired: true);
 
         // Assert
         // See the spec note above: nullable does not reach through allOf.
@@ -246,7 +246,7 @@ public class OpenApiSchemaExtensionsTests
         var suggestedTypeProperty = deviceSchema.Properties["suggestedType"];
 
         // Act
-        var typeName = suggestedTypeProperty.ToCSharpTypeForModel(isRequired: false);
+        var typeName = suggestedTypeProperty.ToCSharpTypeForModel(isRequired: true);
 
         // Assert
         // See the spec note above: nullable does not reach through oneOf.
@@ -325,26 +325,27 @@ public class OpenApiSchemaExtensionsTests
         Assert.NotNull(insightDeviceRecord);
         Assert.NotNull(insightDeviceRecord.Parameters);
 
+        // Every property is optional (no required list), so each one is nullable; the type is the oneOf reference.
         // Check the customer property type
         var customerParam = insightDeviceRecord.Parameters
             .FirstOrDefault(p => p.Name == "Customer");
         Assert.NotNull(customerParam);
         Assert.Equal("IdValue", customerParam.TypeName);
-        Assert.False(customerParam.IsNullableType);
+        Assert.True(customerParam.IsNullableType);
 
         // Check the site property type
         var siteParam = insightDeviceRecord.Parameters
             .FirstOrDefault(p => p.Name == "Site");
         Assert.NotNull(siteParam);
         Assert.Equal("IdValue", siteParam.TypeName);
-        Assert.False(siteParam.IsNullableType);
+        Assert.True(siteParam.IsNullableType);
 
         // Check the suggestedCustomer property type
         var suggestedCustomerParam = insightDeviceRecord.Parameters
             .FirstOrDefault(p => p.Name == "SuggestedCustomer");
         Assert.NotNull(suggestedCustomerParam);
         Assert.Equal("KeyValue", suggestedCustomerParam.TypeName);
-        Assert.False(suggestedCustomerParam.IsNullableType);
+        Assert.True(suggestedCustomerParam.IsNullableType);
     }
 
     // ========== SanitizeSchemaName Tests ==========
@@ -896,7 +897,7 @@ public class OpenApiSchemaExtensionsTests
     public void ToCSharpTypeForModel_NonNullableString_ReturnsString()
     {
         var schema = new OpenApiSchema { Type = JsonSchemaType.String };
-        Assert.Equal("string", schema.ToCSharpTypeForModel(isRequired: false));
+        Assert.Equal("string", schema.ToCSharpTypeForModel(isRequired: true));
     }
 
     [Fact]
@@ -913,8 +914,8 @@ public class OpenApiSchemaExtensionsTests
         Assert.Equal("int", schema.ToCSharpTypeForModel(isRequired: true));
     }
 
-    // An optional value type is nullable: without it, a property left out of the JSON reads as the default (0, false)
-    // and cannot be told apart from a sent 0 / false. Optional reference types keep the schema's own nullability.
+    // An optional property is nullable: a property left out of the JSON is null - for a value type not a default (0,
+    // false) that looks like a sent value, for a reference type not a "never null" the compiler trusts.
     [Theory]
     [InlineData(JsonSchemaType.Integer, null, "int?")]
     [InlineData(JsonSchemaType.Integer, "int64", "long?")]
@@ -922,8 +923,10 @@ public class OpenApiSchemaExtensionsTests
     [InlineData(JsonSchemaType.Boolean, null, "bool?")]
     [InlineData(JsonSchemaType.String, "uuid", "Guid?")]
     [InlineData(JsonSchemaType.String, "date-time", "DateTimeOffset?")]
-    [InlineData(JsonSchemaType.String, null, "string")]
-    public void ToCSharpTypeForModel_OptionalProperty_ValueTypesAreNullable(
+    [InlineData(JsonSchemaType.String, null, "string?")]
+    [InlineData(JsonSchemaType.String, "uri", "Uri?")]
+    [InlineData(JsonSchemaType.String, "byte", "byte[]?")]
+    public void ToCSharpTypeForModel_OptionalProperty_IsNullable(
         JsonSchemaType type,
         string? format,
         string expected)
@@ -933,16 +936,27 @@ public class OpenApiSchemaExtensionsTests
         Assert.Equal(expected.TrimEnd('?'), schema.ToCSharpTypeForModel(isRequired: true));
     }
 
-    // An optional value type with a default is not nullable: a property left out of the JSON is the default.
+    // An optional property with a default is not nullable: a property left out of the JSON is the default.
     [Fact]
     public void ToCSharpTypeForModel_OptionalPropertyWithDefault_IsNotNullable()
     {
-        var schema = new OpenApiSchema { Type = JsonSchemaType.Boolean, Default = System.Text.Json.Nodes.JsonValue.Create(true) };
-        Assert.Equal("bool", schema.ToCSharpTypeForModel(isRequired: false));
+        var flag = new OpenApiSchema { Type = JsonSchemaType.Boolean, Default = System.Text.Json.Nodes.JsonValue.Create(true) };
+        Assert.Equal("bool", flag.ToCSharpTypeForModel(isRequired: false));
+
+        var text = new OpenApiSchema { Type = JsonSchemaType.String, Default = System.Text.Json.Nodes.JsonValue.Create("none") };
+        Assert.Equal("string", text.ToCSharpTypeForModel(isRequired: false));
     }
 
     [Fact]
-    public void ToCSharpTypeForModel_OptionalEnumReference_IsNullable()
+    public void ToCSharpTypeForModel_OptionalArray_IsNullable()
+    {
+        var schema = new OpenApiSchema { Type = JsonSchemaType.Array, Items = new OpenApiSchema { Type = JsonSchemaType.String } };
+        Assert.Equal("List<string>?", schema.ToCSharpTypeForModel(isRequired: false));
+        Assert.Equal("List<string>", schema.ToCSharpTypeForModel(isRequired: true));
+    }
+
+    [Fact]
+    public void ToCSharpTypeForModel_OptionalReference_IsNullable()
     {
         const string yaml = """
                             openapi: 3.0.0
@@ -959,6 +973,12 @@ public class OpenApiSchemaExtensionsTests
                                       $ref: '#/components/schemas/DeviceType'
                                     owner:
                                       $ref: '#/components/schemas/Owner'
+                                    settings:
+                                      allOf:
+                                        - $ref: '#/components/schemas/Owner'
+                                    holder:
+                                      oneOf:
+                                        - $ref: '#/components/schemas/Owner'
                                 DeviceType:
                                   type: string
                                   enum:
@@ -979,8 +999,12 @@ public class OpenApiSchemaExtensionsTests
         Assert.Equal("DeviceType?", deviceSchema!.Properties["deviceType"].ToCSharpTypeForModel(isRequired: false));
         Assert.Equal("DeviceType", deviceSchema.Properties["deviceType"].ToCSharpTypeForModel(isRequired: true));
 
-        // A model reference is a reference type: unchanged.
-        Assert.Equal("Owner", deviceSchema.Properties["owner"].ToCSharpTypeForModel(isRequired: false));
+        // A model reference - direct, through allOf or through a single oneOf: optional means nullable too.
+        foreach (var name in (string[])["owner", "settings", "holder"])
+        {
+            Assert.Equal("Owner?", deviceSchema.Properties[name].ToCSharpTypeForModel(isRequired: false));
+            Assert.Equal("Owner", deviceSchema.Properties[name].ToCSharpTypeForModel(isRequired: true));
+        }
     }
 
     [Fact]

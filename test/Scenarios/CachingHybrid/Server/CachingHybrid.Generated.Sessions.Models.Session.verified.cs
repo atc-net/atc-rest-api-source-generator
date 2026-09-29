@@ -13,4 +13,4 @@ public sealed record Session(
     [property: Required] Guid UserId,
     DateTimeOffset? CreatedAt,
     DateTimeOffset? ExpiresAt,
-    string IpAddress);
+    string? IpAddress);

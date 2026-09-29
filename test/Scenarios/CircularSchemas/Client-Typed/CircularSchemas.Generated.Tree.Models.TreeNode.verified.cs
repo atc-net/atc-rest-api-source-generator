@@ -9,6 +9,6 @@ namespace CircularSchemas.Generated.Tree.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record TreeNode(
-    string Id,
-    string Name,
-    List<TreeNode> Children);
+    string? Id,
+    string? Name,
+    List<TreeNode>? Children);

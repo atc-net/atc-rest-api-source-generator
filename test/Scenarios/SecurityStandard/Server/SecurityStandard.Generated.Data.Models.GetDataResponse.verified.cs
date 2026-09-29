@@ -8,4 +8,4 @@ namespace SecurityStandard.Generated.Data.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record GetDataResponse(
-    List<string> Items);
+    List<string>? Items);
