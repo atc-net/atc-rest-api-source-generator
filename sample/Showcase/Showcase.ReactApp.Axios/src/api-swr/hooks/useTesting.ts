@@ -3,7 +3,7 @@ import useSWR, { useSWRConfig, type SWRConfiguration } from 'swr';
 import useSWRMutation, { type SWRMutationConfiguration } from 'swr/mutation';
 import { useApiService } from './useApiService';
 import { ApiError } from '../errors/ApiError';
-import type { ExceptionTestResponse } from '../models';
+import type { DeclaredBadRequestTestRequest, ExceptionTestResponse } from '../models';
 
 const testingKeys = {
   all: ['testing'] as const,
@@ -45,6 +45,38 @@ export function useGetErrorResponseTest(config?: SWRMutationConfiguration<void, 
     async (_key, { arg }) => {
       const status = arg;
       const result = await api.testing.getErrorResponseTest(status);
+      if (result.status === 'noContent') {
+        return;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
+      throw new ApiError(
+        result.response.status,
+        result.response.statusText,
+        'error' in result ? result.error.message : 'Request failed',
+        result.response,
+      );
+    },
+    {
+      ...config,
+      onSuccess: (data, key, currentConfig) => {
+        void mutate((cacheKey) => Array.isArray(cacheKey) && cacheKey[0] === 'testing');
+        config?.onSuccess?.(data, key, currentConfig);
+      },
+    },
+  );
+}
+
+/** Test a declared 400 model */
+export function usePostDeclaredBadRequestTest(config?: SWRMutationConfiguration<void, ApiError, typeof testingKeys.all, DeclaredBadRequestTestRequest>) {
+  const api = useApiService();
+  const { mutate } = useSWRConfig();
+  return useSWRMutation<void, ApiError, typeof testingKeys.all, DeclaredBadRequestTestRequest>(
+    testingKeys.all,
+    async (_key, { arg }) => {
+      const body = arg;
+      const result = await api.testing.postDeclaredBadRequestTest(body);
       if (result.status === 'noContent') {
         return;
       }

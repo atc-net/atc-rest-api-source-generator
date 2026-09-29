@@ -32,7 +32,7 @@ export interface RequestOptions {
 
 export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
 
-async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder): AsyncGenerator<T> {
+async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder, reviver?: (key: string, value: unknown) => unknown): AsyncGenerator<T> {
   let buffer = '';
   try {
     while (true) {
@@ -49,7 +49,7 @@ async function* parseEventStream<T>(reader: ReadableStreamDefaultReader<Uint8Arr
           .map((l) => l.slice(5).trimStart())
           .join('\n');
         if (data.length > 0) {
-          yield JSON.parse(data) as T;
+          yield JSON.parse(data, reviver) as T;
         }
       }
     }
@@ -149,9 +149,15 @@ export class ApiClient {
     const url = this.buildUrl(path, options?.query);
     const headers = await this.getHeaders(options?.headers);
 
+    const streamBody = options?.body !== undefined ? JSON.stringify(options.body) : undefined;
+    if (streamBody !== undefined) {
+      headers.set('Content-Type', 'application/json');
+    }
+
     let init: RequestInit = {
       method,
       headers,
+      body: streamBody,
       signal: options?.signal,
     };
 
@@ -296,12 +302,17 @@ export class ApiClient {
   }
 
   private async handleResponse<T>(response: Response, responseType?: 'json' | 'blob' | 'text'): Promise<ApiResult<T>> {
-    if (response.status === 204) {
+    // 204 and 205 never carry a body; 304 neither (RFC 9110).
+    if (response.status === 204 || response.status === 205) {
       return { status: 'noContent', response };
     }
 
+    if (response.status === 304) {
+      return { status: 'notModified', response };
+    }
+
     const contentType = (response.headers.get('Content-Type') ?? '').toLowerCase();
-    const isText = responseType === 'text' || (!responseType && (contentType.startsWith('text/') || contentType.includes('application/xml')));
+    const isText = responseType === 'text' || (!responseType && (contentType.startsWith('text/') || contentType.includes('application/xml') || contentType.includes('+xml')));
     const isJson = responseType ? responseType === 'json' : (!isText && (contentType.includes('application/json') || contentType.includes('+json')));
 
     if (response.ok) {
@@ -319,14 +330,31 @@ export class ApiClient {
       return { status, data: data as T, response };
     }
 
+    // A 3xx fetch did not follow (300, 305, 306, or redirect: 'manual'): no error - its body, if any.
+    if (response.status >= 300 && response.status < 400) {
+      let data: unknown = undefined;
+      try {
+        if (contentType.includes('application/json') || contentType.includes('+json')) {
+          data = await response.json();
+        } else if (contentType.startsWith('text/') || contentType.includes('application/xml') || contentType.includes('+xml')) {
+          const text = await response.text();
+          data = text.length > 0 ? text : undefined;
+        }
+      } catch {
+        data = undefined;
+      }
+
+      return { status: 'redirection', data, response };
+    }
+
     // The error body is detected from the actual Content-Type (an operation's success responseType
-    // says nothing about its errors): a ProblemDetails / declared model / JSON string, or text.
+    // says nothing about its errors): a ProblemDetails / declared model / JSON string, or text (text/*, XML).
     // Malformed or empty bodies are non-fatal - the message then falls back to the status text.
     let errorBody: unknown = undefined;
     try {
       if (contentType.includes('application/json') || contentType.includes('+json')) {
         errorBody = await response.json();
-      } else if (contentType.startsWith('text/')) {
+      } else if (contentType.startsWith('text/') || contentType.includes('application/xml') || contentType.includes('+xml')) {
         const text = await response.text();
         errorBody = text.length > 0 ? text : undefined;
       }

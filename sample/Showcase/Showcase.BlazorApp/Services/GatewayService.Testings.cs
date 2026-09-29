@@ -123,4 +123,39 @@ public sealed partial class GatewayService
                     : string.Join("; ", problem.Errors.Select(e => $"{e.Key}: {string.Join(", ", e.Value)}")),
                 RetryAfter: null);
     }
+
+    /// <summary>
+    /// Posts to an operation that declares its own 400 model (<c>TestingProblem</c>, without field errors) and reads
+    /// the answer through the generated accessors: <c>BadRequestContent</c> is always the declared model, and
+    /// <c>BadRequestValidationErrors</c> gives the field errors when the ValidationFilter rejected the request body.
+    /// </summary>
+    public async Task<DeclaredBadRequestTestResult> TestDeclaredBadRequestAsync(
+        string name,
+        int age,
+        CancellationToken cancellationToken = default)
+    {
+        var parameters = new Showcase.Generated.Testing.Client.PostDeclaredBadRequestTestParameters(
+            Request: new Showcase.Generated.Testing.Models.DeclaredBadRequestTestRequest(Name: name, Age: age));
+
+        var result = await postDeclaredBadRequestTestEndpoint
+            .ExecuteAsync(
+                parameters,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!result.IsBadRequest)
+        {
+            return new DeclaredBadRequestTestResult((int)result.StatusCode, Title: null, Detail: null, ValidationErrors: null);
+        }
+
+        var problem = result.BadRequestContent;
+        var errors = result.BadRequestValidationErrors;
+        return new DeclaredBadRequestTestResult(
+            problem.Status ?? 0,
+            problem.Title,
+            problem.Detail,
+            errors is null
+                ? null
+                : string.Join("; ", errors.Select(e => $"{e.Key}: {string.Join(", ", e.Value)}")));
+    }
 }

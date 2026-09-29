@@ -1,4 +1,4 @@
-namespace MultipartDemo.Api.Domain.ApiHandlers.Testings;
+namespace MultipartDemo.Api.Domain.ApiHandlers.Testing;
 
 /// <summary>
 /// Handler business logic for the GetExceptionTest operation.

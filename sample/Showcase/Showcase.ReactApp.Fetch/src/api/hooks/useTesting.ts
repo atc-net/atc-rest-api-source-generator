@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
 import { useApiService } from './useApiService';
 import { ApiError } from '../errors/ApiError';
-import type { ExceptionTestResponse } from '../models';
+import type { DeclaredBadRequestTestRequest, ExceptionTestResponse } from '../models';
 
 const testingKeys = {
   all: ['testing'] as const,
@@ -45,6 +45,34 @@ export function useGetErrorResponseTest(options?: Omit<UseMutationOptions<void, 
   return useMutation({
     mutationFn: async (status: number) => {
       const result = await api.testing.getErrorResponseTest(status);
+      if (result.status === 'noContent') {
+        return;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
+      throw new ApiError(
+        result.response.status,
+        result.response.statusText,
+        'error' in result ? result.error.message : 'Request failed',
+        result.response,
+      );
+    },
+    ...options,
+    onSuccess: (data, variables, onMutateResult, context) => {
+      queryClient.invalidateQueries({ queryKey: testingKeys.all });
+      options?.onSuccess?.(data, variables, onMutateResult, context);
+    },
+  });
+}
+
+/** Test a declared 400 model */
+export function usePostDeclaredBadRequestTest(options?: Omit<UseMutationOptions<void, ApiError, DeclaredBadRequestTestRequest>, 'mutationFn'>) {
+  const api = useApiService();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: DeclaredBadRequestTestRequest) => {
+      const result = await api.testing.postDeclaredBadRequestTest(body);
       if (result.status === 'noContent') {
         return;
       }

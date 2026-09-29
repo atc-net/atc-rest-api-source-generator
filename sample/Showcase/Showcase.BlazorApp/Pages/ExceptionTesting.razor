@@ -154,3 +154,47 @@
         <MudText>No error responses requested yet. Click a status above.</MudText>
     </NoRecordsContent>
 </MudTable>
+
+<MudText Typo="Typo.h4" Class="mt-8 mb-2">Declared 400 Model</MudText>
+
+<MudText Typo="Typo.body1" Class="mb-4">
+    This operation declares its own 400 body, <code>TestingProblem</code>, which has no field errors. An invalid request
+    body is still rejected by the generated ValidationFilter with a ValidationProblemDetails - the generated client reads
+    it as the declared <code>TestingProblem</code> (<code>BadRequestContent</code>) and gives the field errors through
+    <code>BadRequestValidationErrors</code>. The name "taken" is rejected by the handler itself, without field errors.
+</MudText>
+
+<MudStack Row="true" Class="mb-4">
+    @foreach (var request in DeclaredBadRequests)
+    {
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Size="Size.Small"
+                   OnClick="() => RunDeclaredBadRequestTestAsync(request)"
+                   Disabled="isLoading">
+            @request.Label
+        </MudButton>
+    }
+</MudStack>
+
+<MudTable Items="declaredBadRequestResults" Hover="true" Striped="true" Dense="true" Class="declared-bad-request-results">
+    <HeaderContent>
+        <MudTh>Request</MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Title</MudTh>
+        <MudTh>Detail</MudTh>
+        <MudTh>BadRequestValidationErrors</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Request">@context.Request</MudTd>
+        <MudTd DataLabel="Status">
+            <MudChip T="string" Color="@GetStatusColor(context.Result.Status)" Size="Size.Small">@context.Result.Status</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Title">@context.Result.Title</MudTd>
+        <MudTd DataLabel="Detail">@context.Result.Detail</MudTd>
+        <MudTd DataLabel="BadRequestValidationErrors">@(context.Result.ValidationErrors ?? "(none)")</MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No requests sent yet. Click a request above.</MudText>
+    </NoRecordsContent>
+</MudTable>

@@ -7,7 +7,7 @@
 #pragma warning disable CA1848 // Use LoggerMessage delegates
 #pragma warning disable MA0100 // Await task before disposing of resources
 
-namespace Showcase.Api.Domain.ApiHandlers.Testings;
+namespace Showcase.Api.Domain.ApiHandlers.Testing;
 
 /// <summary>
 /// Handler for testing exception handling.

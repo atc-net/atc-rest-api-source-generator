@@ -1,4 +1,4 @@
-namespace Showcase.Api.Domain.ApiHandlers.Testings;
+namespace Showcase.Api.Domain.ApiHandlers.Testing;
 
 /// <summary>
 /// Handler for testing error responses.

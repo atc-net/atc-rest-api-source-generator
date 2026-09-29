@@ -7,6 +7,7 @@ export class ExceptionTestingPage {
   readonly clearButton: Locator;
   readonly resultsTable: Locator;
   readonly errorResponsesTable: Locator;
+  readonly declaredBadRequestTable: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -16,6 +17,8 @@ export class ExceptionTestingPage {
     // The page has two tables: the exception results, then the error-response results.
     this.resultsTable = page.getByRole('table').first();
     this.errorResponsesTable = page.getByRole('table').nth(1);
+    // Blazor only: the results of the operation that declares its own 400 model.
+    this.declaredBadRequestTable = page.getByRole('table').nth(2);
   }
 
   async goto() {
@@ -32,6 +35,10 @@ export class ExceptionTestingPage {
 
   async requestErrorResponse(status: number) {
     await this.page.getByRole('button', { name: String(status), exact: true }).click();
+  }
+
+  async sendDeclaredBadRequest(label: string) {
+    await this.page.getByRole('button', { name: label, exact: true }).click();
   }
 
   getResultRows(): Locator {

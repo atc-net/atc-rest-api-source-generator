@@ -918,6 +918,38 @@ paths:
           description: Unprocessable Entity
         '429':
           description: Too Many Requests (with Retry-After)
+
+  /testing/declared-bad-request:
+    # Disable retry for testing - we want to see actual error responses, not retries
+    x-retry-enabled: false
+    post:
+      summary: Test a declared 400 model
+      description: |
+        Declares its own 400 body (`TestingProblem`, a problem without field errors). A request body that breaks
+        its rules is rejected by the generated ValidationFilter with a ValidationProblemDetails; the name "taken"
+        is rejected by the handler with a `TestingProblem`. The C# EndpointPerOperation client reads both as the
+        declared `TestingProblem` (`BadRequestContent`) and gives the ValidationFilter's field errors through
+        `BadRequestValidationErrors`.
+      operationId: postDeclaredBadRequestTest
+      tags:
+        - testing
+      # Public endpoint - no auth required for testing
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeclaredBadRequestTestRequest"
+      responses:
+        '204':
+          description: The request was valid
+        '400':
+          description: Bad Request - the declared model
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestingProblem"
 components:
   schemas:
     # ============================================
@@ -1225,6 +1257,42 @@ components:
           type: string
           format: date-time
           description: When the request was processed
+    DeclaredBadRequestTestRequest:
+      title: DeclaredBadRequestTestRequest
+      type: object
+      description: A request body with rules the generated ValidationFilter checks
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 20
+          description: A name of 3-20 characters ("taken" is rejected by the handler)
+        age:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 150
+          description: An age of 0-150
+    TestingProblem:
+      title: TestingProblem
+      type: object
+      description: The API's own 400 body - a problem without field errors
+      properties:
+        type:
+          type: string
+          description: A URI reference that identifies the problem type
+        title:
+          type: string
+          description: A short summary of the problem
+        status:
+          type: integer
+          format: int32
+          description: The HTTP status code
+        detail:
+          type: string
+          description: An explanation specific to this occurrence
     Account:
       title: Account
       type: object

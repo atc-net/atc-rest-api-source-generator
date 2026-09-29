@@ -48,6 +48,36 @@ test.describe('Exception Testing Page', () => {
     expect(Date.now() - started).toBeLessThan(15_000);
   });
 
+  // A 400 that declares its own model (TestingProblem, no errors): the C# EndpointPerOperation client keeps the
+  // declared model in BadRequestContent and gives the ValidationFilter's field errors through
+  // BadRequestValidationErrors. The TypeScript clients already expose them as ValidationError.errors.
+  test.describe('declared 400 model', () => {
+    test.beforeEach(async ({ appType }) => {
+      test.skip(appType !== 'blazor', 'BadRequestValidationErrors is a C# EndpointPerOperation client feature.');
+    });
+
+    test('an invalid request body gives the declared model and the typed field errors', async () => {
+      await exceptionPage.sendDeclaredBadRequest('Invalid request');
+      const table = exceptionPage.declaredBadRequestTable;
+      await expect(table).toContainText('One or more validation errors occurred.');
+      await expect(table).toContainText(/name: .*(3|minimum)/i);
+      await expect(table).toContainText(/age: .*150/i);
+    });
+
+    test('a 400 from the handler gives the declared model without field errors', async () => {
+      await exceptionPage.sendDeclaredBadRequest('Name taken');
+      const table = exceptionPage.declaredBadRequestTable;
+      await expect(table).toContainText('The name is taken');
+      await expect(table).toContainText('is already in use.');
+      await expect(table).toContainText('(none)');
+    });
+
+    test('a valid request is a 204', async () => {
+      await exceptionPage.sendDeclaredBadRequest('Valid request');
+      await expect(exceptionPage.declaredBadRequestTable).toContainText('204');
+    });
+  });
+
   test('shows the Retry-After of a 429', async () => {
     await exceptionPage.requestErrorResponse(429);
     await expect(exceptionPage.errorResponsesTable).toContainText('Slow down - try again in 30 seconds.');
