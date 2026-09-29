@@ -427,3 +427,9 @@ tmpclaude-*-cwd
 /issues/
 /plans/
 /docs/*.md
+
+# TypeScript incremental build caches (tsc -b)
+*.tsbuildinfo
+
+# Playwright MCP screenshots and page snapshots
+.playwright-mcp/
