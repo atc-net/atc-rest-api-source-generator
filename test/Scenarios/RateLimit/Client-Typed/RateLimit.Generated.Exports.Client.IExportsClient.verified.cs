@@ -13,7 +13,7 @@ namespace RateLimit.Generated.Exports.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IExportsClient
 {
-    Task CreateExportAsync(
+    Task<ExportJob> CreateExportAsync(
         CreateExportParameters parameters,
         CancellationToken cancellationToken = default);
 }

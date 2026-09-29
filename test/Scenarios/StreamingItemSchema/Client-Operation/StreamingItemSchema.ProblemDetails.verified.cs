@@ -50,11 +50,4 @@ public record ValidationProblemDetails(
     string? Detail,
     string? Instance,
     Dictionary<string, string[]>? Errors)
-{
-    /// <summary>
-    /// Gets the extension members for this problem details instance.
-    /// Extension members appear in the same namespace as other members of a problem type per RFC 7807.
-    /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Extensions { get; init; }
-}
+    : ProblemDetails(Type, Title, Status, Detail, Instance);

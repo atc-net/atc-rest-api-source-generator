@@ -15,7 +15,7 @@ namespace Retry.Generated.Reports.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IReportsClient
 {
-    Task GenerateReportAsync(
+    Task<ReportJob> GenerateReportAsync(
         GenerateReportParameters parameters,
         CancellationToken cancellationToken = default);
 }

@@ -506,6 +506,15 @@ public static class EndpointPerOperationExtractor
             var statusEnumName = isDefault ? "DefaultError" : HttpStatusCodeHelper.ToEnumName(statusCodeInt);
             var propertyName = isDefault ? "DefaultError" : NormalizeStatusName(statusEnumName);
             var isSuccess = statusCodeInt >= 200 && statusCodeInt < 300;
+
+            // An informational (1xx) status is never a final response: nothing to read (ATC_API_OPR030).
+            if (!isDefault && statusCodeInt < 200)
+            {
+                continue;
+            }
+
+            // A 3xx is no error: its declared body (e.g. 300) is read as declared, and it is never IsSuccess.
+            var isRedirection = statusCodeInt is >= 300 and < 400;
             if (isDefault)
             {
                 statusCodeStr = "default";
@@ -517,7 +526,7 @@ public static class EndpointPerOperationExtractor
 
             // Error responses: the same resolution the server uses for its factories, so a client generated
             // from a spec parses what a server generated from that spec writes (+json media types included).
-            if (!isSuccess)
+            if (!isSuccess && !isRedirection)
             {
                 var shape = ErrorResponseShapeResolver.Resolve(response.Value);
                 (contentType, textMediaType) = shape.Kind switch
@@ -561,7 +570,7 @@ public static class EndpointPerOperationExtractor
             }
 
             // Determine error content type based on ErrorResponseFormatType
-            if (!isSuccess && contentType is null)
+            if (!isSuccess && !isRedirection && contentType is null)
             {
                 contentType = GetErrorContentType(errorResponseFormat, customErrorTypeName, statusCodeStr);
             }
@@ -1334,6 +1343,11 @@ public static class EndpointPerOperationExtractor
                         sb.AppendLine($"responseBuilder.AddSuccessResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression});");
                     }
                 }
+                else if (responseInfo.ContentType is null)
+                {
+                    // A 3xx without a body (304, a redirect that was not followed): nothing to read.
+                    continue;
+                }
                 else if (responseInfo.TextMediaType is not null)
                 {
                     // Raw text error body — same bypass for the error path.
@@ -1341,8 +1355,12 @@ public static class EndpointPerOperationExtractor
                 }
                 else
                 {
-                    // Error responses always have a type (ProblemDetails is the fallback)
-                    sb.AppendLine($"responseBuilder.AddErrorResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression});");
+                    // Error responses always have a type (ProblemDetails is the fallback). A declared ProblemDetails 400
+                    // is read as its ValidationProblemDetails subtype: the ValidationFilter's field errors stay typed.
+                    var registeredType = responseInfo.StatusCode == "400" && responseInfo.ContentType == "ProblemDetails"
+                        ? "ValidationProblemDetails"
+                        : responseInfo.ContentType;
+                    sb.AppendLine($"responseBuilder.AddErrorResponse<{registeredType}>({responseInfo.StatusCodeExpression});");
                 }
             }
 

@@ -451,12 +451,23 @@ public static class HttpClientExtractor
         string? streamingItemType = null;
         var hasLocationHeader = false;
 
-        // Try 200 first, then 201 for created responses
+        // The success response: 200, else 201, else the operation's other 2xx (202, 203, 206, ... - an operation
+        // declares one, ATC_API_OPR018).
         IOpenApiResponse? response = null;
-        if (operation.Responses is not null &&
-            !operation.Responses.TryGetValue("200", out response))
+        if (operation.Responses is not null)
         {
-            operation.Responses.TryGetValue("201", out response);
+            var successStatus = operation.Responses.ContainsKey("200")
+                ? "200"
+                : operation.Responses.ContainsKey("201")
+                    ? "201"
+                    : operation.Responses.Keys
+                        .Where(k => k.Length == 3 && k[0] == '2')
+                        .OrderBy(k => k, StringComparer.Ordinal)
+                        .FirstOrDefault();
+            if (successStatus is not null)
+            {
+                response = operation.Responses[successStatus];
+            }
         }
 
         // Check for JSON content first

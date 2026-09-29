@@ -37,13 +37,14 @@ public sealed class ExportsClient : IExportsClient
         this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
-    public async Task CreateExportAsync(
+    public async Task<ExportJob> CreateExportAsync(
         CreateExportParameters parameters,
         CancellationToken cancellationToken = default)
     {
         var url = "/exports";
         var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<ExportJob>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

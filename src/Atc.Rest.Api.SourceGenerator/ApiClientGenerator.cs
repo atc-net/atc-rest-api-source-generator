@@ -1441,14 +1441,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(4, "string? Detail,");
         sb.AppendLine(4, "string? Instance,");
         sb.AppendLine(4, "Dictionary<string, string[]>? Errors)");
-        sb.AppendLine("{");
-        sb.AppendLine(4, "/// <summary>");
-        sb.AppendLine(4, "/// Gets the extension members for this problem details instance.");
-        sb.AppendLine(4, "/// Extension members appear in the same namespace as other members of a problem type per RFC 7807.");
-        sb.AppendLine(4, "/// </summary>");
-        sb.AppendLine(4, "[JsonExtensionData]");
-        sb.AppendLine(4, "public Dictionary<string, JsonElement>? Extensions { get; init; }");
-        sb.AppendLine("}");
+        sb.AppendLine(4, ": ProblemDetails(Type, Title, Status, Detail, Instance);");
 
         var normalizeForSourceOutput = sb
             .ToString()

@@ -39,7 +39,7 @@ public sealed class ReportsClient : IReportsClient
         this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
-    public async Task GenerateReportAsync(
+    public async Task<ReportJob> GenerateReportAsync(
         GenerateReportParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -49,6 +49,7 @@ public sealed class ReportsClient : IReportsClient
         ApiResilienceRequest.DisableRetry(requestMessage, timeoutSeconds: 600);
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<ReportJob>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(
