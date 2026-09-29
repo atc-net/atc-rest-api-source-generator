@@ -55,6 +55,6 @@ public sealed class CreateUserEndpoint : ICreateUserEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new CreateUserEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new CreateUserEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

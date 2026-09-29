@@ -60,6 +60,6 @@ public sealed class GetUserByNameEndpoint : IGetUserByNameEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new GetUserByNameEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new GetUserByNameEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

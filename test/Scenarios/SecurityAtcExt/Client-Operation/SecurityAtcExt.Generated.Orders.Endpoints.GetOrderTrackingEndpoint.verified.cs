@@ -55,6 +55,6 @@ public sealed class GetOrderTrackingEndpoint : IGetOrderTrackingEndpoint
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new GetOrderTrackingEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new GetOrderTrackingEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

@@ -51,6 +51,6 @@ public sealed class ListReportsEndpoint : IListReportsEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ListReportsEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new ListReportsEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

@@ -50,6 +50,6 @@ public sealed class LinkResourceEndpoint : ILinkResourceEndpoint
         responseBuilder.AddSuccessResponse(HttpStatusCode.NoContent);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new LinkResourceEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new LinkResourceEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

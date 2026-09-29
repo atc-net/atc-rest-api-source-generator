@@ -50,6 +50,6 @@ public sealed class ListResourcesEndpoint : IListResourcesEndpoint
         responseBuilder.AddSuccessResponse<IEnumerable<Resource>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ListResourcesEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new ListResourcesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

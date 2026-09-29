@@ -57,6 +57,6 @@ public sealed class UpdateUserByIdEndpoint : IUpdateUserByIdEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new UpdateUserByIdEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new UpdateUserByIdEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

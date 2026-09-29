@@ -174,10 +174,11 @@ public sealed class DeviceApiClient : IDeviceApiClient
     {
         var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
 
+        // The file on success; on an error status the error body, as text, in Content.
         return new EndpointResponse<byte[]>(
             response.IsSuccessStatusCode,
             response.StatusCode,
-            content: string.Empty,
+            response.IsSuccessStatusCode ? string.Empty : System.Text.Encoding.UTF8.GetString(bytes),
             response.IsSuccessStatusCode ? bytes : null,
             ReadHeaders(response));
     }

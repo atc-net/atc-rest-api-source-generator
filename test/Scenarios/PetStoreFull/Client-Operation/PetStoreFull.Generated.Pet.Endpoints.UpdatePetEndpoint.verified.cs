@@ -64,6 +64,6 @@ public sealed class UpdatePetEndpoint : IUpdatePetEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new UpdatePetEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new UpdatePetEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

@@ -55,6 +55,6 @@ public sealed class LogoutUserEndpoint : ILogoutUserEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new LogoutUserEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new LogoutUserEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

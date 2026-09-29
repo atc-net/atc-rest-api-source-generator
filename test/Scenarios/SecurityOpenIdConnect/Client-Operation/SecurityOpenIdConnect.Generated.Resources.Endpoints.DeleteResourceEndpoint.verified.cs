@@ -57,6 +57,6 @@ public sealed class DeleteResourceEndpoint : IDeleteResourceEndpoint
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new DeleteResourceEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new DeleteResourceEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

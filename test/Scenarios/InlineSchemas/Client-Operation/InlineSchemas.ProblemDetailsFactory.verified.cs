@@ -54,7 +54,85 @@ public static class ProblemDetailsFactory
             ? problem with { Status = problem.Status ?? (int)statusCode }
             : CreateValidation(statusCode, content);
 
-    private static T? TryRead<T>(string? content)
+    /// <summary>
+    /// Reads an error model (the declared one, or the configured custom one) from the raw response body - a body
+    /// the client could not read as it (e.g. a number where the model has a string, or another shape) - accepting
+    /// any JSON value for a string property. A body that is no JSON object gives an empty model; the raw body stays
+    /// in <c>Content</c>.
+    /// </summary>
+    public static T ModelFromContent<T>(string? content)
+    {
+        if (TryReadAny<T>(content, out var model) || TryReadAny<T>("{}", out model))
+        {
+            return model!;
+        }
+
+        throw new System.InvalidOperationException($"The error body cannot be read as {typeof(T).Name}; it is in Content.");
+    }
+
+    private static bool TryReadAny<T>(string? content, out T? value)
+    {
+        value = default;
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return false;
+        }
+
+        try
+        {
+            value = System.Text.Json.JsonSerializer.Deserialize<T>(content!, LenientOptions);
+            return value is not null;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// An error response whose body was kept as bytes - a media type that is neither JSON nor text, such as
+    /// <c>application/xml</c> or <c>application/octet-stream</c> - with the body as text (by the Content-Type charset,
+    /// else UTF-8), so <c>Content</c> and the typed accessors read it like any other error body.
+    /// </summary>
+    public static global::Atc.Rest.Client.EndpointResponse WithTextErrorBody(global::Atc.Rest.Client.EndpointResponse response)
+    {
+        if (response.IsSuccess || response.ContentObject is not byte[] bytes || response.Content.Length > 0)
+        {
+            return response;
+        }
+
+        var encoding = System.Text.Encoding.UTF8;
+        foreach (var header in response.Headers)
+        {
+            if (string.Equals(header.Key, "Content-Type", System.StringComparison.OrdinalIgnoreCase) &&
+                System.Net.Http.Headers.MediaTypeHeaderValue.TryParse(string.Join(",", header.Value), out var mediaType) &&
+                mediaType.CharSet is { Length: > 0 } charSet)
+            {
+                try
+                {
+                    encoding = System.Text.Encoding.GetEncoding(charSet.Trim('"'));
+                }
+                catch (System.ArgumentException)
+                {
+                    // An unknown charset: keep UTF-8.
+                }
+            }
+        }
+
+        var text = encoding.GetString(bytes);
+        return new global::Atc.Rest.Client.EndpointResponse(response.IsSuccess, response.StatusCode, text, text, response.Headers);
+    }
+
+    private static readonly System.Text.Json.JsonSerializerOptions LenientOptions = CreateLenientOptions();
+
+    private static System.Text.Json.JsonSerializerOptions CreateLenientOptions()
+    {
+        var options = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+        options.Converters.Add(new LenientStringConverter());
+        return options;
+    }
+
+    private static T? TryRead<T>(string? content, System.Text.Json.JsonSerializerOptions? options = null)
         where T : class
     {
         if (string.IsNullOrWhiteSpace(content) || content!.TrimStart()[0] != '{')
@@ -64,7 +142,7 @@ public static class ProblemDetailsFactory
 
         try
         {
-            return System.Text.Json.JsonSerializer.Deserialize<T>(content, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+            return System.Text.Json.JsonSerializer.Deserialize<T>(content, options ?? new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
         }
         catch (System.Text.Json.JsonException)
         {
@@ -111,4 +189,18 @@ public static class ProblemDetailsFactory
         HttpStatusCode.Forbidden => "Forbidden",
         _ => statusCode.ToString()
     };
+
+    /// <summary>
+    /// Reads any JSON value into a string property: a string as its value, anything else as its JSON text.
+    /// </summary>
+    private sealed class LenientStringConverter : System.Text.Json.Serialization.JsonConverter<string>
+    {
+        public override string? Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+            => reader.TokenType == System.Text.Json.JsonTokenType.String
+                ? reader.GetString()
+                : System.Text.Json.JsonDocument.ParseValue(ref reader).RootElement.GetRawText();
+
+        public override void Write(System.Text.Json.Utf8JsonWriter writer, string value, System.Text.Json.JsonSerializerOptions options)
+            => writer.WriteStringValue(value);
+    }
 }

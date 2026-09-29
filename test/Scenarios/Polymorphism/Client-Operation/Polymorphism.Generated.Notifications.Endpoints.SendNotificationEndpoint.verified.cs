@@ -55,6 +55,6 @@ public sealed class SendNotificationEndpoint : ISendNotificationEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new SendNotificationEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new SendNotificationEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

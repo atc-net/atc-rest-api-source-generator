@@ -60,6 +60,6 @@ public sealed class GetOrderByIdEndpoint : IGetOrderByIdEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new GetOrderByIdEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new GetOrderByIdEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

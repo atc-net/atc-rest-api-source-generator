@@ -50,6 +50,6 @@ public sealed class ListShapesEndpoint : IListShapesEndpoint
         responseBuilder.AddSuccessResponse<IEnumerable<Shape>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ListShapesEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new ListShapesEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

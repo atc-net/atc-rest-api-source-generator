@@ -97,7 +97,9 @@ public partial class GetItemByIdEndpointResult : EndpointResponse, IGetItemByIdE
     public Error NotFoundContent
         => IsNotFound && ContentObject is Error result
             ? result
-            : throw InvalidContentAccessException<Error>(HttpStatusCode.NotFound, "NotFoundContent");
+            : IsNotFound
+                ? ProblemDetailsFactory.ModelFromContent<Error>(Content)
+                : throw InvalidContentAccessException<Error>(HttpStatusCode.NotFound, "NotFoundContent");
 
     public ValidationProblemDetails BadRequestContent
         => IsBadRequest && ContentObject is ValidationProblemDetails result

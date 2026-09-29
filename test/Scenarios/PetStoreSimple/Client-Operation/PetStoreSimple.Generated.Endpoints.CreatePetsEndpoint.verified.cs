@@ -61,6 +61,6 @@ public sealed class CreatePetsEndpoint : ICreatePetsEndpoint
             responseBuilder.AddErrorResponse<Error>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new CreatePetsEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new CreatePetsEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

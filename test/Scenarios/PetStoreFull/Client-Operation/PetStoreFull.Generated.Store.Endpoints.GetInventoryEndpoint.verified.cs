@@ -56,6 +56,6 @@ public sealed class GetInventoryEndpoint : IGetInventoryEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new GetInventoryEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new GetInventoryEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

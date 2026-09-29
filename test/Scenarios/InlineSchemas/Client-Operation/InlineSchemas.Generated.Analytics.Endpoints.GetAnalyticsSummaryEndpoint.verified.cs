@@ -50,6 +50,6 @@ public sealed class GetAnalyticsSummaryEndpoint : IGetAnalyticsSummaryEndpoint
         responseBuilder.AddSuccessResponse<GetAnalyticsSummaryResponse>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new GetAnalyticsSummaryEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new GetAnalyticsSummaryEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

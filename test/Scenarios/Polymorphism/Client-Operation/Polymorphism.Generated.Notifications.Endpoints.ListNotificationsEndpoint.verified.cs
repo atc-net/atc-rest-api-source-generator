@@ -50,6 +50,6 @@ public sealed class ListNotificationsEndpoint : IListNotificationsEndpoint
         responseBuilder.AddSuccessResponse<IEnumerable<Notification>>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ListNotificationsEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new ListNotificationsEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

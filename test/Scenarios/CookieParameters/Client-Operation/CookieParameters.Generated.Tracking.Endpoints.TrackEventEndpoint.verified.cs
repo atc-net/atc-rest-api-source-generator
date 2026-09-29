@@ -54,6 +54,6 @@ public sealed class TrackEventEndpoint : ITrackEventEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new TrackEventEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new TrackEventEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

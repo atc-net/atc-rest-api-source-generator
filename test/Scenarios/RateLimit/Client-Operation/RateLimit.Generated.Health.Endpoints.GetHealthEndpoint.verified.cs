@@ -51,6 +51,6 @@ public sealed class GetHealthEndpoint : IGetHealthEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.TooManyRequests);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new GetHealthEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new GetHealthEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

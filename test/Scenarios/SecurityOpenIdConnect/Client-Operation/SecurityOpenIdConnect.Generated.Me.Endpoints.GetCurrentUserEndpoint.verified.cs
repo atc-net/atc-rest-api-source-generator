@@ -52,6 +52,6 @@ public sealed class GetCurrentUserEndpoint : IGetCurrentUserEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Forbidden);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new GetCurrentUserEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new GetCurrentUserEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

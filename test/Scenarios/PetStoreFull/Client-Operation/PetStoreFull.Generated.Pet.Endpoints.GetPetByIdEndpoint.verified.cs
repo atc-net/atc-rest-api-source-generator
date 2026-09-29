@@ -62,6 +62,6 @@ public sealed class GetPetByIdEndpoint : IGetPetByIdEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new GetPetByIdEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new GetPetByIdEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

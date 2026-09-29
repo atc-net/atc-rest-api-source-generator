@@ -57,6 +57,6 @@ public sealed class UpdatePetEndpoint : IUpdatePetEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new UpdatePetEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new UpdatePetEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

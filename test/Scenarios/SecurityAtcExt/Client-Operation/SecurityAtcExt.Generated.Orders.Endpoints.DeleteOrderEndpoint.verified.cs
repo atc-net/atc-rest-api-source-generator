@@ -57,6 +57,6 @@ public sealed class DeleteOrderEndpoint : IDeleteOrderEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Forbidden);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new DeleteOrderEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new DeleteOrderEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

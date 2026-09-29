@@ -55,6 +55,6 @@ public sealed class DeleteTaskByIdEndpoint : IDeleteTaskByIdEndpoint
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new DeleteTaskByIdEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new DeleteTaskByIdEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

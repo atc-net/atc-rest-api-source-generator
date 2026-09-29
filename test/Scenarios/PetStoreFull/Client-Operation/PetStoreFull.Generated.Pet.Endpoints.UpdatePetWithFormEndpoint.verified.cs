@@ -70,6 +70,6 @@ public sealed class UpdatePetWithFormEndpoint : IUpdatePetWithFormEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new UpdatePetWithFormEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new UpdatePetWithFormEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

@@ -62,6 +62,6 @@ public sealed class UpdateUserEndpoint : IUpdateUserEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new UpdateUserEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new UpdateUserEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

@@ -55,6 +55,6 @@ public sealed class CreateAccountEndpoint : ICreateAccountEndpoint
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new CreateAccountEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new CreateAccountEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

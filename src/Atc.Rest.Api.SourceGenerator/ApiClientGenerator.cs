@@ -281,6 +281,9 @@ public class ApiClientGenerator : IIncrementalGenerator
         // configured. Used by every sub-generation method below that only ever calls AddSource.
         var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage);
 
+        // The custom error model's type name as the generated code refers to it (fully qualified when it collides).
+        var customErrorTypeName = config.CustomErrorResponseModel?.Name;
+
         // Generate shared ProblemDetails and factory once for EndpointPerOperation mode
         if (config.GenerationMode == GenerationModeType.EndpointPerOperation)
         {
@@ -288,10 +291,21 @@ public class ApiClientGenerator : IIncrementalGenerator
             GenerateProblemDetailsFactory(generatedContext, projectName);
             GenerateConstants(generatedContext, projectName, config.HttpClientName);
 
-            // Generate custom error response model if configured
+            // Generate custom error response model if configured. Named like a spec schema, it would shadow that
+            // model in every generated file (the root namespace encloses them all), so it then gets its own
+            // namespace and is referred to by its full name.
             if (config.CustomErrorResponseModel is not null)
             {
-                GenerateCustomErrorResponse(generatedContext, config.CustomErrorResponseModel, projectName);
+                var customName = config.CustomErrorResponseModel.Name;
+                var collides = openApiDoc.Components?.Schemas?.Keys.Any(k =>
+                    string.Equals(k, customName, StringComparison.Ordinal) ||
+                    string.Equals(k.ToPascalCaseForDotNet(), customName, StringComparison.Ordinal)) == true;
+                var customNamespace = collides ? $"{projectName}.Generated.CustomErrors" : $"{projectName}.Generated";
+                GenerateCustomErrorResponse(generatedContext, config.CustomErrorResponseModel, customNamespace, projectName);
+                if (collides)
+                {
+                    customErrorTypeName = $"global::{customNamespace}.{customName}";
+                }
             }
         }
 
@@ -396,7 +410,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                     ? ErrorResponseFormatType.Custom
                     : config.ErrorResponseFormat;
 
-                var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, config.CustomErrorResponseModel?.Name, config.ValidateSpecificationStrategy);
+                var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, customErrorTypeName, config.ValidateSpecificationStrategy);
                 if (hasEndpoints)
                 {
                     generatedPathSegments.Add(effectiveSegment);
@@ -1510,7 +1524,85 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(12, "? problem with { Status = problem.Status ?? (int)statusCode }");
         sb.AppendLine(12, ": CreateValidation(statusCode, content);");
         sb.AppendLine();
-        sb.AppendLine(4, "private static T? TryRead<T>(string? content)");
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// Reads an error model (the declared one, or the configured custom one) from the raw response body - a body");
+        sb.AppendLine(4, "/// the client could not read as it (e.g. a number where the model has a string, or another shape) - accepting");
+        sb.AppendLine(4, "/// any JSON value for a string property. A body that is no JSON object gives an empty model; the raw body stays");
+        sb.AppendLine(4, "/// in <c>Content</c>.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "public static T ModelFromContent<T>(string? content)");
+        sb.AppendLine(4, "{");
+        sb.AppendLine(8, "if (TryReadAny<T>(content, out var model) || TryReadAny<T>(\"{}\", out model))");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, "return model!;");
+        sb.AppendLine(8, "}");
+        sb.AppendLine();
+        sb.AppendLine(8, "throw new System.InvalidOperationException($\"The error body cannot be read as {typeof(T).Name}; it is in Content.\");");
+        sb.AppendLine(4, "}");
+        sb.AppendLine();
+        sb.AppendLine(4, "private static bool TryReadAny<T>(string? content, out T? value)");
+        sb.AppendLine(4, "{");
+        sb.AppendLine(8, "value = default;");
+        sb.AppendLine(8, "if (string.IsNullOrWhiteSpace(content))");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, "return false;");
+        sb.AppendLine(8, "}");
+        sb.AppendLine();
+        sb.AppendLine(8, "try");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, "value = System.Text.Json.JsonSerializer.Deserialize<T>(content!, LenientOptions);");
+        sb.AppendLine(12, "return value is not null;");
+        sb.AppendLine(8, "}");
+        sb.AppendLine(8, "catch (System.Text.Json.JsonException)");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, "return false;");
+        sb.AppendLine(8, "}");
+        sb.AppendLine(4, "}");
+        sb.AppendLine();
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// An error response whose body was kept as bytes - a media type that is neither JSON nor text, such as");
+        sb.AppendLine(4, "/// <c>application/xml</c> or <c>application/octet-stream</c> - with the body as text (by the Content-Type charset,");
+        sb.AppendLine(4, "/// else UTF-8), so <c>Content</c> and the typed accessors read it like any other error body.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "public static global::Atc.Rest.Client.EndpointResponse WithTextErrorBody(global::Atc.Rest.Client.EndpointResponse response)");
+        sb.AppendLine(4, "{");
+        sb.AppendLine(8, "if (response.IsSuccess || response.ContentObject is not byte[] bytes || response.Content.Length > 0)");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, "return response;");
+        sb.AppendLine(8, "}");
+        sb.AppendLine();
+        sb.AppendLine(8, "var encoding = System.Text.Encoding.UTF8;");
+        sb.AppendLine(8, "foreach (var header in response.Headers)");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, "if (string.Equals(header.Key, \"Content-Type\", System.StringComparison.OrdinalIgnoreCase) &&");
+        sb.AppendLine(12, "    System.Net.Http.Headers.MediaTypeHeaderValue.TryParse(string.Join(\",\", header.Value), out var mediaType) &&");
+        sb.AppendLine(12, "    mediaType.CharSet is { Length: > 0 } charSet)");
+        sb.AppendLine(12, "{");
+        sb.AppendLine(16, "try");
+        sb.AppendLine(16, "{");
+        sb.AppendLine(20, "encoding = System.Text.Encoding.GetEncoding(charSet.Trim('\"'));");
+        sb.AppendLine(16, "}");
+        sb.AppendLine(16, "catch (System.ArgumentException)");
+        sb.AppendLine(16, "{");
+        sb.AppendLine(20, "// An unknown charset: keep UTF-8.");
+        sb.AppendLine(16, "}");
+        sb.AppendLine(12, "}");
+        sb.AppendLine(8, "}");
+        sb.AppendLine();
+        sb.AppendLine(8, "var text = encoding.GetString(bytes);");
+        sb.AppendLine(8, "return new global::Atc.Rest.Client.EndpointResponse(response.IsSuccess, response.StatusCode, text, text, response.Headers);");
+        sb.AppendLine(4, "}");
+        sb.AppendLine();
+        sb.AppendLine(4, "private static readonly System.Text.Json.JsonSerializerOptions LenientOptions = CreateLenientOptions();");
+        sb.AppendLine();
+        sb.AppendLine(4, "private static System.Text.Json.JsonSerializerOptions CreateLenientOptions()");
+        sb.AppendLine(4, "{");
+        sb.AppendLine(8, "var options = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);");
+        sb.AppendLine(8, "options.Converters.Add(new LenientStringConverter());");
+        sb.AppendLine(8, "return options;");
+        sb.AppendLine(4, "}");
+        sb.AppendLine();
+        sb.AppendLine(4, "private static T? TryRead<T>(string? content, System.Text.Json.JsonSerializerOptions? options = null)");
         sb.AppendLine(8, "where T : class");
         sb.AppendLine(4, "{");
         sb.AppendLine(8, "if (string.IsNullOrWhiteSpace(content) || content!.TrimStart()[0] != '{')");
@@ -1520,7 +1612,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine(8, "try");
         sb.AppendLine(8, "{");
-        sb.AppendLine(12, "return System.Text.Json.JsonSerializer.Deserialize<T>(content, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));");
+        sb.AppendLine(12, "return System.Text.Json.JsonSerializer.Deserialize<T>(content, options ?? new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));");
         sb.AppendLine(8, "}");
         sb.AppendLine(8, "catch (System.Text.Json.JsonException)");
         sb.AppendLine(8, "{");
@@ -1567,6 +1659,20 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(8, "HttpStatusCode.Forbidden => \"Forbidden\",");
         sb.AppendLine(8, "_ => statusCode.ToString()");
         sb.AppendLine(4, "};");
+        sb.AppendLine();
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// Reads any JSON value into a string property: a string as its value, anything else as its JSON text.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "private sealed class LenientStringConverter : System.Text.Json.Serialization.JsonConverter<string>");
+        sb.AppendLine(4, "{");
+        sb.AppendLine(8, "public override string? Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)");
+        sb.AppendLine(12, "=> reader.TokenType == System.Text.Json.JsonTokenType.String");
+        sb.AppendLine(16, "? reader.GetString()");
+        sb.AppendLine(16, ": System.Text.Json.JsonDocument.ParseValue(ref reader).RootElement.GetRawText();");
+        sb.AppendLine();
+        sb.AppendLine(8, "public override void Write(System.Text.Json.Utf8JsonWriter writer, string value, System.Text.Json.JsonSerializerOptions options)");
+        sb.AppendLine(12, "=> writer.WriteStringValue(value);");
+        sb.AppendLine(4, "}");
         sb.AppendLine("}");
 
         var normalizedContent = sb
@@ -1604,9 +1710,9 @@ public class ApiClientGenerator : IIncrementalGenerator
     private static void GenerateCustomErrorResponse(
         GeneratedSourceContext context,
         CustomErrorResponseModelConfig config,
+        string namespaceName,
         string projectName)
     {
-        var namespaceName = $"{projectName}.Generated";
         var content = CustomErrorResponseExtractor.Generate(config, namespaceName);
 
         var normalizedContent = content.NormalizeForSourceOutput();

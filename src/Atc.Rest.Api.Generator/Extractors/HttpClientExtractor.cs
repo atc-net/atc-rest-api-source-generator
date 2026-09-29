@@ -2253,10 +2253,11 @@ public static class HttpClientExtractor
         var sb = new StringBuilder();
         sb.AppendLine("var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);");
         sb.AppendLine();
+        sb.AppendLine("// The file on success; on an error status the error body, as text, in Content.");
         sb.AppendLine("return new EndpointResponse<byte[]>(");
         sb.AppendLine(4, "response.IsSuccessStatusCode,");
         sb.AppendLine(4, "response.StatusCode,");
-        sb.AppendLine(4, "content: string.Empty,");
+        sb.AppendLine(4, "response.IsSuccessStatusCode ? string.Empty : System.Text.Encoding.UTF8.GetString(bytes),");
         sb.AppendLine(4, "response.IsSuccessStatusCode ? bytes : null,");
         sb.Append(4, "ReadHeaders(response));");
 

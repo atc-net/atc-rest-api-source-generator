@@ -68,6 +68,6 @@ public sealed class UploadFileEndpoint : IUploadFileEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new UploadFileEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new UploadFileEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

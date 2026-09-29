@@ -55,6 +55,6 @@ public sealed class CreateOwnerEndpoint : ICreateOwnerEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new CreateOwnerEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new CreateOwnerEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

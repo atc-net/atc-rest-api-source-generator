@@ -51,6 +51,6 @@ public sealed class ListApiKeysEndpoint : IListApiKeysEndpoint
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Unauthorized);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new ListApiKeysEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new ListApiKeysEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

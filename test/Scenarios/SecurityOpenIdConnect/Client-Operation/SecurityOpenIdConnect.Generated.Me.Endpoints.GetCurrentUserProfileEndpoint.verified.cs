@@ -52,6 +52,6 @@ public sealed class GetCurrentUserProfileEndpoint : IGetCurrentUserProfileEndpoi
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Forbidden);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
-        return await responseBuilder.BuildResponseAsync(x => new GetCurrentUserProfileEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new GetCurrentUserProfileEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

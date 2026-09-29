@@ -425,7 +425,8 @@ public static class EndpointPerOperationExtractor
                 responses,
                 defaultResponse,
                 hasSegmentModels,
-                hasSharedModels);
+                hasSharedModels,
+                customErrorTypeName);
             resultClassFileName = NamespaceBuilder.ToFileName(
                 NamespaceBuilder.ForEndpointResults(projectName, pathSegment),
                 $"{operationName}EndpointResult");
@@ -1284,7 +1285,11 @@ public static class EndpointPerOperationExtractor
             // sent as application/problem+json, the handler's default body is not.
             var sharedWithDefault = SharedWithDefault(responses, defaultResponse);
             var splitByMediaType = SplitsByMediaType(responses, defaultResponse);
-            if (splitByMediaType)
+
+            // A string error status whose handler sent no body gets the host wiring's ProblemDetails
+            // (application/problem+json): read it as one, so the string accessor gives its message, not its JSON text.
+            var hasStringErrors = responses.Any(r => !r.IsSuccess && !sharedWithDefault.Contains(r) && r.ContentType == "string");
+            if (splitByMediaType || hasStringErrors)
             {
                 sb.AppendLine("var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is \"application/problem+json\";");
             }
@@ -1293,6 +1298,22 @@ public static class EndpointPerOperationExtractor
             {
                 if (sharedWithDefault.Contains(responseInfo))
                 {
+                    continue;
+                }
+
+                if (!responseInfo.IsSuccess && responseInfo.ContentType == "string")
+                {
+                    sb.AppendLine("if (isProblemJson)");
+                    sb.AppendLine("{");
+                    sb.AppendLine(4, $"responseBuilder.AddErrorResponse<ProblemDetails>({responseInfo.StatusCodeExpression});");
+                    sb.AppendLine("}");
+                    sb.AppendLine("else");
+                    sb.AppendLine("{");
+                    sb.AppendLine(4, responseInfo.TextMediaType is not null
+                        ? $"responseBuilder.AddErrorTextResponse({responseInfo.StatusCodeExpression});"
+                        : $"responseBuilder.AddErrorResponse<string>({responseInfo.StatusCodeExpression});");
+                    sb.AppendLine("}");
+                    sb.AppendLine();
                     continue;
                 }
 
@@ -1350,7 +1371,7 @@ public static class EndpointPerOperationExtractor
                 sb.AppendLine();
             }
 
-            sb.Append($"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(x), cancellationToken);");
+            sb.Append($"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);");
         }
 
         return sb.ToString();
@@ -1450,7 +1471,8 @@ public static class EndpointPerOperationExtractor
         List<ResponseInfo> responses,
         ResponseInfo? defaultResponse,
         bool hasSegmentModels,
-        bool hasSharedModels)
+        bool hasSharedModels,
+        string? customErrorTypeName)
     {
         var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
         var segmentModelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
@@ -1588,6 +1610,25 @@ public static class EndpointPerOperationExtractor
                 sb.AppendLine(20, $": Is{response.PropertyName}");
                 sb.AppendLine(24, $"? ProblemDetailsFactory.{fromContent}({response.StatusCodeExpression}, Content)");
                 sb.AppendLine(24, $": throw InvalidContentAccessException<{response.ContentType}>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
+            }
+            else if (!response.IsSuccess && response.ContentType != "string")
+            {
+                // An error model - the declared one, or the custom one standing for bodies of an unknown shape: read the
+                // raw body leniently rather than throw when it did not fit (a ProblemDetails' numeric status in a string
+                // property, a proxy's page); the accessor of a status that is true never throws.
+                sb.AppendLine(12, $": Is{response.PropertyName}");
+                sb.AppendLine(16, $"? ProblemDetailsFactory.ModelFromContent<{response.ContentType}>(Content)");
+                sb.AppendLine(16, $": throw InvalidContentAccessException<{response.ContentType}>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
+            }
+            else if (!response.IsSuccess && response.ContentType == "string")
+            {
+                // An application/problem+json body (the host wiring's, when the handler sent none) was read as a
+                // ProblemDetails: its message is the detail, else the title. Any other body is the raw text.
+                sb.AppendLine(12, $": Is{response.PropertyName} && ContentObject is ProblemDetails problem");
+                sb.AppendLine(16, "? string.IsNullOrEmpty(problem.Detail) ? problem.Title ?? string.Empty : problem.Detail");
+                sb.AppendLine(16, $": Is{response.PropertyName}");
+                sb.AppendLine(20, "? Content");
+                sb.AppendLine(20, $": throw InvalidContentAccessException<string>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
             }
             else
             {

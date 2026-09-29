@@ -66,6 +66,6 @@ public sealed class DeletePetEndpoint : IDeletePetEndpoint
             responseBuilder.AddErrorResponse<ProblemDetails>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new DeletePetEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new DeletePetEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

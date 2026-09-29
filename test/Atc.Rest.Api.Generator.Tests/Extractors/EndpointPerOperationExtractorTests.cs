@@ -807,9 +807,64 @@ public class EndpointPerOperationExtractorTests
         Assert.Contains("ApiError UnauthorizedContent", operationFile.ResultClassContent, StringComparison.Ordinal);
         Assert.Contains("ApiError InternalServerErrorContent", operationFile.ResultClassContent, StringComparison.Ordinal);
 
-        // ProblemDetails/ValidationProblemDetails should NOT be present
-        Assert.DoesNotContain("ProblemDetails", operationFile.ResultClassContent, StringComparison.Ordinal);
-        Assert.DoesNotContain("ValidationProblemDetails", operationFile.ResultClassContent, StringComparison.Ordinal);
+        // ProblemDetails/ValidationProblemDetails types should NOT be present (the lenient reader of the custom
+        // model lives on ProblemDetailsFactory, so that name is allowed)
+        var withoutFactory = operationFile.ResultClassContent!.Replace("ProblemDetailsFactory.", string.Empty, StringComparison.Ordinal);
+        Assert.DoesNotContain("ProblemDetails", withoutFactory, StringComparison.Ordinal);
+        Assert.Contains("ProblemDetailsFactory.ModelFromContent<ApiError>(Content)", operationFile.ResultClassContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_StringError_ReadsAProblemJsonBodyAsProblemDetails_AndGivesItsMessage()
+    {
+        // Arrange - a declared string (text/plain) error, and PlainText for the undeclared ones
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  operationId: getItems
+                                  responses:
+                                    '204':
+                                      description: No Content
+                                    '404':
+                                      description: Not Found
+                                      content:
+                                        text/plain:
+                                          schema:
+                                            type: string
+                                    '409':
+                                      description: Conflict
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
+            document,
+            "TestApi",
+            "items",
+            registry: null,
+            includeDeprecated: false,
+            errorResponseFormat: ErrorResponseFormatType.PlainText);
+
+        // Assert - the host wiring's ProblemDetails (a handler that sent no body) is split off by media type ...
+        var operationFile = Assert.Single(files);
+        var endpoint = operationFile.EndpointClassContent!;
+        Assert.Contains("var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is \"application/problem+json\";", endpoint, StringComparison.Ordinal);
+        Assert.Contains("responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);", endpoint, StringComparison.Ordinal);
+        Assert.Contains("responseBuilder.AddErrorTextResponse(HttpStatusCode.NotFound);", endpoint, StringComparison.Ordinal);
+        Assert.Contains("responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Conflict);", endpoint, StringComparison.Ordinal);
+        Assert.Contains("responseBuilder.AddErrorResponse<string>(HttpStatusCode.Conflict);", endpoint, StringComparison.Ordinal);
+
+        // ... and the string accessor gives its message (detail, else title), or the raw body - it never throws.
+        var result = operationFile.ResultClassContent!;
+        Assert.Contains("? string.IsNullOrEmpty(problem.Detail) ? problem.Title ?? string.Empty : problem.Detail", result, StringComparison.Ordinal);
+        Assert.Contains(": IsNotFound\n                    ? Content".Replace("\n", Environment.NewLine, StringComparison.Ordinal), result, StringComparison.Ordinal);
     }
 
     [Fact]

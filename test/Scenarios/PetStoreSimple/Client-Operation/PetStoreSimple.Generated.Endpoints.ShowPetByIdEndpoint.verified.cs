@@ -65,6 +65,6 @@ public sealed class ShowPetByIdEndpoint : IShowPetByIdEndpoint
             responseBuilder.AddErrorResponse<Error>(response.StatusCode);
         }
 
-        return await responseBuilder.BuildResponseAsync(x => new ShowPetByIdEndpointResult(x), cancellationToken);
+        return await responseBuilder.BuildResponseAsync(x => new ShowPetByIdEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }
