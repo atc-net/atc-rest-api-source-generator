@@ -294,7 +294,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         if (config.GenerationMode == GenerationModeType.EndpointPerOperation)
         {
             GenerateProblemDetails(generatedContext, projectName);
-            GenerateProblemDetailsFactory(generatedContext, projectName);
+            GenerateProblemDetailsFactory(generatedContext, projectName, hasXml: XmlBodyReachability.Collect(openApiDoc).Count > 0);
             GenerateConstants(generatedContext, projectName, config.HttpClientName);
 
             // A file download's OkContent (only when the specification has one)
@@ -1564,6 +1564,63 @@ public class ApiClientGenerator : IIncrementalGenerator
             SourceText.From(sb.ToString().NormalizeForSourceOutput(), Encoding.UTF8));
     }
 
+    /// <summary>
+    /// <c>WithXmlProblemBody</c>: an <c>application/problem+xml</c> error body (RFC 9457 Appendix B) read into the
+    /// typed ProblemDetails (a ValidationProblemDetails when it has <c>errors</c>), so the typed accessors read it like
+    /// a problem+json body.
+    /// </summary>
+    private static void AppendWithXmlProblemBody(StringBuilder sb)
+    {
+        sb.AppendLine(4, "/// <summary>");
+        sb.AppendLine(4, "/// An <c>application/problem+xml</c> error body (RFC 9457 Appendix B) read into the typed ProblemDetails - a");
+        sb.AppendLine(4, "/// ValidationProblemDetails when it has <c>errors</c> - so the typed accessors read it like a problem+json body.");
+        sb.AppendLine(4, "/// </summary>");
+        sb.AppendLine(4, "public static global::Atc.Rest.Client.EndpointResponse WithXmlProblemBody(global::Atc.Rest.Client.EndpointResponse response)");
+        sb.AppendLine(4, "{");
+        sb.AppendLine(8, "var isProblemXml = response.Headers.Any(h =>");
+        sb.AppendLine(12, "string.Equals(h.Key, \"Content-Type\", System.StringComparison.OrdinalIgnoreCase) &&");
+        sb.AppendLine(12, "h.Value.Any(v => v.TrimStart().StartsWith(\"application/problem+xml\", System.StringComparison.OrdinalIgnoreCase)));");
+        sb.AppendLine(8, "if (response.IsSuccess || !isProblemXml || string.IsNullOrWhiteSpace(response.Content))");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, "return response;");
+        sb.AppendLine(8, "}");
+        sb.AppendLine();
+        sb.AppendLine(8, "System.Xml.Linq.XElement root;");
+        sb.AppendLine(8, "try");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, "root = XmlModelSupport.Parse(response.Content);");
+        sb.AppendLine(8, "}");
+        sb.AppendLine(8, "catch (System.Xml.XmlException)");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, "return response;");
+        sb.AppendLine(8, "}");
+        sb.AppendLine();
+        sb.AppendLine(8, "string? Member(string name)");
+        sb.AppendLine(12, "=> root.Elements().FirstOrDefault(e => e.Name.LocalName == name)?.Value;");
+        sb.AppendLine(8, "static string Key(System.Xml.Linq.XElement element)");
+        sb.AppendLine(12, "=> element.Name.LocalName == \"_\" ? string.Empty : System.Xml.XmlConvert.DecodeName(element.Name.LocalName)!;");
+        sb.AppendLine();
+        sb.AppendLine(8, "int? status = int.TryParse(Member(\"status\"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var code) ? code : null;");
+        sb.AppendLine(8, "var members = new[] { \"type\", \"title\", \"status\", \"detail\", \"instance\", \"errors\" };");
+        sb.AppendLine(8, "var extensions = root.Elements()");
+        sb.AppendLine(12, ".Where(e => !members.Contains(e.Name.LocalName))");
+        sb.AppendLine(12, ".ToDictionary(Key, e => System.Text.Json.JsonSerializer.SerializeToElement(e.HasElements ? e.ToString() : e.Value), System.StringComparer.Ordinal);");
+        sb.AppendLine(8, "var errors = root.Elements().FirstOrDefault(e => e.Name.LocalName == \"errors\");");
+        sb.AppendLine(8, "ProblemDetails problem = errors is null");
+        sb.AppendLine(12, "? new ProblemDetails(Member(\"type\"), Member(\"title\"), status, Member(\"detail\"), Member(\"instance\"))");
+        sb.AppendLine(12, ": new ValidationProblemDetails(");
+        sb.AppendLine(16, "Member(\"type\"),");
+        sb.AppendLine(16, "Member(\"title\"),");
+        sb.AppendLine(16, "status,");
+        sb.AppendLine(16, "Member(\"detail\"),");
+        sb.AppendLine(16, "Member(\"instance\"),");
+        sb.AppendLine(16, "errors.Elements().ToDictionary(Key, e => e.HasElements ? e.Elements().Select(i => i.Value).ToArray() : new[] { e.Value }, System.StringComparer.Ordinal));");
+        sb.AppendLine(8, "problem = problem with { Extensions = extensions.Count > 0 ? extensions : null };");
+        sb.AppendLine(8, "return new global::Atc.Rest.Client.EndpointResponse(response.IsSuccess, response.StatusCode, response.Content, problem, response.Headers);");
+        sb.AppendLine(4, "}");
+        sb.AppendLine();
+    }
+
     private static void GenerateProblemDetails(
         GeneratedSourceContext context,
         string projectName)
@@ -1638,7 +1695,8 @@ public class ApiClientGenerator : IIncrementalGenerator
     /// </summary>
     private static void GenerateProblemDetailsFactory(
         GeneratedSourceContext context,
-        string projectName)
+        string projectName,
+        bool hasXml = false)
     {
         var sb = new StringBuilder();
         sb.AppendLine("// <auto-generated />");
@@ -1773,6 +1831,11 @@ public class ApiClientGenerator : IIncrementalGenerator
         sb.AppendLine(8, "return new global::Atc.Rest.Client.EndpointResponse(response.IsSuccess, response.StatusCode, text, text, response.Headers);");
         sb.AppendLine(4, "}");
         sb.AppendLine();
+        if (hasXml)
+        {
+            AppendWithXmlProblemBody(sb);
+        }
+
         sb.AppendLine(4, "private static readonly System.Text.Json.JsonSerializerOptions LenientOptions = CreateLenientOptions();");
         sb.AppendLine();
         sb.AppendLine(4, "private static System.Text.Json.JsonSerializerOptions CreateLenientOptions()");

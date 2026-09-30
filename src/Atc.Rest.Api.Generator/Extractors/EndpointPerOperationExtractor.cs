@@ -1314,7 +1314,11 @@ public static class EndpointPerOperationExtractor
         else
         {
             AppendResponseRegistrations(sb, responses, defaultResponse);
-            sb.Append($"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);");
+
+            // An operation with an XML answer may get its errors as application/problem+xml: read into the typed problem
+            sb.Append(responses.Any(r => r.Xml is not null)
+                ? $"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(ProblemDetailsFactory.WithXmlProblemBody(ProblemDetailsFactory.WithTextErrorBody(x))), cancellationToken);"
+                : $"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);");
         }
 
         return sb.ToString();

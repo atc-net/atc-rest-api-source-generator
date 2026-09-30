@@ -30,8 +30,9 @@ public static class UnifiedServiceCollectionExtractor
         var hasValidation = config.UseValidationFilter != MinimalApiPackageMode.Disabled;
         var hasVersioning = config.VersioningStrategy != VersioningStrategyType.None;
         var hasSecurity = openApiDoc.HasSecuritySchemes();
+        var hasXml = XmlBodyReachability.Collect(openApiDoc).Count > 0;
 
-        return GenerateFileContent(projectName, pathSegments, hasRateLimiting, hasValidation, hasVersioning, hasSecurity);
+        return GenerateFileContent(projectName, pathSegments, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml);
     }
 
     /// <summary>
@@ -43,7 +44,8 @@ public static class UnifiedServiceCollectionExtractor
         bool hasRateLimiting,
         bool hasValidation,
         bool hasVersioning,
-        bool hasSecurity)
+        bool hasSecurity,
+        bool hasXml = false)
     {
         // Generate content first to analyze for required usings
         var contentBuilder = new StringBuilder();
@@ -125,7 +127,7 @@ public static class UnifiedServiceCollectionExtractor
         builder.AppendLine("{");
 
         // Generate Add{ProjectName}Api method
-        GenerateAddApiMethod(builder, projectName, hasRateLimiting, hasValidation, hasVersioning, hasSecurity);
+        GenerateAddApiMethod(builder, projectName, hasRateLimiting, hasValidation, hasVersioning, hasSecurity, hasXml);
 
         builder.AppendLine("}");
 
@@ -141,7 +143,8 @@ public static class UnifiedServiceCollectionExtractor
         bool hasRateLimiting,
         bool hasValidation,
         bool hasVersioning,
-        bool hasSecurity)
+        bool hasSecurity,
+        bool hasXml)
     {
         builder.AppendLine(4, "/// <summary>");
         builder.AppendLine(4, $"/// Adds all {projectName} API services with auto-detected features.");
@@ -193,6 +196,17 @@ public static class UnifiedServiceCollectionExtractor
         builder.AppendLine(8, "// Register RFC 9457 ProblemDetails for errors raised outside the handlers");
         builder.AppendLine(8, "if (options.UseProblemDetails)");
         builder.AppendLine(8, "{");
+        if (hasXml)
+        {
+            // application/problem+xml when the Accept prefers it: ahead of the default JSON writer, which writes too
+            builder.AppendLine(12, "// application/problem+xml (RFC 9457 Appendix B) when the request's Accept prefers it - ahead of the JSON writer");
+            builder.AppendLine(12, $"if (!services.Any(d => d.ImplementationType == typeof(global::{projectName}.Generated.XmlProblemDetailsWriter)))");
+            builder.AppendLine(12, "{");
+            builder.AppendLine(16, $"services.Insert(0, ServiceDescriptor.Singleton<global::Microsoft.AspNetCore.Http.IProblemDetailsWriter, global::{projectName}.Generated.XmlProblemDetailsWriter>());");
+            builder.AppendLine(12, "}");
+            builder.AppendLine();
+        }
+
         builder.AppendLine(12, "services.AddProblemDetails();");
         builder.AppendLine(8, "}");
 

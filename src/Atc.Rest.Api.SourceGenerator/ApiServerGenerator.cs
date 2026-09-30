@@ -364,6 +364,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // The models an XML body can carry get an XML mapping (only when the specification has an XML body)
         var xmlModels = XmlBodyReachability.Collect(openApiDoc);
         XmlModelEmitter.EmitSupport(generatedContext, projectName, xmlModels);
+        XmlModelEmitter.EmitProblemDetailsWriter(generatedContext, projectName, xmlModels);
 
         // The models bound by Content-Type (JSON and/or XML request bodies): a partial with BindAsync
         var boundRequestModels = XmlBodyHelper.ServerBoundRequestModels(openApiDoc);

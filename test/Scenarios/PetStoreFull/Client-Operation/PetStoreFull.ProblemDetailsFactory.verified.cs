@@ -130,6 +130,54 @@ public static class ProblemDetailsFactory
         return new global::Atc.Rest.Client.EndpointResponse(response.IsSuccess, response.StatusCode, text, text, response.Headers);
     }
 
+    /// <summary>
+    /// An <c>application/problem+xml</c> error body (RFC 9457 Appendix B) read into the typed ProblemDetails - a
+    /// ValidationProblemDetails when it has <c>errors</c> - so the typed accessors read it like a problem+json body.
+    /// </summary>
+    public static global::Atc.Rest.Client.EndpointResponse WithXmlProblemBody(global::Atc.Rest.Client.EndpointResponse response)
+    {
+        var isProblemXml = response.Headers.Any(h =>
+            string.Equals(h.Key, "Content-Type", System.StringComparison.OrdinalIgnoreCase) &&
+            h.Value.Any(v => v.TrimStart().StartsWith("application/problem+xml", System.StringComparison.OrdinalIgnoreCase)));
+        if (response.IsSuccess || !isProblemXml || string.IsNullOrWhiteSpace(response.Content))
+        {
+            return response;
+        }
+
+        System.Xml.Linq.XElement root;
+        try
+        {
+            root = XmlModelSupport.Parse(response.Content);
+        }
+        catch (System.Xml.XmlException)
+        {
+            return response;
+        }
+
+        string? Member(string name)
+            => root.Elements().FirstOrDefault(e => e.Name.LocalName == name)?.Value;
+        static string Key(System.Xml.Linq.XElement element)
+            => element.Name.LocalName == "_" ? string.Empty : System.Xml.XmlConvert.DecodeName(element.Name.LocalName)!;
+
+        int? status = int.TryParse(Member("status"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var code) ? code : null;
+        var members = new[] { "type", "title", "status", "detail", "instance", "errors" };
+        var extensions = root.Elements()
+            .Where(e => !members.Contains(e.Name.LocalName))
+            .ToDictionary(Key, e => System.Text.Json.JsonSerializer.SerializeToElement(e.HasElements ? e.ToString() : e.Value), System.StringComparer.Ordinal);
+        var errors = root.Elements().FirstOrDefault(e => e.Name.LocalName == "errors");
+        ProblemDetails problem = errors is null
+            ? new ProblemDetails(Member("type"), Member("title"), status, Member("detail"), Member("instance"))
+            : new ValidationProblemDetails(
+                Member("type"),
+                Member("title"),
+                status,
+                Member("detail"),
+                Member("instance"),
+                errors.Elements().ToDictionary(Key, e => e.HasElements ? e.Elements().Select(i => i.Value).ToArray() : new[] { e.Value }, System.StringComparer.Ordinal));
+        problem = problem with { Extensions = extensions.Count > 0 ? extensions : null };
+        return new global::Atc.Rest.Client.EndpointResponse(response.IsSuccess, response.StatusCode, response.Content, problem, response.Headers);
+    }
+
     private static readonly System.Text.Json.JsonSerializerOptions LenientOptions = CreateLenientOptions();
 
     private static System.Text.Json.JsonSerializerOptions CreateLenientOptions()

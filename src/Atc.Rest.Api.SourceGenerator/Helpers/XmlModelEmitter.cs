@@ -34,6 +34,27 @@ internal static class XmlModelEmitter
     }
 
     /// <summary>
+    /// Emits the server's <c>application/problem+xml</c> writer when the specification has an XML body.
+    /// </summary>
+    /// <param name="context">The source-production context to emit into.</param>
+    /// <param name="projectName">The root namespace.</param>
+    /// <param name="xmlModels">The schemas that get an XML mapping.</param>
+    public static void EmitProblemDetailsWriter(
+        GeneratedSourceContext context,
+        string projectName,
+        ISet<string> xmlModels)
+    {
+        if (xmlModels.Count == 0)
+        {
+            return;
+        }
+
+        context.AddSource(
+            $"{projectName}.XmlProblemDetailsWriter.g.cs",
+            SourceText.From(XmlModelMapperExtractor.GenerateProblemDetailsWriter(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
+    }
+
+    /// <summary>
     /// Emits the shared <c>XmlModelSupport</c> helpers when any model gets an XML mapping.
     /// </summary>
     /// <param name="context">The source-production context to emit into.</param>

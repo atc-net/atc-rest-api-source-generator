@@ -195,7 +195,7 @@ public sealed class XmlRequestBodyTests
     [Fact]
     public async Task Server_BindsXmlAndJsonByContentType_AndRejectsWhatItCannotRead()
     {
-        await using var host = await XmlHost.StartAsync();
+        await using var host = await XmlTestHost.StartAsync(Yaml, HandlerSource, "ErrorBodies.RuntimeTest.XmlRequestRegistration");
 
         var rows = new List<string>
         {
@@ -313,7 +313,7 @@ public sealed class XmlRequestBodyTests
         string client,
         bool preferXml)
     {
-        await using var host = await XmlHost.StartAsync();
+        await using var host = await XmlTestHost.StartAsync(Yaml, HandlerSource, "ErrorBodies.RuntimeTest.XmlRequestRegistration");
         var prefer = preferXml ? ", \"preferXml\": true" : string.Empty;
         var marker = client == "EndpointPerOperation"
             ? $$"""{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails"{{prefer}} }"""
@@ -337,83 +337,5 @@ public sealed class XmlRequestBodyTests
             ],
             rows,
             StringComparer.Ordinal);
-    }
-
-    /// <summary>
-    /// The generated server on Kestrel (random port) with the echo handlers.
-    /// </summary>
-    private sealed class XmlHost : IAsyncDisposable
-    {
-        private readonly WebApplication app;
-        private readonly HttpClient client;
-
-        private XmlHost(WebApplication app)
-        {
-            this.app = app;
-            BaseAddress = new Uri(app.Urls.First());
-            client = new HttpClient { BaseAddress = BaseAddress };
-        }
-
-        public Uri BaseAddress { get; }
-
-        public static async Task<XmlHost> StartAsync()
-        {
-            var sources = ErrorResponseBodyRuntimeTests.Generate(new ApiServerGenerator(), ".atc-rest-api-server", ErrorResponseBodyRuntimeTests.ServerMarker, includeMinimalApi: true, Yaml);
-
-            // The handlers see every generated namespace
-            var usings = sources
-                .Select(s => Regex.Match(s.Source, @"^namespace (?<ns>[\w.]+);", RegexOptions.Multiline | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1)).Groups["ns"].Value)
-                .Where(ns => ns.Length > 0)
-                .Distinct(StringComparer.Ordinal)
-                .Select(ns => $"global using {ns};");
-            sources.Add(("XmlRequestHandlers.cs", string.Join(Environment.NewLine, usings) + Environment.NewLine + HandlerSource));
-
-            var assembly = CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: true);
-            var builder = WebApplication.CreateSlimBuilder();
-            builder.Logging.ClearProviders();
-            assembly.GetType("ErrorBodies.RuntimeTest.XmlRequestRegistration", throwOnError: true)!.GetMethod("Register")!.Invoke(null, [builder.Services]);
-            assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!.GetMethod("AddErrorBodiesApi")!.Invoke(null, [builder.Services, null]);
-            var webApp = builder.Build();
-            webApp.Urls.Add("http://127.0.0.1:0");
-            assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!.GetMethod("MapErrorBodiesApi")!.Invoke(null, [webApp, null]);
-            await webApp.StartAsync(TestContext.Current.CancellationToken);
-            return new XmlHost(webApp);
-        }
-
-        public async Task<string> PostAsync(
-            string path,
-            string contentType,
-            string body,
-            string? accept)
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Post, path)
-            {
-                Content = new ByteArrayContent(Encoding.UTF8.GetBytes(body)),
-            };
-            request.Content.Headers.TryAddWithoutValidation("Content-Type", contentType);
-            if (accept is not null)
-            {
-                request.Headers.TryAddWithoutValidation("Accept", accept);
-            }
-
-            using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
-            var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-            var mediaType = response.Content.Headers.ContentType?.ToString();
-            if (mediaType?.StartsWith("application/problem+json", StringComparison.Ordinal) == true)
-            {
-                var problem = JsonNode.Parse(text)!.AsObject();
-                return problem["errors"] is JsonObject errors
-                    ? $"{(int)response.StatusCode} {mediaType} errors={string.Join(",", errors.Select(e => e.Key))}"
-                    : $"{(int)response.StatusCode} {mediaType} title={problem["title"]}";
-            }
-
-            return $"{(int)response.StatusCode} {mediaType} {text}";
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            client.Dispose();
-            return app.DisposeAsync();
-        }
     }
 }

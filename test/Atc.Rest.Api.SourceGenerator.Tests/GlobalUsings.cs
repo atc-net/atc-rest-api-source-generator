@@ -17,6 +17,8 @@ global using System.Text.Json.Nodes;
 global using System.Text.Json.Serialization;
 global using System.Text.RegularExpressions;
 global using System.Threading;
+global using System.Xml;
+global using System.Xml.Linq;
 
 global using Atc.OpenApi.Helpers;
 global using Atc.Rest.Api.Generator;
