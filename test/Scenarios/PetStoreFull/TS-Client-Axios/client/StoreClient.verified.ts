@@ -4,6 +4,7 @@ import { ApiClient } from './ApiClient';
 import type { Order } from '../models';
 import type { ApiError, ValidationError } from '../errors';
 
+import { readOrder } from '../helpers/xml';
 export type GetInventoryResult =
   | { status: 'ok'; data: unknown; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
@@ -81,6 +82,7 @@ export class StoreClient {
   /** Find purchase order by ID. */
   async getOrderById(orderId: number): Promise<GetOrderByIdResult> {
     return this.api.request<Order>('GET', `/store/order/${orderId}`, {
+      xml: { read: readOrder, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetOrderByIdResult>;
   }

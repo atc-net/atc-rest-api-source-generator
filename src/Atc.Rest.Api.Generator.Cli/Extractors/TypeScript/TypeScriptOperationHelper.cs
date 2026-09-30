@@ -161,6 +161,27 @@ public static class TypeScriptOperationHelper
         return null;
     }
 
+    /// <summary>
+    /// The model schema of a response: the JSON one, else an XML-only model body (read by <c>helpers/xml.ts</c>).
+    /// </summary>
+    /// <param name="operation">The operation.</param>
+    /// <param name="statusCode">The status code.</param>
+    /// <returns>The schema, or <see langword="null"/>.</returns>
+    public static IOpenApiSchema? GetResponseModelSchema(
+        OpenApiOperation operation,
+        string statusCode)
+    {
+        var schema = operation.GetResponseSchema(statusCode);
+        if (schema is not null || operation.Responses is null || !operation.Responses.TryGetValue(statusCode, out var response))
+        {
+            return schema;
+        }
+
+        return XmlBodyHelper.FindXmlOnlyBody(response.Content) is { } xml
+            ? response.Content![xml.MediaType].Schema
+            : null;
+    }
+
     public static string GetReturnType(
         OpenApiOperation operation,
         bool isStreaming,
@@ -182,8 +203,8 @@ public static class TypeScriptOperationHelper
             }
         }
 
-        // Try to get 200 response schema, then 201 (both default to application/json)
-        var schema = operation.GetResponseSchema("200") ?? operation.GetResponseSchema("201");
+        // Try to get 200 response schema, then 201 (both default to application/json; an XML-only model too)
+        var schema = GetResponseModelSchema(operation, "200") ?? GetResponseModelSchema(operation, "201");
 
         // Fall back to a textual response schema (text/plain, text/csv, application/xml, ...)
         // — the body is delivered as a raw string.
@@ -577,7 +598,7 @@ public static class TypeScriptOperationHelper
             case "306":
             {
                 discriminator = "redirection";
-                var dataType = operation.GetResponseSchema(statusCode) is not null
+                var dataType = GetResponseModelSchema(operation, statusCode) is not null
                     ? ResolveSuccessDataType(statusCode, operation, isFileDownload: false, isTextDownload: false, imports)
                     : null;
                 return $"  | {{ status: 'redirection'; data?: {dataType ?? "unknown"}; response: {responseType} }}";
@@ -605,7 +626,7 @@ public static class TypeScriptOperationHelper
             return "string";
         }
 
-        var schema = operation.GetResponseSchema(statusCode);
+        var schema = GetResponseModelSchema(operation, statusCode);
 
         // Fall back to text/xml on 200/201/202 — handleResponse delivers those as raw strings.
         if (schema is null &&
@@ -825,8 +846,8 @@ public static class TypeScriptOperationHelper
         string? path = null)
     {
         // From response schemas (200, 201)
-        CollectSchemaRefTypes(operation.GetResponseSchema("200"), importTypes);
-        CollectSchemaRefTypes(operation.GetResponseSchema("201"), importTypes);
+        CollectSchemaRefTypes(GetResponseModelSchema(operation, "200"), importTypes);
+        CollectSchemaRefTypes(GetResponseModelSchema(operation, "201"), importTypes);
 
         // OAS 3.2 itemSchema on streaming media types (text/event-stream, application/jsonl,
         // etc.) does not use the regular 'schema' field, so GetResponseSchema returns null and

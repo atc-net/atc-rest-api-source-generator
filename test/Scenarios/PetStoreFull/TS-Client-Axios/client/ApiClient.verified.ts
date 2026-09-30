@@ -3,6 +3,7 @@ import axios from 'axios';
 import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { ApiError, errorMessage } from '../errors/ApiError';
 import { ValidationError } from '../errors/ValidationError';
+import { isXmlMediaType, parseXml, readProblemXml, xmlSuccessArm, type XmlOptions } from '../helpers/xml';
 import type { ApiResult } from '../types/ApiResult';
 
 class UnparseableBody {
@@ -27,6 +28,8 @@ export interface RequestOptions {
   responseType?: 'json' | 'blob' | 'text';
   /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */
   arms?: readonly string[];
+  /** An XML body (the generated client passes it): the Accept, how to write the request body and read the response. */
+  xml?: XmlOptions;
 }
 
 export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
@@ -139,6 +142,9 @@ export class ApiClient {
       } else if (options.body instanceof Blob) {
         headers['Content-Type'] = 'application/octet-stream';
         data = options.body;
+      } else if (options.xml?.write) {
+        headers['Content-Type'] = options.xml.contentType ?? 'application/xml; charset=utf-8';
+        data = options.xml.write(options.body as never);
       } else {
         headers['Content-Type'] = 'application/json';
         data = options.body;
@@ -153,6 +159,10 @@ export class ApiClient {
       }
     }
 
+    if (options?.xml?.accept) {
+      headers['Accept'] = options.xml.accept;
+    }
+
     const response = await this.client.request<T>({
       method,
       url: path,
@@ -162,6 +172,16 @@ export class ApiClient {
       signal: options?.signal,
       responseType: options?.responseType === 'blob' ? 'blob' : options?.responseType === 'text' ? 'text' : 'json',
     });
+
+    // An XML body: read by the operation's mapping (no JSON handling)
+    const responseContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');
+    if (options?.xml?.read && response.status >= 200 && response.status < 300 && response.status !== 204 && response.status !== 205 && isXmlMediaType(responseContentType) && typeof response.data === 'string') {
+      try {
+        return fitToArms({ status: xmlSuccessArm(response.status), data: options.xml.read(parseXml(response.data)) as T, response } as ApiResult<T>, options.arms);
+      } catch (parseError) {
+        return fitToArms({ status: 'parseError', error: parseError as Error, response }, options.arms);
+      }
+    }
 
     return fitToArms(await this.handleResponse<T>(response), options?.arms);
   }
@@ -368,6 +388,12 @@ export class ApiClient {
       const errorContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '').toLowerCase();
       if (errorBody.length === 0) {
         errorBody = undefined;
+      } else if (errorContentType.includes('application/problem+xml')) {
+        try {
+          errorBody = readProblemXml(parseXml(errorBody));
+        } catch {
+          errorBody = undefined;
+        }
       } else if (errorContentType.includes('application/json') || errorContentType.includes('+json')) {
         // Only a responseType 'text' request left a JSON body unparsed; otherwise a string here is the parsed
         // value of a JSON-string body ("42" stays the string '42').

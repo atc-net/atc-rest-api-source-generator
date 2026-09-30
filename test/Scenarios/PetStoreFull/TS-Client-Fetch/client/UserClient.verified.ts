@@ -3,6 +3,7 @@ import { ApiClient } from './ApiClient';
 import type { User } from '../models';
 import type { ApiError, ValidationError } from '../errors';
 
+import { readUser } from '../helpers/xml';
 export type CreateUserResult =
   | { status: 'ok'; data: User; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
@@ -105,6 +106,7 @@ export class UserClient {
   async createUser(body: User): Promise<CreateUserResult> {
     return this.api.request<User>('POST', '/user', {
       body,
+      xml: { read: readUser, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateUserResult>;
   }
@@ -113,6 +115,7 @@ export class UserClient {
   async createUsersWithListInput(body: User[]): Promise<CreateUsersWithListInputResult> {
     return this.api.request<User>('POST', '/user/createWithList', {
       body,
+      xml: { read: readUser, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateUsersWithListInputResult>;
   }
@@ -139,6 +142,7 @@ export class UserClient {
   /** Get user by user name. */
   async getUserByName(username: string): Promise<GetUserByNameResult> {
     return this.api.request<User>('GET', `/user/${username}`, {
+      xml: { read: readUser, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetUserByNameResult>;
   }

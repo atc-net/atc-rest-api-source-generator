@@ -231,6 +231,15 @@ public static class OpenApiOperationExtensions
                 }
             }
 
+            // Priority 3: an XML model body (written by the model's generated XML mapping)
+            foreach (var kvp in operation.RequestBody.Content)
+            {
+                if (ResponseBodyClassifier.Classify(kvp.Key, kvp.Value.Schema) == ResponseBodyKind.Xml)
+                {
+                    return (kvp.Value.Schema, kvp.Key);
+                }
+            }
+
             return (null, string.Empty);
         }
 

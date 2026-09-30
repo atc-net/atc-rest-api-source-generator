@@ -277,13 +277,14 @@ public static class TypeScriptClientExtractor
         bodySb.AppendLine("    this.api = api;");
         bodySb.AppendLine("  }");
 
-        // Generate methods
+        // Generate methods (the helpers/xml.ts functions the operations with an XML body use are collected)
+        var xmlFunctions = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var (path, method, operation) in operations)
         {
             bodySb.AppendLine();
             perOpResultTypes.TryGetValue(operation, out var resultTypeName);
             perOpArms.TryGetValue(operation, out var armsOption);
-            AppendMethod(bodySb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, armsOption, writableSchemas, brandedIds, zodRuntimeValidate, wireNames);
+            AppendMethod(bodySb, path, method, operation, openApiDoc, namingStrategy, convertDates, resultTypeName, armsOption, writableSchemas, brandedIds, zodRuntimeValidate, wireNames, xmlFunctions);
         }
 
         bodySb.AppendLine("}");
@@ -298,6 +299,10 @@ public static class TypeScriptClientExtractor
 
         // Write imports (narrowed to what the body references)
         AppendImports(sb, importTypes, enumNames, perOpErrorImports, httpClient, brandImports, zodSchemaImports, needsZodImport, bodyText);
+        if (xmlFunctions.Count > 0)
+        {
+            sb.Append("import { ").Append(string.Join(", ", xmlFunctions)).AppendLine(" } from '../helpers/xml';");
+        }
 
         sb.Append(bodyText);
 
@@ -425,6 +430,53 @@ public static class TypeScriptClientExtractor
         sb.AppendLine();
     }
 
+    /// <summary>
+    /// The <c>xml</c> request option of an operation with an XML body: the read function of an XML (or JSON+XML)
+    /// success response with the Accept to send, and the write function of an XML-only request body.
+    /// </summary>
+    private static string? BuildXmlOption(
+        OpenApiOperation operation,
+        ISet<string>? xmlFunctions)
+    {
+        var parts = new List<string>();
+        var success = operation.Responses?
+            .Where(r => r.Key.Length == 3 && r.Key[0] == '2')
+            .OrderBy(r => r.Key, StringComparer.Ordinal)
+            .Select(r => r.Value)
+            .FirstOrDefault();
+        var content = success?.Content;
+        if ((XmlBodyHelper.FindXmlOnlyBody(content) ?? XmlBodyHelper.FindXmlAlternative(content)) is { } responseXml &&
+            ModelKey(content![responseXml.MediaType].Schema, responseXml.IsList) is { } responseKey)
+        {
+            var names = TypeScriptXmlHelperExtractor.FunctionNames(responseKey);
+            var read = responseXml.IsList ? names.ReadList : names.Read;
+            xmlFunctions?.Add(read);
+            parts.Add("read: " + read);
+            parts.Add("accept: '" + XmlBodyHelper.AcceptFor([responseXml], XmlBodyHelper.ErrorMediaTypes(operation), preferXml: false) + "'");
+        }
+
+        var requestContent = operation.RequestBody?.Content;
+        if (XmlBodyHelper.FindXmlOnlyBody(requestContent) is { } requestXml &&
+            ModelKey(requestContent![requestXml.MediaType].Schema, requestXml.IsList) is { } requestKey)
+        {
+            var names = TypeScriptXmlHelperExtractor.FunctionNames(requestKey);
+            var write = requestXml.IsList ? names.WriteList : names.Write;
+            xmlFunctions?.Add(write);
+            parts.Add("write: " + (requestXml.IsList ? write : "(body: never) => " + write + "(body)"));
+            parts.Add("contentType: '" + requestXml.MediaType + "; charset=utf-8'");
+        }
+
+        return parts.Count == 0 ? null : "{ " + string.Join(", ", parts) + " }";
+
+        static string? ModelKey(
+            IOpenApiSchema? schema,
+            bool isList)
+        {
+            var reference = isList ? (schema as OpenApiSchema)?.Items as OpenApiSchemaReference : schema as OpenApiSchemaReference;
+            return reference?.Reference?.Id ?? reference?.Id;
+        }
+    }
+
     private static void AppendMethod(
         StringBuilder sb,
         string path,
@@ -438,7 +490,8 @@ public static class TypeScriptClientExtractor
         HashSet<string> writableSchemas,
         bool brandedIds,
         bool zodRuntimeValidate,
-        TypeScriptWireNames wireNames)
+        TypeScriptWireNames wireNames,
+        ISet<string>? xmlFunctions = null)
     {
         var isStreaming = operation.IsStreamingResponse();
         var isFileDownload = operation.HasFileDownload();
@@ -499,7 +552,7 @@ public static class TypeScriptClientExtractor
             var zodSpec = zodRuntimeValidate
                 ? TypeScriptOperationHelper.TryGetResponseZodSchemaSpec(operation)
                 : null;
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption);
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions));
         }
     }
 
@@ -610,7 +663,8 @@ public static class TypeScriptClientExtractor
         ZodResponseSchemaSpec? zodSpec,
         string? retryOption,
         string? armsOption = null,
-        string? wireOption = null)
+        string? wireOption = null,
+        string? xmlOption = null)
     {
         // Build parameter list
         var paramList = BuildParameterList(pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path);
@@ -667,7 +721,7 @@ public static class TypeScriptClientExtractor
 
         var urlArg = hasQuerystring ? "_url" : interpolatedPath;
 
-        if (hasQuery || hasHeaders || hasBody || isFileUpload || isFileDownload || isTextDownload || emitParseSchema || retryOption is not null || armsOption is not null || wireOption is not null)
+        if (hasQuery || hasHeaders || hasBody || isFileUpload || isFileDownload || isTextDownload || emitParseSchema || retryOption is not null || armsOption is not null || wireOption is not null || xmlOption is not null)
         {
             sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(urlArg).AppendLine(", {");
 
@@ -712,6 +766,12 @@ public static class TypeScriptClientExtractor
             if (wireOption is not null)
             {
                 sb.Append("      wire: ").Append(wireOption).AppendLine(",");
+            }
+
+            // An XML body (helpers/xml.ts): how to read the response and write the request
+            if (xmlOption is not null)
+            {
+                sb.Append("      xml: ").Append(xmlOption).AppendLine(",");
             }
 
             // The result arms of the per-op union: a status it does not declare is folded into one it does.

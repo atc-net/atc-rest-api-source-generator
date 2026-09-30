@@ -56,7 +56,8 @@ public static class TypeScriptClientGenerationService
         var hasDownload = clientCount > 0 && openApiDoc.Paths.Values
             .SelectMany(path => path.Operations?.Values ?? Enumerable.Empty<OpenApiOperation>())
             .Any(operation => operation.HasFileDownload());
-        if (hasPagination || hasRetry || hasDownload || wireNamesContent is not null)
+        var xmlContent = clientCount > 0 ? TypeScriptXmlHelperExtractor.Generate(openApiDoc, headerContent, config.NamingStrategy, config.ConvertDates) : null;
+        if (hasPagination || hasRetry || hasDownload || wireNamesContent is not null || xmlContent is not null)
         {
             var helpersDir = Path.Combine(outputPath, "helpers");
             var helperModules = new List<string>();
@@ -89,6 +90,13 @@ public static class TypeScriptClientGenerationService
             {
                 WriteTsFile(Path.Combine(helpersDir, "download.ts"), TypeScriptDownloadHelperExtractor.Generate(headerContent), dryRun);
                 helperModules.Add("download");
+            }
+
+            // XML bodies: the models' XML mapping and the parser the ApiClient uses
+            if (xmlContent is not null)
+            {
+                WriteTsFile(Path.Combine(helpersDir, "xml.ts"), xmlContent, dryRun);
+                helperModules.Add("xml");
             }
 
             // Generate barrel export for helpers
@@ -500,6 +508,13 @@ public static class TypeScriptClientGenerationService
         var apiClientContent = httpClient == TypeScriptHttpClient.Axios
             ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, convertDates, hasRetry, zodRuntimeValidate, wireNames.HasRenames)
             : TypeScriptFetchApiClientExtractor.Generate(headerContent, convertDates, hasRetry, zodRuntimeValidate, wireNames.HasRenames);
+
+        // XML bodies: the xml request option, XML responses and application/problem+xml errors
+        if (XmlBodyReachability.Collect(openApiDoc).Count > 0)
+        {
+            apiClientContent = TypeScriptXmlHelperExtractor.AugmentApiClient(apiClientContent, httpClient == TypeScriptHttpClient.Axios);
+        }
+
         WriteTsFile(Path.Combine(clientDir, "ApiClient.ts"), apiClientContent, dryRun);
 
         // Write per-segment client files

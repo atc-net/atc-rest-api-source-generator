@@ -4,6 +4,7 @@ import { ApiClient } from './ApiClient';
 import type { ApiResponse, Pet } from '../models';
 import type { ApiError, ValidationError } from '../errors';
 
+import { readPet, readPetList } from '../helpers/xml';
 export type UpdatePetResult =
   | { status: 'ok'; data: Pet; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
@@ -119,6 +120,7 @@ export class PetClient {
   async updatePet(body: Pet): Promise<UpdatePetResult> {
     return this.api.request<Pet>('PUT', '/pet', {
       body,
+      xml: { read: readPet, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'notFound', 'unprocessableEntity', 'unauthorized', 'forbidden', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdatePetResult>;
   }
@@ -127,6 +129,7 @@ export class PetClient {
   async addPet(body: Pet): Promise<AddPetResult> {
     return this.api.request<Pet>('POST', '/pet', {
       body,
+      xml: { read: readPet, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unprocessableEntity', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<AddPetResult>;
   }
@@ -137,6 +140,7 @@ export class PetClient {
       query: {
         status: query?.status,
       },
+      xml: { read: readPetList, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<FindPetsByStatusResult>;
   }
@@ -147,6 +151,7 @@ export class PetClient {
       query: {
         tags: query?.tags,
       },
+      xml: { read: readPetList, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<FindPetsByTagsResult>;
   }
@@ -154,6 +159,7 @@ export class PetClient {
   /** Find pet by ID. */
   async getPetById(petId: number): Promise<GetPetByIdResult> {
     return this.api.request<Pet>('GET', `/pet/${petId}`, {
+      xml: { read: readPet, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetPetByIdResult>;
   }
@@ -165,6 +171,7 @@ export class PetClient {
         name: query?.name,
         status: query?.status,
       },
+      xml: { read: readPet, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdatePetWithFormResult>;
   }
