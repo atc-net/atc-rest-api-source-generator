@@ -537,6 +537,16 @@ public static class HttpClientExtractor
             }
         }
 
+        // An XML request body (XML-only, or with preferXml the XML alternative): sent as the model's XML
+        if (XmlBodyHelper.ClientRequestBody(operation, preferXml) is { } xmlRequestBody)
+        {
+            var bytes = XmlBodyHelper.ToUtf8BytesExpression(XmlBodyHelper.ModelTypeName(operation.RequestBody!.Content!, xmlRequestBody), xmlRequestBody, "parameters.Request");
+            xmlRead = (xmlRead ?? new XmlReadPlan(ReadMethod: null, ByContentType: false, Accept: null)) with
+            {
+                RequestContent = $"XmlModelSupport.ToContent({bytes}, \"{xmlRequestBody.MediaType}\")",
+            };
+        }
+
         // Check if operation has parameters or request body (including path-level parameters)
         var hasQueryRouteParams = operation.Parameters is { Count: > 0 } || pathLevelParameters is { Count: > 0 };
         var hasRequestBody = operation.RequestBody is { Content: not null };
@@ -1012,7 +1022,7 @@ public static class HttpClientExtractor
                 builder.AppendLine();
             }
 
-            if (xmlRead is not null)
+            if (xmlRead?.Accept is not null)
             {
                 builder.AppendLine($"request.Headers.Accept.ParseAdd(\"{xmlRead.Accept}\");");
             }
@@ -1027,7 +1037,7 @@ public static class HttpClientExtractor
             AppendResponseCompletion(
                 builder,
                 resultStyle,
-                hasReturnType ? (xmlRead is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
+                hasReturnType ? (xmlRead?.ReadMethod is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
                 returnType,
                 isLastStatement: hasReturnType,
                 xmlRead: xmlRead);
@@ -1053,7 +1063,7 @@ public static class HttpClientExtractor
             AppendResponseCompletion(
                 builder,
                 resultStyle,
-                hasReturnType ? (xmlRead is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
+                hasReturnType ? (xmlRead?.ReadMethod is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
                 returnType,
                 isLastStatement: true,
                 xmlRead: xmlRead);
@@ -1164,12 +1174,16 @@ public static class HttpClientExtractor
         builder.AppendLine();
         builder.AppendLine($"using var requestMessage = new HttpRequestMessage({httpMethodExpression}, url);");
 
-        if (hasJsonBody)
+        if (xmlRead?.RequestContent is not null)
+        {
+            builder.AppendLine($"requestMessage.Content = {xmlRead.RequestContent};");
+        }
+        else if (hasJsonBody)
         {
             builder.AppendLine($"requestMessage.Content = JsonContent.Create({requestAccess}, options: jsonSerializerOptions);");
         }
 
-        if (xmlRead is not null)
+        if (xmlRead?.Accept is not null)
         {
             builder.AppendLine($"requestMessage.Headers.Accept.ParseAdd(\"{xmlRead.Accept}\");");
         }
@@ -1185,7 +1199,7 @@ public static class HttpClientExtractor
         AppendResponseCompletion(
             builder,
             resultStyle,
-            hasReturnType ? (xmlRead is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
+            hasReturnType ? (xmlRead?.ReadMethod is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
             returnType,
             isLastStatement: hasReturnType,
             xmlRead: xmlRead);
@@ -1275,6 +1289,11 @@ public static class HttpClientExtractor
             builder.AppendLine();
             AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken);", resilienceStamp, "HttpMethod.Post", "content");
         }
+        else if (xmlRead?.RequestContent is not null)
+        {
+            // An XML body: the model's XML with its media type
+            AppendSend(builder, $"var response = await httpClient.PostAsync(url, {xmlRead.RequestContent}, cancellationToken);", resilienceStamp, "HttpMethod.Post", xmlRead.RequestContent, accept: xmlRead.Accept);
+        }
         else if (hasJsonBody)
         {
             AppendSend(
@@ -1308,7 +1327,7 @@ public static class HttpClientExtractor
             AppendResponseCompletion(
                 builder,
                 resultStyle,
-                hasReturnType ? (xmlRead is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
+                hasReturnType ? (xmlRead?.ReadMethod is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
                 returnType,
                 isLastStatement: true,
                 xmlRead: xmlRead);
@@ -1328,20 +1347,28 @@ public static class HttpClientExtractor
         var hasJsonBody = operation.RequestBody?.Content?.ContainsKey("application/json") ?? false;
         var requestAccess = hasParameters ? "parameters.Request" : "request";
 
-        AppendSend(
-            builder,
-            hasJsonBody
-                ? $"var response = await httpClient.PutAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);"
-                : "var response = await httpClient.PutAsync(url, null, cancellationToken);",
-            resilienceStamp,
-            "HttpMethod.Put",
-            hasJsonBody ? $"JsonContent.Create({requestAccess}, options: jsonSerializerOptions)" : null,
-            accept: xmlRead?.Accept);
+        if (xmlRead?.RequestContent is not null)
+        {
+            // An XML body: the model's XML with its media type
+            AppendSend(builder, $"var response = await httpClient.PutAsync(url, {xmlRead.RequestContent}, cancellationToken);", resilienceStamp, "HttpMethod.Put", xmlRead.RequestContent, accept: xmlRead.Accept);
+        }
+        else
+        {
+            AppendSend(
+                builder,
+                hasJsonBody
+                    ? $"var response = await httpClient.PutAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);"
+                    : "var response = await httpClient.PutAsync(url, null, cancellationToken);",
+                resilienceStamp,
+                "HttpMethod.Put",
+                hasJsonBody ? $"JsonContent.Create({requestAccess}, options: jsonSerializerOptions)" : null,
+                accept: xmlRead?.Accept);
+        }
 
         AppendResponseCompletion(
             builder,
             resultStyle,
-            hasReturnType ? (xmlRead is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
+            hasReturnType ? (xmlRead?.ReadMethod is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
             returnType,
             isLastStatement: true,
             xmlRead: xmlRead);
@@ -1360,7 +1387,7 @@ public static class HttpClientExtractor
         AppendResponseCompletion(
             builder,
             resultStyle,
-            hasReturnType ? (xmlRead is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
+            hasReturnType ? (xmlRead?.ReadMethod is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
             returnType,
             isLastStatement: true,
             xmlRead: xmlRead);
@@ -2119,7 +2146,7 @@ public static class HttpClientExtractor
         bool isLastStatement,
         XmlReadPlan? xmlRead = null)
     {
-        if (payloadKind == ResponsePayloadKind.Json && xmlRead is { ByContentType: true })
+        if (payloadKind == ResponsePayloadKind.Json && xmlRead is { ByContentType: true, ReadMethod: not null })
         {
             // Offered as JSON and XML: the model read by the response's Content-Type
             builder.AppendLine("if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))");
@@ -2127,11 +2154,11 @@ public static class HttpClientExtractor
             if (resultStyle == TypedClientResultStyleType.Result)
             {
                 builder.AppendLine(4, "var xmlBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);");
-                builder.AppendLine(4, $"return new EndpointResponse<{returnType}>(true, response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken), xmlBytes.Length > 0 ? {xmlRead.ReadMethod}(XmlModelSupport.ParseContent(xmlBytes)) : null, ReadHeaders(response));");
+                builder.AppendLine(4, $"return new EndpointResponse<{returnType}>(true, response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken), xmlBytes.Length > 0 ? {xmlRead.ReadMethod!}(XmlModelSupport.ParseContent(xmlBytes)) : null, ReadHeaders(response));");
             }
             else
             {
-                builder.AppendLine(4, $"return {xmlRead.ReadMethod}(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));");
+                builder.AppendLine(4, $"return {xmlRead.ReadMethod!}(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));");
             }
 
             builder.AppendLine("}");
@@ -2140,7 +2167,7 @@ public static class HttpClientExtractor
             return;
         }
 
-        if (payloadKind == ResponsePayloadKind.Xml && xmlRead is not null)
+        if (payloadKind == ResponsePayloadKind.Xml && xmlRead?.ReadMethod is not null)
         {
             // The model read from the XML body by its generated XML mapping - from the bytes, so the document's own
             // encoding declaration is honoured (a string read would decode by the charset parameter or UTF-8 only)
@@ -2148,12 +2175,12 @@ public static class HttpClientExtractor
             {
                 builder.AppendLine("var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);");
                 builder.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken);");
-                AppendStatement(builder, $"return new EndpointResponse<{returnType}>(response.IsSuccessStatusCode, response.StatusCode, content, response.IsSuccessStatusCode && bytes.Length > 0 ? {xmlRead.ReadMethod}(XmlModelSupport.ParseContent(bytes)) : null, ReadHeaders(response));", isLastStatement);
+                AppendStatement(builder, $"return new EndpointResponse<{returnType}>(response.IsSuccessStatusCode, response.StatusCode, content, response.IsSuccessStatusCode && bytes.Length > 0 ? {xmlRead.ReadMethod!}(XmlModelSupport.ParseContent(bytes)) : null, ReadHeaders(response));", isLastStatement);
                 return;
             }
 
             builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
-            AppendStatement(builder, $"return {xmlRead.ReadMethod}(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));", isLastStatement);
+            AppendStatement(builder, $"return {xmlRead.ReadMethod!}(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));", isLastStatement);
             return;
         }
 

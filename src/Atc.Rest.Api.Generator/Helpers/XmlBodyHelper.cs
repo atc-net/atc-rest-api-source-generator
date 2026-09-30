@@ -86,6 +86,71 @@ public static class XmlBodyHelper
     }
 
     /// <summary>
+    /// The XML request body a generated client sends: an XML-only body, or - with <c>preferXml</c> - the XML
+    /// alternative of a JSON body.
+    /// </summary>
+    /// <param name="operation">The operation.</param>
+    /// <param name="preferXml">Whether the client prefers XML for a body offered as JSON and XML.</param>
+    /// <returns>The XML body, or <see langword="null"/> when the client sends JSON (or no model body).</returns>
+    public static XmlBody? ClientRequestBody(
+        OpenApiOperation operation,
+        bool preferXml)
+    {
+        var content = operation?.RequestBody?.Content;
+        return FindXmlOnlyBody(content) ?? (preferXml ? FindXmlAlternative(content) : null);
+    }
+
+    /// <summary>
+    /// The request body a generated server binds by its <c>Content-Type</c> (a generated <c>BindAsync</c>): a single
+    /// model offered as XML - only, or as an alternative to JSON.
+    /// </summary>
+    /// <param name="content">The request body content.</param>
+    /// <returns>The XML body, or <see langword="null"/> when the body is bound as JSON (<c>[FromBody]</c>).</returns>
+    public static XmlBody? ServerBoundRequestBody(
+        IDictionary<string, IOpenApiMediaType>? content)
+        => (FindXmlOnlyBody(content) ?? FindXmlAlternative(content)) is { IsList: false } body ? body : null;
+
+    /// <summary>
+    /// The models a generated server binds by <c>Content-Type</c>, with whether any operation also accepts them as
+    /// JSON.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <returns>The schema names and whether JSON is accepted too.</returns>
+    public static Dictionary<string, bool> ServerBoundRequestModels(
+        OpenApiDocument openApiDoc)
+    {
+        var models = new Dictionary<string, bool>(StringComparer.Ordinal);
+        foreach (var operation in (openApiDoc?.Paths?.Values ?? Enumerable.Empty<IOpenApiPathItem>()).SelectMany(p => p.Operations?.Values ?? Enumerable.Empty<OpenApiOperation>()))
+        {
+            var content = operation.RequestBody?.Content;
+            if (ServerBoundRequestBody(content) is { } body &&
+                content![body.MediaType].Schema is OpenApiSchemaReference reference &&
+                (reference.Reference?.Id ?? reference.Id) is { } name)
+            {
+                models[name] = (models.TryGetValue(name, out var json) && json) || body.IsAlternative;
+            }
+        }
+
+        return models;
+    }
+
+    /// <summary>
+    /// The C# type of a model body: the record's name (the sanitized schema name), or <c>List&lt;T&gt;</c> of it.
+    /// </summary>
+    /// <param name="content">The body content.</param>
+    /// <param name="body">The XML body.</param>
+    /// <returns>The type name.</returns>
+    public static string ModelTypeName(
+        IDictionary<string, IOpenApiMediaType> content,
+        XmlBody body)
+    {
+        var schema = content[body.MediaType].Schema;
+        var reference = body.IsList ? (schema as OpenApiSchema)?.Items as OpenApiSchemaReference : schema as OpenApiSchemaReference;
+        var name = OpenApiSchemaExtensions.SanitizeSchemaName(reference?.Reference?.Id ?? reference?.Id ?? "object");
+        return body.IsList ? $"List<{name}>" : name;
+    }
+
+    /// <summary>
     /// The media types of an operation's declared error responses (4xx, 5xx, <c>default</c>).
     /// </summary>
     /// <param name="operation">The operation.</param>

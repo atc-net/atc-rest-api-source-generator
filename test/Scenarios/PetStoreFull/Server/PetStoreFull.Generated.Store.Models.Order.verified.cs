@@ -8,7 +8,7 @@ using System.ComponentModel.DataAnnotations;
 namespace PetStoreFull.Generated.Store.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record Order(
+public sealed partial record Order(
     long? Id = null,
     long? PetId = null,
     int? Quantity = null,

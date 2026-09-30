@@ -18,7 +18,7 @@ namespace PetStoreFull.Generated.Store.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record PlaceOrderParameters(
-    [property: FromBody, Required] Order Request);
+    [property: Required] Order Request);
 
 /// <summary>
 /// Parameters for operation request.

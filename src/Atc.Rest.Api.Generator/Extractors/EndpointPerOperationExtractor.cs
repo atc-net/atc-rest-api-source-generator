@@ -1207,6 +1207,12 @@ public static class EndpointPerOperationExtractor
                     sb.AppendLine("requestBuilder.WithBody(parameters.File!.OpenReadStream());");
                 }
             }
+            else if (XmlBodyHelper.ClientRequestBody(operation, preferXml) is { } xmlRequestBody)
+            {
+                // An XML body (XML-only, or with preferXml the XML alternative): the model's XML with its media type
+                var bytes = XmlBodyHelper.ToUtf8BytesExpression(XmlBodyHelper.ModelTypeName(operation.RequestBody.Content, xmlRequestBody), xmlRequestBody, "parameters.Request");
+                sb.AppendLine($"requestBuilder.WithBinaryBody(new global::System.IO.MemoryStream({bytes}), \"{xmlRequestBody.MediaType}; charset=utf-8\");");
+            }
             else
             {
                 // Regular JSON body

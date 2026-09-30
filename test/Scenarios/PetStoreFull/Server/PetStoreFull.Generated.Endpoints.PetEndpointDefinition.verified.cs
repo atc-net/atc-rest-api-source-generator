@@ -44,7 +44,8 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .Accepts<Pet>("application/json", "application/xml");
 
         pet
             .MapPost("/", AddPet)
@@ -59,7 +60,8 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .Accepts<Pet>("application/json", "application/xml");
 
         pet
             .MapGet("findByStatus", FindPetsByStatus)

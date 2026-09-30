@@ -84,6 +84,14 @@ public static class XmlModelSupport
             ?? throw new global::System.Xml.XmlException("The XML document has no root element.");
     }
 
+    /// <summary>An XML request body: the UTF-8 bytes with their media type.</summary>
+    public static global::System.Net.Http.HttpContent ToContent(byte[] body, string mediaType)
+    {
+        var content = new global::System.Net.Http.ByteArrayContent(body);
+        content.Headers.ContentType = new global::System.Net.Http.Headers.MediaTypeHeaderValue(mediaType) { CharSet = "utf-8" };
+        return content;
+    }
+
     /// <summary>Whether a response media type is XML (<c>application/xml</c>, <c>text/xml</c>, <c>*+xml</c>).</summary>
     public static bool IsXmlMediaType(string? mediaType)
         => mediaType is not null &&

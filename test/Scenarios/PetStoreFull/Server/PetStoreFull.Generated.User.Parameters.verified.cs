@@ -18,7 +18,7 @@ namespace PetStoreFull.Generated.User.Parameters;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateUserParameters(
-    [property: FromBody, Required] User Request);
+    [property: Required] User Request);
 
 /// <summary>
 /// Parameters for operation request.
@@ -56,7 +56,7 @@ public sealed record GetUserByNameParameters(
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdateUserParameters(
     [property: FromRoute(Name = "username"), Required] string Username,
-    [property: FromBody, Required] User Request);
+    [property: Required] User Request);
 
 /// <summary>
 /// Parameters for operation request.

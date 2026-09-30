@@ -997,6 +997,17 @@ using Microsoft.AspNetCore.Builder;
             GenerateOutputCachingMetadata(builder, httpMethod, operation, pathItem, openApiDoc, groupOutputCache);
         }
 
+        // A model bound by Content-Type (JSON and/or XML): Accepts names the media types (the runtime OpenAPI document
+        // has no body otherwise - BindAsync is not [FromBody])
+        if (XmlBodyHelper.ServerBoundRequestBody(operation.RequestBody?.Content) is { } boundBody)
+        {
+            var mediaTypes = boundBody.IsAlternative
+                ? new[] { "application/json" }.Concat(boundBody.AlternativeMediaTypes!)
+                : [boundBody.MediaType];
+            builder.AppendLine();
+            builder.Append($"    .Accepts<{XmlBodyHelper.ModelTypeName(operation.RequestBody!.Content!, boundBody)}>({string.Join(", ", mediaTypes.Select(m => $"\"{m}\""))})");
+        }
+
         // Add Accepts and DisableAntiforgery for file upload endpoints
         if (operation.HasFileUpload())
         {

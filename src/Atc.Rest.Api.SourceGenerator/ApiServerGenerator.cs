@@ -365,6 +365,13 @@ public class ApiServerGenerator : IIncrementalGenerator
         var xmlModels = XmlBodyReachability.Collect(openApiDoc);
         XmlModelEmitter.EmitSupport(generatedContext, projectName, xmlModels);
 
+        // The models bound by Content-Type (JSON and/or XML request bodies): a partial with BindAsync
+        var boundRequestModels = XmlBodyHelper.ServerBoundRequestModels(openApiDoc);
+
+        // The models of an XML request body name their XML names where they differ from the JSON ones
+        // ([XmlElement] / [XmlAttribute]): a validation filter maps an XML request's error keys through them
+        var xmlRequestModels = XmlBodyReachability.CollectRequestBodies(openApiDoc);
+
         // A spec-defined ProblemDetails / ValidationProblemDetails is not materialized: the server binds
         // those names to Microsoft.AspNetCore.Mvc (every generated Results file imports it), and a second,
         // generated type of the same name would make every reference ambiguous (CS0104). Unless another
@@ -386,7 +393,9 @@ public class ApiServerGenerator : IIncrementalGenerator
                 sharedRegistry,
                 config.IncludeDeprecated,
                 config.GeneratePartialModels,
-                xmlModels: xmlModels);
+                xmlModels: xmlModels,
+                boundRequestModels: boundRequestModels,
+                xmlRequestModels: xmlRequestModels);
 
             GenerateEnumsForSchemas(
                 generatedContext,
@@ -454,7 +463,9 @@ public class ApiServerGenerator : IIncrementalGenerator
                     config.IncludeDeprecated,
                     config.GeneratePartialModels,
                     includeSharedModelsUsing: sharedSchemas.Count > 0,
-                    xmlModels: xmlModels);
+                    xmlModels: xmlModels,
+                    boundRequestModels: boundRequestModels,
+                    xmlRequestModels: xmlRequestModels);
 
                 GenerateEnumsForSchemas(
                     generatedContext,
@@ -699,7 +710,9 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool includeDeprecated,
         bool generatePartialModels,
         bool includeSharedModelsUsing = false,
-        ISet<string>? xmlModels = null)
+        ISet<string>? xmlModels = null,
+        Dictionary<string, bool>? boundRequestModels = null,
+        ISet<string>? xmlRequestModels = null)
     {
         // Use SchemaExtractor.ExtractForSchemasWithInlineEnums to extract schemas and inline enums
         var xmlSources = new List<XmlModelSource>();
@@ -735,9 +748,28 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         var codeDocGenerator = new CodeDocumentationTagsGenerator();
 
+        // A model bound by Content-Type gets a partial with BindAsync, so its record is partial
+        var boundSources = xmlSources
+            .Where(x => boundRequestModels?.ContainsKey(x.SchemaKey) == true)
+            .ToList();
+        var boundTypeNames = new HashSet<string>(boundSources.Select(x => x.TypeName), StringComparer.Ordinal);
+
         // Generate each model as a separate file
-        foreach (var record in recordsParameters.Parameters)
+        foreach (var modelRecord in recordsParameters.Parameters)
         {
+            var named = WithXmlNames(modelRecord, xmlSources, xmlModels, xmlRequestModels);
+            var record = boundTypeNames.Contains(named.Name.Split(' ')[0])
+                ? named with
+                {
+                    DeclarationModifier = named.DeclarationModifier switch
+                    {
+                        DeclarationModifiers.PublicSealedRecord => DeclarationModifiers.PublicSealedPartialRecord,
+                        DeclarationModifiers.PublicRecord => DeclarationModifiers.PublicPartialRecord,
+                        _ => named.DeclarationModifier,
+                    },
+                }
+                : named;
+
             // Create a single-record container with the same header and namespace
             var singleRecordParams = recordsParameters with { Parameters = [record] };
 
@@ -759,6 +791,50 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             XmlModelEmitter.EmitCompanions(context, xmlSources, recordsParameters.HeaderContent, modelsNamespace, projectName, xmlModels);
         }
+
+        foreach (var bound in boundSources)
+        {
+            context.AddSource(
+                NamespaceBuilder.ToFileName(modelsNamespace, bound.TypeName + "Binding"),
+                SourceText.From(XmlModelMapperExtractor.GenerateBinding(bound.TypeName, modelsNamespace, projectName, boundRequestModels![bound.SchemaKey]).NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+    }
+
+    /// <summary>
+    /// The record of a model an XML request body carries, with <c>[XmlElement]</c> / <c>[XmlAttribute]</c> on the
+    /// properties whose XML name differs from their JSON name.
+    /// </summary>
+    private static RecordParameters WithXmlNames(
+        RecordParameters record,
+        List<XmlModelSource> xmlSources,
+        ISet<string>? xmlModels,
+        ISet<string>? xmlRequestModels)
+    {
+        var source = xmlSources.FirstOrDefault(x => ReferenceEquals(x.Record, record));
+        if (source is null || xmlModels is null || xmlRequestModels?.Contains(source.SchemaKey) != true)
+        {
+            return record;
+        }
+
+        var overrides = XmlModelMapperExtractor.XmlNameOverrides(source, xmlModels);
+        if (overrides.Count == 0)
+        {
+            return record;
+        }
+
+        return record with
+        {
+            Parameters = record.Parameters?
+                .Select(p => overrides.TryGetValue(p.Name, out var xml)
+                    ? p with
+                    {
+                        Attributes = (p.Attributes ?? [])
+                            .Append(new AttributeParameters(xml.IsAttribute ? "global::System.Xml.Serialization.XmlAttribute" : "global::System.Xml.Serialization.XmlElement", $"\"{xml.Name}\""))
+                            .ToList(),
+                    }
+                    : p)
+                .ToList(),
+        };
     }
 
     /// <summary>

@@ -8,7 +8,7 @@ using System.ComponentModel.DataAnnotations;
 namespace PetStoreFull.Generated.Pet.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record Pet(
+public sealed partial record Pet(
     [property: Required] string Name,
     [property: Required] List<string> PhotoUrls,
     long? Id = null,

@@ -13,6 +13,21 @@ public static class XmlBodyReachability
     /// <param name="openApiDoc">The OpenAPI document.</param>
     /// <returns>The schema names; empty when the specification has no XML body.</returns>
     public static HashSet<string> Collect(OpenApiDocument openApiDoc)
+        => Collect(openApiDoc, includeResponses: true);
+
+    /// <summary>
+    /// Collects the names of the schemas reachable from an XML <b>request</b> body - the models whose validation errors
+    /// an XML client reads by their XML names.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <returns>The schema names; empty when no request body is XML.</returns>
+    public static HashSet<string> CollectRequestBodies(
+        OpenApiDocument openApiDoc)
+        => Collect(openApiDoc, includeResponses: false);
+
+    private static HashSet<string> Collect(
+        OpenApiDocument openApiDoc,
+        bool includeResponses)
     {
         if (openApiDoc is null)
         {
@@ -25,6 +40,11 @@ public static class XmlBodyReachability
             foreach (var operation in pathItem.Operations?.Values ?? Enumerable.Empty<OpenApiOperation>())
             {
                 AddXmlContent(operation.RequestBody?.Content, reachable);
+                if (!includeResponses)
+                {
+                    continue;
+                }
+
                 foreach (var response in operation.Responses?.Values ?? Enumerable.Empty<IOpenApiResponse>())
                 {
                     AddXmlContent(response.Content, reachable);

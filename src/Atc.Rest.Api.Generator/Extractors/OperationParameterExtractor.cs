@@ -653,6 +653,14 @@ public static class OperationParameterExtractor
         if (operation.HasRequestBody())
         {
             var (requestBodySchema, contentType) = operation.GetRequestBodySchemaWithContentType();
+
+            // An XML-only model body is the Request too (read and written by the model's XML mapping)
+            if (requestBodySchema is null && XmlBodyHelper.FindXmlOnlyBody(operation.RequestBody?.Content) is { } xmlOnlyBody)
+            {
+                requestBodySchema = operation.RequestBody!.Content![xmlOnlyBody.MediaType].Schema;
+                contentType = xmlOnlyBody.MediaType;
+            }
+
             if (requestBodySchema is not null)
             {
                 var (isFile, isCollection) = requestBodySchema.GetFileUploadInfo();
@@ -717,8 +725,10 @@ public static class OperationParameterExtractor
                         // don't add any binding attribute - ASP.NET Core will automatically use form binding
                         // when it detects IFormFile properties. [FromBody] would force JSON deserialization,
                         // and [FromForm] causes issues with complex types in minimal APIs.
+                        // A model offered as XML is bound by its Content-Type (the generated BindAsync of the model):
+                        // [FromBody] reads JSON only
                         var isMultipartFormData = contentType?.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) == true;
-                        if (!isMultipartFormData)
+                        if (!isMultipartFormData && XmlBodyHelper.ServerBoundRequestBody(operation.RequestBody?.Content) is null)
                         {
                             bodyAttributes.Add(new AttributeParameters("FromBody", null));
                         }

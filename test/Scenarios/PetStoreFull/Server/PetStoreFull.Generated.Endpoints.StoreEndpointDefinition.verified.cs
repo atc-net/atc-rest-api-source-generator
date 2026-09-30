@@ -48,7 +48,8 @@ public sealed class StoreEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status409Conflict);
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .Accepts<Order>("application/json", "application/xml");
 
         store
             .MapGet("order/{orderId}", GetOrderById)

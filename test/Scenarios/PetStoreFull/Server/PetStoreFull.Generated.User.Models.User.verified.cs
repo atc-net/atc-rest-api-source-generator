@@ -7,7 +7,7 @@ using System.ComponentModel.DataAnnotations;
 namespace PetStoreFull.Generated.User.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public sealed record User(
+public sealed partial record User(
     long? Id = null,
     string? Username = null,
     string? FirstName = null,
