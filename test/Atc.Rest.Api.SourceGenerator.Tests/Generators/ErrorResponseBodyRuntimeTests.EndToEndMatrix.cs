@@ -1720,11 +1720,12 @@ public partial class ErrorResponseBodyRuntimeTests
             ["workingTreeStash"] = GitHash(stash.Output) ?? $"(no hash: exit {stash.ExitCode}, {Short(stash.Output)})",
             ["untrackedFiles"] = untrackedHashes,
 
-            // The unreleased sibling repositories the run was built against (TEMP project references).
+            // What the run was built against: the unreleased sibling repository (TEMP project reference) and the
+            // Atc.Rest.Client package the generated clients ran on.
             ["siblings"] = new JsonObject
             {
                 ["atc-rest-minimalapi"] = SiblingRevision(root, "atc-rest-minimalapi"),
-                ["atc-rest-client"] = SiblingRevision(root, "atc-rest-client"),
+                ["Atc.Rest.Client"] = $"{typeof(Atc.Rest.Client.EndpointResponse).Assembly.GetName().Version?.ToString(3)} (NuGet package)",
             },
             ["dotnet"] = Environment.Version.ToString(),
             ["node"] = RunTool("node", "--version", root).Output.Trim(),

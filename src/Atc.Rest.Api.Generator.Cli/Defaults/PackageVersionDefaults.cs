@@ -28,7 +28,7 @@ internal static class PackageVersionDefaults
     /// <summary>
     /// Fallback minimum version for Atc.Rest.Client.
     /// </summary>
-    public static readonly Version RestClientMinFallback = new(2, 0, 36);
+    public static readonly Version RestClientMinFallback = new(2, 1, 0);
 
     /// <summary>
     /// Fallback minimum version for Microsoft.Extensions.Http.Resilience.

@@ -10,10 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- TEMP (3.0 development): direct reference to the unreleased atc-rest-client fix (error bodies of any media
-         type are read as text). Replace with <PackageReference Include="Atc.Rest.Client" Version="<released version>" />
-         before release. -->
-    <ProjectReference Include="..\..\..\..\atc-rest-client\src\Atc.Rest.Client\Atc.Rest.Client.csproj" />
+    <PackageReference Include="Atc.Rest.Client" Version="2.1.0" />
   </ItemGroup>
 
   <ItemGroup>

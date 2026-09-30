@@ -1441,7 +1441,7 @@ public partial class ErrorResponseBodyRuntimeTests
     /// <summary>
     /// The Atc.Rest.Client the generated EndpointPerOperation client runs on reads an error body of any media type as
     /// text (<c>Content</c>), without the generated <c>WithTextErrorBody</c> fallback. 2.0.36 left <c>Content</c> empty for
-    /// <c>application/xml</c> / <c>application/octet-stream</c>; this guards the (temporarily project-referenced) fix.
+    /// <c>application/xml</c> / <c>application/octet-stream</c>; this guards the fix released in 2.1.0.
     /// </summary>
     [Fact]
     public async Task AtcRestClient_ReadsAnErrorBodyOfAnyMediaTypeAsText()
