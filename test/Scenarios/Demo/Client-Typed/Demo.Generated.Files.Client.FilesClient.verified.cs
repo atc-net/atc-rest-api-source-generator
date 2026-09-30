@@ -38,14 +38,14 @@ public sealed class FilesClient : IFilesClient
         this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
-    public async System.Threading.Tasks.Task<byte[]> GetFileByIdAsync(
+    public async System.Threading.Tasks.Task<DownloadedFile> GetFileByIdAsync(
         GetFileByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
         var url = $"/files/{Uri.EscapeDataString(parameters.Id)}";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return await response.Content.ReadAsByteArrayAsync(cancellationToken);
+        return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);
     }
 
     public async System.Threading.Tasks.Task UploadFormDataFileAsync(

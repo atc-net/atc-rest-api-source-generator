@@ -637,7 +637,7 @@ internal static class TypeScriptHookModel
         TypeScriptNamingStrategy namingStrategy)
     {
         // Raw binary upload
-        if (bodyContentType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase))
+        if (OpenApiOperationExtensions.IsRawFileUploadContentType(bodyContentType))
         {
             return (true, "file: Blob | File", "file");
         }

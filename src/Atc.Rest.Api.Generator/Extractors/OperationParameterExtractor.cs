@@ -676,7 +676,8 @@ public static class OperationParameterExtractor
                     // File uploads: type depends on content type and server/client mode
                     // - multipart/form-data: IFormFile/IFormFileCollection (server), IFileContent/IFileContent[] (client)
                     // - application/octet-stream: Stream (server), IFileContent (client)
-                    var isOctetStream = contentType?.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase) == true;
+                    // A raw file body of any binary media type (octet-stream, PDF, PNG, an Office document, ...)
+                    var isOctetStream = OpenApiOperationExtensions.IsRawFileUploadContentType(contentType);
 
                     if (includeBindingAttributes && !isOctetStream)
                     {

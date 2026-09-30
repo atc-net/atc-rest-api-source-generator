@@ -9,7 +9,8 @@ public sealed partial class GatewayService
 {
     /// <summary>
     /// Get file by ID and return as byte array with content type.
-    /// Uses BinaryEndpointResponse which provides direct access to binary content.
+    /// The generated result gives the file as <c>OkContent</c> (bytes, content type, file name) and the errors as typed
+    /// accessors, like any other operation.
     /// </summary>
     public async Task<(byte[] Content, string ContentType, string? FileName)?> GetFileByIdAsync(
         string id,
@@ -20,12 +21,13 @@ public sealed partial class GatewayService
             .ExecuteAsync(parameters, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
-        if (!result.IsSuccess || result.Content is null)
+        if (!result.IsOk)
         {
             return null;
         }
 
-        return (result.Content, result.ContentType ?? "application/octet-stream", result.FileName);
+        var file = result.OkContent;
+        return (file.Content, file.ContentType ?? "application/octet-stream", file.FileName);
     }
 
     /// <summary>

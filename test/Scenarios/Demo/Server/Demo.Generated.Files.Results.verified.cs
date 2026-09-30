@@ -32,9 +32,18 @@ public sealed class GetFileByIdResult : IResult
     /// </summary>
     public static GetFileByIdResult Ok(
         byte[] bytes,
-        string contentType,
-        string fileName)
-        => new(TypedResults.File(bytes, contentType, fileName));
+        string? contentType = null,
+        string? fileName = null)
+        => new(TypedResults.File(bytes, contentType ?? "application/octet-stream", fileName));
+
+    /// <summary>
+    /// 200 OK - OK.
+    /// </summary>
+    public static GetFileByIdResult Ok(
+        Stream stream,
+        string? contentType = null,
+        string? fileName = null)
+        => new(TypedResults.Stream(stream, contentType ?? "application/octet-stream", fileName));
 
     /// <summary>
     /// 404 Not Found - Not Found.

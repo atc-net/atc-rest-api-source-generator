@@ -44,7 +44,7 @@ public sealed class UploadSingleFileAsFormDataEndpoint : IUploadSingleFileAsForm
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/files/form-data/singleFile");
-        requestBuilder.WithBinaryBody(parameters.File!.OpenReadStream());
+        requestBuilder.WithBinaryBody(parameters.File!.OpenReadStream(), parameters.File.ContentType ?? "application/octet-stream");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
         using var response = await client.SendAsync(requestMessage, cancellationToken);

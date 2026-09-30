@@ -269,6 +269,25 @@ public static class OpenApiOperationExtensions
         /// When true, the result class Ok method should accept IAsyncEnumerable&lt;T&gt; for streaming.
         /// </summary>
         /// <returns>True if the operation should return IAsyncEnumerable.</returns>
+        public bool IsStreamedDownloadOperation()
+        {
+            if (!operation.HasFileDownload() ||
+                operation.Extensions is null ||
+                !operation.Extensions.TryGetValue("x-return-stream", out var extension) ||
+                extension is not JsonNodeExtension jsonNodeExt)
+            {
+                return false;
+            }
+
+            return jsonNodeExt.Node is JsonValue jsonValue
+                && jsonValue.TryGetValue<bool>(out var boolValue)
+                && boolValue;
+        }
+
+        /// <summary>
+        /// Checks if the operation has x-return-async-enumerable: true extension.
+        /// </summary>
+        /// <returns>True if the operation should return IAsyncEnumerable.</returns>
         public bool IsAsyncEnumerableOperation()
         {
             if (operation.Extensions is null ||
@@ -431,20 +450,8 @@ public static class OpenApiOperationExtensions
                 return false;
             }
 
-            if (response.Content is null)
-            {
-                return false;
-            }
-
-            foreach (var key in response.Content.Keys)
-            {
-                if (IsFileDownloadContentType(key))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            // The primary body decides (ResponseBodyClassifier): any media type that is neither JSON, XML nor text.
+            return ResponseBodyClassifier.PrimaryBody(response.Content)?.Kind == ResponseBodyKind.Binary;
         }
 
         /// <summary>
@@ -485,7 +492,9 @@ public static class OpenApiOperationExtensions
                 return null;
             }
 
-            return response.Content?.Keys.FirstOrDefault(IsFileDownloadContentType);
+            return ResponseBodyClassifier.PrimaryBody(response.Content) is { Kind: ResponseBodyKind.Binary } body
+                ? body.MediaType
+                : null;
         }
 
         /// <summary>
@@ -598,9 +607,28 @@ public static class OpenApiOperationExtensions
     /// <param name="contentType">The content type to check.</param>
     /// <returns>True if the content type represents a file upload.</returns>
     public static bool IsFileUploadContentType(string contentType)
-        => contentType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase) ||
-           contentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) ||
-           contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+        => contentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) ||
+           IsRawFileUploadContentType(contentType);
+
+    /// <summary>
+    /// Determines if a request body media type is a raw file upload: the body is the file itself, of any binary media
+    /// type (<c>application/octet-stream</c>, <c>application/pdf</c>, <c>image/png</c>, an Office document, ...) -
+    /// the rule every generator shares (<see cref="ResponseBodyClassifier"/>). Multipart and URL-encoded forms are not.
+    /// </summary>
+    /// <param name="contentType">The content type to check.</param>
+    /// <returns>True if the body is the raw file.</returns>
+    public static bool IsRawFileUploadContentType(string? contentType)
+    {
+        if (contentType is null)
+        {
+            return false;
+        }
+
+        var type = contentType.Split(';')[0].Trim();
+        return !type.StartsWith("multipart/", StringComparison.OrdinalIgnoreCase) &&
+               !type.Equals("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase) &&
+               ResponseBodyClassifier.Classify(type, schema: null) == ResponseBodyKind.Binary;
+    }
 
     /// <summary>
     /// Determines if a content type represents a file download (binary response).
@@ -608,12 +636,7 @@ public static class OpenApiOperationExtensions
     /// <param name="contentType">The content type to check.</param>
     /// <returns>True if the content type represents a file download.</returns>
     public static bool IsFileDownloadContentType(string contentType)
-        => contentType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase) ||
-           contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) ||
-           contentType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) ||
-           contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase) ||
-           contentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase) ||
-           contentType.Equals("application/zip", StringComparison.OrdinalIgnoreCase);
+        => ResponseBodyClassifier.Classify(contentType, schema: null) == ResponseBodyKind.Binary;
 
     /// <summary>
     /// Determines if a content type represents a textual response body that the generator

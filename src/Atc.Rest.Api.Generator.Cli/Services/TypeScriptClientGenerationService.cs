@@ -53,7 +53,10 @@ public static class TypeScriptClientGenerationService
         var hasRetry = clientCount > 0 && specHasRetry;
         var hasPagination = clientCount > 0 && HasPaginationSchemas(openApiDoc);
         var wireNamesContent = wireNames.GenerateFile(headerContent);
-        if (hasPagination || hasRetry || wireNamesContent is not null)
+        var hasDownload = clientCount > 0 && openApiDoc.Paths.Values
+            .SelectMany(path => path.Operations?.Values ?? Enumerable.Empty<OpenApiOperation>())
+            .Any(operation => operation.HasFileDownload());
+        if (hasPagination || hasRetry || hasDownload || wireNamesContent is not null)
         {
             var helpersDir = Path.Combine(outputPath, "helpers");
             var helperModules = new List<string>();
@@ -80,6 +83,12 @@ public static class TypeScriptClientGenerationService
                 var retryInterceptorContent = TypeScriptRetryInterceptorExtractor.Generate(headerContent);
                 WriteTsFile(Path.Combine(helpersDir, "retryInterceptor.ts"), retryInterceptorContent, dryRun);
                 helperModules.Add("retryInterceptor");
+            }
+
+            if (hasDownload)
+            {
+                WriteTsFile(Path.Combine(helpersDir, "download.ts"), TypeScriptDownloadHelperExtractor.Generate(headerContent), dryRun);
+                helperModules.Add("download");
             }
 
             // Generate barrel export for helpers

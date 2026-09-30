@@ -44,35 +44,7 @@ public static class EndpointPerOperationExtractor
     /// generating custom result classes.
     /// </remarks>
     private static bool IsBinaryEndpoint(OpenApiOperation operation)
-    {
-        if (operation.Responses is null)
-        {
-            return false;
-        }
-
-        // Check if any success response (2xx) returns application/octet-stream
-        foreach (var response in operation.Responses)
-        {
-            if (!int.TryParse(response.Key, out var statusCode))
-            {
-                continue;
-            }
-
-            // Only check success responses
-            if (statusCode < 200 || statusCode >= 300)
-            {
-                continue;
-            }
-
-            if (response.Value?.Content is not null &&
-                response.Value.Content.ContainsKey("application/octet-stream"))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+        => operation.IsStreamedDownloadOperation();
 
     /// <summary>
     /// Extracts all endpoint files for operations in the OpenAPI document filtered by path segment.
@@ -460,7 +432,7 @@ public static class EndpointPerOperationExtractor
     /// <param name="TextMediaType">The text media type of a raw text body, or <see langword="null"/>.</param>
     /// <param name="IsAutoAdded">Whether the generator added this response (the spec does not list it).</param>
     /// <param name="ErrorMediaType">The declared media type of an error response's body, or <see langword="null"/>.</param>
-    private sealed record ResponseInfo(string StatusCode, string StatusEnumName, string PropertyName, string? ContentType, bool IsSuccess, string? TextMediaType = null, bool IsAutoAdded = false, string? ErrorMediaType = null)
+    private sealed record ResponseInfo(string StatusCode, string StatusEnumName, string PropertyName, string? ContentType, bool IsSuccess, string? TextMediaType = null, bool IsAutoAdded = false, string? ErrorMediaType = null, bool IsFile = false)
     {
         /// <summary>
         /// Whether this is the spec's <c>default</c> response: the body of any error status the operation does not list.
@@ -543,9 +515,14 @@ public static class EndpointPerOperationExtractor
                 continue;
             }
 
-            // Check for JSON content
-            // Note: Binary/octet-stream endpoints are handled by IsBinaryEndpoint() and skip result class generation
-            if (response.Value?.Content is not null &&
+            // A file download (the primary body is binary - ResponseBodyClassifier): the bytes, content type and file
+            // name as a DownloadedFile, read from the response by OkContent
+            var isFile = isSuccess && ResponseBodyClassifier.PrimaryBody(response.Value?.Content)?.Kind == ResponseBodyKind.Binary;
+            if (isFile)
+            {
+                contentType = "DownloadedFile";
+            }
+            else if (response.Value?.Content is not null &&
                 response.Value.Content.TryGetValue("application/json", out var mediaType))
             {
                 // Use "Response" context for direct response objects
@@ -575,7 +552,7 @@ public static class EndpointPerOperationExtractor
                 contentType = GetErrorContentType(errorResponseFormat, customErrorTypeName, statusCodeStr);
             }
 
-            responses.Add(new ResponseInfo(statusCodeStr, statusEnumName, propertyName, contentType, isSuccess, textMediaType));
+            responses.Add(new ResponseInfo(statusCodeStr, statusEnumName, propertyName, contentType, isSuccess, textMediaType, IsFile: isFile));
         }
 
         return responses;
@@ -712,7 +689,7 @@ public static class EndpointPerOperationExtractor
         string returnTypeName;
         if (isBinaryEndpoint)
         {
-            returnTypeName = "Task<BinaryEndpointResponse>";
+            returnTypeName = "Task<StreamBinaryEndpointResponse>";
         }
         else if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
         {
@@ -986,7 +963,7 @@ public static class EndpointPerOperationExtractor
         string returnTypeName;
         if (isBinaryEndpoint)
         {
-            returnTypeName = "Task<BinaryEndpointResponse>";
+            returnTypeName = "Task<StreamBinaryEndpointResponse>";
         }
         else if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
         {
@@ -1146,10 +1123,11 @@ public static class EndpointPerOperationExtractor
             {
                 // For file uploads, check if it's single or multiple files
                 var contentType = operation.GetFileUploadContentType();
-                if (contentType is "application/octet-stream")
+                if (OpenApiOperationExtensions.IsRawFileUploadContentType(contentType))
                 {
-                    // Single file upload via octet-stream - use WithBinaryBody with stream from IFileContent
-                    sb.AppendLine("requestBuilder.WithBinaryBody(parameters.File!.OpenReadStream());");
+                    // A raw file body (octet-stream, PDF, PNG, an Office document, ...): the file's bytes with its content
+                    // type, else the declared media type
+                    sb.AppendLine($"requestBuilder.WithBinaryBody(parameters.File!.OpenReadStream(), parameters.File.ContentType ?? \"{contentType}\");");
                 }
                 else if (contentType is "multipart/form-data")
                 {
@@ -1221,7 +1199,9 @@ public static class EndpointPerOperationExtractor
         // Use ResponseHeadersRead for streaming (IAsyncEnumerable) to enable true HTTP streaming
         // instead of buffering the entire response before iteration.
         // For streaming, don't use 'using' - StreamingEndpointResponse manages the response lifecycle.
-        if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
+        // A streamed download (x-return-stream) hands the open content stream to the caller, so the response is not
+        // disposed here either (StreamBinaryEndpointResponse disposes the stream).
+        if ((isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType)) || isBinaryEndpoint)
         {
             sb.AppendLine("var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken);");
         }
@@ -1248,8 +1228,17 @@ public static class EndpointPerOperationExtractor
 
         if (isBinaryEndpoint)
         {
-            // For binary endpoints, use BuildBinaryResponseAsync directly
-            sb.Append("return await responseBuilder.BuildBinaryResponseAsync(cancellationToken);");
+            // A streamed download: the open content stream on success; on an error the body is read as text (typed as
+            // the registered error in ErrorContentObject), so the response is no longer needed and is disposed - the
+            // builder does not own it.
+            AppendResponseRegistrations(sb, responses, defaultResponse);
+            sb.AppendLine("var streamed = await responseBuilder.BuildStreamBinaryResponseAsync(cancellationToken);");
+            sb.AppendLine("if (!streamed.IsSuccess)");
+            sb.AppendLine("{");
+            sb.AppendLine(4, "response.Dispose();");
+            sb.AppendLine("}");
+            sb.AppendLine();
+            sb.Append("return streamed;");
         }
         else if (usesStreamReaders)
         {
@@ -1290,109 +1279,125 @@ public static class EndpointPerOperationExtractor
         }
         else
         {
-            // A generator-added status that the default response shares: the framework's ProblemDetails is
-            // sent as application/problem+json, the handler's default body is not.
-            var sharedWithDefault = SharedWithDefault(responses, defaultResponse);
-            var splitByMediaType = SplitsByMediaType(responses, defaultResponse);
-
-            // A string error status whose handler sent no body gets the host wiring's ProblemDetails
-            // (application/problem+json): read it as one, so the string accessor gives its message, not its JSON text.
-            var hasStringErrors = responses.Any(r => !r.IsSuccess && !sharedWithDefault.Contains(r) && r.ContentType == "string");
-            if (splitByMediaType || hasStringErrors)
-            {
-                sb.AppendLine("var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is \"application/problem+json\";");
-            }
-
-            foreach (var responseInfo in responses)
-            {
-                if (sharedWithDefault.Contains(responseInfo))
-                {
-                    continue;
-                }
-
-                if (!responseInfo.IsSuccess && responseInfo.ContentType == "string")
-                {
-                    sb.AppendLine("if (isProblemJson)");
-                    sb.AppendLine("{");
-                    sb.AppendLine(4, $"responseBuilder.AddErrorResponse<ProblemDetails>({responseInfo.StatusCodeExpression});");
-                    sb.AppendLine("}");
-                    sb.AppendLine("else");
-                    sb.AppendLine("{");
-                    sb.AppendLine(4, responseInfo.TextMediaType is not null
-                        ? $"responseBuilder.AddErrorTextResponse({responseInfo.StatusCodeExpression});"
-                        : $"responseBuilder.AddErrorResponse<string>({responseInfo.StatusCodeExpression});");
-                    sb.AppendLine("}");
-                    sb.AppendLine();
-                    continue;
-                }
-
-                if (responseInfo.IsSuccess)
-                {
-                    if (responseInfo.TextMediaType is not null)
-                    {
-                        // Raw text body (text/plain, text/csv, ...) — bypass the JSON contract serializer.
-                        sb.AppendLine($"responseBuilder.AddSuccessTextResponse({responseInfo.StatusCodeExpression});");
-                    }
-                    else if (responseInfo.ContentType is null)
-                    {
-                        // Empty response - use non-generic AddSuccessResponse
-                        sb.AppendLine($"responseBuilder.AddSuccessResponse({responseInfo.StatusCodeExpression});");
-                    }
-                    else
-                    {
-                        sb.AppendLine($"responseBuilder.AddSuccessResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression});");
-                    }
-                }
-                else if (responseInfo.ContentType is null)
-                {
-                    // A 3xx without a body (304, a redirect that was not followed): nothing to read.
-                    continue;
-                }
-                else if (responseInfo.TextMediaType is not null)
-                {
-                    // Raw text error body — same bypass for the error path.
-                    sb.AppendLine($"responseBuilder.AddErrorTextResponse({responseInfo.StatusCodeExpression});");
-                }
-                else
-                {
-                    // Error responses always have a type (ProblemDetails is the fallback). A declared ProblemDetails 400
-                    // is read as its ValidationProblemDetails subtype: the ValidationFilter's field errors stay typed.
-                    var registeredType = responseInfo.StatusCode == "400" && responseInfo.ContentType == "ProblemDetails"
-                        ? "ValidationProblemDetails"
-                        : responseInfo.ContentType;
-                    sb.AppendLine($"responseBuilder.AddErrorResponse<{registeredType}>({responseInfo.StatusCodeExpression});");
-                }
-            }
-
-            if (splitByMediaType)
-            {
-                sb.AppendLine("if (isProblemJson)");
-                sb.AppendLine("{");
-                foreach (var responseInfo in sharedWithDefault)
-                {
-                    sb.AppendLine(4, $"responseBuilder.AddErrorResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression});");
-                }
-
-                sb.AppendLine("}");
-                sb.AppendLine();
-            }
-
-            // `default`: any other error status is read as the default body, through the configured serializer.
-            if (defaultResponse is not null)
-            {
-                sb.AppendLine($"if ({DefaultErrorCondition(responses, defaultResponse, "response.IsSuccessStatusCode", "response.StatusCode", splitByMediaType ? "!isProblemJson" : null)})");
-                sb.AppendLine("{");
-                sb.AppendLine(4, defaultResponse.TextMediaType is not null
-                    ? "responseBuilder.AddErrorTextResponse(response.StatusCode);"
-                    : $"responseBuilder.AddErrorResponse<{defaultResponse.ContentType}>(response.StatusCode);");
-                sb.AppendLine("}");
-                sb.AppendLine();
-            }
-
+            AppendResponseRegistrations(sb, responses, defaultResponse);
             sb.Append($"return await responseBuilder.BuildResponseAsync(x => new {operationName}EndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);");
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Registers the operation's responses on the response builder: the success types, and the error types a typed
+    /// error body is read as (<c>BuildResponseAsync</c>'s error content, a streamed download's <c>ErrorContentObject</c>).
+    /// </summary>
+    private static void AppendResponseRegistrations(
+        StringBuilder sb,
+        List<ResponseInfo> responses,
+        ResponseInfo? defaultResponse)
+    {
+        // A generator-added status that the default response shares: the framework's ProblemDetails is
+        // sent as application/problem+json, the handler's default body is not.
+        var sharedWithDefault = SharedWithDefault(responses, defaultResponse);
+        var splitByMediaType = SplitsByMediaType(responses, defaultResponse);
+
+        // A string error status whose handler sent no body gets the host wiring's ProblemDetails
+        // (application/problem+json): read it as one, so the string accessor gives its message, not its JSON text.
+        var hasStringErrors = responses.Any(r => !r.IsSuccess && !sharedWithDefault.Contains(r) && r.ContentType == "string");
+        if (splitByMediaType || hasStringErrors)
+        {
+            sb.AppendLine("var isProblemJson = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() is \"application/problem+json\";");
+        }
+
+        foreach (var responseInfo in responses)
+        {
+            if (sharedWithDefault.Contains(responseInfo))
+            {
+                continue;
+            }
+
+            if (!responseInfo.IsSuccess && responseInfo.ContentType == "string")
+            {
+                sb.AppendLine("if (isProblemJson)");
+                sb.AppendLine("{");
+                sb.AppendLine(4, $"responseBuilder.AddErrorResponse<ProblemDetails>({responseInfo.StatusCodeExpression});");
+                sb.AppendLine("}");
+                sb.AppendLine("else");
+                sb.AppendLine("{");
+                sb.AppendLine(4, responseInfo.TextMediaType is not null
+                    ? $"responseBuilder.AddErrorTextResponse({responseInfo.StatusCodeExpression});"
+                    : $"responseBuilder.AddErrorResponse<string>({responseInfo.StatusCodeExpression});");
+                sb.AppendLine("}");
+                sb.AppendLine();
+                continue;
+            }
+
+            if (responseInfo.IsSuccess)
+            {
+                if (responseInfo.IsFile)
+                {
+                    // A file - no JSON type: Atc.Rest.Client keeps a non-text body as bytes, OkContent reads the file
+                    sb.AppendLine($"responseBuilder.AddSuccessResponse({responseInfo.StatusCodeExpression});");
+                }
+                else if (responseInfo.TextMediaType is not null)
+                {
+                    // Raw text body (text/plain, text/csv, ...) — bypass the JSON contract serializer.
+                    sb.AppendLine($"responseBuilder.AddSuccessTextResponse({responseInfo.StatusCodeExpression});");
+                }
+                else if (responseInfo.ContentType is null)
+                {
+                    // Empty response - use non-generic AddSuccessResponse
+                    sb.AppendLine($"responseBuilder.AddSuccessResponse({responseInfo.StatusCodeExpression});");
+                }
+                else
+                {
+                    sb.AppendLine($"responseBuilder.AddSuccessResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression});");
+                }
+            }
+            else if (responseInfo.ContentType is null)
+            {
+                // A 3xx without a body (304, a redirect that was not followed): nothing to read.
+                continue;
+            }
+            else if (responseInfo.TextMediaType is not null)
+            {
+                // Raw text error body — same bypass for the error path.
+                sb.AppendLine($"responseBuilder.AddErrorTextResponse({responseInfo.StatusCodeExpression});");
+            }
+            else
+            {
+                // Error responses always have a type (ProblemDetails is the fallback). A declared ProblemDetails 400
+                // is read as its ValidationProblemDetails subtype: the ValidationFilter's field errors stay typed.
+                var registeredType = responseInfo.StatusCode == "400" && responseInfo.ContentType == "ProblemDetails"
+                    ? "ValidationProblemDetails"
+                    : responseInfo.ContentType;
+                sb.AppendLine($"responseBuilder.AddErrorResponse<{registeredType}>({responseInfo.StatusCodeExpression});");
+            }
+        }
+
+        if (splitByMediaType)
+        {
+            sb.AppendLine("if (isProblemJson)");
+            sb.AppendLine("{");
+            foreach (var responseInfo in sharedWithDefault)
+            {
+                sb.AppendLine(4, $"responseBuilder.AddErrorResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression});");
+            }
+
+            sb.AppendLine("}");
+            sb.AppendLine();
+        }
+
+        // `default`: any other error status is read as the default body, through the configured serializer.
+        if (defaultResponse is not null)
+        {
+            sb.AppendLine($"if ({DefaultErrorCondition(responses, defaultResponse, "response.IsSuccessStatusCode", "response.StatusCode", splitByMediaType ? "!isProblemJson" : null)})");
+            sb.AppendLine("{");
+            sb.AppendLine(4, defaultResponse.TextMediaType is not null
+                ? "responseBuilder.AddErrorTextResponse(response.StatusCode);"
+                : $"responseBuilder.AddErrorResponse<{defaultResponse.ContentType}>(response.StatusCode);");
+            sb.AppendLine("}");
+            sb.AppendLine();
+        }
     }
 
     private static string GenerateResultInterface(
@@ -1612,6 +1617,16 @@ public static class EndpointPerOperationExtractor
         // {PropertyName}Content properties - only generate for responses that have content
         foreach (var response in responses.Where(r => r.ContentType is not null))
         {
+            if (response.IsFile)
+            {
+                sb.AppendLine(4, $"public {response.ContentType} {response.PropertyName}Content");
+                sb.AppendLine(8, $"=> Is{response.PropertyName}");
+                sb.AppendLine(12, "? DownloadedFile.FromResponse(this)");
+                sb.AppendLine(12, $": throw InvalidContentAccessException<{response.ContentType}>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
+                sb.AppendLine();
+                continue;
+            }
+
             sb.AppendLine(4, $"public {response.ContentType} {response.PropertyName}Content");
             sb.AppendLine(8, $"=> Is{response.PropertyName} && ContentObject is {response.ContentType} result");
             sb.AppendLine(12, "? result");

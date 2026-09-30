@@ -7,11 +7,12 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Atc.Rest.Client;
 using Atc.Rest.Client.Builder;
 using Microsoft.Extensions.Http;
 using Demo.Generated;
 using Demo.Generated.Files.Endpoints.Interfaces;
+using Demo.Generated.Files.Endpoints.Results;
+using Demo.Generated.Files.Models;
 using Demo.Generated.Files.Client;
 
 namespace Demo.Generated.Files.Endpoints;
@@ -35,7 +36,7 @@ public sealed class GetFileByIdEndpoint : IGetFileByIdEndpoint
         this.httpMessageFactory = httpMessageFactory;
     }
 
-    public async Task<BinaryEndpointResponse> ExecuteAsync(
+    public async Task<GetFileByIdEndpointResult> ExecuteAsync(
         GetFileByIdParameters parameters,
         string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default)
@@ -49,6 +50,11 @@ public sealed class GetFileByIdEndpoint : IGetFileByIdEndpoint
         using var response = await client.SendAsync(requestMessage, cancellationToken);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
-        return await responseBuilder.BuildBinaryResponseAsync(cancellationToken);
+        responseBuilder.AddSuccessResponse(HttpStatusCode.OK);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
+        responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);
+        responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.GatewayTimeout);
+        return await responseBuilder.BuildResponseAsync(x => new GetFileByIdEndpointResult(ProblemDetailsFactory.WithTextErrorBody(x)), cancellationToken);
     }
 }

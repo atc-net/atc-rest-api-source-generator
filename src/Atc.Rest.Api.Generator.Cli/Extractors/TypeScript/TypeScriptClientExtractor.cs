@@ -935,7 +935,7 @@ public static class TypeScriptClientExtractor
         TypeScriptNamingStrategy namingStrategy)
     {
         // For raw binary upload (application/octet-stream), single file parameter
-        if (bodyContentType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase))
+        if (OpenApiOperationExtensions.IsRawFileUploadContentType(bodyContentType))
         {
             parts.Add("file: Blob | File");
             return;
@@ -1003,7 +1003,7 @@ public static class TypeScriptClientExtractor
         TypeScriptNamingStrategy namingStrategy)
     {
         // For raw binary upload (application/octet-stream), pass file directly
-        if (bodyContentType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase))
+        if (OpenApiOperationExtensions.IsRawFileUploadContentType(bodyContentType))
         {
             sb.AppendLine("      body: file,");
             return;

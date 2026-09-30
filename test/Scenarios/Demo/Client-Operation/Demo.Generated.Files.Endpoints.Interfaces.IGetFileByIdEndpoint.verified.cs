@@ -4,8 +4,8 @@
 using System.CodeDom.Compiler;
 using System.Threading;
 using System.Threading.Tasks;
-using Atc.Rest.Client;
 using Demo.Generated.Files.Client;
+using Demo.Generated.Files.Endpoints.Results;
 
 namespace Demo.Generated.Files.Endpoints.Interfaces;
 
@@ -20,7 +20,7 @@ public interface IGetFileByIdEndpoint
     /// <summary>
     /// Execute method.
     /// </summary>
-    Task<BinaryEndpointResponse> ExecuteAsync(
+    Task<GetFileByIdEndpointResult> ExecuteAsync(
         GetFileByIdParameters parameters,
         string httpClientName = Constants.HttpClientName,
         CancellationToken cancellationToken = default);

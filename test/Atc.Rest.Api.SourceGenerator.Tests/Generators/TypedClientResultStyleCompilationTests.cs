@@ -34,7 +34,7 @@ public class TypedClientResultStyleCompilationTests
         Assert.Contains("Task<EndpointResponse<List<Device>>> ListDevicesAsync", client, StringComparison.Ordinal);
         Assert.Contains("Task<EndpointResponse<Device>> GetDeviceByIdAsync", client, StringComparison.Ordinal);
         Assert.Contains("Task<EndpointResponse> DeleteDeviceAsync", client, StringComparison.Ordinal);
-        Assert.Contains("Task<EndpointResponse<byte[]>> DownloadFirmwareAsync", client, StringComparison.Ordinal);
+        Assert.Contains("Task<EndpointResponse<DownloadedFile>> DownloadFirmwareAsync", client, StringComparison.Ordinal);
         Assert.Contains("Task<EndpointResponse<string>> GetDeviceLogAsync", client, StringComparison.Ordinal);
     }
 

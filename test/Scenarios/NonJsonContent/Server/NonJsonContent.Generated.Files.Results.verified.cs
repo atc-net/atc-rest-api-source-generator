@@ -31,9 +31,18 @@ public sealed class DownloadFileResult : IResult
     /// </summary>
     public static DownloadFileResult Ok(
         byte[] bytes,
-        string contentType,
-        string fileName)
-        => new(TypedResults.File(bytes, contentType, fileName));
+        string? contentType = null,
+        string? fileName = null)
+        => new(TypedResults.File(bytes, contentType ?? "application/octet-stream", fileName));
+
+    /// <summary>
+    /// 200 OK - Binary file content.
+    /// </summary>
+    public static DownloadFileResult Ok(
+        Stream stream,
+        string? contentType = null,
+        string? fileName = null)
+        => new(TypedResults.Stream(stream, contentType ?? "application/octet-stream", fileName));
 
     /// <summary>
     /// 404 Not Found - File not found.

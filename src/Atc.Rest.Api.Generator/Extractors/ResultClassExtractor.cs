@@ -336,20 +336,8 @@ public static class ResultClassExtractor
             return GenerateErrorFactoryMethods(openApiDoc, className, description, statusCode, responseValue, registry, operationId, pathSegment, inlineSchemas);
         }
 
-        // Check for binary file download response first
-        var isFileDownload = false;
-
-        if (responseValue.Content is not null)
-        {
-            foreach (var contentEntry in responseValue.Content)
-            {
-                if (OpenApiOperationExtensions.IsFileDownloadContentType(contentEntry.Key))
-                {
-                    isFileDownload = true;
-                    break;
-                }
-            }
-        }
+        // A file download when the primary (first declared) body is binary - the rule every generator shares
+        var isFileDownload = ResponseBodyClassifier.PrimaryBody(responseValue.Content)?.Kind == ResponseBodyKind.Binary;
 
         // Determine response type - use generic support for allOf patterns like PaginatedResult<T>
         string? contentType = null;
@@ -389,7 +377,7 @@ public static class ResultClassExtractor
         {
             // Generate factory method based on status code
             case "200":
-                methods.AddRange(GenerateOkMethods(projectName, className, description, contentType, isAsyncEnumerable, streamingFraming, isFileDownload, isTextResponse, textResponseMediaType));
+                methods.AddRange(GenerateOkMethods(projectName, className, description, contentType, isAsyncEnumerable, streamingFraming, isFileDownload, isTextResponse, textResponseMediaType, ResponseBodyClassifier.PrimaryBody(responseValue.Content)?.MediaType));
                 break;
             case "201":
                 methods.AddRange(GenerateCreatedMethods(className, description, contentType));
@@ -713,6 +701,29 @@ public static class ResultClassExtractor
             }
             """;
 
+    private static MethodParameters FileDownloadMethod(
+        CodeDocumentationTags doc,
+        string className,
+        string contentTypeName,
+        string contentName,
+        string body)
+        => new(
+            DocumentationTags: doc,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.PublicStatic,
+            ReturnGenericTypeName: null,
+            ReturnTypeName: className,
+            Name: "Ok",
+            Parameters: new List<ParameterBaseParameters>
+            {
+                new(Attributes: null, GenericTypeName: null, IsGenericListType: false, TypeName: contentTypeName, IsNullableType: false, IsReferenceType: true, Name: contentName, DefaultValue: null),
+                new(Attributes: null, GenericTypeName: null, IsGenericListType: false, TypeName: "string", IsNullableType: true, IsReferenceType: true, Name: "contentType", DefaultValue: "null"),
+                new(Attributes: null, GenericTypeName: null, IsGenericListType: false, TypeName: "string", IsNullableType: true, IsReferenceType: true, Name: "fileName", DefaultValue: "null"),
+            },
+            AlwaysBreakDownParameters: false,
+            UseExpressionBody: true,
+            Content: body);
+
     private static List<MethodParameters> GenerateOkMethods(
         string projectName,
         string className,
@@ -722,55 +733,20 @@ public static class ResultClassExtractor
         StreamingFraming streamingFraming,
         bool isFileDownload = false,
         bool isTextResponse = false,
-        string? textResponseMediaType = null)
+        string? textResponseMediaType = null,
+        string? fileMediaType = null)
     {
         var methods = new List<MethodParameters>();
         var doc = new CodeDocumentationTags($"200 OK - {description}");
 
-        // Handle file download responses
+        // File downloads: bytes or a stream. The content type defaults to the declared media type, and no file name
+        // is an inline file (no Content-Disposition). The parameter order and names are kept from 2.x (a swap of the two
+        // strings would silently mix up existing callers).
         if (isFileDownload)
         {
-            var fileMethod = new MethodParameters(
-                DocumentationTags: doc,
-                Attributes: null,
-                DeclarationModifier: DeclarationModifiers.PublicStatic,
-                ReturnGenericTypeName: null,
-                ReturnTypeName: className,
-                Name: "Ok",
-                Parameters: new List<ParameterBaseParameters>
-                {
-                    new(
-                        Attributes: null,
-                        GenericTypeName: null,
-                        IsGenericListType: false,
-                        TypeName: "byte[]",
-                        IsNullableType: false,
-                        IsReferenceType: true,
-                        Name: "bytes",
-                        DefaultValue: null),
-                    new(
-                        Attributes: null,
-                        GenericTypeName: null,
-                        IsGenericListType: false,
-                        TypeName: "string",
-                        IsNullableType: false,
-                        IsReferenceType: true,
-                        Name: "contentType",
-                        DefaultValue: null),
-                    new(
-                        Attributes: null,
-                        GenericTypeName: null,
-                        IsGenericListType: false,
-                        TypeName: "string",
-                        IsNullableType: false,
-                        IsReferenceType: true,
-                        Name: "fileName",
-                        DefaultValue: null),
-                },
-                AlwaysBreakDownParameters: false,
-                UseExpressionBody: true,
-                Content: "new(TypedResults.File(bytes, contentType, fileName))");
-            methods.Add(fileMethod);
+            var defaultContentType = fileMediaType ?? "application/octet-stream";
+            methods.Add(FileDownloadMethod(doc, className, "byte[]", "bytes", $"new(TypedResults.File(bytes, contentType ?? \"{defaultContentType}\", fileName))"));
+            methods.Add(FileDownloadMethod(doc, className, "Stream", "stream", $"new(TypedResults.Stream(stream, contentType ?? \"{defaultContentType}\", fileName))"));
             return methods;
         }
 

@@ -103,6 +103,93 @@ public class TypeScriptClientExtractorTests
         Assert.DoesNotContain("responseType: 'text'", content, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("application/pdf", "string", "binary", true)]
+    [InlineData("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "string", "binary", true)]
+    [InlineData("image/png", "string", "binary", true)]
+    [InlineData("application/x-vendor-report", "string", "none", true)]
+    [InlineData("application/json", "object", "none", false)]
+    public void Extract_EveryBinaryMediaType_IsABlobDownload(
+        string mediaType,
+        string type,
+        string format,
+        bool isBlob)
+    {
+        // One rule (ResponseBodyClassifier) with the server and the C# clients: any media type that is neither JSON,
+        // XML nor text is a file.
+        var yaml = $$"""
+                     openapi: 3.0.0
+                     info:
+                       title: Test API
+                       version: 1.0.0
+                     paths:
+                       /files/{id}:
+                         get:
+                           operationId: downloadFile
+                           parameters:
+                             - name: id
+                               in: path
+                               required: true
+                               schema:
+                                 type: string
+                           responses:
+                             '200':
+                               description: A file
+                               content:
+                                 {{mediaType}}:
+                                   schema:
+                                     type: {{type}}
+                                     format: {{format}}
+                     """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var clients = TypeScriptClientExtractor.Extract(document, headerContent: null);
+        var (_, content) = Assert.Single(clients);
+
+        Assert.Equal(isBlob, content.Contains("responseType: 'blob'", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("application/pdf")]
+    [InlineData("image/png")]
+    [InlineData("image/jpeg")]
+    [InlineData("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
+    public void Extract_RawFileUpload_SendsTheFileAsTheBody(string mediaType)
+    {
+        // A raw upload of any binary media type is the file itself (a Blob keeps its type), not a FormData.
+        var yaml = $$"""
+                     openapi: 3.0.0
+                     info:
+                       title: Test API
+                       version: 1.0.0
+                     paths:
+                       /uploads:
+                         post:
+                           operationId: uploadFile
+                           requestBody:
+                             required: true
+                             content:
+                               {{mediaType}}:
+                                 schema:
+                                   type: string
+                                   format: binary
+                           responses:
+                             '204':
+                               description: Stored
+                     """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains("file: Blob | File", content, StringComparison.Ordinal);
+        Assert.Contains("body: file,", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("FormData", content, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Extract_BinaryFileDownload_DoesNotEmitResponseTypeText()
     {

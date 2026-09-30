@@ -82,7 +82,7 @@ public sealed class DeviceApiClient : IDeviceApiClient
         return await BuildEmptyResponseAsync(response, cancellationToken);
     }
 
-    public async Task<EndpointResponse<byte[]>> DownloadFirmwareAsync(
+    public async Task<EndpointResponse<DownloadedFile>> DownloadFirmwareAsync(
         DownloadFirmwareParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -168,19 +168,19 @@ public sealed class DeviceApiClient : IDeviceApiClient
             ReadHeaders(response));
     }
 
-    private static async System.Threading.Tasks.Task<EndpointResponse<byte[]>> BuildBinaryResponseAsync(
+    private static async System.Threading.Tasks.Task<EndpointResponse<DownloadedFile>> BuildBinaryResponseAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
-        var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-
         // The file on success; on an error status the error body, as text, in Content.
-        return new EndpointResponse<byte[]>(
-            response.IsSuccessStatusCode,
-            response.StatusCode,
-            response.IsSuccessStatusCode ? string.Empty : System.Text.Encoding.UTF8.GetString(bytes),
-            response.IsSuccessStatusCode ? bytes : null,
-            ReadHeaders(response));
+        if (response.IsSuccessStatusCode)
+        {
+            var file = await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);
+            return new EndpointResponse<DownloadedFile>(true, response.StatusCode, string.Empty, file, ReadHeaders(response));
+        }
+
+        var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        return new EndpointResponse<DownloadedFile>(false, response.StatusCode, errorBody, null, ReadHeaders(response));
     }
 
     private static async System.Threading.Tasks.Task<EndpointResponse<string>> BuildTextResponseAsync(

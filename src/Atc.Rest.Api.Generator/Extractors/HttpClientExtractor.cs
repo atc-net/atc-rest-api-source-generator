@@ -280,7 +280,11 @@ public static class HttpClientExtractor
         // Result style replaces the throw-on-status behaviour with envelope builders.
         if (resultStyle == TypedClientResultStyleType.Result)
         {
-            methods.AddRange(CreateResultStyleHelperMethods());
+            // The binary builder only when an operation downloads a file (it refers to DownloadedFile)
+            var hasFileDownload = methods.Any(m =>
+                (m.ReturnTypeName?.Contains("DownloadedFile") ?? false) ||
+                (m.ReturnGenericTypeName?.Contains("DownloadedFile") ?? false));
+            methods.AddRange(CreateResultStyleHelperMethods(hasFileDownload));
         }
 
         // Build header content with only required usings
@@ -487,8 +491,8 @@ public static class HttpClientExtractor
         }
         else if (response?.Content is not null && IsBinaryResponseContent(response.Content))
         {
-            // Binary content (application/octet-stream, image/*, etc.) returns byte[]
-            returnType = "byte[]";
+            // A file download (the primary body is binary): the bytes, content type and file name as a DownloadedFile
+            returnType = "DownloadedFile";
         }
         else if (response?.Content is not null && IsTextResponseContent(response.Content))
         {
@@ -1002,7 +1006,7 @@ public static class HttpClientExtractor
                 returnType,
                 isLastStatement: hasReturnType);
         }
-        else if (hasReturnType && returnType == "byte[]")
+        else if (hasReturnType && returnType == "DownloadedFile")
         {
             // Binary content download - use ReadAsByteArrayAsync
             AppendSend(builder, "var response = await httpClient.GetAsync(url, cancellationToken);", resilienceStamp("requestMessage"), "HttpMethod.Get", contentExpression: null);
@@ -2026,20 +2030,7 @@ public static class HttpClientExtractor
     /// </summary>
     private static bool IsBinaryResponseContent(
         IDictionary<string, IOpenApiMediaType> content)
-    {
-        foreach (var key in content.Keys)
-        {
-            if (key.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase) ||
-                key.StartsWith("image/", StringComparison.OrdinalIgnoreCase) ||
-                key.Equals("application/pdf", StringComparison.OrdinalIgnoreCase) ||
-                key.Equals("application/zip", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+        => ResponseBodyClassifier.PrimaryBody(content)?.Kind == ResponseBodyKind.Binary;
 
     /// <summary>
     /// Checks if any of the response content types are text-based (text/plain, text/html, etc.).
@@ -2100,7 +2091,7 @@ public static class HttpClientExtractor
 
         var read = payloadKind switch
         {
-            ResponsePayloadKind.Binary => "return await response.Content.ReadAsByteArrayAsync(cancellationToken);",
+            ResponsePayloadKind.Binary => "return await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);",
             ResponsePayloadKind.Text => "return await response.Content.ReadAsStringAsync(cancellationToken);",
             _ => $"return (await response.Content.ReadFromJsonAsync<{returnType}>(jsonSerializerOptions, cancellationToken))!;",
         };
@@ -2182,16 +2173,25 @@ public static class HttpClientExtractor
     /// Transport-level failures (DNS, TLS, connection reset, cancellation) still surface as exceptions
     /// from <c>HttpClient</c> itself - only status-code failures are converted into an envelope.
     /// </remarks>
-    private static List<MethodParameters> CreateResultStyleHelperMethods()
-        =>
-        [
+    private static List<MethodParameters> CreateResultStyleHelperMethods(
+        bool hasFileDownload)
+    {
+        var helpers = new List<MethodParameters>
+        {
             CreateReadHeadersMethod(),
             CreateBuildEmptyResponseMethod(),
             CreateBuildJsonResponseMethod(),
-            CreateBuildBinaryResponseMethod(),
-            CreateBuildTextResponseMethod(),
-            CreateBuildLocationResponseMethod(),
-        ];
+        };
+
+        if (hasFileDownload)
+        {
+            helpers.Add(CreateBuildBinaryResponseMethod());
+        }
+
+        helpers.Add(CreateBuildTextResponseMethod());
+        helpers.Add(CreateBuildLocationResponseMethod());
+        return helpers;
+    }
 
     private static MethodParameters CreateReadHeadersMethod()
     {
@@ -2262,17 +2262,17 @@ public static class HttpClientExtractor
     private static MethodParameters CreateBuildBinaryResponseMethod()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);");
-        sb.AppendLine();
         sb.AppendLine("// The file on success; on an error status the error body, as text, in Content.");
-        sb.AppendLine("return new EndpointResponse<byte[]>(");
-        sb.AppendLine(4, "response.IsSuccessStatusCode,");
-        sb.AppendLine(4, "response.StatusCode,");
-        sb.AppendLine(4, "response.IsSuccessStatusCode ? string.Empty : System.Text.Encoding.UTF8.GetString(bytes),");
-        sb.AppendLine(4, "response.IsSuccessStatusCode ? bytes : null,");
-        sb.Append(4, "ReadHeaders(response));");
+        sb.AppendLine("if (response.IsSuccessStatusCode)");
+        sb.AppendLine("{");
+        sb.AppendLine(4, "var file = await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);");
+        sb.AppendLine(4, "return new EndpointResponse<DownloadedFile>(true, response.StatusCode, string.Empty, file, ReadHeaders(response));");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);");
+        sb.Append("return new EndpointResponse<DownloadedFile>(false, response.StatusCode, errorBody, null, ReadHeaders(response));");
 
-        return CreateBuildResponseMethod("BuildBinaryResponseAsync", "EndpointResponse<byte[]>", genericName: null, includeSerializerOptions: false, sb.ToString());
+        return CreateBuildResponseMethod("BuildBinaryResponseAsync", "EndpointResponse<DownloadedFile>", genericName: null, includeSerializerOptions: false, sb.ToString());
     }
 
     private static MethodParameters CreateBuildTextResponseMethod()

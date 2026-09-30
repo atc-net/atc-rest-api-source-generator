@@ -33,7 +33,7 @@ public interface IDeviceApiClient
         DeleteDeviceParameters parameters,
         CancellationToken cancellationToken = default);
 
-    Task<EndpointResponse<byte[]>> DownloadFirmwareAsync(
+    Task<EndpointResponse<DownloadedFile>> DownloadFirmwareAsync(
         DownloadFirmwareParameters parameters,
         CancellationToken cancellationToken = default);
 

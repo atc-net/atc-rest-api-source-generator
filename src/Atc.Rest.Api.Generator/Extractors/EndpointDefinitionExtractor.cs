@@ -1002,9 +1002,10 @@ using Microsoft.AspNetCore.Builder;
         {
             var contentType = operation.GetFileUploadContentType();
             builder.AppendLine();
-            if (contentType is "application/octet-stream")
+            if (OpenApiOperationExtensions.IsRawFileUploadContentType(contentType))
             {
-                builder.Append("    .Accepts<Stream>(\"application/octet-stream\")");
+                // A raw file body of its declared media type (octet-stream, PDF, PNG, an Office document, ...)
+                builder.Append($"    .Accepts<Stream>(\"{contentType}\")");
             }
             else
             {
@@ -1332,6 +1333,11 @@ using Microsoft.AspNetCore.Builder;
                         if (textResponseMediaType is not null)
                         {
                             builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\")");
+                        }
+                        else if (operation.GetFileDownloadContentType() is { } fileMediaType)
+                        {
+                            // A file: its declared media type (Produces() without one means application/json).
+                            builder.Append($"    .Produces({statusCodeExpression}, contentType: \"{fileMediaType}\")");
                         }
                         else if (string.IsNullOrEmpty(contentType) &&
                                  operation.IsStreamingResponse() &&

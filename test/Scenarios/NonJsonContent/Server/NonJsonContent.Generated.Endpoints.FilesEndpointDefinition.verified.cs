@@ -32,7 +32,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .MapGet("{fileId}", DownloadFile)
             .WithName("DownloadFile")
             .WithSummary("Download a binary file")
-            .Produces(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status200OK, contentType: "application/octet-stream")
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

@@ -11,7 +11,7 @@ namespace NonJsonContent.Generated.Files.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IFilesClient
 {
-    Task<byte[]> DownloadFileAsync(
+    Task<DownloadedFile> DownloadFileAsync(
         DownloadFileParameters parameters,
         CancellationToken cancellationToken = default);
 }

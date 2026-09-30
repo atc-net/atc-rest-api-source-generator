@@ -14,7 +14,7 @@ namespace Demo.Generated.Files.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IFilesClient
 {
-    System.Threading.Tasks.Task<byte[]> GetFileByIdAsync(
+    System.Threading.Tasks.Task<DownloadedFile> GetFileByIdAsync(
         GetFileByIdParameters parameters,
         CancellationToken cancellationToken = default);
 
