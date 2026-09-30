@@ -1287,9 +1287,16 @@ using Microsoft.AspNetCore.Builder;
                 // Get response content type - handle inline schemas properly
                 string? contentType = null;
                 string? textResponseMediaType = null;
+
+                // A JSON body offered as XML too lists both media types (Produces<T>() alone means JSON only)
+                var negotiatedMediaTypes = string.Empty;
                 if (openApiResponse.Content is not null && openApiResponse.Content.TryGetValue("application/json", out var mediaType))
                 {
                     contentType = GetResponseContentType(mediaType.Schema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry);
+                    if (XmlBodyHelper.FindXmlAlternative(openApiResponse.Content)?.AlternativeMediaTypes is { } xmlMediaTypes)
+                    {
+                        negotiatedMediaTypes = ", \"application/json\"" + string.Concat(xmlMediaTypes.Select(m => $", \"{m}\""));
+                    }
                 }
                 else if (XmlBodyHelper.FindXmlOnlyBody(openApiResponse.Content) is { } xmlBody)
                 {
@@ -1360,7 +1367,9 @@ using Microsoft.AspNetCore.Builder;
                             // 200 is the default status code for Produces<T>()
                             builder.Append(string.IsNullOrEmpty(contentType)
                                 ? $"    .Produces({statusCodeExpression})"
-                                : $"    .Produces<{contentType}>()");
+                                : negotiatedMediaTypes.Length > 0
+                                    ? $"    .Produces<{contentType}>({statusCodeExpression}{negotiatedMediaTypes})"
+                                    : $"    .Produces<{contentType}>()");
                         }
 
                         break;
@@ -1371,7 +1380,7 @@ using Microsoft.AspNetCore.Builder;
                         builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\")");
                         break;
                     case >= 200 and < 300 when !string.IsNullOrEmpty(contentType):
-                        builder.Append($"    .Produces<{contentType}>({statusCodeExpression})");
+                        builder.Append($"    .Produces<{contentType}>({statusCodeExpression}{negotiatedMediaTypes})");
                         break;
                     case >= 200 and < 300:
                         builder.Append($"    .Produces({statusCodeExpression})");

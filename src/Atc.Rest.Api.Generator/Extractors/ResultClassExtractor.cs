@@ -346,12 +346,17 @@ public static class ResultClassExtractor
             contentType = GetSchemaTypeName(mediaType.Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
         }
 
-        // An XML-only model body (no JSON media type declared): the model, written as its generated XML
+        // An XML-only model body (no JSON media type declared): the model, written as its generated XML; a JSON body
+        // offered as XML too: negotiated by Accept (JSON unless XML is preferred)
         XmlBody? xmlBody = null;
         if (!isFileDownload && contentType is null && XmlBodyHelper.FindXmlOnlyBody(responseValue.Content) is { } xml)
         {
             contentType = GetSchemaTypeName(responseValue.Content![xml.MediaType].Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
             xmlBody = contentType is null ? null : xml;
+        }
+        else if (!isFileDownload && !isAsyncEnumerable && contentType is not null && XmlBodyHelper.FindXmlAlternative(responseValue.Content) is { } alternative)
+        {
+            xmlBody = alternative;
         }
 
         // OpenAPI 3.2 streaming: when a response media type declares an itemSchema, the
@@ -715,6 +720,78 @@ public static class ResultClassExtractor
             """;
 
     /// <summary>
+    /// The <c>NegotiatedHttpResult</c> type the factories of a body offered as JSON and XML use: the JSON result unless
+    /// the request's <c>Accept</c> prefers one of the XML media types (a higher quality than any JSON one; <c>*/*</c>
+    /// and a tie are JSON - never a 406).
+    /// </summary>
+    public static string NegotiatedHttpResultSource()
+        => $$"""
+
+            /// <summary>
+            /// Writes the JSON result, or the XML one when the request's Accept prefers XML.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal sealed class NegotiatedHttpResult : IResult, IStatusCodeHttpResult
+            {
+                private readonly IResult json;
+                private readonly global::System.Func<string, IResult> xml;
+                private readonly string[] xmlMediaTypes;
+
+                public NegotiatedHttpResult(
+                    IResult json,
+                    global::System.Func<string, IResult> xml,
+                    params string[] xmlMediaTypes)
+                {
+                    this.json = json;
+                    this.xml = xml;
+                    this.xmlMediaTypes = xmlMediaTypes;
+                }
+
+                public int? StatusCode
+                    => (json as IStatusCodeHttpResult)?.StatusCode;
+
+                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+                    => PreferredXmlMediaType(httpContext.Request.Headers.Accept) is { } mediaType
+                        ? xml(mediaType).ExecuteAsync(httpContext)
+                        : json.ExecuteAsync(httpContext);
+
+                private string? PreferredXmlMediaType(global::Microsoft.Extensions.Primitives.StringValues accept)
+                {
+                    if (accept.Count == 0 ||
+                        !global::Microsoft.Net.Http.Headers.MediaTypeHeaderValue.TryParseList(accept, out var values))
+                    {
+                        return null;
+                    }
+
+                    var jsonQuality = 0d;
+                    var xmlQuality = 0d;
+                    string? chosen = null;
+                    foreach (var value in values)
+                    {
+                        var quality = value.Quality ?? 1d;
+                        var type = value.MediaType.Value ?? string.Empty;
+                        if (type is "*/*" or "application/*" or "application/json" ||
+                            type.EndsWith("+json", global::System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            jsonQuality = global::System.Math.Max(jsonQuality, quality);
+                        }
+
+                        foreach (var xmlMediaType in xmlMediaTypes)
+                        {
+                            if (string.Equals(type, xmlMediaType, global::System.StringComparison.OrdinalIgnoreCase) && quality > xmlQuality)
+                            {
+                                xmlQuality = quality;
+                                chosen = xmlMediaType;
+                            }
+                        }
+                    }
+
+                    return xmlQuality > jsonQuality ? chosen : null;
+                }
+            }
+            """;
+
+    /// <summary>
     /// The source of the <c>IResult</c> wrapper that adds a <c>Retry-After</c> header, emitted once into a
     /// Results file whose factories use it (429 responses).
     /// </summary>
@@ -837,7 +914,7 @@ public static class ResultClassExtractor
             }
             else if (xmlBody is not null)
             {
-                content = XmlResultExpression(200, contentType!, xmlBody, paramName);
+                content = XmlResultExpression(200, contentType!, xmlBody, paramName, $"TypedResults.Ok({paramName})");
             }
             else if (isAsyncEnumerable && streamingFraming == StreamingFraming.ServerSentEvents)
             {
@@ -1025,7 +1102,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: xmlBody is null ? "new(TypedResults.Created((string?)null, response))" : XmlResultExpression(201, contentType!, xmlBody, "response"));
+                Content: xmlBody is null ? "new(TypedResults.Created((string?)null, response))" : XmlResultExpression(201, contentType!, xmlBody, "response", "TypedResults.Created((string?)null, response)"));
             methods.Add(createdWithResponse);
 
             // Generate implicit operator for convenience
@@ -1138,7 +1215,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: xmlBody is null ? "new(TypedResults.Accepted((string?)null, response))" : XmlResultExpression(202, contentType!, xmlBody, "response"));
+                Content: xmlBody is null ? "new(TypedResults.Accepted((string?)null, response))" : XmlResultExpression(202, contentType!, xmlBody, "response", "TypedResults.Accepted((string?)null, response)"));
         }
 
         // TypedResults.Accepted() has no parameterless overload - every overload expects
@@ -1220,7 +1297,7 @@ public static class ResultClassExtractor
             _ when isTextResponse && textResponseMediaType is not null =>
                 Method("string", "content", $"new(TypedResults.Text(content, \"{textResponseMediaType}\", statusCode: {status}))"),
             _ when !string.IsNullOrEmpty(contentType) && xmlBody is not null =>
-                Method(contentType, "response", XmlResultExpression(statusCode, contentType!, xmlBody, "response")),
+                Method(contentType, "response", XmlResultExpression(statusCode, contentType!, xmlBody, "response", $"TypedResults.Json(response, statusCode: {status})")),
             _ when !string.IsNullOrEmpty(contentType) =>
                 Method(contentType, "response", $"new(TypedResults.Json(response, statusCode: {status}))"),
             _ => Method(null, string.Empty, $"new(TypedResults.StatusCode({status}))"),
@@ -1231,8 +1308,20 @@ public static class ResultClassExtractor
         int statusCode,
         string contentType,
         XmlBody xmlBody,
-        string valueExpression)
-        => $"new(new XmlHttpResult({statusCode.ToString(CultureInfo.InvariantCulture)}, \"{xmlBody.MediaType}\", {XmlBodyHelper.ToUtf8BytesExpression(contentType, xmlBody, valueExpression)}))";
+        string valueExpression,
+        string jsonResultExpression)
+    {
+        var status = statusCode.ToString(CultureInfo.InvariantCulture);
+        var bytes = XmlBodyHelper.ToUtf8BytesExpression(contentType, xmlBody, valueExpression);
+        if (xmlBody.AlternativeMediaTypes is { } mediaTypes)
+        {
+            // Offered as JSON and XML: JSON unless the request's Accept prefers one of the XML media types
+            var xmlTypes = string.Join(", ", mediaTypes.Select(m => $"\"{m}\""));
+            return $"new(new NegotiatedHttpResult({jsonResultExpression}, mediaType => new XmlHttpResult({status}, mediaType, {bytes}), {xmlTypes}))";
+        }
+
+        return $"new(new XmlHttpResult({status}, \"{xmlBody.MediaType}\", {bytes}))";
+    }
 
     private static string GetSchemaTypeName(
         IOpenApiSchema? schema,

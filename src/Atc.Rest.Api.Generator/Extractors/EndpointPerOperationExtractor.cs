@@ -117,7 +117,8 @@ public static class EndpointPerOperationExtractor
         bool hasSegmentModels = true,
         bool hasSharedModels = false,
         bool useServersBasePath = true,
-        string? namespaceSegment = null)
+        string? namespaceSegment = null,
+        bool preferXml = false)
     {
         var effectiveNamespaceSegment = namespaceSegment ?? pathSegment;
 
@@ -188,7 +189,8 @@ public static class EndpointPerOperationExtractor
                     hasSegmentModels,
                     hasSharedModels,
                     inlineSchemas,
-                    useServersBasePath);
+                    useServersBasePath,
+                    preferXml);
 
                 if (files is not null)
                 {
@@ -216,7 +218,8 @@ public static class EndpointPerOperationExtractor
         bool hasSegmentModels,
         bool hasSharedModels,
         Dictionary<string, InlineSchemaInfo>? inlineSchemas = null,
-        bool useServersBasePath = true)
+        bool useServersBasePath = true,
+        bool preferXml = false)
     {
         var normalizedPath = path
             .Replace("/", "_")
@@ -363,7 +366,8 @@ public static class EndpointPerOperationExtractor
             streamingItemType,
             hasSegmentModels,
             hasSharedModels,
-            useServersBasePath);
+            useServersBasePath,
+            preferXml);
 
         // For binary and streaming endpoints, skip generating result interface/class
         // (use BinaryEndpointResponse or StreamingEndpointResponse directly)
@@ -543,6 +547,12 @@ public static class EndpointPerOperationExtractor
                     isSuccess ? "Response" : null, // Only generate inline types for success responses
                     inlineSchemas,
                     isAsyncEnumerable && isSuccess);
+
+                // Offered as XML too: read by the response's Content-Type
+                if (isSuccess && !isAsyncEnumerable)
+                {
+                    xmlBody = XmlBodyHelper.FindXmlAlternative(response.Value.Content);
+                }
             }
             else if (response.Value is not null &&
                      response.Value.TryGetTextResponseMediaType(out var matchedTextMediaType, out _))
@@ -765,7 +775,8 @@ public static class EndpointPerOperationExtractor
         string? streamingItemType,
         bool hasSegmentModels,
         bool hasSharedModels,
-        bool useServersBasePath = true)
+        bool useServersBasePath = true,
+        bool preferXml = false)
     {
         var namespaceValue = NamespaceBuilder.ForEndpoints(projectName, pathSegment);
         var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
@@ -964,7 +975,8 @@ public static class EndpointPerOperationExtractor
             isAsyncEnumerable,
             streamingItemType,
             resilienceStamp,
-            useServersBasePath);
+            useServersBasePath,
+            preferXml);
 
         // Determine return type: BinaryEndpointResponse for binary, StreamingEndpointResponse for streaming, custom result class otherwise
         string returnTypeName;
@@ -1036,7 +1048,8 @@ public static class EndpointPerOperationExtractor
         bool isAsyncEnumerable,
         string? streamingItemType,
         string? resilienceStamp,
-        bool useServersBasePath = true)
+        bool useServersBasePath = true,
+        bool preferXml = false)
     {
         var sb = new StringBuilder();
         sb.AppendLine("var client = factory.CreateClient(httpClientName);");
@@ -1124,14 +1137,8 @@ public static class EndpointPerOperationExtractor
         // An XML answer: ask for its media type (the request builder asks for application/json by default, under
         // the key "accept"), and for the errors as they are read: the declared error media types, else a ProblemDetails
         // (an Accept without it lets a host decline to write the problem, e.g. for an empty-body status)
-        var xmlMediaTypes = responses.Where(r => r.Xml is not null).Select(r => r.Xml!.MediaType).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        if (xmlMediaTypes.Count > 0)
+        if (XmlBodyHelper.AcceptFor(responses.Where(r => r.Xml is not null).Select(r => r.Xml!).ToList(), XmlBodyHelper.ErrorMediaTypes(operation), preferXml) is { } accept)
         {
-            var errorMediaTypes = responses
-                .Where(r => !r.IsSuccess && r.ErrorMediaType is not null)
-                .Select(r => r.ErrorMediaType!)
-                .Append("application/problem+json");
-            var accept = string.Join(", ", xmlMediaTypes.Concat(errorMediaTypes).Distinct(StringComparer.OrdinalIgnoreCase));
             sb.AppendLine($"requestBuilder.WithHeaderParameter(\"accept\", \"{accept}\");");
         }
 
@@ -1354,7 +1361,20 @@ public static class EndpointPerOperationExtractor
 
             if (responseInfo.IsSuccess)
             {
-                if (responseInfo.IsFile || responseInfo.Xml is not null)
+                if (responseInfo.Xml is { IsAlternative: true })
+                {
+                    // Offered as JSON and XML: the JSON type, unless the response is XML (read by the accessor)
+                    sb.AppendLine("if (XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))");
+                    sb.AppendLine("{");
+                    sb.AppendLine(4, $"responseBuilder.AddSuccessResponse({responseInfo.StatusCodeExpression});");
+                    sb.AppendLine("}");
+                    sb.AppendLine("else");
+                    sb.AppendLine("{");
+                    sb.AppendLine(4, $"responseBuilder.AddSuccessResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression});");
+                    sb.AppendLine("}");
+                    sb.AppendLine();
+                }
+                else if (responseInfo.IsFile || responseInfo.Xml is not null)
                 {
                     // A file or an XML body - no JSON type: Atc.Rest.Client keeps a non-text body as bytes (text/xml as
                     // text), and the accessor reads the file or the XML
@@ -1645,6 +1665,19 @@ public static class EndpointPerOperationExtractor
                 sb.AppendLine(8, $"=> Is{response.PropertyName}");
                 sb.AppendLine(12, "? DownloadedFile.FromResponse(this)");
                 sb.AppendLine(12, $": throw InvalidContentAccessException<{response.ContentType}>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
+                sb.AppendLine();
+                continue;
+            }
+
+            if (response.Xml is { IsAlternative: true })
+            {
+                // Offered as JSON and XML: the JSON model, else the model read from the XML body
+                sb.AppendLine(4, $"public {response.ContentType} {response.PropertyName}Content");
+                sb.AppendLine(8, $"=> Is{response.PropertyName} && ContentObject is {response.ContentType} result");
+                sb.AppendLine(12, "? result");
+                sb.AppendLine(12, $": Is{response.PropertyName}");
+                sb.AppendLine(16, $"? {XmlBodyHelper.ReadMethod(response.ContentType!, response.Xml)}(XmlModelSupport.ParseContent(ContentObject ?? Content))");
+                sb.AppendLine(16, $": throw InvalidContentAccessException<{response.ContentType}>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
                 sb.AppendLine();
                 continue;
             }

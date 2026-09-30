@@ -73,6 +73,15 @@ public class ClientConfig : BaseConfig
     public bool StrictRequiredProperties { get; set; }
 
     /// <summary>
+    /// Ask for XML first for an operation that offers its response as JSON and XML. Default: false.
+    /// By default the generated clients send <c>Accept: application/json, application/problem+json</c> for such an
+    /// operation; when true they send the XML media types first (and <c>application/problem+xml</c> before
+    /// <c>application/problem+json</c>), for third-party APIs that answer XML better. Either way the client reads
+    /// whatever <c>Content-Type</c> comes back.
+    /// </summary>
+    public bool PreferXml { get; set; }
+
+    /// <summary>
     /// Error response format expected from the API. Default: ProblemDetails.
     /// Only applies to EndpointPerOperation generation mode.
     /// </summary>

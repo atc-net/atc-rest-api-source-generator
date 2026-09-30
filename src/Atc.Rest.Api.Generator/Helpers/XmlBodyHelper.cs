@@ -51,6 +51,83 @@ public static class XmlBodyHelper
     }
 
     /// <summary>
+    /// Finds the XML alternative of a JSON model body: the XML media types that carry the same model (or array of it)
+    /// as the JSON one, negotiated by <c>Accept</c>.
+    /// </summary>
+    /// <param name="content">The request or response content.</param>
+    /// <returns>The XML body with its media types, or <see langword="null"/> when the body is not offered as XML too.</returns>
+    public static XmlBody? FindXmlAlternative(
+        IDictionary<string, IOpenApiMediaType>? content)
+    {
+        if (content is null ||
+            content.FirstOrDefault(entry => ResponseBodyClassifier.Classify(entry.Key, entry.Value.Schema) == ResponseBodyKind.Json) is not { Key: not null } json)
+        {
+            return null;
+        }
+
+        var jsonIdentity = BodyIdentity(json.Value.Schema);
+        if (jsonIdentity is null)
+        {
+            return null;
+        }
+
+        var xmlMediaTypes = content
+            .Where(entry => XmlBodyReachability.IsXmlModelBody(entry.Key, entry.Value.Schema) &&
+                            string.Equals(BodyIdentity(entry.Value.Schema), jsonIdentity, StringComparison.Ordinal))
+            .Select(entry => entry.Key)
+            .ToList();
+        if (xmlMediaTypes.Count == 0)
+        {
+            return null;
+        }
+
+        var only = FindXmlOnlyBody(content.Where(entry => string.Equals(entry.Key, xmlMediaTypes[0], StringComparison.Ordinal)).ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal));
+        return only is null ? null : only with { AlternativeMediaTypes = xmlMediaTypes };
+    }
+
+    /// <summary>
+    /// The media types of an operation's declared error responses (4xx, 5xx, <c>default</c>).
+    /// </summary>
+    /// <param name="operation">The operation.</param>
+    /// <returns>The media types, in declaration order.</returns>
+    public static IEnumerable<string> ErrorMediaTypes(
+        OpenApiOperation operation)
+        => (operation?.Responses ?? new OpenApiResponses())
+            .Where(entry => entry.Key.Equals("default", StringComparison.OrdinalIgnoreCase) || entry.Key.StartsWith("4", StringComparison.Ordinal) || entry.Key.StartsWith("5", StringComparison.Ordinal))
+            .SelectMany(entry => entry.Value.Content?.Keys ?? Enumerable.Empty<string>());
+
+    /// <summary>
+    /// The <c>Accept</c> header a generated client sends for an operation with an XML answer: for a body offered as
+    /// JSON and XML, JSON first (<c>preferXml</c>: XML first); for an XML-only body, its media types. Errors are asked
+    /// for as they are read: the declared error media types, else a ProblemDetails (an <c>Accept</c> without it lets a
+    /// host decline to write the problem).
+    /// </summary>
+    /// <param name="bodies">The XML bodies of the operation's success responses.</param>
+    /// <param name="errorMediaTypes">The declared error media types.</param>
+    /// <param name="preferXml">Whether the client prefers XML for a body offered as JSON and XML.</param>
+    /// <returns>The header value, or <see langword="null"/> when no success response has an XML body.</returns>
+    public static string? AcceptFor(
+        IReadOnlyCollection<XmlBody> bodies,
+        IEnumerable<string> errorMediaTypes,
+        bool preferXml)
+    {
+        if (bodies is null || bodies.Count == 0)
+        {
+            return null;
+        }
+
+        var xmlMediaTypes = bodies.SelectMany(b => b.AlternativeMediaTypes ?? [b.MediaType]).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (bodies.Any(b => b.IsAlternative))
+        {
+            return preferXml
+                ? $"{string.Join(", ", xmlMediaTypes)}, application/problem+xml;q=0.9, application/problem+json;q=0.8"
+                : "application/json, application/problem+json";
+        }
+
+        return string.Join(", ", xmlMediaTypes.Concat(errorMediaTypes).Append("application/problem+json").Distinct(StringComparer.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
     /// Whether a schema is a reference to a model record that gets a generated <c>{Model}Xml</c>: an object (or
     /// allOf) schema, not polymorphic, not an enum, array or paginated generic.
     /// </summary>
@@ -99,6 +176,24 @@ public static class XmlBodyHelper
         string typeName,
         XmlBody body)
         => $"{CompanionOf(typeName, body)}.{(body.IsList ? "ReadList" : "Read")}";
+
+    private static string? BodyIdentity(IOpenApiSchema? schema)
+    {
+        if (schema is OpenApiSchemaReference reference && IsMappedModel(reference))
+        {
+            return reference.Reference?.Id ?? reference.Id;
+        }
+
+        if (schema is OpenApiSchema { Type: { } type } array &&
+            (type & JsonSchemaType.Array) == JsonSchemaType.Array &&
+            array.Items is OpenApiSchemaReference item &&
+            IsMappedModel(item))
+        {
+            return "[]" + (item.Reference?.Id ?? item.Id);
+        }
+
+        return null;
+    }
 
     private static string CompanionOf(
         string typeName,

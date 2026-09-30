@@ -44,13 +44,22 @@ public sealed class UpdatePetEndpoint : IUpdatePetEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/pet");
+        requestBuilder.WithHeaderParameter("accept", "application/json, application/problem+json");
         requestBuilder.WithBody(parameters.Request);
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Put);
         using var response = await client.SendAsync(requestMessage, cancellationToken);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
-        responseBuilder.AddSuccessResponse<Pet>(HttpStatusCode.OK);
+        if (XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
+        {
+            responseBuilder.AddSuccessResponse(HttpStatusCode.OK);
+        }
+        else
+        {
+            responseBuilder.AddSuccessResponse<Pet>(HttpStatusCode.OK);
+        }
+
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.UnprocessableEntity);

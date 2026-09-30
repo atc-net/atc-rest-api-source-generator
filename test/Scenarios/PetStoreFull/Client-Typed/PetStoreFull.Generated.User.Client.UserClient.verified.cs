@@ -3,6 +3,7 @@
 
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -43,7 +44,15 @@ public sealed class UserClient : IUserClient
         CancellationToken cancellationToken = default)
     {
         var url = "/user";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
+        requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
+        {
+            return UserXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
+        }
+
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<User>(jsonSerializerOptions, cancellationToken))!;
     }
@@ -53,7 +62,15 @@ public sealed class UserClient : IUserClient
         CancellationToken cancellationToken = default)
     {
         var url = "/user/createWithList";
-        var response = await httpClient.PostAsJsonAsync(url, parameters.Request, jsonSerializerOptions, cancellationToken);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        requestMessage.Content = JsonContent.Create(parameters.Request, options: jsonSerializerOptions);
+        requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
+        {
+            return UserXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
+        }
+
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<User>(jsonSerializerOptions, cancellationToken))!;
     }
@@ -97,7 +114,14 @@ public sealed class UserClient : IUserClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/user/{Uri.EscapeDataString(parameters.Username)}";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
+        {
+            return UserXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
+        }
+
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<User>(jsonSerializerOptions, cancellationToken))!;
     }

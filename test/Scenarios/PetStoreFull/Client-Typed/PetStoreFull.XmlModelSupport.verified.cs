@@ -84,6 +84,13 @@ public static class XmlModelSupport
             ?? throw new global::System.Xml.XmlException("The XML document has no root element.");
     }
 
+    /// <summary>Whether a response media type is XML (<c>application/xml</c>, <c>text/xml</c>, <c>*+xml</c>).</summary>
+    public static bool IsXmlMediaType(string? mediaType)
+        => mediaType is not null &&
+           (mediaType.Equals("application/xml", global::System.StringComparison.OrdinalIgnoreCase) ||
+            mediaType.Equals("text/xml", global::System.StringComparison.OrdinalIgnoreCase) ||
+            mediaType.EndsWith("+xml", global::System.StringComparison.OrdinalIgnoreCase));
+
     /// <summary>The namespace an unqualified child element is written in: the parent's default namespace.</summary>
     public static string ChildNamespace(string ns, string? prefix)
         => string.IsNullOrEmpty(prefix) ? ns : string.Empty;

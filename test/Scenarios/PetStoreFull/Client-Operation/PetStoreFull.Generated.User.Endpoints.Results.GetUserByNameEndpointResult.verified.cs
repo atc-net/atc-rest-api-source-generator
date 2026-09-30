@@ -92,7 +92,9 @@ public partial class GetUserByNameEndpointResult : EndpointResponse, IGetUserByN
     public User OkContent
         => IsOk && ContentObject is User result
             ? result
-            : throw InvalidContentAccessException<User>(HttpStatusCode.OK, "OkContent");
+            : IsOk
+                ? UserXml.Read(XmlModelSupport.ParseContent(ContentObject ?? Content))
+                : throw InvalidContentAccessException<User>(HttpStatusCode.OK, "OkContent");
 
     public ValidationProblemDetails BadRequestContent
         => IsBadRequest && ContentObject is ValidationProblemDetails result

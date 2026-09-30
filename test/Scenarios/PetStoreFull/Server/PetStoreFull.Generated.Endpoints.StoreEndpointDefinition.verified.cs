@@ -54,7 +54,7 @@ public sealed class StoreEndpointDefinition : IEndpointDefinition
             .MapGet("order/{orderId}", GetOrderById)
             .WithName("GetOrderById")
             .WithSummary("Find purchase order by ID.")
-            .Produces<Order>()
+            .Produces<Order>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError);

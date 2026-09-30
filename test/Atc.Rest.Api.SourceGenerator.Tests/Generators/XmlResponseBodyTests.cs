@@ -381,21 +381,21 @@ public sealed class XmlResponseBodyTests
             resultStyle == "Throw"
                 ?
                 [
-                    $"GetPet(1): {pet} accept=",
-                    "GetPet(404): THROWS HttpRequestException NotFound accept=",
-                    $"ListPets(): {pets} accept=",
-                    $"CreatePet(NewPet): {created} accept=",
-                    $"GetReport(7): {report} accept=",
-                    $"GetReport(8): {latin1} accept=",
+                    $"GetPet(1): {pet} accept=application/xml | application/problem+json",
+                    "GetPet(404): THROWS HttpRequestException NotFound accept=application/xml | application/problem+json",
+                    $"ListPets(): {pets} accept=application/xml | application/problem+json",
+                    $"CreatePet(NewPet): {created} accept=text/xml | application/problem+json",
+                    $"GetReport(7): {report} accept=application/vnd.acme.report+xml | application/problem+json",
+                    $"GetReport(8): {latin1} accept=application/vnd.acme.report+xml | application/problem+json",
                 ]
                 :
                 [
-                    $"GetPet(1): 200 SuccessContent={pet} accept=",
-                    "GetPet(404): 404 =null accept=",
-                    $"ListPets(): 200 SuccessContent={pets} accept=",
-                    $"CreatePet(NewPet): 201 SuccessContent={created} accept=",
-                    $"GetReport(7): 200 SuccessContent={report} accept=",
-                    $"GetReport(8): 200 SuccessContent={latin1} accept=",
+                    $"GetPet(1): 200 SuccessContent={pet} accept=application/xml | application/problem+json",
+                    "GetPet(404): 404 =null accept=application/xml | application/problem+json",
+                    $"ListPets(): 200 SuccessContent={pets} accept=application/xml | application/problem+json",
+                    $"CreatePet(NewPet): 201 SuccessContent={created} accept=text/xml | application/problem+json",
+                    $"GetReport(7): 200 SuccessContent={report} accept=application/vnd.acme.report+xml | application/problem+json",
+                    $"GetReport(8): 200 SuccessContent={latin1} accept=application/vnd.acme.report+xml | application/problem+json",
                 ],
             rows,
             StringComparer.Ordinal);

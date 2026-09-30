@@ -45,12 +45,21 @@ public sealed class GetOrderByIdEndpoint : IGetOrderByIdEndpoint
 
         var requestBuilder = httpMessageFactory.FromTemplate("/store/order/{orderId}");
         requestBuilder.WithPathParameter("orderId", parameters.OrderId);
+        requestBuilder.WithHeaderParameter("accept", "application/json, application/problem+json");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
         using var response = await client.SendAsync(requestMessage, cancellationToken);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
-        responseBuilder.AddSuccessResponse<Order>(HttpStatusCode.OK);
+        if (XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
+        {
+            responseBuilder.AddSuccessResponse(HttpStatusCode.OK);
+        }
+        else
+        {
+            responseBuilder.AddSuccessResponse<Order>(HttpStatusCode.OK);
+        }
+
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);

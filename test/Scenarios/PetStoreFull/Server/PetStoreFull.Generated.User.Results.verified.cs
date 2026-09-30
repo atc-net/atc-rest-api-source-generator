@@ -31,7 +31,7 @@ public sealed class CreateUserResult : IResult
     /// 200 OK - successful operation.
     /// </summary>
     public static CreateUserResult Ok(User response)
-        => new(TypedResults.Ok(response));
+        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, UserXml.ToUtf8Bytes(response)), "application/xml"));
 
     public static implicit operator CreateUserResult(User response)
         => Ok(response);
@@ -75,7 +75,7 @@ public sealed class CreateUsersWithListInputResult : IResult
     /// 200 OK - Successful operation.
     /// </summary>
     public static CreateUsersWithListInputResult Ok(User response)
-        => new(TypedResults.Ok(response));
+        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, UserXml.ToUtf8Bytes(response)), "application/xml"));
 
     public static implicit operator CreateUsersWithListInputResult(User response)
         => Ok(response);
@@ -210,7 +210,7 @@ public sealed class GetUserByNameResult : IResult
     /// 200 OK - successful operation.
     /// </summary>
     public static GetUserByNameResult Ok(User response)
-        => new(TypedResults.Ok(response));
+        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, UserXml.ToUtf8Bytes(response)), "application/xml"));
 
     public static implicit operator GetUserByNameResult(User response)
         => Ok(response);
@@ -349,4 +349,100 @@ public sealed class DeleteUserResult : IResult
     /// </summary>
     public static IResult ToIResult(DeleteUserResult result)
         => result.Result;
+}
+
+/// <summary>
+/// Writes an XML body (the model's generated XML mapping) with its status and media type.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal sealed class XmlHttpResult : IResult, IStatusCodeHttpResult, IContentTypeHttpResult
+{
+    private readonly byte[] body;
+
+    public XmlHttpResult(
+        int statusCode,
+        string mediaType,
+        byte[] body)
+    {
+        StatusCode = statusCode;
+        ContentType = mediaType + "; charset=utf-8";
+        this.body = body;
+    }
+
+    public int StatusCode { get; }
+
+    int? IStatusCodeHttpResult.StatusCode => StatusCode;
+
+    public string ContentType { get; }
+
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+    {
+        httpContext.Response.StatusCode = StatusCode;
+        httpContext.Response.ContentType = ContentType;
+        httpContext.Response.ContentLength = body.Length;
+        return httpContext.Response.Body.WriteAsync(body, httpContext.RequestAborted).AsTask();
+    }
+}
+
+/// <summary>
+/// Writes the JSON result, or the XML one when the request's Accept prefers XML.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+internal sealed class NegotiatedHttpResult : IResult, IStatusCodeHttpResult
+{
+    private readonly IResult json;
+    private readonly global::System.Func<string, IResult> xml;
+    private readonly string[] xmlMediaTypes;
+
+    public NegotiatedHttpResult(
+        IResult json,
+        global::System.Func<string, IResult> xml,
+        params string[] xmlMediaTypes)
+    {
+        this.json = json;
+        this.xml = xml;
+        this.xmlMediaTypes = xmlMediaTypes;
+    }
+
+    public int? StatusCode
+        => (json as IStatusCodeHttpResult)?.StatusCode;
+
+    public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+        => PreferredXmlMediaType(httpContext.Request.Headers.Accept) is { } mediaType
+            ? xml(mediaType).ExecuteAsync(httpContext)
+            : json.ExecuteAsync(httpContext);
+
+    private string? PreferredXmlMediaType(global::Microsoft.Extensions.Primitives.StringValues accept)
+    {
+        if (accept.Count == 0 ||
+            !global::Microsoft.Net.Http.Headers.MediaTypeHeaderValue.TryParseList(accept, out var values))
+        {
+            return null;
+        }
+
+        var jsonQuality = 0d;
+        var xmlQuality = 0d;
+        string? chosen = null;
+        foreach (var value in values)
+        {
+            var quality = value.Quality ?? 1d;
+            var type = value.MediaType.Value ?? string.Empty;
+            if (type is "*/*" or "application/*" or "application/json" ||
+                type.EndsWith("+json", global::System.StringComparison.OrdinalIgnoreCase))
+            {
+                jsonQuality = global::System.Math.Max(jsonQuality, quality);
+            }
+
+            foreach (var xmlMediaType in xmlMediaTypes)
+            {
+                if (string.Equals(type, xmlMediaType, global::System.StringComparison.OrdinalIgnoreCase) && quality > xmlQuality)
+                {
+                    xmlQuality = quality;
+                    chosen = xmlMediaType;
+                }
+            }
+        }
+
+        return xmlQuality > jsonQuality ? chosen : null;
+    }
 }

@@ -101,7 +101,9 @@ public partial class FindPetsByTagsEndpointResult : EndpointResponse, IFindPetsB
     public IEnumerable<Pet> OkContent
         => IsOk && ContentObject is IEnumerable<Pet> result
             ? result
-            : throw InvalidContentAccessException<IEnumerable<Pet>>(HttpStatusCode.OK, "OkContent");
+            : IsOk
+                ? PetXml.ReadList(XmlModelSupport.ParseContent(ContentObject ?? Content))
+                : throw InvalidContentAccessException<IEnumerable<Pet>>(HttpStatusCode.OK, "OkContent");
 
     public ValidationProblemDetails BadRequestContent
         => IsBadRequest && ContentObject is ValidationProblemDetails result

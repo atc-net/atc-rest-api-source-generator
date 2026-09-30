@@ -92,7 +92,9 @@ public partial class GetOrderByIdEndpointResult : EndpointResponse, IGetOrderByI
     public Order OkContent
         => IsOk && ContentObject is Order result
             ? result
-            : throw InvalidContentAccessException<Order>(HttpStatusCode.OK, "OkContent");
+            : IsOk
+                ? OrderXml.Read(XmlModelSupport.ParseContent(ContentObject ?? Content))
+                : throw InvalidContentAccessException<Order>(HttpStatusCode.OK, "OkContent");
 
     public ValidationProblemDetails BadRequestContent
         => IsBadRequest && ContentObject is ValidationProblemDetails result

@@ -45,12 +45,21 @@ public sealed class GetUserByNameEndpoint : IGetUserByNameEndpoint
 
         var requestBuilder = httpMessageFactory.FromTemplate("/user/{username}");
         requestBuilder.WithPathParameter("username", parameters.Username);
+        requestBuilder.WithHeaderParameter("accept", "application/json, application/problem+json");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
         using var response = await client.SendAsync(requestMessage, cancellationToken);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
-        responseBuilder.AddSuccessResponse<User>(HttpStatusCode.OK);
+        if (XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
+        {
+            responseBuilder.AddSuccessResponse(HttpStatusCode.OK);
+        }
+        else
+        {
+            responseBuilder.AddSuccessResponse<User>(HttpStatusCode.OK);
+        }
+
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.NotFound);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);

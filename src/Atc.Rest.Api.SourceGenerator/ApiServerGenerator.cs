@@ -1423,6 +1423,12 @@ public class ApiServerGenerator : IIncrementalGenerator
             allGeneratedCode.AppendLine(ResultClassExtractor.XmlHttpResultSource());
         }
 
+        // A body offered as JSON and XML is negotiated by Accept
+        if (allGeneratedCode.ToString().Contains("new NegotiatedHttpResult("))
+        {
+            allGeneratedCode.AppendLine(ResultClassExtractor.NegotiatedHttpResultSource());
+        }
+
         var normalizeForSourceOutput = allGeneratedCode
             .ToString()
             .NormalizeForSourceOutput();

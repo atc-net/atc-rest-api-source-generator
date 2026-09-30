@@ -33,7 +33,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .MapPost("/", CreateUser)
             .WithName("CreateUser")
             .WithSummary("Create user.")
-            .Produces<User>()
+            .Produces<User>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict);
@@ -42,7 +42,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .MapPost("createWithList", CreateUsersWithListInput)
             .WithName("CreateUsersWithListInput")
             .WithSummary("Creates list of users with given input array.")
-            .Produces<User>()
+            .Produces<User>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict);
@@ -66,7 +66,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .MapGet("{username}", GetUserByName)
             .WithName("GetUserByName")
             .WithSummary("Get user by user name.")
-            .Produces<User>()
+            .Produces<User>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError);

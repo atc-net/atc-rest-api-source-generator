@@ -2,6 +2,7 @@
 #nullable enable
 
 using System.CodeDom.Compiler;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -60,7 +61,14 @@ public sealed class StoreClient : IStoreClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/store/order/{parameters.OrderId}";
-        var response = await httpClient.GetAsync(url, cancellationToken);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        requestMessage.Headers.Accept.ParseAdd("application/json, application/problem+json");
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
+        {
+            return OrderXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
+        }
+
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<Order>(jsonSerializerOptions, cancellationToken))!;
     }

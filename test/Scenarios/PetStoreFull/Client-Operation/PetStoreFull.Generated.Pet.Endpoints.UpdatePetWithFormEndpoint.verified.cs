@@ -53,12 +53,21 @@ public sealed class UpdatePetWithFormEndpoint : IUpdatePetWithFormEndpoint
         {
             requestBuilder.WithQueryParameter("status", parameters.Status);
         }
+        requestBuilder.WithHeaderParameter("accept", "application/json, application/problem+json");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
         using var response = await client.SendAsync(requestMessage, cancellationToken);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
-        responseBuilder.AddSuccessResponse<Pet>(HttpStatusCode.OK);
+        if (XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
+        {
+            responseBuilder.AddSuccessResponse(HttpStatusCode.OK);
+        }
+        else
+        {
+            responseBuilder.AddSuccessResponse<Pet>(HttpStatusCode.OK);
+        }
+
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Unauthorized);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Forbidden);

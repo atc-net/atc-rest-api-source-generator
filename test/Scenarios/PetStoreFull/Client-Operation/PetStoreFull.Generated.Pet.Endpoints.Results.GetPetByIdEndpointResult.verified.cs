@@ -110,7 +110,9 @@ public partial class GetPetByIdEndpointResult : EndpointResponse, IGetPetByIdEnd
     public Pet OkContent
         => IsOk && ContentObject is Pet result
             ? result
-            : throw InvalidContentAccessException<Pet>(HttpStatusCode.OK, "OkContent");
+            : IsOk
+                ? PetXml.Read(XmlModelSupport.ParseContent(ContentObject ?? Content))
+                : throw InvalidContentAccessException<Pet>(HttpStatusCode.OK, "OkContent");
 
     public ValidationProblemDetails BadRequestContent
         => IsBadRequest && ContentObject is ValidationProblemDetails result

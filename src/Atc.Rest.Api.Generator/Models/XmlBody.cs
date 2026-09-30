@@ -9,4 +9,17 @@ namespace Atc.Rest.Api.Generator.Models;
 public sealed record XmlBody(
     string MediaType,
     bool IsList,
-    string? ListRootName);
+    string? ListRootName)
+{
+    /// <summary>
+    /// The XML media types of a body that is offered as JSON too (negotiated by <c>Accept</c>), or
+    /// <see langword="null"/> for an XML-only body.
+    /// </summary>
+    public IReadOnlyList<string>? AlternativeMediaTypes { get; init; }
+
+    /// <summary>
+    /// Whether the body is offered as JSON too, and the XML is the alternative negotiated by <c>Accept</c>.
+    /// </summary>
+    public bool IsAlternative
+        => AlternativeMediaTypes is not null;
+}

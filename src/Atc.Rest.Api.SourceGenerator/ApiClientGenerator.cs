@@ -426,7 +426,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                     ? ErrorResponseFormatType.Custom
                     : config.ErrorResponseFormat;
 
-                var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, customErrorTypeName, config.ValidateSpecificationStrategy, config.StrictRequiredProperties);
+                var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, customErrorTypeName, config.ValidateSpecificationStrategy, config.StrictRequiredProperties, config.PreferXml);
                 if (hasEndpoints)
                 {
                     generatedPathSegments.Add(effectiveSegment);
@@ -436,7 +436,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 var hasSegmentModelsTyped = segmentSchemas.Count > 0;
                 var hasSharedModelsTyped = sharedSchemas.Count > 0;
-                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy, config.ClientSuffix, clientName: null, packages.HasHttpClientFactory, config.TypedClientResultStyle, config.StrictRequiredProperties);
+                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy, config.ClientSuffix, clientName: null, packages.HasHttpClientFactory, config.TypedClientResultStyle, config.StrictRequiredProperties, config.PreferXml);
             }
         }
 
@@ -966,7 +966,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             config.ClientName,
             generateDiExtension,
             config.TypedClientResultStyle,
-            config.StrictRequiredProperties);
+            config.StrictRequiredProperties,
+            config.PreferXml);
 
         if (StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
         {
@@ -994,7 +995,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         string? clientName = null,
         bool generateDiExtension = false,
         TypedClientResultStyleType typedClientResultStyle = TypedClientResultStyleType.Throw,
-        bool strictRequiredProperties = false)
+        bool strictRequiredProperties = false,
+        bool preferXml = false)
     {
         // An empty namespace segment means Single granularity: the client and its parameter
         // records are flattened into "{projectName}.Generated" rather than the per-area
@@ -1047,7 +1049,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         // Use HttpClientExtractor to extract HTTP client class parameters filtered by path segment
         // This also extracts inline schemas for type generation
-        var (classParameters, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, useServersBasePath, hasSegmentModels, hasSharedModels, namespaceSegment, clientSuffix, clientName, typedClientResultStyle);
+        var (classParameters, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, useServersBasePath, hasSegmentModels, hasSharedModels, namespaceSegment, clientSuffix, clientName, typedClientResultStyle, preferXml);
 
         if (classParameters is null)
         {
@@ -1198,7 +1200,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         ErrorResponseFormatType errorResponseFormat,
         string? customErrorTypeName,
         ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
-        bool strictRequiredProperties = false)
+        bool strictRequiredProperties = false,
+        bool preferXml = false)
     {
         var clientNamespace = NamespaceBuilder.ForClient(projectName, namespaceSegment);
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, namespaceSegment);
@@ -1256,7 +1259,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             hasSegmentModels: hasSegmentModels,
             hasSharedModels: hasSharedModels,
             useServersBasePath: useServersBasePath,
-            namespaceSegment: namespaceSegment);
+            namespaceSegment: namespaceSegment,
+            preferXml: preferXml);
 
         // Generate inline model types if any were discovered
         if (inlineSchemas.Count > 0)
