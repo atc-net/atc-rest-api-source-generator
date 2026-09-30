@@ -624,7 +624,7 @@ public static class SchemaExtractor
     /// <summary>
     /// Checks if a schema represents a pagination base (has results/items/data/values/content: array with empty/untyped items).
     /// </summary>
-    private static bool IsPaginationBaseSchema(OpenApiSchema schema)
+    internal static bool IsPaginationBaseSchema(OpenApiSchema schema)
     {
         if (schema.Properties is null)
         {

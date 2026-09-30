@@ -432,7 +432,7 @@ public static class EndpointPerOperationExtractor
     /// <param name="TextMediaType">The text media type of a raw text body, or <see langword="null"/>.</param>
     /// <param name="IsAutoAdded">Whether the generator added this response (the spec does not list it).</param>
     /// <param name="ErrorMediaType">The declared media type of an error response's body, or <see langword="null"/>.</param>
-    private sealed record ResponseInfo(string StatusCode, string StatusEnumName, string PropertyName, string? ContentType, bool IsSuccess, string? TextMediaType = null, bool IsAutoAdded = false, string? ErrorMediaType = null, bool IsFile = false)
+    private sealed record ResponseInfo(string StatusCode, string StatusEnumName, string PropertyName, string? ContentType, bool IsSuccess, string? TextMediaType = null, bool IsAutoAdded = false, string? ErrorMediaType = null, bool IsFile = false, XmlBody? Xml = null)
     {
         /// <summary>
         /// Whether this is the spec's <c>default</c> response: the body of any error status the operation does not list.
@@ -518,9 +518,16 @@ public static class EndpointPerOperationExtractor
             // A file download (the primary body is binary - ResponseBodyClassifier): the bytes, content type and file
             // name as a DownloadedFile, read from the response by OkContent
             var isFile = isSuccess && ResponseBodyClassifier.PrimaryBody(response.Value?.Content)?.Kind == ResponseBodyKind.Binary;
+            XmlBody? xmlBody = null;
             if (isFile)
             {
                 contentType = "DownloadedFile";
+            }
+            else if (isSuccess && XmlBodyHelper.FindXmlOnlyBody(response.Value?.Content) is { } xml)
+            {
+                // An XML-only model body: Atc.Rest.Client keeps it (bytes, or text for text/xml), OkContent reads the XML
+                contentType = GetSchemaTypeName(response.Value!.Content![xml.MediaType].Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas, isAsyncEnumerable: false);
+                xmlBody = xml;
             }
             else if (response.Value?.Content is not null &&
                 response.Value.Content.TryGetValue("application/json", out var mediaType))
@@ -552,7 +559,7 @@ public static class EndpointPerOperationExtractor
                 contentType = GetErrorContentType(errorResponseFormat, customErrorTypeName, statusCodeStr);
             }
 
-            responses.Add(new ResponseInfo(statusCodeStr, statusEnumName, propertyName, contentType, isSuccess, textMediaType, IsFile: isFile));
+            responses.Add(new ResponseInfo(statusCodeStr, statusEnumName, propertyName, contentType, isSuccess, textMediaType, IsFile: isFile, Xml: xmlBody));
         }
 
         return responses;
@@ -1114,6 +1121,20 @@ public static class EndpointPerOperationExtractor
             }
         }
 
+        // An XML answer: ask for its media type (the request builder asks for application/json by default, under
+        // the key "accept"), and for the errors as they are read: the declared error media types, else a ProblemDetails
+        // (an Accept without it lets a host decline to write the problem, e.g. for an empty-body status)
+        var xmlMediaTypes = responses.Where(r => r.Xml is not null).Select(r => r.Xml!.MediaType).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (xmlMediaTypes.Count > 0)
+        {
+            var errorMediaTypes = responses
+                .Where(r => !r.IsSuccess && r.ErrorMediaType is not null)
+                .Select(r => r.ErrorMediaType!)
+                .Append("application/problem+json");
+            var accept = string.Join(", ", xmlMediaTypes.Concat(errorMediaTypes).Distinct(StringComparer.OrdinalIgnoreCase));
+            sb.AppendLine($"requestBuilder.WithHeaderParameter(\"accept\", \"{accept}\");");
+        }
+
         // Add request body
         if (operation.RequestBody?.Content is not null)
         {
@@ -1333,9 +1354,10 @@ public static class EndpointPerOperationExtractor
 
             if (responseInfo.IsSuccess)
             {
-                if (responseInfo.IsFile)
+                if (responseInfo.IsFile || responseInfo.Xml is not null)
                 {
-                    // A file - no JSON type: Atc.Rest.Client keeps a non-text body as bytes, OkContent reads the file
+                    // A file or an XML body - no JSON type: Atc.Rest.Client keeps a non-text body as bytes (text/xml as
+                    // text), and the accessor reads the file or the XML
                     sb.AppendLine($"responseBuilder.AddSuccessResponse({responseInfo.StatusCodeExpression});");
                 }
                 else if (responseInfo.TextMediaType is not null)
@@ -1622,6 +1644,17 @@ public static class EndpointPerOperationExtractor
                 sb.AppendLine(4, $"public {response.ContentType} {response.PropertyName}Content");
                 sb.AppendLine(8, $"=> Is{response.PropertyName}");
                 sb.AppendLine(12, "? DownloadedFile.FromResponse(this)");
+                sb.AppendLine(12, $": throw InvalidContentAccessException<{response.ContentType}>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
+                sb.AppendLine();
+                continue;
+            }
+
+            if (response.Xml is not null)
+            {
+                // The model read from the XML body: the bytes (ContentObject), or for text/xml the text (Content)
+                sb.AppendLine(4, $"public {response.ContentType} {response.PropertyName}Content");
+                sb.AppendLine(8, $"=> Is{response.PropertyName}");
+                sb.AppendLine(12, $"? {XmlBodyHelper.ReadMethod(response.ContentType!, response.Xml)}(XmlModelSupport.ParseContent(ContentObject ?? Content))");
                 sb.AppendLine(12, $": throw InvalidContentAccessException<{response.ContentType}>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
                 sb.AppendLine();
                 continue;

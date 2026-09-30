@@ -1291,6 +1291,12 @@ using Microsoft.AspNetCore.Builder;
                 {
                     contentType = GetResponseContentType(mediaType.Schema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry);
                 }
+                else if (XmlBodyHelper.FindXmlOnlyBody(openApiResponse.Content) is { } xmlBody)
+                {
+                    // An XML-only model body: the model, with its XML media type (Produces<T>() alone means JSON)
+                    contentType = GetResponseContentType(openApiResponse.Content![xmlBody.MediaType].Schema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry);
+                    textResponseMediaType = xmlBody.MediaType;
+                }
                 else if (openApiResponse.TryGetTextResponseMediaType(out var matchedTextMediaType, out _))
                 {
                     // text/plain, text/csv, application/xml, ... — surface as a raw string body.

@@ -50,6 +50,29 @@ public static class XmlModelSupport
             ?? throw new global::System.Xml.XmlException("The XML document has no root element.");
     }
 
+    /// <summary>
+    /// Parses the body of a response kept by Atc.Rest.Client: the bytes (a non-text media type such as
+    /// <c>application/xml</c>) or the text (<c>text/xml</c>), and returns its root element.
+    /// </summary>
+    public static global::System.Xml.Linq.XElement ParseContent(object? content)
+    {
+        switch (content)
+        {
+            case byte[] bytes:
+            {
+                using var stream = new global::System.IO.MemoryStream(bytes);
+                using var reader = global::System.Xml.XmlReader.Create(stream, ReaderSettings(async: false));
+                return global::System.Xml.Linq.XDocument.Load(reader).Root
+                    ?? throw new global::System.Xml.XmlException("The XML document has no root element.");
+            }
+
+            case string text:
+                return Parse(text);
+            default:
+                throw new global::System.Xml.XmlException("The response has no XML body.");
+        }
+    }
+
     /// <summary>Reads an XML document from a stream (asynchronously) and returns its root element.</summary>
     public static async global::System.Threading.Tasks.Task<global::System.Xml.Linq.XElement> LoadAsync(
         global::System.IO.Stream stream,

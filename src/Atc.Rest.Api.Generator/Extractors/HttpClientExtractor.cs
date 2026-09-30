@@ -453,6 +453,7 @@ public static class HttpClientExtractor
         // Determine return type - check both 200 and 201 responses
         var returnType = nameof(Task);
         string? streamingItemType = null;
+        string? xmlRead = null;
         var hasLocationHeader = false;
 
         // The success response: 200, else 201, else the operation's other 2xx (202, 203, 206, ... - an operation
@@ -488,6 +489,14 @@ public static class HttpClientExtractor
                     streamingItemType = itemType;
                 }
             }
+        }
+        else if (response?.Content is not null &&
+                 XmlBodyHelper.FindXmlOnlyBody(response.Content) is { } xmlBody &&
+                 GetSchemaTypeName(response.Content[xmlBody.MediaType].Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas) is { Length: > 0 } xmlType)
+        {
+            // An XML-only model body: read by the model's generated XML mapping
+            returnType = xmlType;
+            xmlRead = XmlBodyHelper.ReadMethod(xmlType, xmlBody);
         }
         else if (response?.Content is not null && IsBinaryResponseContent(response.Content))
         {
@@ -564,7 +573,7 @@ public static class HttpClientExtractor
 
         // Generate method body content
         var hasReturnType = returnType != nameof(Task);
-        var methodContent = GenerateMethodBody(path, httpMethod, operation, pathLevelParameters, openApiDoc, returnType, hasParameters, isAsyncEnumerable, streamingItemType, hasReturnType, hasLocationHeader, useServersBasePath, parametersClassName, resultStyle);
+        var methodContent = GenerateMethodBody(path, httpMethod, operation, pathLevelParameters, openApiDoc, returnType, hasParameters, isAsyncEnumerable, streamingItemType, hasReturnType, hasLocationHeader, useServersBasePath, parametersClassName, resultStyle, xmlRead);
 
         // For async enumerable methods, return IAsyncEnumerable<T> directly.
         // Under Result style the operation instead returns Task<StreamingEndpointResponse<T>>, which
@@ -638,7 +647,8 @@ public static class HttpClientExtractor
         bool hasLocationHeader,
         bool useServersBasePath = true,
         string parametersClassName = "",
-        TypedClientResultStyleType resultStyle = TypedClientResultStyleType.Throw)
+        TypedClientResultStyleType resultStyle = TypedClientResultStyleType.Throw,
+        string? xmlRead = null)
     {
         var builder = new StringBuilder();
 
@@ -828,22 +838,22 @@ public static class HttpClientExtractor
         switch (httpMethod)
         {
             case "GET":
-                GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), hasReturnType, builder, headerParams, cookieParams, resultStyle, Stamp);
+                GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), hasReturnType, builder, headerParams, cookieParams, resultStyle, Stamp, xmlRead);
                 break;
             case "POST":
-                GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder, resultStyle, Stamp("requestMessage"));
+                GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder, resultStyle, Stamp("requestMessage"), xmlRead);
                 break;
             case "PUT":
-                GeneratePutMethodBody(operation, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage"));
+                GeneratePutMethodBody(operation, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage"), xmlRead);
                 break;
             case "DELETE":
-                GenerateDeleteMethodBody(returnType, hasReturnType, builder, resultStyle, Stamp("requestMessage"));
+                GenerateDeleteMethodBody(returnType, hasReturnType, builder, resultStyle, Stamp("requestMessage"), xmlRead);
                 break;
             default:
                 // Non-standard verbs: OpenAPI 3.2 `query` and `additionalOperations`
                 // (e.g. LINK), plus PATCH. No dedicated HttpClient JSON helper exists,
                 // so build the request explicitly and dispatch by body/return presence.
-                GenerateGenericMethodBody(httpMethod, operation, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage"));
+                GenerateGenericMethodBody(httpMethod, operation, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage"), xmlRead);
                 break;
         }
 
@@ -862,7 +872,8 @@ public static class HttpClientExtractor
         List<(OpenApiParameter Param, string? ReferenceId)> headerParams,
         List<(OpenApiParameter Param, string? ReferenceId)> cookieParams,
         TypedClientResultStyleType resultStyle,
-        Func<string, string?> resilienceStamp)
+        Func<string, string?> resilienceStamp,
+        string? xmlRead = null)
     {
         // Special handling for async enumerable streaming
         if (isAsyncEnumerable && !string.IsNullOrEmpty(streamingItemType))
@@ -1002,9 +1013,10 @@ public static class HttpClientExtractor
             AppendResponseCompletion(
                 builder,
                 resultStyle,
-                hasReturnType ? ResponsePayloadKind.Json : ResponsePayloadKind.None,
+                hasReturnType ? (xmlRead is null ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
                 returnType,
-                isLastStatement: hasReturnType);
+                isLastStatement: hasReturnType,
+                xmlRead: xmlRead);
         }
         else if (hasReturnType && returnType == "DownloadedFile")
         {
@@ -1027,9 +1039,10 @@ public static class HttpClientExtractor
             AppendResponseCompletion(
                 builder,
                 resultStyle,
-                hasReturnType ? ResponsePayloadKind.Json : ResponsePayloadKind.None,
+                hasReturnType ? (xmlRead is null ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
                 returnType,
-                isLastStatement: true);
+                isLastStatement: true,
+                xmlRead: xmlRead);
         }
     }
 
@@ -1122,7 +1135,8 @@ public static class HttpClientExtractor
         bool hasReturnType,
         StringBuilder builder,
         TypedClientResultStyleType resultStyle,
-        string? resilienceStamp)
+        string? resilienceStamp,
+        string? xmlRead = null)
     {
         var hasJsonBody = operation.RequestBody?.Content?.ContainsKey("application/json") ?? false;
         var requestAccess = hasParameters ? "parameters.Request" : "request";
@@ -1152,9 +1166,10 @@ public static class HttpClientExtractor
         AppendResponseCompletion(
             builder,
             resultStyle,
-            hasReturnType ? ResponsePayloadKind.Json : ResponsePayloadKind.None,
+            hasReturnType ? (xmlRead is null ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
             returnType,
-            isLastStatement: hasReturnType);
+            isLastStatement: hasReturnType,
+            xmlRead: xmlRead);
     }
 
     private static void GeneratePostMethodBody(
@@ -1166,7 +1181,8 @@ public static class HttpClientExtractor
         bool hasLocationHeader,
         StringBuilder builder,
         TypedClientResultStyleType resultStyle,
-        string? resilienceStamp)
+        string? resilienceStamp,
+        string? xmlRead = null)
     {
         var hasJsonBody = operation.RequestBody?.Content?.ContainsKey("application/json") ?? false;
         var requestAccess = hasParameters
@@ -1272,9 +1288,10 @@ public static class HttpClientExtractor
             AppendResponseCompletion(
                 builder,
                 resultStyle,
-                hasReturnType ? ResponsePayloadKind.Json : ResponsePayloadKind.None,
+                hasReturnType ? (xmlRead is null ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
                 returnType,
-                isLastStatement: true);
+                isLastStatement: true,
+                xmlRead: xmlRead);
         }
     }
 
@@ -1285,7 +1302,8 @@ public static class HttpClientExtractor
         bool hasReturnType,
         StringBuilder builder,
         TypedClientResultStyleType resultStyle,
-        string? resilienceStamp)
+        string? resilienceStamp,
+        string? xmlRead = null)
     {
         var hasJsonBody = operation.RequestBody?.Content?.ContainsKey("application/json") ?? false;
         var requestAccess = hasParameters ? "parameters.Request" : "request";
@@ -1302,9 +1320,10 @@ public static class HttpClientExtractor
         AppendResponseCompletion(
             builder,
             resultStyle,
-            hasReturnType ? ResponsePayloadKind.Json : ResponsePayloadKind.None,
+            hasReturnType ? (xmlRead is null ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
             returnType,
-            isLastStatement: true);
+            isLastStatement: true,
+            xmlRead: xmlRead);
     }
 
     private static void GenerateDeleteMethodBody(
@@ -1312,16 +1331,18 @@ public static class HttpClientExtractor
         bool hasReturnType,
         StringBuilder builder,
         TypedClientResultStyleType resultStyle,
-        string? resilienceStamp)
+        string? resilienceStamp,
+        string? xmlRead = null)
     {
         AppendSend(builder, "var response = await httpClient.DeleteAsync(url, cancellationToken);", resilienceStamp, "HttpMethod.Delete", contentExpression: null);
 
         AppendResponseCompletion(
             builder,
             resultStyle,
-            hasReturnType ? ResponsePayloadKind.Json : ResponsePayloadKind.None,
+            hasReturnType ? (xmlRead is null ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
             returnType,
-            isLastStatement: true);
+            isLastStatement: true,
+            xmlRead: xmlRead);
     }
 
     /// <summary>
@@ -2065,8 +2086,26 @@ public static class HttpClientExtractor
         TypedClientResultStyleType resultStyle,
         ResponsePayloadKind payloadKind,
         string returnType,
-        bool isLastStatement)
+        bool isLastStatement,
+        string? xmlRead = null)
     {
+        if (payloadKind == ResponsePayloadKind.Xml && xmlRead is not null)
+        {
+            // The model read from the XML body by its generated XML mapping - from the bytes, so the document's own
+            // encoding declaration is honoured (a string read would decode by the charset parameter or UTF-8 only)
+            if (resultStyle == TypedClientResultStyleType.Result)
+            {
+                builder.AppendLine("var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);");
+                builder.AppendLine("var content = await response.Content.ReadAsStringAsync(cancellationToken);");
+                AppendStatement(builder, $"return new EndpointResponse<{returnType}>(response.IsSuccessStatusCode, response.StatusCode, content, response.IsSuccessStatusCode && bytes.Length > 0 ? {xmlRead}(XmlModelSupport.ParseContent(bytes)) : null, ReadHeaders(response));", isLastStatement);
+                return;
+            }
+
+            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
+            AppendStatement(builder, $"return {xmlRead}(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));", isLastStatement);
+            return;
+        }
+
         if (resultStyle == TypedClientResultStyleType.Result)
         {
             var call = payloadKind switch

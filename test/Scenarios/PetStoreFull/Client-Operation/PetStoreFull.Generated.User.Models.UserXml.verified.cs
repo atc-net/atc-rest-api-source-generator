@@ -42,6 +42,51 @@ public static class UserXml
     public static void Write(global::System.Xml.XmlWriter writer, User value)
         => WriteElement(writer, value, ElementName, ElementNamespace, null);
 
+    /// <summary>The root element of a list of the model, unless the specification names it (the array's <c>xml.name</c>).</summary>
+    public const string ListElementName = "ArrayOfUser";
+
+    /// <summary>Writes a list of the model as an XML document (UTF-8, no declaration).</summary>
+    public static string ListToXml(global::System.Collections.Generic.IEnumerable<User> items, string? rootName = null)
+        => global::PetStoreFull.Generated.XmlModelSupport.ToXml(writer => WriteList(writer, items, rootName));
+
+    /// <summary>Writes a list of the model as the UTF-8 bytes of an XML document (no BOM, no declaration).</summary>
+    public static byte[] ListToUtf8Bytes(global::System.Collections.Generic.IEnumerable<User> items, string? rootName = null)
+        => global::PetStoreFull.Generated.XmlModelSupport.ToUtf8Bytes(writer => WriteList(writer, items, rootName));
+
+    /// <summary>Reads a list of the model from an XML document (no DTD).</summary>
+    public static global::System.Collections.Generic.List<User> ListFromXml(string xml)
+        => ReadList(global::PetStoreFull.Generated.XmlModelSupport.Parse(xml));
+
+    /// <summary>Reads a list of the model from a stream holding an XML document (no DTD).</summary>
+    public static async global::System.Threading.Tasks.Task<global::System.Collections.Generic.List<User>> ReadListAsync(
+        global::System.IO.Stream stream,
+        global::System.Threading.CancellationToken cancellationToken = default)
+        => ReadList(await global::PetStoreFull.Generated.XmlModelSupport.LoadAsync(stream, cancellationToken).ConfigureAwait(false));
+
+    /// <summary>Writes a list of the model: a root element holding one element per item.</summary>
+    public static void WriteList(global::System.Xml.XmlWriter writer, global::System.Collections.Generic.IEnumerable<User> items, string? rootName = null)
+    {
+        writer.WriteStartElement(rootName ?? ListElementName);
+        foreach (var item in items)
+        {
+            Write(writer, item);
+        }
+
+        writer.WriteEndElement();
+    }
+
+    /// <summary>Reads a list of the model: the items named like the model's element, else every child element.</summary>
+    public static global::System.Collections.Generic.List<User> ReadList(global::System.Xml.Linq.XElement element)
+    {
+        var items = global::System.Linq.Enumerable.ToList(global::PetStoreFull.Generated.XmlModelSupport.Children(element, ElementName));
+        if (items.Count == 0)
+        {
+            items = global::System.Linq.Enumerable.ToList(element.Elements());
+        }
+
+        return global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Select(items, Read));
+    }
+
     /// <summary>Writes the model as an element of this name.</summary>
     public static void WriteElement(global::System.Xml.XmlWriter writer, User value, string localName, string ns, string? prefix)
     {

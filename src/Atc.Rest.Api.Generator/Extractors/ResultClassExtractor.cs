@@ -346,6 +346,14 @@ public static class ResultClassExtractor
             contentType = GetSchemaTypeName(mediaType.Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
         }
 
+        // An XML-only model body (no JSON media type declared): the model, written as its generated XML
+        XmlBody? xmlBody = null;
+        if (!isFileDownload && contentType is null && XmlBodyHelper.FindXmlOnlyBody(responseValue.Content) is { } xml)
+        {
+            contentType = GetSchemaTypeName(responseValue.Content![xml.MediaType].Schema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
+            xmlBody = contentType is null ? null : xml;
+        }
+
         // OpenAPI 3.2 streaming: when a response media type declares an itemSchema, the
         // streamed element type comes from it directly (wrapped as IAsyncEnumerable<T> below).
         if (!isFileDownload && contentType is null && isAsyncEnumerable && responseValue.Content is not null)
@@ -377,13 +385,13 @@ public static class ResultClassExtractor
         {
             // Generate factory method based on status code
             case "200":
-                methods.AddRange(GenerateOkMethods(projectName, className, description, contentType, isAsyncEnumerable, streamingFraming, isFileDownload, isTextResponse, textResponseMediaType, ResponseBodyClassifier.PrimaryBody(responseValue.Content)?.MediaType));
+                methods.AddRange(GenerateOkMethods(projectName, className, description, contentType, isAsyncEnumerable, streamingFraming, isFileDownload, isTextResponse, textResponseMediaType, ResponseBodyClassifier.PrimaryBody(responseValue.Content)?.MediaType, xmlBody));
                 break;
             case "201":
-                methods.AddRange(GenerateCreatedMethods(className, description, contentType));
+                methods.AddRange(GenerateCreatedMethods(className, description, contentType, xmlBody));
                 break;
             case "202":
-                methods.Add(GenerateAcceptedMethod(className, description, contentType));
+                methods.Add(GenerateAcceptedMethod(className, description, contentType, xmlBody));
                 break;
             case "204":
                 methods.Add(GenerateNoContentMethod(className, description));
@@ -395,7 +403,7 @@ public static class ResultClassExtractor
                 if (int.TryParse(statusCode, NumberStyles.Integer, CultureInfo.InvariantCulture, out var statusCodeInt) &&
                     statusCodeInt >= 200)
                 {
-                    methods.Add(GenerateStatusMethod(className, description, statusCodeInt, contentType, isTextResponse, textResponseMediaType));
+                    methods.Add(GenerateStatusMethod(className, description, statusCodeInt, contentType, isTextResponse, textResponseMediaType, xmlBody));
                 }
 
                 break;
@@ -666,6 +674,47 @@ public static class ResultClassExtractor
             """;
 
     /// <summary>
+    /// The <c>XmlHttpResult</c> type the factories of an XML body use: the status, the declared media type (UTF-8) and
+    /// the body the generated <c>{Model}Xml</c> wrote.
+    /// </summary>
+    public static string XmlHttpResultSource()
+        => $$"""
+
+            /// <summary>
+            /// Writes an XML body (the model's generated XML mapping) with its status and media type.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal sealed class XmlHttpResult : IResult, IStatusCodeHttpResult, IContentTypeHttpResult
+            {
+                private readonly byte[] body;
+
+                public XmlHttpResult(
+                    int statusCode,
+                    string mediaType,
+                    byte[] body)
+                {
+                    StatusCode = statusCode;
+                    ContentType = mediaType + "; charset=utf-8";
+                    this.body = body;
+                }
+
+                public int StatusCode { get; }
+
+                int? IStatusCodeHttpResult.StatusCode => StatusCode;
+
+                public string ContentType { get; }
+
+                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+                {
+                    httpContext.Response.StatusCode = StatusCode;
+                    httpContext.Response.ContentType = ContentType;
+                    httpContext.Response.ContentLength = body.Length;
+                    return httpContext.Response.Body.WriteAsync(body, httpContext.RequestAborted).AsTask();
+                }
+            }
+            """;
+
+    /// <summary>
     /// The source of the <c>IResult</c> wrapper that adds a <c>Retry-After</c> header, emitted once into a
     /// Results file whose factories use it (429 responses).
     /// </summary>
@@ -734,7 +783,8 @@ public static class ResultClassExtractor
         bool isFileDownload = false,
         bool isTextResponse = false,
         string? textResponseMediaType = null,
-        string? fileMediaType = null)
+        string? fileMediaType = null,
+        XmlBody? xmlBody = null)
     {
         var methods = new List<MethodParameters>();
         var doc = new CodeDocumentationTags($"200 OK - {description}");
@@ -784,6 +834,10 @@ public static class ResultClassExtractor
             if (isTextResponse)
             {
                 content = $"new(TypedResults.Text({paramName}, \"{textResponseMediaType}\"))";
+            }
+            else if (xmlBody is not null)
+            {
+                content = XmlResultExpression(200, contentType!, xmlBody, paramName);
             }
             else if (isAsyncEnumerable && streamingFraming == StreamingFraming.ServerSentEvents)
             {
@@ -941,7 +995,8 @@ public static class ResultClassExtractor
     private static List<MethodParameters> GenerateCreatedMethods(
         string className,
         string description,
-        string? contentType)
+        string? contentType,
+        XmlBody? xmlBody = null)
     {
         var methods = new List<MethodParameters>();
         var doc = new CodeDocumentationTags($"201 Created - {description}");
@@ -970,7 +1025,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: "new(TypedResults.Created((string?)null, response))");
+                Content: xmlBody is null ? "new(TypedResults.Created((string?)null, response))" : XmlResultExpression(201, contentType!, xmlBody, "response"));
             methods.Add(createdWithResponse);
 
             // Generate implicit operator for convenience
@@ -1055,7 +1110,8 @@ public static class ResultClassExtractor
     private static MethodParameters GenerateAcceptedMethod(
         string className,
         string description,
-        string? contentType)
+        string? contentType,
+        XmlBody? xmlBody = null)
     {
         var doc = new CodeDocumentationTags($"202 Accepted - {description}");
 
@@ -1082,7 +1138,7 @@ public static class ResultClassExtractor
                 },
                 AlwaysBreakDownParameters: false,
                 UseExpressionBody: true,
-                Content: "new(TypedResults.Accepted((string?)null, response))");
+                Content: xmlBody is null ? "new(TypedResults.Accepted((string?)null, response))" : XmlResultExpression(202, contentType!, xmlBody, "response"));
         }
 
         // TypedResults.Accepted() has no parameterless overload - every overload expects
@@ -1117,7 +1173,8 @@ public static class ResultClassExtractor
         int statusCode,
         string? contentType,
         bool isTextResponse,
-        string? textResponseMediaType)
+        string? textResponseMediaType,
+        XmlBody? xmlBody = null)
     {
         var methodName = HttpStatusCodeHelper.ToEnumName(statusCode);
         var doc = new CodeDocumentationTags($"{statusCode} {methodName} - {description}");
@@ -1162,11 +1219,20 @@ public static class ResultClassExtractor
             205 or 304 => Method(null, string.Empty, $"new(TypedResults.StatusCode({status}))"),
             _ when isTextResponse && textResponseMediaType is not null =>
                 Method("string", "content", $"new(TypedResults.Text(content, \"{textResponseMediaType}\", statusCode: {status}))"),
+            _ when !string.IsNullOrEmpty(contentType) && xmlBody is not null =>
+                Method(contentType, "response", XmlResultExpression(statusCode, contentType!, xmlBody, "response")),
             _ when !string.IsNullOrEmpty(contentType) =>
                 Method(contentType, "response", $"new(TypedResults.Json(response, statusCode: {status}))"),
             _ => Method(null, string.Empty, $"new(TypedResults.StatusCode({status}))"),
         };
     }
+
+    private static string XmlResultExpression(
+        int statusCode,
+        string contentType,
+        XmlBody xmlBody,
+        string valueExpression)
+        => $"new(new XmlHttpResult({statusCode.ToString(CultureInfo.InvariantCulture)}, \"{xmlBody.MediaType}\", {XmlBodyHelper.ToUtf8BytesExpression(contentType, xmlBody, valueExpression)}))";
 
     private static string GetSchemaTypeName(
         IOpenApiSchema? schema,

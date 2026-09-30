@@ -148,6 +148,7 @@ public static class XmlModelMapperExtractor
         sb.AppendLine($"    public static void Write({Xml}.XmlWriter writer, {typeName} value)");
         sb.AppendLine($"        => WriteElement(writer, value, ElementName, ElementNamespace, {Literal(rootPrefix)});");
         sb.AppendLine();
+        AppendListMethods(sb, typeName, source.SchemaKey, support);
         AppendWriteElement(sb, typeName, properties, support);
         sb.AppendLine();
         AppendRead(sb, typeName, properties, support);
@@ -223,6 +224,29 @@ public static class XmlModelMapperExtractor
                     using var reader = global::System.Xml.XmlReader.Create(text, ReaderSettings(async: false));
                     return global::System.Xml.Linq.XDocument.Load(reader).Root
                         ?? throw new global::System.Xml.XmlException("The XML document has no root element.");
+                }
+
+                /// <summary>
+                /// Parses the body of a response kept by Atc.Rest.Client: the bytes (a non-text media type such as
+                /// <c>application/xml</c>) or the text (<c>text/xml</c>), and returns its root element.
+                /// </summary>
+                public static global::System.Xml.Linq.XElement ParseContent(object? content)
+                {
+                    switch (content)
+                    {
+                        case byte[] bytes:
+                        {
+                            using var stream = new global::System.IO.MemoryStream(bytes);
+                            using var reader = global::System.Xml.XmlReader.Create(stream, ReaderSettings(async: false));
+                            return global::System.Xml.Linq.XDocument.Load(reader).Root
+                                ?? throw new global::System.Xml.XmlException("The XML document has no root element.");
+                        }
+
+                        case string text:
+                            return Parse(text);
+                        default:
+                            throw new global::System.Xml.XmlException("The response has no XML body.");
+                    }
                 }
 
                 /// <summary>Reads an XML document from a stream (asynchronously) and returns its root element.</summary>
@@ -381,6 +405,61 @@ public static class XmlModelMapperExtractor
                     };
             }
             """;
+
+    private static void AppendListMethods(
+        StringBuilder sb,
+        string typeName,
+        string schemaKey,
+        string support)
+    {
+        var items = $"global::System.Collections.Generic.IEnumerable<{typeName}>";
+        var list = $"global::System.Collections.Generic.List<{typeName}>";
+        sb.AppendLine("    /// <summary>The root element of a list of the model, unless the specification names it (the array's <c>xml.name</c>).</summary>");
+        sb.AppendLine($"    public const string ListElementName = {Literal("ArrayOf" + schemaKey)};");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Writes a list of the model as an XML document (UTF-8, no declaration).</summary>");
+        sb.AppendLine($"    public static string ListToXml({items} items, string? rootName = null)");
+        sb.AppendLine($"        => {support}.ToXml(writer => WriteList(writer, items, rootName));");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Writes a list of the model as the UTF-8 bytes of an XML document (no BOM, no declaration).</summary>");
+        sb.AppendLine($"    public static byte[] ListToUtf8Bytes({items} items, string? rootName = null)");
+        sb.AppendLine($"        => {support}.ToUtf8Bytes(writer => WriteList(writer, items, rootName));");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Reads a list of the model from an XML document (no DTD).</summary>");
+        sb.AppendLine($"    public static {list} ListFromXml(string xml)");
+        sb.AppendLine($"        => ReadList({support}.Parse(xml));");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Reads a list of the model from a stream holding an XML document (no DTD).</summary>");
+        sb.AppendLine($"    public static async global::System.Threading.Tasks.Task<{list}> ReadListAsync(");
+        sb.AppendLine("        global::System.IO.Stream stream,");
+        sb.AppendLine("        global::System.Threading.CancellationToken cancellationToken = default)");
+        sb.AppendLine($"        => ReadList(await {support}.LoadAsync(stream, cancellationToken).ConfigureAwait(false));");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Writes a list of the model: a root element holding one element per item.</summary>");
+        sb.AppendLine($"    public static void WriteList({Xml}.XmlWriter writer, {items} items, string? rootName = null)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        writer.WriteStartElement(rootName ?? ListElementName);");
+        sb.AppendLine("        foreach (var item in items)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            Write(writer, item);");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        writer.WriteEndElement();");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Reads a list of the model: the items named like the model's element, else every child element.</summary>");
+        sb.AppendLine($"    public static {list} ReadList({Xml}.Linq.XElement element)");
+        sb.AppendLine("    {");
+        sb.AppendLine($"        var items = global::System.Linq.Enumerable.ToList({support}.Children(element, ElementName));");
+        sb.AppendLine("        if (items.Count == 0)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            items = global::System.Linq.Enumerable.ToList(element.Elements());");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        return global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Select(items, Read));");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+    }
 
     private static List<PropertyPlan> PlanProperties(
         XmlModelSource source,

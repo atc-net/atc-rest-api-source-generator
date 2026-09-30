@@ -1417,6 +1417,12 @@ public class ApiServerGenerator : IIncrementalGenerator
             allGeneratedCode.AppendLine(ResultClassExtractor.LocationHttpResultSource());
         }
 
+        // An XML body's factories write the model's generated XML
+        if (allGeneratedCode.ToString().Contains("new XmlHttpResult("))
+        {
+            allGeneratedCode.AppendLine(ResultClassExtractor.XmlHttpResultSource());
+        }
+
         var normalizeForSourceOutput = allGeneratedCode
             .ToString()
             .NormalizeForSourceOutput();
