@@ -141,6 +141,12 @@ public static class ErrorResponseShapeResolver
             {
                 return new ErrorResponseShape(ErrorResponseKind.Text, textMediaType, textMedia?.Schema);
             }
+
+            // A declared model as XML (a third-party API's XML error): written and read by the model's XML mapping
+            if (XmlBodyHelper.FindXmlOnlyBody(content) is { IsList: false } xml)
+            {
+                return new ErrorResponseShape(ErrorResponseKind.XmlObject, xml.MediaType, content[xml.MediaType].Schema);
+            }
         }
 
         // Nothing (usable) declared: the 3.0 default is an RFC 9457 ProblemDetails.

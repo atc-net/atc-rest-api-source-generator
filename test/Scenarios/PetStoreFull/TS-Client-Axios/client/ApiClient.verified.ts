@@ -175,6 +175,15 @@ export class ApiClient {
 
     // An XML body: read by the operation's mapping (no JSON handling)
     const responseContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');
+    const readXmlError = options?.xml?.errors?.[String(response.status)] ?? options?.xml?.errors?.['default'];
+    if (readXmlError && (response.status < 200 || response.status >= 300) && isXmlMediaType(responseContentType) && typeof response.data === 'string') {
+      try {
+        (response as { data: unknown }).data = readXmlError(parseXml(response.data));
+      } catch {
+        // Not the declared model: the error arm gets the text
+      }
+    }
+
     if (options?.xml?.read && response.status >= 200 && response.status < 300 && response.status !== 204 && response.status !== 205 && isXmlMediaType(responseContentType) && typeof response.data === 'string') {
       try {
         return fitToArms({ status: xmlSuccessArm(response.status), data: options.xml.read(parseXml(response.data)) as T, response } as ApiResult<T>, options.arms);

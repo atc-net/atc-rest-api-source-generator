@@ -73,6 +73,29 @@ public static class XmlModelSupport
         }
     }
 
+    /// <summary>
+    /// Reads a model from a text that may not be its XML (another media type, a proxy's page): the model, or
+    /// <see langword="false"/>.
+    /// </summary>
+    public static bool TryRead<T>(string? text, global::System.Func<global::System.Xml.Linq.XElement, T> read, out T? value)
+    {
+        value = default;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        try
+        {
+            value = read(Parse(text));
+            return true;
+        }
+        catch (global::System.Exception ex) when (ex is global::System.Xml.XmlException or global::System.FormatException or global::System.NotSupportedException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>Reads an XML document from a stream (asynchronously) and returns its root element.</summary>
     public static async global::System.Threading.Tasks.Task<global::System.Xml.Linq.XElement> LoadAsync(
         global::System.IO.Stream stream,

@@ -19,6 +19,8 @@ export interface XmlOptions {
   write?: (body: never) => string;
   accept?: string;
   contentType?: string;
+  /** Declared XML error models by status ('404', 'default'): read into the model, then handled like a JSON error body. */
+  errors?: Record<string, (element: Element) => unknown>;
 }
 
 /** Whether a media type is an XML model body (application/xml, text/xml, *+xml - not problem+xml). */

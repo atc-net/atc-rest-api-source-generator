@@ -509,13 +509,15 @@ public static class EndpointPerOperationExtractor
                 {
                     ErrorResponseKind.Problem when shape.IsDeclared => ("ProblemDetails", null),
                     ErrorResponseKind.ValidationProblem => ("ValidationProblemDetails", null),
-                    ErrorResponseKind.JsonObject => (GetSchemaTypeName(shape.Schema, openApiDoc, registry, operationId, pathSegment, ErrorResponseShapeResolver.InlineTypeContext(statusCodeStr), inlineSchemas, isAsyncEnumerable: false), null),
+                    ErrorResponseKind.JsonObject or ErrorResponseKind.XmlObject => (GetSchemaTypeName(shape.Schema, openApiDoc, registry, operationId, pathSegment, ErrorResponseShapeResolver.InlineTypeContext(statusCodeStr), inlineSchemas, isAsyncEnumerable: false), null),
                     ErrorResponseKind.JsonString => ("string", null),
                     ErrorResponseKind.Text => ("string", shape.MediaType),
                     _ => (GetErrorContentType(errorResponseFormat, customErrorTypeName, statusCodeStr), (string?)null),
                 };
 
-                responses.Add(new ResponseInfo(statusCodeStr, statusEnumName, propertyName, contentType, isSuccess, textMediaType, ErrorMediaType: shape.MediaType));
+                // A declared XML error model: read by the model's XML mapping (the accessor reads the error text)
+                var errorXml = shape.Kind == ErrorResponseKind.XmlObject ? new XmlBody(shape.MediaType!, IsList: false, ListRootName: null) : null;
+                responses.Add(new ResponseInfo(statusCodeStr, statusEnumName, propertyName, contentType, isSuccess, textMediaType, ErrorMediaType: shape.MediaType, Xml: errorXml));
                 continue;
             }
 
@@ -1137,7 +1139,7 @@ public static class EndpointPerOperationExtractor
         // An XML answer: ask for its media type (the request builder asks for application/json by default, under
         // the key "accept"), and for the errors as they are read: the declared error media types, else a ProblemDetails
         // (an Accept without it lets a host decline to write the problem, e.g. for an empty-body status)
-        if (XmlBodyHelper.AcceptFor(responses.Where(r => r.Xml is not null).Select(r => r.Xml!).ToList(), XmlBodyHelper.ErrorMediaTypes(operation), preferXml) is { } accept)
+        if (XmlBodyHelper.AcceptFor(responses.Where(r => r.IsSuccess && r.Xml is not null).Select(r => r.Xml!).ToList(), XmlBodyHelper.ErrorMediaTypes(operation), preferXml) is { } accept)
         {
             sb.AppendLine($"requestBuilder.WithHeaderParameter(\"accept\", \"{accept}\");");
         }
@@ -1415,6 +1417,11 @@ public static class EndpointPerOperationExtractor
                 // Raw text error body — same bypass for the error path.
                 sb.AppendLine($"responseBuilder.AddErrorTextResponse({responseInfo.StatusCodeExpression});");
             }
+            else if (responseInfo.Xml is not null)
+            {
+                // A declared XML error model - no JSON type: the accessor reads the error text by the model's XML mapping
+                sb.AppendLine($"responseBuilder.AddErrorResponse({responseInfo.StatusCodeExpression});");
+            }
             else
             {
                 // Error responses always have a type (ProblemDetails is the fallback). A declared ProblemDetails 400
@@ -1446,7 +1453,9 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine("{");
             sb.AppendLine(4, defaultResponse.TextMediaType is not null
                 ? "responseBuilder.AddErrorTextResponse(response.StatusCode);"
-                : $"responseBuilder.AddErrorResponse<{defaultResponse.ContentType}>(response.StatusCode);");
+                : defaultResponse.Xml is not null
+                    ? "responseBuilder.AddErrorResponse(response.StatusCode);"
+                    : $"responseBuilder.AddErrorResponse<{defaultResponse.ContentType}>(response.StatusCode);");
             sb.AppendLine("}");
             sb.AppendLine();
         }
@@ -1653,9 +1662,12 @@ public static class EndpointPerOperationExtractor
             // A model (or text) default is only the default error when the body was read as it: an HTML page from a
             // proxy is not, so IsDefaultError stays false and DefaultErrorContent never throws when it is true. A
             // ProblemDetails default reads any body, and a default without content has nothing to read.
+            // A declared XML model: the body reads as the model (a proxy's page does not)
             var readGuard = defaultResponse.ContentType is null or "ProblemDetails" or "ValidationProblemDetails"
                 ? null
-                : $"ContentObject is {defaultResponse.ContentType}";
+                : defaultResponse.Xml is not null
+                    ? $"XmlModelSupport.TryRead(Content, {XmlBodyHelper.ReadMethod(defaultResponse.ContentType, defaultResponse.Xml)}, out _)"
+                    : $"ContentObject is {defaultResponse.ContentType}";
 
             // The guard also tells a shared status's default body from the framework's ProblemDetails (the media type
             // split registers the default type only for a body that is not application/problem+json).
@@ -1756,7 +1768,16 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine();
         }
 
-        if (defaultResponse?.ContentType is { } defaultType)
+        if (defaultResponse is { ContentType: { } xmlDefaultType, Xml: { } defaultXml })
+        {
+            // A declared XML model: read from the error text by the model's XML mapping
+            sb.AppendLine(4, $"public {xmlDefaultType} {defaultResponse.PropertyName}Content");
+            sb.AppendLine(8, $"=> Is{defaultResponse.PropertyName}");
+            sb.AppendLine(12, $"? {XmlBodyHelper.ReadMethod(xmlDefaultType, defaultXml)}(XmlModelSupport.ParseContent(Content))");
+            sb.AppendLine(12, $": throw InvalidContentAccessException<{xmlDefaultType}>(StatusCode, \"{defaultResponse.PropertyName}Content\");");
+            sb.AppendLine();
+        }
+        else if (defaultResponse?.ContentType is { } defaultType)
         {
             var name = defaultResponse.PropertyName;
             sb.AppendLine(4, $"public {defaultType} {name}Content");

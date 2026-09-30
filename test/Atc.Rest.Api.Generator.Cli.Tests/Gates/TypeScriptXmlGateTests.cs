@@ -148,6 +148,12 @@ public sealed class TypeScriptXmlGateTests
                     application/vnd.acme.report+xml:
                       schema:
                         $ref: '#/components/schemas/Report'
+                '404':
+                  description: Not found
+                  content:
+                    application/xml:
+                      schema:
+                        $ref: '#/components/schemas/ErrorInfo'
         components:
           schemas:
             Pet:
@@ -192,6 +198,18 @@ public sealed class TypeScriptXmlGateTests
               xml:
                 name: report
                 namespace: 'urn:acme:report'
+            ErrorInfo:
+              type: object
+              required: [code, message]
+              properties:
+                code:
+                  type: string
+                  xml:
+                    attribute: true
+                message:
+                  type: string
+              xml:
+                name: error
         """;
 
     private const string PackageJson = """
@@ -274,6 +292,9 @@ public sealed class TypeScriptXmlGateTests
           if (url.endsWith('/notes')) {
             return { status: 201, contentType: 'application/xml; charset=utf-8', body: '<note><text>stored</text></note>' };
           }
+          if (url.endsWith('/reports/404')) {
+            return { status: 404, contentType: 'application/xml; charset=utf-8', body: '<error code="R404"><message>No report</message></error>' };
+          }
           return { status: 200, contentType: 'application/vnd.acme.report+xml; charset=utf-8', body: '<r:report xmlns:r="urn:acme:report"><r:title>Q3</r:title><r:pages>12</r:pages><r:available>true</r:available></r:report>' };
         }
 
@@ -318,6 +339,9 @@ public sealed class TypeScriptXmlGateTests
           check(label + ' problem-xml-errors', invalid.status === 'badRequest' && same(invalid.error.errors, { text: ['Too long'] }), invalid.status + ' ' + JSON.stringify(invalid.error?.errors));
 
           const report = await reports.getReport(7);
+          const noReport = await reports.getReport(404);
+          check(label + ' xml-error-model', noReport.status === 'notFound' && same(noReport.error.body, { code: 'R404', message: 'No report' }) && noReport.error.message === 'No report', noReport.status + ' ' + JSON.stringify(noReport.error?.body));
+
           check(label + ' namespaced', report.status === 'ok' && same(report.data, { title: 'Q3', pages: 12, available: true }), JSON.stringify(report.data ?? report.error?.message));
         }
 

@@ -557,6 +557,7 @@ public static class ResultClassExtractor
                 "string",
                 "message",
                 $"TypedResults.Json(message, contentType: \"{shape.MediaTypeLiteral}\", statusCode: {status})"),
+            ErrorResponseKind.XmlObject => XmlErrorFactory(shape, status, code, GetSchemaTypeName(shape.Schema, openApiDoc, registry, operationId, pathSegment, ErrorResponseShapeResolver.InlineTypeContext(statusCode), inlineSchemas)),
             _ => (
                 GetSchemaTypeName(shape.Schema, openApiDoc, registry, operationId, pathSegment, ErrorResponseShapeResolver.InlineTypeContext(statusCode), inlineSchemas),
                 code == 400 ? "errors" : "error",
@@ -591,6 +592,21 @@ public static class ResultClassExtractor
             Wrap($"{valueName} is null ? TypedResults.StatusCode({status}) : {written}")));
 
         return methods;
+    }
+
+    /// <summary>
+    /// The factory value of a declared XML error model: the model, written by its XML mapping with the declared media
+    /// type.
+    /// </summary>
+    private static (string ValueType, string ValueName, string Written) XmlErrorFactory(
+        ErrorResponseShape shape,
+        string status,
+        int code,
+        string modelTypeName)
+    {
+        var valueName = code == 400 ? "errors" : "error";
+        var body = new XmlBody(shape.MediaType ?? "application/xml", IsList: false, ListRootName: null);
+        return (modelTypeName, valueName, $"new XmlHttpResult({status}, \"{shape.MediaTypeLiteral}\", {XmlBodyHelper.ToUtf8BytesExpression(modelTypeName, body, valueName)})");
     }
 
     /// <summary>

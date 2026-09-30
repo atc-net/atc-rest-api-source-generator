@@ -1491,7 +1491,7 @@ using Microsoft.AspNetCore.Builder;
         TypeConflictRegistry? registry)
     {
         var shape = ErrorResponseShapeResolver.Resolve(response);
-        var modelTypeName = shape.Kind == ErrorResponseKind.JsonObject
+        var modelTypeName = shape.Kind is ErrorResponseKind.JsonObject or ErrorResponseKind.XmlObject
             ? GetResponseContentType(shape.Schema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry, ErrorResponseShapeResolver.InlineTypeContext(statusCode))
             : null;
 

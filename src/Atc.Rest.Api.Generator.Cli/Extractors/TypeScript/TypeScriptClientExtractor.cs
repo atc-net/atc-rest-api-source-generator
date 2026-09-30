@@ -466,6 +466,27 @@ public static class TypeScriptClientExtractor
             parts.Add("contentType: '" + requestXml.MediaType + "; charset=utf-8'");
         }
 
+        // Declared XML error models: read into the model, then handled like a JSON error body
+        var errorReaders = new List<string>();
+        foreach (var (statusCode, response) in operation.Responses ?? new OpenApiResponses())
+        {
+            if (!ErrorResponseShapeResolver.IsErrorStatusCode(statusCode) ||
+                ErrorResponseShapeResolver.Resolve(response) is not { Kind: ErrorResponseKind.XmlObject, Schema: { } errorSchema } ||
+                ModelKey(errorSchema, isList: false) is not { } errorKey)
+            {
+                continue;
+            }
+
+            var read = TypeScriptXmlHelperExtractor.FunctionNames(errorKey).Read;
+            xmlFunctions?.Add(read);
+            errorReaders.Add("'" + statusCode + "': " + read);
+        }
+
+        if (errorReaders.Count > 0)
+        {
+            parts.Add("errors: { " + string.Join(", ", errorReaders) + " }");
+        }
+
         return parts.Count == 0 ? null : "{ " + string.Join(", ", parts) + " }";
 
         static string? ModelKey(

@@ -461,7 +461,7 @@ public static class EndpointRegistrationExtractor
                 if (ErrorResponseShapeResolver.IsErrorStatusCode(statusCode))
                 {
                     var shape = ErrorResponseShapeResolver.Resolve(response.Value);
-                    var modelTypeName = shape is { Kind: ErrorResponseKind.JsonObject, Schema: not null }
+                    var modelTypeName = shape is { Kind: ErrorResponseKind.JsonObject or ErrorResponseKind.XmlObject, Schema: not null }
                         ? shape.Schema.ToCSharpType(true)
                         : null;
                     producesLines.Add("    " + ErrorResponseShapeResolver.ToProducesCall(statusCode, shape, modelTypeName));

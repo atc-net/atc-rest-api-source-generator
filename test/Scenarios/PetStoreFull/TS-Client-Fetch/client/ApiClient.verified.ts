@@ -130,6 +130,19 @@ export class ApiClient {
       response = await interceptor(response);
     }
 
+    // A declared XML error model: read into the model and handed on as a JSON error body
+    const readXmlError = options?.xml?.errors?.[String(response.status)] ?? options?.xml?.errors?.['default'];
+    if (readXmlError && !response.ok && isXmlMediaType(response.headers.get('Content-Type'))) {
+      try {
+        const errorModel = readXmlError(parseXml(await response.clone().text()));
+        const errorHeaders = new Headers(response.headers);
+        errorHeaders.set('Content-Type', 'application/json');
+        response = new Response(JSON.stringify(errorModel), { status: response.status, statusText: response.statusText, headers: errorHeaders });
+      } catch {
+        // Not the declared model: the error arm gets the text
+      }
+    }
+
     // An XML body: read by the operation's mapping (no JSON handling)
     if (options?.xml?.read && response.ok && response.status !== 204 && response.status !== 205 && isXmlMediaType(response.headers.get('Content-Type'))) {
       try {

@@ -453,6 +453,7 @@ public static class TypeScriptOperationHelper
             case ErrorResponseKind.Text:
                 return "string";
             case ErrorResponseKind.JsonObject:
+            case ErrorResponseKind.XmlObject:
             case ErrorResponseKind.Problem when shape.Schema is not null:
             case ErrorResponseKind.ValidationProblem when shape.Schema is not null:
                 CollectSchemaRefTypes(shape.Schema!, imports);

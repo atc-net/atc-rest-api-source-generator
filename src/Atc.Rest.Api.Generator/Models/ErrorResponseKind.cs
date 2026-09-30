@@ -32,4 +32,10 @@ public enum ErrorResponseKind
     /// Raw text (<c>text/*</c> or <c>application/xml</c> with a string schema).
     /// </summary>
     Text,
+
+    /// <summary>
+    /// A declared model written as XML (<c>application/xml</c>, <c>text/xml</c>, <c>*+xml</c>) by the model's generated
+    /// XML mapping.
+    /// </summary>
+    XmlObject,
 }
