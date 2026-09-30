@@ -1,0 +1,106 @@
+namespace Atc.Rest.Api.Generator.Helpers;
+
+/// <summary>
+/// Finds the component schemas an XML body can carry: every schema a request or response body of an XML media type
+/// (<c>application/xml</c>, <c>text/xml</c>, <c>*+xml</c> with a model schema) references, directly or through
+/// properties, array items, dictionary values and compositions. Only these models get a generated XML mapping.
+/// </summary>
+public static class XmlBodyReachability
+{
+    /// <summary>
+    /// Collects the names (as in <c>components.schemas</c>) of the schemas reachable from an XML body.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <returns>The schema names; empty when the specification has no XML body.</returns>
+    public static HashSet<string> Collect(OpenApiDocument openApiDoc)
+    {
+        if (openApiDoc is null)
+        {
+            throw new ArgumentNullException(nameof(openApiDoc));
+        }
+
+        var reachable = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var pathItem in openApiDoc.Paths?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
+        {
+            foreach (var operation in pathItem.Operations?.Values ?? Enumerable.Empty<OpenApiOperation>())
+            {
+                AddXmlContent(operation.RequestBody?.Content, reachable);
+                foreach (var response in operation.Responses?.Values ?? Enumerable.Empty<IOpenApiResponse>())
+                {
+                    AddXmlContent(response.Content, reachable);
+                }
+            }
+        }
+
+        return reachable;
+    }
+
+    /// <summary>
+    /// Whether a body of this media type and schema is an XML model body.
+    /// </summary>
+    /// <param name="mediaType">The media type.</param>
+    /// <param name="schema">The body schema.</param>
+    /// <returns><see langword="true"/> for an XML model body.</returns>
+    public static bool IsXmlModelBody(
+        string mediaType,
+        IOpenApiSchema? schema)
+        => ResponseBodyClassifier.Classify(mediaType, schema) == ResponseBodyKind.Xml;
+
+    private static void AddXmlContent(
+        IDictionary<string, IOpenApiMediaType>? content,
+        HashSet<string> reachable)
+    {
+        if (content is null)
+        {
+            return;
+        }
+
+        foreach (var entry in content)
+        {
+            if (IsXmlModelBody(entry.Key, entry.Value.Schema))
+            {
+                Walk(entry.Value.Schema, reachable);
+            }
+        }
+    }
+
+    private static void Walk(
+        IOpenApiSchema? schema,
+        HashSet<string> reachable)
+    {
+        if (schema is null)
+        {
+            return;
+        }
+
+        if (schema is OpenApiSchemaReference reference)
+        {
+            var name = reference.Reference?.Id ?? reference.Id;
+            if (name is null || !reachable.Add(name))
+            {
+                return;
+            }
+
+            schema = reference.Target;
+            if (schema is null)
+            {
+                return;
+            }
+        }
+
+        foreach (var property in schema.Properties?.Values ?? Enumerable.Empty<IOpenApiSchema>())
+        {
+            Walk(property, reachable);
+        }
+
+        Walk(schema.Items, reachable);
+        Walk(schema.AdditionalProperties, reachable);
+
+        foreach (var part in (schema.AllOf ?? Enumerable.Empty<IOpenApiSchema>())
+                     .Concat(schema.OneOf ?? Enumerable.Empty<IOpenApiSchema>())
+                     .Concat(schema.AnyOf ?? Enumerable.Empty<IOpenApiSchema>()))
+        {
+            Walk(part, reachable);
+        }
+    }
+}

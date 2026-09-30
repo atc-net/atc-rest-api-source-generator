@@ -154,6 +154,8 @@ public static class SchemaExtractor
     /// <param name="includeDeprecated">Whether to include deprecated schemas.</param>
     /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
     /// <param name="includeSharedModelsUsing">Whether to include a using directive for the shared Models namespace.</param>
+    /// <param name="xmlModels">The schemas an XML body can carry (<see cref="XmlBodyReachability"/>); their records are added to <paramref name="xmlSources"/>.</param>
+    /// <param name="xmlSources">Receives the records that get a generated XML mapping.</param>
     /// <returns>A tuple containing RecordsParameters and a list of inline enums discovered.</returns>
     public static (RecordsParameters? Records, List<InlineEnumInfo> InlineEnums) ExtractForSchemasWithInlineEnums(
         OpenApiDocument openApiDoc,
@@ -163,7 +165,9 @@ public static class SchemaExtractor
         TypeConflictRegistry? registry = null,
         bool includeDeprecated = false,
         bool generatePartialModels = false,
-        bool includeSharedModelsUsing = false)
+        bool includeSharedModelsUsing = false,
+        ISet<string>? xmlModels = null,
+        List<XmlModelSource>? xmlSources = null)
     {
         var inlineEnums = new List<InlineEnumInfo>();
 
@@ -185,7 +189,9 @@ public static class SchemaExtractor
             registry,
             includeDeprecated,
             generatePartialModels: generatePartialModels,
-            polymorphicConfigs: PolymorphicTypeExtractor.ExtractPolymorphicConfigs(openApiDoc));
+            polymorphicConfigs: PolymorphicTypeExtractor.ExtractPolymorphicConfigs(openApiDoc),
+            xmlModels: xmlModels,
+            xmlSources: xmlSources);
 
         if (recordParametersList is null || recordParametersList.Count == 0)
         {
@@ -454,7 +460,9 @@ public static class SchemaExtractor
         TypeConflictRegistry? registry = null,
         bool includeDeprecated = false,
         bool generatePartialModels = false,
-        Dictionary<string, PolymorphicConfig>? polymorphicConfigs = null)
+        Dictionary<string, PolymorphicConfig>? polymorphicConfigs = null,
+        ISet<string>? xmlModels = null,
+        List<XmlModelSource>? xmlSources = null)
     {
         if (openApiDoc is null)
         {
@@ -595,6 +603,12 @@ public static class SchemaExtractor
                         if (recordParams is not null)
                         {
                             recordParametersList.Add(recordParams);
+
+                            // A model an XML body can carry gets its XML mapping from the record as generated
+                            if (xmlSources is not null && xmlModels?.Contains(originalSchemaName) == true)
+                            {
+                                xmlSources.Add(new XmlModelSource(originalSchemaName, schemaName, actualSchema, effectiveSchema, recordParams));
+                            }
                         }
                     }
                 }

@@ -361,6 +361,10 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Detect shared schemas (used by multiple path segments) for deduplication
         var sharedSchemas = PathSegmentHelper.GetSharedSchemas(openApiDoc);
 
+        // The models an XML body can carry get an XML mapping (only when the specification has an XML body)
+        var xmlModels = XmlBodyReachability.Collect(openApiDoc);
+        XmlModelEmitter.EmitSupport(generatedContext, projectName, xmlModels);
+
         // A spec-defined ProblemDetails / ValidationProblemDetails is not materialized: the server binds
         // those names to Microsoft.AspNetCore.Mvc (every generated Results file imports it), and a second,
         // generated type of the same name would make every reference ambiguous (CS0104). Unless another
@@ -381,7 +385,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                 pathSegment: null,
                 sharedRegistry,
                 config.IncludeDeprecated,
-                config.GeneratePartialModels);
+                config.GeneratePartialModels,
+                xmlModels: xmlModels);
 
             GenerateEnumsForSchemas(
                 generatedContext,
@@ -448,7 +453,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                     registry,
                     config.IncludeDeprecated,
                     config.GeneratePartialModels,
-                    includeSharedModelsUsing: sharedSchemas.Count > 0);
+                    includeSharedModelsUsing: sharedSchemas.Count > 0,
+                    xmlModels: xmlModels);
 
                 GenerateEnumsForSchemas(
                     generatedContext,
@@ -692,9 +698,11 @@ public class ApiServerGenerator : IIncrementalGenerator
         TypeConflictRegistry registry,
         bool includeDeprecated,
         bool generatePartialModels,
-        bool includeSharedModelsUsing = false)
+        bool includeSharedModelsUsing = false,
+        ISet<string>? xmlModels = null)
     {
         // Use SchemaExtractor.ExtractForSchemasWithInlineEnums to extract schemas and inline enums
+        var xmlSources = new List<XmlModelSource>();
         var (recordsParameters, inlineEnums) = SchemaExtractor.ExtractForSchemasWithInlineEnums(
             openApiDoc,
             projectName,
@@ -703,7 +711,9 @@ public class ApiServerGenerator : IIncrementalGenerator
             registry,
             includeDeprecated,
             generatePartialModels,
-            includeSharedModelsUsing);
+            includeSharedModelsUsing,
+            xmlModels,
+            xmlSources);
 
         // File names mirror the namespace the types are emitted into, so a segment that
         // resolved away never leaves an empty part behind in the file name.
@@ -743,6 +753,11 @@ public class ApiServerGenerator : IIncrementalGenerator
             context.AddSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, sanitizedName),
                 SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
+        if (xmlModels is not null)
+        {
+            XmlModelEmitter.EmitCompanions(context, xmlSources, recordsParameters.HeaderContent, modelsNamespace, projectName, xmlModels);
         }
     }
 

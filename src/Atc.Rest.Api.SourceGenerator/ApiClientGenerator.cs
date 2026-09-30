@@ -324,6 +324,10 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Detect shared schemas (used by multiple path segments) for deduplication
         var sharedSchemas = PathSegmentHelper.GetSharedSchemas(openApiDoc);
 
+        // The models an XML body can carry get an XML mapping (only when the specification has an XML body)
+        var xmlModels = XmlBodyReachability.Collect(openApiDoc);
+        XmlModelEmitter.EmitSupport(generatedContext, projectName, xmlModels);
+
         // In EndpointPerOperation mode the generator owns ProblemDetails/ValidationProblemDetails
         // (emitted above into "{projectName}.Generated"). A same-named schema in the specification
         // can never be referenced - every consumer sits under "{projectName}.Generated.*", so C#
@@ -340,7 +344,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         if (config.GenerationMode != GenerationModeType.EndpointPerOperation &&
             config.ClientGranularity == ClientGranularityType.Single)
         {
-            GenerateSingleTypedClient(context, generatedContext, openApiDoc, projectName, config, conflicts, systemTypeResolver, yamlPath, packages.HasHttpClientFactory);
+            GenerateSingleTypedClient(context, generatedContext, openApiDoc, projectName, config, conflicts, systemTypeResolver, yamlPath, packages.HasHttpClientFactory, xmlModels);
             return;
         }
 
@@ -363,7 +367,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             // Create conflict registry for shared types (no segment)
             var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName);
 
-            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, sharedRegistry, config.IncludeDeprecated, config.GeneratePartialModels, strictRequiredProperties: config.StrictRequiredProperties);
+            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, sharedRegistry, config.IncludeDeprecated, config.GeneratePartialModels, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels);
             GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
             GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
             PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
@@ -399,7 +403,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             // Include shared models using directive so segment types can reference shared types
             if (segmentSchemas.Count > 0)
             {
-                GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, includeSharedModelsUsing: sharedSchemas.Count > 0, strictRequiredProperties: config.StrictRequiredProperties);
+                GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, includeSharedModelsUsing: sharedSchemas.Count > 0, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels);
                 GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
                 GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
                 PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
@@ -623,9 +627,11 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool includeDeprecated,
         bool generatePartialModels,
         bool includeSharedModelsUsing = false,
-        bool strictRequiredProperties = false)
+        bool strictRequiredProperties = false,
+        ISet<string>? xmlModels = null)
     {
         // Use SchemaExtractor to extract specific schemas with inline enum support
+        var xmlSources = new List<XmlModelSource>();
         var (recordsParameters, inlineEnums) = SchemaExtractor.ExtractForSchemasWithInlineEnums(
             openApiDoc,
             projectName,
@@ -634,7 +640,9 @@ public class ApiClientGenerator : IIncrementalGenerator
             registry,
             includeDeprecated,
             generatePartialModels,
-            includeSharedModelsUsing);
+            includeSharedModelsUsing,
+            xmlModels,
+            xmlSources);
 
         // File names mirror the namespace the types are emitted into
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, pathSegment);
@@ -691,6 +699,11 @@ public class ApiClientGenerator : IIncrementalGenerator
             context.AddSource(
                 fileName,
                 SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
+        if (xmlModels is not null)
+        {
+            XmlModelEmitter.EmitCompanions(context, xmlSources, recordsParameters.HeaderContent, modelsNamespace, projectName, xmlModels);
         }
     }
 
@@ -899,7 +912,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         ISet<string> conflicts,
         SystemTypeConflictResolver systemTypeResolver,
         string yamlPath,
-        bool generateDiExtension)
+        bool generateDiExtension,
+        ISet<string> xmlModels)
     {
         // Flattening removes the per-area namespaces that would otherwise keep colliding type names
         // apart. Report and stop, rather than emitting code that fails with an opaque CS0101.
@@ -929,7 +943,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         if (allSchemas.Count > 0)
         {
-            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, strictRequiredProperties: config.StrictRequiredProperties);
+            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels);
             GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
             GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
             PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
