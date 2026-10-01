@@ -486,6 +486,17 @@ public static class OpenApiOperationExtensions
                 : null;
 
         /// <summary>
+        /// The file media types of a 200 response that is a model <b>or</b> a file (<c>application/json</c> and
+        /// <c>application/pdf</c>), told apart by the answer's <c>Content-Type</c> (<see cref="ResponseBodyClassifier.FileAlternatives"/>).
+        /// </summary>
+        /// <returns>The file media types; empty when the 200 response is not a model or a file.</returns>
+        public IReadOnlyList<string> GetModelOrFileMediaTypes()
+            => operation.Responses is not null &&
+               operation.Responses.TryGetValue("200", out var response)
+                ? ResponseBodyClassifier.FileAlternatives(response.Content)
+                : [];
+
+        /// <summary>
         /// Gets the file download content type from the response if present.
         /// </summary>
         /// <returns>The file download content type or null if not found.</returns>

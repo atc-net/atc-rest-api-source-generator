@@ -2313,8 +2313,9 @@ public static class OpenApiDocumentValidator
                 }
             }
 
-            // A model and a file: the response is generated for its first (primary) media type only
-            if (ResponseBodyClassifier.PrimaryBody(content) is { } primary)
+            // A model and a file: generated as a model or a file for a 200 (decided by the answer's Content-Type), for
+            // its primary media type only for any other status
+            if (!string.Equals(status, "200", StringComparison.Ordinal) && ResponseBodyClassifier.PrimaryBody(content) is { } primary)
             {
                 var primaryIsFile = primary.Kind == ResponseBodyKind.Binary;
                 foreach (var other in content.Keys)
@@ -2323,7 +2324,7 @@ public static class OpenApiDocumentValidator
                     if (kind is ResponseBodyKind.Binary or ResponseBodyKind.Json or ResponseBodyKind.Xml &&
                         (kind == ResponseBodyKind.Binary) != primaryIsFile)
                     {
-                        yield return $"Operation '{operationId}' response {status} ({other}) is not generated: the response declares a model and a file, and only its first media type ({primary.MediaType}) is generated.";
+                        yield return $"Operation '{operationId}' response {status} ({other}) is not generated: the response declares a model and a file, which is generated for a 200 only; this status is generated for {primary.MediaType} only.";
                     }
                 }
             }

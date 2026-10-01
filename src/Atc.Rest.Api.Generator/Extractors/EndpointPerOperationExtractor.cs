@@ -436,7 +436,10 @@ public static class EndpointPerOperationExtractor
     /// <param name="TextMediaType">The text media type of a raw text body, or <see langword="null"/>.</param>
     /// <param name="IsAutoAdded">Whether the generator added this response (the spec does not list it).</param>
     /// <param name="ErrorMediaType">The declared media type of an error response's body, or <see langword="null"/>.</param>
-    private sealed record ResponseInfo(string StatusCode, string StatusEnumName, string PropertyName, string? ContentType, bool IsSuccess, string? TextMediaType = null, bool IsAutoAdded = false, string? ErrorMediaType = null, bool IsFile = false, XmlBody? Xml = null)
+    /// <param name="IsFile">Whether the body is a file (a DownloadedFile).</param>
+    /// <param name="Xml">The XML body, or <see langword="null"/>.</param>
+    /// <param name="FileMediaTypes">A model or a file: the file media types (the file is read by <c>{PropertyName}File</c>), else <see langword="null"/>.</param>
+    private sealed record ResponseInfo(string StatusCode, string StatusEnumName, string PropertyName, string? ContentType, bool IsSuccess, string? TextMediaType = null, bool IsAutoAdded = false, string? ErrorMediaType = null, bool IsFile = false, XmlBody? Xml = null, IReadOnlyList<string>? FileMediaTypes = null)
     {
         /// <summary>
         /// Whether this is the spec's <c>default</c> response: the body of any error status the operation does not list.
@@ -571,7 +574,11 @@ public static class EndpointPerOperationExtractor
                 contentType = GetErrorContentType(errorResponseFormat, customErrorTypeName, statusCodeStr);
             }
 
-            responses.Add(new ResponseInfo(statusCodeStr, statusEnumName, propertyName, contentType, isSuccess, textMediaType, IsFile: isFile, Xml: xmlBody));
+            // A model or a file (a 200 that declares both): the file is read by {PropertyName}File
+            var fileMediaTypes = isSuccess && contentType is not null && statusCodeStr == "200"
+                ? ResponseBodyClassifier.FileAlternatives(response.Value?.Content)
+                : [];
+            responses.Add(new ResponseInfo(statusCodeStr, statusEnumName, propertyName, contentType, isSuccess, textMediaType, IsFile: isFile, Xml: xmlBody, FileMediaTypes: fileMediaTypes.Count > 0 ? fileMediaTypes : null));
         }
 
         return responses;
@@ -1139,7 +1146,8 @@ public static class EndpointPerOperationExtractor
         // An XML answer: ask for its media type (the request builder asks for application/json by default, under
         // the key "accept"), and for the errors as they are read: the declared error media types, else a ProblemDetails
         // (an Accept without it lets a host decline to write the problem, e.g. for an empty-body status)
-        if (XmlBodyHelper.AcceptFor(responses.Where(r => r.IsSuccess && r.Xml is not null).Select(r => r.Xml!).ToList(), XmlBodyHelper.ErrorMediaTypes(operation), preferXml) is { } accept)
+        // A model or a file: ask for the file media types too
+        if (XmlBodyHelper.AcceptFor(responses.Where(r => r.IsSuccess && r.Xml is not null).Select(r => r.Xml!).ToList(), XmlBodyHelper.ErrorMediaTypes(operation), preferXml, responses.FirstOrDefault(r => r.FileMediaTypes is not null)?.FileMediaTypes) is { } accept)
         {
             sb.AppendLine($"requestBuilder.WithHeaderParameter(\"accept\", \"{accept}\");");
         }
@@ -1327,6 +1335,48 @@ public static class EndpointPerOperationExtractor
     }
 
     /// <summary>
+    /// Registers a success response's body type on the response builder.
+    /// </summary>
+    private static void AppendSuccessRegistration(
+        StringBuilder sb,
+        ResponseInfo responseInfo)
+    {
+        if (responseInfo.Xml is { IsAlternative: true })
+        {
+            // Offered as JSON and XML: the JSON type, unless the response is XML (read by the accessor)
+            sb.AppendLine("if (XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))");
+            sb.AppendLine("{");
+            sb.AppendLine(4, $"responseBuilder.AddSuccessResponse({responseInfo.StatusCodeExpression});");
+            sb.AppendLine("}");
+            sb.AppendLine("else");
+            sb.AppendLine("{");
+            sb.AppendLine(4, $"responseBuilder.AddSuccessResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression});");
+            sb.AppendLine("}");
+            sb.AppendLine();
+        }
+        else if (responseInfo.IsFile || responseInfo.Xml is not null)
+        {
+            // A file or an XML body - no JSON type: Atc.Rest.Client keeps a non-text body as bytes (text/xml as
+            // text), and the accessor reads the file or the XML
+            sb.AppendLine($"responseBuilder.AddSuccessResponse({responseInfo.StatusCodeExpression});");
+        }
+        else if (responseInfo.TextMediaType is not null)
+        {
+            // Raw text body (text/plain, text/csv, ...) — bypass the JSON contract serializer.
+            sb.AppendLine($"responseBuilder.AddSuccessTextResponse({responseInfo.StatusCodeExpression});");
+        }
+        else if (responseInfo.ContentType is null)
+        {
+            // Empty response - use non-generic AddSuccessResponse
+            sb.AppendLine($"responseBuilder.AddSuccessResponse({responseInfo.StatusCodeExpression});");
+        }
+        else
+        {
+            sb.AppendLine($"responseBuilder.AddSuccessResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression});");
+        }
+    }
+
+    /// <summary>
     /// Registers the operation's responses on the response builder: the success types, and the error types a typed
     /// error body is read as (<c>BuildResponseAsync</c>'s error content, a streamed download's <c>ErrorContentObject</c>).
     /// </summary>
@@ -1373,38 +1423,36 @@ public static class EndpointPerOperationExtractor
 
             if (responseInfo.IsSuccess)
             {
-                if (responseInfo.Xml is { IsAlternative: true })
+                if (responseInfo.FileMediaTypes is not null)
                 {
-                    // Offered as JSON and XML: the JSON type, unless the response is XML (read by the accessor)
-                    sb.AppendLine("if (XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))");
+                    // A model or a file: told apart by the answer's Content-Type - a file is kept as bytes
+                    sb.AppendLine("if (DownloadedFile.IsFileMediaType(response.Content.Headers.ContentType?.MediaType))");
                     sb.AppendLine("{");
                     sb.AppendLine(4, $"responseBuilder.AddSuccessResponse({responseInfo.StatusCodeExpression});");
                     sb.AppendLine("}");
                     sb.AppendLine("else");
                     sb.AppendLine("{");
-                    sb.AppendLine(4, $"responseBuilder.AddSuccessResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression});");
+                    var model = new StringBuilder();
+                    AppendSuccessRegistration(model, responseInfo);
+                    foreach (var line in model.ToString().TrimEnd().Split('\n'))
+                    {
+                        var text = line.TrimEnd('\r');
+                        if (text.Length == 0)
+                        {
+                            sb.AppendLine();
+                        }
+                        else
+                        {
+                            sb.AppendLine(4, text);
+                        }
+                    }
+
                     sb.AppendLine("}");
                     sb.AppendLine();
                 }
-                else if (responseInfo.IsFile || responseInfo.Xml is not null)
-                {
-                    // A file or an XML body - no JSON type: Atc.Rest.Client keeps a non-text body as bytes (text/xml as
-                    // text), and the accessor reads the file or the XML
-                    sb.AppendLine($"responseBuilder.AddSuccessResponse({responseInfo.StatusCodeExpression});");
-                }
-                else if (responseInfo.TextMediaType is not null)
-                {
-                    // Raw text body (text/plain, text/csv, ...) — bypass the JSON contract serializer.
-                    sb.AppendLine($"responseBuilder.AddSuccessTextResponse({responseInfo.StatusCodeExpression});");
-                }
-                else if (responseInfo.ContentType is null)
-                {
-                    // Empty response - use non-generic AddSuccessResponse
-                    sb.AppendLine($"responseBuilder.AddSuccessResponse({responseInfo.StatusCodeExpression});");
-                }
                 else
                 {
-                    sb.AppendLine($"responseBuilder.AddSuccessResponse<{responseInfo.ContentType}>({responseInfo.StatusCodeExpression});");
+                    AppendSuccessRegistration(sb, responseInfo);
                 }
             }
             else if (responseInfo.ContentType is null)
@@ -1527,6 +1575,15 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine();
         }
 
+        // A model or a file: the file
+        foreach (var response in responses.Where(r => r.FileMediaTypes is not null))
+        {
+            sb.AppendLine(4, $"bool Is{response.PropertyName}File {{ get; }}");
+            sb.AppendLine();
+            sb.AppendLine(4, $"DownloadedFile {response.PropertyName}File {{ get; }}");
+            sb.AppendLine();
+        }
+
         if (defaultResponse?.ContentType is not null)
         {
             sb.AppendLine(4, $"{defaultResponse.ContentType} {defaultResponse.PropertyName}Content {{ get; }}");
@@ -1628,6 +1685,25 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine();
         }
 
+        foreach (var response in responses.Where(r => r.FileMediaTypes is not null))
+        {
+            sb.AppendLine(4, "/// <summary>");
+            sb.AppendLine(4, $"/// Creates a result representing HTTP {response.StatusEnumName} answered with a file.");
+            sb.AppendLine(4, "/// </summary>");
+            sb.AppendLine(4, $"public static {operationName}EndpointResult {response.PropertyName}(DownloadedFile file)");
+            sb.AppendLine(8, "=> new(new EndpointResponse(");
+            sb.AppendLine(12, "isSuccess: true,");
+            sb.AppendLine(12, $"statusCode: {response.StatusCodeExpression},");
+            sb.AppendLine(12, "content: string.Empty,");
+            sb.AppendLine(12, "contentObject: file.Content,");
+            sb.AppendLine(12, "headers: new Dictionary<string, IEnumerable<string>>(StringComparer.OrdinalIgnoreCase)");
+            sb.AppendLine(12, "{");
+            sb.AppendLine(16, $"[\"Content-Type\"] = new[] {{ file.ContentType ?? \"{response.FileMediaTypes![0]}\" }},");
+            sb.AppendLine(16, "[\"Content-Disposition\"] = file.FileName is null ? Array.Empty<string>() : new[] { new System.Net.Http.Headers.ContentDispositionHeaderValue(\"attachment\") { FileNameStar = file.FileName }.ToString() },");
+            sb.AppendLine(12, "}));");
+            sb.AppendLine();
+        }
+
         if (defaultResponse?.ContentType is not null)
         {
             sb.AppendLine(4, "/// <summary>");
@@ -1678,9 +1754,24 @@ public static class EndpointPerOperationExtractor
             sb.AppendLine();
         }
 
+        // A model or a file: the file, told apart by the answer's Content-Type (the model is {PropertyName}Content)
+        foreach (var response in responses.Where(r => r.FileMediaTypes is not null))
+        {
+            sb.AppendLine(4, $"public bool Is{response.PropertyName}File");
+            sb.AppendLine(8, $"=> Is{response.PropertyName} && DownloadedFile.IsFileResponse(this);");
+            sb.AppendLine();
+            sb.AppendLine(4, $"public DownloadedFile {response.PropertyName}File");
+            sb.AppendLine(8, $"=> Is{response.PropertyName}File");
+            sb.AppendLine(12, "? DownloadedFile.FromResponse(this)");
+            sb.AppendLine(12, $": throw InvalidContentAccessException<DownloadedFile>({response.StatusCodeExpression}, \"{response.PropertyName}File\");");
+            sb.AppendLine();
+        }
+
         // {PropertyName}Content properties - only generate for responses that have content
         foreach (var response in responses.Where(r => r.ContentType is not null))
         {
+            // A model or a file: the model only when the answer is not the file
+            var isModel = response.FileMediaTypes is null ? $"Is{response.PropertyName}" : $"Is{response.PropertyName} && !Is{response.PropertyName}File";
             if (response.IsFile)
             {
                 sb.AppendLine(4, $"public {response.ContentType} {response.PropertyName}Content");
@@ -1697,7 +1788,7 @@ public static class EndpointPerOperationExtractor
                 sb.AppendLine(4, $"public {response.ContentType} {response.PropertyName}Content");
                 sb.AppendLine(8, $"=> Is{response.PropertyName} && ContentObject is {response.ContentType} result");
                 sb.AppendLine(12, "? result");
-                sb.AppendLine(12, $": Is{response.PropertyName}");
+                sb.AppendLine(12, $": {isModel}");
                 sb.AppendLine(16, $"? {XmlBodyHelper.ReadMethod(response.ContentType!, response.Xml)}(XmlModelSupport.ParseContent(ContentObject ?? Content))");
                 sb.AppendLine(16, $": throw InvalidContentAccessException<{response.ContentType}>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
                 sb.AppendLine();
@@ -1708,7 +1799,7 @@ public static class EndpointPerOperationExtractor
             {
                 // The model read from the XML body: the bytes (ContentObject), or for text/xml the text (Content)
                 sb.AppendLine(4, $"public {response.ContentType} {response.PropertyName}Content");
-                sb.AppendLine(8, $"=> Is{response.PropertyName}");
+                sb.AppendLine(8, $"=> {isModel}");
                 sb.AppendLine(12, $"? {XmlBodyHelper.ReadMethod(response.ContentType!, response.Xml)}(XmlModelSupport.ParseContent(ContentObject ?? Content))");
                 sb.AppendLine(12, $": throw InvalidContentAccessException<{response.ContentType}>({response.StatusCodeExpression}, \"{response.PropertyName}Content\");");
                 sb.AppendLine();

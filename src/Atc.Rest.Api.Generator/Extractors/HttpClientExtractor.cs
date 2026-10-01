@@ -526,6 +526,24 @@ public static class HttpClientExtractor
             hasLocationHeader = true;
         }
 
+        // A model or a file (a 200 that declares both): a ContentOrFile<T>, told apart by the answer's Content-Type -
+        // the method asks for the model's and the file's media types
+        if (!isAsyncEnumerable &&
+            returnType != nameof(Task) &&
+            returnType != "DownloadedFile" &&
+            operation.GetModelOrFileMediaTypes() is { Count: > 0 } fileMediaTypes)
+        {
+            var xmlBodies = xmlRead?.ReadMethod is null
+                ? []
+                : new[] { xmlRead.ByContentType ? XmlBodyHelper.FindXmlAlternative(response!.Content) : XmlBodyHelper.FindXmlOnlyBody(response!.Content) }.Where(b => b is not null).Select(b => b!).ToList();
+            xmlRead = (xmlRead ?? new XmlReadPlan(ReadMethod: null, ByContentType: false, Accept: null)) with
+            {
+                Accept = XmlBodyHelper.AcceptFor(xmlBodies, XmlBodyHelper.ErrorMediaTypes(operation), preferXml, fileMediaTypes),
+                ModelOrFileType = returnType,
+            };
+            returnType = $"ContentOrFile<{returnType}>";
+        }
+
         // OpenAPI 3.2 streaming: when the response declares an itemSchema, the element
         // type comes from it directly (not from an application/json array body).
         if (isAsyncEnumerable && streamingItemType is null)
@@ -2146,6 +2164,12 @@ public static class HttpClientExtractor
         bool isLastStatement,
         XmlReadPlan? xmlRead = null)
     {
+        if (xmlRead?.ModelOrFileType is { } modelType)
+        {
+            AppendModelOrFileCompletion(builder, resultStyle, payloadKind, returnType, modelType, isLastStatement, xmlRead);
+            return;
+        }
+
         if (payloadKind == ResponsePayloadKind.Json && xmlRead is { ByContentType: true, ReadMethod: not null })
         {
             // Offered as JSON and XML: the model read by the response's Content-Type
@@ -2214,6 +2238,72 @@ public static class HttpClientExtractor
         };
 
         AppendStatement(builder, read, isLastStatement);
+    }
+
+    /// <summary>
+    /// Emits the completion of a model or a file: the file when the answer's Content-Type is neither JSON nor XML,
+    /// else the model, read as it would be alone (by a local function) and wrapped in the <c>ContentOrFile&lt;T&gt;</c>.
+    /// </summary>
+    private static void AppendModelOrFileCompletion(
+        StringBuilder builder,
+        TypedClientResultStyleType resultStyle,
+        ResponsePayloadKind payloadKind,
+        string returnType,
+        string modelType,
+        bool isLastStatement,
+        XmlReadPlan xmlRead)
+    {
+        var model = new StringBuilder();
+        AppendResponseCompletion(model, resultStyle, payloadKind, modelType, isLastStatement: true, xmlRead: xmlRead with { ModelOrFileType = null });
+
+        if (resultStyle == TypedClientResultStyleType.Result)
+        {
+            builder.AppendLine("if (response.IsSuccessStatusCode && DownloadedFile.IsFileMediaType(response.Content.Headers.ContentType?.MediaType))");
+            builder.AppendLine("{");
+            builder.AppendLine(4, "var file = await DownloadedFile.FromHttpResponseAsync(response, cancellationToken);");
+            builder.AppendLine(4, $"return new EndpointResponse<{returnType}>(true, response.StatusCode, string.Empty, {returnType}.FromFile(file), ReadHeaders(response));");
+            builder.AppendLine("}");
+            builder.AppendLine();
+            builder.AppendLine("var modelResponse = await ReadContentAsync();");
+            builder.AppendLine($"return new EndpointResponse<{returnType}>(modelResponse.IsSuccess, modelResponse.StatusCode, modelResponse.Content, modelResponse.IsSuccess && modelResponse.ContentObject is {modelType} content ? {returnType}.FromContent(content) : null, ReadHeaders(response));");
+            builder.AppendLine();
+            builder.AppendLine($"async Task<EndpointResponse<{modelType}>> ReadContentAsync()");
+        }
+        else
+        {
+            builder.AppendLine("await EnsureSuccessAsync(response, cancellationToken);");
+            builder.AppendLine("if (DownloadedFile.IsFileMediaType(response.Content.Headers.ContentType?.MediaType))");
+            builder.AppendLine("{");
+            builder.AppendLine(4, $"return {returnType}.FromFile(await DownloadedFile.FromHttpResponseAsync(response, cancellationToken));");
+            builder.AppendLine("}");
+            builder.AppendLine();
+            builder.AppendLine($"return {returnType}.FromContent(await ReadContentAsync());");
+            builder.AppendLine();
+            builder.AppendLine($"async Task<{modelType}> ReadContentAsync()");
+        }
+
+        // The Throw style has checked the status already
+        var modelBody = model.ToString();
+        if (resultStyle != TypedClientResultStyleType.Result)
+        {
+            modelBody = modelBody.Replace("await EnsureSuccessAsync(response, cancellationToken);" + Environment.NewLine, string.Empty);
+        }
+
+        builder.AppendLine("{");
+        foreach (var line in modelBody.Split('\n'))
+        {
+            var text = line.TrimEnd('\r');
+            if (text.Length == 0)
+            {
+                builder.AppendLine();
+            }
+            else
+            {
+                builder.AppendLine(4, text);
+            }
+        }
+
+        AppendStatement(builder, "}", isLastStatement);
     }
 
     private static void AppendStatement(

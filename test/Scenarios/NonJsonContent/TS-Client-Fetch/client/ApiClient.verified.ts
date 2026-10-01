@@ -21,6 +21,8 @@ export interface RequestOptions {
   responseType?: 'json' | 'blob' | 'text';
   /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */
   arms?: readonly string[];
+  /** A model or a file (the generated client passes it): a file answer (neither JSON nor XML) is a Blob, a model's is the model. */
+  modelOrFile?: boolean;
 }
 
 export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';

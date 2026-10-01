@@ -78,7 +78,7 @@ public static class TypeScriptZodModelExtractor
             }
 
             cycleMembers.TryGetValue(schemaName, out var cyclePeers);
-            var content = GenerateZodObject(schemaName, actualSchema, headerContent, enumNames, config.NamingStrategy, cyclePeers);
+            var content = GenerateZodObject(schemaName, actualSchema, headerContent, enumNames, config.NamingStrategy, cyclePeers, config.ConvertDates);
             if (content is not null)
             {
                 results.Add((schemaName, content));
@@ -402,7 +402,7 @@ public static class TypeScriptZodModelExtractor
                 continue;
             }
 
-            var content = GenerateZodArray(schemaName, actualSchema, headerContent);
+            var content = GenerateZodArray(schemaName, actualSchema, headerContent, config.ConvertDates);
             results.Add((schemaName, content));
         }
 
@@ -415,7 +415,8 @@ public static class TypeScriptZodModelExtractor
         string? headerContent,
         HashSet<string>? enumNames,
         TypeScriptNamingStrategy namingStrategy,
-        HashSet<string>? cyclePeers)
+        HashSet<string>? cyclePeers,
+        bool convertDates = false)
     {
         // allOf composition, as in TypeScriptModelExtractor: every $ref member is extended, the inline
         // members contribute their properties (and required names) as if declared on the schema.
@@ -526,7 +527,7 @@ public static class TypeScriptZodModelExtractor
             // Parent name flows into the property mapper so recursive sub-expressions
             // get wrapped in z.lazy. Non-self-referencing properties skip the wrap.
             // cyclePeers extends the wrap to mutual-recursion siblings (Tag <-> Category).
-            var zodChain = MapPropertyToZod(prop.Value, isRequired, enumNames, schemaName, cyclePeers);
+            var zodChain = MapPropertyToZod(prop.Value, isRequired, enumNames, schemaName, cyclePeers, convertDates);
 
             sb.Append("  ").Append(propName).Append(": ").Append(zodChain).Append(',');
             sb.AppendLine();
@@ -609,7 +610,8 @@ public static class TypeScriptZodModelExtractor
     private static string GenerateZodArray(
         string schemaName,
         OpenApiSchema arraySchema,
-        string? headerContent)
+        string? headerContent,
+        bool convertDates = false)
     {
         var sb = new StringBuilder();
 
@@ -642,7 +644,7 @@ public static class TypeScriptZodModelExtractor
         }
         else if (arraySchema.Items is OpenApiSchema itemSchema)
         {
-            sb.Append(MapPrimitiveToZod(itemSchema));
+            sb.Append(MapPrimitiveToZod(itemSchema, convertDates));
         }
         else
         {
@@ -679,9 +681,10 @@ public static class TypeScriptZodModelExtractor
         bool isRequired,
         HashSet<string>? enumNames,
         string? parentSchemaName = null,
-        HashSet<string>? cyclePeers = null)
+        HashSet<string>? cyclePeers = null,
+        bool convertDates = false)
     {
-        var inner = BuildPropertyZodChain(schema, isRequired, enumNames, parentSchemaName, cyclePeers);
+        var inner = BuildPropertyZodChain(schema, isRequired, enumNames, parentSchemaName, cyclePeers, convertDates);
 
         // Wrap recursive properties in z.lazy at the top level. Modifiers (.optional() /
         // .nullable() / .default()) stay inside the lazy so the lambda produces the fully
@@ -736,7 +739,8 @@ public static class TypeScriptZodModelExtractor
         bool isRequired,
         HashSet<string>? enumNames,
         string? parentSchemaName,
-        HashSet<string>? cyclePeers)
+        HashSet<string>? cyclePeers,
+        bool convertDates = false)
     {
         var sb = new StringBuilder();
 
@@ -832,7 +836,7 @@ public static class TypeScriptZodModelExtractor
         if (actualSchema.AdditionalProperties is not null)
         {
             sb.Append("z.record(z.string(), ");
-            var valueZod = MapPropertyToZod(actualSchema.AdditionalProperties, isRequired: true, enumNames, parentSchemaName, cyclePeers);
+            var valueZod = MapPropertyToZod(actualSchema.AdditionalProperties, isRequired: true, enumNames, parentSchemaName, cyclePeers, convertDates);
             sb.Append(valueZod).Append(')');
             AppendModifiers(sb, isNullable, isRequired, actualSchema.Default);
             return sb.ToString();
@@ -850,7 +854,7 @@ public static class TypeScriptZodModelExtractor
             }
             else if (actualSchema.Items is OpenApiSchema itemSchema)
             {
-                sb.Append(MapPrimitiveToZod(itemSchema));
+                sb.Append(MapPrimitiveToZod(itemSchema, convertDates));
             }
             else
             {
@@ -875,7 +879,7 @@ public static class TypeScriptZodModelExtractor
         }
 
         // Handle primitive types
-        sb.Append(MapPrimitiveToZod(actualSchema));
+        sb.Append(MapPrimitiveToZod(actualSchema, convertDates));
         AppendModifiers(sb, isNullable, isRequired, actualSchema.Default);
         return sb.ToString();
     }
@@ -883,7 +887,9 @@ public static class TypeScriptZodModelExtractor
     /// <summary>
     /// Maps an OpenAPI primitive schema to a Zod base chain (without nullable/optional modifiers).
     /// </summary>
-    private static string MapPrimitiveToZod(OpenApiSchema schema)
+    private static string MapPrimitiveToZod(
+        OpenApiSchema schema,
+        bool convertDates = false)
     {
         var sb = new StringBuilder();
         var typeValue = schema.Type ?? JsonSchemaType.Object;
@@ -903,10 +909,17 @@ public static class TypeScriptZodModelExtractor
                 return sb.ToString();
             }
 
+            // A date-time with convertDates: the response reviver has made it a Date before the check
+            var format = schema.Format?.ToLowerInvariant();
+            if (convertDates && format == "date-time")
+            {
+                sb.Append("z.coerce.date()");
+                return sb.ToString();
+            }
+
             sb.Append("z.string()");
 
             // Format-specific refinements
-            var format = schema.Format?.ToLowerInvariant();
             switch (format)
             {
                 case "email":

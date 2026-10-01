@@ -5,6 +5,7 @@ using System.CodeDom.Compiler;
 using System.Threading;
 using System.Threading.Tasks;
 using NonJsonContent.Generated.Items.Models;
+using NonJsonContent.Generated.Items.Parameters;
 using NonJsonContent.Generated.Items.Results;
 
 namespace NonJsonContent.Generated.Items.Handlers;
@@ -17,4 +18,15 @@ namespace NonJsonContent.Generated.Items.Handlers;
 public interface IListItemsHandler
 {
     Task<ListItemsResult> ExecuteAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Get an item as JSON, or its PDF sheet.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public interface IGetItemSheetHandler
+{
+    Task<GetItemSheetResult> ExecuteAsync(
+        GetItemSheetParameters parameters,
+        CancellationToken cancellationToken = default);
 }

@@ -438,8 +438,9 @@ public sealed class BodyMediaTypeGenerationTests
             Assert.Matches(new Regex($@"public static {operation}Result Ok\(\s*byte\[\]", RegexOptions.None, TimeSpan.FromSeconds(1)), results);
         }
 
-        // JSON or PDF: the first declared media type (the model).
+        // JSON or PDF: the model or the file (ModelOrFileResponseTests runs both).
         Assert.Matches(new Regex(@"public static GetReportAnyResult Ok\(\s*Report ", RegexOptions.None, TimeSpan.FromSeconds(1)), results);
+        Assert.Matches(new Regex(@"public static GetReportAnyResult Ok\(\s*byte\[\] bytes,\s*string\? contentType = null,\s*string\? fileName = null\)\s*=> new\(TypedResults\.File\(bytes, contentType \?\? ""application/pdf"", fileName\)\);", RegexOptions.None, TimeSpan.FromSeconds(1)), results);
         Assert.Empty(CompilationVerificationHarness.CompileGeneratedSources(sources, includeMinimalApi: true));
     }
 
@@ -457,8 +458,10 @@ public sealed class BodyMediaTypeGenerationTests
             Assert.Contains("public DownloadedFile OkContent", result, StringComparison.Ordinal);
         }
 
+        // JSON or PDF: the model, or the file by the answer's Content-Type
         var any = sources.Single(s => s.HintName.EndsWith(".GetReportAnyEndpoint.g.cs", StringComparison.Ordinal)).Source;
         Assert.Contains("AddSuccessResponse<Report>(HttpStatusCode.OK)", any, StringComparison.Ordinal);
+        Assert.Contains("if (DownloadedFile.IsFileMediaType(response.Content.Headers.ContentType?.MediaType))", any, StringComparison.Ordinal);
         Assert.Empty(CompilationVerificationHarness.CompileGeneratedSources(sources));
     }
 
@@ -473,7 +476,7 @@ public sealed class BodyMediaTypeGenerationTests
             Assert.Contains($"Task<DownloadedFile> {operation}Async(", client, StringComparison.Ordinal);
         }
 
-        Assert.Contains("Task<Report> GetReportAnyAsync(", client, StringComparison.Ordinal);
+        Assert.Contains("Task<ContentOrFile<Report>> GetReportAnyAsync(", client, StringComparison.Ordinal);
         Assert.Empty(CompilationVerificationHarness.CompileGeneratedSources(sources));
     }
 
@@ -482,10 +485,11 @@ public sealed class BodyMediaTypeGenerationTests
     {
         var sources = ErrorResponseBodyRuntimeTests.Generate(new ApiServerGenerator(), ".atc-rest-api-server", ErrorResponseBodyRuntimeTests.ServerMarker, includeMinimalApi: true, Yaml);
 
-        // The endpoint metadata names the media type (the runtime OpenAPI document matches the specification).
+        // The endpoint metadata names the media type (the runtime OpenAPI document matches the specification): as a
+        // Stream, a binary body - without a type the endpoint metadata drops the media type.
         var endpoints = string.Join(Environment.NewLine, sources.Where(s => s.HintName.Contains("EndpointDefinition", StringComparison.Ordinal)).Select(s => s.Source));
-        Assert.Contains(".Produces(StatusCodes.Status200OK, contentType: \"application/pdf\")", endpoints, StringComparison.Ordinal);
-        Assert.Contains(".Produces(StatusCodes.Status200OK, contentType: \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\")", endpoints, StringComparison.Ordinal);
+        Assert.Contains(".Produces(StatusCodes.Status200OK, typeof(System.IO.Stream), \"application/pdf\")", endpoints, StringComparison.Ordinal);
+        Assert.Contains(".Produces(StatusCodes.Status200OK, typeof(System.IO.Stream), \"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\")", endpoints, StringComparison.Ordinal);
 
         // The probe imports the namespace the results are generated into.
         var resultsSource = sources.First(s => s.Source.Contains("class GetReportPdfResult", StringComparison.Ordinal)).Source;

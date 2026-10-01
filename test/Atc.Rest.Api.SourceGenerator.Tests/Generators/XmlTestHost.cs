@@ -37,6 +37,7 @@ internal sealed class XmlTestHost : IAsyncDisposable
         var assembly = CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: true);
         var builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
+        builder.Services.AddEndpointsApiExplorer();
         assembly.GetType(registrationTypeName, throwOnError: true)!.GetMethod("Register")!.Invoke(null, [builder.Services]);
         assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!.GetMethod("AddErrorBodiesApi")!.Invoke(null, [builder.Services, null]);
         var webApp = builder.Build();
@@ -101,6 +102,16 @@ internal sealed class XmlTestHost : IAsyncDisposable
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
         return ((int)response.StatusCode, response.Content.Headers.ContentType?.ToString(), await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
+
+    /// <summary>
+    /// The success and error responses the endpoint metadata describes to ApiExplorer (what the runtime OpenAPI
+    /// document is built from): <c>GET reports/{id}: 200 Report [application/json, application/pdf]</c>.
+    /// </summary>
+    public IReadOnlyList<string> DescribeResponses()
+        => app.Services.GetRequiredService<IApiDescriptionGroupCollectionProvider>().ApiDescriptionGroups.Items
+            .SelectMany(g => g.Items)
+            .SelectMany(d => d.SupportedResponseTypes.Select(r => $"{d.HttpMethod} {d.RelativePath}: {r.StatusCode} {r.Type?.Name} [{string.Join(", ", r.ApiResponseFormats.Select(f => f.MediaType))}]"))
+            .ToList();
 
     public ValueTask DisposeAsync()
     {

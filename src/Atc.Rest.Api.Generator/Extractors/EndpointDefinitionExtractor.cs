@@ -1299,14 +1299,22 @@ using Microsoft.AspNetCore.Builder;
                 string? contentType = null;
                 string? textResponseMediaType = null;
 
-                // A JSON body offered as XML too lists both media types (Produces<T>() alone means JSON only)
+                // A JSON body offered as XML too lists both media types (Produces<T>() alone means JSON only); so does a
+                // model or a file, with its file media types (the endpoint metadata holds one type per status: a second
+                // Produces for the file would replace the model's)
                 var negotiatedMediaTypes = string.Empty;
+                var fileAlternatives = statusCode == "200" ? ResponseBodyClassifier.FileAlternatives(openApiResponse.Content) : [];
+                var fileMediaTypes = string.Concat(fileAlternatives.Select(m => $", \"{m}\""));
                 if (openApiResponse.Content is not null && openApiResponse.Content.TryGetValue("application/json", out var mediaType))
                 {
                     contentType = GetResponseContentType(mediaType.Schema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry);
                     if (XmlBodyHelper.FindXmlAlternative(openApiResponse.Content)?.AlternativeMediaTypes is { } xmlMediaTypes)
                     {
-                        negotiatedMediaTypes = ", \"application/json\"" + string.Concat(xmlMediaTypes.Select(m => $", \"{m}\""));
+                        negotiatedMediaTypes = ", \"application/json\"" + string.Concat(xmlMediaTypes.Select(m => $", \"{m}\"")) + fileMediaTypes;
+                    }
+                    else if (fileAlternatives.Count > 0)
+                    {
+                        negotiatedMediaTypes = ", \"application/json\"" + fileMediaTypes;
                     }
                 }
                 else if (XmlBodyHelper.FindXmlOnlyBody(openApiResponse.Content) is { } xmlBody)
@@ -1356,12 +1364,13 @@ using Microsoft.AspNetCore.Builder;
                         // defaults to "application/json".
                         if (textResponseMediaType is not null)
                         {
-                            builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\")");
+                            builder.Append($"    .Produces<{contentType}>({statusCodeExpression}, contentType: \"{textResponseMediaType}\"{fileMediaTypes})");
                         }
                         else if (operation.GetFileDownloadContentType() is { } fileMediaType)
                         {
-                            // A file: its declared media type (Produces() without one means application/json).
-                            builder.Append($"    .Produces({statusCodeExpression}, contentType: \"{fileMediaType}\")");
+                            // A file: its declared media type, as a Stream (a binary body in the OpenAPI document) - without a
+                            // type the endpoint metadata drops the media type
+                            builder.Append($"    .Produces({statusCodeExpression}, typeof(System.IO.Stream), \"{fileMediaType}\")");
                         }
                         else if (string.IsNullOrEmpty(contentType) &&
                                  operation.IsStreamingResponse() &&

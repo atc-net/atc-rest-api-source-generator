@@ -509,6 +509,12 @@ public static class TypeScriptClientGenerationService
             ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, convertDates, hasRetry, zodRuntimeValidate, wireNames.HasRenames)
             : TypeScriptFetchApiClientExtractor.Generate(headerContent, convertDates, hasRetry, zodRuntimeValidate, wireNames.HasRenames);
 
+        // A model or a file: the modelOrFile request option (before the XML edits, which read an XML model after it)
+        if (TypeScriptModelOrFileExtractor.HasModelOrFile(openApiDoc))
+        {
+            apiClientContent = TypeScriptModelOrFileExtractor.AugmentApiClient(apiClientContent, httpClient == TypeScriptHttpClient.Axios);
+        }
+
         // XML bodies: the xml request option, XML responses and application/problem+xml errors
         if (XmlBodyReachability.Collect(openApiDoc).Count > 0)
         {

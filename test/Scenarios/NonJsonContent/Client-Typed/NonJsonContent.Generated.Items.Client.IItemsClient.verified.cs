@@ -3,10 +3,12 @@
 
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
+using System.Threading.Tasks;
 using NonJsonContent.Generated.Items.Models;
 
 namespace NonJsonContent.Generated.Items.Client;
@@ -15,4 +17,8 @@ namespace NonJsonContent.Generated.Items.Client;
 public interface IItemsClient
 {
     Task<List<Item>> ListItemsAsync(CancellationToken cancellationToken = default);
+
+    Task<ContentOrFile<Item>> GetItemSheetAsync(
+        GetItemSheetParameters parameters,
+        CancellationToken cancellationToken = default);
 }

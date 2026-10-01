@@ -174,22 +174,30 @@ public static class XmlBodyHelper
     public static string? AcceptFor(
         IReadOnlyCollection<XmlBody> bodies,
         IEnumerable<string> errorMediaTypes,
-        bool preferXml)
+        bool preferXml,
+        IReadOnlyList<string>? fileMediaTypes = null)
     {
-        if (bodies is null || bodies.Count == 0)
+        var files = fileMediaTypes ?? [];
+        if ((bodies is null || bodies.Count == 0) && files.Count == 0)
         {
             return null;
+        }
+
+        // A JSON model or a file
+        if (bodies is null || bodies.Count == 0)
+        {
+            return string.Join(", ", new[] { "application/json" }.Concat(files).Concat(errorMediaTypes).Append("application/problem+json").Distinct(StringComparer.OrdinalIgnoreCase));
         }
 
         var xmlMediaTypes = bodies.SelectMany(b => b.AlternativeMediaTypes ?? [b.MediaType]).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (bodies.Any(b => b.IsAlternative))
         {
             return preferXml
-                ? $"{string.Join(", ", xmlMediaTypes)}, application/problem+xml;q=0.9, application/problem+json;q=0.8"
-                : "application/json, application/problem+json";
+                ? string.Join(", ", xmlMediaTypes.Concat(files).Append("application/problem+xml;q=0.9").Append("application/problem+json;q=0.8"))
+                : string.Join(", ", new[] { "application/json" }.Concat(files).Append("application/problem+json"));
         }
 
-        return string.Join(", ", xmlMediaTypes.Concat(errorMediaTypes).Append("application/problem+json").Distinct(StringComparer.OrdinalIgnoreCase));
+        return string.Join(", ", xmlMediaTypes.Concat(files).Concat(errorMediaTypes).Append("application/problem+json").Distinct(StringComparer.OrdinalIgnoreCase));
     }
 
     /// <summary>

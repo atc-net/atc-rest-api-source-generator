@@ -151,6 +151,51 @@ public class ResponseBodyClassifierTests
         Assert.Equal(ResponseBodyKind.Stream, Assert.Single(ResponseBodyClassifier.ClassifyContent(content)).Kind);
     }
 
+    /// <summary>
+    /// A model or a file: a file beside a typed model (JSON with a schema, XML of a component model or a list of one) is
+    /// a file alternative of the model, in either order; beside an untyped body (JSON without a schema, an inline XML
+    /// object) the file stays the primary body.
+    /// </summary>
+    [Theory]
+    [InlineData("application/pdf: { schema: { type: string, format: binary } }\n            application/json: { schema: { $ref: '#/components/schemas/Report' } }", "application/json", "application/pdf")]
+    [InlineData("application/json: { schema: { $ref: '#/components/schemas/Report' } }\n            application/pdf: { schema: { type: string, format: binary } }", "application/json", "application/pdf")]
+    [InlineData("application/pdf: { schema: { type: string, format: binary } }\n            application/xml: { schema: { type: array, items: { $ref: '#/components/schemas/Report' } } }", "application/xml", "application/pdf")]
+    [InlineData("application/pdf: { schema: { type: string, format: binary } }\n            application/json: {}", "application/pdf", "")]
+    [InlineData("application/pdf: { schema: { type: string, format: binary } }\n            application/xml: { schema: { type: object, properties: { name: { type: string } } } }", "application/pdf", "")]
+    [InlineData("application/json: { schema: { $ref: '#/components/schemas/Report' } }", "application/json", "")]
+    public void PrimaryBodyAndFileAlternatives_AModelOrAFile(
+        string content,
+        string primary,
+        string fileAlternatives)
+    {
+        var document = OpenApiDocumentHelper.ParseYaml($$"""
+            openapi: 3.0.3
+            info:
+              title: Test
+              version: 1.0.0
+            paths:
+              /reports:
+                get:
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        {{content}}
+            components:
+              schemas:
+                Report:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+            """);
+
+        var responseContent = document!.Paths["/reports"].Operations![HttpMethod.Get].Responses!["200"].Content;
+
+        Assert.Equal(primary, ResponseBodyClassifier.PrimaryBody(responseContent)?.MediaType);
+        Assert.Equal(fileAlternatives, string.Join(", ", ResponseBodyClassifier.FileAlternatives(responseContent)));
+    }
+
     [Fact]
     public void ClassifyContent_NoContent_IsEmpty()
     {

@@ -391,6 +391,13 @@ public static class ResultClassExtractor
             // Generate factory method based on status code
             case "200":
                 methods.AddRange(GenerateOkMethods(projectName, className, description, contentType, isAsyncEnumerable, streamingFraming, isFileDownload, isTextResponse, textResponseMediaType, ResponseBodyClassifier.PrimaryBody(responseValue.Content)?.MediaType, xmlBody));
+
+                // A model or a file: the file factories too (the content type defaults to the first declared file type)
+                if (!isFileDownload && contentType is not null && ResponseBodyClassifier.FileAlternatives(responseValue.Content) is { Count: > 0 } fileMediaTypes)
+                {
+                    methods.AddRange(GenerateOkMethods(projectName, className, description, contentType: null, isAsyncEnumerable: false, streamingFraming, isFileDownload: true, fileMediaType: fileMediaTypes[0]));
+                }
+
                 break;
             case "201":
                 methods.AddRange(GenerateCreatedMethods(className, description, contentType, xmlBody));

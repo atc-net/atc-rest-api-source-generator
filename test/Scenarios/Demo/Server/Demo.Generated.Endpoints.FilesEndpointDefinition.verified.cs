@@ -33,7 +33,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .MapGet("{id}", GetFileById)
             .WithName("GetFileById")
             .WithSummary("Get File By Id")
-            .Produces(StatusCodes.Status200OK, contentType: "application/octet-stream")
+            .Produces(StatusCodes.Status200OK, typeof(System.IO.Stream), "application/octet-stream")
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

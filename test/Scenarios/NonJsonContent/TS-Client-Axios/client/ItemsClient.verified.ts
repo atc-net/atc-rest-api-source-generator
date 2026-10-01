@@ -2,10 +2,18 @@
 import type { AxiosResponse } from 'axios';
 import { ApiClient } from './ApiClient';
 import type { Item } from '../models';
-import type { ApiError } from '../errors';
+import type { ApiError, ValidationError } from '../errors';
 
 export type ListItemsResult =
   | { status: 'ok'; data: Item[]; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
+  | { status: 'parseError'; error: Error; response: AxiosResponse };
+
+export type GetItemSheetResult =
+  | { status: 'ok'; data: Item | Blob; response: AxiosResponse }
+  | { status: 'notFound'; error: ApiError; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
   | { status: 'clientError'; error: ApiError; response: AxiosResponse }
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
@@ -22,5 +30,14 @@ export class ItemsClient {
     return this.api.request<Item[]>('GET', '/items', {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
     }) as Promise<ListItemsResult>;
+  }
+
+  /** Get an item as JSON, or its PDF sheet */
+  async getItemSheet(itemId: string): Promise<GetItemSheetResult> {
+    return this.api.request<Item | Blob>('GET', `/items/${itemId}/sheet`, {
+      headers: { Accept: 'application/json, application/pdf, application/problem+json' },
+      modelOrFile: true,
+      arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<GetItemSheetResult>;
   }
 }

@@ -48,3 +48,63 @@ public sealed class ListItemsResult : IResult
     public static IResult ToIResult(ListItemsResult result)
         => result.Result;
 }
+
+/// <summary>
+/// Get an item as JSON, or its PDF sheet.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class GetItemSheetResult : IResult
+{
+    private readonly IResult innerResult;
+
+    private GetItemSheetResult(
+        IResult innerResult)
+    {
+        this.innerResult = innerResult;
+    }
+
+    public IResult Result
+        => innerResult;
+
+    /// <summary>
+    /// 200 OK - The item, or its PDF sheet.
+    /// </summary>
+    public static GetItemSheetResult Ok(Item response)
+        => new(TypedResults.Ok(response));
+
+    public static implicit operator GetItemSheetResult(Item response)
+        => Ok(response);
+
+    /// <summary>
+    /// 200 OK - The item, or its PDF sheet.
+    /// </summary>
+    public static GetItemSheetResult Ok(
+        byte[] bytes,
+        string? contentType = null,
+        string? fileName = null)
+        => new(TypedResults.File(bytes, contentType ?? "application/pdf", fileName));
+
+    /// <summary>
+    /// 200 OK - The item, or its PDF sheet.
+    /// </summary>
+    public static GetItemSheetResult Ok(
+        Stream stream,
+        string? contentType = null,
+        string? fileName = null)
+        => new(TypedResults.Stream(stream, contentType ?? "application/pdf", fileName));
+
+    /// <summary>
+    /// 404 Not Found - Item not found.
+    /// </summary>
+    public static GetItemSheetResult NotFound(string? message = null)
+        => new(TypedResults.Problem(detail: message, statusCode: 404));
+
+    public Task ExecuteAsync(HttpContext httpContext)
+        => innerResult.ExecuteAsync(httpContext);
+
+    /// <summary>
+    /// Converts GetItemSheetResult to IResult for endpoint responses.
+    /// </summary>
+    public static IResult ToIResult(GetItemSheetResult result)
+        => result.Result;
+}

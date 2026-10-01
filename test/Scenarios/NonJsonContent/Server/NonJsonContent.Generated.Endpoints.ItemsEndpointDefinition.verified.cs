@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NonJsonContent.Generated.Items.Handlers;
 using NonJsonContent.Generated.Items.Models;
+using NonJsonContent.Generated.Items.Parameters;
 using NonJsonContent.Generated.Items.Results;
 
 namespace NonJsonContent.Generated.Endpoints;
@@ -35,6 +36,16 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .Produces<List<Item>>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+
+        items
+            .MapGet("{itemId}/sheet", GetItemSheet)
+            .WithName("GetItemSheet")
+            .WithSummary("Get an item as JSON, or its PDF sheet")
+            .Produces<Item>(StatusCodes.Status200OK, "application/json", "application/pdf")
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }
 
     internal async Task<IResult> ListItems(
@@ -42,5 +53,14 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
         CancellationToken cancellationToken)
         => ListItemsResult.ToIResult(
                     await handler.ExecuteAsync(
+                        cancellationToken));
+
+    internal async Task<IResult> GetItemSheet(
+        [FromServices] IGetItemSheetHandler handler,
+        [AsParameters] GetItemSheetParameters parameters,
+        CancellationToken cancellationToken)
+        => GetItemSheetResult.ToIResult(
+                    await handler.ExecuteAsync(
+                        parameters,
                         cancellationToken));
 }

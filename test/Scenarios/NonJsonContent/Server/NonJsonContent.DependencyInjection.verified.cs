@@ -17,6 +17,8 @@ public static class ServiceCollectionExtensions
         // services.AddScoped<IDownloadFileHandler, YourImplementation>();
         // Handler for IExportCsvHandler must be registered in the Domain project
         // services.AddScoped<IExportCsvHandler, YourImplementation>();
+        // Handler for IGetItemSheetHandler must be registered in the Domain project
+        // services.AddScoped<IGetItemSheetHandler, YourImplementation>();
         // Handler for IGetTextReportHandler must be registered in the Domain project
         // services.AddScoped<IGetTextReportHandler, YourImplementation>();
         // Handler for IListItemsHandler must be registered in the Domain project

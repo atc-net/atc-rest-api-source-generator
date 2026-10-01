@@ -64,6 +64,30 @@ paths:
                 items:
                   $ref: '#/components/schemas/Item'
 
+  /items/{itemId}/sheet:
+    get:
+      operationId: getItemSheet
+      summary: Get an item as JSON, or its PDF sheet
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The item, or its PDF sheet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Item not found
+
 components:
   schemas:
     Item:

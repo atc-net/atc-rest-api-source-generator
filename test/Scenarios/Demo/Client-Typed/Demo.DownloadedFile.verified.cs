@@ -31,6 +31,17 @@ public sealed record DownloadedFile(
         return FromHeaders(content, response.Content.Headers);
     }
 
+    /// <summary>
+    /// Whether a body of this media type is a file rather than a model: neither JSON nor XML.
+    /// </summary>
+    public static bool IsFileMediaType(string? mediaType)
+        => !string.IsNullOrEmpty(mediaType) &&
+           !string.Equals(mediaType, "application/json", System.StringComparison.OrdinalIgnoreCase) &&
+           !mediaType!.EndsWith("+json", System.StringComparison.OrdinalIgnoreCase) &&
+           !string.Equals(mediaType, "application/xml", System.StringComparison.OrdinalIgnoreCase) &&
+           !string.Equals(mediaType, "text/xml", System.StringComparison.OrdinalIgnoreCase) &&
+           !mediaType.EndsWith("+xml", System.StringComparison.OrdinalIgnoreCase);
+
     private static DownloadedFile FromHeaders(
         byte[] content,
         System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, System.Collections.Generic.IEnumerable<string>>> headers)

@@ -2074,6 +2074,20 @@ public class OperationValidationTests
                           schema:
                             type: string
                             format: binary
+              /model-or-file-accepted:
+                post:
+                  operationId: acceptModelOrFile
+                  responses:
+                    '202':
+                      description: Accepted
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Pet'
+                        application/pdf:
+                          schema:
+                            type: string
+                            format: binary
               /mapped-xml:
                 get:
                   operationId: getMappedXml
@@ -2103,15 +2117,16 @@ public class OperationValidationTests
             [],
             TestFilePath).Where(d => d.RuleId == Generator.RuleIdentifiers.BodyNotGeneratedAsDeclared).ToList();
 
-        // Assert: one warning per body, naming the operation, the status and the media type; none for the mapped body
+        // Assert: one warning per body, naming the operation, the status and the media type; none for the mapped body,
+        // nor for a 200 that is a model or a file (both are generated) - only for a model or a file of another status
         Assert.All(diagnostics, d => Assert.Equal(Generator.Models.DiagnosticSeverity.Warning, d.Severity));
         Assert.Collection(
             diagnostics.Select(d => d.Message).Order(StringComparer.Ordinal),
+            m => Assert.Contains("'acceptModelOrFile' response 202 (application/pdf)", m, StringComparison.Ordinal),
             m => Assert.Contains("'addPets' request body (application/xml)", m, StringComparison.Ordinal),
             m => Assert.Contains("'getInlineXml' response 200 (application/xml)", m, StringComparison.Ordinal),
             m => Assert.Contains("'getInlineXmlError' response 404 (application/xml)", m, StringComparison.Ordinal),
-            m => Assert.Contains("'getJsonAndInlineXml' response 200 (application/xml)", m, StringComparison.Ordinal),
-            m => Assert.Contains("'getModelOrFile' response 200 (application/pdf)", m, StringComparison.Ordinal));
+            m => Assert.Contains("'getJsonAndInlineXml' response 200 (application/xml)", m, StringComparison.Ordinal));
     }
 
     [Fact]

@@ -27,6 +27,8 @@ export interface RequestOptions {
   responseType?: 'json' | 'blob' | 'text';
   /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */
   arms?: readonly string[];
+  /** A model or a file (the generated client passes it): a file answer (neither JSON nor XML) is a Blob, a model's is the model. */
+  modelOrFile?: boolean;
 }
 
 export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
@@ -160,8 +162,21 @@ export class ApiClient {
       params: options?.query,
       headers,
       signal: options?.signal,
-      responseType: options?.responseType === 'blob' ? 'blob' : options?.responseType === 'text' ? 'text' : 'json',
+      responseType: options?.responseType === 'blob' || options?.modelOrFile ? 'blob' : options?.responseType === 'text' ? 'text' : 'json',
     });
+
+    // A model or a file: a file stays a Blob; a model's body (JSON or XML) is read as text and transformed like any body
+    if (options?.modelOrFile && response.status >= 200 && response.status < 300 && typeof Blob !== 'undefined' && response.data instanceof Blob) {
+      const modelContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '').toLowerCase();
+      if (modelContentType.includes('json') || modelContentType.includes('xml')) {
+        let body: unknown = await response.data.text();
+        for (const transform of ([] as unknown[]).concat(this.client.defaults.transformResponse ?? []) as ((this: unknown, data: unknown, headers: unknown) => unknown)[]) {
+          body = transform.call({ responseType: 'json' }, body, response.headers);
+        }
+
+        (response as { data: unknown }).data = body;
+      }
+    }
 
     return fitToArms(await this.handleResponse<T>(response), options?.arms);
   }

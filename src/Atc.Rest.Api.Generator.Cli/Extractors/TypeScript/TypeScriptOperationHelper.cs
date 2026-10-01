@@ -222,8 +222,14 @@ public static class TypeScriptOperationHelper
             return isStreaming ? "unknown" : "void";
         }
 
-        return isStreaming
-            ? GetStreamingItemType(schema)
+        if (isStreaming)
+        {
+            return GetStreamingItemType(schema);
+        }
+
+        // A model or a file: the model, or the file as a Blob (told apart by the answer's Content-Type)
+        return operation.GetModelOrFileMediaTypes().Count > 0
+            ? schema.ToTypeScriptReturnType() + " | Blob"
             : schema.ToTypeScriptReturnType();
     }
 
@@ -645,7 +651,11 @@ public static class TypeScriptOperationHelper
         }
 
         CollectSchemaRefTypes(schema, imports);
-        return schema.ToTypeScriptReturnType();
+
+        // A model or a file: the model, or the file as a Blob
+        return statusCode == "200" && operation.GetModelOrFileMediaTypes().Count > 0
+            ? schema.ToTypeScriptReturnType() + " | Blob"
+            : schema.ToTypeScriptReturnType();
     }
 
     /// <summary>

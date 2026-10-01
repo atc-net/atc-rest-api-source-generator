@@ -60,16 +60,53 @@ public static class ResponseBodyClassifier
 
     /// <summary>
     /// The primary body of a request or response: its first declared media type. A response that declares several
-    /// (JSON and XML, JSON and a PDF) is read and written as its first one unless the caller negotiates another.
+    /// (JSON and XML) is read and written as its first one unless the caller negotiates another; one that declares a
+    /// model and a file (JSON and a PDF) is a model response whose files are alternatives (<see cref="FileAlternatives"/>),
+    /// so its primary body is its first model (JSON or XML) in either order.
     /// </summary>
     /// <param name="content">The <c>content</c> map, or <see langword="null"/>.</param>
-    /// <returns>The first media type with its kind, or <see langword="null"/> when nothing is declared.</returns>
+    /// <returns>The primary media type with its kind, or <see langword="null"/> when nothing is declared.</returns>
     public static ResponseBodyMedia? PrimaryBody(
         IDictionary<string, IOpenApiMediaType>? content)
     {
         var bodies = ClassifyContent(content);
-        return bodies.Count > 0 ? bodies[0] : null;
+        if (bodies.Count == 0)
+        {
+            return null;
+        }
+
+        return bodies[0].Kind == ResponseBodyKind.Binary && FileMediaTypesBesideAModel(bodies).Count > 0
+            ? bodies.First(IsTypedModel)
+            : bodies[0];
     }
+
+    /// <summary>
+    /// The file media types of a body that is a model <b>or</b> a file (<c>application/json</c> and
+    /// <c>application/pdf</c>): the answer is the model or the file, told apart by its <c>Content-Type</c>.
+    /// </summary>
+    /// <param name="content">The <c>content</c> map, or <see langword="null"/>.</param>
+    /// <returns>The file media types in the specification's order; empty unless a model (JSON or XML) is declared too.</returns>
+    public static IReadOnlyList<string> FileAlternatives(
+        IDictionary<string, IOpenApiMediaType>? content)
+        => FileMediaTypesBesideAModel(ClassifyContent(content));
+
+    private static IReadOnlyList<string> FileMediaTypesBesideAModel(
+        IReadOnlyList<ResponseBodyMedia> bodies)
+        => bodies.Any(IsTypedModel)
+            ? bodies.Where(b => b.Kind == ResponseBodyKind.Binary).Select(b => b.MediaType).ToList()
+            : [];
+
+    /// <summary>
+    /// Whether a body is a model the generator types: JSON with a schema, or XML of a component model (or a list of
+    /// one). A file beside anything else (JSON without a schema, an inline XML object) stays a file download.
+    /// </summary>
+    private static bool IsTypedModel(ResponseBodyMedia body)
+        => body.Kind switch
+        {
+            ResponseBodyKind.Json => body.Schema is not null,
+            ResponseBodyKind.Xml => body.Schema is OpenApiSchemaReference || body.Schema?.Items is OpenApiSchemaReference,
+            _ => false,
+        };
 
     /// <summary>
     /// Whether a schema describes a model (an object, an array, or a reference to one) rather than a string.

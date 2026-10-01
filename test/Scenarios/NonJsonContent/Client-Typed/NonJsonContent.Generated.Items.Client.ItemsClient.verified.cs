@@ -3,10 +3,12 @@
 
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
+using System.Threading.Tasks;
 using NonJsonContent.Generated.Items.Models;
 
 namespace NonJsonContent.Generated.Items.Client;
@@ -44,6 +46,28 @@ public sealed class ItemsClient : IItemsClient
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<Item>>(jsonSerializerOptions, cancellationToken))!;
+    }
+
+    public async Task<ContentOrFile<Item>> GetItemSheetAsync(
+        GetItemSheetParameters parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var url = $"/items/{Uri.EscapeDataString(parameters.ItemId)}/sheet";
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        requestMessage.Headers.Accept.ParseAdd("application/json, application/pdf, application/problem+json");
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        if (DownloadedFile.IsFileMediaType(response.Content.Headers.ContentType?.MediaType))
+        {
+            return ContentOrFile<Item>.FromFile(await DownloadedFile.FromHttpResponseAsync(response, cancellationToken));
+        }
+
+        return ContentOrFile<Item>.FromContent(await ReadContentAsync());
+
+        async Task<Item> ReadContentAsync()
+        {
+            return (await response.Content.ReadFromJsonAsync<Item>(jsonSerializerOptions, cancellationToken))!;
+        }
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

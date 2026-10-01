@@ -452,7 +452,7 @@ public static class TypeScriptClientExtractor
             var read = responseXml.IsList ? names.ReadList : names.Read;
             xmlFunctions?.Add(read);
             parts.Add("read: " + read);
-            parts.Add("accept: '" + XmlBodyHelper.AcceptFor([responseXml], XmlBodyHelper.ErrorMediaTypes(operation), preferXml: false) + "'");
+            parts.Add("accept: '" + XmlBodyHelper.AcceptFor([responseXml], XmlBodyHelper.ErrorMediaTypes(operation), preferXml: false, operation.GetModelOrFileMediaTypes()) + "'");
         }
 
         var requestContent = operation.RequestBody?.Content;
@@ -573,7 +573,12 @@ public static class TypeScriptClientExtractor
             var zodSpec = zodRuntimeValidate
                 ? TypeScriptOperationHelper.TryGetResponseZodSchemaSpec(operation)
                 : null;
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions));
+
+            // A model or a file: read by the answer's Content-Type, asking for the model's and the file's media types
+            var modelOrFileAccept = operation.GetModelOrFileMediaTypes() is { Count: > 0 } fileMediaTypes
+                ? XmlBodyHelper.AcceptFor(XmlBodyHelper.FindXmlOnlyBody(operation.Responses?["200"]?.Content) is { } xmlOnly ? [xmlOnly] : [], XmlBodyHelper.ErrorMediaTypes(operation), preferXml: false, fileMediaTypes)
+                : null;
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions), modelOrFileAccept);
         }
     }
 
@@ -685,7 +690,8 @@ public static class TypeScriptClientExtractor
         string? retryOption,
         string? armsOption = null,
         string? wireOption = null,
-        string? xmlOption = null)
+        string? xmlOption = null,
+        string? modelOrFileAccept = null)
     {
         // Build parameter list
         var paramList = BuildParameterList(pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path);
@@ -742,7 +748,7 @@ public static class TypeScriptClientExtractor
 
         var urlArg = hasQuerystring ? "_url" : interpolatedPath;
 
-        if (hasQuery || hasHeaders || hasBody || isFileUpload || isFileDownload || isTextDownload || emitParseSchema || retryOption is not null || armsOption is not null || wireOption is not null || xmlOption is not null)
+        if (hasQuery || hasHeaders || hasBody || isFileUpload || isFileDownload || isTextDownload || emitParseSchema || retryOption is not null || armsOption is not null || wireOption is not null || xmlOption is not null || modelOrFileAccept is not null)
         {
             sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(urlArg).AppendLine(", {");
 
@@ -762,12 +768,21 @@ public static class TypeScriptClientExtractor
 
             if (hasHeaders)
             {
-                AppendHeadersObject(sb, headerParams, cookieParams, convertDates, namingStrategy);
+                AppendHeadersObject(sb, headerParams, cookieParams, convertDates, namingStrategy, modelOrFileAccept);
+            }
+            else if (modelOrFileAccept is not null)
+            {
+                sb.Append("      headers: { Accept: '").Append(modelOrFileAccept).AppendLine("' },");
             }
 
             if (isFileDownload)
             {
                 sb.AppendLine("      responseType: 'blob',");
+            }
+            else if (modelOrFileAccept is not null)
+            {
+                // A model or a file: the file is a Blob, the model is read as the model
+                sb.AppendLine("      modelOrFile: true,");
             }
             else if (isTextDownload)
             {
@@ -1190,13 +1205,19 @@ public static class TypeScriptClientExtractor
         List<OpenApiParameter> headerParams,
         List<OpenApiParameter>? cookieParams,
         bool convertDates,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        string? accept = null)
     {
         // Header names are emitted verbatim (no naming-strategy transform). HTTP header
         // names commonly contain dashes — both the key on the wire and the inline-type
         // key must match the OpenAPI name exactly. Access uses bracket + optional-chaining
         // because the outer `headers?:` is optional.
         sb.AppendLine("      headers: {");
+        if (accept is not null)
+        {
+            sb.Append("        Accept: '").Append(accept).AppendLine("',");
+        }
+
         foreach (var param in headerParams)
         {
             var rawName = param.Name ?? string.Empty;
