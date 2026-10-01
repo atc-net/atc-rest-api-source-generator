@@ -766,6 +766,29 @@ public static class OperationParameterExtractor
                         Name: propertyName,
                         DefaultValue: null));
 
+                // A raw upload that declares several media types (or a wildcard): the handler gets the type that arrived
+                if (includeBindingAttributes &&
+                    isDirectFileUpload &&
+                    OpenApiOperationExtensions.IsRawFileUploadContentType(contentType) &&
+                    operation.RequestBody?.Content?.Keys.Where(OpenApiOperationExtensions.IsRawFileUploadContentType).ToList() is { } rawMediaTypes &&
+                    (rawMediaTypes.Count > 1 || rawMediaTypes.Exists(m => m.Contains('*'))))
+                {
+                    parameters.Add(
+                        new ParameterBaseParameters(
+                            Attributes:
+                            [
+                                new AttributeParameters("FromHeader", "Name = \"Content-Type\""),
+                                new AttributeParameters("Required", null),
+                            ],
+                            GenericTypeName: null,
+                            IsGenericListType: false,
+                            TypeName: "string",
+                            IsNullableType: false,
+                            IsReferenceType: true,
+                            Name: "ContentType",
+                            DefaultValue: null));
+                }
+
                 // Note: FileName property is no longer needed for client-side file uploads
                 // because IFileContent carries FileName, ContentType, and OpenReadStream() internally
             }

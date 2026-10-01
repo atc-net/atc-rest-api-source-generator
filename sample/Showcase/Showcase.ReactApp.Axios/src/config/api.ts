@@ -3,6 +3,7 @@ import { AccountsClient } from '../api/client/AccountsClient';
 import { TasksClient } from '../api/client/TasksClient';
 import { UsersClient } from '../api/client/UsersClient';
 import { FilesClient } from '../api/client/FilesClient';
+import { DocumentsClient } from '../api/client/DocumentsClient';
 import { NotificationsClient } from '../api/client/NotificationsClient';
 import { TestingClient } from '../api/client/TestingClient';
 
@@ -22,5 +23,6 @@ export const accountsClient = new AccountsClient(apiClient);
 export const tasksClient = new TasksClient(apiClient);
 export const usersClient = new UsersClient(apiClient);
 export const filesClient = new FilesClient(apiClient);
+export const documentsClient = new DocumentsClient(apiClient);
 export const notificationsClient = new NotificationsClient(apiClient);
 export const testingClient = new TestingClient(apiClient);

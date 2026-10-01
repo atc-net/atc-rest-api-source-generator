@@ -71,6 +71,12 @@ public partial class ErrorResponseBodyRuntimeTests
               responses:
                 '200': { description: A PDF statement, content: { application/pdf: { schema: { type: string, format: binary } } } }
                 '404': { description: Not found, content: { application/xml: { schema: { $ref: '#/components/schemas/ErrorInfo' } } } }
+          /files/document/{id}:
+            get:
+              operationId: getDocument
+              parameters: [{ $ref: '#/components/parameters/Id' }]
+              responses:
+                '200': { description: A document of one of several types, content: { application/pdf: { schema: { type: string, format: binary } }, image/png: { schema: { type: string, format: binary } }, image/jpeg: { schema: { type: string, format: binary } } } }
           /files/pdf-stream/{id}:
             get:
               operationId: getPdfStreamed
@@ -89,6 +95,12 @@ public partial class ErrorResponseBodyRuntimeTests
             post:
               operationId: uploadPng
               requestBody: { required: true, content: { image/png: { schema: { type: string, format: binary } } } }
+              responses:
+                '200': { description: Received, content: { application/json: { schema: { $ref: '#/components/schemas/Receipt' } } } }
+          /uploads/document:
+            post:
+              operationId: uploadDocument
+              requestBody: { required: true, content: { application/pdf: { schema: { type: string, format: binary } }, image/png: { schema: { type: string, format: binary } }, image/jpeg: { schema: { type: string, format: binary } } } }
               responses:
                 '200': { description: Received, content: { application/json: { schema: { $ref: '#/components/schemas/Receipt' } } } }
           /users-xml:
@@ -230,6 +242,27 @@ public partial class ErrorResponseBodyRuntimeTests
                     : GetStatementResult.NotFound(new ErrorInfo(Code: "S404", Message: "No statement & more")));
         }
 
+        public sealed class GetDocumentHandlerImpl : IGetDocumentHandler
+        {
+            public System.Threading.Tasks.Task<GetDocumentResult> ExecuteAsync(GetDocumentParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => System.Threading.Tasks.Task.FromResult(GetDocumentResult.Ok(BodyMediaData.Bytes("document"), "image/jpeg", "Rapport-Å document.jpg"));
+        }
+
+        public sealed class UploadDocumentHandlerImpl : IUploadDocumentHandler
+        {
+            // The type that arrived, from the generated parameters (the upload declares several)
+            public async System.Threading.Tasks.Task<UploadDocumentResult> ExecuteAsync(UploadDocumentParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+            {
+                using var buffer = new System.IO.MemoryStream();
+                await parameters.File.CopyToAsync(buffer, cancellationToken);
+                var bytes = buffer.ToArray();
+                return UploadDocumentResult.Ok(new Receipt(
+                    Sha256: System.Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant(),
+                    ContentType: parameters.ContentType,
+                    Length: bytes.LongLength));
+            }
+        }
+
         public sealed class GetPdfStreamedHandlerImpl : IGetPdfStreamedHandler
         {
             public System.Threading.Tasks.Task<GetPdfStreamedResult> ExecuteAsync(GetPdfStreamedParameters parameters, System.Threading.CancellationToken cancellationToken = default)
@@ -316,6 +349,8 @@ public partial class ErrorResponseBodyRuntimeTests
                 services.AddScoped<IGetOctetHandler, GetOctetHandlerImpl>();
                 services.AddScoped<IGetPdfStreamedHandler, GetPdfStreamedHandlerImpl>();
                 services.AddScoped<IGetStatementHandler, GetStatementHandlerImpl>();
+                services.AddScoped<IGetDocumentHandler, GetDocumentHandlerImpl>();
+                services.AddScoped<IUploadDocumentHandler, UploadDocumentHandlerImpl>();
                 services.AddScoped<IUploadPdfHandler, UploadPdfHandlerImpl>();
                 services.AddScoped<IUploadPngHandler, UploadPngHandlerImpl>();
                 services.AddScoped<IListUsersXmlHandler, ListUsersXmlHandlerImpl>();
@@ -593,6 +628,7 @@ public partial class ErrorResponseBodyRuntimeTests
         ("octet", "GetOctet", "application/octet-stream", "bin"),
         ("pdf-stream", "GetPdfStreamed", "application/pdf", "pdf"),
         ("statement", "GetStatement", "application/pdf", "pdf"),
+        ("document", "GetDocument", "image/jpeg", "jpg"),
     ];
 
     private static readonly (string Kind, string Operation, string MediaType)[] BodyMediaUploads =
@@ -625,6 +661,7 @@ public partial class ErrorResponseBodyRuntimeTests
     /// <param name="Upload">The uploaded media type (the bytes are <see cref="BodyMediaBytes"/> of it), or <see langword="null"/>.</param>
     /// <param name="User">The XML request body, or <see langword="null"/>.</param>
     /// <param name="Model">The model the handler returns, or <see langword="null"/> (a file, an error).</param>
+    /// <param name="UploadTyped">Whether the uploaded file carries its own media type (else the client must send the declared one).</param>
     internal sealed record BodyMediaCase(
         string Name,
         string Group,
@@ -635,7 +672,8 @@ public partial class ErrorResponseBodyRuntimeTests
         int? Id = null,
         string? Upload = null,
         JsonObject? User = null,
-        JsonNode? Model = null);
+        JsonNode? Model = null,
+        bool UploadTyped = false);
 
     /// <summary>
     /// The cases: every file kind (bytes with a file name, a stream inline, a 404, a 500, a proxy's 502), the uploads,
@@ -644,7 +682,7 @@ public partial class ErrorResponseBodyRuntimeTests
     internal static List<BodyMediaCase> BodyMediaCases()
     {
         var cases = new List<BodyMediaCase>();
-        foreach (var file in BodyMediaFiles.Where(f => f.Kind != "statement"))
+        foreach (var file in BodyMediaFiles.Where(f => f.Kind is not ("statement" or "document")))
         {
             var group = file.Kind == "pdf-stream" ? "download (x-return-stream)" : "download";
             foreach (var (id, label) in ((int, string)[])[(1, "bytes + file name"), (2, "stream, inline"), (404, "404 handler"), (500, "500 exception"), (502, "502 proxy HTML")])
@@ -656,6 +694,10 @@ public partial class ErrorResponseBodyRuntimeTests
         // A download that declares an XML error model
         cases.Add(new BodyMediaCase("statement bytes + file name", "download", "files", "GetStatement", "GET", "/files/statement/1", Id: 1));
         cases.Add(new BodyMediaCase("statement 404 xml error model", "download", "files", "GetStatement", "GET", "/files/statement/404", Id: 404));
+
+        // A download and an upload that declare several media types: the one that arrived
+        cases.Add(new BodyMediaCase("document jpeg (one of several types)", "download", "files", "GetDocument", "GET", "/files/document/1", Id: 1));
+        cases.Add(new BodyMediaCase("upload jpeg (one of several types)", "upload", "uploads", "UploadDocument", "POST", "/uploads/document", Upload: "image/jpeg", Model: Receipt("image/jpeg"), UploadTyped: true));
 
         foreach (var upload in BodyMediaUploads)
         {

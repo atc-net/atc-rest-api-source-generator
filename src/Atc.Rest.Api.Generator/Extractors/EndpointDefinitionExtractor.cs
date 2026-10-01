@@ -1015,8 +1015,12 @@ using Microsoft.AspNetCore.Builder;
             builder.AppendLine();
             if (OpenApiOperationExtensions.IsRawFileUploadContentType(contentType))
             {
-                // A raw file body of its declared media type (octet-stream, PDF, PNG, an Office document, ...)
-                builder.Append($"    .Accepts<Stream>(\"{contentType}\")");
+                // A raw file body of its declared media types (octet-stream, PDF, PNG, an Office document, ...): every one
+                // of them - an undeclared one is a 415
+                var rawMediaTypes = operation.RequestBody?.Content?.Keys.Where(OpenApiOperationExtensions.IsRawFileUploadContentType).ToList() is { Count: > 0 } declared
+                    ? declared
+                    : [contentType!];
+                builder.Append($"    .Accepts<Stream>({string.Join(", ", rawMediaTypes.Select(m => $"\"{m}\""))})");
             }
             else
             {
@@ -1368,9 +1372,13 @@ using Microsoft.AspNetCore.Builder;
                         }
                         else if (operation.GetFileDownloadContentType() is { } fileMediaType)
                         {
-                            // A file: its declared media type, as a Stream (a binary body in the OpenAPI document) - without a
+                            // A file: its declared media types, as a Stream (a binary body in the OpenAPI document) - without a
                             // type the endpoint metadata drops the media type
-                            builder.Append($"    .Produces({statusCodeExpression}, typeof(System.IO.Stream), \"{fileMediaType}\")");
+                            var downloadMediaTypes = ResponseBodyClassifier.ClassifyContent(openApiResponse.Content)
+                                .Where(b => b.Kind == ResponseBodyKind.Binary)
+                                .Select(b => $"\"{b.MediaType}\"")
+                                .DefaultIfEmpty($"\"{fileMediaType}\"");
+                            builder.Append($"    .Produces({statusCodeExpression}, typeof(System.IO.Stream), {string.Join(", ", downloadMediaTypes)})");
                         }
                         else if (string.IsNullOrEmpty(contentType) &&
                                  operation.IsStreamingResponse() &&
@@ -1379,8 +1387,14 @@ using Microsoft.AspNetCore.Builder;
                             // Wire-framed streaming responses (SSE, JSON Lines, ...) advertise their
                             // declared media type (text/event-stream, application/jsonl, ...) so
                             // OpenAPI/Swagger reflects the actual streamed framing rather than the
-                            // application/json default.
-                            builder.Append($"    .Produces({statusCodeExpression}, contentType: \"{streamingResponse.MediaType}\")");
+                            // application/json default - with the item type (an itemSchema), as the endpoint
+                            // metadata drops the media type of an untyped Produces.
+                            var itemType = operation.GetStreamingItemSchema() is { } itemSchema
+                                ? GetResponseContentType(itemSchema, openApiDoc, operation, projectName, segment, systemTypeResolver, registry)
+                                : null;
+                            builder.Append(string.IsNullOrEmpty(itemType)
+                                ? $"    .Produces({statusCodeExpression}, contentType: \"{streamingResponse.MediaType}\")"
+                                : $"    .Produces<{itemType}>({statusCodeExpression}, \"{streamingResponse.MediaType}\")");
                         }
                         else
                         {

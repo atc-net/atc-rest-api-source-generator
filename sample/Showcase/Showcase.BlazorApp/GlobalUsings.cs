@@ -26,6 +26,8 @@ global using Showcase.BlazorApp.Shared;
 global using Showcase.Generated;
 global using Showcase.Generated.Accounts.Client;
 global using Showcase.Generated.Accounts.Models;
+global using Showcase.Generated.Documents.Client;
+global using Showcase.Generated.Documents.Models;
 global using Showcase.Generated.Files.Client;
 global using Showcase.Generated.Files.Models;
 global using Showcase.Generated.Notifications.Client;

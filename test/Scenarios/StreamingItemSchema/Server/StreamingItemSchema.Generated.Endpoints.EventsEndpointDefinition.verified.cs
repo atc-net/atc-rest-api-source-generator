@@ -32,7 +32,7 @@ public sealed class EventsEndpointDefinition : IEndpointDefinition
             .MapGet("/", StreamEvents)
             .WithName("StreamEvents")
             .WithSummary("Stream events")
-            .Produces(StatusCodes.Status200OK, contentType: "application/jsonl")
+            .Produces<Event>(StatusCodes.Status200OK, "application/jsonl")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }

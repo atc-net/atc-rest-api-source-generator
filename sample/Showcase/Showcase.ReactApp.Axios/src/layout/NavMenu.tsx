@@ -67,6 +67,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Download Files', href: '/files', icon: <DownloadIcon /> },
       { label: 'Upload Files', href: '/files/upload', icon: <UploadIcon /> },
+      { label: 'Documents', href: '/documents', icon: <DownloadIcon /> },
     ],
   },
   {

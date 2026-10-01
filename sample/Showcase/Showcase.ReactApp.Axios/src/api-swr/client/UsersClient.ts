@@ -5,6 +5,7 @@ import type { CreateUserRequest, UpdateUserRequest, User, UserQuery, Users } fro
 import type { ApiError, ValidationError } from '../errors';
 import { retryPolicies } from '../helpers/retryConfig';
 
+import { readUser } from '../helpers/xml';
 export type ListUsersResult =
   | { status: 'ok'; data: Users; response: AxiosResponse }
   | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
@@ -110,6 +111,7 @@ export class UsersClient {
   async getUserById(userId: string): Promise<GetUserByIdResult> {
     return this.api.request<User>('GET', `/users/${userId}`, {
       retry: { policy: retryPolicies.users },
+      xml: { read: readUser, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetUserByIdResult>;
   }

@@ -337,6 +337,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 ["method"] = char.ToLowerInvariant(c.Operation[0]) + c.Operation[1..],
                 ["id"] = c.Id,
                 ["upload"] = c.Upload,
+                ["uploadTyped"] = c.UploadTyped,
                 ["bytes"] = c.Upload is { } upload ? Convert.ToBase64String(BodyMediaBytes(upload)) : null,
                 ["user"] = c.User?.DeepClone(),
             }),
@@ -991,7 +992,7 @@ public partial class ErrorResponseBodyRuntimeTests
             const args = c.id !== null && c.id !== undefined
               ? [c.id]
               : c.upload
-                ? [new Blob([Buffer.from(c.bytes, 'base64')])]
+                ? [c.uploadTyped ? new Blob([Buffer.from(c.bytes, 'base64')], { type: c.upload }) : new Blob([Buffer.from(c.bytes, 'base64')])]
                 : c.user
                   ? [c.user]
                   : [];

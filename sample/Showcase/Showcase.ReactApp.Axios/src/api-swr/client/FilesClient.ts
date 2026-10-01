@@ -101,6 +101,7 @@ export class FilesClient {
   async uploadSingleFileAsFormData(file: Blob | File): Promise<UploadSingleFileAsFormDataResult> {
     return this.api.request<void>('POST', '/files/form-data/singleFile', {
       body: file,
+      contentType: 'application/octet-stream',
       retry: { enabled: false, timeoutMs: 300000 },
       arms: ['ok', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UploadSingleFileAsFormDataResult>;

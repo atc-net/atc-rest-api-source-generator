@@ -32,7 +32,7 @@ public sealed class EventsSseEndpointDefinition : IEndpointDefinition
             .MapGet("/", StreamEventsSse)
             .WithName("StreamEventsSse")
             .WithSummary("Stream events as server-sent events")
-            .Produces(StatusCodes.Status200OK, contentType: "text/event-stream")
+            .Produces<Event>(StatusCodes.Status200OK, "text/event-stream")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }

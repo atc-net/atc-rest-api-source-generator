@@ -2,6 +2,7 @@
 export * from './ApiProvider';
 export * from './useAccounts';
 export * from './useApiService';
+export * from './useDocuments';
 export * from './useFiles';
 export * from './useNotifications';
 export * from './useTasks';

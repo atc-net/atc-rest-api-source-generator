@@ -2,6 +2,7 @@
 export * from './AccountsClient';
 export * from './ApiClient';
 export * from './ApiService';
+export * from './DocumentsClient';
 export * from './FilesClient';
 export * from './NotificationsClient';
 export * from './TasksClient';

@@ -12,6 +12,7 @@ import UserFormPage from './pages/UserFormPage';
 import UserDetailsPage from './pages/UserDetailsPage';
 import FilesPage from './pages/FilesPage';
 import FilesUploadPage from './pages/FilesUploadPage';
+import DocumentsPage from './pages/DocumentsPage';
 import NotificationsPage from './pages/NotificationsPage';
 import NotificationSubscriptionsPage from './pages/NotificationSubscriptionsPage';
 import WebhookDemoPage from './pages/WebhookDemoPage';
@@ -35,6 +36,7 @@ export const router = createBrowserRouter([
       { path: '/users/:userId/edit', element: <UserFormPage /> },
       { path: '/files', element: <FilesPage /> },
       { path: '/files/upload', element: <FilesUploadPage /> },
+      { path: '/documents', element: <DocumentsPage /> },
       { path: '/notifications', element: <NotificationsPage /> },
       { path: '/notifications/subscriptions', element: <NotificationSubscriptionsPage /> },
       { path: '/webhooks/demo', element: <WebhookDemoPage /> },

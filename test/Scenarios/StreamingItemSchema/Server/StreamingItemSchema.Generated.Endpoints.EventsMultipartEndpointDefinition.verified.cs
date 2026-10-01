@@ -32,7 +32,7 @@ public sealed class EventsMultipartEndpointDefinition : IEndpointDefinition
             .MapGet("/", StreamEventsMultipart)
             .WithName("StreamEventsMultipart")
             .WithSummary("Stream events as multipart/mixed")
-            .Produces(StatusCodes.Status200OK, contentType: "multipart/mixed")
+            .Produces<Event>(StatusCodes.Status200OK, "multipart/mixed")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }

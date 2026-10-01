@@ -17,7 +17,12 @@ public partial class UserDetails
     [Inject]
     private IDialogService DialogService { get; set; } = null!;
 
+    [Inject]
+    private IHttpClientFactory HttpClientFactory { get; set; } = null!;
+
     private User? user;
+    private string? userXml;
+    private User? userFromXml;
     private bool isLoading = true;
     private bool isUploading;
 
@@ -32,6 +37,21 @@ public partial class UserDetails
         ];
 
         await LoadUserAsync();
+    }
+
+    /// <summary>
+    /// Asks for the user as XML (the generated server negotiates by Accept) and reads it with the generated mapping.
+    /// </summary>
+    private async Task ViewAsXmlAsync()
+    {
+        var client = HttpClientFactory.CreateClient(Constants.HttpClientName);
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/users/{UserId}");
+        request.Headers.Accept.ParseAdd("application/xml");
+        using var response = await client.SendAsync(request);
+        userXml = await response.Content.ReadAsStringAsync();
+        userFromXml = response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType)
+            ? UserXml.Read(XmlModelSupport.Parse(userXml))
+            : null;
     }
 
     private async Task LoadUserAsync()

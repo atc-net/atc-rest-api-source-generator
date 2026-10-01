@@ -32,7 +32,7 @@ public sealed class EventsSeqEndpointDefinition : IEndpointDefinition
             .MapGet("/", StreamEventsSeq)
             .WithName("StreamEventsSeq")
             .WithSummary("Stream events as a JSON text sequence")
-            .Produces(StatusCodes.Status200OK, contentType: "application/json-seq")
+            .Produces<Event>(StatusCodes.Status200OK, "application/json-seq")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }

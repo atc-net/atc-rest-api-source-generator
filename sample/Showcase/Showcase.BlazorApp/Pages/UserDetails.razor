@@ -203,6 +203,28 @@ else
                     </MudGrid>
                 </MudCardContent>
             </MudCard>
+
+            <MudCard Elevation="2" Class="mt-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">As XML</MudText>
+                        <MudText Typo="Typo.caption">
+                            The same user, asked for with <code>Accept: application/xml</code>: the generated server answers XML,
+                            and the generated <code>UserXml</code> mapping reads it back into the model.
+                        </MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudButton Variant="Variant.Outlined" OnClick="ViewAsXmlAsync" data-testid="user-view-xml">View as XML</MudButton>
+                    @if (userXml is not null)
+                    {
+                        <MudText Typo="Typo.body2" Class="mt-3" data-testid="user-xml-parsed">
+                            Read back from the XML: @userFromXml?.FirstName @userFromXml?.LastName · @userFromXml?.Email · @userFromXml?.Address.City
+                        </MudText>
+                        <pre style="white-space: pre-wrap; word-break: break-all; max-height: 240px; overflow: auto;" data-testid="user-xml">@userXml</pre>
+                    }
+                </MudCardContent>
+            </MudCard>
         </MudItem>
     </MudGrid>
 }

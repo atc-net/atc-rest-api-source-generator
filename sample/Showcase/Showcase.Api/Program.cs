@@ -21,7 +21,7 @@ builder.Services.AddCors(options =>
             .SetIsOriginAllowed(_ => true) // Allow any origin for SignalR
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .WithExposedHeaders("Retry-After") // Let browser clients read the 429 back-off
+            .WithExposedHeaders("Retry-After", "Content-Disposition") // The 429 back-off, and a download's file name
             .AllowCredentials(); // Required for SignalR
     });
 });
@@ -72,6 +72,7 @@ builder.Services.AddApiHealthChecks();
 builder.Services.AddSingleton<AccountInMemoryRepository>();
 builder.Services.AddSingleton<TaskInMemoryRepository>();
 builder.Services.AddSingleton<FileInMemoryRepository>();
+builder.Services.AddSingleton<DocumentInMemoryRepository>();
 builder.Services.AddSingleton<UserInMemoryRepository>();
 builder.Services.AddSingleton<SubscriptionInMemoryRepository>();
 

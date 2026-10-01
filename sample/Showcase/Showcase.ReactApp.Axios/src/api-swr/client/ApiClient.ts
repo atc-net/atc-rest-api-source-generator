@@ -3,6 +3,7 @@ import axios from 'axios';
 import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { ApiError, errorMessage } from '../errors/ApiError';
 import { ValidationError } from '../errors/ValidationError';
+import { isXmlMediaType, parseXml, readProblemXml, xmlSuccessArm, type XmlOptions } from '../helpers/xml';
 import type { ApiResult } from '../types/ApiResult';
 import { resolveRetryPolicy, retryWithBackoff } from '../helpers/retryInterceptor';
 import { defaultRetryPolicy } from '../helpers/retryConfig';
@@ -30,8 +31,14 @@ export interface RequestOptions {
   headers?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
   responseType?: 'json' | 'blob' | 'text';
+  /** The media type of a file sent as the raw body (the generated client passes the declared one); else the file's own type. */
+  contentType?: string;
   /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */
   arms?: readonly string[];
+  /** An XML body (the generated client passes it): the Accept, how to write the request body and read the response. */
+  xml?: XmlOptions;
+  /** A model or a file (the generated client passes it): a file answer (neither JSON nor XML) is a Blob, a model's is the model. */
+  modelOrFile?: boolean;
   /** Retry for this request (the generated client passes it for operations with their own x-retry-* settings). */
   retry?: RequestRetry;
 }
@@ -145,9 +152,14 @@ export class ApiClient {
     if (options?.body !== undefined) {
       if (options.body instanceof FormData) {
         data = options.body;
+      } else if (options.xml?.write) {
+        headers['Content-Type'] = options.xml.contentType ?? 'application/xml; charset=utf-8';
+        data = options.xml.write(options.body as never);
       } else if (options.body instanceof Blob) {
-        headers['Content-Type'] = 'application/octet-stream';
-        data = options.body;
+        const fileType = options.contentType ?? (options.body.type || 'application/octet-stream');
+        headers['Content-Type'] = fileType;
+        // Re-typed: an adapter may send the Blob's own type (Node's http adapter does)
+        data = options.body.type === fileType ? options.body : new Blob([options.body], { type: fileType });
       } else {
         headers['Content-Type'] = 'application/json';
         data = options.body;
@@ -162,6 +174,10 @@ export class ApiClient {
       }
     }
 
+    if (options?.xml?.accept) {
+      headers['Accept'] = options.xml.accept;
+    }
+
     // doRequest accepts an optional override signal so the retry path can hand each
     // attempt a fresh AbortSignal — that way policy.timeoutMs actually cancels axios.
     const doRequest = (attemptSignal?: AbortSignal) => this.client.request<T>({
@@ -171,7 +187,7 @@ export class ApiClient {
       params: options?.query,
       headers,
       signal: attemptSignal ?? options?.signal,
-      responseType: options?.responseType === 'blob' ? 'blob' : options?.responseType === 'text' ? 'text' : 'json',
+      responseType: options?.responseType === 'blob' || options?.modelOrFile ? 'arraybuffer' : options?.responseType === 'text' ? 'text' : 'json',
     });
 
     let response: AxiosResponse<T> | undefined;
@@ -195,6 +211,46 @@ export class ApiClient {
 
     if (!response) {
       throw new Error('retryWithBackoff resolved without executing the request');
+    }
+
+    if (Object.prototype.toString.call(response.data) === '[object ArrayBuffer]' || ArrayBuffer.isView(response.data)) {
+      const bytes = response.data as unknown as ArrayBuffer;
+      const fileType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');
+      (response as { data: unknown }).data = response.status >= 200 && response.status < 300 && typeof Blob !== 'undefined'
+        ? new Blob([bytes], fileType ? { type: fileType } : undefined)
+        : new TextDecoder().decode(bytes);
+    }
+
+    // A model or a file: a file stays a Blob; a model's body (JSON or XML) is read as text and transformed like any body
+    if (options?.modelOrFile && response.status >= 200 && response.status < 300 && typeof Blob !== 'undefined' && response.data instanceof Blob) {
+      const modelContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '').toLowerCase();
+      if (/^(application\/json|application\/xml|text\/xml)$|\+(json|xml)$/.test((modelContentType.split(';')[0] ?? '').trim())) {
+        let body: unknown = await response.data.text();
+        for (const transform of ([] as unknown[]).concat(this.client.defaults.transformResponse ?? []) as ((this: unknown, data: unknown, headers: unknown) => unknown)[]) {
+          body = transform.call({ responseType: 'json' }, body, response.headers);
+        }
+
+        (response as { data: unknown }).data = body;
+      }
+    }
+
+    // An XML body: read by the operation's mapping (no JSON handling)
+    const responseContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');
+    const readXmlError = options?.xml?.errors?.[String(response.status)] ?? options?.xml?.errors?.['default'];
+    if (readXmlError && (response.status < 200 || response.status >= 300) && isXmlMediaType(responseContentType) && typeof response.data === 'string') {
+      try {
+        (response as { data: unknown }).data = readXmlError(parseXml(response.data));
+      } catch {
+        // Not the declared model: the error arm gets the text
+      }
+    }
+
+    if (options?.xml?.read && response.status >= 200 && response.status < 300 && response.status !== 204 && response.status !== 205 && isXmlMediaType(responseContentType) && typeof response.data === 'string') {
+      try {
+        return fitToArms({ status: xmlSuccessArm(response.status), data: options.xml.read(parseXml(response.data)) as T, response } as ApiResult<T>, options.arms);
+      } catch (parseError) {
+        return fitToArms({ status: 'parseError', error: parseError as Error, response }, options.arms);
+      }
     }
 
     return fitToArms(await this.handleResponse<T>(response), options?.arms);
@@ -393,19 +449,27 @@ export class ApiClient {
     }
 
     let errorBody: unknown = response.data instanceof UnparseableBody ? undefined : response.data;
+    let errorBodyIsRawText = response.config?.responseType === 'text' || response.config?.responseType === 'arraybuffer';
     if (typeof Blob !== 'undefined' && errorBody instanceof Blob) {
       // A download's error arrives as a Blob (responseType 'blob'): read it like any other error body.
       errorBody = await errorBody.text();
+      errorBodyIsRawText = true;
     }
 
     if (typeof errorBody === 'string') {
       const errorContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '').toLowerCase();
       if (errorBody.length === 0) {
         errorBody = undefined;
+      } else if (errorContentType.includes('application/problem+xml')) {
+        try {
+          errorBody = readProblemXml(parseXml(errorBody));
+        } catch {
+          errorBody = undefined;
+        }
       } else if (errorContentType.includes('application/json') || errorContentType.includes('+json')) {
-        // Only a responseType 'text' request left a JSON body unparsed; otherwise a string here is the parsed
-        // value of a JSON-string body ("42" stays the string '42').
-        if (response.config?.responseType === 'text') {
+        // Only a responseType 'text' request or a Blob left a JSON body unparsed; otherwise a string here is the
+        // parsed value of a JSON-string body ("42" stays the string '42').
+        if (errorBodyIsRawText) {
           try {
             errorBody = JSON.parse(errorBody);
           } catch {

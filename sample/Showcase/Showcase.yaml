@@ -554,9 +554,12 @@ paths:
         - users
       responses:
         '200':
-          description: User details
+          description: User details - as JSON, or as XML when the Accept header asks for it
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+            application/xml:
               schema:
                 $ref: "#/components/schemas/User"
         '404':
@@ -727,6 +730,151 @@ paths:
               items:
                 type: string
                 format: binary
+
+  # ============================================
+  # DOCUMENTS - PDF, Excel, PNG and JPEG as raw bodies
+  # ============================================
+  /documents:
+    # Its own limits: the documents page uploads and downloads a lot
+    x-ratelimit-policy: documents
+    x-ratelimit-permit-limit: 200
+    x-ratelimit-window-seconds: 60
+    get:
+      operationId: listDocuments
+      summary: List the uploaded documents
+      tags:
+        - documents
+      responses:
+        '200':
+          description: The documents, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+    post:
+      operationId: uploadDocument
+      summary: Upload a document - a PDF, an Excel workbook, a PNG or a JPEG - as the raw request body
+      description: >
+        The request body is the file itself, sent with its own media type. The handler gets the type that arrived
+        (the generated parameters carry it, as the upload declares several).
+      tags:
+        - documents
+      x-retry-enabled: false
+      parameters:
+        - name: fileName
+          in: query
+          required: true
+          description: The document's file name
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+      requestBody:
+        required: true
+        content:
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: The stored document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        '400':
+          description: Bad Request
+  /documents/{documentId}:
+    x-ratelimit-policy: documents
+    parameters:
+      - name: documentId
+        in: path
+        required: true
+        description: The document id
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getDocument
+      summary: Download a document - with its own media type and file name
+      tags:
+        - documents
+      responses:
+        '200':
+          description: The document
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Document not found
+  /documents/{documentId}/summary:
+    x-ratelimit-policy: documents
+    parameters:
+      - name: documentId
+        in: path
+        required: true
+        description: The document id
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getDocumentSummary
+      summary: A document's summary - as JSON, or as a printable PDF
+      description: >
+        A model or a file: the summary as JSON, or (printable) the same summary as a PDF. The client reads either,
+        told apart by the response's Content-Type.
+      tags:
+        - documents
+      parameters:
+        - name: printable
+          in: query
+          required: false
+          description: Answer the summary as a PDF
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: The summary, or the summary as a PDF
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSummary"
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Document not found
 
   # ============================================
   # NOTIFICATIONS - Subscription management
@@ -952,6 +1100,69 @@ paths:
                 $ref: "#/components/schemas/TestingProblem"
 components:
   schemas:
+    Document:
+      title: Document
+      type: object
+      required:
+        - id
+        - fileName
+        - contentType
+        - length
+        - sha256
+        - uploadedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The document id
+        fileName:
+          type: string
+          description: The file name it was uploaded with
+        contentType:
+          type: string
+          description: The media type it arrived as
+        length:
+          type: integer
+          format: int64
+          description: Its length in bytes
+        sha256:
+          type: string
+          description: The SHA-256 of its bytes, as hex
+        uploadedAt:
+          type: string
+          format: date-time
+          description: When it was uploaded
+    DocumentSummary:
+      title: DocumentSummary
+      type: object
+      required:
+        - id
+        - fileName
+        - kind
+        - contentType
+        - length
+        - sha256
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The document id
+        fileName:
+          type: string
+          description: The file name
+        kind:
+          type: string
+          description: What kind of document it is (pdf, spreadsheet, image)
+        contentType:
+          type: string
+          description: Its media type
+        length:
+          type: integer
+          format: int64
+          description: Its length in bytes
+        sha256:
+          type: string
+          description: The SHA-256 of its bytes, as hex
     # ============================================
     # WEBHOOK PAYLOADS - Event schemas
     # ============================================
