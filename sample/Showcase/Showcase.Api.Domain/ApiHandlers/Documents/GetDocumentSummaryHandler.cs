@@ -2,15 +2,20 @@ namespace Showcase.Api.Domain.ApiHandlers.Documents;
 
 /// <summary>
 /// Handler business logic for the GetDocumentSummary operation.
-/// A model or a file: the summary as JSON, or (printable) the same summary as a PDF.
+/// A model or a file: the summary as JSON, or (printable) the same summary as a PDF. Each answer carries an ETag; a
+/// request that sends it back as If-None-Match is answered 304 Not Modified while the document is unchanged.
 /// </summary>
 public sealed class GetDocumentSummaryHandler : IGetDocumentSummaryHandler
 {
     private readonly DocumentInMemoryRepository repository;
+    private readonly IHttpContextAccessor httpContextAccessor;
 
-    public GetDocumentSummaryHandler(DocumentInMemoryRepository repository)
+    public GetDocumentSummaryHandler(
+        DocumentInMemoryRepository repository,
+        IHttpContextAccessor httpContextAccessor)
     {
         this.repository = repository;
+        this.httpContextAccessor = httpContextAccessor;
     }
 
     public Task<GetDocumentSummaryResult> ExecuteAsync(
@@ -22,8 +27,17 @@ public sealed class GetDocumentSummaryHandler : IGetDocumentSummaryHandler
             return Task.FromResult(GetDocumentSummaryResult.NotFound($"No document {parameters.DocumentId}"));
         }
 
+        // The version of this representation: the document's bytes, and JSON or PDF
+        var printable = parameters.Printable == true;
+        var etag = $"\"{document.Sha256[..16]}-{(printable ? "pdf" : "json")}\"";
+        httpContextAccessor.HttpContext!.Response.Headers.ETag = etag;
+        if (string.Equals(parameters.IfNoneMatch, etag, StringComparison.Ordinal))
+        {
+            return Task.FromResult(GetDocumentSummaryResult.NotModified());
+        }
+
         var summary = DocumentMapper.ToSummary(document);
-        if (parameters.Printable != true)
+        if (!printable)
         {
             return Task.FromResult(GetDocumentSummaryResult.Ok(summary));
         }

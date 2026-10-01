@@ -33,9 +33,22 @@ export type GetDocumentResult =
 
 export type GetDocumentSummaryResult =
   | { status: 'ok'; data: DocumentSummary | Blob; response: Response }
+  | { status: 'notModified'; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
   | { status: 'badRequest'; error: ValidationError; response: Response }
   | { status: 'unauthorized'; error: ApiError; response: Response }
+  | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
+  | { status: 'parseError'; error: Error; response: Response };
+
+export type CopyDocumentResult =
+  | { status: 'ok'; data: unknown; response: Response }
+  | { status: 'redirection'; data?: unknown; response: Response }
+  | { status: 'notFound'; error: ApiError; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'unauthorized'; error: ApiError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
   | { status: 'tooManyRequests'; error: ApiError; response: Response }
   | { status: 'clientError'; error: ApiError; response: Response }
   | { status: 'serverError'; error: ApiError; response: Response }
@@ -76,14 +89,24 @@ export class DocumentsClient {
   }
 
   /** A document's summary - as JSON, or as a printable PDF */
-  async getDocumentSummary(documentId: string, query?: { printable?: boolean /* default: false */ }): Promise<GetDocumentSummaryResult> {
+  async getDocumentSummary(documentId: string, query?: { printable?: boolean /* default: false */ }, headers?: { 'If-None-Match'?: string }): Promise<GetDocumentSummaryResult> {
     return this.api.request<DocumentSummary | Blob>('GET', `/documents/${documentId}/summary`, {
       query: {
         printable: query?.printable,
       },
-      headers: { Accept: 'application/json, application/pdf, application/problem+json' },
+      headers: {
+        Accept: 'application/json, application/pdf, application/problem+json',
+        'If-None-Match': headers?.['If-None-Match'],
+      },
       modelOrFile: true,
-      arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      arms: ['ok', 'notModified', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetDocumentSummaryResult>;
+  }
+
+  /** Copy a document - answered with 303 See Other to the copy's summary */
+  async copyDocument(documentId: string): Promise<CopyDocumentResult> {
+    return this.api.request<void>('POST', `/documents/${documentId}/copy`, {
+      arms: ['ok', 'redirection', 'notFound', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<CopyDocumentResult>;
   }
 }

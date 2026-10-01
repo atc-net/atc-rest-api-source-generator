@@ -95,12 +95,12 @@ export function useGetDocument(options?: Omit<UseMutationOptions<Blob, ApiError,
 }
 
 /** A document's summary - as JSON, or as a printable PDF */
-export function useGetDocumentSummary(documentId: string, query?: { printable?: boolean /* default: false */ }, options?: Omit<UseQueryOptions<DocumentSummary | Blob, ApiError>, 'queryKey' | 'queryFn'>) {
+export function useGetDocumentSummary(documentId: string, query?: { printable?: boolean /* default: false */ }, headers?: { 'If-None-Match'?: string }, options?: Omit<UseQueryOptions<DocumentSummary | Blob, ApiError>, 'queryKey' | 'queryFn'>) {
   const api = useApiService();
   return useQuery({
     queryKey: documentsKeys.getDocumentSummary(documentId, query),
     queryFn: async () => {
-      const result = await api.documents.getDocumentSummary(documentId, query);
+      const result = await api.documents.getDocumentSummary(documentId, query, headers);
       if (result.status === 'ok') {
         return result.data;
       }
@@ -117,5 +117,33 @@ export function useGetDocumentSummary(documentId: string, query?: { printable?: 
     enabled: !!documentId,
     retry: false,
     ...options,
+  });
+}
+
+/** Copy a document - answered with 303 See Other to the copy's summary */
+export function useCopyDocument(options?: Omit<UseMutationOptions<void, ApiError, string>, 'mutationFn'>) {
+  const api = useApiService();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (documentId: string) => {
+      const result = await api.documents.copyDocument(documentId);
+      if (result.status === 'ok') {
+        return;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
+      throw new ApiError(
+        result.response.status,
+        result.response.statusText,
+        'error' in result ? result.error.message : 'Request failed',
+        result.response,
+      );
+    },
+    ...options,
+    onSuccess: (data, variables, onMutateResult, context) => {
+      queryClient.invalidateQueries({ queryKey: documentsKeys.all });
+      options?.onSuccess?.(data, variables, onMutateResult, context);
+    },
   });
 }

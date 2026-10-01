@@ -21,7 +21,7 @@ builder.Services.AddCors(options =>
             .SetIsOriginAllowed(_ => true) // Allow any origin for SignalR
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .WithExposedHeaders("Retry-After", "Content-Disposition") // The 429 back-off, and a download's file name
+            .WithExposedHeaders("Retry-After", "Content-Disposition", "ETag") // The 429 back-off, a download's file name, a summary's version
             .AllowCredentials(); // Required for SignalR
     });
 });
@@ -73,6 +73,7 @@ builder.Services.AddSingleton<AccountInMemoryRepository>();
 builder.Services.AddSingleton<TaskInMemoryRepository>();
 builder.Services.AddSingleton<FileInMemoryRepository>();
 builder.Services.AddSingleton<DocumentInMemoryRepository>();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<UserInMemoryRepository>();
 builder.Services.AddSingleton<SubscriptionInMemoryRepository>();
 

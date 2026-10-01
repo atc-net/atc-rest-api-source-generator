@@ -31,6 +31,13 @@ function save(blob: Blob, fileName: string) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
+// A response header, from the Fetch Response or the Axios response (the API exposes ETag to the browser)
+function responseHeader(response: { headers: unknown }, name: string): string | undefined {
+  const headers = response.headers as { get?: (name: string) => unknown } & Record<string, unknown>;
+  const value = typeof headers?.get === 'function' ? headers.get(name) : headers?.[name.toLowerCase()];
+  return typeof value === 'string' ? value : undefined;
+}
+
 /**
  * PDF, Excel, PNG and JPEG files sent as the raw request body with their own media type, downloads with their media
  * type and file name, and a summary that is a model or a file.
@@ -41,6 +48,9 @@ export default function DocumentsPage() {
   const [preview, setPreview] = useState<{ url: string; fileName: string } | null>(null);
   const [previewMessage, setPreviewMessage] = useState<string | null>(null);
   const [summary, setSummary] = useState<DocumentSummary | null>(null);
+  const [summaryETag, setSummaryETag] = useState<string | undefined>(undefined);
+  const [summaryCheck, setSummaryCheck] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const result = await documentsClient.listDocuments();
@@ -98,8 +108,38 @@ export default function DocumentsPage() {
     if (result.data instanceof Blob) {
       save(result.data, getDownloadFileName(result.response) ?? 'summary.pdf');
     } else {
+      // The JSON summary with its ETag - the version a later request sends back as If-None-Match
       setSummary(result.data);
+      setSummaryETag(responseHeader(result.response, 'ETag'));
+      setSummaryCheck(null);
     }
+  };
+
+  const checkSummary = async () => {
+    if (!summary) {
+      return;
+    }
+
+    const result = await documentsClient.getDocumentSummary(summary.id, { printable: false }, { 'If-None-Match': summaryETag });
+    if (result.status === 'notModified') {
+      setSummaryCheck(`Not modified (304) - ${responseHeader(result.response, 'ETag') ?? summaryETag} is current`);
+    } else if (result.status === 'ok' && !(result.data instanceof Blob)) {
+      setSummary(result.data);
+      setSummaryETag(responseHeader(result.response, 'ETag'));
+      setSummaryCheck('Changed - the summary was read again');
+    } else {
+      setSummaryCheck('The document is gone');
+    }
+  };
+
+  const copy = async (doc: Document) => {
+    // 303 See Other to the copy's summary, followed by the browser: the ok arm holds the summary's JSON
+    const result = await documentsClient.copyDocument(doc.id);
+    const copied = result.status === 'ok' ? (result.data as unknown as DocumentSummary | undefined) : undefined;
+    setCopyStatus(copied?.fileName
+      ? `Copied as ${copied.fileName} (303 See Other, followed to its summary)`
+      : `Copy of ${doc.fileName} failed`);
+    await load();
   };
 
   return (
@@ -171,12 +211,20 @@ export default function DocumentsPage() {
                       <Button size="small" onClick={() => void showSummary(doc, true)} data-testid="document-summary-pdf">
                         Summary as PDF
                       </Button>
+                      <Button size="small" onClick={() => void copy(doc)} data-testid="document-copy">
+                        Copy
+                      </Button>
                     </Stack>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+        )}
+        {copyStatus && (
+          <Typography variant="body2" sx={{ mt: 2 }} data-testid="document-copy-status">
+            {copyStatus}
+          </Typography>
         )}
       </Paper>
 
@@ -210,6 +258,17 @@ export default function DocumentsPage() {
           <Typography variant="body2">
             SHA-256: <code>{summary.sha256}</code>
           </Typography>
+          <Typography variant="body2">
+            ETag: <code data-testid="summary-etag">{summaryETag}</code>
+          </Typography>
+          <Button size="small" variant="outlined" sx={{ mt: 1 }} onClick={() => void checkSummary()} data-testid="summary-check">
+            Check for changes
+          </Button>
+          {summaryCheck && (
+            <Typography variant="body2" sx={{ mt: 1 }} data-testid="summary-check-status">
+              {summaryCheck}
+            </Typography>
+          )}
         </Paper>
       )}
     </Box>

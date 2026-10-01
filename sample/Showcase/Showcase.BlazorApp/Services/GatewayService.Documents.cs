@@ -65,7 +65,7 @@ public sealed partial class GatewayService
         CancellationToken cancellationToken = default)
     {
         var result = await getDocumentSummaryEndpoint
-            .ExecuteAsync(new GetDocumentSummaryParameters(DocumentId: documentId, Printable: printable), cancellationToken: cancellationToken)
+            .ExecuteAsync(new GetDocumentSummaryParameters(DocumentId: documentId, IfNoneMatch: null, Printable: printable), cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
         if (!result.IsOk)
@@ -74,5 +74,45 @@ public sealed partial class GatewayService
         }
 
         return result.IsOkFile ? (null, result.OkFile) : (result.OkContent, null);
+    }
+
+    /// <summary>
+    /// A document's summary as JSON with its ETag - or, when the ETag sent as If-None-Match still matches, 304 Not
+    /// Modified (the generated result's <c>IsNotModified</c>, never an error).
+    /// </summary>
+    public async Task<(DocumentSummary? Summary, string? ETag, bool NotModified)> GetDocumentSummaryJsonAsync(
+        Guid documentId,
+        string? ifNoneMatch,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await getDocumentSummaryEndpoint
+            .ExecuteAsync(new GetDocumentSummaryParameters(DocumentId: documentId, IfNoneMatch: ifNoneMatch, Printable: false), cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        var etag = result.Headers.TryGetValue("ETag", out var values) ? values.FirstOrDefault() : null;
+        if (result.IsNotModified)
+        {
+            return (null, etag, true);
+        }
+
+        return result is { IsOk: true, IsOkFile: false } ? (result.OkContent, etag, false) : (null, null, false);
+    }
+
+    /// <summary>
+    /// Copy a document. The API answers 303 See Other to the copy's summary; the browser's HttpClient follows it, so
+    /// the answer is the summary's 200 - a status the copy operation does not declare, so its body is in
+    /// <c>Content</c>.
+    /// </summary>
+    public async Task<DocumentSummary?> CopyDocumentAsync(
+        Guid documentId,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await copyDocumentEndpoint
+            .ExecuteAsync(new CopyDocumentParameters(DocumentId: documentId), cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        return result.IsSuccess && !string.IsNullOrEmpty(result.Content)
+            ? JsonSerializer.Deserialize<DocumentSummary>(result.Content, jsonOptions)
+            : null;
     }
 }

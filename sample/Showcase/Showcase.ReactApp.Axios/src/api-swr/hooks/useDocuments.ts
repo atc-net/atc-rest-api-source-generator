@@ -102,12 +102,12 @@ export function useGetDocument(config?: SWRMutationConfiguration<Blob, ApiError,
 }
 
 /** A document's summary - as JSON, or as a printable PDF */
-export function useGetDocumentSummary(documentId: string, query?: { printable?: boolean /* default: false */ }, config?: SWRConfiguration<DocumentSummary | Blob, ApiError>) {
+export function useGetDocumentSummary(documentId: string, query?: { printable?: boolean /* default: false */ }, headers?: { 'If-None-Match'?: string }, config?: SWRConfiguration<DocumentSummary | Blob, ApiError>) {
   const api = useApiService();
   return useSWR<DocumentSummary | Blob, ApiError>(
     documentId ? documentsKeys.getDocumentSummary(documentId, query) : null,
     async () => {
-      const result = await api.documents.getDocumentSummary(documentId, query);
+      const result = await api.documents.getDocumentSummary(documentId, query, headers);
       if (result.status === 'ok') {
         return result.data;
       }
@@ -122,5 +122,37 @@ export function useGetDocumentSummary(documentId: string, query?: { printable?: 
       );
     },
     { shouldRetryOnError: false, ...config },
+  );
+}
+
+/** Copy a document - answered with 303 See Other to the copy's summary */
+export function useCopyDocument(config?: SWRMutationConfiguration<void, ApiError, typeof documentsKeys.all, string>) {
+  const api = useApiService();
+  const { mutate } = useSWRConfig();
+  return useSWRMutation<void, ApiError, typeof documentsKeys.all, string>(
+    documentsKeys.all,
+    async (_key, { arg }) => {
+      const documentId = arg;
+      const result = await api.documents.copyDocument(documentId);
+      if (result.status === 'ok') {
+        return;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
+      throw new ApiError(
+        result.response.status,
+        result.response.statusText,
+        'error' in result ? result.error.message : 'Request failed',
+        result.response,
+      );
+    },
+    {
+      ...config,
+      onSuccess: (data, key, currentConfig) => {
+        void mutate((cacheKey) => Array.isArray(cacheKey) && cacheKey[0] === 'documents');
+        config?.onSuccess?.(data, key, currentConfig);
+      },
+    },
   );
 }

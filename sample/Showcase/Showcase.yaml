@@ -900,9 +900,20 @@ paths:
           schema:
             type: boolean
             default: false
+        - name: If-None-Match
+          in: header
+          required: false
+          description: The ETag of a summary read earlier - unchanged, the answer is 304 Not Modified
+          schema:
+            type: string
       responses:
         '200':
           description: The summary, or the summary as a PDF
+          headers:
+            ETag:
+              description: The summary's version - send it back as If-None-Match
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -911,6 +922,40 @@ paths:
               schema:
                 type: string
                 format: binary
+        '304':
+          description: The summary has not changed since the ETag sent as If-None-Match
+        '404':
+          description: Document not found
+
+  # 303 See Other: the copy is made, and the client is sent to read it (post / redirect / get)
+  /documents/{documentId}/copy:
+    x-ratelimit-policy: documents
+    parameters:
+      - name: documentId
+        in: path
+        required: true
+        description: The document id
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: copyDocument
+      summary: Copy a document - answered with 303 See Other to the copy's summary
+      description: >
+        Makes a copy of the document and answers 303 See Other with the copy's summary as the Location; a client that
+        follows redirects (browsers, HttpClient) reads the summary with a GET.
+      tags:
+        - documents
+      x-retry-enabled: false
+      responses:
+        '303':
+          description: The copy was made; its summary is at the Location
+          headers:
+            Location:
+              description: The copy's summary
+              schema:
+                type: string
+                format: uri
         '404':
           description: Document not found
 

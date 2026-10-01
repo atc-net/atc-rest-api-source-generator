@@ -46,11 +46,16 @@
                             <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => PreviewAsync(document)" data-testid="document-preview">Preview</MudButton>
                             <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => SummaryAsync(document, printable: false)" data-testid="document-summary">Summary</MudButton>
                             <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => SummaryAsync(document, printable: true)" data-testid="document-summary-pdf">Summary as PDF</MudButton>
+                            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="() => CopyAsync(document)" data-testid="document-copy">Copy</MudButton>
                         </td>
                     </tr>
                 }
             </tbody>
         </MudSimpleTable>
+    }
+    @if (copyStatus is not null)
+    {
+        <MudText Typo="Typo.body2" Class="mt-2" data-testid="document-copy-status">@copyStatus</MudText>
     }
 </MudPaper>
 
@@ -75,5 +80,11 @@ else if (previewMessage is not null)
         <MudText Typo="Typo.body2">Media type: @summary.ContentType</MudText>
         <MudText Typo="Typo.body2">Size: @FormatSize(summary.Length)</MudText>
         <MudText Typo="Typo.body2">SHA-256: <code>@summary.Sha256</code></MudText>
+        <MudText Typo="Typo.body2">ETag: <code data-testid="summary-etag">@summaryETag</code></MudText>
+        <MudButton Size="Size.Small" Variant="Variant.Outlined" Class="mt-2" OnClick="CheckSummaryAsync" data-testid="summary-check">Check for changes</MudButton>
+        @if (summaryCheck is not null)
+        {
+            <MudText Typo="Typo.body2" Class="mt-2" data-testid="summary-check-status">@summaryCheck</MudText>
+        }
     </MudPaper>
 }

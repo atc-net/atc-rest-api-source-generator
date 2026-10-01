@@ -19,6 +19,9 @@ public partial class Documents
     private string? previewFileName;
     private string? previewMessage;
     private DocumentSummary? summary;
+    private string? summaryETag;
+    private string? summaryCheck;
+    private string? copyStatus;
 
     protected override async Task OnInitializedAsync()
         => documents = await Gateway.ListDocumentsAsync();
@@ -90,15 +93,54 @@ public partial class Documents
         Document document,
         bool printable)
     {
-        var (model, file) = await Gateway.GetDocumentSummaryAsync(document.Id, printable);
-        if (file is not null)
+        if (printable)
         {
             // A model or a file: the PDF
-            await SaveAsync(file.Content, file.FileName ?? "summary.pdf", file.ContentType ?? "application/pdf");
+            var (_, file) = await Gateway.GetDocumentSummaryAsync(document.Id, printable);
+            if (file is not null)
+            {
+                await SaveAsync(file.Content, file.FileName ?? "summary.pdf", file.ContentType ?? "application/pdf");
+            }
+
             return;
         }
 
-        summary = model;
+        // The JSON summary with its ETag - the version a later request sends back as If-None-Match
+        (summary, summaryETag, _) = await Gateway.GetDocumentSummaryJsonAsync(document.Id, ifNoneMatch: null);
+        summaryCheck = null;
+    }
+
+    private async Task CheckSummaryAsync()
+    {
+        if (summary is null)
+        {
+            return;
+        }
+
+        var (current, etag, notModified) = await Gateway.GetDocumentSummaryJsonAsync(summary.Id, summaryETag);
+        if (notModified)
+        {
+            summaryCheck = $"Not modified (304) - {etag} is current";
+        }
+        else if (current is not null)
+        {
+            (summary, summaryETag) = (current, etag);
+            summaryCheck = "Changed - the summary was read again";
+        }
+        else
+        {
+            summaryCheck = "The document is gone";
+        }
+    }
+
+    private async Task CopyAsync(Document document)
+    {
+        // 303 See Other to the copy's summary, followed by the browser
+        var copy = await Gateway.CopyDocumentAsync(document.Id);
+        copyStatus = copy is null
+            ? $"Copy of {document.FileName} failed"
+            : $"Copied as {copy.FileName} (303 See Other, followed to its summary)";
+        documents = await Gateway.ListDocumentsAsync();
     }
 
     private async Task SaveAsync(

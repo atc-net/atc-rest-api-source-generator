@@ -60,4 +60,34 @@ test.describe('Documents', () => {
       expect(pdf.toString('latin1')).toContain(`(Kind: ${fixture.kind})`);
     });
   }
+
+  test('copy answers 303 See Other to the copy, and the summary answers 304 Not Modified for its ETag', async ({ page }, testInfo) => {
+    const documents = new DocumentsPage(page);
+    const name = `Status ${testInfo.project.name} ${Date.now()} report.pdf`;
+    await documents.goto();
+    await documents.fileInput.setInputFiles({ name, mimeType: 'application/pdf', buffer: readFileSync(join(process.cwd(), 'fixtures', 'files', 'report.pdf')) });
+    const row = documents.row(name);
+    await expect(row).toBeVisible();
+
+    // 303: the POST is redirected to the copy's summary, which the browser reads with a GET
+    const [followed] = await Promise.all([
+      page.waitForResponse((r) => r.url().endsWith('/summary') && r.request().redirectedFrom()?.url().endsWith('/copy') === true),
+      row.getByTestId('document-copy').click(),
+    ]);
+    expect(followed.request().method()).toBe('GET');
+    expect(followed.status()).toBe(200);
+    expect((await followed.request().redirectedFrom()!.response())!.status()).toBe(303);
+    await expect(page.getByTestId('document-copy-status')).toHaveText(`Copied as Copy of ${name} (303 See Other, followed to its summary)`);
+    await expect(documents.row(`Copy of ${name}`)).toBeVisible();
+
+    // 304: the summary's ETag sent back as If-None-Match
+    await row.getByTestId('document-summary').click();
+    await expect(page.getByTestId('summary-etag')).toHaveText(/^"[0-9a-f]{16}-json"$/);
+    const [notModified] = await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/summary') && r.status() === 304),
+      page.getByTestId('summary-check').click(),
+    ]);
+    expect(await notModified.request().headerValue('If-None-Match')).toMatch(/^"[0-9a-f]{16}-json"$/);
+    await expect(page.getByTestId('summary-check-status')).toHaveText(/^Not modified \(304\) - "[0-9a-f]{16}-json" is current$/);
+  });
 });
