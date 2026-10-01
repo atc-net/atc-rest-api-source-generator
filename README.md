@@ -21,7 +21,8 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | 🔗 **URL Encoding**              | Automatic RFC 3986 compliant encoding - no more broken URLs                      |
 | **Models** | 🎯 **Enum Support**              | Generates C# enums from OpenAPI string enums                                     |
 |            | 📊 **Pagination**                | Generic `PaginatedResult<T>` from `allOf` composition                            |
-| **Data**   | 📁 **File Uploads**              | Full support for binary uploads (single, multiple, with metadata)                |
+| **Data**   | 📁 **Files**                     | Upload and download any file type (PDF, Excel, images) with its media type and file name; a response can be a model **or** a file |
+|            | 🧾 **XML**                       | XML bodies mapped by the `xml` keyword, negotiated by `Accept`; `application/problem+xml` on request |
 |            | 🌊 **Streaming**                 | `IAsyncEnumerable<T>` support for efficient data streaming                       |
 | **CLI**    | 🖥️ **Project Scaffolding**       | `generate server` / `generate client` creates complete project structure         |
 |            | 🟦 **TypeScript Client**         | `generate client-typescript` — Fetch/Axios, interceptors, retry, MSW handlers    |

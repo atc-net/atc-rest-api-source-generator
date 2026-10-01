@@ -274,10 +274,10 @@ public static class OpenApiOperationExtensions
         }
 
         /// <summary>
-        /// Checks if the operation has x-return-async-enumerable: true extension.
-        /// When true, the result class Ok method should accept IAsyncEnumerable&lt;T&gt; for streaming.
+        /// Checks if the operation is a file download with the x-return-stream: true extension.
+        /// When true, the EndpointPerOperation client hands the open response stream to the caller instead of the bytes.
         /// </summary>
-        /// <returns>True if the operation should return IAsyncEnumerable.</returns>
+        /// <returns>True if the operation's download should be streamed.</returns>
         public bool IsStreamedDownloadOperation()
         {
             if (!operation.HasFileDownload() ||
