@@ -26,6 +26,12 @@ public static class XmlModelMapperExtractor
     /// <summary>The name of the generated helper class.</summary>
     public const string SupportTypeName = "XmlModelSupport";
 
+    /// <summary>The name of the generated list a server binds a list request body into.</summary>
+    public const string RequestBodyListTypeName = "RequestBodyList";
+
+    /// <summary>The name of the generated interface of a model a list request body carries.</summary>
+    public const string XmlRequestBodyInterfaceName = "IXmlRequestBody";
+
     private const string Xml = "global::System.Xml";
     private const string XmlConvert = "global::System.Xml.XmlConvert";
     private const string Invariant = "global::System.Globalization.CultureInfo.InvariantCulture";
@@ -194,41 +200,101 @@ public static class XmlModelMapperExtractor
     }
 
     /// <summary>
-    /// Generates the server's request binding of a model offered as XML: a <c>BindAsync</c> in a partial of the record
-    /// that reads the body by its <c>Content-Type</c> - XML with the model's mapping, JSON (when accepted) with the
-    /// host's JSON options. A malformed body is a 400 and another media type a 415 (<c>BadHttpRequestException</c>).
+    /// Generates the server's request binding of a model offered as XML, in a partial of the record. A model bound alone
+    /// gets a <c>BindAsync</c> that reads the body by its <c>Content-Type</c> - XML with the model's mapping, JSON (when
+    /// accepted) with the host's JSON options; a malformed body is a 400 and another media type a 415
+    /// (<c>BadHttpRequestException</c>). A model a list body carries implements <c>IXmlRequestBody&lt;T&gt;</c>, so the
+    /// generated <c>RequestBodyList&lt;T&gt;</c> reads its items.
     /// </summary>
     /// <param name="typeName">The record's type name.</param>
     /// <param name="ns">The models' namespace.</param>
     /// <param name="projectName">The project name.</param>
-    /// <param name="acceptsJson">Whether an operation accepts the model as JSON too.</param>
+    /// <param name="bound">How the server binds the model.</param>
     /// <returns>The source of the partial record.</returns>
     public static string GenerateBinding(
         string typeName,
         string ns,
         string projectName,
-        bool acceptsJson)
+        ServerBoundModel bound)
     {
         var support = $"global::{projectName}.Generated.{SupportTypeName}";
+        var listInterface = $"global::{projectName}.Generated.{XmlRequestBodyInterfaceName}<{typeName}>";
         var http = "global::Microsoft.AspNetCore.Http";
+        var acceptsJson = bound.AcceptsJson;
         var expected = acceptsJson ? "application/json or XML" : "XML";
         var json = acceptsJson
             ? $$"""
 
-                if ({{http}}.HttpRequestJsonExtensions.HasJsonContentType(request))
-                {
-                    try
+                    if ({{http}}.HttpRequestJsonExtensions.HasJsonContentType(request))
                     {
-                        return await {{http}}.HttpRequestJsonExtensions.ReadFromJsonAsync<{{typeName}}>(request, context.RequestAborted).ConfigureAwait(false);
+                        try
+                        {
+                            return await {{http}}.HttpRequestJsonExtensions.ReadFromJsonAsync<{{typeName}}>(request, context.RequestAborted).ConfigureAwait(false);
+                        }
+                        catch (global::System.Text.Json.JsonException ex)
+                        {
+                            throw new {{http}}.BadHttpRequestException($"The JSON request body is invalid: {ex.Message}", {{http}}.StatusCodes.Status400BadRequest, ex);
+                        }
                     }
-                    catch (global::System.Text.Json.JsonException ex)
-                    {
-                        throw new {{http}}.BadHttpRequestException($"The JSON request body is invalid: {ex.Message}", {{http}}.StatusCodes.Status400BadRequest, ex);
-                    }
-                }
 
-        """
+            """
             : string.Empty;
+
+        var members = new List<string>();
+        if (bound.BoundAlone)
+        {
+            members.Add($$"""
+                    /// <summary>
+                    /// Reads the request body: XML by the model's XML mapping{{(acceptsJson ? ", JSON by the host's JSON options" : string.Empty)}}.
+                    /// A malformed body is a 400, another media type a 415.
+                    /// </summary>
+                    public static async global::System.Threading.Tasks.ValueTask<{{typeName}}?> BindAsync(
+                        {{http}}.HttpContext context,
+                        global::System.Reflection.ParameterInfo parameter)
+                    {
+                        var request = context.Request;
+                        if (request.ContentLength == 0 || (request.ContentLength is null && string.IsNullOrEmpty(request.ContentType)))
+                        {
+                            return null;
+                        }
+
+                        var mediaType = global::Microsoft.Net.Http.Headers.MediaTypeHeaderValue.TryParse(request.ContentType, out var parsed)
+                            ? parsed.MediaType.Value
+                            : null;
+                        if ({{support}}.IsXmlMediaType(mediaType))
+                        {
+                            try
+                            {
+                                return {{typeName}}Xml.Read(await {{support}}.LoadAsync(request.Body, context.RequestAborted).ConfigureAwait(false));
+                            }
+                            catch (global::System.Exception ex) when (ex is global::System.Xml.XmlException or global::System.FormatException or global::System.NotSupportedException)
+                            {
+                                throw new {{http}}.BadHttpRequestException($"The XML request body is invalid: {ex.Message}", {{http}}.StatusCodes.Status400BadRequest, ex);
+                            }
+                        }
+                {{json}}
+                        throw new {{http}}.BadHttpRequestException($"The request body must be {{expected}}, not '{mediaType}'.", {{http}}.StatusCodes.Status415UnsupportedMediaType);
+                    }
+                """);
+        }
+
+        if (bound.BoundInList)
+        {
+            members.Add($$"""
+                    /// <summary>
+                    /// Reads a list of the model from the root element of an XML request body.
+                    /// </summary>
+                    static global::System.Collections.Generic.List<{{typeName}}> {{listInterface}}.ReadXmlList(global::System.Xml.Linq.XElement element)
+                        => {{typeName}}Xml.ReadList(element);
+                """);
+        }
+
+        var formats = (bound.BoundAlone, bound.BoundInList) switch
+        {
+            (true, true) => $"alone ({expected}) and in a list",
+            (true, false) => expected,
+            _ => "in a list",
+        };
 
         return $$"""
             // <auto-generated />
@@ -237,15 +303,76 @@ public static class XmlModelMapperExtractor
             namespace {{ns}};
 
             /// <summary>
-            /// Binds <see cref="{{typeName}}"/> from the request body by its Content-Type ({{expected}}).
+            /// Binds <see cref="{{typeName}}"/> from the request body by its Content-Type ({{formats}}).
             /// </summary>
-            public partial record {{typeName}}
+            public partial record {{typeName}}{{(bound.BoundInList ? " : " + listInterface : string.Empty)}}
+            {
+            {{string.Join("\n\n", members)}}
+            }
+            """;
+    }
+
+    /// <summary>
+    /// Generates the server's list request body: <c>RequestBodyList&lt;T&gt;</c>, a <c>List&lt;T&gt;</c> with a
+    /// <c>BindAsync</c> that reads the body by its <c>Content-Type</c> - XML with the item model's mapping
+    /// (<c>IXmlRequestBody&lt;T&gt;</c>), JSON with the host's JSON options. The endpoint's <c>Accepts</c> metadata
+    /// makes routing answer 415 for a media type the operation does not declare.
+    /// </summary>
+    /// <param name="projectName">The project name.</param>
+    /// <returns>The source of the list and its interface.</returns>
+    public static string GenerateRequestBodyList(string projectName)
+    {
+        var support = $"global::{projectName}.Generated.{SupportTypeName}";
+        var http = "global::Microsoft.AspNetCore.Http";
+        return $$"""
+            // <auto-generated />
+            #nullable enable
+
+            namespace {{projectName}}.Generated;
+
+            /// <summary>
+            /// A model a list request body carries: reads a list of itself from XML.
+            /// </summary>
+            /// <typeparam name="TSelf">The model.</typeparam>
+            [global::System.CodeDom.Compiler.GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            public interface {{XmlRequestBodyInterfaceName}}<TSelf>
+                where TSelf : {{XmlRequestBodyInterfaceName}}<TSelf>
             {
                 /// <summary>
-                /// Reads the request body: XML by the model's XML mapping{{(acceptsJson ? ", JSON by the host's JSON options" : string.Empty)}}.
-                /// A malformed body is a 400, another media type a 415.
+                /// Reads a list of the model from the root element of an XML document.
                 /// </summary>
-                public static async global::System.Threading.Tasks.ValueTask<{{typeName}}?> BindAsync(
+                static abstract global::System.Collections.Generic.List<TSelf> ReadXmlList(global::System.Xml.Linq.XElement element);
+            }
+
+            /// <summary>
+            /// A list request body, bound by its Content-Type: XML by the item model's XML mapping, JSON by the host's JSON
+            /// options. A malformed body is a 400, another media type a 415.
+            /// </summary>
+            /// <typeparam name="T">The item model.</typeparam>
+            [global::System.CodeDom.Compiler.GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            public sealed class {{RequestBodyListTypeName}}<T> : global::System.Collections.Generic.List<T>
+                where T : {{XmlRequestBodyInterfaceName}}<T>
+            {
+                /// <summary>
+                /// An empty list.
+                /// </summary>
+                public {{RequestBodyListTypeName}}()
+                {
+                }
+
+                /// <summary>
+                /// A list of these items.
+                /// </summary>
+                /// <param name="items">The items.</param>
+                public {{RequestBodyListTypeName}}(global::System.Collections.Generic.IEnumerable<T> items)
+                    : base(items)
+                {
+                }
+
+                /// <summary>
+                /// Reads the request body: XML by the item model's XML mapping, JSON by the host's JSON options.
+                /// </summary>
+                public static async global::System.Threading.Tasks.ValueTask<{{RequestBodyListTypeName}}<T>?> BindAsync(
                     {{http}}.HttpContext context,
                     global::System.Reflection.ParameterInfo parameter)
                 {
@@ -262,15 +389,28 @@ public static class XmlModelMapperExtractor
                     {
                         try
                         {
-                            return {{typeName}}Xml.Read(await {{support}}.LoadAsync(request.Body, context.RequestAborted).ConfigureAwait(false));
+                            return new {{RequestBodyListTypeName}}<T>(T.ReadXmlList(await {{support}}.LoadAsync(request.Body, context.RequestAborted).ConfigureAwait(false)));
                         }
                         catch (global::System.Exception ex) when (ex is global::System.Xml.XmlException or global::System.FormatException or global::System.NotSupportedException)
                         {
                             throw new {{http}}.BadHttpRequestException($"The XML request body is invalid: {ex.Message}", {{http}}.StatusCodes.Status400BadRequest, ex);
                         }
                     }
-            {{json}}
-                    throw new {{http}}.BadHttpRequestException($"The request body must be {{expected}}, not '{mediaType}'.", {{http}}.StatusCodes.Status415UnsupportedMediaType);
+
+                    if ({{http}}.HttpRequestJsonExtensions.HasJsonContentType(request))
+                    {
+                        try
+                        {
+                            var items = await {{http}}.HttpRequestJsonExtensions.ReadFromJsonAsync<global::System.Collections.Generic.List<T>>(request, context.RequestAborted).ConfigureAwait(false);
+                            return items is null ? null : new {{RequestBodyListTypeName}}<T>(items);
+                        }
+                        catch (global::System.Text.Json.JsonException ex)
+                        {
+                            throw new {{http}}.BadHttpRequestException($"The JSON request body is invalid: {ex.Message}", {{http}}.StatusCodes.Status400BadRequest, ex);
+                        }
+                    }
+
+                    throw new {{http}}.BadHttpRequestException($"The request body must be application/json or XML, not '{mediaType}'.", {{http}}.StatusCodes.Status415UnsupportedMediaType);
                 }
             }
             """;

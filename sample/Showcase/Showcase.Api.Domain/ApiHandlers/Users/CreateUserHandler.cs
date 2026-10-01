@@ -18,15 +18,21 @@ public sealed class CreateUserHandler : ICreateUserHandler
         using var activity = ActivitySource.StartActivity("CreateUser");
         ArgumentNullException.ThrowIfNull(parameters);
 
-        var request = parameters.Request;
+        // An existing email answers the existing user - for now Created with that user; a real app would return 409
+        return CreateUserResult.Created(await CreateOrGetAsync(repository, parameters.Request));
+    }
 
-        // Check if email already exists
+    /// <summary>
+    /// Creates the user of a request, or - when its email exists - returns the existing user.
+    /// </summary>
+    internal static async Task<User> CreateOrGetAsync(
+        UserInMemoryRepository repository,
+        CreateUserRequest request)
+    {
         var existingUser = await repository.GetByEmail(request.Email);
         if (existingUser is not null)
         {
-            // Return conflict - for now use Created with same user
-            // In real app, would return 409 Conflict
-            return CreateUserResult.Created(MapToApiModel(existingUser));
+            return MapToApiModel(existingUser);
         }
 
         // Create address
@@ -58,7 +64,7 @@ public sealed class CreateUserHandler : ICreateUserHandler
             role: role,
             address: address);
 
-        return CreateUserResult.Created(MapToApiModel(user));
+        return MapToApiModel(user);
     }
 
     private static User MapToApiModel(UserEntity user)

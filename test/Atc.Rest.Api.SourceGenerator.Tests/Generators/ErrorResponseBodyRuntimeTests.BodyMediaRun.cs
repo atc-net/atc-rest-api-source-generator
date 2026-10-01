@@ -286,7 +286,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 ["id"] = bodyCase.Name,
                 ["group"] = bodyCase.Group,
                 ["operation"] = bodyCase.Operation,
-                ["request"] = $"{bodyCase.Method} {bodyCase.Path}" + (bodyCase.Upload is { } upload ? $" ({upload}, {BodyMediaBytes(upload).Length:N0} bytes)" : bodyCase.User is not null ? " (application/xml user)" : string.Empty),
+                ["request"] = $"{bodyCase.Method} {bodyCase.Path}" + (bodyCase.Upload is { } upload ? $" ({upload}, {BodyMediaBytes(upload).Length:N0} bytes)" : bodyCase.User is JsonArray ? " (application/xml users)" : bodyCase.User is not null ? " (application/xml user)" : string.Empty),
                 ["expects"] = BodyMediaExpectedShape(bodyCase),
                 ["wire"] = WireJson(bodyCase, observed),
                 ["clients"] = clients,
@@ -361,8 +361,14 @@ public partial class ErrorResponseBodyRuntimeTests
         }
         else if (bodyCase.User is { } user)
         {
-            var tags = string.Concat(user["tags"]!.AsArray().Select(t => $"<tag>{(string?)t}</tag>"));
-            request.Content = new StringContent($"<user id=\"{(int)user["id"]!}\"><name>{(string?)user["name"]}</name><tags>{tags}</tags></user>", Encoding.UTF8, "application/xml");
+            static string UserXml(JsonNode user)
+            {
+                var tags = string.Concat(user["tags"]!.AsArray().Select(t => $"<tag>{(string?)t}</tag>"));
+                return $"<user id=\"{(int)user["id"]!}\"><name>{(string?)user["name"]}</name><tags>{tags}</tags></user>";
+            }
+
+            var xml = user is JsonArray users ? $"<users>{string.Concat(users.Select(u => UserXml(u!)))}</users>" : UserXml(user);
+            request.Content = new StringContent(xml, Encoding.UTF8, "application/xml");
         }
 
         using var response = await http.SendAsync(request, TestContext.Current.CancellationToken);
@@ -523,7 +529,7 @@ public partial class ErrorResponseBodyRuntimeTests
         BodyMediaCase bodyCase,
         bool xmlFirst)
     {
-        var xmlOnly = bodyCase.Operation is "GetUserXml" or "ListUsersXml" or "CreateUserXml";
+        var xmlOnly = bodyCase.Operation is "GetUserXml" or "ListUsersXml" or "CreateUserXml" or "CreateUsersXml";
         return BodyMediaExpectedShape(bodyCase) switch
         {
             "error" when bodyCase.Id == 502 => "text/html",
@@ -547,7 +553,9 @@ public partial class ErrorResponseBodyRuntimeTests
             { Id: 404 } => new JsonObject { ["kind"] = "problem", ["title"] = "Not Found", ["detail"] = null, ["errors"] = null },
             { Id: 500 } => new JsonObject { ["kind"] = "problem", ["title"] = "An error occurred while processing your request.", ["detail"] = null, ["errors"] = null },
 
-            // The key is the request property's path (Atc.Rest.MinimalApi issue 13: the XML name "name" once it lands)
+            // The key is the request property's path (Atc.Rest.MinimalApi issue 13: the XML name "name" once it lands); in
+            // a list, the invalid item's index (the second user)
+            { User: JsonArray } => new JsonObject { ["kind"] = "problem", ["title"] = "One or more validation errors occurred.", ["errors"] = new JsonArray("Request[1].name") },
             _ => new JsonObject { ["kind"] = "problem", ["title"] = "One or more validation errors occurred.", ["errors"] = new JsonArray("Request.name") },
         };
 

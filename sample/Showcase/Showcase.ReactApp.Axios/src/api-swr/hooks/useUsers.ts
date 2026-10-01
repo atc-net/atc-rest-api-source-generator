@@ -94,6 +94,38 @@ export function useCreateUser(config?: SWRMutationConfiguration<User, ApiError, 
   );
 }
 
+/** Import users - a list as JSON or XML */
+export function useImportUsers(config?: SWRMutationConfiguration<Users, ApiError, typeof usersKeys.all, CreateUserRequest[]>) {
+  const api = useApiService();
+  const { mutate } = useSWRConfig();
+  return useSWRMutation<Users, ApiError, typeof usersKeys.all, CreateUserRequest[]>(
+    usersKeys.all,
+    async (_key, { arg }) => {
+      const body = arg;
+      const result = await api.users.importUsers(body);
+      if (result.status === 'ok') {
+        return result.data;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
+      throw new ApiError(
+        result.response.status,
+        result.response.statusText,
+        'error' in result ? result.error.message : 'Request failed',
+        result.response,
+      );
+    },
+    {
+      ...config,
+      onSuccess: (data, key, currentConfig) => {
+        void mutate((cacheKey) => Array.isArray(cacheKey) && cacheKey[0] === 'users');
+        config?.onSuccess?.(data, key, currentConfig);
+      },
+    },
+  );
+}
+
 /** Get a specific user */
 export function useGetUserById(userId: string, config?: SWRConfiguration<User, ApiError>) {
   const api = useApiService();

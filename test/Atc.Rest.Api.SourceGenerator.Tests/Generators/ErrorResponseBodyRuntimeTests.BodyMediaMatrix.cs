@@ -114,6 +114,13 @@ public partial class ErrorResponseBodyRuntimeTests
               responses:
                 '201': { description: Created, content: { application/xml: { schema: { $ref: '#/components/schemas/User' } } } }
                 '400': { description: Invalid }
+          /users-xml/batch:
+            post:
+              operationId: createUsersXml
+              requestBody: { required: true, content: { application/xml: { schema: { type: array, xml: { name: users }, items: { $ref: '#/components/schemas/User' } } } } }
+              responses:
+                '200': { description: Created, content: { application/xml: { schema: { type: array, items: { $ref: '#/components/schemas/User' } } } } }
+                '400': { description: Invalid }
           /users-xml/{id}:
             get:
               operationId: getUserXml
@@ -307,6 +314,13 @@ public partial class ErrorResponseBodyRuntimeTests
                 => System.Threading.Tasks.Task.FromResult(CreateUserXmlResult.Created(parameters.Request with { Id = 3 }));
         }
 
+        public sealed class CreateUsersXmlHandlerImpl : ICreateUsersXmlHandler
+        {
+            // The list arrives as XML (a RequestBodyList<User>): each user back with its new id
+            public System.Threading.Tasks.Task<CreateUsersXmlResult> ExecuteAsync(CreateUsersXmlParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => System.Threading.Tasks.Task.FromResult(CreateUsersXmlResult.Ok(parameters.Request.Select((user, index) => user with { Id = 10 + index }).ToList()));
+        }
+
         public sealed class GetUserXmlHandlerImpl : IGetUserXmlHandler
         {
             public System.Threading.Tasks.Task<GetUserXmlResult> ExecuteAsync(GetUserXmlParameters parameters, System.Threading.CancellationToken cancellationToken = default)
@@ -355,6 +369,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 services.AddScoped<IUploadPngHandler, UploadPngHandlerImpl>();
                 services.AddScoped<IListUsersXmlHandler, ListUsersXmlHandlerImpl>();
                 services.AddScoped<ICreateUserXmlHandler, CreateUserXmlHandlerImpl>();
+                services.AddScoped<ICreateUsersXmlHandler, CreateUsersXmlHandlerImpl>();
                 services.AddScoped<IGetUserXmlHandler, GetUserXmlHandlerImpl>();
                 services.AddScoped<IGetUserHandler, GetUserHandlerImpl>();
                 services.AddScoped<IGetReportHandler, GetReportHandlerImpl>();
@@ -659,7 +674,7 @@ public partial class ErrorResponseBodyRuntimeTests
     /// <param name="Path">The path of the wire capture.</param>
     /// <param name="Id">The <c>id</c> argument, or <see langword="null"/>.</param>
     /// <param name="Upload">The uploaded media type (the bytes are <see cref="BodyMediaBytes"/> of it), or <see langword="null"/>.</param>
-    /// <param name="User">The XML request body, or <see langword="null"/>.</param>
+    /// <param name="User">The XML request body - a user, or a list of users - or <see langword="null"/>.</param>
     /// <param name="Model">The model the handler returns, or <see langword="null"/> (a file, an error).</param>
     /// <param name="UploadTyped">Whether the uploaded file carries its own media type (else the client must send the declared one).</param>
     internal sealed record BodyMediaCase(
@@ -671,7 +686,7 @@ public partial class ErrorResponseBodyRuntimeTests
         string Path,
         int? Id = null,
         string? Upload = null,
-        JsonObject? User = null,
+        JsonNode? User = null,
         JsonNode? Model = null,
         bool UploadTyped = false);
 
@@ -711,6 +726,8 @@ public partial class ErrorResponseBodyRuntimeTests
         cases.Add(new BodyMediaCase("xml list", "xml", "usersXml", "ListUsersXml", "GET", "/users-xml", Model: new JsonArray(BodyMediaUser1.DeepClone(), BodyMediaUser2.DeepClone())));
         cases.Add(new BodyMediaCase("xml request body", "xml", "usersXml", "CreateUserXml", "POST", "/users-xml", User: BodyMediaNewUser, Model: BodyMediaNewUser));
         cases.Add(new BodyMediaCase("xml request body 400 validation", "xml", "usersXml", "CreateUserXml", "POST", "/users-xml", User: new JsonObject { ["id"] = 0, ["name"] = new string('n', 30), ["tags"] = new JsonArray() }));
+        cases.Add(new BodyMediaCase("xml list request body", "xml", "usersXml", "CreateUsersXml", "POST", "/users-xml/batch", User: new JsonArray(BodyMediaNewUser.DeepClone(), new JsonObject { ["id"] = 4, ["name"] = "Margaret", ["tags"] = new JsonArray() }), Model: new JsonArray(new JsonObject { ["id"] = 10, ["name"] = "Grace", ["tags"] = new JsonArray("x") }, new JsonObject { ["id"] = 11, ["name"] = "Margaret", ["tags"] = new JsonArray() })));
+        cases.Add(new BodyMediaCase("xml list request body 400 validation", "xml", "usersXml", "CreateUsersXml", "POST", "/users-xml/batch", User: new JsonArray(BodyMediaNewUser.DeepClone(), new JsonObject { ["id"] = 0, ["name"] = new string('n', 30), ["tags"] = new JsonArray() })));
         cases.Add(new BodyMediaCase("json or xml user", "json or xml", "users", "GetUser", "GET", "/users/1", Id: 1, Model: BodyMediaUser1));
         cases.Add(new BodyMediaCase("json or xml 404 problem", "json or xml", "users", "GetUser", "GET", "/users/404", Id: 404));
         cases.Add(new BodyMediaCase("json or xml 500 exception", "json or xml", "users", "GetUser", "GET", "/users/500", Id: 500));

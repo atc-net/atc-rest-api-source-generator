@@ -2346,10 +2346,6 @@ public static class OpenApiDocumentValidator
                         ? $"Operation '{operationId}' request body ({xml}) is not generated: its schema is not the JSON body's component model, so the body is sent and bound as JSON only."
                         : $"Operation '{operationId}' request body ({xml}) has no XML mapping (only a component model or a list of one is mapped, not an inline or polymorphic schema): the body is not generated.";
                 }
-                else if (body.IsList)
-                {
-                    yield return $"Operation '{operationId}' request body ({xml}) is a list: the clients send it as XML, but the generated server binds a single model from XML and reads a list as JSON only.";
-                }
             }
         }
     }

@@ -35,6 +35,17 @@ export type CreateUserResult =
   | { status: 'serverError'; error: ApiError; response: AxiosResponse }
   | { status: 'parseError'; error: Error; response: AxiosResponse };
 
+export type ImportUsersResult =
+  | { status: 'ok'; data: Users; response: AxiosResponse }
+  | { status: 'badRequest'; error: ValidationError; response: AxiosResponse }
+  | { status: 'unauthorized'; error: ApiError; response: AxiosResponse }
+  | { status: 'forbidden'; error: ApiError; response: AxiosResponse }
+  | { status: 'conflict'; error: ApiError; response: AxiosResponse }
+  | { status: 'tooManyRequests'; error: ApiError; response: AxiosResponse }
+  | { status: 'clientError'; error: ApiError; response: AxiosResponse }
+  | { status: 'serverError'; error: ApiError; response: AxiosResponse }
+  | { status: 'parseError'; error: Error; response: AxiosResponse };
+
 export type GetUserByIdResult =
   | { status: 'ok'; data: User; response: AxiosResponse }
   | { status: 'notFound'; error: ApiError; response: AxiosResponse }
@@ -105,6 +116,14 @@ export class UsersClient {
       retry: { policy: retryPolicies.users, enabled: false },
       arms: ['created', 'badRequest', 'conflict', 'unauthorized', 'forbidden', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateUserResult>;
+  }
+
+  /** Import users - a list as JSON or XML */
+  async importUsers(body: CreateUserRequest[]): Promise<ImportUsersResult> {
+    return this.api.request<Users>('POST', '/users/import', {
+      body,
+      arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ImportUsersResult>;
   }
 
   /** Get a specific user */

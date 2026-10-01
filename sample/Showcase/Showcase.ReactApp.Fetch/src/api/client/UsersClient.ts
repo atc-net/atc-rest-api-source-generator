@@ -34,6 +34,17 @@ export type CreateUserResult =
   | { status: 'serverError'; error: ApiError; response: Response }
   | { status: 'parseError'; error: Error; response: Response };
 
+export type ImportUsersResult =
+  | { status: 'ok'; data: Users; response: Response }
+  | { status: 'badRequest'; error: ValidationError; response: Response }
+  | { status: 'unauthorized'; error: ApiError; response: Response }
+  | { status: 'forbidden'; error: ApiError; response: Response }
+  | { status: 'conflict'; error: ApiError; response: Response }
+  | { status: 'tooManyRequests'; error: ApiError; response: Response }
+  | { status: 'clientError'; error: ApiError; response: Response }
+  | { status: 'serverError'; error: ApiError; response: Response }
+  | { status: 'parseError'; error: Error; response: Response };
+
 export type GetUserByIdResult =
   | { status: 'ok'; data: User; response: Response }
   | { status: 'notFound'; error: ApiError; response: Response }
@@ -104,6 +115,14 @@ export class UsersClient {
       retry: { policy: retryPolicies.users, enabled: false },
       arms: ['created', 'badRequest', 'conflict', 'unauthorized', 'forbidden', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CreateUserResult>;
+  }
+
+  /** Import users - a list as JSON or XML */
+  async importUsers(body: CreateUserRequest[]): Promise<ImportUsersResult> {
+    return this.api.request<Users>('POST', '/users/import', {
+      body,
+      arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+    }) as Promise<ImportUsersResult>;
   }
 
   /** Get a specific user */

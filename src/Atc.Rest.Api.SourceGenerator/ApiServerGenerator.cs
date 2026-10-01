@@ -369,6 +369,14 @@ public class ApiServerGenerator : IIncrementalGenerator
         // The models bound by Content-Type (JSON and/or XML request bodies): a partial with BindAsync
         var boundRequestModels = XmlBodyHelper.ServerBoundRequestModels(openApiDoc);
 
+        // A list body offered as XML is bound into the generated RequestBodyList<T>
+        if (boundRequestModels.Values.Any(m => m.BoundInList))
+        {
+            generatedContext.AddSource(
+                $"{projectName}.{XmlModelMapperExtractor.RequestBodyListTypeName}.g.cs",
+                SourceText.From(XmlModelMapperExtractor.GenerateRequestBodyList(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
         // The models of an XML request body name their XML names where they differ from the JSON ones
         // ([XmlElement] / [XmlAttribute]): a validation filter maps an XML request's error keys through them
         var xmlRequestModels = XmlBodyReachability.CollectRequestBodies(openApiDoc);
@@ -712,7 +720,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool generatePartialModels,
         bool includeSharedModelsUsing = false,
         ISet<string>? xmlModels = null,
-        Dictionary<string, bool>? boundRequestModels = null,
+        Dictionary<string, ServerBoundModel>? boundRequestModels = null,
         ISet<string>? xmlRequestModels = null)
     {
         // Use SchemaExtractor.ExtractForSchemasWithInlineEnums to extract schemas and inline enums

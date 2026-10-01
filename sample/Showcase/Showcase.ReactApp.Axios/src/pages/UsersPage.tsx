@@ -27,6 +27,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { useNavigate } from 'react-router';
 import { useUsersList, useDeleteUser } from '../hooks/useUsers';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import UsersImport from '../components/UsersImport';
 import type { User } from '../api/models/User';
 import type { UserRole } from '../api/enums/UserRole';
 
@@ -241,6 +242,8 @@ export default function UsersPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <UsersImport />
 
       <ConfirmDialog
         open={deleteTarget !== null}

@@ -718,6 +718,16 @@ public static class OperationParameterExtractor
                     bodyType = requestBodySchema.ToCSharpType(isRequired, registry);
                     propertyName = "Request";
 
+                    // A list offered as XML is bound by its Content-Type on the server: the generated RequestBodyList<T>
+                    // (a List<T> with a BindAsync)
+                    if (includeBindingAttributes &&
+                        operation.RequestBody?.Content is { } boundContent &&
+                        XmlBodyHelper.ServerBoundRequestBody(boundContent) is { IsList: true } boundList)
+                    {
+                        var nullable = bodyType.EndsWith("?", StringComparison.Ordinal) ? "?" : string.Empty;
+                        bodyType = $"{XmlModelMapperExtractor.RequestBodyListTypeName}<{XmlBodyHelper.ItemTypeName(boundContent, boundList)}>{nullable}";
+                    }
+
                     // Add binding attribute only for server-side parameters
                     if (includeBindingAttributes)
                     {

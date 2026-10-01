@@ -93,6 +93,34 @@ export function useCreateUser(options?: Omit<UseMutationOptions<User, ApiError, 
   });
 }
 
+/** Import users - a list as JSON or XML */
+export function useImportUsers(options?: Omit<UseMutationOptions<Users, ApiError, CreateUserRequest[]>, 'mutationFn'>) {
+  const api = useApiService();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: CreateUserRequest[]) => {
+      const result = await api.users.importUsers(body);
+      if (result.status === 'ok') {
+        return result.data;
+      }
+      if ('error' in result && result.error instanceof ApiError) {
+        throw result.error;
+      }
+      throw new ApiError(
+        result.response.status,
+        result.response.statusText,
+        'error' in result ? result.error.message : 'Request failed',
+        result.response,
+      );
+    },
+    ...options,
+    onSuccess: (data, variables, onMutateResult, context) => {
+      queryClient.invalidateQueries({ queryKey: usersKeys.all });
+      options?.onSuccess?.(data, variables, onMutateResult, context);
+    },
+  });
+}
+
 /** Get a specific user */
 export function useGetUserById(userId: string, options?: Omit<UseQueryOptions<User, ApiError>, 'queryKey' | 'queryFn'>) {
   const api = useApiService();

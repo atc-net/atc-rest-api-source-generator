@@ -609,9 +609,8 @@ public static class RuleIdentifiers
     /// <summary>
     /// ATC_API_OPR031: A request or response body is not generated as the specification declares it: an XML body
     /// whose schema has no XML mapping (inline or polymorphic), the XML variant of a JSON body that is not the same
-    /// model, an XML list request body (the server binds a single model from XML), or a response that declares a
-    /// model and a file for a status other than 200 (only its model is generated). The body is otherwise dropped
-    /// without notice.
+    /// model, or a response that declares a model and a file for a status other than 200 (only its model is
+    /// generated). The body is otherwise dropped without notice.
     /// </summary>
     public const string BodyNotGeneratedAsDeclared = "ATC_API_OPR031";
 

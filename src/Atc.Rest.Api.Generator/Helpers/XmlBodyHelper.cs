@@ -101,34 +101,45 @@ public static class XmlBodyHelper
     }
 
     /// <summary>
-    /// The request body a generated server binds by its <c>Content-Type</c> (a generated <c>BindAsync</c>): a single
-    /// model offered as XML - only, or as an alternative to JSON.
+    /// The request body a generated server binds by its <c>Content-Type</c>: a model offered as XML - only, or as an
+    /// alternative to JSON - is bound by a generated <c>BindAsync</c> on the record, a list of one by a generated
+    /// <c>RequestBodyList&lt;T&gt;</c>.
     /// </summary>
     /// <param name="content">The request body content.</param>
     /// <returns>The XML body, or <see langword="null"/> when the body is bound as JSON (<c>[FromBody]</c>).</returns>
     public static XmlBody? ServerBoundRequestBody(
         IDictionary<string, IOpenApiMediaType>? content)
-        => (FindXmlOnlyBody(content) ?? FindXmlAlternative(content)) is { IsList: false } body ? body : null;
+        => FindXmlOnlyBody(content) ?? FindXmlAlternative(content);
 
     /// <summary>
-    /// The models a generated server binds by <c>Content-Type</c>, with whether any operation also accepts them as
-    /// JSON.
+    /// The models a generated server binds by <c>Content-Type</c>: alone (with whether any operation also accepts them
+    /// as JSON), and as the items of a list body.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document.</param>
-    /// <returns>The schema names and whether JSON is accepted too.</returns>
-    public static Dictionary<string, bool> ServerBoundRequestModels(
+    /// <returns>The schema names and how they are bound.</returns>
+    public static Dictionary<string, ServerBoundModel> ServerBoundRequestModels(
         OpenApiDocument openApiDoc)
     {
-        var models = new Dictionary<string, bool>(StringComparer.Ordinal);
+        var models = new Dictionary<string, ServerBoundModel>(StringComparer.Ordinal);
         foreach (var operation in (openApiDoc?.Paths?.Values ?? Enumerable.Empty<IOpenApiPathItem>()).SelectMany(p => p.Operations?.Values ?? Enumerable.Empty<OpenApiOperation>()))
         {
             var content = operation.RequestBody?.Content;
-            if (ServerBoundRequestBody(content) is { } body &&
-                content![body.MediaType].Schema is OpenApiSchemaReference reference &&
-                (reference.Reference?.Id ?? reference.Id) is { } name)
+            if (ServerBoundRequestBody(content) is not { } body)
             {
-                models[name] = (models.TryGetValue(name, out var json) && json) || body.IsAlternative;
+                continue;
             }
+
+            var schema = content![body.MediaType].Schema;
+            var reference = body.IsList ? (schema as OpenApiSchema)?.Items as OpenApiSchemaReference : schema as OpenApiSchemaReference;
+            if ((reference?.Reference?.Id ?? reference?.Id) is not { } name)
+            {
+                continue;
+            }
+
+            var known = models.TryGetValue(name, out var existing) ? existing : new ServerBoundModel(AcceptsJson: false, BoundAlone: false, BoundInList: false);
+            models[name] = body.IsList
+                ? known with { BoundInList = true }
+                : known with { BoundAlone = true, AcceptsJson = known.AcceptsJson || body.IsAlternative };
         }
 
         return models;
@@ -144,10 +155,23 @@ public static class XmlBodyHelper
         IDictionary<string, IOpenApiMediaType> content,
         XmlBody body)
     {
+        var name = ItemTypeName(content, body);
+        return body.IsList ? $"List<{name}>" : name;
+    }
+
+    /// <summary>
+    /// The record's name of a model body: the model, or the item model of a list.
+    /// </summary>
+    /// <param name="content">The body content.</param>
+    /// <param name="body">The XML body.</param>
+    /// <returns>The type name.</returns>
+    public static string ItemTypeName(
+        IDictionary<string, IOpenApiMediaType> content,
+        XmlBody body)
+    {
         var schema = content[body.MediaType].Schema;
         var reference = body.IsList ? (schema as OpenApiSchema)?.Items as OpenApiSchemaReference : schema as OpenApiSchemaReference;
-        var name = OpenApiSchemaExtensions.SanitizeSchemaName(reference?.Reference?.Id ?? reference?.Id ?? "object");
-        return body.IsList ? $"List<{name}>" : name;
+        return OpenApiSchemaExtensions.SanitizeSchemaName(reference?.Reference?.Id ?? reference?.Id ?? "object");
     }
 
     /// <summary>

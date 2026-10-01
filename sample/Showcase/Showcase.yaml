@@ -524,6 +524,44 @@ paths:
           description: Validation error
         '409':
           description: User with this email already exists
+  /users/import:
+    post:
+      summary: Import users - a list as JSON or XML
+      description: |-
+        Creates every user of the list. The list is accepted as JSON or as XML (`<users><user>...</user></users>`):
+        the generated server binds it by its Content-Type, and the validation filter checks every item.
+      operationId: importUsers
+      tags:
+        - users
+      security:
+        - oauth2: ["users:write", "admin"]
+      x-retry-enabled: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              maxItems: 100
+              items:
+                $ref: "#/components/schemas/CreateUserRequest"
+          application/xml:
+            schema:
+              type: array
+              maxItems: 100
+              xml:
+                name: users
+              items:
+                $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        '200':
+          description: The imported users (an existing email is the existing user)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Users"
+        '400':
+          description: Validation error
   /users/{userId}:
     # Inherit users policy
     x-ratelimit-policy: users
@@ -1650,6 +1688,8 @@ components:
     CreateUserRequest:
       title: CreateUserRequest
       type: object
+      xml:
+        name: user
       required:
         - firstName
         - lastName
