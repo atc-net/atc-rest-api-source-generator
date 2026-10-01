@@ -1993,6 +1993,128 @@ public class OperationValidationTests
     }
 
     [Fact]
+    public void Validate_BodiesNotGeneratedAsDeclared_ReportOPR031()
+    {
+        // Arrange: every body the generator cannot represent as declared, next to one it can
+        var document = ParseYaml("""
+            openapi: 3.0.3
+            info:
+              title: Test
+              version: 1.0.0
+            paths:
+              /inline-xml:
+                get:
+                  operationId: getInlineXml
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/xml:
+                          schema:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+              /json-and-inline-xml:
+                get:
+                  operationId: getJsonAndInlineXml
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Pet'
+                        application/xml:
+                          schema:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+              /xml-list-body:
+                post:
+                  operationId: addPets
+                  requestBody:
+                    required: true
+                    content:
+                      application/xml:
+                        schema:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/Pet'
+                  responses:
+                    '204':
+                      description: Stored
+              /inline-xml-error:
+                get:
+                  operationId: getInlineXmlError
+                  responses:
+                    '200':
+                      description: OK
+                    '404':
+                      description: Not found
+                      content:
+                        application/xml:
+                          schema:
+                            type: object
+                            properties:
+                              code:
+                                type: string
+              /model-or-file:
+                get:
+                  operationId: getModelOrFile
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Pet'
+                        application/pdf:
+                          schema:
+                            type: string
+                            format: binary
+              /mapped-xml:
+                get:
+                  operationId: getMappedXml
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/xml:
+                          schema:
+                            $ref: '#/components/schemas/Pet'
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  title: Pet
+                  required: [name]
+                  properties:
+                    name:
+                      type: string
+            """);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath).Where(d => d.RuleId == Generator.RuleIdentifiers.BodyNotGeneratedAsDeclared).ToList();
+
+        // Assert: one warning per body, naming the operation, the status and the media type; none for the mapped body
+        Assert.All(diagnostics, d => Assert.Equal(Generator.Models.DiagnosticSeverity.Warning, d.Severity));
+        Assert.Collection(
+            diagnostics.Select(d => d.Message).Order(StringComparer.Ordinal),
+            m => Assert.Contains("'addPets' request body (application/xml)", m, StringComparison.Ordinal),
+            m => Assert.Contains("'getInlineXml' response 200 (application/xml)", m, StringComparison.Ordinal),
+            m => Assert.Contains("'getInlineXmlError' response 404 (application/xml)", m, StringComparison.Ordinal),
+            m => Assert.Contains("'getJsonAndInlineXml' response 200 (application/xml)", m, StringComparison.Ordinal),
+            m => Assert.Contains("'getModelOrFile' response 200 (application/pdf)", m, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Validate_Single2xxStatusCode_NoOPR018()
     {
         // Arrange

@@ -2254,6 +2254,103 @@ public static class OpenApiDocumentValidator
                 DiagnosticSeverity.Warning,
                 sourceFilePath));
         }
+
+        // ATC_API_OPR031: a body that is not generated as declared (never dropped without notice)
+        foreach (var message in BodiesNotGeneratedAsDeclared(operationId, operation))
+        {
+            diagnostics.Add(new DiagnosticMessage(
+                RuleIdentifiers.BodyNotGeneratedAsDeclared,
+                message,
+                DiagnosticSeverity.Warning,
+                sourceFilePath));
+        }
+    }
+
+    /// <summary>
+    /// The bodies of an operation the generator does not represent as declared (ATC_API_OPR031).
+    /// </summary>
+    private static IEnumerable<string> BodiesNotGeneratedAsDeclared(
+        string operationId,
+        OpenApiOperation operation)
+    {
+        foreach (var entry in operation.Responses ?? new OpenApiResponses())
+        {
+            var status = entry.Key;
+            var response = entry.Value;
+            if (response.Content is not { Count: > 0 } content)
+            {
+                continue;
+            }
+
+            var hasJson = content.Any(e => ResponseBodyClassifier.Classify(e.Key, e.Value.Schema) == ResponseBodyKind.Json);
+            var xmlEntries = content.Where(e => ResponseBodyClassifier.Classify(e.Key, e.Value.Schema) == ResponseBodyKind.Xml).Select(e => e.Key).ToList();
+            if (ErrorResponseShapeResolver.IsErrorStatusCode(status))
+            {
+                // An error: an XML body is written as declared only as a declared XML model
+                var shape = ErrorResponseShapeResolver.Resolve(response);
+                foreach (var xml in xmlEntries.Where(_ => !hasJson))
+                {
+                    if (!(shape.Kind == ErrorResponseKind.XmlObject && string.Equals(shape.MediaType, xml, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        yield return $"Operation '{operationId}' response {status} ({xml}) has no XML mapping (only a component model is mapped, not an inline, polymorphic or list schema): the error is answered and read as a ProblemDetails instead.";
+                    }
+                }
+
+                continue;
+            }
+
+            var xmlOnly = XmlBodyHelper.FindXmlOnlyBody(content);
+            var alternative = XmlBodyHelper.FindXmlAlternative(content);
+            foreach (var xml in xmlEntries)
+            {
+                var generated = string.Equals(xmlOnly?.MediaType, xml, StringComparison.OrdinalIgnoreCase) ||
+                                alternative?.AlternativeMediaTypes?.Contains(xml, StringComparer.OrdinalIgnoreCase) is true;
+                if (!generated)
+                {
+                    yield return hasJson
+                        ? $"Operation '{operationId}' response {status} ({xml}) is not generated: its schema is not the JSON body's component model, so the response is served and read as JSON only."
+                        : $"Operation '{operationId}' response {status} ({xml}) has no XML mapping (only a component model or a list of one is mapped, not an inline or polymorphic schema): its body is not generated.";
+                }
+            }
+
+            // A model and a file: the response is generated for its first (primary) media type only
+            if (ResponseBodyClassifier.PrimaryBody(content) is { } primary)
+            {
+                var primaryIsFile = primary.Kind == ResponseBodyKind.Binary;
+                foreach (var other in content.Keys)
+                {
+                    var kind = ResponseBodyClassifier.Classify(other, content[other].Schema);
+                    if (kind is ResponseBodyKind.Binary or ResponseBodyKind.Json or ResponseBodyKind.Xml &&
+                        (kind == ResponseBodyKind.Binary) != primaryIsFile)
+                    {
+                        yield return $"Operation '{operationId}' response {status} ({other}) is not generated: the response declares a model and a file, and only its first media type ({primary.MediaType}) is generated.";
+                    }
+                }
+            }
+        }
+
+        if (operation.RequestBody?.Content is { Count: > 0 } requestContent)
+        {
+            var hasJson = requestContent.Any(e => ResponseBodyClassifier.Classify(e.Key, e.Value.Schema) == ResponseBodyKind.Json);
+            var xmlOnly = XmlBodyHelper.FindXmlOnlyBody(requestContent);
+            var alternative = XmlBodyHelper.FindXmlAlternative(requestContent);
+            foreach (var xml in requestContent.Where(e => ResponseBodyClassifier.Classify(e.Key, e.Value.Schema) == ResponseBodyKind.Xml).Select(e => e.Key))
+            {
+                var body = string.Equals(xmlOnly?.MediaType, xml, StringComparison.OrdinalIgnoreCase)
+                    ? xmlOnly
+                    : alternative?.AlternativeMediaTypes?.Contains(xml, StringComparer.OrdinalIgnoreCase) is true ? alternative : null;
+                if (body is null)
+                {
+                    yield return hasJson
+                        ? $"Operation '{operationId}' request body ({xml}) is not generated: its schema is not the JSON body's component model, so the body is sent and bound as JSON only."
+                        : $"Operation '{operationId}' request body ({xml}) has no XML mapping (only a component model or a list of one is mapped, not an inline or polymorphic schema): the body is not generated.";
+                }
+                else if (body.IsList)
+                {
+                    yield return $"Operation '{operationId}' request body ({xml}) is a list: the clients send it as XML, but the generated server binds a single model from XML and reads a list as JSON only.";
+                }
+            }
+        }
     }
 
     /// <summary>
