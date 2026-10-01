@@ -188,6 +188,53 @@ public class TypeScriptClientExtractorTests
         Assert.Contains("file: Blob | File", content, StringComparison.Ordinal);
         Assert.Contains("body: file,", content, StringComparison.Ordinal);
         Assert.DoesNotContain("FormData", content, StringComparison.Ordinal);
+
+        // One concrete media type: the file is sent as it, whatever type the Blob carries
+        Assert.Contains($"contentType: '{mediaType}',", content, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A raw upload that declares a wildcard or several media types sends the file's own type when the declaration
+    /// covers it, else the first concrete type (else application/octet-stream) - never a literal wildcard.
+    /// </summary>
+    [Theory]
+    [InlineData("image/*", "contentType: file.type && ['image/*'].some((t) => t === '*/*' || t === file.type || (t.endsWith('/*') && file.type.startsWith(t.slice(0, -1)))) ? file.type : 'application/octet-stream',")]
+    [InlineData("*/*", "contentType: file.type && ['*/*'].some((t) => t === '*/*' || t === file.type || (t.endsWith('/*') && file.type.startsWith(t.slice(0, -1)))) ? file.type : 'application/octet-stream',")]
+    [InlineData("image/png|image/jpeg", "contentType: file.type && ['image/png', 'image/jpeg'].some((t) => t === '*/*' || t === file.type || (t.endsWith('/*') && file.type.startsWith(t.slice(0, -1)))) ? file.type : 'image/png',")]
+    public void Extract_RawFileUpload_AWildcardOrSeveralMediaTypes_SendsTheFilesOwnTypeWhenDeclared(
+        string mediaTypes,
+        string expected)
+    {
+        var content = string.Concat(mediaTypes.Split('|').Select(m => $$"""
+
+                               '{{m}}':
+                                 schema:
+                                   type: string
+                                   format: binary
+            """));
+        var yaml = $$"""
+                     openapi: 3.0.0
+                     info:
+                       title: Test API
+                       version: 1.0.0
+                     paths:
+                       /uploads:
+                         post:
+                           operationId: uploadFile
+                           requestBody:
+                             required: true
+                             content:{{content}}
+                           responses:
+                             '204':
+                               description: Stored
+                     """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, client) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains(expected, client, StringComparison.Ordinal);
     }
 
     [Fact]

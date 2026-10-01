@@ -133,6 +133,26 @@ public sealed class TypeScriptModelOrFileGateTests
                       schema:
                         type: string
                         format: binary
+          /sheets/{id}:
+            get:
+              operationId: getSheet
+              parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: integer
+              responses:
+                '200':
+                  description: The report, or its workbook (a media type that has "xml" in it, and is no XML)
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Report'
+                    application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+                      schema:
+                        type: string
+                        format: binary
         components:
           schemas:
             Report:
@@ -199,10 +219,12 @@ public sealed class TypeScriptModelOrFileGateTests
         import { ApiClient as FetchApiClient } from './fetch/client/ApiClient';
         import { ReportsClient as FetchReports } from './fetch/client/ReportsClient';
         import { NotesClient as FetchNotes } from './fetch/client/NotesClient';
+        import { SheetsClient as FetchSheets } from './fetch/client/SheetsClient';
         import { setXmlParser as setFetchParser } from './fetch/helpers/xml';
         import { ApiClient as AxiosApiClient } from './axios/client/ApiClient';
         import { ReportsClient as AxiosReports } from './axios/client/ReportsClient';
         import { NotesClient as AxiosNotes } from './axios/client/NotesClient';
+        import { SheetsClient as AxiosSheets } from './axios/client/SheetsClient';
         import { setXmlParser as setAxiosParser } from './axios/helpers/xml';
         import type { Report } from './fetch/models';
 
@@ -222,6 +244,7 @@ public sealed class TypeScriptModelOrFileGateTests
         type Answer = { status: number; contentType: string; body: Uint8Array | string };
         function answer(url: string): Answer {
           if (url.endsWith('/reports/1')) return { status: 200, contentType: 'application/json; charset=utf-8', body: '{"title":"Q3","page_count":3,"createdAt":"2026-10-01T08:00:00Z"}' };
+          if (url.endsWith('/sheets/2')) return { status: 200, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', body: pdf };
           if (url.endsWith('/notes/1')) return { status: 200, contentType: 'application/xml; charset=utf-8', body: '<note><text>Hi &amp; bye</text></note>' };
           return { status: 200, contentType: 'application/pdf', body: pdf };
         }
@@ -232,14 +255,18 @@ public sealed class TypeScriptModelOrFileGateTests
           return new Response(a.body as BodyInit, { status: a.status, headers: { 'content-type': a.contentType } });
         };
 
-        // A browser's XHR adapter: responseType 'blob' answers a Blob; the response transforms run on what came back
+        // An adapter as Axios' own: responseType 'blob' answers a Blob, 'arraybuffer' the bytes, else text; the response
+        // transforms run on what came back
         axios.defaults.adapter = (async (config: { url?: string; responseType?: string; headers?: unknown; transformResponse?: unknown }) => {
           const headers = config.headers as { get?: (name: string) => unknown } & Record<string, unknown>;
           accept = String((typeof headers.get === 'function' ? headers.get('Accept') : headers['Accept']) ?? '');
           const a = answer(String(config.url));
+          const bytes = typeof a.body === 'string' ? new TextEncoder().encode(a.body) : a.body;
           const raw: unknown = config.responseType === 'blob'
-            ? new Blob([a.body as BlobPart], { type: a.contentType })
-            : typeof a.body === 'string' ? a.body : new TextDecoder().decode(a.body);
+            ? new Blob([bytes as BlobPart], { type: a.contentType })
+            : config.responseType === 'arraybuffer'
+              ? bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+              : new TextDecoder().decode(bytes);
           const transforms = ([] as unknown[]).concat(config.transformResponse ?? []) as ((this: unknown, data: unknown, headers: unknown) => unknown)[];
           const data = transforms.reduce((d, fn) => fn.call(config, d, { 'content-type': a.contentType }), raw);
           return { data, status: a.status, statusText: String(a.status), headers: { 'content-type': a.contentType }, config, request: {} };
@@ -249,7 +276,7 @@ public sealed class TypeScriptModelOrFileGateTests
           return Array.from(new Uint8Array(await blob.arrayBuffer()));
         }
 
-        async function run(label: string, reports: { getReport(id: number): Promise<{ status: string; data?: Report | Blob }> }, notes: { getNote(id: number): Promise<{ status: string; data?: unknown }> }): Promise<void> {
+        async function run(label: string, reports: { getReport(id: number): Promise<{ status: string; data?: Report | Blob }> }, notes: { getNote(id: number): Promise<{ status: string; data?: unknown }> }, sheets: { getSheet(id: number): Promise<{ status: string; data?: unknown }> }): Promise<void> {
           const model = await reports.getReport(1);
           check(label + ' model', model.status === 'ok' && !(model.data instanceof Blob) && (model.data as Report | undefined)?.title === 'Q3', JSON.stringify(model));
           check(label + ' model-accept', accept === 'application/json, application/pdf, application/problem+json', 'accept ' + accept);
@@ -268,6 +295,12 @@ public sealed class TypeScriptModelOrFileGateTests
           check(label + ' xml-model', xml.status === 'ok' && same(xml.data, { text: 'Hi & bye' }), JSON.stringify(xml));
           check(label + ' xml-accept', accept === 'application/xml, application/pdf, application/problem+json', 'accept ' + accept);
 
+          const sheet = await sheets.getSheet(2);
+          check(label + ' sheet-file', sheet.status === 'ok' && sheet.data instanceof Blob, String(sheet.data));
+          if (sheet.data instanceof Blob) {
+            check(label + ' sheet-bytes', same(await bytesOf(sheet.data), Array.from(pdf)), JSON.stringify(await bytesOf(sheet.data)));
+          }
+
           const xmlFile = await notes.getNote(2);
           check(label + ' xml-file', xmlFile.status === 'ok' && xmlFile.data instanceof Blob, String(xmlFile.data));
           if (xmlFile.data instanceof Blob) {
@@ -276,9 +309,9 @@ public sealed class TypeScriptModelOrFileGateTests
         }
 
         const fetchApi = new FetchApiClient('http://stub');
-        await run('fetch', new FetchReports(fetchApi), new FetchNotes(fetchApi));
+        await run('fetch', new FetchReports(fetchApi), new FetchNotes(fetchApi), new FetchSheets(fetchApi));
         const axiosApi = new AxiosApiClient('http://stub');
-        await run('axios', new AxiosReports(axiosApi), new AxiosNotes(axiosApi));
+        await run('axios', new AxiosReports(axiosApi), new AxiosNotes(axiosApi), new AxiosSheets(axiosApi));
 
         if (failures.length > 0) {
           console.error(failures.join('\n'));

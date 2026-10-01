@@ -19,6 +19,8 @@ export interface RequestOptions {
   headers?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
   responseType?: 'json' | 'blob' | 'text';
+  /** The media type of a file sent as the raw body (the generated client passes the declared one); else the file's own type. */
+  contentType?: string;
   /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */
   arms?: readonly string[];
   /** A model or a file (the generated client passes it): a file answer (neither JSON nor XML) is a Blob, a model's is the model. */
@@ -98,7 +100,7 @@ export class ApiClient {
       if (options.body instanceof FormData) {
         fetchBody = options.body;
       } else if (options.body instanceof Blob) {
-        headers.set('Content-Type', 'application/octet-stream');
+        headers.set('Content-Type', options.contentType ?? (options.body.type || 'application/octet-stream'));
         fetchBody = options.body;
       } else {
         headers.set('Content-Type', 'application/json');

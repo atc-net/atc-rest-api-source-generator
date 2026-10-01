@@ -114,6 +114,8 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("  headers?: Record<string, string | number | boolean | undefined>;");
         sb.AppendLine("  signal?: AbortSignal;");
         sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
+        sb.AppendLine("  /** The media type of a file sent as the raw body (the generated client passes the declared one); else the file's own type. */");
+        sb.AppendLine("  contentType?: string;");
         sb.AppendLine("  /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */");
         sb.AppendLine("  arms?: readonly string[];");
         if (hasRetry)
@@ -271,7 +273,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("      if (options.body instanceof FormData) {");
         sb.AppendLine("        fetchBody = options.body;");
         sb.AppendLine("      } else if (options.body instanceof Blob) {");
-        sb.AppendLine("        headers.set('Content-Type', 'application/octet-stream');");
+        sb.AppendLine("        headers.set('Content-Type', options.contentType ?? (options.body.type || 'application/octet-stream'));");
         sb.AppendLine("        fetchBody = options.body;");
         sb.AppendLine("      } else {");
         sb.AppendLine("        headers.set('Content-Type', 'application/json');");

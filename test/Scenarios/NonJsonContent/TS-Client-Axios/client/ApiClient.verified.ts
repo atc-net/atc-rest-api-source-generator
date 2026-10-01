@@ -25,6 +25,8 @@ export interface RequestOptions {
   headers?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
   responseType?: 'json' | 'blob' | 'text';
+  /** The media type of a file sent as the raw body (the generated client passes the declared one); else the file's own type. */
+  contentType?: string;
   /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */
   arms?: readonly string[];
   /** A model or a file (the generated client passes it): a file answer (neither JSON nor XML) is a Blob, a model's is the model. */
@@ -139,8 +141,10 @@ export class ApiClient {
       if (options.body instanceof FormData) {
         data = options.body;
       } else if (options.body instanceof Blob) {
-        headers['Content-Type'] = 'application/octet-stream';
-        data = options.body;
+        const fileType = options.contentType ?? (options.body.type || 'application/octet-stream');
+        headers['Content-Type'] = fileType;
+        // Re-typed: an adapter may send the Blob's own type (Node's http adapter does)
+        data = options.body.type === fileType ? options.body : new Blob([options.body], { type: fileType });
       } else {
         headers['Content-Type'] = 'application/json';
         data = options.body;
@@ -162,13 +166,21 @@ export class ApiClient {
       params: options?.query,
       headers,
       signal: options?.signal,
-      responseType: options?.responseType === 'blob' || options?.modelOrFile ? 'blob' : options?.responseType === 'text' ? 'text' : 'json',
+      responseType: options?.responseType === 'blob' || options?.modelOrFile ? 'arraybuffer' : options?.responseType === 'text' ? 'text' : 'json',
     });
+
+    if (Object.prototype.toString.call(response.data) === '[object ArrayBuffer]' || ArrayBuffer.isView(response.data)) {
+      const bytes = response.data as unknown as ArrayBuffer;
+      const fileType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');
+      (response as { data: unknown }).data = response.status >= 200 && response.status < 300 && typeof Blob !== 'undefined'
+        ? new Blob([bytes], fileType ? { type: fileType } : undefined)
+        : new TextDecoder().decode(bytes);
+    }
 
     // A model or a file: a file stays a Blob; a model's body (JSON or XML) is read as text and transformed like any body
     if (options?.modelOrFile && response.status >= 200 && response.status < 300 && typeof Blob !== 'undefined' && response.data instanceof Blob) {
       const modelContentType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '').toLowerCase();
-      if (modelContentType.includes('json') || modelContentType.includes('xml')) {
+      if (/^(application\/json|application\/xml|text\/xml)$|\+(json|xml)$/.test((modelContentType.split(';')[0] ?? '').trim())) {
         let body: unknown = await response.data.text();
         for (const transform of ([] as unknown[]).concat(this.client.defaults.transformResponse ?? []) as ((this: unknown, data: unknown, headers: unknown) => unknown)[]) {
           body = transform.call({ responseType: 'json' }, body, response.headers);
@@ -374,9 +386,11 @@ export class ApiClient {
     }
 
     let errorBody: unknown = response.data instanceof UnparseableBody ? undefined : response.data;
+    let errorBodyIsRawText = response.config?.responseType === 'text' || response.config?.responseType === 'arraybuffer';
     if (typeof Blob !== 'undefined' && errorBody instanceof Blob) {
       // A download's error arrives as a Blob (responseType 'blob'): read it like any other error body.
       errorBody = await errorBody.text();
+      errorBodyIsRawText = true;
     }
 
     if (typeof errorBody === 'string') {
@@ -384,9 +398,9 @@ export class ApiClient {
       if (errorBody.length === 0) {
         errorBody = undefined;
       } else if (errorContentType.includes('application/json') || errorContentType.includes('+json')) {
-        // Only a responseType 'text' request left a JSON body unparsed; otherwise a string here is the parsed
-        // value of a JSON-string body ("42" stays the string '42').
-        if (response.config?.responseType === 'text') {
+        // Only a responseType 'text' request or a Blob left a JSON body unparsed; otherwise a string here is the
+        // parsed value of a JSON-string body ("42" stays the string '42').
+        if (errorBodyIsRawText) {
           try {
             errorBody = JSON.parse(errorBody);
           } catch {

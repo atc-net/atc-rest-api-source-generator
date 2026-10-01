@@ -190,6 +190,7 @@ export class PetClient {
   async uploadFile(petId: number, file: Blob | File, query?: { additionalMetadata?: string }): Promise<UploadFileResult> {
     return this.api.request<ApiResponse>('POST', `/pet/${petId}/uploadImage`, {
       body: file,
+      contentType: 'application/octet-stream',
       query: {
         additionalMetadata: query?.additionalMetadata,
       },

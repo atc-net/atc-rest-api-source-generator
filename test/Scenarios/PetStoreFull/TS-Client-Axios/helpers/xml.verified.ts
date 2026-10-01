@@ -29,6 +29,20 @@ export function isXmlMediaType(contentType: string | null | undefined): boolean 
   return type === 'application/xml' || type === 'text/xml' || (type.endsWith('+xml') && type !== 'application/problem+xml');
 }
 
+/** A result with the server's response in place of the stand-in an XML error model was read through. */
+export function withResponse<R extends { response: unknown }>(serverResponse: R['response'] | undefined, result: R): R {
+  if (serverResponse === undefined) {
+    return result;
+  }
+
+  const error = (result as { error?: unknown }).error;
+  if (error !== null && typeof error === 'object' && 'response' in error) {
+    Object.defineProperty(error, 'response', { value: serverResponse, enumerable: true, configurable: true });
+  }
+
+  return { ...result, response: serverResponse };
+}
+
 /** The success arm of a status. */
 export function xmlSuccessArm(status: number): 'ok' | 'created' | 'accepted' {
   return status === 201 ? 'created' : status === 202 ? 'accepted' : 'ok';

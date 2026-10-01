@@ -126,6 +126,8 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("  headers?: Record<string, string | number | boolean | undefined>;");
         sb.AppendLine("  signal?: AbortSignal;");
         sb.AppendLine("  responseType?: 'json' | 'blob' | 'text';");
+        sb.AppendLine("  /** The media type of a file sent as the raw body (the generated client passes the declared one); else the file's own type. */");
+        sb.AppendLine("  contentType?: string;");
         sb.AppendLine("  /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */");
         sb.AppendLine("  arms?: readonly string[];");
         if (hasRetry)
@@ -331,8 +333,10 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      if (options.body instanceof FormData) {");
         sb.AppendLine("        data = options.body;");
         sb.AppendLine("      } else if (options.body instanceof Blob) {");
-        sb.AppendLine("        headers['Content-Type'] = 'application/octet-stream';");
-        sb.AppendLine("        data = options.body;");
+        sb.AppendLine("        const fileType = options.contentType ?? (options.body.type || 'application/octet-stream');");
+        sb.AppendLine("        headers['Content-Type'] = fileType;");
+        sb.AppendLine("        // Re-typed: an adapter may send the Blob's own type (Node's http adapter does)");
+        sb.AppendLine("        data = options.body.type === fileType ? options.body : new Blob([options.body], { type: fileType });");
 
         if (convertDates)
         {
@@ -373,7 +377,7 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      params: options?.query,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: attemptSignal ?? options?.signal,");
-            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'blob' : options?.responseType === 'text' ? 'text' : 'json',");
+            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType === 'text' ? 'text' : 'json',");
             sb.AppendLine("    });");
             sb.AppendLine();
             sb.AppendLine("    let response: AxiosResponse<T> | undefined;");
@@ -408,10 +412,22 @@ public static class TypeScriptAxiosApiClientExtractor
             sb.AppendLine("      params: options?.query,");
             sb.AppendLine("      headers,");
             sb.AppendLine("      signal: options?.signal,");
-            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'blob' : options?.responseType === 'text' ? 'text' : 'json',");
+            sb.AppendLine("      responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType === 'text' ? 'text' : 'json',");
             sb.AppendLine("    });");
         }
 
+        sb.AppendLine();
+
+        // A file is asked for as bytes - every adapter keeps them (XHR, fetch, and Node's http adapter, which decodes a
+        // 'blob' as text) - and handed on as a Blob of the response's media type; an error's bytes as text, read like
+        // any error body.
+        sb.AppendLine("    if (Object.prototype.toString.call(response.data) === '[object ArrayBuffer]' || ArrayBuffer.isView(response.data)) {");
+        sb.AppendLine("      const bytes = response.data as unknown as ArrayBuffer;");
+        sb.AppendLine("      const fileType = String(response.headers?.['content-type'] ?? response.headers?.['Content-Type'] ?? '');");
+        sb.AppendLine("      (response as { data: unknown }).data = response.status >= 200 && response.status < 300 && typeof Blob !== 'undefined'");
+        sb.AppendLine("        ? new Blob([bytes], fileType ? { type: fileType } : undefined)");
+        sb.AppendLine("        : new TextDecoder().decode(bytes);");
+        sb.AppendLine("    }");
         sb.AppendLine();
 
         var wireArgument = hasWireNames ? ", options?.wire" : string.Empty;
@@ -688,12 +704,14 @@ public static class TypeScriptAxiosApiClientExtractor
 
         // The error body: a ProblemDetails / declared model / JSON string (already parsed by
         // transformResponse), or text. A JSON body left as a string - the operation asked for
-        // responseType 'text' - is parsed here; a malformed one (the UnparseableBody sentinel) or an
-        // empty one yields no body, so the message falls back to the status text.
+        // responseType 'text', or a download's error arrived as a Blob - is parsed here; a malformed one
+        // (the UnparseableBody sentinel) or an empty one yields no body, so the message falls back to the status text.
         sb.AppendLine("    let errorBody: unknown = response.data instanceof UnparseableBody ? undefined : response.data;");
+        sb.AppendLine("    let errorBodyIsRawText = response.config?.responseType === 'text' || response.config?.responseType === 'arraybuffer';");
         sb.AppendLine("    if (typeof Blob !== 'undefined' && errorBody instanceof Blob) {");
         sb.AppendLine("      // A download's error arrives as a Blob (responseType 'blob'): read it like any other error body.");
         sb.AppendLine("      errorBody = await errorBody.text();");
+        sb.AppendLine("      errorBodyIsRawText = true;");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    if (typeof errorBody === 'string') {");
@@ -701,9 +719,9 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      if (errorBody.length === 0) {");
         sb.AppendLine("        errorBody = undefined;");
         sb.AppendLine("      } else if (errorContentType.includes('application/json') || errorContentType.includes('+json')) {");
-        sb.AppendLine("        // Only a responseType 'text' request left a JSON body unparsed; otherwise a string here is the parsed");
-        sb.AppendLine("        // value of a JSON-string body (\"42\" stays the string '42').");
-        sb.AppendLine("        if (response.config?.responseType === 'text') {");
+        sb.AppendLine("        // Only a responseType 'text' request or a Blob left a JSON body unparsed; otherwise a string here is the");
+        sb.AppendLine("        // parsed value of a JSON-string body (\"42\" stays the string '42').");
+        sb.AppendLine("        if (errorBodyIsRawText) {");
         sb.AppendLine("          try {");
         sb.AppendLine(convertDates ? "            errorBody = JSON.parse(errorBody, dateReviver);" : "            errorBody = JSON.parse(errorBody);");
         sb.AppendLine("          } catch {");

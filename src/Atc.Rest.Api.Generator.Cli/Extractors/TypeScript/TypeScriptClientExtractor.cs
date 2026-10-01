@@ -578,7 +578,10 @@ public static class TypeScriptClientExtractor
             var modelOrFileAccept = operation.GetModelOrFileMediaTypes() is { Count: > 0 } fileMediaTypes
                 ? XmlBodyHelper.AcceptFor(XmlBodyHelper.FindXmlOnlyBody(operation.Responses?["200"]?.Content) is { } xmlOnly ? [xmlOnly] : [], XmlBodyHelper.ErrorMediaTypes(operation), preferXml: false, fileMediaTypes)
                 : null;
-            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions), modelOrFileAccept);
+
+            // A raw file upload: the media types the request body declares
+            var rawUploadMediaTypes = operation.RequestBody?.Content?.Keys.Where(OpenApiOperationExtensions.IsRawFileUploadContentType).ToList();
+            AppendStandardMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, isFileDownload, isTextDownload, returnType, namingStrategy, convertDates, perOpResultTypeName, writableSchemas, brandedIds, zodSpec, retryOption, armsOption, wireOption, BuildXmlOption(operation, xmlFunctions), modelOrFileAccept, rawUploadMediaTypes);
         }
     }
 
@@ -691,7 +694,8 @@ public static class TypeScriptClientExtractor
         string? armsOption = null,
         string? wireOption = null,
         string? xmlOption = null,
-        string? modelOrFileAccept = null)
+        string? modelOrFileAccept = null,
+        IReadOnlyList<string>? rawUploadMediaTypes = null)
     {
         // Build parameter list
         var paramList = BuildParameterList(pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path);
@@ -754,7 +758,7 @@ public static class TypeScriptClientExtractor
 
             if (hasBody && isFileUpload)
             {
-                AppendFormDataBody(sb, bodySchema!, bodyContentType, namingStrategy);
+                AppendFormDataBody(sb, bodySchema!, bodyContentType, namingStrategy, rawUploadMediaTypes);
             }
             else if (hasBody)
             {
@@ -1096,12 +1100,30 @@ public static class TypeScriptClientExtractor
         StringBuilder sb,
         IOpenApiSchema bodySchema,
         string bodyContentType,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        IReadOnlyList<string>? rawUploadMediaTypes = null)
     {
-        // For raw binary upload (application/octet-stream), pass file directly
+        // A raw binary upload: the file, sent as the declared media type (a server that accepts only it answers any
+        // other with 415). One concrete media type is sent as it; a wildcard or several send the file's own type when
+        // the declaration covers it, else the first concrete one - never a literal wildcard.
         if (OpenApiOperationExtensions.IsRawFileUploadContentType(bodyContentType))
         {
+            var declared = rawUploadMediaTypes is { Count: > 0 } ? rawUploadMediaTypes : [bodyContentType];
             sb.AppendLine("      body: file,");
+            if (declared.Count == 1 && !declared[0].Contains('*', StringComparison.Ordinal))
+            {
+                sb.Append("      contentType: '").Append(declared[0]).AppendLine("',");
+            }
+            else
+            {
+                var fallback = declared.FirstOrDefault(m => !m.Contains('*', StringComparison.Ordinal)) ?? "application/octet-stream";
+                sb.Append("      contentType: file.type && [")
+                    .Append(string.Join(", ", declared.Select(m => "'" + m + "'")))
+                    .Append("].some((t) => t === '*/*' || t === file.type || (t.endsWith('/*') && file.type.startsWith(t.slice(0, -1)))) ? file.type : '")
+                    .Append(fallback)
+                    .AppendLine("',");
+            }
+
             return;
         }
 

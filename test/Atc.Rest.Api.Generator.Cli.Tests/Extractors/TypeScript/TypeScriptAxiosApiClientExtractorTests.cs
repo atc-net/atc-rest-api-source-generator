@@ -18,7 +18,7 @@ public class TypeScriptAxiosApiClientExtractorTests
         var result = TypeScriptAxiosApiClientExtractor.Generate(headerContent: null);
 
         Assert.Contains(
-            "responseType: options?.responseType === 'blob' ? 'blob' : options?.responseType === 'text' ? 'text' : 'json'",
+            "responseType: options?.responseType === 'blob' ? 'arraybuffer' : options?.responseType === 'text' ? 'text' : 'json'",
             result,
             StringComparison.Ordinal);
     }

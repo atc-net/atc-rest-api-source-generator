@@ -340,6 +340,10 @@ public sealed class TypeScriptXmlGateTests
 
           const report = await reports.getReport(7);
           const noReport = await reports.getReport(404);
+          const errorResponseType = String((typeof noReport.response?.headers?.get === 'function' ? noReport.response.headers.get('content-type') : noReport.response?.headers?.['content-type']) ?? '');
+          check(label + ' xml-error-response', errorResponseType.startsWith('application/xml'), 'the result response says ' + errorResponseType);
+          const errorErrorResponseType = String((typeof noReport.error?.response?.headers?.get === 'function' ? noReport.error.response.headers.get('content-type') : noReport.error?.response?.headers?.['content-type']) ?? 'application/xml');
+          check(label + ' xml-error-error-response', errorErrorResponseType.startsWith('application/xml'), 'the error response says ' + errorErrorResponseType);
           check(label + ' xml-error-model', noReport.status === 'notFound' && same(noReport.error.body, { code: 'R404', message: 'No report' }) && noReport.error.message === 'No report', noReport.status + ' ' + JSON.stringify(noReport.error?.body));
 
           check(label + ' namespaced', report.status === 'ok' && same(report.data, { title: 'Q3', pages: 12, available: true }), JSON.stringify(report.data ?? report.error?.message));

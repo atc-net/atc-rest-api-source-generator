@@ -144,6 +144,7 @@
   <nav class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-tab="overview">Overview</button>
     <button role="tab" aria-selected="false" data-tab="matrix">Matrix</button>
+    <button role="tab" aria-selected="false" data-tab="media">Body media types</button>
     <button role="tab" aria-selected="false" data-tab="method">How it was tested</button>
     <button role="tab" aria-selected="false" data-tab="readiness">3.0 readiness</button>
   </nav>
@@ -209,6 +210,11 @@
       <div class="counts" id="f-count"></div>
     </div>
     <div class="table-wrap" id="matrix-wrap"><table class="matrix" id="matrix"></table></div>
+  </section>
+
+  <section id="tab-media" role="tabpanel" hidden>
+    <div class="panel" id="media-intro"></div>
+    <div id="media"></div>
   </section>
 
   <section id="tab-method" role="tabpanel" hidden>
@@ -574,7 +580,7 @@ if (!REPORT) {
       <li><b>C# clients.</b> The source generator generates each client (EndpointPerOperation with each <code>errorResponseFormat</code> - Custom with the Monta sample's <code>customErrorResponseModel</code> - and the TypedClient in both result styles); a probe calls every case against the host and records the status, <code>IsSuccess</code>, the typed accessor and its value (or its exception).</li>
       <li><b>TypeScript clients.</b> The CLI executable (<code>atc-rest-api-gen generate client-typescript</code>) generates the Fetch and the Axios client; a Node harness (<code>tsx</code>) calls every case over HTTP and records the result arm, the error class, <code>message</code>, <code>detail</code>, <code>body</code> and <code>errors</code>. Every client must report every case.</li>
       <li><b>Verdicts.</b> Each cell is judged by rules written from the documented contract (wiki: <i>Working with Error Responses</i>): the expected accessor, type and arm come from the specification (never from the generated client), and every typed value is compared field by field with the body on the wire. <span class="v lossy">lossy</span> is only given with the exact fields the typed value cannot hold; any other difference is a <span class="v fail">fail</span>. The same rules run as the test <code>EndToEnd_EveryClientReadsWhatTheServerWrites</code>, which fails on any fail; this page is its data. The test <code>MatrixVerdicts_FailRegressedResults</code> is a negative control: for each rule - wire (success, validation, handler value, default body, exceptions, Retry-After, stub), EndpointPerOperation (success, IsSuccess, value, JSON-text string, custom field, default accessor, undeclared <code>Content</code>, non-JSON bodies, the fields a lossy names), TypedClient Throw and Result, TypeScript (arm, generated arms, class, status, body, fields, message, validation errors, success arm) - it asserts that a correct result passes and a regressed one fails, so a pass is evidence rather than the absence of a check.</li>
-      <li><b>Not exercised.</b> Secured and rate-limited operations (a 401/403 from the authentication handler, the generated rate limiter's 429, <code>WWW-Authenticate</code>); validation exceptions thrown by handler code; the framework's 413/415 and bad parameter values; the Development environment (5xx <code>detail</code>); OpenAPI 3.1/3.2 specifications; a server without Atc.Rest.MinimalApi or with the ValidationFilter / global error handler switched off; <code>x-retry-*</code> policies; network failures, timeouts and cancellation; 1xx and 3xx statuses, HEAD, 2xx other than 200/204; binary and streaming operations (the C# EndpointPerOperation limit is documented; the TypedClient Result download case has its own test); the React Query / SWR hooks, Zod runtime validation, date conversion and naming strategies (the error path is the same <code>ApiError</code>); a browser runtime (the TypeScript clients run in Node - CORS, header exposure and Axios' <code>Blob</code> error bodies on downloads are not observed); text bodies in a charset other than UTF-8 in the TypeScript clients. Node's fetch rejects every 407 response, so the Fetch client cannot be observed on 407.</li>
+      <li><b>Not exercised.</b> Secured and rate-limited operations (a 401/403 from the authentication handler, the generated rate limiter's 429, <code>WWW-Authenticate</code>); validation exceptions thrown by handler code; the framework's 413/415 and bad parameter values; the Development environment (5xx <code>detail</code>); OpenAPI 3.1/3.2 specifications; a server without Atc.Rest.MinimalApi or with the ValidationFilter / global error handler switched off; <code>x-retry-*</code> policies; network failures, timeouts and cancellation; 1xx and 3xx statuses, HEAD, 2xx other than 200/204; binary bodies, uploads and XML (the <b>Body media types</b> tab - a streamed download there is checked for its bytes only); streaming operations other than a download; the React Query / SWR hooks, Zod runtime validation, date conversion and naming strategies (the error path is the same <code>ApiError</code>); a browser runtime (the TypeScript clients run in Node - CORS and header exposure are not observed; Axios' <code>Blob</code> error bodies on downloads are, on its http and fetch adapters, in the <b>Body media types</b> tab); text bodies in a charset other than UTF-8 in the TypeScript clients. Node's fetch rejects every 407 response, so the Fetch client cannot be observed on 407.</li>
     </ul>
     <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*Report_EndToEndErrorBodyMatrix" --explicit only</code> writes this page and <code>issues/return-body-report.json</code>.</p></div>
     <div id="review"></div>`;
@@ -583,6 +589,42 @@ if (!REPORT) {
   // Readiness
   $('#readiness').innerHTML = REPORT.readiness ?? '<p>No readiness notes embedded.</p>';
 }
+
+// Body media types: files, uploads, XML and a model or a file, through every client
+(function renderBodyMedia() {
+  const media = REPORT?.bodyMedia;
+  if (!media) {
+    $('#media-intro').innerHTML = '<p>This report was generated without the body media-type matrix.</p>';
+    return;
+  }
+
+  const counts = {};
+  const wireCounts = {};
+  for (const c of media.cases) {
+    for (const cell of Object.values(c.clients)) counts[cell.verdict] = (counts[cell.verdict] ?? 0) + 1;
+    for (const w of [c.wire, c.wireXml].filter(Boolean)) wireCounts[w.verdict] = (wireCounts[w.verdict] ?? 0) + 1;
+  }
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const wireTotal = Object.values(wireCounts).reduce((a, b) => a + b, 0);
+  $('#media-intro').innerHTML = `
+    <h2>Body media types</h2>
+    <p>The generated server (one specification, handwritten handlers) on Kestrel, and every generated client calling it over HTTP: files of every kind - PDF, Excel, PNG, JPEG, <code>application/octet-stream</code> - as bytes with a file name, as a stream without one, and streamed to the client (<code>x-return-stream</code>); raw uploads; XML bodies (XML-only, a list, a request body, JSON or XML by <code>Accept</code>, a declared XML error model); a response that is a model or a file; and the errors on each - a handler's 404, an exception's 500, a validation 400 and a proxy's HTML 502 (a stub in front of the API).</p>
+    <p><b>The server</b> is checked against values computed by the test, not by the handlers: each file's bytes (SHA-256 and length), media type and exact file name (<code>filename*</code> - the names have an Å; none for a stream); the handler's model, read back from the JSON or XML on the wire; and for an error its status, media type and body (a ProblemDetails' title and validation key, the declared XML error model's fields, the proxy's page; no exception text). Whether a case expects a file, a model or an error comes from the case, never from the wire. A JSON-or-XML case is captured twice: without an <code>Accept</code>, and XML first as a <code>preferXml</code> client asks (the server then writes <code>application/xml</code> and <code>application/problem+xml</code>).</p>
+    <p><b>A client</b> passes when it exposes what the server wrote: a file with the same bytes, content type (the file's own - <code>DownloadedFile.ContentType</code>, the <code>Blob</code>'s <code>type</code>; no fallback to the headers) and file name; a model equal to the handler's, field by field, with the status and media type it got (a <code>preferXml</code> client must get XML, the others JSON; the TypedClient <code>Throw</code> style exposes neither and is checked on the model only); an error with the server's status and media type and, read into the typed value, the ProblemDetails' <code>detail</code> (else <code>title</code>) and validation keys, or the XML error model's <code>code</code> and <code>message</code> (the TypedClient has no typed errors by design: its <code>Result</code> style must hold the server's raw body, its <code>Throw</code> style throws with the status).</p>
+    <p><b>Limits.</b> The files are synthetic bytes (every byte value) under the media types, not real PDFs or images. A streamed case (<code>x-return-stream</code>) proves the bytes arrive through the streamed C# EndpointPerOperation result; the probe buffers them, and the other clients download them as any file. Axios is run on Node's default adapter (http) and on its fetch adapter; a browser's default (XHR) is not exercised. The 502 rows come from a stub in front of the API (no generated server code runs), and the 404/500/502 rows repeat per file kind. Uploads cover PDF and PNG, sent as a file without a type (the generated client must send the declared one).</p>
+    <p class="counts">${media.cases.length} cases × ${media.clients.length} clients = ${total} client cells: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')} · ${wireTotal} server answers: ${Object.entries(wireCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')} · run ${esc(media.generatedAt)} in ${esc(media.durationSeconds)} s</p>
+    <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientReadsEveryBodyMediaType"</code> (fails on any fail cell).</p></div>`;
+
+  const groups = [...new Set(media.cases.map((c) => c.group))];
+  $('#media').innerHTML = groups.map((g) => {
+    const rows = media.cases.filter((c) => c.group === g);
+    return `<div class="panel"><h3>${esc(g)}</h3><div class="table-wrap"><table class="matrix"><thead><tr><th>Case</th><th>Server wire</th>${media.clients.map((cl) => `<th title="${esc(cl.group + ' · ' + cl.label)}">${esc(cl.group.replace('C# EndpointPerOperation', 'C# EPO'))}<br>${esc(cl.label.replace('typedClientResultStyle: ', '').replace('errorResponseFormat: ', ''))}</th>`).join('')}</tr></thead><tbody>${rows.map((c) => `<tr>
+      <td><b>${esc(c.id)}</b><br><span class="mono" style="font-size:11.5px">${esc(c.request)}</span></td>
+      <td class="wire cell" title="${esc(c.wire.why)}"><span class="v ${esc(c.wire.verdict)}">${esc(c.wire.verdict)}</span> <span class="ct">${esc(c.wire.status)} ${esc(c.wire.mediaType ?? '')}</span><span class="s">${esc(c.wire.fileName ? 'file name ' + c.wire.fileName + ' · ' : '')}${esc(c.wire.body === '(binary)' ? c.wire.length.toLocaleString() + ' bytes · sha256 ' + c.wire.sha256.slice(0, 12) + '…' : c.wire.body.slice(0, 120))}</span>${c.wireXml ? `<br><span class="v ${esc(c.wireXml.verdict)}">${esc(c.wireXml.verdict)}</span> <span class="ct">XML first: ${esc(c.wireXml.status)} ${esc(c.wireXml.mediaType ?? '')}</span><span class="s">${esc(c.wireXml.body.slice(0, 120))}</span>` : ''}</td>
+      ${media.clients.map((cl) => { const cell = c.clients[cl.id]; return cell ? `<td class="cell" title="${esc(cell.why)}"><span class="v ${esc(cell.verdict)}">${esc(cell.verdict)}</span>${cell.loss ? ` <span class="lk">${esc(cell.loss.kind)}</span>` : ''}<span class="s">${esc(cell.summary)}</span></td>` : '<td class="cell"><span class="v na">na</span></td>'; }).join('')}
+    </tr>`).join('')}</tbody></table></div></div>`;
+  }).join('');
+})();
 
 // Tabs
 function selectTab(name) {

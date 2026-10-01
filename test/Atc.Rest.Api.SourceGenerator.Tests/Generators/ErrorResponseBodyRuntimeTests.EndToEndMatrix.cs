@@ -119,6 +119,7 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.True(IsNodeAvailable(out var reason), reason);
 
         var matrix = await CollectEndToEndMatrixAsync();
+        matrix["bodyMedia"] = await CollectBodyMediaMatrixAsync();
 
         var root = FindRepositoryRoot();
         var issues = Path.Combine(root, "issues");

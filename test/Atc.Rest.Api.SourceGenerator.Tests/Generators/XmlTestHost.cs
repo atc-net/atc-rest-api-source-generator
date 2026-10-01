@@ -3,7 +3,7 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// <summary>
 /// A generated server on Kestrel (random port) with test handlers: the specification is generated, the handler source
 /// (which sees every generated namespace) is compiled with it, and the registration type's <c>Register(IServiceCollection)</c>
-/// adds the handlers before the generated <c>Add/Map{Project}Api</c>.
+/// adds the handlers before the generated <c>Add/Map{Project}Api</c>; <c>configure</c> adds middleware before the endpoints.
 /// </summary>
 internal sealed class XmlTestHost : IAsyncDisposable
 {
@@ -22,7 +22,8 @@ internal sealed class XmlTestHost : IAsyncDisposable
     public static async Task<XmlTestHost> StartAsync(
         string yaml,
         string handlerSource,
-        string registrationTypeName)
+        string registrationTypeName,
+        Action<WebApplication>? configure = null)
     {
         var sources = ErrorResponseBodyRuntimeTests.Generate(new ApiServerGenerator(), ".atc-rest-api-server", ErrorResponseBodyRuntimeTests.ServerMarker, includeMinimalApi: true, yaml);
 
@@ -42,6 +43,7 @@ internal sealed class XmlTestHost : IAsyncDisposable
         assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!.GetMethod("AddErrorBodiesApi")!.Invoke(null, [builder.Services, null]);
         var webApp = builder.Build();
         webApp.Urls.Add("http://127.0.0.1:0");
+        configure?.Invoke(webApp);
         assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!.GetMethod("MapErrorBodiesApi")!.Invoke(null, [webApp, null]);
         await webApp.StartAsync(TestContext.Current.CancellationToken);
         return new XmlTestHost(webApp);
