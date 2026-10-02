@@ -38,7 +38,7 @@ export function useListDocuments(config?: SWRConfiguration<Document[], ApiError>
 }
 
 /** Upload a document - a PDF, an Excel workbook, a PNG or a JPEG - as the raw request body */
-export function useUploadDocument(query?: { fileName?: string }, config?: SWRMutationConfiguration<Document, ApiError, typeof documentsKeys.all, Blob | File>) {
+export function useUploadDocument(query: { fileName: string }, config?: SWRMutationConfiguration<Document, ApiError, typeof documentsKeys.all, Blob | File>) {
   const api = useApiService();
   const { mutate } = useSWRConfig();
   return useSWRMutation<Document, ApiError, typeof documentsKeys.all, Blob | File>(

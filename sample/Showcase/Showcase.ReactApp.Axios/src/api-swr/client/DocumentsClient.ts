@@ -70,7 +70,7 @@ export class DocumentsClient {
   }
 
   /** Upload a document - a PDF, an Excel workbook, a PNG or a JPEG - as the raw request body */
-  async uploadDocument(file: Blob | File, query?: { fileName?: string }): Promise<UploadDocumentResult> {
+  async uploadDocument(file: Blob | File, query: { fileName: string }): Promise<UploadDocumentResult> {
     return this.api.request<Document>('POST', '/documents', {
       body: file,
       contentType: file.type && ['application/pdf', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'image/png', 'image/jpeg'].some((t) => t === '*/*' || t === file.type || (t.endsWith('/*') && file.type.startsWith(t.slice(0, -1)))) ? file.type : 'application/pdf',

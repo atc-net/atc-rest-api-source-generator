@@ -39,7 +39,7 @@ export function useListDocuments(options?: Omit<UseQueryOptions<Document[], ApiE
 }
 
 /** Upload a document - a PDF, an Excel workbook, a PNG or a JPEG - as the raw request body */
-export function useUploadDocument(query?: { fileName?: string }, options?: Omit<UseMutationOptions<Document, ApiError, Blob | File>, 'mutationFn'>) {
+export function useUploadDocument(query: { fileName: string }, options?: Omit<UseMutationOptions<Document, ApiError, Blob | File>, 'mutationFn'>) {
   const api = useApiService();
   const queryClient = useQueryClient();
   return useMutation({
