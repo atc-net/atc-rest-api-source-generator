@@ -46,7 +46,8 @@ internal static class CompilationVerificationHarness
         string masterFolder,
         bool useFullReferences = false,
         string assemblyName = "TestAssembly",
-        string? markerDirectoryOverride = null)
+        string? markerDirectoryOverride = null,
+        string? defaultMarkerContent = null)
     {
         var yamlPath = GetScenarioPath(scenarioName, yamlFileName);
         var yamlContent = File.ReadAllText(yamlPath);
@@ -55,7 +56,7 @@ internal static class CompilationVerificationHarness
             Path.GetDirectoryName(yamlPath),
             masterFolder,
             markerFileName);
-        var markerContent = File.Exists(markerPath) ? File.ReadAllText(markerPath) : "{}";
+        var markerContent = File.Exists(markerPath) ? File.ReadAllText(markerPath) : defaultMarkerContent ?? "{}";
 
         // The server-domain generator writes handler scaffolds as physical files next to the marker
         // file rather than emitting them as source. Giving the marker an absolute path lets a caller
@@ -64,9 +65,16 @@ internal static class CompilationVerificationHarness
             ? markerFileName
             : Path.Combine(markerDirectoryOverride, markerFileName);
 
+        // A multi-part specification is the base file plus its "{Base}_{Part}.yaml" files, as in a project.
+        var partFiles = new DirectoryInfo(Path.GetDirectoryName(yamlPath))
+            .EnumerateFiles(Path.GetFileNameWithoutExtension(yamlFileName) + "_*.yaml")
+            .OrderBy(f => f.Name, StringComparer.Ordinal)
+            .Select(f => (AdditionalText)new InMemoryAdditionalText(f.Name, File.ReadAllText(f.FullName)));
+
         var additionalTexts = ImmutableArray.Create<AdditionalText>(
-            new InMemoryAdditionalText(yamlFileName, yamlContent),
-            new InMemoryAdditionalText(markerAdditionalTextPath, markerContent));
+                new InMemoryAdditionalText(yamlFileName, yamlContent),
+                new InMemoryAdditionalText(markerAdditionalTextPath, markerContent))
+            .AddRange(partFiles);
 
         // The server generator gates on ASP.NET Core references being present; supply the
         // full reference set when the caller needs the generator to actually emit output.
@@ -111,6 +119,24 @@ internal static class CompilationVerificationHarness
     }
 
     /// <summary>
+    /// Compiles the generated sources the way a strict consumer does - nullable enabled and XML documentation
+    /// checked - and returns the compiler warnings. A consumer that builds with <c>TreatWarningsAsErrors</c>
+    /// cannot build at all when generated code warns.
+    /// </summary>
+    public static List<string> CompileGeneratedSourcesForWarnings(
+        List<(string HintName, string Source)> generatedSources,
+        bool includeMinimalApi = false)
+    {
+        var compilation = CreateCompilation(generatedSources, includeMinimalApi, DocumentationMode.Diagnose);
+
+        return compilation
+            .GetDiagnostics(TestContext.Current.CancellationToken)
+            .Where(d => d.Severity == DiagnosticSeverity.Warning)
+            .Select(d => d.ToString())
+            .ToList();
+    }
+
+    /// <summary>
     /// Compiles the generated sources to an in-memory assembly and loads it, asserting the
     /// emit succeeded. Used by wire-byte round-trip tests that invoke emitted types via reflection.
     /// </summary>
@@ -136,8 +162,11 @@ internal static class CompilationVerificationHarness
 
     private static CSharpCompilation CreateCompilation(
         List<(string HintName, string Source)> generatedSources,
-        bool includeMinimalApi = false)
+        bool includeMinimalApi = false,
+        DocumentationMode documentationMode = DocumentationMode.Parse)
     {
+        var parseOptions = CSharpParseOptions.Default.WithDocumentationMode(documentationMode);
+
         // Generated code assumes the host project's ImplicitUsings; supply the standard set
         // so BCL types (Task, IAsyncEnumerable, HttpClient, ...) resolve without per-file usings.
         const string implicitUsings = """
@@ -153,7 +182,9 @@ internal static class CompilationVerificationHarness
         var trees = generatedSources
             .Select(s => CSharpSyntaxTree.ParseText(
                 SourceText.From(s.Source, Encoding.UTF8),
-                cancellationToken: TestContext.Current.CancellationToken))
+                parseOptions,
+                path: s.HintName,
+                TestContext.Current.CancellationToken))
             .Append(CSharpSyntaxTree.ParseText(
                 SourceText.From(implicitUsings, Encoding.UTF8),
                 cancellationToken: TestContext.Current.CancellationToken))

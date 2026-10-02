@@ -5,6 +5,9 @@ namespace Demo.ApiHandlers;
 /// </summary>
 public sealed class CreateTaskHandler : ICreateTaskHandler
 {
+    /// <summary>
+    /// Executes the CreateTask operation.
+    /// </summary>
     public System.Threading.Tasks.Task<CreateTaskResult> ExecuteAsync(
         CreateTaskParameters parameters,
         CancellationToken cancellationToken = default)

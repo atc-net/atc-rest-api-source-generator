@@ -96,4 +96,102 @@ public class GeneratorCompilationGateTests
             $"{combination}: {errors.Count} compile error(s):\n  " +
             string.Join("\n  ", errors.Take(25)));
     }
+
+    /// <summary>
+    /// Compiles the emitted sources the way a strict consumer does (nullable enabled, XML documentation
+    /// checked) and asserts there are no compiler warnings: with <c>TreatWarningsAsErrors</c> a warning in
+    /// generated code breaks the consumer's build, and the consumer cannot fix generated code.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(CompilableScenarioGenerators))]
+    public void GeneratedSources_CompileWithoutWarnings(
+        string scenarioName,
+        string masterFolder)
+    {
+        var combination = $"{scenarioName}/{masterFolder}";
+        var generatedSources = GeneratorSnapshotHarness.RunRawForCompilation(scenarioName, masterFolder);
+
+        var warnings = CompilationVerificationHarness.CompileGeneratedSourcesForWarnings(
+            generatedSources,
+            CompilationVerificationHarness.ScenarioReferencesMinimalApi(scenarioName));
+
+        Assert.True(
+            warnings.Count == 0,
+            $"{combination}: {warnings.Count} compiler warning(s):\n  " +
+            string.Join("\n  ", warnings.Take(25)));
+    }
+
+    /// <summary>
+    /// Scenario and generator pairs <b>without a marker folder</b> whose output does not compile today - the
+    /// ratchet of <see cref="EveryScenario_CompilesForEveryGenerator"/>, with the same rule as
+    /// <see cref="KnownNonCompilingCombinations"/>: a listed pair that starts compiling fails the test, so the
+    /// list can only shrink. The families behind it:
+    /// <list type="bullet">
+    ///   <item><description><c>Pagination</c> (server): a component that extends the generic page
+    ///   (<c>AccountPage: allOf [PaginatedResult, results: Account[]]</c>) derives from
+    ///   <c>PaginatedResult</c> without its type argument.</description></item>
+    ///   <item><description><c>AsyncEnumerableHooks</c>: a response that extends a base which is <i>not</i> a
+    ///   generic page (no untyped array of its own) is still typed <c>PaginationResult&lt;Item&gt;</c>; and an
+    ///   inline enum on a query parameter is referenced by the clients but never generated.</description></item>
+    ///   <item><description><c>PizzaPlanet</c> (EndpointPerOperation): a streamed operation's endpoint
+    ///   references a result class that is not generated.</description></item>
+    /// </list>
+    /// </summary>
+    private static readonly HashSet<string> KnownNonCompilingCombinationsWithoutMarker = new(StringComparer.Ordinal)
+    {
+        "AsyncEnumerableHooks/Client-Operation",
+        "AsyncEnumerableHooks/Client-Typed",
+        "AsyncEnumerableHooks/Server",
+        "AsyncEnumerableHooks/ServerDomain",
+        "Pagination/Server",
+        "Pagination/ServerDomain",
+        "PizzaPlanet/Client-Operation",
+    };
+
+    public static IEnumerable<object[]> ScenarioGeneratorsWithoutMarker
+        => GeneratorSnapshotHarness.GetScenarioGeneratorDataWithoutMarker();
+
+    /// <summary>
+    /// Every scenario is given to every C# generator, also the ones it has no marker folder (and so no
+    /// snapshots) for: a specification written to exercise one generator is still a specification a consumer
+    /// could give to another. Each is generated with the default marker and has to compile without errors and
+    /// without warnings.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(ScenarioGeneratorsWithoutMarker))]
+    public void EveryScenario_CompilesForEveryGenerator(
+        string scenarioName,
+        string masterFolder)
+    {
+        var combination = $"{scenarioName}/{masterFolder} (default marker)";
+        var generatedSources = GeneratorSnapshotHarness.RunRawForCompilation(scenarioName, masterFolder);
+
+        Assert.False(
+            generatedSources.Count == 0,
+            $"{combination}: the generator emitted no sources.");
+
+        var includeMinimalApi = CompilationVerificationHarness.ScenarioReferencesMinimalApi(scenarioName);
+        var errors = CompilationVerificationHarness.CompileGeneratedSources(generatedSources, includeMinimalApi);
+
+        if (KnownNonCompilingCombinationsWithoutMarker.Contains($"{scenarioName}/{masterFolder}"))
+        {
+            Assert.False(
+                errors.Count == 0,
+                $"{combination} now compiles. Remove it from {nameof(KnownNonCompilingCombinationsWithoutMarker)}.");
+
+            return;
+        }
+
+        Assert.True(
+            errors.Count == 0,
+            $"{combination}: {errors.Count} compile error(s):\n  " +
+            string.Join("\n  ", errors.Take(25)));
+
+        var warnings = CompilationVerificationHarness.CompileGeneratedSourcesForWarnings(generatedSources, includeMinimalApi);
+
+        Assert.True(
+            warnings.Count == 0,
+            $"{combination}: {warnings.Count} compiler warning(s):\n  " +
+            string.Join("\n  ", warnings.Take(25)));
+    }
 }

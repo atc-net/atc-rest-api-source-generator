@@ -5,6 +5,9 @@ namespace Demo.ApiHandlers;
 /// </summary>
 public sealed class UpdateAccountByIdHandler : IUpdateAccountByIdHandler
 {
+    /// <summary>
+    /// Executes the UpdateAccountById operation.
+    /// </summary>
     public System.Threading.Tasks.Task<UpdateAccountByIdResult> ExecuteAsync(
         UpdateAccountByIdParameters parameters,
         CancellationToken cancellationToken = default)

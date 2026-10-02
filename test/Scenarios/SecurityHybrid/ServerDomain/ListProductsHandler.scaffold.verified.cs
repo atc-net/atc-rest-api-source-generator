@@ -5,6 +5,9 @@ namespace SecurityHybrid.ApiHandlers;
 /// </summary>
 public sealed class ListProductsHandler : IListProductsHandler
 {
+    /// <summary>
+    /// Executes the ListProducts operation.
+    /// </summary>
     public Task<ListProductsResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

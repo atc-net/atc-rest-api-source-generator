@@ -379,7 +379,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         // A list body offered as XML is bound into the generated RequestBodyList<T>
         if (boundRequestModels.Values.Any(m => m.BoundInList))
         {
-            generatedContext.AddSource(
+            generatedContext.AddGeneratedSource(
                 $"{projectName}.{XmlModelMapperExtractor.RequestBodyListTypeName}.g.cs",
                 SourceText.From(XmlModelMapperExtractor.GenerateRequestBodyList(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -591,7 +591,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         var sequentialResults = CodeGenerationService.GenerateSequentialResults(openApiDoc, projectName);
         if (sequentialResults is not null)
         {
-            generatedContext.AddSource(
+            generatedContext.AddGeneratedSource(
                 $"{projectName}.Streaming.SequentialResults.g.cs",
                 SourceText.From(sequentialResults.Content.NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -752,7 +752,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         foreach (var inlineEnum in inlineEnums)
         {
             var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
-            context.AddSource(
+            context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, inlineEnum.TypeName),
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -798,7 +798,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             // Sanitize record name for file system (generic types have <> which are invalid)
             var sanitizedName = record.Name.SanitizeForFileName();
 
-            context.AddSource(
+            context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, sanitizedName),
                 SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -810,7 +810,7 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         foreach (var bound in boundSources)
         {
-            context.AddSource(
+            context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, bound.TypeName + "Binding"),
                 SourceText.From(XmlModelMapperExtractor.GenerateBinding(bound.TypeName, modelsNamespace, projectName, boundRequestModels![bound.SchemaKey]).NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -879,7 +879,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             var generatedContent = EnumExtractor.GenerateEnumContent(enumParams);
 
-            context.AddSource(
+            context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(enumsNamespace, enumParams.EnumTypeName),
                 SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -915,7 +915,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             var generatedContent = TupleExtractor.GenerateTupleContent(tupleParams, ns);
 
-            context.AddSource(
+            context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(ns, tupleParams.Name),
                 SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -995,7 +995,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             .ToString()
             .NormalizeForSourceOutput();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{handlersNamespace}.g.cs",
             SourceText.From(normalizeForSourceOutput, Encoding.UTF8));
     }
@@ -1141,7 +1141,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             var sb = CreateFileBuilder();
             AppendTypeBody(sb, generatedCode);
 
-            context.AddSource(
+            context.AddGeneratedSource(
                 $"{endpointsNamespace}.{typeName}.g.cs",
                 SourceText.From(sb.ToString().NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -1222,7 +1222,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             }
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{rootEndpointsNamespace}.{extensionParams.ClassTypeName}.g.cs",
             SourceText.From(builder.ToString().NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1284,7 +1284,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             .ToString()
             .NormalizeForSourceOutput();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.EndpointMapping.g.cs",
             SourceText.From(normalizeForSourceOutput, Encoding.UTF8));
     }
@@ -1312,7 +1312,7 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         var generatedContent = contentGenerator.Generate();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.DependencyInjection.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1338,7 +1338,7 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         var generatedContent = contentGenerator.Generate();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.WebApplicationExtensions.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1381,7 +1381,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         foreach (var inlineEnum in inlineEnums)
         {
             var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
-            context.AddSource(
+            context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(parametersNamespace, inlineEnum.TypeName),
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -1395,7 +1395,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         var contentGenerator = new GenerateContentForRecords(codeDocGenerator, recordsParams);
         var generatedContent = contentGenerator.Generate();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{parametersNamespace}.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1435,7 +1435,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             foreach (var inlineType in inlineTypes)
             {
                 var inlineContent = CodeGenerationService.FormatAsFile(inlineType);
-                context.AddSource(
+                context.AddGeneratedSource(
                     NamespaceBuilder.ToFileName(modelsNamespace, inlineType.TypeName),
                     SourceText.From(inlineContent.NormalizeForSourceOutput(), Encoding.UTF8));
             }
@@ -1525,7 +1525,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             .ToString()
             .NormalizeForSourceOutput();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{resultsNamespace}.g.cs",
             SourceText.From(normalizeForSourceOutput, Encoding.UTF8));
     }
@@ -1544,7 +1544,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Security.Policies.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1563,7 +1563,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Security.DependencyInjection.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1582,7 +1582,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.RateLimiting.Policies.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1601,7 +1601,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.RateLimiting.DependencyInjection.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1620,7 +1620,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.OutputCaching.Policies.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1639,7 +1639,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.OutputCaching.DependencyInjection.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1658,7 +1658,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Caching.Policies.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1677,7 +1677,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Caching.DependencyInjection.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1703,7 +1703,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Authentication.OpenIdConnect.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1729,7 +1729,7 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         var generatedContent = contentGenerator.Generate();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Versioning.DependencyInjection.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1745,13 +1745,13 @@ public class ApiServerGenerator : IIncrementalGenerator
     {
         // Generate ApiServiceOptions
         var serviceOptionsContent = ApiOptionsExtractor.ExtractServiceOptions(openApiDoc, projectName, config);
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.ApiServiceOptions.g.cs",
             SourceText.From(serviceOptionsContent.NormalizeForSourceOutput(), Encoding.UTF8));
 
         // Generate ApiMiddlewareOptions
         var middlewareOptionsContent = ApiOptionsExtractor.ExtractMiddlewareOptions(openApiDoc, projectName);
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.ApiMiddlewareOptions.g.cs",
             SourceText.From(middlewareOptionsContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1768,7 +1768,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     {
         var generatedContent = UnifiedServiceCollectionExtractor.Extract(openApiDoc, projectName, config, pathSegments);
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.UnifiedServiceCollectionExtensions.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1784,7 +1784,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     {
         var generatedContent = WebApplicationExtensionsExtractor.ExtractUnified(openApiDoc, projectName, config);
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.UnifiedWebApplicationExtensions.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -1801,7 +1801,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         foreach (var generatedType in CodeGenerationService.GenerateWebhookHandlerInterfaces(openApiDoc, projectName, includeDeprecated))
         {
             var formattedCode = CodeGenerationService.FormatAsFile(generatedType);
-            context.AddSource(
+            context.AddGeneratedSource(
                 $"Webhooks.Handlers.{generatedType.TypeName}.g.cs",
                 SourceText.From(formattedCode.NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -1819,7 +1819,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         foreach (var generatedType in CodeGenerationService.GenerateWebhookParameters(openApiDoc, projectName, includeDeprecated))
         {
             var formattedCode = CodeGenerationService.FormatAsFile(generatedType);
-            context.AddSource(
+            context.AddGeneratedSource(
                 $"Webhooks.Parameters.{generatedType.TypeName}.g.cs",
                 SourceText.From(formattedCode.NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -1837,7 +1837,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         foreach (var generatedType in CodeGenerationService.GenerateWebhookResults(openApiDoc, projectName, includeDeprecated))
         {
             var formattedCode = CodeGenerationService.FormatAsFile(generatedType);
-            context.AddSource(
+            context.AddGeneratedSource(
                 $"Webhooks.Results.{generatedType.TypeName}.g.cs",
                 SourceText.From(formattedCode.NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -1856,7 +1856,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         if (generatedType is not null)
         {
             var formattedCode = CodeGenerationService.FormatAsFile(generatedType);
-            context.AddSource(
+            context.AddGeneratedSource(
                 $"Webhooks.Endpoints.{generatedType.TypeName}.g.cs",
                 SourceText.From(formattedCode.NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -1875,7 +1875,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         if (generatedType is not null)
         {
             var formattedCode = CodeGenerationService.FormatAsFile(generatedType);
-            context.AddSource(
+            context.AddGeneratedSource(
                 $"Webhooks.{generatedType.TypeName}.g.cs",
                 SourceText.From(formattedCode.NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -1973,7 +1973,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             .ToString()
             .NormalizeForSourceOutput();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.ParsableList.g.cs",
             SourceText.From(normalizeForSourceOutput, Encoding.UTF8));
     }
@@ -2007,7 +2007,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         sb.AppendLine(4, "void DefineEndpoints(WebApplication app);");
         sb.Append('}');
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.IEndpointDefinition.g.cs",
             SourceText.From(sb.ToString().NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -2020,7 +2020,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     {
         var content = HealthCheckExtractor.GenerateEndpoints(projectName, config, hasHealthChecksPackage);
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Health.HealthCheckEndpoints.g.cs",
             SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -2031,7 +2031,7 @@ public class ApiServerGenerator : IIncrementalGenerator
     {
         var content = HealthCheckExtractor.GenerateServiceExtensions(projectName);
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.Health.HealthCheckServiceExtensions.g.cs",
             SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
     }

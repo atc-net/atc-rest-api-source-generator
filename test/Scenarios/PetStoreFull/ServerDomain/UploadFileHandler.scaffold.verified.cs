@@ -5,6 +5,9 @@ namespace PetStoreFull.ApiHandlers;
 /// </summary>
 public sealed class UploadFileHandler : IUploadFileHandler
 {
+    /// <summary>
+    /// Executes the UploadFile operation.
+    /// </summary>
     public Task<UploadFileResult> ExecuteAsync(
         UploadFileParameters parameters,
         CancellationToken cancellationToken = default)

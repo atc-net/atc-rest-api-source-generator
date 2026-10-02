@@ -5,6 +5,9 @@ namespace SecurityStandard.ApiHandlers;
 /// </summary>
 public sealed class GetAdminSettingsHandler : IGetAdminSettingsHandler
 {
+    /// <summary>
+    /// Executes the GetAdminSettings operation.
+    /// </summary>
     public Task<GetAdminSettingsResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

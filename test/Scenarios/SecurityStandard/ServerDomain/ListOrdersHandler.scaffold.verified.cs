@@ -5,6 +5,9 @@ namespace SecurityStandard.ApiHandlers;
 /// </summary>
 public sealed class ListOrdersHandler : IListOrdersHandler
 {
+    /// <summary>
+    /// Executes the ListOrders operation.
+    /// </summary>
     public Task<ListOrdersResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

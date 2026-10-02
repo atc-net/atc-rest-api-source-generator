@@ -5,6 +5,9 @@ namespace Demo.ApiHandlers;
 /// </summary>
 public sealed class DeleteTaskByIdHandler : IDeleteTaskByIdHandler
 {
+    /// <summary>
+    /// Executes the DeleteTaskById operation.
+    /// </summary>
     public System.Threading.Tasks.Task<DeleteTaskByIdResult> ExecuteAsync(
         DeleteTaskByIdParameters parameters,
         CancellationToken cancellationToken = default)

@@ -5,6 +5,9 @@ namespace Retry.ApiHandlers;
 /// </summary>
 public sealed class ProcessPaymentHandler : IProcessPaymentHandler
 {
+    /// <summary>
+    /// Executes the ProcessPayment operation.
+    /// </summary>
     public Task<ProcessPaymentResult> ExecuteAsync(
         ProcessPaymentParameters parameters,
         CancellationToken cancellationToken = default)

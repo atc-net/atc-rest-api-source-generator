@@ -5,6 +5,9 @@ namespace Demo.ApiHandlers;
 /// </summary>
 public sealed class UploadSingleFileAsFormDataHandler : IUploadSingleFileAsFormDataHandler
 {
+    /// <summary>
+    /// Executes the UploadSingleFileAsFormData operation.
+    /// </summary>
     public System.Threading.Tasks.Task<UploadSingleFileAsFormDataResult> ExecuteAsync(
         UploadSingleFileAsFormDataParameters parameters,
         CancellationToken cancellationToken = default)

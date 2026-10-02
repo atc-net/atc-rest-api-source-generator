@@ -5,6 +5,9 @@ namespace Demo.ApiHandlers;
 /// </summary>
 public sealed class UpdateTaskByIdHandler : IUpdateTaskByIdHandler
 {
+    /// <summary>
+    /// Executes the UpdateTaskById operation.
+    /// </summary>
     public System.Threading.Tasks.Task<UpdateTaskByIdResult> ExecuteAsync(
         UpdateTaskByIdParameters parameters,
         CancellationToken cancellationToken = default)

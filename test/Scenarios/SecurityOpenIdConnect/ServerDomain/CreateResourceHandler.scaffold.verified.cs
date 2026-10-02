@@ -5,6 +5,9 @@ namespace SecurityOpenIdConnect.ApiHandlers;
 /// </summary>
 public sealed class CreateResourceHandler : ICreateResourceHandler
 {
+    /// <summary>
+    /// Executes the CreateResource operation.
+    /// </summary>
     public Task<CreateResourceResult> ExecuteAsync(
         CreateResourceParameters parameters,
         CancellationToken cancellationToken = default)

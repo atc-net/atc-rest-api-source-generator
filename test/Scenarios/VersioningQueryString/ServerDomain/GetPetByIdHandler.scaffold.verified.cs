@@ -5,6 +5,9 @@ namespace VersioningQueryString.ApiHandlers;
 /// </summary>
 public sealed class GetPetByIdHandler : IGetPetByIdHandler
 {
+    /// <summary>
+    /// Executes the GetPetById operation.
+    /// </summary>
     public Task<GetPetByIdResult> ExecuteAsync(
         GetPetByIdParameters parameters,
         CancellationToken cancellationToken = default)

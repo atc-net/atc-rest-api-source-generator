@@ -1,3 +1,4 @@
+#pragma warning disable CS1591
 global using SecurityAtcExt.Generated.Admin.Handlers;
 global using SecurityAtcExt.Generated.Admin.Parameters;
 global using SecurityAtcExt.Generated.Admin.Results;

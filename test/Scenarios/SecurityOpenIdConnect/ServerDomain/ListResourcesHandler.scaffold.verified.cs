@@ -5,6 +5,9 @@ namespace SecurityOpenIdConnect.ApiHandlers;
 /// </summary>
 public sealed class ListResourcesHandler : IListResourcesHandler
 {
+    /// <summary>
+    /// Executes the ListResources operation.
+    /// </summary>
     public Task<ListResourcesResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

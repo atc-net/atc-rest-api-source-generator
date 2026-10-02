@@ -5,6 +5,9 @@ namespace PetStoreFull.ApiHandlers;
 /// </summary>
 public sealed class UpdatePetWithFormHandler : IUpdatePetWithFormHandler
 {
+    /// <summary>
+    /// Executes the UpdatePetWithForm operation.
+    /// </summary>
     public Task<UpdatePetWithFormResult> ExecuteAsync(
         UpdatePetWithFormParameters parameters,
         CancellationToken cancellationToken = default)

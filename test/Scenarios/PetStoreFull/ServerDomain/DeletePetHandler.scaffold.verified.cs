@@ -5,6 +5,9 @@ namespace PetStoreFull.ApiHandlers;
 /// </summary>
 public sealed class DeletePetHandler : IDeletePetHandler
 {
+    /// <summary>
+    /// Executes the DeletePet operation.
+    /// </summary>
     public Task<DeletePetResult> ExecuteAsync(
         DeletePetParameters parameters,
         CancellationToken cancellationToken = default)

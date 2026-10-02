@@ -150,7 +150,46 @@ internal static class GeneratorSnapshotHarness
             markerFileName,
             masterFolder,
             useFullReferences: true,
-            assemblyName: scenarioName).GeneratedSources;
+            assemblyName: scenarioName,
+            defaultMarkerContent: DefaultMarkerContent(masterFolder)).GeneratedSources;
+    }
+
+    /// <summary>
+    /// The marker a scenario without a folder for <paramref name="masterFolder"/> is generated with: the
+    /// defaults, and for the two client folders the generation mode the folder stands for. Validation is off:
+    /// these specifications were not written to the Strict rules, and the gate is about what the generator
+    /// emits, not about style rules that would stop it.
+    /// </summary>
+    public static string DefaultMarkerContent(string masterFolder)
+        => masterFolder switch
+        {
+            ClientTypedMasterFolder => """{ "validateSpecificationStrategy": "None", "generationMode": "TypedClient" }""",
+            ClientOperationMasterFolder => """{ "validateSpecificationStrategy": "None", "generationMode": "EndpointPerOperation" }""",
+            _ => """{ "validateSpecificationStrategy": "None" }""",
+        };
+
+    /// <summary>
+    /// Enumerates every scenario and C# generator pair that has <b>no</b> marker folder - the pairs
+    /// <see cref="GetScenarioGeneratorData"/> leaves out. They have no snapshots, but the specification is still
+    /// one a consumer could give to that generator, so its output has to compile.
+    /// </summary>
+    public static IEnumerable<object[]> GetScenarioGeneratorDataWithoutMarker()
+    {
+        var scenarioNames = new DirectoryInfo(GetScenariosRoot())
+            .EnumerateDirectories()
+            .Where(d => d.EnumerateFiles("*.yaml").Any() || d.EnumerateFiles("*.yml").Any())
+            .Select(d => d.Name)
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToList();
+
+        foreach (var masterFolder in ConvertedMasterFolders)
+        {
+            var withMarker = new HashSet<string>(GetScenarioNames(masterFolder), StringComparer.Ordinal);
+            foreach (var scenarioName in scenarioNames.Where(n => !withMarker.Contains(n)))
+            {
+                yield return [scenarioName, masterFolder];
+            }
+        }
     }
 
     /// <summary>

@@ -344,7 +344,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // configured. Handler scaffolds are excluded by design (they carry no [GeneratedCode]),
         // so only the DI registration methods below (which take this proxy) are affected.
         var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage);
-        generatedContext.AddSource("DomainGlobalUsings.g.cs", SourceText.From(globalUsingsContent, Encoding.UTF8));
+        generatedContext.AddGeneratedSource("DomainGlobalUsings.g.cs", SourceText.From(globalUsingsContent, Encoding.UTF8));
 
         // Collect all handler info for DI registration
         var allHandlers = new List<(string OperationId, string HandlerName, string HandlerNamespace)>();
@@ -482,7 +482,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         var generatedContent = contentGenerator.Generate();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             "ApiHandlerDependencyRegistration.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -520,7 +520,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         var generatedContent = contentGenerator.Generate();
 
-        context.AddSource(
+        context.AddGeneratedSource(
             "ApiValidatorDependencyRegistration.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
     }

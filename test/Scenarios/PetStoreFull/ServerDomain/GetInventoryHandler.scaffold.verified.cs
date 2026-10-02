@@ -5,6 +5,9 @@ namespace PetStoreFull.ApiHandlers;
 /// </summary>
 public sealed class GetInventoryHandler : IGetInventoryHandler
 {
+    /// <summary>
+    /// Executes the GetInventory operation.
+    /// </summary>
     public Task<GetInventoryResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

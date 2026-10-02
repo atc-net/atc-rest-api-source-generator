@@ -82,7 +82,7 @@ public static class HandlerScaffoldExtractor
         var shouldBreakDownParams = methodParams.Count > 1 || ExceedsLineLength(taskTypeName, resultTypeName, methodParams, maxLineLength);
 
         var method = new MethodParameters(
-            DocumentationTags: null,
+            DocumentationTags: new CodeDocumentationTags($"Executes the {operationIdPascal} operation."),
             Attributes: null,
             DeclarationModifier: DeclarationModifiers.Public,
             ReturnGenericTypeName: taskTypeName,
@@ -102,7 +102,7 @@ public static class HandlerScaffoldExtractor
             constructors =
             [
                 new ConstructorParameters(
-                    DocumentationTags: null,
+                    DocumentationTags: new CodeDocumentationTags($"Initializes a new instance of the <see cref=\"{handlerName}\"/> class."),
                     DeclarationModifier: DeclarationModifiers.Public,
                     GenericTypeName: null,
                     TypeName: handlerName,

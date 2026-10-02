@@ -5,6 +5,9 @@ namespace SecurityAtcExt.ApiHandlers;
 /// </summary>
 public sealed class ListApiKeysHandler : IListApiKeysHandler
 {
+    /// <summary>
+    /// Executes the ListApiKeys operation.
+    /// </summary>
     public Task<ListApiKeysResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

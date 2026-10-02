@@ -1,3 +1,4 @@
+#pragma warning disable CS1591
 global using Demo.Generated.Accounts.Handlers;
 global using Demo.Generated.Accounts.Parameters;
 global using Demo.Generated.Accounts.Results;

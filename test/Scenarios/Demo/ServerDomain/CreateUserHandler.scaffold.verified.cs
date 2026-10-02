@@ -5,6 +5,9 @@ namespace Demo.ApiHandlers;
 /// </summary>
 public sealed class CreateUserHandler : ICreateUserHandler
 {
+    /// <summary>
+    /// Executes the CreateUser operation.
+    /// </summary>
     public System.Threading.Tasks.Task<CreateUserResult> ExecuteAsync(
         CreateUserParameters parameters,
         CancellationToken cancellationToken = default)

@@ -67,7 +67,7 @@ internal static class PolymorphicTypeEmitter
                 ? PolymorphicTypeExtractor.GenerateUnionBaseType(config, projectName, pathSegment, additionalUsings)
                 : PolymorphicTypeExtractor.GeneratePolymorphicBaseType(config, projectName, pathSegment, additionalUsings);
 
-            context.AddSource(
+            context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, config.BaseTypeName),
                 SourceText.From(baseContent.NormalizeForSourceOutput(), Encoding.UTF8));
 
@@ -77,7 +77,7 @@ internal static class PolymorphicTypeEmitter
                 continue;
             }
 
-            context.AddSource(
+            context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, $"{config.BaseTypeName}JsonConverter"),
                 SourceText.From(converterContent.NormalizeForSourceOutput(), Encoding.UTF8));
         }

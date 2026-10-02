@@ -27,7 +27,7 @@ internal static class XmlModelEmitter
         foreach (var source in sources)
         {
             var content = XmlModelMapperExtractor.GenerateCompanion(source, headerContent, modelsNamespace, projectName, xmlModels);
-            context.AddSource(
+            context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, source.TypeName + "Xml"),
                 SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));
         }
@@ -49,7 +49,7 @@ internal static class XmlModelEmitter
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.XmlProblemDetailsWriter.g.cs",
             SourceText.From(XmlModelMapperExtractor.GenerateProblemDetailsWriter(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
     }
@@ -70,7 +70,7 @@ internal static class XmlModelEmitter
             return;
         }
 
-        context.AddSource(
+        context.AddGeneratedSource(
             $"{projectName}.{XmlModelMapperExtractor.SupportTypeName}.g.cs",
             SourceText.From(XmlModelMapperExtractor.GenerateSupport(projectName).NormalizeForSourceOutput(), Encoding.UTF8));
     }

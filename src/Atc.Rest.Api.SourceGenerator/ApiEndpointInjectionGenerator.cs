@@ -78,7 +78,7 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
             }
             """;
 
-        context.AddSource("EndpointRegistrationAttribute.g.cs", SourceText.From(attributeSource, Encoding.UTF8));
+        context.AddGeneratedSource("EndpointRegistrationAttribute.g.cs", SourceText.From(attributeSource, Encoding.UTF8));
     }
 
     /// <summary>
@@ -195,7 +195,7 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
 
             // Add the generated source
             var fileName = $"{classInfo.ClassName}.EndpointInjection.g.cs";
-            context.AddSource(fileName, SourceText.From(generatedCode, Encoding.UTF8));
+            context.AddGeneratedSource(fileName, SourceText.From(generatedCode, Encoding.UTF8));
         }
         catch (Exception ex)
         {

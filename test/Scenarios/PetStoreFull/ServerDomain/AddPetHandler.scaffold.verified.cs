@@ -5,6 +5,9 @@ namespace PetStoreFull.ApiHandlers;
 /// </summary>
 public sealed class AddPetHandler : IAddPetHandler
 {
+    /// <summary>
+    /// Executes the AddPet operation.
+    /// </summary>
     public Task<AddPetResult> ExecuteAsync(
         AddPetParameters parameters,
         CancellationToken cancellationToken = default)

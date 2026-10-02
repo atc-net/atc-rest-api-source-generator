@@ -5,6 +5,9 @@ namespace VersioningQueryString.ApiHandlers;
 /// </summary>
 public sealed class CreatePetHandler : ICreatePetHandler
 {
+    /// <summary>
+    /// Executes the CreatePet operation.
+    /// </summary>
     public Task<CreatePetResult> ExecuteAsync(
         CreatePetParameters parameters,
         CancellationToken cancellationToken = default)

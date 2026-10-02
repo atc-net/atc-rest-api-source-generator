@@ -5,6 +5,9 @@ namespace PetStoreFull.ApiHandlers;
 /// </summary>
 public sealed class UpdateUserHandler : IUpdateUserHandler
 {
+    /// <summary>
+    /// Executes the UpdateUser operation.
+    /// </summary>
     public Task<UpdateUserResult> ExecuteAsync(
         UpdateUserParameters parameters,
         CancellationToken cancellationToken = default)

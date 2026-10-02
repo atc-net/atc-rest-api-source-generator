@@ -5,6 +5,9 @@ namespace PetStoreFull.ApiHandlers;
 /// </summary>
 public sealed class LogoutUserHandler : ILogoutUserHandler
 {
+    /// <summary>
+    /// Executes the LogoutUser operation.
+    /// </summary>
     public Task<LogoutUserResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

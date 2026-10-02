@@ -5,6 +5,9 @@ namespace PetStoreSimple.ApiHandlers;
 /// </summary>
 public sealed class ShowPetByIdHandler : IShowPetByIdHandler
 {
+    /// <summary>
+    /// Executes the ShowPetById operation.
+    /// </summary>
     public Task<ShowPetByIdResult> ExecuteAsync(
         ShowPetByIdParameters parameters,
         CancellationToken cancellationToken = default)

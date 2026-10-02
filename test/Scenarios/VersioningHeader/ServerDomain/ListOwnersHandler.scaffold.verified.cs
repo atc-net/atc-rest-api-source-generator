@@ -5,6 +5,9 @@ namespace VersioningHeader.ApiHandlers;
 /// </summary>
 public sealed class ListOwnersHandler : IListOwnersHandler
 {
+    /// <summary>
+    /// Executes the ListOwners operation.
+    /// </summary>
     public Task<ListOwnersResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

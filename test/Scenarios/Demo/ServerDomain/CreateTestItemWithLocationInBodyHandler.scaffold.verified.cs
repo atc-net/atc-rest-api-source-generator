@@ -5,6 +5,9 @@ namespace Demo.ApiHandlers;
 /// </summary>
 public sealed class CreateTestItemWithLocationInBodyHandler : ICreateTestItemWithLocationInBodyHandler
 {
+    /// <summary>
+    /// Executes the CreateTestItemWithLocationInBody operation.
+    /// </summary>
     public System.Threading.Tasks.Task<CreateTestItemWithLocationInBodyResult> ExecuteAsync(
         CreateTestItemWithLocationInBodyParameters parameters,
         CancellationToken cancellationToken = default)

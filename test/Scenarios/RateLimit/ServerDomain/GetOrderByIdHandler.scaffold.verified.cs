@@ -5,6 +5,9 @@ namespace RateLimit.ApiHandlers;
 /// </summary>
 public sealed class GetOrderByIdHandler : IGetOrderByIdHandler
 {
+    /// <summary>
+    /// Executes the GetOrderById operation.
+    /// </summary>
     public Task<GetOrderByIdResult> ExecuteAsync(
         GetOrderByIdParameters parameters,
         CancellationToken cancellationToken = default)

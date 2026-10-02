@@ -433,6 +433,7 @@ public static class SchemaExtractor
                             {
                                 BaseTypeName = baseName,
                                 BaseConstructorArguments = baseArgs,
+                                Parameters = WithoutAttributesOnForwardedParameters(recordParams.Parameters, baseArgs),
                             };
                         }
 
@@ -597,6 +598,7 @@ public static class SchemaExtractor
                             {
                                 BaseTypeName = baseName,
                                 BaseConstructorArguments = baseArgs,
+                                Parameters = WithoutAttributesOnForwardedParameters(recordParams.Parameters, baseArgs),
                             };
                         }
 
@@ -619,6 +621,27 @@ public static class SchemaExtractor
         inlineEnums.AddRange(inlineEnumsByValuesKey.Values);
 
         return recordParametersList.Count > 0 ? recordParametersList : null;
+    }
+
+    /// <summary>
+    /// A parameter a derived record only forwards to its base declares no property of its own - the base has
+    /// it, with its attributes. A <c>[property: ...]</c> attribute on such a parameter is ignored by the compiler
+    /// with warning CS0657, so it is left out.
+    /// </summary>
+    private static IList<ParameterBaseParameters>? WithoutAttributesOnForwardedParameters(
+        IList<ParameterBaseParameters>? parameters,
+        IList<string>? baseConstructorArguments)
+    {
+        if (parameters is null || baseConstructorArguments is null || baseConstructorArguments.Count == 0)
+        {
+            return parameters;
+        }
+
+        return parameters
+            .Select(p => p.Attributes is { Count: > 0 } && baseConstructorArguments.Contains(p.Name, StringComparer.Ordinal)
+                ? p with { Attributes = null }
+                : p)
+            .ToList();
     }
 
     /// <summary>

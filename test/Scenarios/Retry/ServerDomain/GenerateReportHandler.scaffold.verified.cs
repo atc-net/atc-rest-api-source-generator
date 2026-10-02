@@ -5,6 +5,9 @@ namespace Retry.ApiHandlers;
 /// </summary>
 public sealed class GenerateReportHandler : IGenerateReportHandler
 {
+    /// <summary>
+    /// Executes the GenerateReport operation.
+    /// </summary>
     public Task<GenerateReportResult> ExecuteAsync(
         GenerateReportParameters parameters,
         CancellationToken cancellationToken = default)

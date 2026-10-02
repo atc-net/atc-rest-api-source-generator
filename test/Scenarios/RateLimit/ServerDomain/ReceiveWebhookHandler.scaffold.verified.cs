@@ -5,6 +5,9 @@ namespace RateLimit.ApiHandlers;
 /// </summary>
 public sealed class ReceiveWebhookHandler : IReceiveWebhookHandler
 {
+    /// <summary>
+    /// Executes the ReceiveWebhook operation.
+    /// </summary>
     public Task<ReceiveWebhookResult> ExecuteAsync(
         ReceiveWebhookParameters parameters,
         CancellationToken cancellationToken = default)

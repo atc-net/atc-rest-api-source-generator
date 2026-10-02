@@ -5,6 +5,9 @@ namespace PetStoreFull.ApiHandlers;
 /// </summary>
 public sealed class FindPetsByTagsHandler : IFindPetsByTagsHandler
 {
+    /// <summary>
+    /// Executes the FindPetsByTags operation.
+    /// </summary>
     public Task<FindPetsByTagsResult> ExecuteAsync(
         FindPetsByTagsParameters parameters,
         CancellationToken cancellationToken = default)

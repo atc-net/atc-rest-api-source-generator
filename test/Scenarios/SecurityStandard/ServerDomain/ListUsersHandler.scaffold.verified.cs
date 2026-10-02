@@ -5,6 +5,9 @@ namespace SecurityStandard.ApiHandlers;
 /// </summary>
 public sealed class ListUsersHandler : IListUsersHandler
 {
+    /// <summary>
+    /// Executes the ListUsers operation.
+    /// </summary>
     public Task<ListUsersResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {

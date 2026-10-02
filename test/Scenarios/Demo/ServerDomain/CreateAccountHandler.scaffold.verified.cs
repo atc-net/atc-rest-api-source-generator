@@ -5,6 +5,9 @@ namespace Demo.ApiHandlers;
 /// </summary>
 public sealed class CreateAccountHandler : ICreateAccountHandler
 {
+    /// <summary>
+    /// Executes the CreateAccount operation.
+    /// </summary>
     public System.Threading.Tasks.Task<CreateAccountResult> ExecuteAsync(
         CreateAccountParameters parameters,
         CancellationToken cancellationToken = default)

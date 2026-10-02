@@ -5,6 +5,9 @@ namespace VersioningHeader.ApiHandlers;
 /// </summary>
 public sealed class UpdatePetHandler : IUpdatePetHandler
 {
+    /// <summary>
+    /// Executes the UpdatePet operation.
+    /// </summary>
     public Task<UpdatePetResult> ExecuteAsync(
         UpdatePetParameters parameters,
         CancellationToken cancellationToken = default)

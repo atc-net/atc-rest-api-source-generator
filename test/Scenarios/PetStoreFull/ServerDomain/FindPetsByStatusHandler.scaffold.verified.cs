@@ -5,6 +5,9 @@ namespace PetStoreFull.ApiHandlers;
 /// </summary>
 public sealed class FindPetsByStatusHandler : IFindPetsByStatusHandler
 {
+    /// <summary>
+    /// Executes the FindPetsByStatus operation.
+    /// </summary>
     public Task<FindPetsByStatusResult> ExecuteAsync(
         FindPetsByStatusParameters parameters,
         CancellationToken cancellationToken = default)

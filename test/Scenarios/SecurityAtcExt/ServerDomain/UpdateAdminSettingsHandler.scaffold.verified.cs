@@ -5,6 +5,9 @@ namespace SecurityAtcExt.ApiHandlers;
 /// </summary>
 public sealed class UpdateAdminSettingsHandler : IUpdateAdminSettingsHandler
 {
+    /// <summary>
+    /// Executes the UpdateAdminSettings operation.
+    /// </summary>
     public Task<UpdateAdminSettingsResult> ExecuteAsync(
         UpdateAdminSettingsParameters parameters,
         CancellationToken cancellationToken = default)

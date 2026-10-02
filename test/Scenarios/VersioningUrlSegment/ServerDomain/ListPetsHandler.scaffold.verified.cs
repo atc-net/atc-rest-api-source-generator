@@ -5,6 +5,9 @@ namespace VersioningUrlSegment.ApiHandlers;
 /// </summary>
 public sealed class ListPetsHandler : IListPetsHandler
 {
+    /// <summary>
+    /// Executes the ListPets operation.
+    /// </summary>
     public Task<ListPetsResult> ExecuteAsync(
         ListPetsParameters parameters,
         CancellationToken cancellationToken = default)

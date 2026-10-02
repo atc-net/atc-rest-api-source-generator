@@ -1,3 +1,4 @@
+#pragma warning disable CS1591
 global using Retry.Generated.External.Handlers;
 global using Retry.Generated.External.Parameters;
 global using Retry.Generated.External.Results;

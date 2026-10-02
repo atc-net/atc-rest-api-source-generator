@@ -5,6 +5,9 @@ namespace Demo.ApiHandlers;
 /// </summary>
 public sealed class ListAsyncEnumerableAccountsHandler : IListAsyncEnumerableAccountsHandler
 {
+    /// <summary>
+    /// Executes the ListAsyncEnumerableAccounts operation.
+    /// </summary>
     public System.Threading.Tasks.Task<ListAsyncEnumerableAccountsResult> ExecuteAsync(
         CancellationToken cancellationToken = default)
     {
