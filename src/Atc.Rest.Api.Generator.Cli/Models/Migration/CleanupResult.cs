@@ -9,6 +9,11 @@ public sealed class CleanupResult
 
     public List<string> DeletedFiles { get; } = [];
 
+    /// <summary>
+    /// Gets the hand-written files found inside the generated folders. They are never deleted.
+    /// </summary>
+    public List<string> PreservedFiles { get; } = [];
+
     public int TotalItemsDeleted
         => DeletedFolders.Sum(f => f.ItemCount) + DeletedFiles.Count;
 

@@ -59,9 +59,23 @@ internal static class ProjectRenamer
             // Target directory already exists - this could mean:
             // 1. Migration was partially completed before
             // 2. User manually created the target directory
-            // Delete the old directory since it's obsolete
+            // The old directory is only removed when nothing but build output is left in it:
+            // anything else (hand-written files the cleanup kept) is the user's and stays.
             if (Directory.Exists(projectDirectory))
             {
+                var remaining = Directory
+                    .EnumerateFiles(projectDirectory, "*", SearchOption.AllDirectories)
+                    .Where(f => !IsBuildOutput(projectDirectory, f))
+                    .ToList();
+
+                if (remaining.Count > 0)
+                {
+                    result.Error =
+                        $"Both '{projectDirectory}' and '{newDirectory}' exist, and '{oldDirName}' still holds " +
+                        $"{remaining.Count} file(s). Move them to '{newDirName}' and delete '{oldDirName}'.";
+                    return result;
+                }
+
                 if (!dryRun)
                 {
                     Directory.Delete(projectDirectory, recursive: true);
@@ -134,5 +148,20 @@ internal static class ProjectRenamer
         var oldName = $"{projectName}.ApiClient.Generated";
         var newName = $"{projectName}.{suffix}";
         return RenameProject(projectDirectory, oldName, newName, dryRun);
+    }
+
+    /// <summary>
+    /// A file under the project's <c>bin</c> or <c>obj</c> folder: it can be rebuilt, so losing it loses nothing.
+    /// </summary>
+    private static bool IsBuildOutput(
+        string projectDirectory,
+        string filePath)
+    {
+        var relativePath = Path.GetRelativePath(projectDirectory, filePath);
+        var separatorIndex = relativePath.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]);
+        var firstSegment = separatorIndex < 0 ? relativePath : relativePath[..separatorIndex];
+
+        return firstSegment.Equals("bin", StringComparison.OrdinalIgnoreCase) ||
+               firstSegment.Equals("obj", StringComparison.OrdinalIgnoreCase);
     }
 }

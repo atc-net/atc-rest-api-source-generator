@@ -13,6 +13,8 @@ public sealed class MigrationSummary
 
     public List<string> DeletedFolders { get; } = [];
 
+    public List<string> PreservedFiles { get; } = [];
+
     public List<string> ModifiedFiles { get; } = [];
 
     public List<string> RenamedProjects { get; } = [];

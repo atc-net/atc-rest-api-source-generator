@@ -364,6 +364,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             }
 
             summary.DeletedFiles.AddRange(result.DeletedFiles);
+            summary.PreservedFiles.AddRange(result.PreservedFiles);
         }
 
         // Clean ApiClient.Generated
@@ -377,6 +378,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             }
 
             summary.DeletedFiles.AddRange(result.DeletedFiles);
+            summary.PreservedFiles.AddRange(result.PreservedFiles);
         }
     }
 
@@ -402,6 +404,10 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
                     summary.DeletedFolders.Add(result.OldPath);
                 }
             }
+            else if (!string.IsNullOrEmpty(result.Error))
+            {
+                AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(result.Error)}");
+            }
         }
 
         // Rename ApiClient.Generated → client suffix (default: ApiClient)
@@ -418,6 +424,10 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
                 {
                     summary.DeletedFolders.Add(result.OldPath);
                 }
+            }
+            else if (!string.IsNullOrEmpty(result.Error))
+            {
+                AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(result.Error)}");
             }
         }
     }
@@ -462,7 +472,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         }
     }
 
-    private static void UpdateGlobalUsings(
+    internal static void UpdateGlobalUsings(
         MigrationValidationReport report,
         string projectName,
         bool dryRun,
@@ -540,7 +550,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         }
 
         // Step 4: Sort global usings (System first, then by namespace group)
-        GlobalUsingsModifier.SortGlobalUsings(projectDir, dryRun);
+        GlobalUsingsModifier.SortGlobalUsings(projectDir, dryRun: dryRun);
     }
 
     private static void UpdateDomainCodeNamespaces(
@@ -592,7 +602,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         }
     }
 
-    private static void UpdateHostProject(
+    internal static void UpdateHostProject(
         MigrationValidationReport report,
         string projectName,
         bool dryRun,
@@ -617,7 +627,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             hostDir,
             projectName,
             requiredNamespaces,
-            dryRun);
+            dryRun: dryRun);
 
         if (globalUsingsResult.WasModified)
         {
@@ -784,6 +794,17 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             foreach (var file in summary.DeletedFiles)
             {
                 AnsiConsole.MarkupLine($"  [red]-[/] {Markup.Escape(file)}");
+            }
+
+            AnsiConsole.WriteLine();
+        }
+
+        if (summary.PreservedFiles.Count > 0)
+        {
+            AnsiConsole.MarkupLine("[blue]Hand-written files kept in the generated folders (move them where they belong)[/]");
+            foreach (var file in summary.PreservedFiles)
+            {
+                AnsiConsole.MarkupLine($"  [yellow]![/] {Markup.Escape(file)}");
             }
 
             AnsiConsole.WriteLine();
