@@ -37,7 +37,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .Produces<List<User>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, ListUsersParameters>();
 
         users
             .MapPost("/", CreateUser)
@@ -57,7 +58,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, GetUserByIdParameters>();
 
         users
             .MapPut("{userId}", UpdateUserById)
@@ -68,7 +70,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, UpdateUserByIdParameters>();
 
         users
             .MapDelete("{userId}", DeleteUserById)
@@ -78,7 +81,8 @@ public sealed class UsersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, DeleteUserByIdParameters>();
     }
 
     internal async System.Threading.Tasks.Task<IResult> ListUsers(

@@ -19,5 +19,5 @@ namespace CookieParameters.Generated.Tracking.Parameters;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record TrackEventParameters(
     [property: FromRoute(Name = "eventId"), Required] string EventId,
-    string? UserId,
-    [property: Required] bool Consent);
+    [property: FromHeader(Name = "x-cookie-userId")] string? UserId,
+    [property: FromHeader(Name = "x-cookie-consent"), Required] bool Consent);

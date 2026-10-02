@@ -124,7 +124,7 @@ export class ApiClient {
       }],
       transformRequest: [(data: unknown, headers: Record<string, string>) => {
         if (data instanceof FormData || data instanceof Blob) return data;
-        if (data !== undefined) headers['Content-Type'] = 'application/json';
+        if (data !== undefined && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
         return data !== undefined ? JSON.stringify(data, dateReplacer) : data;
       }],
     });
@@ -166,6 +166,7 @@ export class ApiClient {
         // Re-typed: an adapter may send the Blob's own type (Node's http adapter does)
         data = options.body.type === fileType ? options.body : new Blob([options.body], { type: fileType });
       } else {
+        if (options.contentType) headers['Content-Type'] = options.contentType;
         data = options.body;
       }
     }

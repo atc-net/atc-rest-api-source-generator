@@ -18,3 +18,24 @@ public enum Priority
     High,
     Critical,
 }
+
+/// <summary>
+/// The values of <see cref="Priority"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class PriorityExtensions
+{
+    public static string ToWireValue(this Priority value)
+        => value switch
+        {
+            Priority.Default => "Default",
+            Priority.Low => "Low",
+            Priority.Medium => "Medium",
+            Priority.High => "High",
+            Priority.Critical => "Critical",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this Priority? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

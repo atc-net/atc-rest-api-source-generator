@@ -49,7 +49,7 @@ public sealed class UploadFormDataFilesEndpoint : IUploadFormDataFilesEndpoint
         {
             foreach (var (fileItem, index) in parameters.Request.Files.Select((f, i) => (f, i)))
             {
-                requestBuilder.WithFile(fileItem.OpenReadStream(), "files", fileItem.FileName);
+                requestBuilder.WithFile(fileItem.OpenReadStream(), "files", fileItem.FileName, fileItem.ContentType);
             }
         }
 

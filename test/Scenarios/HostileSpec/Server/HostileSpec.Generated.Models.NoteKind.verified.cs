@@ -31,3 +31,23 @@ public enum NoteKind
     [JsonStringEnumMemberName("back\\slash")]
     BackSlash,
 }
+
+/// <summary>
+/// The values of <see cref="NoteKind"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class NoteKindExtensions
+{
+    public static string ToWireValue(this NoteKind value)
+        => value switch
+        {
+            NoteKind.Plain => "plain",
+            NoteKind.Its => "it's",
+            NoteKind.SayHi => "say \"hi\"",
+            NoteKind.BackSlash => "back\\slash",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this NoteKind? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

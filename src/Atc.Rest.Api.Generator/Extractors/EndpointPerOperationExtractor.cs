@@ -842,7 +842,7 @@ public static class EndpointPerOperationExtractor
         }
 
         headerBuilder.AppendLine("using Atc.Rest.Client.Builder;");
-        if (usesStreamReaders)
+        if (usesStreamReaders || UsesSerializedJsonBody(operation))
         {
             headerBuilder.AppendLine("using Atc.Rest.Client.Serialization;");
         }
@@ -919,7 +919,7 @@ public static class EndpointPerOperationExtractor
         // SSE and JSON Lines deserialize each element via the DI-configured IContractSerializer
         // (so the per-op client honors the same serialization as the legacy streaming path).
         // Only these StreamReaders-based endpoints need it; others keep the 2-arg constructor.
-        if (usesStreamReaders)
+        if (usesStreamReaders || UsesSerializedJsonBody(operation))
         {
             constructorParams.Add(new(
                 GenericTypeName: null,
@@ -1054,10 +1054,21 @@ public static class EndpointPerOperationExtractor
     /// The value handed to the request builder: a date, a date-time or a decimal number as its wire text
     /// (the builder would format it with the machine's culture), anything else as it is.
     /// </summary>
+    /// <summary>
+    /// Whether the endpoint serializes its JSON body itself: a body under a JSON media type other than
+    /// <c>application/json</c>, sent with that media type.
+    /// </summary>
+    private static bool UsesSerializedJsonBody(OpenApiOperation operation)
+        => operation.GetJsonRequestBodyMediaType() is { } mediaType &&
+           !string.Equals(mediaType, "application/json", StringComparison.OrdinalIgnoreCase) &&
+           !operation.HasFileUpload();
+
     private static string WireValue(
         OpenApiParameter param,
         string propName)
-        => WireValueHelper.TryBuildWireExpression($"parameters.{propName}", param.Schema) ?? $"parameters.{propName}";
+        => WireValueHelper.IsStringEnum(param.Schema) && !param.Schema!.IsOfType(JsonSchemaType.Array)
+            ? $"parameters.{propName}.ToWireValue()"
+            : WireValueHelper.TryBuildWireExpression($"parameters.{propName}", param.Schema) ?? $"parameters.{propName}";
 
     private static string BuildExecuteAsyncMethodBody(
         string path,
@@ -1158,6 +1169,41 @@ public static class EndpointPerOperationExtractor
             }
         }
 
+        // Cookie parameters: one RFC 6265 Cookie header, each value percent-encoded (the server decodes it)
+        var cookieParams = allParams.Where(p => p.Param.In == ParameterLocation.Cookie).ToList();
+        if (cookieParams.Count > 0)
+        {
+            sb.AppendLine("var cookieParts = new List<string>();");
+            foreach (var (param, _) in cookieParams)
+            {
+                var propName = param.Name!.ToPascalCaseForDotNet();
+                var isBoolean = (param.Schema is OpenApiSchemaReference { Target: { } target } ? target : param.Schema)?.IsOfType(JsonSchemaType.Boolean) == true;
+                var text = isBoolean
+                    ? $"(parameters.{propName} == true ? \"true\" : \"false\")"
+                    : $"global::System.Convert.ToString({WireValue(param, propName)}, global::System.Globalization.CultureInfo.InvariantCulture)!";
+                var add = $"cookieParts.Add(\"{param.Name}=\" + {(param.Style == ParameterStyle.Cookie ? text : $"Uri.EscapeDataString({text})")});";
+                if (param.Required)
+                {
+                    sb.AppendLine(add);
+                }
+                else
+                {
+                    sb.AppendLine($"if (parameters.{propName} is not null)");
+                    sb.AppendLine("{");
+                    sb.AppendLine(4, add);
+                    sb.AppendLine("}");
+                }
+
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("if (cookieParts.Count > 0)");
+            sb.AppendLine("{");
+            sb.AppendLine(4, "requestBuilder.WithHeaderParameter(\"Cookie\", string.Join(\"; \", cookieParts));");
+            sb.AppendLine("}");
+            sb.AppendLine();
+        }
+
         // An XML answer: ask for its media type (the request builder asks for application/json by default, under
         // the key "accept"), and for the errors as they are read: the declared error media types, else a ProblemDetails
         // (an Accept without it lets a host decline to write the problem, e.g. for an empty-body status)
@@ -1205,14 +1251,14 @@ public static class EndpointPerOperationExtractor
                             sb.AppendLine("{");
                             sb.AppendLine(4, "for (var i = 0; i < parameters.File.Length; i++)");
                             sb.AppendLine(4, "{");
-                            sb.AppendLine(8, "requestBuilder.WithFile(parameters.File[i].OpenReadStream(), \"files\", parameters.File[i].FileName);");
+                            sb.AppendLine(8, "requestBuilder.WithFile(parameters.File[i].OpenReadStream(), \"files\", parameters.File[i].FileName, parameters.File[i].ContentType);");
                             sb.AppendLine(4, "}");
                             sb.AppendLine("}");
                         }
                         else if (isFile)
                         {
                             // Single file - use WithFile with IFileContent metadata
-                            sb.AppendLine("requestBuilder.WithFile(parameters.File!.OpenReadStream(), \"file\", parameters.File.FileName);");
+                            sb.AppendLine("requestBuilder.WithFile(parameters.File!.OpenReadStream(), \"file\", parameters.File.FileName, parameters.File.ContentType);");
                         }
                         else
                         {
@@ -1237,6 +1283,12 @@ public static class EndpointPerOperationExtractor
                 // An XML body (XML-only, or with preferXml the XML alternative): the model's XML with its media type
                 var bytes = XmlBodyHelper.ToUtf8BytesExpression(XmlBodyHelper.ModelTypeName(operation.RequestBody.Content, xmlRequestBody), xmlRequestBody, "parameters.Request");
                 sb.AppendLine($"requestBuilder.WithBinaryBody(new global::System.IO.MemoryStream({bytes}), \"{xmlRequestBody.MediaType}; charset=utf-8\");");
+            }
+            else if (operation.GetJsonRequestBodyMediaType() is { } jsonMediaType && !string.Equals(jsonMediaType, "application/json", StringComparison.OrdinalIgnoreCase))
+            {
+                // A JSON body under another JSON media type (merge-patch+json, vnd.x+json): WithBody sends application/json,
+                // so the body is serialized here and sent with the declared media type
+                sb.AppendLine($"requestBuilder.WithBinaryBody(new global::System.IO.MemoryStream(global::System.Text.Encoding.UTF8.GetBytes(contractSerializer.Serialize(parameters.Request))), \"{jsonMediaType}\");");
             }
             else
             {
@@ -2351,7 +2403,7 @@ public static class EndpointPerOperationExtractor
                 // Single file property - use WithFile with IFileContent
                 sb.AppendLine($"if (parameters.Request?.{pascalPropName} is not null)");
                 sb.AppendLine("{");
-                sb.AppendLine(4, $"requestBuilder.WithFile(parameters.Request.{pascalPropName}.OpenReadStream(), \"{propName}\", parameters.Request.{pascalPropName}.FileName);");
+                sb.AppendLine(4, $"requestBuilder.WithFile(parameters.Request.{pascalPropName}.OpenReadStream(), \"{propName}\", parameters.Request.{pascalPropName}.FileName, parameters.Request.{pascalPropName}.ContentType);");
                 sb.AppendLine("}");
                 sb.AppendLine();
             }
@@ -2362,7 +2414,7 @@ public static class EndpointPerOperationExtractor
                 sb.AppendLine("{");
                 sb.AppendLine(4, $"foreach (var (fileItem, index) in parameters.Request.{pascalPropName}.Select((f, i) => (f, i)))");
                 sb.AppendLine(4, "{");
-                sb.AppendLine(8, $"requestBuilder.WithFile(fileItem.OpenReadStream(), \"{propName}\", fileItem.FileName);");
+                sb.AppendLine(8, $"requestBuilder.WithFile(fileItem.OpenReadStream(), \"{propName}\", fileItem.FileName, fileItem.ContentType);");
                 sb.AppendLine(4, "}");
                 sb.AppendLine("}");
                 sb.AppendLine();

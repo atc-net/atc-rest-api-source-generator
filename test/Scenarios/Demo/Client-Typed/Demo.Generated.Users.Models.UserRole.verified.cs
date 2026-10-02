@@ -17,3 +17,23 @@ public enum UserRole
     Employee,
     Guest,
 }
+
+/// <summary>
+/// The values of <see cref="UserRole"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class UserRoleExtensions
+{
+    public static string ToWireValue(this UserRole value)
+        => value switch
+        {
+            UserRole.Admin => "Admin",
+            UserRole.Manager => "Manager",
+            UserRole.Employee => "Employee",
+            UserRole.Guest => "Guest",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this UserRole? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

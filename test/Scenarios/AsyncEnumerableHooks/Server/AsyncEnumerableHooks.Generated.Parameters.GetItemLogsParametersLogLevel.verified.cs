@@ -28,3 +28,23 @@ public enum GetItemLogsParametersLogLevel
     [JsonStringEnumMemberName("error")]
     Error,
 }
+
+/// <summary>
+/// The values of <see cref="GetItemLogsParametersLogLevel"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class GetItemLogsParametersLogLevelExtensions
+{
+    public static string ToWireValue(this GetItemLogsParametersLogLevel value)
+        => value switch
+        {
+            GetItemLogsParametersLogLevel.Debug => "debug",
+            GetItemLogsParametersLogLevel.Info => "info",
+            GetItemLogsParametersLogLevel.Warn => "warn",
+            GetItemLogsParametersLogLevel.Error => "error",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this GetItemLogsParametersLogLevel? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

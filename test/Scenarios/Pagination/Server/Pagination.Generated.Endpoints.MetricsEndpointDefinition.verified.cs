@@ -38,7 +38,8 @@ public sealed class MetricsEndpointDefinition : IEndpointDefinition
             .Produces<MetricPage>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, ListMetricsParameters>();
     }
 
     internal async Task<IResult> ListMetrics(

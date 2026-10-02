@@ -14,3 +14,23 @@ public enum ListUsersParametersRole
     Employee,
     Guest,
 }
+
+/// <summary>
+/// The values of <see cref="ListUsersParametersRole"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class ListUsersParametersRoleExtensions
+{
+    public static string ToWireValue(this ListUsersParametersRole value)
+        => value switch
+        {
+            ListUsersParametersRole.Admin => "Admin",
+            ListUsersParametersRole.Manager => "Manager",
+            ListUsersParametersRole.Employee => "Employee",
+            ListUsersParametersRole.Guest => "Guest",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this ListUsersParametersRole? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

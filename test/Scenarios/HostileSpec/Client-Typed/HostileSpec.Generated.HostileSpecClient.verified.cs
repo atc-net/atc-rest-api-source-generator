@@ -63,7 +63,7 @@ public sealed class HostileSpecClient : IHostileSpecClient
 
         if (parameters.Kind is not null)
         {
-            queryParams.Add($"kind={Uri.EscapeDataString($"{parameters.Kind}")}");
+            queryParams.Add($"kind={Uri.EscapeDataString(parameters.Kind.ToWireValue()!)}");
         }
 
         if (queryParams.Count > 0)

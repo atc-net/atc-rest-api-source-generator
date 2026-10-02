@@ -37,7 +37,8 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .Produces<List<Item>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, ListItemsParameters>();
 
         items
             .MapGet("pages", ListItemPages)
@@ -46,7 +47,8 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .Produces<ListItemPagesResponse>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, ListItemPagesParameters>();
 
         items
             .MapGet("{itemId}/logs", GetItemLogs)
@@ -56,7 +58,8 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, GetItemLogsParameters>();
 
         items
             .MapGet("search", SearchItems)
@@ -65,7 +68,8 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .Produces<List<Item>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, SearchItemsParameters>();
 
         items
             .MapGet("events", StreamItemEvents)

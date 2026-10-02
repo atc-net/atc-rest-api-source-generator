@@ -19,3 +19,25 @@ public enum StatusType
     Archived,
     Deleted,
 }
+
+/// <summary>
+/// The values of <see cref="StatusType"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class StatusTypeExtensions
+{
+    public static string ToWireValue(this StatusType value)
+        => value switch
+        {
+            StatusType.Draft => "Draft",
+            StatusType.Pending => "Pending",
+            StatusType.Active => "Active",
+            StatusType.Inactive => "Inactive",
+            StatusType.Archived => "Archived",
+            StatusType.Deleted => "Deleted",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this StatusType? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

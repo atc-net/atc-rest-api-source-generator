@@ -55,7 +55,8 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .WithSummary("Logs user into the system.")
             .Produces<string>()
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .WithWireBinding<RouteHandlerBuilder, LoginUserParameters>();
 
         user
             .MapGet("logout", LogoutUser)
@@ -71,7 +72,8 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .Produces<PetStoreFull.Generated.User.Models.User>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .WithWireBinding<RouteHandlerBuilder, GetUserByNameParameters>();
 
         user
             .MapPut("{username}", UpdateUser)
@@ -82,6 +84,7 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithWireBinding<RouteHandlerBuilder, UpdateUserParameters>()
             .Accepts<PetStoreFull.Generated.User.Models.User>("application/json", "application/xml");
 
         user
@@ -91,7 +94,8 @@ public sealed class UserEndpointDefinition : IEndpointDefinition
             .Produces(StatusCodes.Status200OK)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .WithWireBinding<RouteHandlerBuilder, DeleteUserParameters>();
     }
 
     internal async Task<IResult> CreateUser(

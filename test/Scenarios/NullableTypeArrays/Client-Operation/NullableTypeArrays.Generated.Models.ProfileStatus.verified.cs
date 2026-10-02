@@ -23,3 +23,21 @@ public enum ProfileStatus
     [JsonStringEnumMemberName("inactive")]
     Inactive,
 }
+
+/// <summary>
+/// The values of <see cref="ProfileStatus"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class ProfileStatusExtensions
+{
+    public static string ToWireValue(this ProfileStatus value)
+        => value switch
+        {
+            ProfileStatus.Active => "active",
+            ProfileStatus.Inactive => "inactive",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this ProfileStatus? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

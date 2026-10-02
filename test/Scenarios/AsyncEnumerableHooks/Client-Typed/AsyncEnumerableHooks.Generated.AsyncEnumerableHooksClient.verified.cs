@@ -112,7 +112,7 @@ public sealed class AsyncEnumerableHooksClient : IAsyncEnumerableHooksClient
 
         if (parameters.LogLevel is not null)
         {
-            queryParams.Add($"logLevel={Uri.EscapeDataString($"{parameters.LogLevel}")}");
+            queryParams.Add($"logLevel={Uri.EscapeDataString(parameters.LogLevel.ToWireValue()!)}");
         }
 
         if (parameters.From is not null)

@@ -45,6 +45,19 @@ public sealed class TrackEventEndpoint : ITrackEventEndpoint
 
         var requestBuilder = httpMessageFactory.FromTemplate("/tracking/{eventId}");
         requestBuilder.WithPathParameter("eventId", parameters.EventId);
+        var cookieParts = new List<string>();
+        if (parameters.UserId is not null)
+        {
+            cookieParts.Add("userId=" + Uri.EscapeDataString(global::System.Convert.ToString(parameters.UserId, global::System.Globalization.CultureInfo.InvariantCulture)!));
+        }
+
+        cookieParts.Add("consent=" + Uri.EscapeDataString((parameters.Consent == true ? "true" : "false")));
+
+        if (cookieParts.Count > 0)
+        {
+            requestBuilder.WithHeaderParameter("Cookie", string.Join("; ", cookieParts));
+        }
+
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Post);
         using var response = await client.SendAsync(requestMessage, cancellationToken);

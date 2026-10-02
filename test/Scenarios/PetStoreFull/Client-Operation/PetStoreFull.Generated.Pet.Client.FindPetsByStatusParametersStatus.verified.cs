@@ -24,3 +24,22 @@ public enum FindPetsByStatusParametersStatus
     [JsonStringEnumMemberName("sold")]
     Sold,
 }
+
+/// <summary>
+/// The values of <see cref="FindPetsByStatusParametersStatus"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class FindPetsByStatusParametersStatusExtensions
+{
+    public static string ToWireValue(this FindPetsByStatusParametersStatus value)
+        => value switch
+        {
+            FindPetsByStatusParametersStatus.Available => "available",
+            FindPetsByStatusParametersStatus.Pending => "pending",
+            FindPetsByStatusParametersStatus.Sold => "sold",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this FindPetsByStatusParametersStatus? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

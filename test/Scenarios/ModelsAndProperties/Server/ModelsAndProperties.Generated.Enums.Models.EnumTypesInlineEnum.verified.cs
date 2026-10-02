@@ -16,3 +16,22 @@ public enum EnumTypesInlineEnum
     Option2,
     Option3,
 }
+
+/// <summary>
+/// The values of <see cref="EnumTypesInlineEnum"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class EnumTypesInlineEnumExtensions
+{
+    public static string ToWireValue(this EnumTypesInlineEnum value)
+        => value switch
+        {
+            EnumTypesInlineEnum.Option1 => "Option1",
+            EnumTypesInlineEnum.Option2 => "Option2",
+            EnumTypesInlineEnum.Option3 => "Option3",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this EnumTypesInlineEnum? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

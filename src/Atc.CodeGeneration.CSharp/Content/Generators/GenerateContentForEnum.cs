@@ -84,7 +84,55 @@ public class GenerateContentForEnum : IContentGenerator
 
         sb.Append('}');
 
+        AppendWireValueExtensions(sb);
+
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// A string enum gets <c>ToWireValue()</c>: the value as the specification writes it, for the places a
+    /// value is written as text without a serializer (a path, a query string, a header, a cookie).
+    /// </summary>
+    private void AppendWireValueExtensions(StringBuilder sb)
+    {
+        if (parameters.UseFlags || parameters.Values.Any(v => v.Value is not null))
+        {
+            return;
+        }
+
+        var enumName = parameters.EnumTypeName;
+        var modifier = EnumDescriptionHelper.GetDescription(parameters.DeclarationModifier);
+
+        sb.AppendLine();
+        sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine($"/// The values of <see cref=\"{enumName}\"/> as the specification writes them.");
+        sb.AppendLine("/// </summary>");
+
+        var generatedCode = parameters.Attributes?.FirstOrDefault(a => a.Name == "GeneratedCode");
+        if (generatedCode is not null)
+        {
+            sb.AppendAttribute(usePropertyPrefix: false, generatedCode);
+            sb.AppendLine();
+        }
+
+        sb.AppendLine($"{modifier} static class {enumName}Extensions");
+        sb.AppendLine("{");
+        sb.AppendLine(4, $"public static string ToWireValue(this {enumName} value)");
+        sb.AppendLine(8, "=> value switch");
+        sb.AppendLine(8, "{");
+        foreach (var value in parameters.Values)
+        {
+            var wireValue = CSharpLiteralHelper.ToStringLiteral(value.EnumMemberValue ?? value.Name);
+            sb.AppendLine(12, $"{enumName}.{value.Name} => {wireValue},");
+        }
+
+        sb.AppendLine(12, "_ => value.ToString(),");
+        sb.AppendLine(8, "};");
+        sb.AppendLine();
+        sb.AppendLine(4, $"public static string? ToWireValue(this {enumName}? value)");
+        sb.AppendLine(8, "=> value is { } known ? known.ToWireValue() : null;");
+        sb.Append('}');
     }
 
     private IList<AttributeParameters>? GetAttributeParametersList()

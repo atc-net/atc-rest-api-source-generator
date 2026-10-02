@@ -17,3 +17,23 @@ public enum Visibility
     Internal,
     Protected,
 }
+
+/// <summary>
+/// The values of <see cref="Visibility"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class VisibilityExtensions
+{
+    public static string ToWireValue(this Visibility value)
+        => value switch
+        {
+            Visibility.Public => "Public",
+            Visibility.Private => "Private",
+            Visibility.Internal => "Internal",
+            Visibility.Protected => "Protected",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this Visibility? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

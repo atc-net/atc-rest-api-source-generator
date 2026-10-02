@@ -146,7 +146,7 @@ export class ApiClient {
         // Re-typed: an adapter may send the Blob's own type (Node's http adapter does)
         data = options.body.type === fileType ? options.body : new Blob([options.body], { type: fileType });
       } else {
-        headers['Content-Type'] = 'application/json';
+        headers['Content-Type'] = options.contentType ?? 'application/json';
         data = options.body;
       }
     }

@@ -37,7 +37,8 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .Produces<List<Demo.Generated.Tasks.Models.Task>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, ListTasksParameters>();
 
         tasks
             .MapPost("/", CreateTask)
@@ -57,7 +58,8 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, GetTaskByIdParameters>();
 
         tasks
             .MapDelete("{taskId}", DeleteTaskById)
@@ -67,7 +69,8 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, DeleteTaskByIdParameters>();
 
         tasks
             .MapPut("{taskId}", UpdateTaskById)
@@ -78,7 +81,8 @@ public sealed class TasksEndpointDefinition : IEndpointDefinition
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, UpdateTaskByIdParameters>();
     }
 
     internal async System.Threading.Tasks.Task<IResult> ListTasks(

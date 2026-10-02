@@ -38,7 +38,8 @@ public sealed class OrgsEndpointDefinition : IEndpointDefinition
             .Produces<DevicePage>()
             .Produces<Problem>(StatusCodes.Status500InternalServerError, contentType: "application/json")
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithWireBinding<RouteHandlerBuilder, ListOrgDevicesParameters>();
     }
 
     internal async Task<IResult> ListOrgDevices(

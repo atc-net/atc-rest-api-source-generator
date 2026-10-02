@@ -16,3 +16,22 @@ public enum BooleanLike
     False,
     Unknown,
 }
+
+/// <summary>
+/// The values of <see cref="BooleanLike"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class BooleanLikeExtensions
+{
+    public static string ToWireValue(this BooleanLike value)
+        => value switch
+        {
+            BooleanLike.True => "True",
+            BooleanLike.False => "False",
+            BooleanLike.Unknown => "Unknown",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this BooleanLike? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

@@ -38,7 +38,8 @@ public sealed class EventsEndpointDefinition : IEndpointDefinition
             .Produces<EventPage>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, ListEventsParameters>();
     }
 
     internal async Task<IResult> ListEvents(

@@ -37,7 +37,8 @@ public sealed class AccountsEndpointDefinition : IEndpointDefinition
             .Produces<PaginatedResult<Account>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, ListAccountsParameters>();
 
         accounts
             .MapPost("/", CreateAccount)

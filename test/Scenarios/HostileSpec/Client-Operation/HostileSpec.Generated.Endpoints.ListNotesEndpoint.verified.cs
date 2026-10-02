@@ -59,7 +59,7 @@ public sealed class ListNotesEndpoint : IListNotesEndpoint
         }
         if (parameters.Kind is not null)
         {
-            requestBuilder.WithQueryParameter("kind", parameters.Kind);
+            requestBuilder.WithQueryParameter("kind", parameters.Kind.ToWireValue());
         }
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);

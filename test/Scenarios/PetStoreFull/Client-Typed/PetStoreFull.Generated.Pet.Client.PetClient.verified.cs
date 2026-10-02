@@ -83,7 +83,7 @@ public sealed class PetClient : IPetClient
     {
         var url = "/pet/findByStatus";
         var queryParams = new List<string>();
-        queryParams.Add($"status={Uri.EscapeDataString($"{parameters.Status}")}");
+        queryParams.Add($"status={Uri.EscapeDataString(parameters.Status.ToWireValue()!)}");
 
         if (queryParams.Count > 0)
         {

@@ -48,7 +48,7 @@ public sealed class GetItemLogsEndpoint : IGetItemLogsEndpoint
         requestBuilder.WithPathParameter("itemId", parameters.ItemId);
         if (parameters.LogLevel is not null)
         {
-            requestBuilder.WithQueryParameter("logLevel", parameters.LogLevel);
+            requestBuilder.WithQueryParameter("logLevel", parameters.LogLevel.ToWireValue());
         }
         if (parameters.From is not null)
         {

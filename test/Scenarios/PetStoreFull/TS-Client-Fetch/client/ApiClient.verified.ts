@@ -110,7 +110,7 @@ export class ApiClient {
         headers.set('Content-Type', options.xml.contentType ?? 'application/xml; charset=utf-8');
         fetchBody = options.xml.write(options.body as never);
       } else {
-        headers.set('Content-Type', 'application/json');
+        headers.set('Content-Type', options.contentType ?? 'application/json');
         fetchBody = JSON.stringify(options.body);
       }
     }

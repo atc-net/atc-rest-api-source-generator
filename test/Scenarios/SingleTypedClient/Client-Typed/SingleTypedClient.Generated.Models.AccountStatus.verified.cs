@@ -13,3 +13,22 @@ public enum AccountStatus
     Suspended,
     Closed,
 }
+
+/// <summary>
+/// The values of <see cref="AccountStatus"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class AccountStatusExtensions
+{
+    public static string ToWireValue(this AccountStatus value)
+        => value switch
+        {
+            AccountStatus.Active => "Active",
+            AccountStatus.Suspended => "Suspended",
+            AccountStatus.Closed => "Closed",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this AccountStatus? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

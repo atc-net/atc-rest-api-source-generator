@@ -24,4 +24,4 @@ public sealed record ListItemsParameters(
     [property: FromQuery(Name = "legacy")] ParsableList<string>? Legacy,
     [property: FromQuery(Name = "ids")] ParsableList<string>? Ids,
     string? RawFilter,
-    string? Session);
+    [property: FromHeader(Name = "x-cookie-session")] string? Session);

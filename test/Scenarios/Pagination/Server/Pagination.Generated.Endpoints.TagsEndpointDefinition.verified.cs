@@ -37,7 +37,8 @@ public sealed class TagsEndpointDefinition : IEndpointDefinition
             .Produces<PaginatedResult<string>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, ListTagsParameters>();
     }
 
     internal async Task<IResult> ListTags(

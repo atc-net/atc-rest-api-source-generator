@@ -12,3 +12,21 @@ public enum DeviceStatus
     Online,
     Offline,
 }
+
+/// <summary>
+/// The values of <see cref="DeviceStatus"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class DeviceStatusExtensions
+{
+    public static string ToWireValue(this DeviceStatus value)
+        => value switch
+        {
+            DeviceStatus.Online => "Online",
+            DeviceStatus.Offline => "Offline",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this DeviceStatus? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

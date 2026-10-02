@@ -63,6 +63,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, GetOrderByIdParameters>()
             .RequireRateLimiting(RateLimitPolicies.OrdersStandard);
 
         orders
@@ -75,6 +76,7 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, DeleteOrderParameters>()
             .RequireRateLimiting(RateLimitPolicies.OrdersStrict);
     }
 

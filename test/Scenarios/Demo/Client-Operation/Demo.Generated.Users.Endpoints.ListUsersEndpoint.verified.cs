@@ -55,7 +55,7 @@ public sealed class ListUsersEndpoint : IListUsersEndpoint
         }
         if (parameters.Role is not null)
         {
-            requestBuilder.WithQueryParameter("role", parameters.Role);
+            requestBuilder.WithQueryParameter("role", parameters.Role.ToWireValue());
         }
         if (parameters.IsActive is not null)
         {

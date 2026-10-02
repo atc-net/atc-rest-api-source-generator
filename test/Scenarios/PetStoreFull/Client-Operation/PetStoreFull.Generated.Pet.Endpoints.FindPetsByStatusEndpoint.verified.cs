@@ -45,7 +45,7 @@ public sealed class FindPetsByStatusEndpoint : IFindPetsByStatusEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/pet/findByStatus");
-        requestBuilder.WithQueryParameter("status", parameters.Status);
+        requestBuilder.WithQueryParameter("status", parameters.Status.ToWireValue());
         requestBuilder.WithHeaderParameter("accept", "application/json, application/problem+json");
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);

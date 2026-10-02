@@ -37,7 +37,8 @@ public sealed class NotesEndpointDefinition : IEndpointDefinition
             .Produces<List<Note>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, ListNotesParameters>();
 
         notes
             .MapDelete("/", DeleteNotes)

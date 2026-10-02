@@ -52,7 +52,7 @@ public sealed class UploadFormDataFileEndpoint : IUploadFormDataFileEndpoint
 
         if (parameters.Request?.File is not null)
         {
-            requestBuilder.WithFile(parameters.Request.File.OpenReadStream(), "file", parameters.Request.File.FileName);
+            requestBuilder.WithFile(parameters.Request.File.OpenReadStream(), "file", parameters.Request.File.FileName, parameters.Request.File.ContentType);
         }
 
         if (parameters.Request?.Items is not null)

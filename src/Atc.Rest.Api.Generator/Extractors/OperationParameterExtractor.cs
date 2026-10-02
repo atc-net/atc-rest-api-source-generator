@@ -618,8 +618,11 @@ public static class OperationParameterExtractor
                                 $"Name = \"{parameter.Name}\""));
                             break;
                         case ParameterLocation.Cookie:
-                            // ASP.NET Core has no [FromCookie] attribute; omit binding so the
-                            // generated code compiles. Cookies must be read via HttpContext.Request.Cookies.
+                            // ASP.NET Core has no cookie binding source: the property is bound from a request header
+                            // that the endpoint's WithWireBinding step fills from the cookie
+                            attributes.Add(new AttributeParameters(
+                                "FromHeader",
+                                $"Name = \"{WireBindingHelper.CookieHeaderPrefix}{parameter.Name}\""));
                             break;
                     }
                 }

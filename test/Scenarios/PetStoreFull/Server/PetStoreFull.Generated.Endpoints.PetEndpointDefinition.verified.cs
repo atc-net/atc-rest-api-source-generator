@@ -73,6 +73,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
+            .WithWireBinding<RouteHandlerBuilder, FindPetsByStatusParameters>()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
                 .RequireAuthenticatedUser());
@@ -86,6 +87,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
+            .WithWireBinding<RouteHandlerBuilder, FindPetsByTagsParameters>()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
                 .RequireAuthenticatedUser());
@@ -100,6 +102,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
+            .WithWireBinding<RouteHandlerBuilder, GetPetByIdParameters>()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("api_key", "petstore_auth")
                 .RequireAuthenticatedUser());
@@ -114,6 +117,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithWireBinding<RouteHandlerBuilder, UpdatePetWithFormParameters>()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
                 .RequireAuthenticatedUser());
@@ -128,6 +132,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithWireBinding<RouteHandlerBuilder, DeletePetParameters>()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
                 .RequireAuthenticatedUser());
@@ -143,6 +148,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithWireBinding<RouteHandlerBuilder, UploadFileParameters>()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
                 .RequireAuthenticatedUser())

@@ -276,7 +276,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("        headers.set('Content-Type', options.contentType ?? (options.body.type || 'application/octet-stream'));");
         sb.AppendLine("        fetchBody = options.body;");
         sb.AppendLine("      } else {");
-        sb.AppendLine("        headers.set('Content-Type', 'application/json');");
+        sb.AppendLine("        headers.set('Content-Type', options.contentType ?? 'application/json');");
         sb.Append("        fetchBody = ").Append(stringify).AppendLine(";");
         sb.AppendLine("      }");
         sb.AppendLine("    }");

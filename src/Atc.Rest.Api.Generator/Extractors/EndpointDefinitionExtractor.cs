@@ -979,6 +979,10 @@ using Microsoft.AspNetCore.Builder;
             GenerateValidationFilterMetadata(builder, operation, pathItem, methodName);
         }
 
+        // The step before the framework binds the parameters: enum wire values, cookies, array items, a 400 that names
+        // the parameter
+        GenerateWireBindingMetadata(builder, operation, pathItem, methodName);
+
         // Add security metadata if needed (only if different from group-level)
         if (pathItem is not null)
         {
@@ -1174,6 +1178,22 @@ using Microsoft.AspNetCore.Builder;
             builder.AppendLine();
             builder.Append($"    .CacheOutput(OutputCachePolicies.{constantName})");
         }
+    }
+
+    private static void GenerateWireBindingMetadata(
+        StringBuilder builder,
+        OpenApiOperation operation,
+        IOpenApiPathItem? pathItem,
+        string methodName)
+    {
+        // Form binding flattening has no [AsParameters] record to read the parameters from
+        if (operation.RequiresFormBindingFlattening() || !WireBindingHelper.IsNeeded(operation, pathItem))
+        {
+            return;
+        }
+
+        builder.AppendLine();
+        builder.Append($"    .WithWireBinding<RouteHandlerBuilder, {methodName}Parameters>({string.Join(", ", WireBindingHelper.DelimitedArrayArguments(operation, pathItem))})");
     }
 
     private static void GenerateValidationFilterMetadata(

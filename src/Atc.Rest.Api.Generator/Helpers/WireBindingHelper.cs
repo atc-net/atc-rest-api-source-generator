@@ -1,0 +1,349 @@
+namespace Atc.Rest.Api.Generator.Helpers;
+
+/// <summary>
+/// The server-side step that runs before the framework binds an operation's parameters, for what its binder
+/// cannot do: read an enum by the value in the specification (it reads member names only, so <c>dark-blue</c> is a
+/// 400), read a cookie (there is no cookie binding source), take an array query parameter's items as sent (a
+/// repeated key is one item each, never split on a comma inside; a declared delimiter - comma, pipe, space - is
+/// honored), and answer a value it cannot bind with a problem that names the parameter.
+/// <para>
+/// The generated endpoint calls <c>.WithWireBinding&lt;TParameters&gt;()</c>. It rewrites an enum's wire value in
+/// the route values, the query string or a header to the member name, copies each cookie parameter to the request
+/// header its property is bound from (<see cref="CookieHeaderPrefix"/> + the cookie name), joins an array's items
+/// with the item separator the generated list type splits on, and checks every scalar before the binder sees it.
+/// </para>
+/// </summary>
+public static class WireBindingHelper
+{
+    /// <summary>
+    /// The prefix of the request header a cookie parameter is bound from.
+    /// </summary>
+    public const string CookieHeaderPrefix = "x-cookie-";
+
+    /// <summary>
+    /// Whether an operation needs the step: it has a parameter in the path, the query string, a header or a cookie.
+    /// </summary>
+    /// <param name="operation">The operation.</param>
+    /// <param name="pathItem">The path item (its parameters apply to the operation too).</param>
+    /// <returns><see langword="true"/> when the endpoint has to call <c>WithWireBinding</c>.</returns>
+    public static bool IsNeeded(
+        OpenApiOperation operation,
+        IOpenApiPathItem? pathItem)
+    {
+        if (operation is null)
+        {
+            throw new ArgumentNullException(nameof(operation));
+        }
+
+        return (pathItem?.Parameters ?? [])
+            .Concat(operation.Parameters ?? [])
+            .Select(p => p.Resolve().Parameter)
+            .Any(p => p is { In: ParameterLocation.Path or ParameterLocation.Query or ParameterLocation.Header or ParameterLocation.Cookie });
+    }
+
+    /// <summary>
+    /// Whether any operation of the document needs the step.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document.</param>
+    /// <returns><see langword="true"/> when the helper has to be generated.</returns>
+    public static bool IsNeeded(OpenApiDocument openApiDoc)
+    {
+        if (openApiDoc?.Paths is null)
+        {
+            return false;
+        }
+
+        foreach (var pathItem in openApiDoc.Paths.Values)
+        {
+            if (pathItem?.Operations is null)
+            {
+                continue;
+            }
+
+            if (pathItem.Operations.Values.Any(operation => operation is not null && IsNeeded(operation, pathItem)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// The array query parameters whose items are delimited inside one value - form with <c>explode: false</c>
+    /// (comma), <c>pipeDelimited</c> (pipe), <c>spaceDelimited</c> (space) - as the arguments of <c>WithWireBinding</c>.
+    /// </summary>
+    /// <param name="operation">The operation.</param>
+    /// <param name="pathItem">The path item.</param>
+    /// <returns>C# tuple literals, <c>("csv", ',')</c>.</returns>
+    public static IReadOnlyList<string> DelimitedArrayArguments(
+        OpenApiOperation operation,
+        IOpenApiPathItem? pathItem)
+    {
+        if (operation is null)
+        {
+            throw new ArgumentNullException(nameof(operation));
+        }
+
+        var arguments = new List<string>();
+        foreach (var parameter in (pathItem?.Parameters ?? []).Concat(operation.Parameters ?? []).Select(p => p.Resolve().Parameter))
+        {
+            if (parameter is not { In: ParameterLocation.Query, Name: { } name } ||
+                parameter.Schema?.IsOfType(JsonSchemaType.Array) != true)
+            {
+                continue;
+            }
+
+            var delimiter = (parameter.Style ?? ParameterStyle.Form) switch
+            {
+                ParameterStyle.PipeDelimited => "'|'",
+                ParameterStyle.SpaceDelimited => "' '",
+                ParameterStyle.Form when !parameter.Explode => "','",
+                _ => null,
+            };
+
+            if (delimiter is not null)
+            {
+                arguments.Add($"(\"{name}\", {delimiter})");
+            }
+        }
+
+        return arguments;
+    }
+
+    /// <summary>
+    /// The source of the generated helper.
+    /// </summary>
+    /// <param name="projectName">The project name (root namespace).</param>
+    /// <returns>The C# source.</returns>
+    public static string GenerateContent(string projectName)
+        => $$"""
+            // <auto-generated />
+            #nullable enable
+
+            using System;
+            using System.CodeDom.Compiler;
+            using System.Collections.Generic;
+            using System.Globalization;
+            using System.Linq;
+            using System.Reflection;
+            using System.Runtime.Serialization;
+            using System.Threading.Tasks;
+            using Microsoft.AspNetCore.Builder;
+            using Microsoft.AspNetCore.Http;
+            using Microsoft.AspNetCore.Mvc;
+            using Microsoft.Extensions.Primitives;
+
+            namespace {{projectName}}.Generated;
+
+            /// <summary>
+            /// Runs before the framework binds an operation's parameters, for what its binder cannot do: read an enum
+            /// by the value in the specification (it reads member names only), read a cookie (a cookie parameter is
+            /// bound from the request header "{{CookieHeaderPrefix}}{name}", which this step fills from the cookie),
+            /// take an array's items as sent (a repeated key is one item each; a declared delimiter is honored), and
+            /// answer a value it cannot bind with a problem that names the parameter.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            public static class WireBindingExtensions
+            {
+                private const string CookieHeaderPrefix = "{{CookieHeaderPrefix}}";
+
+                private const char ItemSeparator = '\u001F';
+
+                private sealed record BoundParameter(string In, string Name, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, char? Delimiter, bool IsArray);
+
+                /// <summary>
+                /// Adds the step for the parameters of <typeparamref name="TParameters"/>.
+                /// </summary>
+                public static TBuilder WithWireBinding<TBuilder, TParameters>(this TBuilder builder, params (string Name, char Delimiter)[] delimitedArrays)
+                    where TBuilder : IEndpointConventionBuilder
+                {
+                    var parameters = new List<BoundParameter>();
+                    var cookies = new List<string>();
+                    foreach (var property in typeof(TParameters).GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                    {
+                        var (location, name) = property.GetCustomAttribute<FromRouteAttribute>() is { Name: { } route }
+                            ? ("path", route)
+                            : property.GetCustomAttribute<FromQueryAttribute>() is { Name: { } query }
+                                ? ("query", query)
+                                : property.GetCustomAttribute<FromHeaderAttribute>() is { Name: { } header }
+                                    ? ("header", header)
+                                    : (string.Empty, string.Empty);
+                        if (location.Length == 0)
+                        {
+                            continue;
+                        }
+
+                        if (location == "header" && name.StartsWith(CookieHeaderPrefix, StringComparison.Ordinal))
+                        {
+                            cookies.Add(name[CookieHeaderPrefix.Length..]);
+                        }
+
+                        var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+                        var isArray = location == "query" && type.IsGenericType && type.GetGenericTypeDefinition().Name.StartsWith("Parsable", StringComparison.Ordinal);
+                        if (isArray)
+                        {
+                            type = type.GetGenericArguments()[0];
+                        }
+
+                        var members = type.IsEnum ? MemberNames(type) : null;
+                        var delimited = Array.Find(delimitedArrays, d => string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase));
+                        parameters.Add(new BoundParameter(location, name, Parser(type, members), type.Name, members, delimited.Name is null ? null : delimited.Delimiter, isArray));
+                    }
+
+                    if (parameters.Count == 0)
+                    {
+                        return builder;
+                    }
+
+                    builder.Add(endpoint =>
+                    {
+                        if (endpoint.RequestDelegate is not { } next)
+                        {
+                            return;
+                        }
+
+                        endpoint.RequestDelegate = context =>
+                        {
+                            var errors = Rewrite(context.Request, parameters, cookies);
+                            return errors is null
+                                ? next(context)
+                                : global::Microsoft.AspNetCore.Http.Results.ValidationProblem(errors).ExecuteAsync(context);
+                        };
+                    });
+
+                    return builder;
+                }
+
+                // The request as the binder reads it; the values it cannot bind, by parameter name, or null
+                private static Dictionary<string, string[]>? Rewrite(
+                    HttpRequest request,
+                    List<BoundParameter> parameters,
+                    List<string> cookies)
+                {
+                    // A cookie parameter is bound from its header: the cookie decides, never a header a caller sent
+                    foreach (var cookie in cookies)
+                    {
+                        if (request.Cookies.TryGetValue(cookie, out var value))
+                        {
+                            request.Headers[CookieHeaderPrefix + cookie] = value;
+                        }
+                        else
+                        {
+                            request.Headers.Remove(CookieHeaderPrefix + cookie);
+                        }
+                    }
+
+                    Dictionary<string, StringValues>? query = null;
+                    Dictionary<string, string[]>? errors = null;
+                    foreach (var parameter in parameters)
+                    {
+                        var values = parameter.In switch
+                        {
+                            "path" => request.RouteValues.TryGetValue(parameter.Name, out var routeValue) && routeValue is string routeText ? new StringValues(routeText) : StringValues.Empty,
+                            "query" => request.Query.TryGetValue(parameter.Name, out var queryValue) ? queryValue : StringValues.Empty,
+                            _ => request.Headers.TryGetValue(parameter.Name, out var headerValue) ? headerValue : StringValues.Empty,
+                        };
+                        if (values.Count == 0)
+                        {
+                            continue;
+                        }
+
+                        // An array: its items as one value with the item separator between them (the list type splits on it).
+                        // A repeated key is one item each; a declared delimiter splits each value; a single plain value is
+                        // split on commas, as it always was.
+                        var items = parameter.IsArray
+                            ? parameter.Delimiter is { } delimiter
+                                ? values.SelectMany(v => (v ?? string.Empty).Split(delimiter, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).ToArray()
+                                : values.Count == 1
+                                    ? (values[0] ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                    : values.Where(v => !string.IsNullOrEmpty(v)).Select(v => v!.Trim()).ToArray()
+                            : values.Where(v => v is not null).Select(v => v!).ToArray();
+
+                        if (parameter.Parses is { } parses && Array.Find(items, item => item.Length > 0 && !parses(item)) is { } invalid)
+                        {
+                            errors ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
+                            errors[parameter.Name] = [$"'{invalid}' is not a valid {parameter.TypeName}."];
+                            continue;
+                        }
+
+                        // An enum by its wire value: the member name the binder reads
+                        if (parameter.Members is { Count: > 0 } members)
+                        {
+                            items = items.Select(item => members.TryGetValue(item, out var member) ? member : item).ToArray();
+                        }
+
+                        if (parameter.IsArray)
+                        {
+                            query ??= request.Query.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+                            query[parameter.Name] = string.Join(ItemSeparator, items);
+                        }
+                        else if (parameter.Members is { Count: > 0 })
+                        {
+                            switch (parameter.In)
+                            {
+                                case "path":
+                                    request.RouteValues[parameter.Name] = items[0];
+                                    break;
+                                case "query":
+                                    query ??= request.Query.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+                                    query[parameter.Name] = new StringValues(items);
+                                    break;
+                                default:
+                                    request.Headers[parameter.Name] = new StringValues(items);
+                                    break;
+                            }
+                        }
+                    }
+
+                    if (query is not null)
+                    {
+                        request.Query = new QueryCollection(query);
+                    }
+
+                    return errors;
+                }
+
+                // Whether a value parses as the type - an enum by wire value or member name, a parsable type through
+                // its TryParse with the invariant culture; null for a string or a type without one
+                private static Func<string, bool>? Parser(Type type, Dictionary<string, string>? members)
+                {
+                    if (type == typeof(string))
+                    {
+                        return null;
+                    }
+
+                    if (type.IsEnum)
+                    {
+                        return value => members?.ContainsKey(value) == true || (Enum.TryParse(type, value, ignoreCase: true, out var parsed) && Enum.IsDefined(type, parsed!));
+                    }
+
+                    if (type == typeof(bool))
+                    {
+                        return value => bool.TryParse(value, out _);
+                    }
+
+                    var tryParse = type.GetMethod("TryParse", BindingFlags.Public | BindingFlags.Static, [typeof(string), typeof(IFormatProvider), type.MakeByRefType()]);
+                    return tryParse is null
+                        ? null
+                        : value => (bool)tryParse.Invoke(null, [value, CultureInfo.InvariantCulture, null])!;
+                }
+
+                // The wire values of an enum that differ from the member name, by wire value
+                private static Dictionary<string, string> MemberNames(Type enumType)
+                {
+                    var members = new Dictionary<string, string>(StringComparer.Ordinal);
+                    foreach (var field in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))
+                    {
+                        if (field.GetCustomAttribute<EnumMemberAttribute>()?.Value is { } wireValue &&
+                            !string.Equals(wireValue, field.Name, StringComparison.Ordinal))
+                        {
+                            members[wireValue] = field.Name;
+                        }
+                    }
+
+                    return members;
+                }
+            }
+            """;
+}

@@ -18,3 +18,24 @@ public enum RoleType
     Viewer,
     Guest,
 }
+
+/// <summary>
+/// The values of <see cref="RoleType"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class RoleTypeExtensions
+{
+    public static string ToWireValue(this RoleType value)
+        => value switch
+        {
+            RoleType.Admin => "Admin",
+            RoleType.Manager => "Manager",
+            RoleType.Editor => "Editor",
+            RoleType.Viewer => "Viewer",
+            RoleType.Guest => "Guest",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this RoleType? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

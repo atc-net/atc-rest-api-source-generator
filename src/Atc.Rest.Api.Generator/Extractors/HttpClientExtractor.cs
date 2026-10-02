@@ -716,7 +716,9 @@ public static class HttpClientExtractor
                 {
                     var propName = param.Name!.ToPascalCaseForDotNet();
                     var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName);
-                    var replacement = BuildPathParameterReplacement(propName, paramType);
+                    var replacement = WireValueHelper.IsStringEnum(param.Schema)
+                        ? $"{{Uri.EscapeDataString(parameters.{propName}.ToWireValue())}}"
+                        : BuildPathParameterReplacement(propName, paramType);
                     urlBuilder = urlBuilder.Replace($"{{{param.Name}}}", replacement);
                 }
             }
@@ -739,7 +741,9 @@ public static class HttpClientExtractor
                 {
                     var propName = param.Name!.ToPascalCaseForDotNet();
                     var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName);
-                    var replacement = BuildPathParameterReplacement(propName, paramType);
+                    var replacement = WireValueHelper.IsStringEnum(param.Schema)
+                        ? $"{{Uri.EscapeDataString(parameters.{propName}.ToWireValue())}}"
+                        : BuildPathParameterReplacement(propName, paramType);
                     urlBuilder = urlBuilder.Replace($"{{{param.Name}}}", replacement);
                 }
             }
@@ -795,7 +799,7 @@ public static class HttpClientExtractor
                 // ToString()
                 if (serialization.ValueKind == ParameterValueKind.Array)
                 {
-                    AppendQueryArrayForeach(builder, param.Name!, paramAccess, paramType, serialization.AllowReserved, isRequired);
+                    AppendQueryArrayForeach(builder, param.Name!, paramAccess, paramType, serialization.AllowReserved, isRequired, WireValueHelper.IsStringEnum(param.Schema));
                     continue;
                 }
 
@@ -814,6 +818,26 @@ public static class HttpClientExtractor
                         builder.AppendLine($"if ({nullCheck})");
                         builder.AppendLine("{");
                         builder.AppendLine(4, $"queryParams.Add($\"{param.Name}={{{paramAccess}}}\");");
+                        builder.AppendLine("}");
+                    }
+
+                    continue;
+                }
+
+                // An enum: the value as the specification writes it, not the member name
+                if (WireValueHelper.IsStringEnum(param.Schema))
+                {
+                    var wireValue = $"Uri.EscapeDataString({paramAccess}.ToWireValue()!)";
+                    if (isRequired)
+                    {
+                        builder.AppendLine($"queryParams.Add($\"{param.Name}={{{wireValue}}}\");");
+                    }
+                    else
+                    {
+                        builder.AppendLine();
+                        builder.AppendLine($"if ({paramAccess} is not null)");
+                        builder.AppendLine("{");
+                        builder.AppendLine(4, $"queryParams.Add($\"{param.Name}={{{wireValue}}}\");");
                         builder.AppendLine("}");
                     }
 
@@ -1131,7 +1155,7 @@ public static class HttpClientExtractor
         }
         else if (hasJsonBody)
         {
-            builder.AppendLine($"requestMessage.Content = JsonContent.Create({requestAccess}, options: jsonSerializerOptions);");
+            builder.AppendLine($"requestMessage.Content = {JsonBodyContent(operation, requestAccess)};");
         }
 
         if (xmlRead?.Accept is not null)
@@ -1247,12 +1271,15 @@ public static class HttpClientExtractor
         }
         else if (hasJsonBody)
         {
+            var jsonContent = JsonBodyContent(operation, requestAccess);
             AppendSend(
                 builder,
-                $"var response = await httpClient.PostAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);",
+                IsPlainJson(operation)
+                    ? $"var response = await httpClient.PostAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);"
+                    : $"var response = await httpClient.PostAsync(url, {jsonContent}, cancellationToken);",
                 resilienceStamp,
                 "HttpMethod.Post",
-                $"JsonContent.Create({requestAccess}, options: jsonSerializerOptions)",
+                jsonContent,
                 accept: xmlRead?.Accept);
         }
         else
@@ -1305,14 +1332,17 @@ public static class HttpClientExtractor
         }
         else
         {
+            var jsonContent = hasJsonBody ? JsonBodyContent(operation, requestAccess) : null;
             AppendSend(
                 builder,
                 hasJsonBody
-                    ? $"var response = await httpClient.PutAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);"
+                    ? IsPlainJson(operation)
+                        ? $"var response = await httpClient.PutAsJsonAsync(url, {requestAccess}, jsonSerializerOptions, cancellationToken);"
+                        : $"var response = await httpClient.PutAsync(url, {jsonContent}, cancellationToken);"
                     : "var response = await httpClient.PutAsync(url, null, cancellationToken);",
                 resilienceStamp,
                 "HttpMethod.Put",
-                hasJsonBody ? $"JsonContent.Create({requestAccess}, options: jsonSerializerOptions)" : null,
+                jsonContent,
                 accept: xmlRead?.Accept);
         }
 
@@ -1343,6 +1373,23 @@ public static class HttpClientExtractor
             isLastStatement: true,
             xmlRead: xmlRead);
     }
+
+    /// <summary>
+    /// Whether the JSON request body is declared as <c>application/json</c> (the verb helpers send that).
+    /// </summary>
+    private static bool IsPlainJson(OpenApiOperation operation)
+        => string.Equals(operation.GetJsonRequestBodyMediaType(), "application/json", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The JSON request body as content: with the declared media type when it is another JSON media type
+    /// (<c>application/merge-patch+json</c>, <c>application/vnd.x+json</c>).
+    /// </summary>
+    private static string JsonBodyContent(
+        OpenApiOperation operation,
+        string requestAccess)
+        => IsPlainJson(operation)
+            ? $"JsonContent.Create({requestAccess}, options: jsonSerializerOptions)"
+            : $"JsonContent.Create({requestAccess}, new System.Net.Http.Headers.MediaTypeHeaderValue(\"{operation.GetJsonRequestBodyMediaType()}\"), jsonSerializerOptions)";
 
     /// <summary>
     /// Emits the send for an operation: the verb helper call (<c>GetAsync</c>, <c>PostAsJsonAsync</c>, ...) as
@@ -1418,12 +1465,13 @@ public static class HttpClientExtractor
 
             sb.AppendLine($"if (parameters.{propName} is {ValuePattern(paramType)} {variable})");
             sb.AppendLine("{");
-            sb.AppendLine(4, $"{requestVariable}.Headers.Add(\"{param.Name}\", {BuildWireTextExpression(variable, paramType)});");
+            sb.AppendLine(4, $"{requestVariable}.Headers.Add(\"{param.Name}\", {BuildWireTextExpression(variable, paramType, WireValueHelper.IsStringEnum(param.Schema))});");
             sb.AppendLine("}");
             sb.AppendLine();
         }
 
-        // RFC 6265 Cookie header (name=value; name2=value2), each value percent-encoded
+        // RFC 6265 Cookie header (name=value; name2=value2), each value percent-encoded (the server decodes it) unless
+        // the parameter declares style: cookie (sent as is)
         if (cookieParams.Count > 0)
         {
             sb.AppendLine("var cookieParts = new List<string>();");
@@ -1435,7 +1483,8 @@ public static class HttpClientExtractor
 
                 sb.AppendLine($"if (parameters.{propName} is {ValuePattern(paramType)} {variable})");
                 sb.AppendLine("{");
-                sb.AppendLine(4, $"cookieParts.Add(\"{param.Name}=\" + Uri.EscapeDataString({BuildWireTextExpression(variable, paramType)}));");
+                var text = BuildWireTextExpression(variable, paramType, WireValueHelper.IsStringEnum(param.Schema));
+                sb.AppendLine(4, $"cookieParts.Add(\"{param.Name}=\" + {(param.Style == ParameterStyle.Cookie ? text : $"Uri.EscapeDataString({text})")});");
                 sb.AppendLine("}");
                 sb.AppendLine();
             }
@@ -1459,8 +1508,14 @@ public static class HttpClientExtractor
     /// </summary>
     private static string BuildWireTextExpression(
         string valueExpression,
-        string paramType)
+        string paramType,
+        bool isEnum)
     {
+        if (isEnum)
+        {
+            return $"{valueExpression}.ToWireValue()";
+        }
+
         var type = paramType.TrimEnd('?');
         if (type == "string")
         {
@@ -1844,7 +1899,8 @@ public static class HttpClientExtractor
         string paramAccess,
         string paramType,
         bool allowReserved,
-        bool isRequired)
+        bool isRequired,
+        bool itemIsEnum = false)
     {
         // Element type comes off the shared List<T>/T[] extractor; if neither shape matches
         // (no array param should reach here that way) fall back to the param type itself.
@@ -1862,6 +1918,12 @@ public static class HttpClientExtractor
         var encodedItem = allowReserved
             ? (elementType == "string" ? "item" : "item.ToString()")
             : BuildEncodedExpression("item", elementType);
+
+        // An enum item: the value as the specification writes it
+        if (itemIsEnum)
+        {
+            encodedItem = allowReserved ? "item.ToWireValue()" : "Uri.EscapeDataString(item.ToWireValue())";
+        }
 
         if (isRequired)
         {

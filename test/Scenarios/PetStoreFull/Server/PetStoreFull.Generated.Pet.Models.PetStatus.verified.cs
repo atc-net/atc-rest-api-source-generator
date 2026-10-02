@@ -27,3 +27,22 @@ public enum PetStatus
     [JsonStringEnumMemberName("sold")]
     Sold,
 }
+
+/// <summary>
+/// The values of <see cref="PetStatus"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class PetStatusExtensions
+{
+    public static string ToWireValue(this PetStatus value)
+        => value switch
+        {
+            PetStatus.Available => "available",
+            PetStatus.Pending => "pending",
+            PetStatus.Sold => "sold",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this PetStatus? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

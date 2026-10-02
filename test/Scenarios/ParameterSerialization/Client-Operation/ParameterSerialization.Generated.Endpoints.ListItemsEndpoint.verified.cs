@@ -61,6 +61,17 @@ public sealed class ListItemsEndpoint : IListItemsEndpoint
         {
             requestBuilder.WithQueryParameter("ids", parameters.Ids);
         }
+        var cookieParts = new List<string>();
+        if (parameters.Session is not null)
+        {
+            cookieParts.Add("session=" + global::System.Convert.ToString(parameters.Session, global::System.Globalization.CultureInfo.InvariantCulture)!);
+        }
+
+        if (cookieParts.Count > 0)
+        {
+            requestBuilder.WithHeaderParameter("Cookie", string.Join("; ", cookieParts));
+        }
+
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
         using var response = await client.SendAsync(requestMessage, cancellationToken);

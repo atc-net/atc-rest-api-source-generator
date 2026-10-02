@@ -35,3 +35,24 @@ public enum ColorType
     [JsonStringEnumMemberName("warning-yellow")]
     WarningYellow,
 }
+
+/// <summary>
+/// The values of <see cref="ColorType"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class ColorTypeExtensions
+{
+    public static string ToWireValue(this ColorType value)
+        => value switch
+        {
+            ColorType.PrimaryBlue => "primary-blue",
+            ColorType.SecondaryGreen => "secondary-green",
+            ColorType.AccentRed => "accent-red",
+            ColorType.NeutralGray => "neutral-gray",
+            ColorType.WarningYellow => "warning-yellow",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this ColorType? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

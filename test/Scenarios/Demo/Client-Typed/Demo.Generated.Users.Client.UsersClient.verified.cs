@@ -58,7 +58,7 @@ public sealed class UsersClient : IUsersClient
 
         if (parameters.Role is not null)
         {
-            queryParams.Add($"role={Uri.EscapeDataString($"{parameters.Role}")}");
+            queryParams.Add($"role={Uri.EscapeDataString(parameters.Role.ToWireValue()!)}");
         }
 
         if (parameters.IsActive.HasValue)

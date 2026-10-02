@@ -284,7 +284,7 @@ public static class TypeScriptAxiosApiClientExtractor
         {
             sb.AppendLine("      transformRequest: [(data: unknown, headers: Record<string, string>) => {");
             sb.AppendLine("        if (data instanceof FormData || data instanceof Blob) return data;");
-            sb.AppendLine("        if (data !== undefined) headers['Content-Type'] = 'application/json';");
+            sb.AppendLine("        if (data !== undefined && !headers['Content-Type']) headers['Content-Type'] = 'application/json';");
             sb.AppendLine("        return data !== undefined ? JSON.stringify(data, dateReplacer) : data;");
             sb.AppendLine("      }],");
         }
@@ -340,14 +340,15 @@ public static class TypeScriptAxiosApiClientExtractor
 
         if (convertDates)
         {
-            // transformRequest handles Content-Type and JSON.stringify with dateReplacer
+            // transformRequest does JSON.stringify with dateReplacer; a +json media type is set here
             sb.AppendLine("      } else {");
+            sb.AppendLine("        if (options.contentType) headers['Content-Type'] = options.contentType;");
             sb.Append("        data = ").Append(jsonBody).AppendLine(";");
         }
         else
         {
             sb.AppendLine("      } else {");
-            sb.AppendLine("        headers['Content-Type'] = 'application/json';");
+            sb.AppendLine("        headers['Content-Type'] = options.contentType ?? 'application/json';");
             sb.Append("        data = ").Append(jsonBody).AppendLine(";");
         }
 

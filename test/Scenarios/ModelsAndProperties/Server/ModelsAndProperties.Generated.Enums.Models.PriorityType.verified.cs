@@ -39,3 +39,25 @@ public enum PriorityType
     [JsonStringEnumMemberName("critical")]
     Critical,
 }
+
+/// <summary>
+/// The values of <see cref="PriorityType"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class PriorityTypeExtensions
+{
+    public static string ToWireValue(this PriorityType value)
+        => value switch
+        {
+            PriorityType.VeryLow => "very_low",
+            PriorityType.Low => "low",
+            PriorityType.Medium => "medium",
+            PriorityType.High => "high",
+            PriorityType.VeryHigh => "very_high",
+            PriorityType.Critical => "critical",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this PriorityType? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

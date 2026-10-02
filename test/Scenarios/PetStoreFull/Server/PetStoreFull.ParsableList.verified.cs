@@ -5,14 +5,16 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 
 namespace PetStoreFull.Generated;
 
 /// <summary>
-/// A list type that supports parsing from comma-separated string values.
-/// Used for array query parameters bound via [AsParameters] in minimal APIs.
+/// An array query parameter bound via [AsParameters] in minimal APIs. The endpoint's WithWireBinding step hands
+/// the values over as one string with the unit separator between the items (a repeated key is one item each,
+/// a declared delimiter is honored); a plain comma-separated value (tags=a,b) is read too.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed class ParsableList<T> : List<T>, IParsable<ParsableList<T>>
@@ -20,40 +22,19 @@ public sealed class ParsableList<T> : List<T>, IParsable<ParsableList<T>>
 {
     /// <inheritdoc />
     public static ParsableList<T> Parse(string s, IFormatProvider? provider)
-    {
-        var list = new ParsableList<T>();
-        if (!string.IsNullOrEmpty(s))
-        {
-            foreach (var item in s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                list.Add(T.Parse(item, provider));
-            }
-        }
-
-        return list;
-    }
+        => TryParse(s, provider, out var result)
+            ? result
+            : throw new FormatException($"'{s}' is not a list of {typeof(T).Name} values.");
 
     /// <inheritdoc />
     public static bool TryParse(string? s, IFormatProvider? provider, out ParsableList<T> result)
     {
         result = new ParsableList<T>();
-        if (string.IsNullOrEmpty(s))
-        {
-            return true;
-        }
-
-        foreach (var item in s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            if (!T.TryParse(item, provider, out var parsed))
-            {
-                return false;
-            }
-
-            result.Add(parsed);
-        }
-
-        return true;
+        return ParsableListBinding.TryAddAll(result, ParsableListBinding.Split(s), TryParseItem);
     }
+
+    private static bool TryParseItem(string item, out T value)
+        => T.TryParse(item, null, out value!);
 }
 
 /// <summary>
@@ -76,24 +57,12 @@ public sealed class ParsableEnumList<T> : List<T>, IParsable<ParsableEnumList<T>
     public static bool TryParse(string? s, IFormatProvider? provider, out ParsableEnumList<T> result)
     {
         result = new ParsableEnumList<T>();
-        if (string.IsNullOrEmpty(s))
-        {
-            return true;
-        }
-
-        foreach (var item in s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            if (!WireValues.TryGetValue(item, out var parsed) &&
-                !(Enum.TryParse(item, ignoreCase: true, out parsed) && Enum.IsDefined(parsed)))
-            {
-                return false;
-            }
-
-            result.Add(parsed);
-        }
-
-        return true;
+        return ParsableListBinding.TryAddAll(result, ParsableListBinding.Split(s), TryParseItem);
     }
+
+    private static bool TryParseItem(string item, out T value)
+        => WireValues.TryGetValue(item, out value) ||
+           (Enum.TryParse(item, ignoreCase: true, out value) && Enum.IsDefined(value));
 
     private static Dictionary<string, T> BuildWireValues()
     {
@@ -107,5 +76,45 @@ public sealed class ParsableEnumList<T> : List<T>, IParsable<ParsableEnumList<T>
         }
 
         return values;
+    }
+}
+
+/// <summary>
+/// What the two list types share: the items of the value, and the parse of each.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class ParsableListBinding
+{
+    /// <summary>
+    /// The separator WithWireBinding puts between the items.
+    /// </summary>
+    public const char ItemSeparator = '\u001F';
+
+    public delegate bool TryParseItem<T>(string item, out T value);
+
+    /// <summary>
+    /// The items: split on the item separator when WithWireBinding put one in, else on commas.
+    /// </summary>
+    public static string[] Split(string? value)
+        => string.IsNullOrEmpty(value)
+            ? []
+            : value!.Split(value.Contains(ItemSeparator) ? ItemSeparator : ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    /// <summary>
+    /// Parses every item into the list; false at the first item that does not parse.
+    /// </summary>
+    public static bool TryAddAll<T>(List<T> list, IEnumerable<string> items, TryParseItem<T> tryParseItem)
+    {
+        foreach (var item in items)
+        {
+            if (!tryParseItem(item, out var value))
+            {
+                return false;
+            }
+
+            list.Add(value);
+        }
+
+        return true;
     }
 }

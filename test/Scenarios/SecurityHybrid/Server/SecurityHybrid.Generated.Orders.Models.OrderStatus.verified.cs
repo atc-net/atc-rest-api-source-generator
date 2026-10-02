@@ -32,3 +32,24 @@ public enum OrderStatus
     [JsonStringEnumMemberName("cancelled")]
     Cancelled,
 }
+
+/// <summary>
+/// The values of <see cref="OrderStatus"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class OrderStatusExtensions
+{
+    public static string ToWireValue(this OrderStatus value)
+        => value switch
+        {
+            OrderStatus.Pending => "pending",
+            OrderStatus.Confirmed => "confirmed",
+            OrderStatus.Shipped => "shipped",
+            OrderStatus.Delivered => "delivered",
+            OrderStatus.Cancelled => "cancelled",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this OrderStatus? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

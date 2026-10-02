@@ -49,7 +49,7 @@ public sealed class UploadMultiFilesAsFormDataEndpoint : IUploadMultiFilesAsForm
         {
             for (var i = 0; i < parameters.File.Length; i++)
             {
-                requestBuilder.WithFile(parameters.File[i].OpenReadStream(), "files", parameters.File[i].FileName);
+                requestBuilder.WithFile(parameters.File[i].OpenReadStream(), "files", parameters.File[i].FileName, parameters.File[i].ContentType);
             }
         }
 

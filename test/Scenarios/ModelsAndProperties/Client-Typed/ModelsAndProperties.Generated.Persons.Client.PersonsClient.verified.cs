@@ -49,7 +49,7 @@ public sealed class PersonsClient : IPersonsClient
 
         if (parameters.Gender is not null)
         {
-            queryParams.Add($"gender={Uri.EscapeDataString($"{parameters.Gender}")}");
+            queryParams.Add($"gender={Uri.EscapeDataString(parameters.Gender.ToWireValue()!)}");
         }
 
         if (queryParams.Count > 0)

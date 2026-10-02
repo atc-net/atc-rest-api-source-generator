@@ -10,6 +10,28 @@ public static class WireValueHelper
     private const string Invariant = "global::System.Globalization.CultureInfo.InvariantCulture";
 
     /// <summary>
+    /// Whether a parameter's schema is a string enum (a component or an inline one), or an array of one. Such a
+    /// value is written with the generated <c>ToWireValue()</c>: the value as the specification writes it.
+    /// </summary>
+    /// <param name="schema">The parameter's schema.</param>
+    /// <returns><see langword="true"/> for a string enum or an array of string enums.</returns>
+    public static bool IsStringEnum(IOpenApiSchema? schema)
+    {
+        var actual = schema is OpenApiSchemaReference reference ? reference.Target : schema;
+        if (actual is null)
+        {
+            return false;
+        }
+
+        if (actual.IsOfType(JsonSchemaType.Array))
+        {
+            return actual.Items is not null && IsStringEnum(actual.Items);
+        }
+
+        return actual.Enum is { Count: > 0 } && actual.IsOfType(JsonSchemaType.String);
+    }
+
+    /// <summary>
     /// Returns a C# expression that formats a parameter value for the wire from its schema, or
     /// <see langword="null"/> when the schema needs no culture-independent formatting. The expression
     /// works for a nullable and a non-nullable property alike and is of type <c>string?</c>.

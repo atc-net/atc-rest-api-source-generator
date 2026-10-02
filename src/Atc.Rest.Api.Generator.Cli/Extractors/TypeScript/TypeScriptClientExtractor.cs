@@ -563,7 +563,7 @@ public static class TypeScriptClientExtractor
             };
 
             var streamBodyType = !isFileUpload && bodySchema is not null ? BodyTypeOf(bodySchema, writableSchemas) : null;
-            AppendStreamingMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, returnType, streamBodyType, namingStrategy, convertDates, brandedIds, streamFramingArg, wireOption);
+            AppendStreamingMethod(sb, methodName, path, httpMethod, pathParams, queryParams, headerParams, returnType, streamBodyType, bodyContentType, namingStrategy, convertDates, brandedIds, streamFramingArg, wireOption);
         }
         else
         {
@@ -763,6 +763,7 @@ public static class TypeScriptClientExtractor
             else if (hasBody)
             {
                 sb.AppendLine("      body,");
+                AppendJsonContentType(sb, bodyContentType);
             }
 
             if (hasQuery)
@@ -840,6 +841,7 @@ public static class TypeScriptClientExtractor
         List<OpenApiParameter> headerParams,
         string itemType,
         string? bodyType,
+        string bodyContentType,
         TypeScriptNamingStrategy namingStrategy,
         bool convertDates,
         bool brandedIds,
@@ -890,6 +892,7 @@ public static class TypeScriptClientExtractor
             if (hasBody)
             {
                 sb.AppendLine("      body,");
+                AppendJsonContentType(sb, bodyContentType);
             }
 
             if (hasQuery)
@@ -1011,6 +1014,20 @@ public static class TypeScriptClientExtractor
         return bodySchema.ToTypeScriptReturnType();
     }
 
+    /// <summary>
+    /// A JSON body under another JSON media type (application/merge-patch+json, application/vnd.x+json) is sent
+    /// with that Content-Type.
+    /// </summary>
+    private static void AppendJsonContentType(
+        StringBuilder sb,
+        string mediaType)
+    {
+        if (mediaType.Split(';')[0].Trim().EndsWith("+json", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.Append("      contentType: '").Append(mediaType).AppendLine("',");
+        }
+    }
+
     private static string BuildCookieTypeInline(
         List<OpenApiParameter> cookieParams,
         TypeScriptNamingStrategy namingStrategy)
@@ -1019,7 +1036,7 @@ public static class TypeScriptClientExtractor
         {
             var name = TypeScriptOperationHelper.PropertyKey((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
             var optional = p.Required ? string.Empty : "?";
-            return name + optional + ": string";
+            return name + optional + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates: false);
         });
         return "{ " + string.Join("; ", props) + " }";
     }
@@ -1266,13 +1283,19 @@ public static class TypeScriptClientExtractor
         TypeScriptNamingStrategy namingStrategy)
     {
         // The cookies object uses the same (naming-strategy) property names as its type (BuildCookieTypeInline).
+        // A value is percent-encoded (the server decodes it), unless the parameter declares style: cookie (RFC 6265 as is).
+        static string Value(
+            OpenApiParameter param,
+            string access)
+            => param.Style == ParameterStyle.Cookie ? "${" + access + "}" : "${encodeURIComponent(String(" + access + "))}";
+
         sb.AppendLine("        // Note: browsers forbid setting the Cookie header via fetch; Node.js only.");
         if (cookieParams.Count == 1)
         {
             var param = cookieParams[0];
             var access = TypeScriptOperationHelper.OptionalPropertyAccess("cookies", (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
             var rawName = param.Name ?? string.Empty;
-            sb.Append("        'Cookie': ").Append(access).Append(" != null ? `").Append(rawName).Append("=${").Append(access).AppendLine("}` : undefined,");
+            sb.Append("        'Cookie': ").Append(access).Append(" != null ? `").Append(rawName).Append('=').Append(Value(param, access)).AppendLine("` : undefined,");
         }
         else
         {
@@ -1281,7 +1304,7 @@ public static class TypeScriptClientExtractor
             {
                 var access = TypeScriptOperationHelper.OptionalPropertyAccess("cookies", (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
                 var rawName = param.Name ?? string.Empty;
-                sb.Append("          ").Append(access).Append(" && `").Append(rawName).Append("=${").Append(access).AppendLine("}`,");
+                sb.Append("          ").Append(access).Append(" != null && `").Append(rawName).Append('=').Append(Value(param, access)).AppendLine("`,");
             }
 
             sb.AppendLine("        ].filter(Boolean).join('; ') || undefined,");

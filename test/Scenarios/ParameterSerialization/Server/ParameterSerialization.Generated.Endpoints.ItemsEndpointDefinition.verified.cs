@@ -37,7 +37,8 @@ public sealed class ItemsEndpointDefinition : IEndpointDefinition
             .Produces<List<Item>>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
-            .ProducesProblem(StatusCodes.Status504GatewayTimeout);
+            .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireBinding<RouteHandlerBuilder, ListItemsParameters>(("legacy", ' '));
     }
 
     internal async Task<IResult> ListItems(

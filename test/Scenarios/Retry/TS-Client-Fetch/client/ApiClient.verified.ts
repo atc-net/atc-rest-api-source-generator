@@ -110,7 +110,7 @@ export class ApiClient {
         headers.set('Content-Type', options.contentType ?? (options.body.type || 'application/octet-stream'));
         fetchBody = options.body;
       } else {
-        headers.set('Content-Type', 'application/json');
+        headers.set('Content-Type', options.contentType ?? 'application/json');
         fetchBody = JSON.stringify(options.body);
       }
     }

@@ -1163,68 +1163,14 @@ public partial class ErrorResponseBodyRuntimeTests
     ];
 
     /// <summary>
-    /// The cells that fail today, as <c>case [client]</c>. The matrix was written to find them, so it starts as a
-    /// ratchet: a cell not listed here must pass, and a listed cell that passes fails the test asking to be removed.
-    /// <para>The families behind the list:</para>
-    /// <list type="bullet">
-    ///   <item><description>An enum whose wire name is no C# identifier (<c>dark-blue</c>) is not bound from the
-    ///   path, the query string or a header: the server reads enum parameters by member name. The C# clients that
-    ///   pass send the member name (<c>DarkBlue</c>), which is not what the specification says.</description></item>
-    ///   <item><description>An array item with a comma is split by the server (<c>ParsableList</c>).</description></item>
-    ///   <item><description>Cookie parameters are not bound by the server.</description></item>
-    ///   <item><description>A <c>+json</c> request body is sent as <c>application/json</c> by every client.</description></item>
-    ///   <item><description>Multipart: the EndpointPerOperation client sends a file without its content type, and the
-    ///   Axios client on the fetch adapter gets a 415.</description></item>
-    ///   <item><description>A value the server cannot bind gets a 400 that does not name the parameter.</description></item>
-    /// </list>
+    /// The cells that fail today, as <c>case [client]</c>: a cell not listed here must pass, and a listed cell that passes
+    /// fails the test asking to be removed. The matrix started with 46 (enum wire names in parameters, cookies, a +json
+    /// body's media type, an array item with a comma, a 400 that did not name the parameter, a file's content type);
+    /// all are fixed but one, which is not in generated code: Axios on its fetch adapter sends a FormData body from
+    /// Node as <c>application/x-www-form-urlencoded</c> (its http adapter and a browser send multipart).
     /// </summary>
     private static readonly HashSet<string> KnownRequestBindingFailures = new(StringComparer.Ordinal)
     {
-        "path: every scalar type [ts-fetch]",
-        "path: every scalar type [ts-axios]",
-        "path: every scalar type [ts-axios-fetch]",
-        "query: an enum ($ref) [cs-epo]",
-        "query: an enum ($ref) [ts-fetch]",
-        "query: an enum ($ref) [ts-axios]",
-        "query: an enum ($ref) [ts-axios-fetch]",
-        "query: an enum (inline) [cs-epo]",
-        "query: an enum (inline) [ts-fetch]",
-        "query: an enum (inline) [ts-axios]",
-        "query: an enum (inline) [ts-axios-fetch]",
-        "query array: a string with a comma [cs-epo]",
-        "query array: a string with a comma [cs-typed-Throw]",
-        "query array: a string with a comma [cs-typed-Result]",
-        "query array: a string with a comma [ts-fetch]",
-        "query array: a string with a comma [ts-axios]",
-        "query array: a string with a comma [ts-axios-fetch]",
-        "header: X-Color [ts-fetch]",
-        "header: X-Color [ts-axios]",
-        "header: X-Color [ts-axios-fetch]",
-        "cookie: a string [cs-epo]",
-        "cookie: a string [cs-typed-Throw]",
-        "cookie: a string [cs-typed-Result]",
-        "cookie: a string [ts-fetch]",
-        "cookie: a string [ts-axios]",
-        "cookie: a string [ts-axios-fetch]",
-        "cookie: an integer [cs-epo]",
-        "cookie: an integer [cs-typed-Throw]",
-        "cookie: an integer [cs-typed-Result]",
-        "cookie: an integer [ts-fetch]",
-        "cookie: an integer [ts-axios]",
-        "cookie: an integer [ts-axios-fetch]",
-        "body: a +json media type [cs-epo]",
-        "body: a +json media type [cs-typed-Throw]",
-        "body: a +json media type [cs-typed-Result]",
-        "body: a +json media type [ts-fetch]",
-        "body: a +json media type [ts-axios]",
-        "body: a +json media type [ts-axios-fetch]",
-        "body: multipart/form-data (fields and a file) [cs-epo]",
         "body: multipart/form-data (fields and a file) [ts-axios-fetch]",
-        "server: path: an integer that is none [wire]",
-        "server: path: an enum value that is none [wire]",
-        "server: query: an integer that is none [wire]",
-        "server: query: a date that is none [wire]",
-        "server: query: a uuid that is none [wire]",
-        "server: header: an integer that is none [wire]",
     };
 }

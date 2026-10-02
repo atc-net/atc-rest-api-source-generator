@@ -45,6 +45,19 @@ public sealed class GetSessionEndpoint : IGetSessionEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/session");
+        var cookieParts = new List<string>();
+        cookieParts.Add("sessionId=" + Uri.EscapeDataString(global::System.Convert.ToString(parameters.SessionId, global::System.Globalization.CultureInfo.InvariantCulture)!));
+
+        if (parameters.Preferences is not null)
+        {
+            cookieParts.Add("preferences=" + Uri.EscapeDataString(global::System.Convert.ToString(parameters.Preferences, global::System.Globalization.CultureInfo.InvariantCulture)!));
+        }
+
+        if (cookieParts.Count > 0)
+        {
+            requestBuilder.WithHeaderParameter("Cookie", string.Join("; ", cookieParts));
+        }
+
 
         using var requestMessage = requestBuilder.Build(HttpMethod.Get);
         using var response = await client.SendAsync(requestMessage, cancellationToken);

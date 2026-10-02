@@ -17,3 +17,23 @@ public enum GenderType
     Male,
     Female,
 }
+
+/// <summary>
+/// The values of <see cref="GenderType"/> as the specification writes them.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public static class GenderTypeExtensions
+{
+    public static string ToWireValue(this GenderType value)
+        => value switch
+        {
+            GenderType.None => "None",
+            GenderType.NonBinary => "NonBinary",
+            GenderType.Male => "Male",
+            GenderType.Female => "Female",
+            _ => value.ToString(),
+        };
+
+    public static string? ToWireValue(this GenderType? value)
+        => value is { } known ? known.ToWireValue() : null;
+}

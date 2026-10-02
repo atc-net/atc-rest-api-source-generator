@@ -91,7 +91,7 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
         var cookieParts = new List<string>();
         if (parameters.Session is { Length: > 0 } cookieSession)
         {
-            cookieParts.Add("session=" + Uri.EscapeDataString(cookieSession));
+            cookieParts.Add("session=" + cookieSession);
         }
 
         if (cookieParts.Count > 0)
