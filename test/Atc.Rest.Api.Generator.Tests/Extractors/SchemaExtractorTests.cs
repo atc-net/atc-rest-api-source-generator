@@ -882,6 +882,70 @@ public class SchemaExtractorTests
     }
 
     [Fact]
+    public void ExtractForSchemas_ComponentExtendingGenericPage_DerivesFromClosedPage()
+    {
+        const string yaml = """
+                            openapi: 3.1.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Account:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                PaginatedResult:
+                                  type: object
+                                  properties:
+                                    continuation:
+                                      type: [string, 'null']
+                                    results:
+                                      type: array
+                                      items: {}
+                                AccountPage:
+                                  allOf:
+                                    - $ref: '#/components/schemas/PaginatedResult'
+                                    - type: object
+                                      properties:
+                                        results:
+                                          type: array
+                                          items:
+                                            $ref: '#/components/schemas/Account'
+                                        total:
+                                          type: integer
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "PaginatedResult", "AccountPage" };
+
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        Assert.NotNull(result);
+
+        // The page a component extends cannot be sealed
+        var page = result.Parameters.Single(r => r.Name == "PaginatedResult<T>");
+        Assert.Equal(DeclarationModifiers.PublicRecord, page.DeclarationModifier);
+
+        var accountPage = result.Parameters.Single(r => r.Name == "AccountPage");
+        Assert.Equal("PaginatedResult<Account>", accountPage.BaseTypeName);
+        Assert.Equal(["Continuation", "Results"], accountPage.BaseConstructorArguments);
+
+        // The forwarded parameters are the page's own with T filled in, followed by the component's own
+        Assert.NotNull(accountPage.Parameters);
+        Assert.Equal(["Continuation", "Results", "Total"], accountPage.Parameters.Select(p => p.Name), StringComparer.Ordinal);
+        Assert.Equal("List<Account>", accountPage.Parameters[1].TypeName);
+        Assert.False(accountPage.Parameters[1].IsNullableType);
+        Assert.Null(accountPage.Parameters[1].DefaultValue);
+    }
+
+    [Fact]
     public void ExtractForSchemas_WithoutDescriptionOrExample_NullDocumentationTags()
     {
         const string yaml = """

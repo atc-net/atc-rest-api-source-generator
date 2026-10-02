@@ -222,10 +222,11 @@ public class HttpClientExtractorTests
     }
 
     [Fact]
-    public void Extract_WithAsyncEnumerable_DoesNotAddEnumeratorCancellationToNonStreamingMethod()
+    public void Extract_WithAsyncEnumerableObjectResponse_StreamsASequenceOfThatObject()
     {
-        // Arrange - pagination method with x-return-async-enumerable should NOT get EnumeratorCancellation
-        // because the return type is Task<PaginationResult<T>>, not IAsyncEnumerable<T>
+        // Arrange - a streamed response whose schema is not an array is a sequence of that schema: the server
+        // returns IAsyncEnumerable<page> and the TypeScript client an AsyncGenerator<page>, so the C# client
+        // reads the same stream instead of a single page
         const string yaml = """
                             openapi: 3.0.0
                             info:
@@ -279,14 +280,15 @@ public class HttpClientExtractorTests
         Assert.NotNull(clientClass);
         var method = clientClass.Methods[0];
 
-        // Method should return Task<PaginationResult<Device>>, not IAsyncEnumerable
-        Assert.Equal("Task", method.ReturnGenericTypeName);
+        // Method returns IAsyncEnumerable<PaginationResult<Device>>
+        Assert.Equal("IAsyncEnumerable", method.ReturnGenericTypeName);
         Assert.Contains("PaginationResult", method.ReturnTypeName, StringComparison.Ordinal);
 
-        // CancellationToken parameter should NOT have EnumeratorCancellation attribute
+        // An async iterator takes its cancellation token through [EnumeratorCancellation]
         var ctParameter = method.Parameters?.FirstOrDefault(p => p.Name == "cancellationToken");
         Assert.NotNull(ctParameter);
-        Assert.Null(ctParameter.Attributes); // No attributes for non-streaming method
+        Assert.NotNull(ctParameter.Attributes);
+        Assert.Contains(ctParameter.Attributes, a => a.Name == "EnumeratorCancellation");
     }
 
     [Fact]

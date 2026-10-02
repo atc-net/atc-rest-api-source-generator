@@ -71,4 +71,24 @@ public static class StreamingMediaType
 
         return StreamingFraming.JsonArray;
     }
+
+    /// <summary>
+    /// The element of a sequential stream declared the pre-3.2 way: a <c>schema</c> under a streaming media
+    /// type (<c>text/event-stream</c>, <c>application/jsonl</c>, ...) on an operation marked
+    /// <c>x-return-async-enumerable</c>. The schema describes one element, or the array of them.
+    /// <see langword="null"/> for a media type that is not a sequential framing.
+    /// </summary>
+    public static IOpenApiSchema? ItemSchemaOf(
+        string mediaType,
+        IOpenApiSchema? schema)
+    {
+        if (schema is null || Classify(mediaType) == StreamingFraming.JsonArray)
+        {
+            return null;
+        }
+
+        return schema.Type?.HasFlag(JsonSchemaType.Array) == true && schema.Items is not null
+            ? schema.Items
+            : schema;
+    }
 }

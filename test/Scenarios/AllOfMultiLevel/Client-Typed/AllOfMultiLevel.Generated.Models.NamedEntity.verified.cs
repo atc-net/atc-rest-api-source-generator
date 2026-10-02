@@ -13,4 +13,4 @@ public record NamedEntity(
     Guid Id,
     [property: Required] string Name,
     DateTimeOffset? CreatedAt = null,
-    string? Description = null);
+    string? Description = null) : Entity(Id, CreatedAt);

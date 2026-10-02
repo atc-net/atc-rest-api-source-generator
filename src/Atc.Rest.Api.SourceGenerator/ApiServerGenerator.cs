@@ -338,6 +338,9 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool useGlobalErrorHandler,
         bool hasHealthChecksPackage)
     {
+        // An inline allOf over a plain base becomes one inline object, so it gets a model of its own
+        InlineAllOfFlattener.Flatten(openApiDoc);
+
         // Report diagnostics for unsupported OpenAPI features
         foreach (var diagnostic in DiagnosticHelpers.DetectUnsupportedFeatures(openApiDoc))
         {

@@ -409,7 +409,7 @@ public static class SchemaExtractor
                     // Check if this is a pagination base schema (has results: array with empty items)
                     if (IsPaginationBaseSchema(actualSchema))
                     {
-                        var genericRecordParams = ExtractGenericPaginatedRecord(schemaName, actualSchema, registry, generatePartialModels);
+                        var genericRecordParams = ExtractGenericPaginatedRecord(schemaName, actualSchema, registry, generatePartialModels, allOfBaseSchemas.Contains(originalSchemaName));
                         if (genericRecordParams is not null)
                         {
                             recordParametersList.Add(genericRecordParams);
@@ -427,14 +427,7 @@ public static class SchemaExtractor
                         // Add allOf inheritance info (only if not already a polymorphic variant)
                         if (recordParams is not null && allOfBaseName is not null && string.IsNullOrEmpty(baseTypeName))
                         {
-                            var baseName = OpenApiSchemaExtensions.SanitizeSchemaName(allOfBaseName);
-                            var baseArgs = GetBaseConstructorArguments(openApiDoc, allOfBaseName);
-                            recordParams = recordParams with
-                            {
-                                BaseTypeName = baseName,
-                                BaseConstructorArguments = baseArgs,
-                                Parameters = WithoutAttributesOnForwardedParameters(recordParams.Parameters, baseArgs),
-                            };
+                            recordParams = WithAllOfBase(openApiDoc, actualSchema, allOfBaseName, recordParams, registry);
                         }
 
                         if (recordParams is not null)
@@ -550,7 +543,7 @@ public static class SchemaExtractor
                     // Check if this is a pagination base schema (has results: array with empty items)
                     if (IsPaginationBaseSchema(actualSchema))
                     {
-                        var genericRecordParams = ExtractGenericPaginatedRecord(schemaName, actualSchema, registry, generatePartialModels);
+                        var genericRecordParams = ExtractGenericPaginatedRecord(schemaName, actualSchema, registry, generatePartialModels, allOfBaseSchemas.Contains(originalSchemaName));
                         if (genericRecordParams is not null)
                         {
                             recordParametersList.Add(genericRecordParams);
@@ -592,14 +585,7 @@ public static class SchemaExtractor
                         else if (recordParams is not null && allOfBaseName is not null)
                         {
                             // Add allOf inheritance info
-                            var baseName = OpenApiSchemaExtensions.SanitizeSchemaName(allOfBaseName);
-                            var baseArgs = GetBaseConstructorArguments(openApiDoc, allOfBaseName);
-                            recordParams = recordParams with
-                            {
-                                BaseTypeName = baseName,
-                                BaseConstructorArguments = baseArgs,
-                                Parameters = WithoutAttributesOnForwardedParameters(recordParams.Parameters, baseArgs),
-                            };
+                            recordParams = WithAllOfBase(openApiDoc, actualSchema, allOfBaseName, recordParams, registry);
                         }
 
                         if (recordParams is not null)
@@ -624,24 +610,59 @@ public static class SchemaExtractor
     }
 
     /// <summary>
-    /// A parameter a derived record only forwards to its base declares no property of its own - the base has
-    /// it, with its attributes. A <c>[property: ...]</c> attribute on such a parameter is ignored by the compiler
-    /// with warning CS0657, so it is left out.
+    /// Makes a record derive from its allOf base and forward the base's properties to it.
+    /// <para>
+    /// A base that is a generic page (<c>PaginatedResult&lt;T&gt;</c>) needs its type argument: the items the
+    /// derived schema gives the page's array. The forwarded parameters are then the base's own, with
+    /// <c>T</c> filled in, so they match the base's properties exactly. Without an item type the record stays
+    /// flat - there is no closed base to derive from.
+    /// </para>
     /// </summary>
-    private static IList<ParameterBaseParameters>? WithoutAttributesOnForwardedParameters(
-        IList<ParameterBaseParameters>? parameters,
-        IList<string>? baseConstructorArguments)
+    private static RecordParameters WithAllOfBase(
+        OpenApiDocument openApiDoc,
+        OpenApiSchema schema,
+        string allOfBaseName,
+        RecordParameters recordParams,
+        TypeConflictRegistry? registry)
     {
-        if (parameters is null || baseConstructorArguments is null || baseConstructorArguments.Count == 0)
+        var baseName = OpenApiSchemaExtensions.SanitizeSchemaName(allOfBaseName);
+        var baseArgs = GetBaseConstructorArguments(openApiDoc, allOfBaseName);
+
+        if (openApiDoc.Components?.Schemas is null ||
+            !openApiDoc.Components.Schemas.TryGetValue(allOfBaseName, out var baseSchemaValue) ||
+            baseSchemaValue is not OpenApiSchema baseSchema ||
+            !IsPaginationBaseSchema(baseSchema))
         {
-            return parameters;
+            return recordParams with
+            {
+                BaseTypeName = baseName,
+                BaseConstructorArguments = baseArgs,
+            };
         }
 
-        return parameters
-            .Select(p => p.Attributes is { Count: > 0 } && baseConstructorArguments.Contains(p.Name, StringComparer.Ordinal)
-                ? p with { Attributes = null }
-                : p)
+        var itemType = schema.GetAllOfArrayOverrideItemType(openApiDoc, registry);
+        var baseParameters = ExtractGenericPaginatedRecord(baseName, baseSchema, registry)?.Parameters;
+        if (string.IsNullOrEmpty(itemType) || baseParameters is null)
+        {
+            return recordParams;
+        }
+
+        var forwarded = baseParameters
+            .Select(p => p with
+            {
+                TypeName = string.Equals(p.TypeName, "List<T>", StringComparison.Ordinal) ? $"List<{itemType}>" : p.TypeName,
+            })
             .ToList();
+
+        var own = (recordParams.Parameters ?? [])
+            .Where(p => !forwarded.Exists(f => string.Equals(f.Name, p.Name, StringComparison.Ordinal)));
+
+        return recordParams with
+        {
+            BaseTypeName = $"{baseName}<{itemType}>",
+            BaseConstructorArguments = forwarded.Select(p => p.Name).ToList(),
+            Parameters = forwarded.Concat(own).ToList(),
+        };
     }
 
     /// <summary>
@@ -696,7 +717,8 @@ public static class SchemaExtractor
         string schemaName,
         OpenApiSchema schema,
         TypeConflictRegistry? registry = null,
-        bool generatePartialModels = false)
+        bool generatePartialModels = false,
+        bool isAllOfBase = false)
     {
         var properties = schema.Properties?.ToList() ?? [];
         var required = schema.Required ?? new HashSet<string>(StringComparer.Ordinal);
@@ -772,9 +794,16 @@ public static class SchemaExtractor
         }
 
         // Return record with generic type parameter <T>
-        var declarationModifier = generatePartialModels
-            ? DeclarationModifiers.PublicPartialRecord
-            : DeclarationModifiers.PublicSealedRecord;
+        var declarationModifier = DeclarationModifiers.PublicSealedRecord;
+        if (isAllOfBase)
+        {
+            // A component extends this page (AccountPage : PaginatedResult<Account>), so it cannot be sealed
+            declarationModifier = DeclarationModifiers.PublicRecord;
+        }
+        else if (generatePartialModels)
+        {
+            declarationModifier = DeclarationModifiers.PublicPartialRecord;
+        }
 
         return new RecordParameters(
             DocumentationTags: null,

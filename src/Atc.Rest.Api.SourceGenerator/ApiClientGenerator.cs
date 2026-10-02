@@ -262,6 +262,9 @@ public class ApiClientGenerator : IIncrementalGenerator
         ClientPackageReferences packages,
         string projectName)
     {
+        // An inline allOf over a plain base becomes one inline object, so it gets a model of its own
+        InlineAllOfFlattener.Flatten(openApiDoc);
+
         // Filter paths based on include/exclude patterns before segmentation
         // (on a copy: the parsed document is cached and shared)
         openApiDoc = PathFilterHelper.WithFilteredPaths(openApiDoc, config.IncludePaths, config.ExcludePaths);
@@ -874,18 +877,16 @@ public class ApiClientGenerator : IIncrementalGenerator
 
             // Constructing a fresh RecordParameters here dropped every field not restated, which
             // silently lost all inheritance on the client side. Rewriting only the parameter list
-            // keeps it, and keeps any field added later.
+            // keeps it, and keeps any field added later - the allOf base included, so a client model
+            // derives from its base exactly as the server's does.
             //
-            // allOf inheritance stays dropped for now: restoring it emits base constructor calls
-            // that forward parameters which still carry their [property:] attributes, and an
-            // attribute on a forwarded parameter is invalid (CS0657). That is a separate defect in
-            // the allOf extraction, and it is only masked - not fixed - by dropping the base here.
-            // Only a resolved allOf base is stripped. An allOf base whose arguments could not be
-            // resolved arrives with an empty list, and GenerateContentForRecords already drops the
-            // clause for that case - so leave it alone here rather than encoding the same rule twice.
-            var isAllOfInheritance = record.BaseConstructorArguments is { Count: > 0 };
+            // The exception is a base named like a built-in error contract (ProblemDetails): the client
+            // supplies that type itself and it is not the spec's model, so such a record stays flat and
+            // carries every property - and its attributes - itself.
+            var extendsBuiltInErrorContract = record.BaseTypeName is { Length: > 0 } baseTypeName &&
+                                              BuiltInErrorContractNames.IsReserved(baseTypeName);
 
-            convertedRecords.Add(isAllOfInheritance
+            convertedRecords.Add(extendsBuiltInErrorContract
                 ? record with { Parameters = convertedParams, BaseTypeName = null, BaseConstructorArguments = null }
                 : record with { Parameters = convertedParams });
         }
@@ -1021,7 +1022,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         // Generate client parameters using shared OperationParameterExtractor (without binding attributes)
         // Each parameter record is generated as a separate file to avoid multiple file-scoped namespace declarations
-        var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated, validateStrategy);
+        var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated, validateStrategy, namespaceSegment);
 
         // Emit inline enum files for any inline enums on parameter schemas — these must
         // appear before the parameter records that reference them.
@@ -1228,7 +1229,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         // Generate client parameters using shared OperationParameterExtractor (without binding attributes)
         // Parameters are shared between TypedClient and EndpointPerOperation modes
-        var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated, validateStrategy);
+        var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated, validateStrategy, namespaceSegment);
 
         // Emit inline enum files for any inline enums on parameter schemas.
         foreach (var inlineEnum in parameterInlineEnums)

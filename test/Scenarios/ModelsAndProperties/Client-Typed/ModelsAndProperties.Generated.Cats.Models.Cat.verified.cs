@@ -12,4 +12,4 @@ namespace ModelsAndProperties.Generated.Cats.Models;
 public sealed record Cat(
     string Name,
     int? Age = null,
-    bool? Indoor = null);
+    bool? Indoor = null) : Animal(Name, Age);

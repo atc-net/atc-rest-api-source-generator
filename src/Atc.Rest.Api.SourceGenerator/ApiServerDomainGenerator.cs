@@ -254,6 +254,9 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         ServerDomainConfig config,
         string markerDirectory)
     {
+        // An inline allOf over a plain base becomes one inline object, so it gets a model of its own
+        InlineAllOfFlattener.Flatten(openApiDoc);
+
         // Determine contracts namespace for GlobalUsings:
         // Priority: explicit config > server marker (same dir or sibling) > derive from domain namespace
         var serverNamespace = MarkerFileHelper.TryGetServerNamespace(markerDirectory);

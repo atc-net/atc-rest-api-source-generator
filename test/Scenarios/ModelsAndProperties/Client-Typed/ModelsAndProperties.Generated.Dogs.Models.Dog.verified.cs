@@ -12,4 +12,4 @@ namespace ModelsAndProperties.Generated.Dogs.Models;
 public sealed record Dog(
     string Name,
     [property: Required] string Breed,
-    int? Age = null);
+    int? Age = null) : Animal(Name, Age);

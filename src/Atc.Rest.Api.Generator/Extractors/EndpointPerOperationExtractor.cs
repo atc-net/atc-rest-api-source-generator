@@ -553,6 +553,12 @@ public static class EndpointPerOperationExtractor
                     inlineSchemas,
                     isAsyncEnumerable && isSuccess);
 
+                // A stream of a schema that is not an array: a sequence of that schema, as the server writes it
+                if (isAsyncEnumerable && isSuccess && !contentType.StartsWith("IAsyncEnumerable<", StringComparison.Ordinal))
+                {
+                    contentType = $"IAsyncEnumerable<{contentType}>";
+                }
+
                 // Offered as XML too: read by the response's Content-Type
                 if (isSuccess && !isAsyncEnumerable)
                 {

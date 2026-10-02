@@ -360,7 +360,8 @@ public static class OperationParameterExtractor
         string namespaceSubFolder,
         bool includeDeprecated = false,
         bool emitInlineEnums = true,
-        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
+        string? namespaceSegment = null)
     {
         // See ExtractWithInlineEnums: emitInlineEnums = false opts back into the pre-1.0.252
         // contract where inline-enum parameters render as `string`.
@@ -376,7 +377,8 @@ public static class OperationParameterExtractor
             namespaceSubFolder,
             includeDeprecated,
             inlineEnumsByValuesKey,
-            validateStrategy);
+            validateStrategy,
+            namespaceSegment);
 
         return (records, ToInlineEnumList(inlineEnumsByValuesKey));
     }

@@ -359,15 +359,15 @@ public static class ResultClassExtractor
             xmlBody = alternative;
         }
 
-        // OpenAPI 3.2 streaming: when a response media type declares an itemSchema, the
-        // streamed element type comes from it directly (wrapped as IAsyncEnumerable<T> below).
+        // A sequential stream: the element comes from the media type's itemSchema (OpenAPI 3.2), or from the
+        // schema under a streaming media type (wrapped as IAsyncEnumerable<T> below).
         if (!isFileDownload && contentType is null && isAsyncEnumerable && responseValue.Content is not null)
         {
-            foreach (var mt in responseValue.Content.Values)
+            foreach (var mt in responseValue.Content)
             {
-                if (mt.ItemSchema is not null)
+                if ((mt.Value.ItemSchema ?? StreamingMediaType.ItemSchemaOf(mt.Key, mt.Value.Schema)) is { } itemSchema)
                 {
-                    contentType = GetSchemaTypeName(mt.ItemSchema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
+                    contentType = GetSchemaTypeName(itemSchema, openApiDoc, registry, operationId, pathSegment, "Response", inlineSchemas);
                     break;
                 }
             }

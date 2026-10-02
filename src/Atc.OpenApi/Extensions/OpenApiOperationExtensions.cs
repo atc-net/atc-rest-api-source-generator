@@ -340,6 +340,38 @@ public static class OpenApiOperationExtensions
                 }
             }
 
+            return operation.GetAnnotatedStreamingResponse();
+        }
+
+        /// <summary>
+        /// The pre-3.2 way to declare a sequential stream: <c>x-return-async-enumerable</c> on an operation
+        /// whose response has a <c>schema</c> under a streaming media type (<c>text/event-stream</c>,
+        /// <c>application/jsonl</c>, ...). The schema describes one element, or the array of them.
+        /// </summary>
+        private (string MediaType, IOpenApiSchema ItemSchema)? GetAnnotatedStreamingResponse()
+        {
+            if (!operation.IsAsyncEnumerableOperation())
+            {
+                return null;
+            }
+
+            foreach (var statusCode in new[] { "200", "201" })
+            {
+                if (!operation.Responses!.TryGetValue(statusCode, out var response) ||
+                    response.Content is null)
+                {
+                    continue;
+                }
+
+                foreach (var kvp in response.Content)
+                {
+                    if (StreamingMediaType.ItemSchemaOf(kvp.Key, kvp.Value.Schema) is { } itemSchema)
+                    {
+                        return (kvp.Key, itemSchema);
+                    }
+                }
+            }
+
             return null;
         }
 

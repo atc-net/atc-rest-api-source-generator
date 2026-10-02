@@ -625,7 +625,70 @@ public class OpenApiOperationExtensionsTests
         Assert.NotNull(result.Value.ItemSchema);
     }
 
+    [Theory]
+    [InlineData("text/event-stream", StreamingFraming.ServerSentEvents)]
+    [InlineData("application/jsonl", StreamingFraming.JsonLines)]
+    [InlineData("application/json-seq", StreamingFraming.JsonSequence)]
+    public void GetStreamingResponse_AnnotationWithSchemaOnAStreamingMediaType_TheSchemaIsTheItem(
+        string mediaType,
+        StreamingFraming expected)
+    {
+        // Before 3.2 there is no itemSchema: the annotation plus a streaming media type says the same thing
+        var schema = new OpenApiSchema { Title = "Event" };
+        var operation = BuildAnnotatedOperation(mediaType, schema, annotated: true);
+
+        var result = operation.GetStreamingResponse();
+
+        Assert.NotNull(result);
+        Assert.Equal(mediaType, result.Value.MediaType);
+        Assert.Same(schema, result.Value.ItemSchema);
+        Assert.Equal(expected, operation.GetStreamingFraming());
+    }
+
+    [Fact]
+    public void GetStreamingResponse_AnnotationWithArraySchemaOnAStreamingMediaType_TheItemsAreTheItem()
+    {
+        var item = new OpenApiSchema { Title = "Event" };
+        var operation = BuildAnnotatedOperation(
+            "application/jsonl",
+            new OpenApiSchema { Type = JsonSchemaType.Array, Items = item },
+            annotated: true);
+
+        Assert.Same(item, operation.GetStreamingItemSchema());
+    }
+
+    [Fact]
+    public void GetStreamingResponse_SchemaOnAStreamingMediaTypeWithoutAnnotation_IsNotAStream()
+    {
+        var operation = BuildAnnotatedOperation("text/event-stream", new OpenApiSchema { Title = "Event" }, annotated: false);
+
+        Assert.Null(operation.GetStreamingResponse());
+        Assert.False(operation.IsStreamingResponse());
+    }
+
     // ========== Helper Methods ==========
+    private static OpenApiOperation BuildAnnotatedOperation(
+        string mediaType,
+        OpenApiSchema schema,
+        bool annotated)
+        => new()
+        {
+            Extensions = new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
+            {
+                ["x-return-async-enumerable"] = new JsonNodeExtension(JsonValue.Create(annotated)),
+            },
+            Responses = new OpenApiResponses
+            {
+                ["200"] = new OpenApiResponse
+                {
+                    Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal)
+                    {
+                        [mediaType] = new OpenApiMediaType { Schema = schema },
+                    },
+                },
+            },
+        };
+
     private static OpenApiOperation BuildStreamingOperation(string mediaType)
         => new()
         {

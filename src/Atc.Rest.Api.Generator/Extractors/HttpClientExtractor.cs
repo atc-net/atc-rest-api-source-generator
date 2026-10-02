@@ -413,7 +413,8 @@ public static class HttpClientExtractor
         string? pathSegment,
         TypeConflictRegistry? registry = null,
         bool includeDeprecated = false,
-        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
+        string? namespaceSegment = null)
         => OperationParameterExtractor.ExtractIndividualWithInlineEnums(
             openApiDoc,
             projectName,
@@ -422,7 +423,8 @@ public static class HttpClientExtractor
             includeBindingAttributes: false,
             namespaceSubFolder: "Client",
             includeDeprecated: includeDeprecated,
-            validateStrategy: validateStrategy);
+            validateStrategy: validateStrategy,
+            namespaceSegment: namespaceSegment);
 
     private static MethodParameters? ExtractMethod(
         string path,
@@ -486,10 +488,13 @@ public static class HttpClientExtractor
             {
                 returnType = contentType;
 
-                // For async enumerable, extract the List<T> item type (shared List<T>/T[] extractor)
-                if (isAsyncEnumerable && TryGetListElementType(contentType, out var itemType))
+                // A stream's element: the items of an array response, else the response itself - the server
+                // streams a sequence of what the schema describes either way
+                if (isAsyncEnumerable)
                 {
-                    streamingItemType = itemType;
+                    streamingItemType = TryGetListElementType(contentType, out var itemType)
+                        ? itemType
+                        : contentType;
                 }
 
                 // Offered as XML too: ask for JSON first (preferXml: XML), read whatever Content-Type comes back

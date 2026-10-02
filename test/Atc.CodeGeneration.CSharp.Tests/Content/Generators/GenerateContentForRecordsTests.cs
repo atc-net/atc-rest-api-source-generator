@@ -117,6 +117,57 @@ public class GenerateContentForRecordsTests
         Assert.Contains(": Animal(Name)", result, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Generate_ParameterForwardedToTheBase_HasNoAttributes(
+        bool hasBase)
+    {
+        // A parameter that is only forwarded to the base declares no property - the base has it, with its
+        // attributes - so "[property: ...]" on it is ignored by the compiler with warning CS0657. Without a
+        // base the same parameter is a property of its own and keeps them.
+        static ParameterBaseParameters Parameter(string name)
+            => new(
+                Attributes: [new AttributeParameters("Required", null)],
+                GenericTypeName: null,
+                IsGenericListType: false,
+                TypeName: "string",
+                IsNullableType: false,
+                IsReferenceType: true,
+                Name: name,
+                DefaultValue: null);
+
+        var parameters = new RecordsParameters(
+            HeaderContent: null,
+            Namespace: "MyApp",
+            DocumentationTags: null,
+            Attributes: null,
+            DeclarationModifier: DeclarationModifiers.Public,
+            Parameters:
+            [
+                new RecordParameters(
+                    DocumentationTags: null,
+                    DeclarationModifier: DeclarationModifiers.PublicRecord,
+                    Name: "Dog",
+                    Parameters: [Parameter("Name"), Parameter("Breed")],
+                    BaseTypeName: hasBase ? "Animal" : null,
+                    BaseConstructorArguments: hasBase ? ["Name"] : null),
+            ]);
+
+        var result = new GenerateContentForRecords(new CodeDocumentationTagsGenerator(), parameters).Generate();
+
+        Assert.Contains("[property: Required] string Breed", result, StringComparison.Ordinal);
+        if (hasBase)
+        {
+            Assert.Contains("    string Name,", result, StringComparison.Ordinal);
+            Assert.DoesNotContain("[property: Required] string Name", result, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.Contains("[property: Required] string Name", result, StringComparison.Ordinal);
+        }
+    }
+
     [Fact]
     public void Generate_MultipleRecords_ProducesAll()
     {

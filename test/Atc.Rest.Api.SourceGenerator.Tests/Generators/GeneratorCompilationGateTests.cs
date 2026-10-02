@@ -125,28 +125,18 @@ public class GeneratorCompilationGateTests
     /// Scenario and generator pairs <b>without a marker folder</b> whose output does not compile today - the
     /// ratchet of <see cref="EveryScenario_CompilesForEveryGenerator"/>, with the same rule as
     /// <see cref="KnownNonCompilingCombinations"/>: a listed pair that starts compiling fails the test, so the
-    /// list can only shrink. The families behind it:
-    /// <list type="bullet">
-    ///   <item><description><c>Pagination</c> (server): a component that extends the generic page
-    ///   (<c>AccountPage: allOf [PaginatedResult, results: Account[]]</c>) derives from
-    ///   <c>PaginatedResult</c> without its type argument.</description></item>
-    ///   <item><description><c>AsyncEnumerableHooks</c>: a response that extends a base which is <i>not</i> a
-    ///   generic page (no untyped array of its own) is still typed <c>PaginationResult&lt;Item&gt;</c>; and an
-    ///   inline enum on a query parameter is referenced by the clients but never generated.</description></item>
-    ///   <item><description><c>PizzaPlanet</c> (EndpointPerOperation): a streamed operation's endpoint
-    ///   references a result class that is not generated.</description></item>
-    /// </list>
+    /// list can only shrink.
+    /// <para>
+    /// <b>The list is empty and must stay empty for a release.</b> The families it once held, all fixed: a
+    /// component that extends the generic page (<c>AccountPage: allOf [PaginatedResult, results: Account[]]</c>)
+    /// derived from <c>PaginatedResult</c> without its type argument; an inline response that extends a base
+    /// which is <i>not</i> a generic page was typed <c>PaginationResult&lt;Item&gt;</c>; an inline enum on a
+    /// query parameter of a client with one flat namespace was generated in a namespace nothing imported; and a
+    /// streamed operation whose response is not an array got an EndpointPerOperation endpoint that referenced
+    /// a result class that is not generated.
+    /// </para>
     /// </summary>
-    private static readonly HashSet<string> KnownNonCompilingCombinationsWithoutMarker = new(StringComparer.Ordinal)
-    {
-        "AsyncEnumerableHooks/Client-Operation",
-        "AsyncEnumerableHooks/Client-Typed",
-        "AsyncEnumerableHooks/Server",
-        "AsyncEnumerableHooks/ServerDomain",
-        "Pagination/Server",
-        "Pagination/ServerDomain",
-        "PizzaPlanet/Client-Operation",
-    };
+    private static readonly HashSet<string> KnownNonCompilingCombinationsWithoutMarker = new(StringComparer.Ordinal);
 
     public static IEnumerable<object[]> ScenarioGeneratorsWithoutMarker
         => GeneratorSnapshotHarness.GetScenarioGeneratorDataWithoutMarker();

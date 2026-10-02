@@ -978,6 +978,54 @@ public class OperationParameterExtractorTests
         Assert.Equal("FindPetsByStatusParametersStatus", inlineEnum.TypeName);
     }
 
+    [Theory]
+    [InlineData(null, "Demo.Generated.Pet.Models")]
+    [InlineData("Pet", "Demo.Generated.Pet.Models")]
+    [InlineData("", "Demo.Generated.Models")]
+    public void ExtractIndividualWithInlineEnums_InlineEnumQueryParam_EnumIsInTheNamespaceSegmentsModels(
+        string? namespaceSegment,
+        string expectedNamespace)
+    {
+        // The path segment picks the operations; the namespace segment decides where the code goes. A client
+        // with one flat namespace (an empty namespace segment) imports "Generated.Models", not "Generated.Pet.Models".
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pet/findByStatus:
+                                get:
+                                  operationId: findPetsByStatus
+                                  parameters:
+                                    - name: status
+                                      in: query
+                                      schema:
+                                        type: string
+                                        enum:
+                                          - available
+                                          - sold
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, inlineEnums) = OperationParameterExtractor.ExtractIndividualWithInlineEnums(
+            document,
+            projectName: "Demo",
+            pathSegment: "Pet",
+            registry: null,
+            includeBindingAttributes: false,
+            namespaceSubFolder: "Client",
+            namespaceSegment: namespaceSegment);
+
+        var inlineEnum = Assert.Single(inlineEnums);
+        Assert.Equal(expectedNamespace, inlineEnum.EnumParameters.Namespace);
+    }
+
     [Fact]
     public void ExtractIndividualWithInlineEnums_InlineEnumPathParam_GeneratesEnumType()
     {
