@@ -33,7 +33,7 @@ public sealed class SessionEndpointDefinition : IEndpointDefinition
             .MapGet("/", GetSession)
             .WithName("GetSession")
             .WithSummary("Get current session")
-            .Produces<Session>()
+            .Produces<CookieParameters.Generated.Session.Models.Session>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)

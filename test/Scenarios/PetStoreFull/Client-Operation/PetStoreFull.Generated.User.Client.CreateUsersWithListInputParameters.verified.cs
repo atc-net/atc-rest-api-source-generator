@@ -16,4 +16,4 @@ namespace PetStoreFull.Generated.User.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateUsersWithListInputParameters(
-    [property: Required] List<User> Request);
+    [property: Required] List<PetStoreFull.Generated.User.Models.User> Request);

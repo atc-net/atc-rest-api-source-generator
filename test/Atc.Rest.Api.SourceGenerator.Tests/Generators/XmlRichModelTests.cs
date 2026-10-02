@@ -93,7 +93,7 @@ public sealed class XmlRichModelTests
                         Email: "ase@example.com",
                         Phone: "+4512345678",
                         Website: new System.Uri("https://example.com/ase?x=1&y=2"),
-                        DateOfBirth: new System.DateTimeOffset(1990, 2, 28, 0, 0, 0, System.TimeSpan.Zero),
+                        DateOfBirth: new System.DateOnly(1990, 2, 28),
                         Age: 36,
                         Bio: "Line 1\nLine 2 \"quoted\"",
                         AvatarUrl: new System.Uri("https://example.com/a.png"),
@@ -117,7 +117,7 @@ public sealed class XmlRichModelTests
                         Email: "bo@example.com",
                         Phone: null,
                         Website: null,
-                        DateOfBirth: new System.DateTimeOffset(2000, 1, 1, 0, 0, 0, System.TimeSpan.Zero),
+                        DateOfBirth: new System.DateOnly(2000, 1, 1),
                         Age: 0,
                         Bio: null,
                         AvatarUrl: null,
@@ -230,7 +230,7 @@ public sealed class XmlRichModelTests
 
     /// <summary>
     /// The server's XML of the rich model: the nested model as an element, the enum by its value, the dates as
-    /// <c>xs:dateTime</c> (a <c>format: date</c> is a DateTimeOffset in the generated models), and an absent field for a null one.
+    /// <c>xs:dateTime</c>, a <c>format: date</c> as <c>xs:date</c> (a DateOnly in the generated models), and an absent field for a null one.
     /// </summary>
     [Fact]
     public async Task Server_WritesTheRichModelAsXml()
@@ -246,8 +246,8 @@ public sealed class XmlRichModelTests
         Assert.Equal("User", user.Name.LocalName);
         Assert.Equal("Åse & <Bo>", user.Element("firstName")?.Value);
 
-        // A `format: date` is a DateTimeOffset in the generated models, written as one in JSON and in XML alike
-        Assert.Equal("1990-02-28T00:00:00Z", user.Element("dateOfBirth")?.Value);
+        // A `format: date` is a DateOnly in the generated models: a calendar date in JSON and in XML alike
+        Assert.Equal("1990-02-28", user.Element("dateOfBirth")?.Value);
         Assert.Equal("Manager", user.Element("role")?.Value);
         Assert.Equal("København", user.Element("address")?.Element("city")?.Value);
         Assert.Equal("-12.5683", user.Element("address")?.Element("longitude")?.Value);

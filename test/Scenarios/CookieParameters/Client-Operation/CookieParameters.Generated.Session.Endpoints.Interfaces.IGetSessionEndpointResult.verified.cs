@@ -26,7 +26,7 @@ public interface IGetSessionEndpointResult : IEndpointResponse
 
     bool IsGatewayTimeout { get; }
 
-    Session OkContent { get; }
+    CookieParameters.Generated.Session.Models.Session OkContent { get; }
 
     ProblemDetails UnauthorizedContent { get; }
 

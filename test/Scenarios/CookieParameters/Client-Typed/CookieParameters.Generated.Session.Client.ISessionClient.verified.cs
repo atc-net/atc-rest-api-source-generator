@@ -15,7 +15,7 @@ namespace CookieParameters.Generated.Session.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface ISessionClient
 {
-    Task<Session> GetSessionAsync(
+    Task<CookieParameters.Generated.Session.Models.Session> GetSessionAsync(
         GetSessionParameters parameters,
         CancellationToken cancellationToken = default);
 }

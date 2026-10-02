@@ -183,7 +183,7 @@ public static class JsonSchemaTypeExtensions
             "uuid" => "Guid",
             "guid" => "Guid",
             "date-time" => "DateTimeOffset",
-            "date" => "DateTimeOffset",
+            "date" => "DateOnly",
             "uri" => "Uri",
             "int32" => "int",
             "int" => "int",

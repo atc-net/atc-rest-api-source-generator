@@ -566,7 +566,7 @@ public class SchemaExtractorTests
     [InlineData("number", "double", "double")]
     [InlineData("string", "uuid", "Guid")]
     [InlineData("string", "date-time", "DateTimeOffset")]
-    [InlineData("string", "date", "DateTimeOffset")]
+    [InlineData("string", "date", "DateOnly")]
     [InlineData("string", "uri", "Uri")]
     [InlineData("boolean", null, "bool")]
     public void ExtractForSchemas_FormatMapping_ProducesCorrectCSharpType(

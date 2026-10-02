@@ -31,10 +31,10 @@ public sealed class GetStringFormatsResult : IResult
     /// <summary>
     /// 200 OK - String format types demonstration.
     /// </summary>
-    public static GetStringFormatsResult Ok(StringFormats response)
+    public static GetStringFormatsResult Ok(ModelsAndProperties.Generated.StringFormats.Models.StringFormats response)
         => new(TypedResults.Ok(response));
 
-    public static implicit operator GetStringFormatsResult(StringFormats response)
+    public static implicit operator GetStringFormatsResult(ModelsAndProperties.Generated.StringFormats.Models.StringFormats response)
         => Ok(response);
 
     public Task ExecuteAsync(HttpContext httpContext)

@@ -130,7 +130,9 @@ public sealed class SpecificationFile
 
         try
         {
-            document = OpenApiDocumentHelper.ParseYaml(content);
+            // Parsed (and cached) under the file's own path: every part keeps its document between
+            // generator runs, and relative references resolve against the real location.
+            (document, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(content, filePath);
         }
         catch
         {

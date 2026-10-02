@@ -118,7 +118,7 @@ public static class EnumExtractor
         // synthesises identifiers (`Value{n}`) and carries the explicit numeric value so
         // the generated C# enum reads `Value1 = 1, Value5 = 5` instead of relying on
         // positional ordering.
-        return schema.Type == JsonSchemaType.String || schema.Type == JsonSchemaType.Integer;
+        return schema.IsOfType(JsonSchemaType.String) || schema.IsOfType(JsonSchemaType.Integer);
     }
 
     /// <summary>
@@ -217,9 +217,16 @@ public static class EnumExtractor
         }
 
         var result = new List<EnumValueParameters>();
+        var usedNames = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var enumValue in enumValues)
         {
+            // `null` in the enum list (the OpenAPI 3.1 nullable enum) is no member: null is the absence of a value.
+            if (enumValue is null || JsonNullSentinel.IsJsonNullSentinel(enumValue))
+            {
+                continue;
+            }
+
             // Integer enum values: synthesise a `Value{n}` identifier (or `ValueNegN`
             // for negatives) and carry the explicit numeric value so the generated
             // member reads `Value1 = 1`. JsonValue's underlying number may be parsed
@@ -241,19 +248,26 @@ public static class EnumExtractor
                     DescriptionAttribute: null,
                     Name: identifier,
                     EnumMemberValue: null,
-                    Value: (int)intValue));
+                    Value: intValue));
                 continue;
             }
 
             // OpenAPI string enum values are stored as JsonNode
-            var valueStr = enumValue?.ToString();
+            var valueStr = enumValue.ToString();
             if (string.IsNullOrEmpty(valueStr))
             {
                 continue;
             }
 
-            // Clean up the value - remove quotes if present
-            var originalValue = valueStr!.Trim('"');
+            // A string value is taken as it is (it may itself end in a quote); anything else by its text
+            var originalValue = enumValue is JsonValue stringValue && stringValue.GetValueKind() == JsonValueKind.String
+                ? stringValue.GetValue<string>()
+                : valueStr!.Trim('"');
+
+            if (string.IsNullOrEmpty(originalValue))
+            {
+                continue;
+            }
 
             // Check if transformation is needed
             var needsTransformation = NeedsEnumMemberAttribute(originalValue);
@@ -273,6 +287,25 @@ public static class EnumExtractor
                 name = originalValue;
                 enumMemberValue = null;
             }
+
+            // Whatever the value holds (quotes, slashes, a leading digit, a keyword), the member name
+            // is a valid identifier and the value itself goes on the wire through [EnumMember].
+            if (!CSharpLiteralHelper.IsValidIdentifier(name))
+            {
+                name = CSharpLiteralHelper.ToEnumMemberName(name);
+                enumMemberValue = originalValue;
+            }
+
+            // Two values that give the same name ("in-progress", "in_progress") stay two members
+            var uniqueName = name;
+            var suffix = 1;
+            while (!usedNames.Add(uniqueName))
+            {
+                suffix++;
+                uniqueName = name + suffix.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            name = uniqueName;
 
             result.Add(new EnumValueParameters(
                 DocumentationTags: null,

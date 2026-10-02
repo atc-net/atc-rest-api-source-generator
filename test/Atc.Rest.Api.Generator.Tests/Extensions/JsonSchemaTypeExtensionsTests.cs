@@ -41,7 +41,7 @@ public class JsonSchemaTypeExtensionsTests
     // ========== ToCSharpTypeName - String Tests ==========
     [Theory]
     [InlineData(null, "string")]
-    [InlineData("date", "DateTimeOffset")]
+    [InlineData("date", "DateOnly")]
     [InlineData("date-time", "DateTimeOffset")]
     [InlineData("guid", "Guid")]
     [InlineData("int", "int")]

@@ -40,7 +40,7 @@ public sealed class PetClient : IPetClient
         this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
-    public async Task<Pet> UpdatePetAsync(
+    public async Task<PetStoreFull.Generated.Pet.Models.Pet> UpdatePetAsync(
         UpdatePetParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -51,14 +51,14 @@ public sealed class PetClient : IPetClient
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
-            return PetXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
+            return PetStoreFull.Generated.Pet.Models.PetXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<PetStoreFull.Generated.Pet.Models.Pet>(jsonSerializerOptions, cancellationToken))!;
     }
 
-    public async Task<Pet> AddPetAsync(
+    public async Task<PetStoreFull.Generated.Pet.Models.Pet> AddPetAsync(
         AddPetParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -69,14 +69,14 @@ public sealed class PetClient : IPetClient
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
-            return PetXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
+            return PetStoreFull.Generated.Pet.Models.PetXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<PetStoreFull.Generated.Pet.Models.Pet>(jsonSerializerOptions, cancellationToken))!;
     }
 
-    public async Task<List<Pet>> FindPetsByStatusAsync(
+    public async Task<List<PetStoreFull.Generated.Pet.Models.Pet>> FindPetsByStatusAsync(
         FindPetsByStatusParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -94,14 +94,14 @@ public sealed class PetClient : IPetClient
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
-            return PetXml.ReadList(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
+            return PetStoreFull.Generated.Pet.Models.PetXml.ReadList(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<List<Pet>>(jsonSerializerOptions, cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<List<PetStoreFull.Generated.Pet.Models.Pet>>(jsonSerializerOptions, cancellationToken))!;
     }
 
-    public async Task<List<Pet>> FindPetsByTagsAsync(
+    public async Task<List<PetStoreFull.Generated.Pet.Models.Pet>> FindPetsByTagsAsync(
         FindPetsByTagsParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -122,14 +122,14 @@ public sealed class PetClient : IPetClient
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
-            return PetXml.ReadList(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
+            return PetStoreFull.Generated.Pet.Models.PetXml.ReadList(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<List<Pet>>(jsonSerializerOptions, cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<List<PetStoreFull.Generated.Pet.Models.Pet>>(jsonSerializerOptions, cancellationToken))!;
     }
 
-    public async Task<Pet> GetPetByIdAsync(
+    public async Task<PetStoreFull.Generated.Pet.Models.Pet> GetPetByIdAsync(
         GetPetByIdParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -139,14 +139,14 @@ public sealed class PetClient : IPetClient
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
-            return PetXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
+            return PetStoreFull.Generated.Pet.Models.PetXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<PetStoreFull.Generated.Pet.Models.Pet>(jsonSerializerOptions, cancellationToken))!;
     }
 
-    public async Task<Pet> UpdatePetWithFormAsync(
+    public async Task<PetStoreFull.Generated.Pet.Models.Pet> UpdatePetWithFormAsync(
         UpdatePetWithFormParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -173,11 +173,11 @@ public sealed class PetClient : IPetClient
         var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         if (response.IsSuccessStatusCode && XmlModelSupport.IsXmlMediaType(response.Content.Headers.ContentType?.MediaType))
         {
-            return PetXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
+            return PetStoreFull.Generated.Pet.Models.PetXml.Read(XmlModelSupport.ParseContent(await response.Content.ReadAsByteArrayAsync(cancellationToken)));
         }
 
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<Pet>(jsonSerializerOptions, cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<PetStoreFull.Generated.Pet.Models.Pet>(jsonSerializerOptions, cancellationToken))!;
     }
 
     public async Task DeletePetAsync(

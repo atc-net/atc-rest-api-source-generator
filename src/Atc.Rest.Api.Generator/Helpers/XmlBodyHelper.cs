@@ -153,9 +153,12 @@ public static class XmlBodyHelper
     /// <returns>The type name.</returns>
     public static string ModelTypeName(
         IDictionary<string, IOpenApiMediaType> content,
-        XmlBody body)
+        XmlBody body,
+        TypeConflictRegistry? registry = null)
     {
+        // A model named like a namespace in scope (Pet under ...Generated.Pet) is written fully qualified
         var name = ItemTypeName(content, body);
+        name = registry?.ResolveTypeName(name) ?? name;
         return body.IsList ? $"List<{name}>" : name;
     }
 

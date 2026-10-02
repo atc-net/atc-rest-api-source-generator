@@ -870,7 +870,7 @@ public class OperationParameterExtractorTests
     }
 
     [Theory]
-    [InlineData("date", "DateTimeOffset")]
+    [InlineData("date", "DateOnly")]
     [InlineData("date-time", "DateTimeOffset")]
     [InlineData("guid", "Guid")]
     [InlineData("int", "int")]

@@ -22,44 +22,15 @@ public class GeneratorCompilationGateTests
     /// shrink - it never silently preserves debt someone has already paid off.
     /// </para>
     /// <para>
-    /// The remaining failures cluster into two families, neither introduced by this gate: a path
-    /// segment whose name collides with a model of the same name, so the namespace shadows the type
-    /// (<c>Session</c> in <c>CookieParameters</c>); and segment <c>Models</c> namespaces that are
-    /// imported but never populated, which is what the OpenAPI 3.1/3.2 scenarios hit.
-    /// </para>
-    /// <para>
-    /// The third family - polymorphic <c>oneOf</c>/<c>anyOf</c> bases that were referenced but never
-    /// emitted - has been fixed, and its eight entries removed from this list by the ratchet.
-    /// </para>
-    /// <para>
-    /// A fourth - server segments whose only models are inline (anonymous) schemas, emitted into the
-    /// segment <c>Models</c> namespace but not imported - has been fixed too, removing the
-    /// <c>SecurityHybrid</c> and <c>SecurityStandard</c> Server/ServerDomain entries.
+    /// <b>The list is empty and must stay empty for a release.</b> The families it once held, all fixed:
+    /// polymorphic <c>oneOf</c> / <c>anyOf</c> bases that were referenced but never emitted; segments whose
+    /// only models are inline schemas (emitted but not imported, on the server and in the typed client); a path
+    /// segment named like a model, so the namespace shadowed the type (<c>Pet</c> under <c>/pet</c>); tuple
+    /// schemas (<c>prefixItems</c>) that were never generated for a real OpenAPI 3.1 / 3.2 document; and a
+    /// <c>float</c> default written without its suffix.
     /// </para>
     /// </summary>
-    private static readonly HashSet<string> KnownNonCompilingCombinations = new(StringComparer.Ordinal)
-    {
-        "CachingHybrid/Server",
-        "CookieParameters/Server",
-        "CookieParameters/Client-Operation",
-        "CookieParameters/Client-Typed",
-        "ModelsAndProperties/Server",
-        "ModelsAndProperties/Client-Typed",
-        "OpenApi31Features/Server",
-        "OpenApi31Features/Client-Typed",
-        "OpenApi32Features/Server",
-        "OpenApi32Features/Client-Typed",
-        "PetStoreFull/Server",
-        "PetStoreFull/Client-Operation",
-        "PetStoreFull/Client-Typed",
-        "SecurityHybrid/Client-Typed",
-        "SecurityStandard/Client-Typed",
-
-        // Derivative: a ServerDomain compilation includes the server output it implements against,
-        // so it inherits the failure of its Server row above rather than adding one. It will go
-        // green when that row does; there is nothing separate to fix here.
-        "PetStoreFull/ServerDomain",
-    };
+    private static readonly HashSet<string> KnownNonCompilingCombinations = new(StringComparer.Ordinal);
 
     public static IEnumerable<object[]> AllScenarioGenerators
         => GeneratorSnapshotHarness.GetScenarioGeneratorData();

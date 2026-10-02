@@ -129,7 +129,5 @@ public static class OAuthOptionsExtractor
     /// Escapes a string for use in C# string literals.
     /// </summary>
     private static string EscapeString(string value)
-        => value
-            .Replace("\\", "\\\\")
-            .Replace("\"", "\\\"");
+        => CSharpLiteralHelper.EscapeString(value);
 }

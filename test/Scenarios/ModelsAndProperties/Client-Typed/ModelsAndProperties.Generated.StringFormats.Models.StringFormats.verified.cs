@@ -16,7 +16,7 @@ public sealed record StringFormats(
     [property: Required] string PlainString,
     [property: Required] Guid UuidValue,
     [property: Required] DateTimeOffset DateTimeValue,
-    DateTimeOffset? DateValue = null,
+    DateOnly? DateValue = null,
     string? TimeValue = null,
     Uri? UriValue = null,
     [property: EmailAddress] string? EmailValue = null,

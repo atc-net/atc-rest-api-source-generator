@@ -244,8 +244,7 @@ public static class WebhookEndpointExtractor
         // Add operation metadata
         if (!string.IsNullOrEmpty(operation.Summary))
         {
-            var escapedSummary = operation.Summary!.Replace("\"", "\\\"");
-            builder.AppendLine(4, $".WithSummary(\"{escapedSummary}\")");
+            builder.AppendLine(4, $".WithSummary({CSharpLiteralHelper.ToStringLiteral(operation.Summary!.Trim())})");
         }
 
         builder.AppendLine(4, $".WithName(\"{operationId}\")");

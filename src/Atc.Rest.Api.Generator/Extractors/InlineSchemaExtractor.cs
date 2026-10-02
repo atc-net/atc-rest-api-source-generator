@@ -69,14 +69,13 @@ public static class InlineSchemaExtractor
         var required = schema.Required ?? new HashSet<string>(StringComparer.Ordinal);
 
         var parametersList = new List<ParameterBaseParameters>();
-        var seenPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var propertyNames = new PropertyNameRegistry();
 
         foreach (var prop in properties)
         {
-            var propName = prop.Key.ToPascalCaseForDotNet();
-
-            // Skip duplicate property names
-            if (!seenPropertyNames.Add(propName))
+            // A valid, unique name for every property; the same key listed twice (allOf composition) is skipped
+            var propName = propertyNames.Resolve(prop.Key, prop.Key.ToPascalCaseForDotNet());
+            if (propName is null)
             {
                 continue;
             }
@@ -157,12 +156,12 @@ public static class InlineSchemaExtractor
         var required = schema.Required ?? new HashSet<string>(StringComparer.Ordinal);
 
         var parametersList = new List<ParameterBaseParameters>();
-        var seenPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var propertyNames = new PropertyNameRegistry();
 
         foreach (var prop in properties)
         {
-            var propName = prop.Key.ToPascalCaseForDotNet();
-            if (!seenPropertyNames.Add(propName))
+            var propName = propertyNames.Resolve(prop.Key, prop.Key.ToPascalCaseForDotNet());
+            if (propName is null)
             {
                 continue;
             }

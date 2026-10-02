@@ -967,7 +967,7 @@ using Microsoft.AspNetCore.Builder;
         if (!string.IsNullOrEmpty(operation.Summary))
         {
             builder.AppendLine();
-            builder.Append($"    .WithSummary(\"{operation.Summary!.Replace("\"", "\\\"")}\")");
+            builder.Append($"    .WithSummary({CSharpLiteralHelper.ToStringLiteral(operation.Summary!.Trim())})");
         }
 
         // Add Produces metadata based on responses (includes auto-apply for common errors)
@@ -1005,7 +1005,7 @@ using Microsoft.AspNetCore.Builder;
                 ? new[] { "application/json" }.Concat(boundBody.AlternativeMediaTypes!)
                 : [boundBody.MediaType];
             builder.AppendLine();
-            builder.Append($"    .Accepts<{XmlBodyHelper.ModelTypeName(operation.RequestBody!.Content!, boundBody)}>({string.Join(", ", mediaTypes.Select(m => $"\"{m}\""))})");
+            builder.Append($"    .Accepts<{XmlBodyHelper.ModelTypeName(operation.RequestBody!.Content!, boundBody, registry)}>({string.Join(", ", mediaTypes.Select(m => $"\"{m}\""))})");
         }
 
         // Add Accepts and DisableAntiforgery for file upload endpoints
@@ -1219,27 +1219,27 @@ using Microsoft.AspNetCore.Builder;
 
         if (hasRoles && hasSchemes)
         {
-            var rolesString = string.Join("\", \"", security.Roles);
-            var schemesString = string.Join("\", \"", security.Schemes);
+            var rolesString = string.Join("\", \"", security.Roles.Select(CSharpLiteralHelper.EscapeString));
+            var schemesString = string.Join("\", \"", security.Schemes.Select(CSharpLiteralHelper.EscapeString));
             builder.AppendLine(4, ".RequireAuthorization(policy => policy");
             builder.AppendLine(8, $".RequireRole(\"{rolesString}\")");
             builder.Append(8, $".AddAuthenticationSchemes(\"{schemesString}\"))");
         }
         else if (hasRoles)
         {
-            var rolesString = string.Join("\", \"", security.Roles);
+            var rolesString = string.Join("\", \"", security.Roles.Select(CSharpLiteralHelper.EscapeString));
             builder.Append(4, $".RequireAuthorization(policy => policy.RequireRole(\"{rolesString}\"))");
         }
         else if (hasSchemes)
         {
-            var schemesString = string.Join("\", \"", security.Schemes);
+            var schemesString = string.Join("\", \"", security.Schemes.Select(CSharpLiteralHelper.EscapeString));
             builder.AppendLine(4, ".RequireAuthorization(policy => policy");
             builder.AppendLine(8, $".AddAuthenticationSchemes(\"{schemesString}\")");
             builder.Append(8, ".RequireAuthenticatedUser())");
         }
         else if (hasPolicies)
         {
-            var policiesString = string.Join("\", \"", security.Policies);
+            var policiesString = string.Join("\", \"", security.Policies.Select(CSharpLiteralHelper.EscapeString));
             builder.Append(4, $".RequireAuthorization(\"{policiesString}\")");
         }
         else

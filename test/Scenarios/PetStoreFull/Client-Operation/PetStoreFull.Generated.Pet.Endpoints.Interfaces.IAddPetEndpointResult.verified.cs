@@ -34,7 +34,7 @@ public interface IAddPetEndpointResult : IEndpointResponse
 
     bool IsDefaultError { get; }
 
-    Pet OkContent { get; }
+    PetStoreFull.Generated.Pet.Models.Pet OkContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
 

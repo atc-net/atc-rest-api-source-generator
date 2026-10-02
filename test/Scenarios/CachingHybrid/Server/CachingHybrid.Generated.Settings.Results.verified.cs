@@ -30,10 +30,10 @@ public sealed class GetSettingsResult : IResult
     /// <summary>
     /// 200 OK - OK.
     /// </summary>
-    public static GetSettingsResult Ok(Settings response)
+    public static GetSettingsResult Ok(CachingHybrid.Generated.Settings.Models.Settings response)
         => new(TypedResults.Ok(response));
 
-    public static implicit operator GetSettingsResult(Settings response)
+    public static implicit operator GetSettingsResult(CachingHybrid.Generated.Settings.Models.Settings response)
         => Ok(response);
 
     public Task ExecuteAsync(HttpContext httpContext)

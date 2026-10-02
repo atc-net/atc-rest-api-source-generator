@@ -30,10 +30,10 @@ public sealed class CreateUserResult : IResult
     /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
-    public static CreateUserResult Ok(User response)
-        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, UserXml.ToUtf8Bytes(response)), "application/xml"));
+    public static CreateUserResult Ok(PetStoreFull.Generated.User.Models.User response)
+        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetStoreFull.Generated.User.Models.UserXml.ToUtf8Bytes(response)), "application/xml"));
 
-    public static implicit operator CreateUserResult(User response)
+    public static implicit operator CreateUserResult(PetStoreFull.Generated.User.Models.User response)
         => Ok(response);
 
     /// <summary>
@@ -74,10 +74,10 @@ public sealed class CreateUsersWithListInputResult : IResult
     /// <summary>
     /// 200 OK - Successful operation.
     /// </summary>
-    public static CreateUsersWithListInputResult Ok(User response)
-        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, UserXml.ToUtf8Bytes(response)), "application/xml"));
+    public static CreateUsersWithListInputResult Ok(PetStoreFull.Generated.User.Models.User response)
+        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetStoreFull.Generated.User.Models.UserXml.ToUtf8Bytes(response)), "application/xml"));
 
-    public static implicit operator CreateUsersWithListInputResult(User response)
+    public static implicit operator CreateUsersWithListInputResult(PetStoreFull.Generated.User.Models.User response)
         => Ok(response);
 
     /// <summary>
@@ -209,10 +209,10 @@ public sealed class GetUserByNameResult : IResult
     /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
-    public static GetUserByNameResult Ok(User response)
-        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, UserXml.ToUtf8Bytes(response)), "application/xml"));
+    public static GetUserByNameResult Ok(PetStoreFull.Generated.User.Models.User response)
+        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetStoreFull.Generated.User.Models.UserXml.ToUtf8Bytes(response)), "application/xml"));
 
-    public static implicit operator GetUserByNameResult(User response)
+    public static implicit operator GetUserByNameResult(PetStoreFull.Generated.User.Models.User response)
         => Ok(response);
 
     /// <summary>

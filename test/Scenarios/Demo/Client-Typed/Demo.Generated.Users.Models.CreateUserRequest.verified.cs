@@ -12,7 +12,7 @@ public sealed record CreateUserRequest(
     [property: Required, MinLength(2), MaxLength(50)] string FirstName,
     [property: Required, MinLength(2), MaxLength(50)] string LastName,
     [property: Required, MaxLength(254), EmailAddress] string Email,
-    [property: Required] DateTimeOffset DateOfBirth,
+    [property: Required] DateOnly DateOfBirth,
     [property: Required] UserRole Role,
     [property: Required] AddressRequest Address,
     [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone = null,

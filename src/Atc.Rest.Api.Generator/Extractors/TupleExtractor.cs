@@ -224,7 +224,12 @@ public static class TupleExtractor
         string ns)
     {
         var recordsContainer = new RecordsParameters(
-            HeaderContent: HeaderBuilder.WithUsings(NamespaceConstants.SystemCodeDomCompiler),
+            HeaderContent: HeaderBuilder.WithUsings(
+                NamespaceConstants.System,
+                NamespaceConstants.SystemCodeDomCompiler,
+                NamespaceConstants.SystemCollectionsGeneric,
+                NamespaceConstants.SystemTextJson,
+                NamespaceConstants.SystemTextJsonSerialization),
             Namespace: ns,
             DocumentationTags: null,
             Attributes: null,
@@ -235,8 +240,120 @@ public static class TupleExtractor
             new CodeDocumentationTagsGenerator(),
             recordsContainer);
 
-        return generator.Generate();
+        return generator.Generate() + Environment.NewLine + Environment.NewLine + GenerateConverter(recordParameters);
     }
+
+    /// <summary>
+    /// The converter of a tuple record: on the wire a tuple is a JSON array (<c>[55.5, 12.5]</c>), not an
+    /// object with the record's member names. Each position is read and written with the serializer's own
+    /// options, so converters and naming policies for the item types keep applying.
+    /// </summary>
+    private static string GenerateConverter(RecordParameters recordParameters)
+    {
+        var name = recordParameters.Name;
+        var parameters = recordParameters.Parameters ?? [];
+        var fixedItems = parameters.Where(p => !IsAdditionalItems(p)).ToList();
+        var additionalItems = parameters.FirstOrDefault(IsAdditionalItems);
+        var additionalItemType = additionalItems?.TypeName.Substring(0, additionalItems.TypeName.Length - 2);
+
+        var sb = new StringBuilder();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine($"/// Reads and writes a <see cref=\"{name}\"/> as the JSON array the specification describes.");
+        sb.AppendLine("/// </summary>");
+        sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
+        sb.AppendLine($"public sealed class {name}JsonConverter : JsonConverter<{name}>");
+        sb.AppendLine("{");
+        sb.AppendLine(4, $"public override {name} Read(");
+        sb.AppendLine(8, "ref Utf8JsonReader reader,");
+        sb.AppendLine(8, "Type typeToConvert,");
+        sb.AppendLine(8, "JsonSerializerOptions options)");
+        sb.AppendLine(4, "{");
+        sb.AppendLine(8, "if (reader.TokenType != JsonTokenType.StartArray)");
+        sb.AppendLine(8, "{");
+        sb.AppendLine(12, $"throw new JsonException(\"A {name} is a JSON array.\");");
+        sb.AppendLine(8, "}");
+        sb.AppendLine();
+        sb.AppendLine(8, "reader.Read();");
+
+        for (var i = 0; i < fixedItems.Count; i++)
+        {
+            var item = fixedItems[i];
+            var typeName = ItemTypeName(item);
+            sb.AppendLine();
+            sb.AppendLine(8, "if (reader.TokenType == JsonTokenType.EndArray)");
+            sb.AppendLine(8, "{");
+            sb.AppendLine(12, $"throw new JsonException(\"A {name} has {fixedItems.Count} item(s); item {i + 1} ({item.Name}) is missing.\");");
+            sb.AppendLine(8, "}");
+            sb.AppendLine();
+            sb.AppendLine(8, $"var item{i} = JsonSerializer.Deserialize<{typeName}>(ref reader, options){(typeName.EndsWith("?", StringComparison.Ordinal) ? string.Empty : "!")};");
+            sb.AppendLine(8, "reader.Read();");
+        }
+
+        sb.AppendLine();
+        if (additionalItems is not null)
+        {
+            sb.AppendLine(8, $"var additionalItems = new List<{additionalItemType}>();");
+            sb.AppendLine(8, "while (reader.TokenType != JsonTokenType.EndArray)");
+            sb.AppendLine(8, "{");
+            sb.AppendLine(12, $"additionalItems.Add(JsonSerializer.Deserialize<{additionalItemType}>(ref reader, options)!);");
+            sb.AppendLine(12, "reader.Read();");
+            sb.AppendLine(8, "}");
+        }
+        else
+        {
+            sb.AppendLine(8, "// Items beyond the ones the tuple names are not part of the model");
+            sb.AppendLine(8, "while (reader.TokenType != JsonTokenType.EndArray)");
+            sb.AppendLine(8, "{");
+            sb.AppendLine(12, "reader.Skip();");
+            sb.AppendLine(12, "reader.Read();");
+            sb.AppendLine(8, "}");
+        }
+
+        var arguments = fixedItems.Select((_, i) => $"item{i}").ToList();
+        if (additionalItems is not null)
+        {
+            arguments.Add("additionalItems.ToArray()");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine(8, $"return new {name}({string.Join(", ", arguments)});");
+        sb.AppendLine(4, "}");
+        sb.AppendLine();
+        sb.AppendLine(4, "public override void Write(");
+        sb.AppendLine(8, "Utf8JsonWriter writer,");
+        sb.AppendLine(8, $"{name} value,");
+        sb.AppendLine(8, "JsonSerializerOptions options)");
+        sb.AppendLine(4, "{");
+        sb.AppendLine(8, "writer.WriteStartArray();");
+        foreach (var item in fixedItems)
+        {
+            sb.AppendLine(8, $"JsonSerializer.Serialize(writer, value.{item.Name}, options);");
+        }
+
+        if (additionalItems is not null)
+        {
+            sb.AppendLine();
+            sb.AppendLine(8, $"foreach (var item in value.{additionalItems.Name} ?? [])");
+            sb.AppendLine(8, "{");
+            sb.AppendLine(12, "JsonSerializer.Serialize(writer, item, options);");
+            sb.AppendLine(8, "}");
+            sb.AppendLine();
+        }
+
+        sb.AppendLine(8, "writer.WriteEndArray();");
+        sb.AppendLine(4, "}");
+        sb.Append('}');
+
+        return sb.ToString();
+    }
+
+    private static bool IsAdditionalItems(ParameterBaseParameters parameter)
+        => parameter.Name == "AdditionalItems" && parameter.TypeName.EndsWith("[]", StringComparison.Ordinal);
+
+    private static string ItemTypeName(ParameterBaseParameters parameter)
+        => parameter.IsNullableType && !parameter.TypeName.EndsWith("?", StringComparison.Ordinal)
+            ? parameter.TypeName + "?"
+            : parameter.TypeName;
 
     /// <summary>
     /// Creates a RecordParameters for a tuple schema.
@@ -289,6 +406,7 @@ public static class TupleExtractor
             Attributes: new List<AttributeParameters>
             {
                 new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
+                new("JsonConverter", $"typeof({OpenApiSchemaExtensions.SanitizeSchemaName(schemaName)}JsonConverter)"),
             });
     }
 }

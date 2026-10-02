@@ -41,14 +41,22 @@ public sealed class TypeConflictRegistry
     /// </summary>
     private readonly string? pathSegment;
 
+    /// <summary>
+    /// Schemas generated into the shared <c>{Project}.Generated.Models</c> namespace (used by more than one
+    /// path segment); null when the caller does not know, and every type is taken to live in this registry's segment.
+    /// </summary>
+    private readonly ISet<string>? sharedSchemaNames;
+
     private TypeConflictRegistry(
         ISet<string> conflictingSchemaNames,
         string projectName,
-        string? pathSegment)
+        string? pathSegment,
+        ISet<string>? sharedSchemaNames = null)
     {
         this.conflictingSchemaNames = conflictingSchemaNames;
         this.projectName = projectName;
         this.pathSegment = pathSegment;
+        this.sharedSchemaNames = sharedSchemaNames;
     }
 
     /// <summary>
@@ -58,10 +66,16 @@ public sealed class TypeConflictRegistry
     /// </summary>
     /// <param name="doc">The OpenAPI document to scan.</param>
     /// <param name="projectNamespace">Optional project namespace; segments are checked for conflicts with schema names.</param>
+    /// <param name="pathSegmentNamespaces">
+    /// Optional names of the path-segment namespaces (<c>Pet</c> for <c>/pet</c>): inside
+    /// <c>{Project}.Generated.Pet.*</c> the simple name <c>Pet</c> is that namespace, so a schema of the same
+    /// name must be written fully qualified.
+    /// </param>
     /// <returns>Set of conflicting schema names.</returns>
     public static ISet<string> ScanForConflicts(
         OpenApiDocument doc,
-        string? projectNamespace = null)
+        string? projectNamespace = null,
+        IEnumerable<string>? pathSegmentNamespaces = null)
     {
         var conflicts = new HashSet<string>(StringComparer.Ordinal);
 
@@ -78,16 +92,50 @@ public sealed class TypeConflictRegistry
                 StringComparer.Ordinal);
         }
 
+        if (pathSegmentNamespaces is not null)
+        {
+            namespaceSegments ??= new HashSet<string>(StringComparer.Ordinal);
+            foreach (var segment in pathSegmentNamespaces)
+            {
+                if (!string.IsNullOrEmpty(segment))
+                {
+                    namespaceSegments.Add(segment);
+                }
+            }
+        }
+
         foreach (var schema in doc.Components.Schemas)
         {
+            // Only a schema that becomes a type can clash with a namespace: an array or primitive alias
+                // (Accounts: array of Account) is replaced by the type it names wherever it is referenced.
             if (ReservedSystemTypes.Contains(schema.Key) ||
-                namespaceSegments?.Contains(schema.Key) == true)
+                (namespaceSegments?.Contains(schema.Key) == true && IsGeneratedType(schema.Value)))
             {
                 conflicts.Add(schema.Key);
             }
         }
 
         return conflicts;
+    }
+
+    private static bool IsGeneratedType(IOpenApiSchema schemaValue)
+    {
+        if (schemaValue is not OpenApiSchema schema || schema.Type is not { } type)
+        {
+            return true;
+        }
+
+        if (schema.Enum is { Count: > 0 } ||
+            schema.AllOf is { Count: > 0 } ||
+            schema.OneOf is { Count: > 0 } ||
+            schema.AnyOf is { Count: > 0 } ||
+            schema.HasPrefixItems())
+        {
+            return true;
+        }
+
+        var withoutNull = type & ~JsonSchemaType.Null;
+        return withoutNull == default || withoutNull == JsonSchemaType.Object;
     }
 
     /// <summary>
@@ -97,12 +145,14 @@ public sealed class TypeConflictRegistry
     /// <param name="conflicts">The pre-scanned set of conflicting schema names from <see cref="ScanForConflicts"/>.</param>
     /// <param name="projectName">The project name for namespace construction.</param>
     /// <param name="pathSegment">Optional path segment for segmented namespaces.</param>
+    /// <param name="sharedSchemaNames">Optional names of the schemas generated into the shared models namespace.</param>
     /// <returns>A registry configured for the specified path segment.</returns>
     public static TypeConflictRegistry ForSegment(
         ISet<string> conflicts,
         string projectName,
-        string? pathSegment = null)
-        => new(conflicts, projectName, pathSegment);
+        string? pathSegment = null,
+        ISet<string>? sharedSchemaNames = null)
+        => new(conflicts, projectName, pathSegment, sharedSchemaNames);
 
     /// <summary>
     /// Builds a conflict registry by scanning OpenAPI document schemas.
@@ -142,7 +192,8 @@ public sealed class TypeConflictRegistry
 
         // Compute namespace on-demand. Callers normalize a redundant/collapsed segment to
         // string.Empty, so guard on emptiness (not just null) to avoid emitting "Generated..Models".
-        return !string.IsNullOrEmpty(pathSegment)
+        // A schema used by several segments lives in the shared models namespace, whatever segment asks.
+        return !string.IsNullOrEmpty(pathSegment) && sharedSchemaNames?.Contains(typeName) != true
             ? $"{projectName}.Generated.{pathSegment}.Models.{typeName}"
             : $"{projectName}.Generated.Models.{typeName}";
     }

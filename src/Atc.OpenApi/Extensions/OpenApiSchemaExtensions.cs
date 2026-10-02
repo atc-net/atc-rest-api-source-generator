@@ -17,14 +17,47 @@ public static class OpenApiSchemaExtensions
 {
     /// <summary>
     /// Sanitizes a schema name to be a valid C# identifier.
-    /// Replaces dots with underscores (e.g., "Foo.Bar.Baz" becomes "Foo_Bar_Baz").
+    /// Every character an identifier cannot hold becomes an underscore ("Foo.Bar" becomes "Foo_Bar",
+    /// "Note-Size" becomes "Note_Size"), and a name that starts with a digit gets a leading underscore
+    /// ("3DModel" becomes "_3DModel").
     /// </summary>
     /// <param name="schemaName">The original schema name from OpenAPI.</param>
     /// <returns>A sanitized name that is a valid C# identifier.</returns>
     public static string SanitizeSchemaName(string schemaName)
-        => string.IsNullOrEmpty(schemaName)
-            ? schemaName
-            : schemaName.Replace(".", "_"); // Replace dots with underscores for valid C# identifiers
+    {
+        if (string.IsNullOrEmpty(schemaName))
+        {
+            return schemaName;
+        }
+
+        var needsChange = char.IsDigit(schemaName[0]);
+        foreach (var c in schemaName)
+        {
+            if (!char.IsLetterOrDigit(c) && c != '_')
+            {
+                needsChange = true;
+                break;
+            }
+        }
+
+        if (!needsChange)
+        {
+            return schemaName;
+        }
+
+        var sb = new System.Text.StringBuilder(schemaName.Length + 1);
+        if (char.IsDigit(schemaName[0]))
+        {
+            sb.Append('_');
+        }
+
+        foreach (var c in schemaName)
+        {
+            sb.Append(char.IsLetterOrDigit(c) || c == '_' ? c : '_');
+        }
+
+        return sb.ToString();
+    }
 
     /// <summary>
     /// Determines whether a composition branch exists only to permit <c>null</c>, and so carries no
@@ -215,6 +248,21 @@ public static class OpenApiSchemaExtensions
             var typeString = schemaType.ToString();
             return typeString is not null && typeString.Contains("Null", StringComparison.OrdinalIgnoreCase);
         }
+
+        /// <summary>
+        /// Checks the schema's type, ignoring nullability: <c>type: object</c>, the OpenAPI 3.1
+        /// <c>type: [object, 'null']</c> and the 3.0 <c>type: object</c> + <c>nullable: true</c>
+        /// are all of type <see cref="JsonSchemaType.Object"/>.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="JsonSchemaType"/> is a flags enum, so comparing <c>Type</c> with <c>==</c>
+        /// is false for a nullable schema — which then is neither generated nor resolved.
+        /// </remarks>
+        /// <param name="type">The single (non-null) type to check for.</param>
+        /// <returns>True when the schema's type, without the Null flag, is <paramref name="type"/>.</returns>
+        public bool IsOfType(JsonSchemaType type)
+            => schema is OpenApiSchema { Type: { } schemaType } &&
+               (schemaType & ~JsonSchemaType.Null) == type;
 
         /// <summary>
         /// Determines whether a <c>oneOf</c> / <c>anyOf</c> composition carries a branch whose only
@@ -759,13 +807,14 @@ public static class OpenApiSchemaExtensions
                 return null;
             }
 
-            if (actualSchema.Extensions is null ||
-                !actualSchema.Extensions.TryGetValue("prefixItems", out var extension))
+            // An OpenAPI 3.1 document carries prefixItems as an unrecognized keyword; older workarounds as an extension
+            var prefixItemsArray = TypeScriptTypeMapper.GetPrefixItemsArray(actualSchema);
+            if (prefixItemsArray is null)
             {
                 return null;
             }
 
-            var prefixItems = ExtractPrefixItemsFromExtension(extension, document, registry);
+            var prefixItems = ExtractPrefixItems(prefixItemsArray, document, registry);
             if (prefixItems.Count == 0)
             {
                 return null;
@@ -804,20 +853,14 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
-        /// Extracts prefixItems schemas from an extension value.
+        /// Extracts the tuple items from the prefixItems array.
         /// </summary>
-        private static List<TupleItemInfo> ExtractPrefixItemsFromExtension(
-            IOpenApiExtension extension,
+        private static List<TupleItemInfo> ExtractPrefixItems(
+            JsonArray jsonArray,
             OpenApiDocument? document,
             TypeConflictRegistry? registry)
         {
             var result = new List<TupleItemInfo>();
-
-            if (extension is not JsonNodeExtension jsonNodeExt ||
-                jsonNodeExt.Node is not JsonArray jsonArray)
-            {
-                return result;
-            }
 
             var index = 0;
             foreach (var item in jsonArray)
@@ -906,7 +949,7 @@ public static class OpenApiSchemaExtensions
             {
                 "string" when format == "uuid" => "Guid",
                 "string" when format == "date-time" => "DateTimeOffset",
-                "string" when format == "date" => "DateTimeOffset",
+                "string" when format == "date" => "DateOnly",
                 "string" when format == "uri" => "Uri",
                 "string" when format == "byte" => "byte[]",
                 "string" => "string",
@@ -984,23 +1027,21 @@ public static class OpenApiSchemaExtensions
             var schemaType = actualSchema.Type ?? JsonSchemaType.Null;
             if (schemaType.HasFlag(JsonSchemaType.Integer))
             {
-                var hasMin = !string.IsNullOrEmpty(actualSchema.Minimum);
-                var hasMax = !string.IsNullOrEmpty(actualSchema.Maximum);
+                // A bound may be written as a decimal or in exponent form (minimum: 1.0, maximum: 1e3):
+                // it is rounded inwards to the integers it allows. A bound that is no number is skipped.
+                var min = ParseIntegerBound(actualSchema.Minimum, isMinimum: true);
+                var max = ParseIntegerBound(actualSchema.Maximum, isMinimum: false);
 
-                if (hasMin && hasMax)
+                if (min is not null && max is not null)
                 {
-                    var min = long.Parse(actualSchema.Minimum!, CultureInfo.InvariantCulture);
-                    var max = long.Parse(actualSchema.Maximum!, CultureInfo.InvariantCulture);
                     attributes.Add($"Range({min}, {max})");
                 }
-                else if (hasMin)
+                else if (min is not null)
                 {
-                    var min = long.Parse(actualSchema.Minimum!, CultureInfo.InvariantCulture);
                     attributes.Add($"Range({min}, long.MaxValue)");
                 }
-                else if (hasMax)
+                else if (max is not null)
                 {
-                    var max = long.Parse(actualSchema.Maximum!, CultureInfo.InvariantCulture);
                     attributes.Add($"Range(long.MinValue, {max})");
                 }
             }
@@ -1186,9 +1227,19 @@ public static class OpenApiSchemaExtensions
             // Handle schema references (a model, or an enum)
             if (schema is OpenApiSchemaReference schemaRef)
             {
+                // An alias (a component that is only an array or a primitive) is no generated type:
+                // the property takes the aliased type itself (List<string>, Guid, ...).
+                if (schemaRef.Target is OpenApiSchema aliasTarget && IsAliasSchema(aliasTarget))
+                {
+                    return aliasTarget.ToCSharpTypeForModel(isRequired, registry);
+                }
+
                 var refName = schemaRef.Reference.Id ?? schemaRef.Id ?? "object";
                 var refTypeName = ResolveTypeName(refName, registry);
-                return isOptional ? $"{refTypeName}?" : refTypeName;
+
+                // A component that allows null (type: [object, 'null']) makes the property nullable
+                // even when it is required.
+                return isOptional || schemaRef.Target.IsNullable() ? $"{refTypeName}?" : refTypeName;
             }
 
             // Handle actual schemas
@@ -1265,6 +1316,48 @@ public static class OpenApiSchemaExtensions
             return isNullable
                 ? $"{baseType}?"
                 : baseType;
+        }
+
+        /// <summary>
+        /// Reads an integer schema's <c>minimum</c> / <c>maximum</c>, which a specification may write as any
+        /// JSON number. Rounded inwards (a minimum up, a maximum down) and limited to the range of a long.
+        /// </summary>
+        private static long? ParseIntegerBound(
+            string? bound,
+            bool isMinimum)
+        {
+            if (string.IsNullOrEmpty(bound) ||
+                !decimal.TryParse(bound, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+            {
+                return null;
+            }
+
+            value = isMinimum ? decimal.Ceiling(value) : decimal.Floor(value);
+            if (value <= long.MinValue)
+            {
+                return long.MinValue;
+            }
+
+            return value >= long.MaxValue ? long.MaxValue : (long)value;
+        }
+
+        /// <summary>
+        /// A component schema that only names an array or a primitive (no enum, no composition,
+        /// no tuple) - the generators emit no type for it.
+        /// </summary>
+        private static bool IsAliasSchema(OpenApiSchema target)
+        {
+            if (target.Type is not { } type ||
+                target.Enum is { Count: > 0 } ||
+                target.AllOf is { Count: > 0 } ||
+                target.HasPolymorphicComposition() ||
+                target.HasPrefixItems())
+            {
+                return false;
+            }
+
+            var withoutNull = type & ~JsonSchemaType.Null;
+            return withoutNull != default && withoutNull != JsonSchemaType.Object;
         }
 
         /// <summary>
@@ -1736,7 +1829,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // Check if it's an array schema
-            if (schemaInterface is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema)
+            if (schemaInterface is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array))
             {
                 // Return the array's item type instead
                 return arraySchema.GetArrayItemType(registry);
@@ -1768,7 +1861,7 @@ public static class OpenApiSchemaExtensions
                     // Check if this reference points to an array schema (array alias)
                     if (document.Components?.Schemas is not null &&
                         document.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
-                        resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema &&
+                        resolvedSchema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array) &&
                         arraySchema.Items is not null)
                     {
                         // It's an array alias - resolve to actual array type with type conflict resolution
@@ -1854,7 +1947,7 @@ public static class OpenApiSchemaExtensions
             }
 
             // Check if it's an array schema
-            if (schemaInterface is not OpenApiSchema { Type: JsonSchemaType.Array } arraySchema)
+            if (schemaInterface is not OpenApiSchema arraySchema || !arraySchema.IsOfType(JsonSchemaType.Array))
             {
                 return typeName;
             }

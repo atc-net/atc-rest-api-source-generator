@@ -57,7 +57,7 @@ public sealed class GetUserByNameEndpoint : IGetUserByNameEndpoint
         }
         else
         {
-            responseBuilder.AddSuccessResponse<User>(HttpStatusCode.OK);
+            responseBuilder.AddSuccessResponse<PetStoreFull.Generated.User.Models.User>(HttpStatusCode.OK);
         }
 
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);

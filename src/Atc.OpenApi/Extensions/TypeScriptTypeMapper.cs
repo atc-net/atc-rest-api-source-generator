@@ -361,7 +361,7 @@ public static class TypeScriptTypeMapper
     /// </summary>
     private static bool IsGenericPaginationBase(IOpenApiSchema? schema)
         => schema?.Properties?.Values.Any(p =>
-               p is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema &&
+               p is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array) &&
                (arraySchema.Items is null ||
                 (arraySchema.Items is OpenApiSchema itemSchema &&
                  itemSchema.Type is null &&
@@ -522,7 +522,7 @@ public static class TypeScriptTypeMapper
     /// <see cref="Microsoft.OpenApi.OpenApiSchema.UnrecognizedKeywords"/>; older specs that
     /// jam it through the extension layer land it in <see cref="Microsoft.OpenApi.OpenApiSchema.Extensions"/>.
     /// </summary>
-    private static JsonArray? GetPrefixItemsArray(OpenApiSchema schema)
+    internal static JsonArray? GetPrefixItemsArray(OpenApiSchema schema)
     {
         if (schema.UnrecognizedKeywords is not null &&
             schema.UnrecognizedKeywords.TryGetValue("prefixItems", out var unrecognizedNode) &&

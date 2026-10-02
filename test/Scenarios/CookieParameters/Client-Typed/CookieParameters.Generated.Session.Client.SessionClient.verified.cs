@@ -39,7 +39,7 @@ public sealed class SessionClient : ISessionClient
         this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
-    public async Task<Session> GetSessionAsync(
+    public async Task<CookieParameters.Generated.Session.Models.Session> GetSessionAsync(
         GetSessionParameters parameters,
         CancellationToken cancellationToken = default)
     {
@@ -61,7 +61,7 @@ public sealed class SessionClient : ISessionClient
 
         var response = await httpClient.SendAsync(request, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<Session>(jsonSerializerOptions, cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<CookieParameters.Generated.Session.Models.Session>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

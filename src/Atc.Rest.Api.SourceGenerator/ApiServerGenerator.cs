@@ -234,6 +234,24 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
+        // Validate the merged document according to the configured strategy, like a single file
+        var validationDiagnostics = OpenApiDocumentValidator.Validate(
+            config.ValidateSpecificationStrategy,
+            mergeResult.Document,
+            Array.Empty<OpenApiError>(),
+            baseFile.Path);
+
+        foreach (var diagnostic in validationDiagnostics)
+        {
+            context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
+        }
+
+        // Stop generation if there are validation errors (not warnings)
+        if (DiagnosticHelpers.HasErrors(validationDiagnostics))
+        {
+            return;
+        }
+
         // Extract project name from base file path (or use config namespace)
         var projectName = config.Namespace ?? baseName;
 
@@ -327,28 +345,17 @@ public class ApiServerGenerator : IIncrementalGenerator
         }
 
         // Filter paths based on include/exclude patterns before segmentation
-        if (config.IncludePaths is { Count: > 0 } || config.ExcludePaths is { Count: > 0 })
-        {
-            var allowedPaths = PathFilterHelper.FilterPaths(
-                openApiDoc.Paths.Keys,
-                config.IncludePaths,
-                config.ExcludePaths);
-
-            // Remove excluded paths from document (modifies in-place for downstream extractors)
-            var pathsToRemove = openApiDoc.Paths.Keys
-                .Where(k => !allowedPaths.Contains(k))
-                .ToList();
-            foreach (var path in pathsToRemove)
-            {
-                openApiDoc.Paths.Remove(path);
-            }
-        }
+        // (on a copy: the parsed document is cached and shared)
+        openApiDoc = PathFilterHelper.WithFilteredPaths(openApiDoc, config.IncludePaths, config.ExcludePaths);
 
         // Get unique path segments for grouping generated files
         var pathSegments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
 
         // Scan for type conflicts once (optimization: O(schemas) instead of O(pathSegments × schemas))
-        var conflicts = TypeConflictRegistry.ScanForConflicts(openApiDoc, projectName);
+        var conflicts = TypeConflictRegistry.ScanForConflicts(
+            openApiDoc,
+            projectName,
+            pathSegments.Select(s => PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, s) ?? string.Empty));
 
         // Create system type conflict resolver for conditional Task qualification
         var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
@@ -450,7 +457,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             // Create conflict registry for this path segment (lightweight: O(1)).
             // Uses the effective segment - the raw pathSegment would qualify conflicting types
             // against a namespace that is never generated when the segment collapses away.
-            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment);
+            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment, sharedSchemas);
 
             // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
             var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);

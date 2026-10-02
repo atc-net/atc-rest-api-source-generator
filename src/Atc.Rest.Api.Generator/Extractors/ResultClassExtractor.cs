@@ -1375,7 +1375,7 @@ public static class ResultClassExtractor
             // But tuple types with prefixItems (like Coordinate) should keep their type name
             if (openApiDoc.Components?.Schemas is not null &&
                 openApiDoc.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
-                resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array, Items: not null } arraySchema &&
+                resolvedSchema is OpenApiSchema { Items: not null } arraySchema && arraySchema.IsOfType(JsonSchemaType.Array) &&
                 !arraySchema.HasPrefixItems())
             {
                 // This is a simple array alias - resolve to the underlying array type

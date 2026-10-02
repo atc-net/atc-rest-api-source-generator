@@ -65,16 +65,23 @@ public static class DefaultValueHelper
             return null;
         }
 
-        // String types - the code generation library will add quotes, so return unquoted value
+        // String types - the code generation library adds the quotes, so return the escaped content of the literal
         if (csharpTypeName == "string")
         {
-            return StripQuotes(rawValue);
+            return CSharpLiteralHelper.EscapeString(StripQuotes(rawValue));
         }
 
         // Boolean values need lowercase in C#
         if (csharpTypeName == "bool")
         {
             return rawValue.ToLowerInvariant();
+        }
+
+        // A float or decimal literal needs its suffix: "float X = 1.5" and "decimal X = 1.5" do not compile
+        if (csharpTypeName is "float" or "decimal" &&
+            decimal.TryParse(rawValue, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
+        {
+            return rawValue + (csharpTypeName == "float" ? "f" : "m");
         }
 
         // Numeric types can use the raw value directly
@@ -107,6 +114,12 @@ public static class DefaultValueHelper
         if (csharpTypeName == "bool")
         {
             return defaultValue.ToLowerInvariant();
+        }
+
+        // A decimal is no valid attribute argument: the attribute takes the number as a double
+        if (csharpTypeName == "decimal" && defaultValue.EndsWith("m", StringComparison.Ordinal))
+        {
+            return defaultValue.Substring(0, defaultValue.Length - 1);
         }
 
         // Numeric types can use the raw value directly

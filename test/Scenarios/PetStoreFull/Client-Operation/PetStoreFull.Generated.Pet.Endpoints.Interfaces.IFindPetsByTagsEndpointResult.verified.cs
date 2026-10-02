@@ -30,7 +30,7 @@ public interface IFindPetsByTagsEndpointResult : IEndpointResponse
 
     bool IsDefaultError { get; }
 
-    IEnumerable<Pet> OkContent { get; }
+    IEnumerable<PetStoreFull.Generated.Pet.Models.Pet> OkContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
 

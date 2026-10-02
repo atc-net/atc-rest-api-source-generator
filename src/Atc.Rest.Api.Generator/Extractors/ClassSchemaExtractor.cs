@@ -95,18 +95,18 @@ public static class ClassSchemaExtractor
             if (schemaValue is OpenApiSchema actualSchema)
             {
                 // Skip array schemas (like "Pets"), they're handled inline
-                if (actualSchema.Type == JsonSchemaType.Array)
+                if (actualSchema.IsOfType(JsonSchemaType.Array))
                 {
                     continue;
                 }
 
                 // Skip enum schemas - handled by EnumExtractor
-                if (actualSchema.Type == JsonSchemaType.String && actualSchema.Enum is { Count: > 0 })
+                if (actualSchema.IsOfType(JsonSchemaType.String) && actualSchema.Enum is { Count: > 0 })
                 {
                     continue;
                 }
 
-                if (actualSchema.Type == JsonSchemaType.Object)
+                if (actualSchema.IsOfType(JsonSchemaType.Object))
                 {
                     var classParams = ExtractClassFromSchema(schemaName, actualSchema, registry);
                     if (classParams is not null)

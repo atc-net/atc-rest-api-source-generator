@@ -2130,6 +2130,93 @@ public class OperationValidationTests
     }
 
     [Fact]
+    public void Validate_FormUrlEncodedRequestBody_ReportsOPR031()
+    {
+        // Arrange: a form body is not generated on any side - the operation would silently lose its body
+        var document = ParseYaml("""
+            openapi: 3.0.3
+            info:
+              title: Test
+              version: 1.0.0
+            paths:
+              /form-only:
+                post:
+                  operationId: postForm
+                  requestBody:
+                    required: true
+                    content:
+                      application/x-www-form-urlencoded:
+                        schema:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                  responses:
+                    '204':
+                      description: Stored
+              /form-or-json:
+                post:
+                  operationId: postFormOrJson
+                  requestBody:
+                    required: true
+                    content:
+                      application/json:
+                        schema:
+                          $ref: '#/components/schemas/Pet'
+                      application/x-www-form-urlencoded:
+                        schema:
+                          $ref: '#/components/schemas/Pet'
+                  responses:
+                    '204':
+                      description: Stored
+              /json-only:
+                post:
+                  operationId: postJson
+                  requestBody:
+                    required: true
+                    content:
+                      application/json:
+                        schema:
+                          $ref: '#/components/schemas/Pet'
+                  responses:
+                    '204':
+                      description: Stored
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  title: Pet
+                  required: [name]
+                  properties:
+                    name:
+                      type: string
+            """);
+        Assert.NotNull(document);
+
+        // Act
+        var diagnostics = OpenApiDocumentValidator.Validate(
+            ValidateSpecificationStrategy.Strict,
+            document,
+            [],
+            TestFilePath).Where(d => d.RuleId == Generator.RuleIdentifiers.BodyNotGeneratedAsDeclared).ToList();
+
+        // Assert: one warning per form body, saying what happens to it; none for the JSON-only operation
+        Assert.All(diagnostics, d => Assert.Equal(Generator.Models.DiagnosticSeverity.Warning, d.Severity));
+        Assert.Collection(
+            diagnostics.Select(d => d.Message).Order(StringComparer.Ordinal),
+            m =>
+            {
+                Assert.Contains("'postForm' request body (application/x-www-form-urlencoded)", m, StringComparison.Ordinal);
+                Assert.Contains("without a request body", m, StringComparison.Ordinal);
+            },
+            m =>
+            {
+                Assert.Contains("'postFormOrJson' request body (application/x-www-form-urlencoded)", m, StringComparison.Ordinal);
+                Assert.Contains("as JSON only", m, StringComparison.Ordinal);
+            });
+    }
+
+    [Fact]
     public void Validate_Single2xxStatusCode_NoOPR018()
     {
         // Arrange

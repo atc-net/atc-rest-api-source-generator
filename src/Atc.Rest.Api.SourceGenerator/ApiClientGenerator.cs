@@ -160,6 +160,24 @@ public class ApiClientGenerator : IIncrementalGenerator
             return;
         }
 
+        // Validate the merged document according to the configured strategy, like a single file
+        var validationDiagnostics = OpenApiDocumentValidator.Validate(
+            config.ValidateSpecificationStrategy,
+            mergeResult.Document,
+            Array.Empty<OpenApiError>(),
+            baseFile.Path);
+
+        foreach (var diagnostic in validationDiagnostics)
+        {
+            context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
+        }
+
+        // Stop generation if there are validation errors (not warnings)
+        if (DiagnosticHelpers.HasErrors(validationDiagnostics))
+        {
+            return;
+        }
+
         // Resolve the root namespace: marker namespace, qualifying info.title, then base file name.
         var projectName = NamespaceResolver.Resolve(
             config.Namespace,
@@ -245,21 +263,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         string projectName)
     {
         // Filter paths based on include/exclude patterns before segmentation
-        if (config.IncludePaths is { Count: > 0 } || config.ExcludePaths is { Count: > 0 })
-        {
-            var allowedPaths = PathFilterHelper.FilterPaths(
-                openApiDoc.Paths.Keys,
-                config.IncludePaths,
-                config.ExcludePaths);
-
-            var pathsToRemove = openApiDoc.Paths.Keys
-                .Where(k => !allowedPaths.Contains(k))
-                .ToList();
-            foreach (var path in pathsToRemove)
-            {
-                openApiDoc.Paths.Remove(path);
-            }
-        }
+        // (on a copy: the parsed document is cached and shared)
+        openApiDoc = PathFilterHelper.WithFilteredPaths(openApiDoc, config.IncludePaths, config.ExcludePaths);
 
         // Report diagnostics for unsupported OpenAPI features
         foreach (var diagnostic in DiagnosticHelpers.DetectUnsupportedFeatures(openApiDoc))
@@ -271,7 +276,10 @@ public class ApiClientGenerator : IIncrementalGenerator
         var pathSegments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
 
         // Scan for type conflicts once (optimization: O(schemas) instead of O(pathSegments × schemas))
-        var conflicts = TypeConflictRegistry.ScanForConflicts(openApiDoc, projectName);
+        var conflicts = TypeConflictRegistry.ScanForConflicts(
+            openApiDoc,
+            projectName,
+            pathSegments.Select(s => PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, s) ?? string.Empty));
 
         // Create system type conflict resolver for conditional Task qualification
         var modelNames = openApiDoc.Components?.Schemas?.Keys ?? [];
@@ -392,7 +400,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             var effectiveSegment = PathSegmentHelper.ResolveEffectivePathSegment(openApiDoc, projectName, pathSegment) ?? string.Empty;
 
             // Create conflict registry for this path segment (lightweight: O(1))
-            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment);
+            var registry = TypeConflictRegistry.ForSegment(conflicts, projectName, effectiveSegment, sharedSchemas);
 
             // Get segment-specific schemas (excluding shared ones) — uses pre-computed sharedSchemas to avoid O(S²)
             var segmentSchemas = PathSegmentHelper.GetSegmentSpecificSchemas(openApiDoc, pathSegment, sharedSchemas);
@@ -1055,6 +1063,13 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Use HttpClientExtractor to extract HTTP client class parameters filtered by path segment
         // This also extracts inline schemas for type generation
         var (classParameters, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, useServersBasePath, hasSegmentModels, hasSharedModels, namespaceSegment, clientSuffix, clientName, typedClientResultStyle, preferXml);
+
+        // A segment whose only models are the inline (anonymous) ones this client generates still needs the
+        // segment's Models namespace: extract again with it imported.
+        if (!hasSegmentModels && inlineSchemas.Count > 0)
+        {
+            (classParameters, inlineSchemas) = HttpClientExtractor.ExtractWithInlineSchemas(openApiDoc, projectName, pathSegment, registry, systemTypeResolver, includeDeprecated, useServersBasePath, hasSegmentModels: true, hasSharedModels, namespaceSegment, clientSuffix, clientName, typedClientResultStyle, preferXml);
+        }
 
         if (classParameters is null)
         {

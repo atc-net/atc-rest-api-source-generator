@@ -131,6 +131,23 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                         return;
                     }
 
+                    // Validate the merged document according to the configured strategy, like a single file
+                    var validationDiagnostics = OpenApiDocumentValidator.Validate(
+                        config.ValidateSpecificationStrategy,
+                        mergeResult.Document,
+                        Array.Empty<OpenApiError>(),
+                        baseFile.Value.Path);
+
+                    foreach (var diagnostic in validationDiagnostics)
+                    {
+                        productionContext.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
+                    }
+
+                    if (DiagnosticHelpers.HasErrors(validationDiagnostics))
+                    {
+                        return;
+                    }
+
                     GenerateHandlerScaffoldsFromDocument(productionContext, baseFile.Value.Path, mergeResult.Document, summary, config, markerDirectory);
                 }
                 else

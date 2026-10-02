@@ -400,7 +400,7 @@ public static class EndpointRegistrationExtractor
 
         if (hasSummary)
         {
-            builder.AppendLine(4, $".WithSummary(\"{operation.Summary!.Replace("\"", "\\\"")}\")");
+            builder.AppendLine(4, $".WithSummary({CSharpLiteralHelper.ToStringLiteral(operation.Summary!.Trim())})");
         }
 
         if (hasOperationId)
@@ -410,7 +410,7 @@ public static class EndpointRegistrationExtractor
 
         if (hasTags)
         {
-            var tags = string.Join("\", \"", operation.Tags!.Select(t => t.Name));
+            var tags = string.Join("\", \"", operation.Tags!.Select(t => CSharpLiteralHelper.EscapeString(t.Name ?? string.Empty)));
             builder.AppendLine(4, $".WithTags(\"{tags}\")");
         }
 
@@ -579,8 +579,8 @@ public static class EndpointRegistrationExtractor
         if (hasRoles && hasSchemes)
         {
             // Roles + Schemes (ATC extensions or combined)
-            var rolesString = string.Join("\", \"", security.Roles);
-            var schemesString = string.Join("\", \"", security.Schemes);
+            var rolesString = string.Join("\", \"", security.Roles.Select(CSharpLiteralHelper.EscapeString));
+            var schemesString = string.Join("\", \"", security.Schemes.Select(CSharpLiteralHelper.EscapeString));
             builder.AppendLine(4, ".RequireAuthorization(policy => policy");
             builder.AppendLine(8, $".RequireRole(\"{rolesString}\")");
             builder.AppendLine(8, $".AddAuthenticationSchemes(\"{schemesString}\"))");
@@ -588,13 +588,13 @@ public static class EndpointRegistrationExtractor
         else if (hasRoles)
         {
             // Only roles (from ATC extensions)
-            var rolesString = string.Join("\", \"", security.Roles);
+            var rolesString = string.Join("\", \"", security.Roles.Select(CSharpLiteralHelper.EscapeString));
             builder.AppendLine(4, $".RequireAuthorization(policy => policy.RequireRole(\"{rolesString}\"))");
         }
         else if (hasSchemes)
         {
             // Only schemes (API Key, Bearer, or OAuth2 standard security)
-            var schemesString = string.Join("\", \"", security.Schemes);
+            var schemesString = string.Join("\", \"", security.Schemes.Select(CSharpLiteralHelper.EscapeString));
             builder.AppendLine(4, ".RequireAuthorization(policy => policy");
             builder.AppendLine(8, $".AddAuthenticationSchemes(\"{schemesString}\")");
             builder.AppendLine(8, ".RequireAuthenticatedUser())");

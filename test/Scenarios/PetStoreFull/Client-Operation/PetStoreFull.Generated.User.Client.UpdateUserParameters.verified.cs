@@ -17,4 +17,4 @@ namespace PetStoreFull.Generated.User.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UpdateUserParameters(
     [property: Required] string Username,
-    [property: Required] User Request);
+    [property: Required] PetStoreFull.Generated.User.Models.User Request);

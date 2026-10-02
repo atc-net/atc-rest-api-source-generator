@@ -15,11 +15,11 @@ namespace PetStoreFull.Generated.User.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IUserClient
 {
-    Task<User> CreateUserAsync(
+    Task<PetStoreFull.Generated.User.Models.User> CreateUserAsync(
         CreateUserParameters parameters,
         CancellationToken cancellationToken = default);
 
-    Task<User> CreateUsersWithListInputAsync(
+    Task<PetStoreFull.Generated.User.Models.User> CreateUsersWithListInputAsync(
         CreateUsersWithListInputParameters parameters,
         CancellationToken cancellationToken = default);
 
@@ -29,7 +29,7 @@ public interface IUserClient
 
     Task LogoutUserAsync(CancellationToken cancellationToken = default);
 
-    Task<User> GetUserByNameAsync(
+    Task<PetStoreFull.Generated.User.Models.User> GetUserByNameAsync(
         GetUserByNameParameters parameters,
         CancellationToken cancellationToken = default);
 

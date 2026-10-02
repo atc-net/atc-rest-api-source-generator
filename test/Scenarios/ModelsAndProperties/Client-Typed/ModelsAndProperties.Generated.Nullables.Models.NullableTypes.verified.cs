@@ -23,7 +23,7 @@ public sealed record NullableTypes(
     bool? NullableBoolean = null,
     Guid? NullableUuid = null,
     DateTimeOffset? NullableDateTime = null,
-    DateTimeOffset? NullableDate = null,
+    DateOnly? NullableDate = null,
     Uri? NullableUri = null,
     [property: EmailAddress] string? NullableEmail = null,
     [property: Range(0, 100)] int? NullableIntegerWithRange = null,

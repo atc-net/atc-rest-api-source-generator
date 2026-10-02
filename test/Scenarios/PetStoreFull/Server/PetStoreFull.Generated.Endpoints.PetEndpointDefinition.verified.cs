@@ -34,7 +34,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .MapPut("/", UpdatePet)
             .WithName("UpdatePet")
             .WithSummary("Update an existing pet.")
-            .Produces<Pet>(StatusCodes.Status200OK, "application/json", "application/xml")
+            .Produces<PetStoreFull.Generated.Pet.Models.Pet>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
@@ -45,13 +45,13 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
                 .RequireAuthenticatedUser())
-            .Accepts<Pet>("application/json", "application/xml");
+            .Accepts<PetStoreFull.Generated.Pet.Models.Pet>("application/json", "application/xml");
 
         pet
             .MapPost("/", AddPet)
             .WithName("AddPet")
             .WithSummary("Add a new pet to the store.")
-            .Produces<Pet>(StatusCodes.Status200OK, "application/json", "application/xml")
+            .Produces<PetStoreFull.Generated.Pet.Models.Pet>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -61,13 +61,13 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
                 .RequireAuthenticatedUser())
-            .Accepts<Pet>("application/json", "application/xml");
+            .Accepts<PetStoreFull.Generated.Pet.Models.Pet>("application/json", "application/xml");
 
         pet
             .MapGet("findByStatus", FindPetsByStatus)
             .WithName("FindPetsByStatus")
             .WithSummary("Finds Pets by status.")
-            .Produces<List<Pet>>(StatusCodes.Status200OK, "application/json", "application/xml")
+            .Produces<List<PetStoreFull.Generated.Pet.Models.Pet>>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -80,7 +80,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .MapGet("findByTags", FindPetsByTags)
             .WithName("FindPetsByTags")
             .WithSummary("Finds Pets by tags.")
-            .Produces<List<Pet>>(StatusCodes.Status200OK, "application/json", "application/xml")
+            .Produces<List<PetStoreFull.Generated.Pet.Models.Pet>>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -93,7 +93,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .MapGet("{petId}", GetPetById)
             .WithName("GetPetById")
             .WithSummary("Find pet by ID.")
-            .Produces<Pet>(StatusCodes.Status200OK, "application/json", "application/xml")
+            .Produces<PetStoreFull.Generated.Pet.Models.Pet>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -107,7 +107,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .MapPost("{petId}", UpdatePetWithForm)
             .WithName("UpdatePetWithForm")
             .WithSummary("Updates a pet in the store with form data.")
-            .Produces<Pet>(StatusCodes.Status200OK, "application/json", "application/xml")
+            .Produces<PetStoreFull.Generated.Pet.Models.Pet>(StatusCodes.Status200OK, "application/json", "application/xml")
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status401Unauthorized)

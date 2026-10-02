@@ -16,4 +16,4 @@ namespace PetStoreFull.Generated.Pet.Client;
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record AddPetParameters(
-    [property: Required] Pet Request);
+    [property: Required] PetStoreFull.Generated.Pet.Models.Pet Request);

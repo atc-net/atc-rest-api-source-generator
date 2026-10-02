@@ -38,12 +38,12 @@ public sealed class StringFormatsClient : IStringFormatsClient
         this.jsonSerializerOptions = jsonSerializerOptions;
     }
 
-    public async Task<StringFormats> GetStringFormatsAsync(CancellationToken cancellationToken = default)
+    public async Task<ModelsAndProperties.Generated.StringFormats.Models.StringFormats> GetStringFormatsAsync(CancellationToken cancellationToken = default)
     {
         var url = "/string-formats";
         var response = await httpClient.GetAsync(url, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await response.Content.ReadFromJsonAsync<StringFormats>(jsonSerializerOptions, cancellationToken))!;
+        return (await response.Content.ReadFromJsonAsync<ModelsAndProperties.Generated.StringFormats.Models.StringFormats>(jsonSerializerOptions, cancellationToken))!;
     }
 
     private static async System.Threading.Tasks.Task EnsureSuccessAsync(

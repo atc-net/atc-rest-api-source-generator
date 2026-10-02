@@ -49,7 +49,7 @@ public sealed class GetSessionEndpoint : IGetSessionEndpoint
         using var response = await client.SendAsync(requestMessage, cancellationToken);
 
         var responseBuilder = httpMessageFactory.FromResponse(response);
-        responseBuilder.AddSuccessResponse<Session>(HttpStatusCode.OK);
+        responseBuilder.AddSuccessResponse<CookieParameters.Generated.Session.Models.Session>(HttpStatusCode.OK);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.Unauthorized);
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);
         responseBuilder.AddErrorResponse<ProblemDetails>(HttpStatusCode.InternalServerError);

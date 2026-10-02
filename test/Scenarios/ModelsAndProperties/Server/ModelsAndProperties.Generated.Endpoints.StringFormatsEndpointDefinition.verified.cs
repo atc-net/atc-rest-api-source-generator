@@ -33,7 +33,7 @@ public sealed class StringFormatsEndpointDefinition : IEndpointDefinition
             .MapGet("/", GetStringFormats)
             .WithName("GetStringFormats")
             .WithSummary("Get string format types")
-            .Produces<StringFormats>()
+            .Produces<ModelsAndProperties.Generated.StringFormats.Models.StringFormats>()
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
     }

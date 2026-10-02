@@ -30,10 +30,10 @@ public sealed class GetSessionResult : IResult
     /// <summary>
     /// 200 OK - Session data.
     /// </summary>
-    public static GetSessionResult Ok(Session response)
+    public static GetSessionResult Ok(CookieParameters.Generated.Session.Models.Session response)
         => new(TypedResults.Ok(response));
 
-    public static implicit operator GetSessionResult(Session response)
+    public static implicit operator GetSessionResult(CookieParameters.Generated.Session.Models.Session response)
         => Ok(response);
 
     /// <summary>

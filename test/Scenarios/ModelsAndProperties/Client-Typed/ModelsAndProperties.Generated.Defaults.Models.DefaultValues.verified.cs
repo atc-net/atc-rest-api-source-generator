@@ -17,7 +17,7 @@ public sealed record DefaultValues(
     int IntegerDefault = 42,
     long Int64Default = 1000000,
     double NumberDefault = 3.14159,
-    float FloatDefault = 1.5,
+    float FloatDefault = 1.5f,
     bool BooleanTrueDefault = true,
     bool BooleanFalseDefault = false,
     [property: Range(1, 100)] int IntegerWithRangeAndDefault = 10,

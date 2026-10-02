@@ -28,7 +28,7 @@ public partial class GetSessionEndpointResult : EndpointResponse, IGetSessionEnd
     /// <summary>
     /// Creates a result representing HTTP OK.
     /// </summary>
-    public static GetSessionEndpointResult Ok(Session content)
+    public static GetSessionEndpointResult Ok(CookieParameters.Generated.Session.Models.Session content)
         => Create(HttpStatusCode.OK, content);
 
     /// <summary>
@@ -80,10 +80,10 @@ public partial class GetSessionEndpointResult : EndpointResponse, IGetSessionEnd
     public bool IsGatewayTimeout
         => StatusCode == HttpStatusCode.GatewayTimeout;
 
-    public Session OkContent
-        => IsOk && ContentObject is Session result
+    public CookieParameters.Generated.Session.Models.Session OkContent
+        => IsOk && ContentObject is CookieParameters.Generated.Session.Models.Session result
             ? result
-            : throw InvalidContentAccessException<Session>(HttpStatusCode.OK, "OkContent");
+            : throw InvalidContentAccessException<CookieParameters.Generated.Session.Models.Session>(HttpStatusCode.OK, "OkContent");
 
     public ProblemDetails UnauthorizedContent
         => IsUnauthorized && ContentObject is ProblemDetails result

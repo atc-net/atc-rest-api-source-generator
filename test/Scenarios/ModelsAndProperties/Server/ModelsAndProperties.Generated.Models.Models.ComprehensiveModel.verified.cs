@@ -21,7 +21,7 @@ public sealed record ComprehensiveModel(
     [property: MaxLength(500)] string? Description = null,
     Uri? Website = null,
     DateTimeOffset? UpdatedAt = null,
-    DateTimeOffset? BirthDate = null,
+    DateOnly? BirthDate = null,
     string? PreferredTime = null,
     [property: Range(0, 150)] int? Age = null,
     [property: Range(0, 100)] double? Score = null,

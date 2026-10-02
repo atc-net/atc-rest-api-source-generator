@@ -1326,6 +1326,13 @@ public static class OpenApiDocumentValidator
     {
         var items = actualPropertySchema.Items;
 
+        // A tuple (prefixItems) is an array whose positions are typed one by one: it needs no items
+        var tupleCandidate = actualPropertySchema is OpenApiSchemaReference tupleReference ? tupleReference.Target : actualPropertySchema;
+        if (items is null && tupleCandidate?.HasPrefixItems() == true)
+        {
+            return;
+        }
+
         // ATCAPI_SCH011: Array property missing items specification
         if (items is null)
         {
@@ -2333,6 +2340,15 @@ public static class OpenApiDocumentValidator
         if (operation.RequestBody?.Content is { Count: > 0 } requestContent)
         {
             var hasJson = requestContent.Any(e => ResponseBodyClassifier.Classify(e.Key, e.Value.Schema) == ResponseBodyKind.Json);
+
+            // A URL-encoded form body is not generated on any side (server, C# clients, TypeScript)
+            foreach (var form in requestContent.Keys.Where(k => k.StartsWith("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase)))
+            {
+                yield return hasJson
+                    ? $"Operation '{operationId}' request body ({form}) is not generated: the body is sent and bound as JSON only."
+                    : $"Operation '{operationId}' request body ({form}) is not generated: URL-encoded form bodies are not supported, so the operation is generated without a request body. Declare the body as application/json (or multipart/form-data).";
+            }
+
             var xmlOnly = XmlBodyHelper.FindXmlOnlyBody(requestContent);
             var alternative = XmlBodyHelper.FindXmlAlternative(requestContent);
             foreach (var xml in requestContent.Where(e => ResponseBodyClassifier.Classify(e.Key, e.Value.Schema) == ResponseBodyKind.Xml).Select(e => e.Key))

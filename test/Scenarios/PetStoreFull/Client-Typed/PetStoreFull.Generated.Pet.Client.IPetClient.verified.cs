@@ -16,27 +16,27 @@ namespace PetStoreFull.Generated.Pet.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IPetClient
 {
-    Task<Pet> UpdatePetAsync(
+    Task<PetStoreFull.Generated.Pet.Models.Pet> UpdatePetAsync(
         UpdatePetParameters parameters,
         CancellationToken cancellationToken = default);
 
-    Task<Pet> AddPetAsync(
+    Task<PetStoreFull.Generated.Pet.Models.Pet> AddPetAsync(
         AddPetParameters parameters,
         CancellationToken cancellationToken = default);
 
-    Task<List<Pet>> FindPetsByStatusAsync(
+    Task<List<PetStoreFull.Generated.Pet.Models.Pet>> FindPetsByStatusAsync(
         FindPetsByStatusParameters parameters,
         CancellationToken cancellationToken = default);
 
-    Task<List<Pet>> FindPetsByTagsAsync(
+    Task<List<PetStoreFull.Generated.Pet.Models.Pet>> FindPetsByTagsAsync(
         FindPetsByTagsParameters parameters,
         CancellationToken cancellationToken = default);
 
-    Task<Pet> GetPetByIdAsync(
+    Task<PetStoreFull.Generated.Pet.Models.Pet> GetPetByIdAsync(
         GetPetByIdParameters parameters,
         CancellationToken cancellationToken = default);
 
-    Task<Pet> UpdatePetWithFormAsync(
+    Task<PetStoreFull.Generated.Pet.Models.Pet> UpdatePetWithFormAsync(
         UpdatePetWithFormParameters parameters,
         CancellationToken cancellationToken = default);
 

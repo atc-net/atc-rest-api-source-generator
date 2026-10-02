@@ -28,7 +28,7 @@ public interface ICreateUsersWithListInputEndpointResult : IEndpointResponse
 
     bool IsDefaultError { get; }
 
-    User OkContent { get; }
+    PetStoreFull.Generated.User.Models.User OkContent { get; }
 
     ValidationProblemDetails BadRequestContent { get; }
 

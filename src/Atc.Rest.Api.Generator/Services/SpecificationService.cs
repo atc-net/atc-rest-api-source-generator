@@ -1318,7 +1318,9 @@ public static class SpecificationService
             _ => "Default",
         };
 
-        groupName = groupName.ToPascalCaseForDotNet();
+        // The group name becomes a file name ({Base}_{Group}.yaml): a tag may hold quotes, slashes
+        // or other characters a file name cannot, so only letters and digits are kept.
+        groupName = new string(groupName.ToPascalCaseForDotNet().Where(char.IsLetterOrDigit).ToArray());
         return groupName.Length == 0 ? "Default" : groupName;
     }
 

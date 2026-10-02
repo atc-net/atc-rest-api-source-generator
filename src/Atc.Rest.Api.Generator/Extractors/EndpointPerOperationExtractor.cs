@@ -1044,6 +1044,15 @@ public static class EndpointPerOperationExtractor
         return contentGenerator.Generate();
     }
 
+    /// <summary>
+    /// The value handed to the request builder: a date, a date-time or a decimal number as its wire text
+    /// (the builder would format it with the machine's culture), anything else as it is.
+    /// </summary>
+    private static string WireValue(
+        OpenApiParameter param,
+        string propName)
+        => WireValueHelper.TryBuildWireExpression($"parameters.{propName}", param.Schema) ?? $"parameters.{propName}";
+
     private static string BuildExecuteAsyncMethodBody(
         string path,
         string httpMethod,
@@ -1100,7 +1109,7 @@ public static class EndpointPerOperationExtractor
         foreach (var (param, _) in allParams.Where(p => p.Param.In == ParameterLocation.Path))
         {
             var propName = param.Name!.ToPascalCaseForDotNet();
-            sb.AppendLine($"requestBuilder.WithPathParameter(\"{param.Name}\", parameters.{propName});");
+            sb.AppendLine($"requestBuilder.WithPathParameter(\"{param.Name}\", {WireValue(param, propName)});");
         }
 
         // Add query parameters
@@ -1109,13 +1118,13 @@ public static class EndpointPerOperationExtractor
             var propName = param.Name!.ToPascalCaseForDotNet();
             if (param.Required)
             {
-                sb.AppendLine($"requestBuilder.WithQueryParameter(\"{param.Name}\", parameters.{propName});");
+                sb.AppendLine($"requestBuilder.WithQueryParameter(\"{param.Name}\", {WireValue(param, propName)});");
             }
             else
             {
                 sb.AppendLine($"if (parameters.{propName} is not null)");
                 sb.AppendLine("{");
-                sb.AppendLine(4, $"requestBuilder.WithQueryParameter(\"{param.Name}\", parameters.{propName});");
+                sb.AppendLine(4, $"requestBuilder.WithQueryParameter(\"{param.Name}\", {WireValue(param, propName)});");
                 sb.AppendLine("}");
             }
         }
@@ -1132,13 +1141,13 @@ public static class EndpointPerOperationExtractor
 
             if (param.Required)
             {
-                sb.AppendLine($"requestBuilder.WithHeaderParameter(\"{headerName}\", parameters.{propName});");
+                sb.AppendLine($"requestBuilder.WithHeaderParameter(\"{headerName}\", {WireValue(param, propName)});");
             }
             else
             {
                 sb.AppendLine($"if (parameters.{propName} is not null)");
                 sb.AppendLine("{");
-                sb.AppendLine(4, $"requestBuilder.WithHeaderParameter(\"{headerName}\", parameters.{propName});");
+                sb.AppendLine(4, $"requestBuilder.WithHeaderParameter(\"{headerName}\", {WireValue(param, propName)});");
                 sb.AppendLine("}");
             }
         }
@@ -1549,7 +1558,7 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// Interface for Client Endpoint Result.");
-        sb.AppendLine($"/// Description: {description}");
+        sb.AppendLine($"/// Description: {CSharpLiteralHelper.ToXmlDocText(description)}");
         sb.AppendLine($"/// Operation: {operationName}.");
         sb.AppendLine("/// </summary>");
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
@@ -1649,7 +1658,7 @@ public static class EndpointPerOperationExtractor
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// Client Endpoint result.");
-        sb.AppendLine($"/// Description: {description}");
+        sb.AppendLine($"/// Description: {CSharpLiteralHelper.ToXmlDocText(description)}");
         sb.AppendLine($"/// Operation: {operationName}.");
         sb.AppendLine("/// </summary>");
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
@@ -1980,7 +1989,7 @@ public static class EndpointPerOperationExtractor
 
             if (openApiDoc.Components?.Schemas is not null &&
                 openApiDoc.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
-                resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema)
+                resolvedSchema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array))
             {
                 return GetArraySchemaType(arraySchema, openApiDoc, registry, operationId, pathSegment, inlineSchemas, isAsyncEnumerable);
             }
@@ -2096,7 +2105,7 @@ public static class EndpointPerOperationExtractor
                         prop.Key.Equals("results", StringComparison.OrdinalIgnoreCase))
                     {
                         var propSchema = prop.Value;
-                        if (propSchema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema)
+                        if (propSchema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array))
                         {
                             // Get the item type from the array
                             itemType = GetArrayItemTypeName(arraySchema, openApiDoc, registry);
@@ -2107,7 +2116,7 @@ public static class EndpointPerOperationExtractor
                             var propRefId = propRef.Reference.Id;
                             if (!string.IsNullOrEmpty(propRefId) &&
                                 openApiDoc.Components?.Schemas?.TryGetValue(propRefId!, out var resolvedSchema) == true &&
-                                resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array } resolvedArray)
+                                resolvedSchema is OpenApiSchema resolvedArray && resolvedArray.IsOfType(JsonSchemaType.Array))
                             {
                                 itemType = GetArrayItemTypeName(resolvedArray, openApiDoc, registry);
                             }
@@ -2149,7 +2158,7 @@ public static class EndpointPerOperationExtractor
             {
                 // Check if this is an array type alias
                 if (openApiDoc.Components?.Schemas?.TryGetValue(itemRefId!, out var itemSchema) == true &&
-                    itemSchema is OpenApiSchema { Type: JsonSchemaType.Array } innerArray)
+                    itemSchema is OpenApiSchema innerArray && innerArray.IsOfType(JsonSchemaType.Array))
                 {
                     return GetArrayItemTypeName(innerArray, openApiDoc, registry);
                 }

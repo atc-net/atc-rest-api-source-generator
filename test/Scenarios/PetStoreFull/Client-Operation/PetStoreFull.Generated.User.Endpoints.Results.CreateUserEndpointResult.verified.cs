@@ -28,7 +28,7 @@ public partial class CreateUserEndpointResult : EndpointResponse, ICreateUserEnd
     /// <summary>
     /// Creates a result representing HTTP OK.
     /// </summary>
-    public static CreateUserEndpointResult Ok(User content)
+    public static CreateUserEndpointResult Ok(PetStoreFull.Generated.User.Models.User content)
         => Create(HttpStatusCode.OK, content);
 
     /// <summary>
@@ -89,12 +89,12 @@ public partial class CreateUserEndpointResult : EndpointResponse, ICreateUserEnd
     public bool IsDefaultError
         => !IsSuccess && StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.Conflict or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout);
 
-    public User OkContent
-        => IsOk && ContentObject is User result
+    public PetStoreFull.Generated.User.Models.User OkContent
+        => IsOk && ContentObject is PetStoreFull.Generated.User.Models.User result
             ? result
             : IsOk
-                ? UserXml.Read(XmlModelSupport.ParseContent(ContentObject ?? Content))
-                : throw InvalidContentAccessException<User>(HttpStatusCode.OK, "OkContent");
+                ? PetStoreFull.Generated.User.Models.UserXml.Read(XmlModelSupport.ParseContent(ContentObject ?? Content))
+                : throw InvalidContentAccessException<PetStoreFull.Generated.User.Models.User>(HttpStatusCode.OK, "OkContent");
 
     public ValidationProblemDetails BadRequestContent
         => IsBadRequest && ContentObject is ValidationProblemDetails result

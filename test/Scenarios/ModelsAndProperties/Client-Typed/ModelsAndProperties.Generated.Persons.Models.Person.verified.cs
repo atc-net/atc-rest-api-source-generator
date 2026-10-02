@@ -19,7 +19,7 @@ public sealed record Person(
     [property: Required, MaxLength(254), EmailAddress] string Email,
     [property: RegularExpression(@"^\+?[1-9]\d{6,14}$")] string? Phone = null,
     Uri? Website = null,
-    DateTimeOffset? DateOfBirth = null,
+    DateOnly? DateOfBirth = null,
     GenderType? Gender = null,
     Address? Address = null,
     bool IsActive = true,

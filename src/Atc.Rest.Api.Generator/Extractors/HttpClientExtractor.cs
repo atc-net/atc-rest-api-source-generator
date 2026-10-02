@@ -993,7 +993,18 @@ public static class HttpClientExtractor
                 var paramAccess = $"parameters.{propName}";
                 var headerName = param.Name!;
 
-                if (param.Required)
+                // A date, date-time or decimal header is sent as its wire text; a string as it is
+                var wireValue = WireValueHelper.TryBuildWireExpression(paramAccess, param.Schema);
+                if (wireValue is not null)
+                {
+                    var headerVariable = "header" + propName;
+                    builder.AppendLine($"if ({wireValue} is {{ }} {headerVariable})");
+                    builder.AppendLine("{");
+                    builder.AppendLine(4, $"request.Headers.Add(\"{headerName}\", {headerVariable});");
+                    builder.AppendLine("}");
+                    builder.AppendLine();
+                }
+                else if (param.Required)
                 {
                     builder.AppendLine($"request.Headers.Add(\"{headerName}\", {paramAccess});");
                 }
@@ -1526,7 +1537,7 @@ public static class HttpClientExtractor
             // But tuple types with prefixItems (like Coordinate) should keep their type name
             if (openApiDoc.Components?.Schemas is not null &&
                 openApiDoc.Components.Schemas.TryGetValue(refId!, out var resolvedSchema) &&
-                resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema &&
+                resolvedSchema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array) &&
                 arraySchema.Items is not null &&
                 !arraySchema.HasPrefixItems())
             {
@@ -1612,7 +1623,7 @@ public static class HttpClientExtractor
                         prop.Key.Equals("results", StringComparison.OrdinalIgnoreCase))
                     {
                         var propSchema = prop.Value;
-                        if (propSchema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema)
+                        if (propSchema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array))
                         {
                             // Get the item type from the array
                             itemType = GetArrayItemType(arraySchema, openApiDoc, registry);
@@ -1623,7 +1634,7 @@ public static class HttpClientExtractor
                             var propRefId = propRef.Reference.Id;
                             if (!string.IsNullOrEmpty(propRefId) &&
                                 openApiDoc.Components?.Schemas?.TryGetValue(propRefId!, out var resolvedSchema) == true &&
-                                resolvedSchema is OpenApiSchema { Type: JsonSchemaType.Array } resolvedArray)
+                                resolvedSchema is OpenApiSchema resolvedArray && resolvedArray.IsOfType(JsonSchemaType.Array))
                             {
                                 itemType = GetArrayItemType(resolvedArray, openApiDoc, registry);
                             }
@@ -1671,7 +1682,7 @@ public static class HttpClientExtractor
             {
                 // Check if this is an array type alias (like Accounts -> Account[])
                 if (openApiDoc.Components?.Schemas?.TryGetValue(itemRefId!, out var itemSchema) == true &&
-                    itemSchema is OpenApiSchema { Type: JsonSchemaType.Array } innerArray)
+                    itemSchema is OpenApiSchema innerArray && innerArray.IsOfType(JsonSchemaType.Array))
                 {
                     return GetArrayItemType(innerArray, openApiDoc, registry);
                 }
@@ -1729,7 +1740,7 @@ public static class HttpClientExtractor
             }
 
             // Array of binary files
-            if (schema is OpenApiSchema { Type: JsonSchemaType.Array, Items: OpenApiSchema itemSchema } &&
+            if (schema is OpenApiSchema { Items: OpenApiSchema itemSchema } && schema.IsOfType(JsonSchemaType.Array) &&
                 string.Equals(itemSchema.Format, "binary", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
@@ -1756,6 +1767,12 @@ public static class HttpClientExtractor
         string accessExpression,
         string paramType)
     {
+        // Dates, times and decimal numbers: formatted for the wire, never with the machine's culture
+        if (WireValueHelper.TryBuildWireExpression(accessExpression, paramType) is { } wireValue)
+        {
+            return $"Uri.EscapeDataString({wireValue} ?? string.Empty)";
+        }
+
         if (!NeedsUrlEncoding(paramType))
         {
             return accessExpression;
@@ -1781,6 +1798,12 @@ public static class HttpClientExtractor
         string propName,
         string paramType)
     {
+        // Dates, times and decimal numbers: formatted for the wire, never with the machine's culture
+        if (WireValueHelper.TryBuildWireExpression($"parameters.{propName}", paramType) is { } wireValue)
+        {
+            return $"{{Uri.EscapeDataString({wireValue} ?? string.Empty)}}";
+        }
+
         if (!NeedsUrlEncoding(paramType))
         {
             return $"{{parameters.{propName}}}";
@@ -1949,7 +1972,7 @@ public static class HttpClientExtractor
             var schema = contentEntry.Value.Schema;
 
             // Direct array of binary - this is a multi-file upload
-            if (schema is OpenApiSchema { Type: JsonSchemaType.Array, Items: OpenApiSchema { Format: "binary" } })
+            if (schema is OpenApiSchema { Items: OpenApiSchema { Format: "binary" } } && schema.IsOfType(JsonSchemaType.Array))
             {
                 return true;
             }

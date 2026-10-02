@@ -30,10 +30,10 @@ public sealed class UpdatePetResult : IResult
     /// <summary>
     /// 200 OK - Successful operation.
     /// </summary>
-    public static UpdatePetResult Ok(Pet response)
-        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetXml.ToUtf8Bytes(response)), "application/xml"));
+    public static UpdatePetResult Ok(PetStoreFull.Generated.Pet.Models.Pet response)
+        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetStoreFull.Generated.Pet.Models.PetXml.ToUtf8Bytes(response)), "application/xml"));
 
-    public static implicit operator UpdatePetResult(Pet response)
+    public static implicit operator UpdatePetResult(PetStoreFull.Generated.Pet.Models.Pet response)
         => Ok(response);
 
     /// <summary>
@@ -92,10 +92,10 @@ public sealed class AddPetResult : IResult
     /// <summary>
     /// 200 OK - Successful operation.
     /// </summary>
-    public static AddPetResult Ok(Pet response)
-        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetXml.ToUtf8Bytes(response)), "application/xml"));
+    public static AddPetResult Ok(PetStoreFull.Generated.Pet.Models.Pet response)
+        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetStoreFull.Generated.Pet.Models.PetXml.ToUtf8Bytes(response)), "application/xml"));
 
-    public static implicit operator AddPetResult(Pet response)
+    public static implicit operator AddPetResult(PetStoreFull.Generated.Pet.Models.Pet response)
         => Ok(response);
 
     /// <summary>
@@ -148,13 +148,13 @@ public sealed class FindPetsByStatusResult : IResult
     /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
-    public static FindPetsByStatusResult Ok(List<Pet> response)
-        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetXml.ListToUtf8Bytes(response)), "application/xml"));
+    public static FindPetsByStatusResult Ok(List<PetStoreFull.Generated.Pet.Models.Pet> response)
+        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetStoreFull.Generated.Pet.Models.PetXml.ListToUtf8Bytes(response)), "application/xml"));
 
-    public static implicit operator FindPetsByStatusResult(List<Pet> response)
+    public static implicit operator FindPetsByStatusResult(List<PetStoreFull.Generated.Pet.Models.Pet> response)
         => Ok(response);
 
-    public static implicit operator FindPetsByStatusResult(Pet[] response)
+    public static implicit operator FindPetsByStatusResult(PetStoreFull.Generated.Pet.Models.Pet[] response)
         => Ok(response.ToList());
 
     /// <summary>
@@ -201,13 +201,13 @@ public sealed class FindPetsByTagsResult : IResult
     /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
-    public static FindPetsByTagsResult Ok(List<Pet> response)
-        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetXml.ListToUtf8Bytes(response)), "application/xml"));
+    public static FindPetsByTagsResult Ok(List<PetStoreFull.Generated.Pet.Models.Pet> response)
+        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetStoreFull.Generated.Pet.Models.PetXml.ListToUtf8Bytes(response)), "application/xml"));
 
-    public static implicit operator FindPetsByTagsResult(List<Pet> response)
+    public static implicit operator FindPetsByTagsResult(List<PetStoreFull.Generated.Pet.Models.Pet> response)
         => Ok(response);
 
-    public static implicit operator FindPetsByTagsResult(Pet[] response)
+    public static implicit operator FindPetsByTagsResult(PetStoreFull.Generated.Pet.Models.Pet[] response)
         => Ok(response.ToList());
 
     /// <summary>
@@ -254,10 +254,10 @@ public sealed class GetPetByIdResult : IResult
     /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
-    public static GetPetByIdResult Ok(Pet response)
-        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetXml.ToUtf8Bytes(response)), "application/xml"));
+    public static GetPetByIdResult Ok(PetStoreFull.Generated.Pet.Models.Pet response)
+        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetStoreFull.Generated.Pet.Models.PetXml.ToUtf8Bytes(response)), "application/xml"));
 
-    public static implicit operator GetPetByIdResult(Pet response)
+    public static implicit operator GetPetByIdResult(PetStoreFull.Generated.Pet.Models.Pet response)
         => Ok(response);
 
     /// <summary>
@@ -310,10 +310,10 @@ public sealed class UpdatePetWithFormResult : IResult
     /// <summary>
     /// 200 OK - successful operation.
     /// </summary>
-    public static UpdatePetWithFormResult Ok(Pet response)
-        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetXml.ToUtf8Bytes(response)), "application/xml"));
+    public static UpdatePetWithFormResult Ok(PetStoreFull.Generated.Pet.Models.Pet response)
+        => new(new NegotiatedHttpResult(TypedResults.Ok(response), mediaType => new XmlHttpResult(200, mediaType, PetStoreFull.Generated.Pet.Models.PetXml.ToUtf8Bytes(response)), "application/xml"));
 
-    public static implicit operator UpdatePetWithFormResult(Pet response)
+    public static implicit operator UpdatePetWithFormResult(PetStoreFull.Generated.Pet.Models.Pet response)
         => Ok(response);
 
     /// <summary>

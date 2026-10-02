@@ -57,7 +57,7 @@ public sealed class FindPetsByStatusEndpoint : IFindPetsByStatusEndpoint
         }
         else
         {
-            responseBuilder.AddSuccessResponse<IEnumerable<Pet>>(HttpStatusCode.OK);
+            responseBuilder.AddSuccessResponse<IEnumerable<PetStoreFull.Generated.Pet.Models.Pet>>(HttpStatusCode.OK);
         }
 
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);

@@ -12,4 +12,4 @@ namespace AllOfMultiLevel.Generated.Employees.Models;
 public sealed record Employee(
     [property: Required] string Department,
     string? Title = null,
-    DateTimeOffset? HireDate = null);
+    DateOnly? HireDate = null);

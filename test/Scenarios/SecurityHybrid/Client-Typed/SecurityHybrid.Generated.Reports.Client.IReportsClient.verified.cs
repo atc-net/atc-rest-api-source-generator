@@ -7,6 +7,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
+using SecurityHybrid.Generated.Reports.Models;
 
 namespace SecurityHybrid.Generated.Reports.Client;
 

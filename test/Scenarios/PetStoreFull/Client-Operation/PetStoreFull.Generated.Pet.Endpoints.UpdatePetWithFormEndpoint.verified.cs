@@ -65,7 +65,7 @@ public sealed class UpdatePetWithFormEndpoint : IUpdatePetWithFormEndpoint
         }
         else
         {
-            responseBuilder.AddSuccessResponse<Pet>(HttpStatusCode.OK);
+            responseBuilder.AddSuccessResponse<PetStoreFull.Generated.Pet.Models.Pet>(HttpStatusCode.OK);
         }
 
         responseBuilder.AddErrorResponse<ValidationProblemDetails>(HttpStatusCode.BadRequest);

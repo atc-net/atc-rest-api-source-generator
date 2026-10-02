@@ -28,7 +28,7 @@ public partial class FindPetsByTagsEndpointResult : EndpointResponse, IFindPetsB
     /// <summary>
     /// Creates a result representing HTTP OK.
     /// </summary>
-    public static FindPetsByTagsEndpointResult Ok(IEnumerable<Pet> content)
+    public static FindPetsByTagsEndpointResult Ok(IEnumerable<PetStoreFull.Generated.Pet.Models.Pet> content)
         => Create(HttpStatusCode.OK, content);
 
     /// <summary>
@@ -98,12 +98,12 @@ public partial class FindPetsByTagsEndpointResult : EndpointResponse, IFindPetsB
     public bool IsDefaultError
         => !IsSuccess && StatusCode is not (HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden or HttpStatusCode.InternalServerError or HttpStatusCode.GatewayTimeout);
 
-    public IEnumerable<Pet> OkContent
-        => IsOk && ContentObject is IEnumerable<Pet> result
+    public IEnumerable<PetStoreFull.Generated.Pet.Models.Pet> OkContent
+        => IsOk && ContentObject is IEnumerable<PetStoreFull.Generated.Pet.Models.Pet> result
             ? result
             : IsOk
-                ? PetXml.ReadList(XmlModelSupport.ParseContent(ContentObject ?? Content))
-                : throw InvalidContentAccessException<IEnumerable<Pet>>(HttpStatusCode.OK, "OkContent");
+                ? PetStoreFull.Generated.Pet.Models.PetXml.ReadList(XmlModelSupport.ParseContent(ContentObject ?? Content))
+                : throw InvalidContentAccessException<IEnumerable<PetStoreFull.Generated.Pet.Models.Pet>>(HttpStatusCode.OK, "OkContent");
 
     public ValidationProblemDetails BadRequestContent
         => IsBadRequest && ContentObject is ValidationProblemDetails result

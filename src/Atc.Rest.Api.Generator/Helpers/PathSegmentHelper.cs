@@ -932,7 +932,7 @@ public static class PathSegmentHelper
         }
 
         // An array of anonymous objects yields an inline "…ResponseItem" record.
-        return schema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema &&
+        return schema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array) &&
                InlineSchemaExtractor.IsInlineObjectSchema(arraySchema.Items);
     }
 

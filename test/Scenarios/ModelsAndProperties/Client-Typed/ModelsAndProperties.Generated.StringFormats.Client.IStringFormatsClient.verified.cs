@@ -14,5 +14,5 @@ namespace ModelsAndProperties.Generated.StringFormats.Client;
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public interface IStringFormatsClient
 {
-    Task<StringFormats> GetStringFormatsAsync(CancellationToken cancellationToken = default);
+    Task<ModelsAndProperties.Generated.StringFormats.Models.StringFormats> GetStringFormatsAsync(CancellationToken cancellationToken = default);
 }

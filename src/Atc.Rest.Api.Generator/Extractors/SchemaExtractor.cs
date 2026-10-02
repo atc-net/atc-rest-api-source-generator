@@ -371,13 +371,13 @@ public static class SchemaExtractor
             if (schemaValue is OpenApiSchema actualSchema)
             {
                 // Skip array schemas (like "Pets"), they're handled inline
-                if (actualSchema.Type == JsonSchemaType.Array)
+                if (actualSchema.IsOfType(JsonSchemaType.Array))
                 {
                     continue;
                 }
 
                 // Skip enum schemas - handled by EnumExtractor
-                if (actualSchema is { Type: JsonSchemaType.String, Enum.Count: > 0 })
+                if (actualSchema.IsOfType(JsonSchemaType.String) && actualSchema.Enum is { Count: > 0 })
                 {
                     continue;
                 }
@@ -391,7 +391,7 @@ public static class SchemaExtractor
                 // Detect allOf base reference for inheritance
                 var allOfBaseName = DetectAllOfBaseName(actualSchema);
 
-                if (actualSchema.Type == JsonSchemaType.Object || allOfBaseName is not null)
+                if (actualSchema.IsOfType(JsonSchemaType.Object) || allOfBaseName is not null)
                 {
                     // Sanitize schema name - replace dots with underscores for valid C# identifiers
                     var schemaName = OpenApiSchemaExtensions.SanitizeSchemaName(originalSchemaName);
@@ -514,13 +514,13 @@ public static class SchemaExtractor
             if (schemaValue is OpenApiSchema actualSchema)
             {
                 // Skip array schemas (like "Pets"), they're handled inline
-                if (actualSchema.Type == JsonSchemaType.Array)
+                if (actualSchema.IsOfType(JsonSchemaType.Array))
                 {
                     continue;
                 }
 
                 // Skip enum schemas - handled by EnumExtractor
-                if (actualSchema is { Type: JsonSchemaType.String, Enum.Count: > 0 })
+                if (actualSchema.IsOfType(JsonSchemaType.String) && actualSchema.Enum is { Count: > 0 })
                 {
                     continue;
                 }
@@ -534,7 +534,7 @@ public static class SchemaExtractor
                 // Detect allOf base reference for inheritance
                 var allOfBaseName = DetectAllOfBaseName(actualSchema);
 
-                if (actualSchema.Type == JsonSchemaType.Object || allOfBaseName is not null)
+                if (actualSchema.IsOfType(JsonSchemaType.Object) || allOfBaseName is not null)
                 {
                     // Sanitize schema name - replace dots with underscores for valid C# identifiers
                     var schemaName = OpenApiSchemaExtensions.SanitizeSchemaName(originalSchemaName);
@@ -648,7 +648,7 @@ public static class SchemaExtractor
         }
 
         // Check if it's an array type
-        if (resultsSchema.Type != JsonSchemaType.Array)
+        if (!resultsSchema.IsOfType(JsonSchemaType.Array))
         {
             return false;
         }
@@ -787,14 +787,13 @@ public static class SchemaExtractor
         // Generate empty records for schemas with no properties (e.g., Unit type for 204 No Content responses)
         // These are valid types in OpenAPI that need to be generated
         var parametersList = new List<ParameterBaseParameters>();
-        var seenPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var propertyNames = new PropertyNameRegistry();
 
         foreach (var prop in properties)
         {
-            var propName = prop.Key.ToPascalCaseForDotNet();
-
-            // Skip duplicate property names (OpenAPI schemas can have duplicates via allOf composition)
-            if (!seenPropertyNames.Add(propName))
+            // A valid, unique name for every property; the same key listed twice (allOf composition) is skipped
+            var propName = propertyNames.Resolve(prop.Key, prop.Key.ToPascalCaseForDotNet());
+            if (propName is null)
             {
                 continue;
             }
@@ -1002,14 +1001,13 @@ public static class SchemaExtractor
 
         // Generate empty records for schemas with no properties (e.g., Unit type for 204 No Content responses)
         var parametersList = new List<ParameterBaseParameters>();
-        var seenPropertyNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var propertyNames = new PropertyNameRegistry();
 
         foreach (var prop in properties)
         {
-            var propName = prop.Key.ToPascalCaseForDotNet();
-
-            // Skip duplicate property names (OpenAPI schemas can have duplicates via allOf composition)
-            if (!seenPropertyNames.Add(propName))
+            // A valid, unique name for every property; the same key listed twice (allOf composition) is skipped
+            var propName = propertyNames.Resolve(prop.Key, prop.Key.ToPascalCaseForDotNet());
+            if (propName is null)
             {
                 continue;
             }
