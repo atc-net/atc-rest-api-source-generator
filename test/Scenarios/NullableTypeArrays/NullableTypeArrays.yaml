@@ -1,0 +1,132 @@
+openapi: 3.1.0
+info:
+  title: Nullable Type Arrays
+  description: Component schemas that use the OpenAPI 3.1 type-array form to allow null.
+  version: 1.0.0
+paths:
+  /profiles:
+    get:
+      operationId: listProfiles
+      summary: List profiles
+      description: Returns every profile.
+      tags:
+        - Profiles
+      responses:
+        '200':
+          description: The profiles.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileList'
+    post:
+      operationId: createProfile
+      summary: Create a profile
+      description: Creates a profile.
+      tags:
+        - Profiles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Profile'
+      responses:
+        '201':
+          description: The created profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+  /profiles/{id}:
+    get:
+      operationId: getProfileById
+      summary: Get a profile
+      description: Returns one profile.
+      tags:
+        - Profiles
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The profile id.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '404':
+          description: No such profile.
+components:
+  schemas:
+    Profile:
+      type: object
+      description: A profile whose members reference nullable component schemas.
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          description: The profile id.
+        name:
+          type: string
+          description: The display name.
+        nickname:
+          type: [string, 'null']
+          description: An optional nickname.
+        age:
+          type: [integer, 'null']
+          format: int32
+          description: The age in years.
+        address:
+          $ref: '#/components/schemas/Address'
+        status:
+          $ref: '#/components/schemas/ProfileStatus'
+        priority:
+          $ref: '#/components/schemas/Priority'
+        tags:
+          $ref: '#/components/schemas/TagList'
+        externalId:
+          $ref: '#/components/schemas/ExternalId'
+    Address:
+      type: [object, 'null']
+      description: A postal address, or null when unknown.
+      properties:
+        street:
+          type: string
+          description: The street.
+        city:
+          type: string
+          description: The city.
+    ProfileStatus:
+      type: [string, 'null']
+      description: The profile status, or null when not set.
+      enum:
+        - active
+        - inactive
+        - null
+    Priority:
+      type: [integer, 'null']
+      description: The priority, or null when not set.
+      enum:
+        - 1
+        - 2
+        - 3
+    ExternalId:
+      type: [string, 'null']
+      format: uuid
+      description: An id in another system, or null.
+    TagList:
+      type: [array, 'null']
+      description: A list of tags, or null.
+      items:
+        type: string
+    ProfileList:
+      type: [array, 'null']
+      description: A list of profiles, or null.
+      items:
+        $ref: '#/components/schemas/Profile'
