@@ -35,7 +35,10 @@ public class GenerateContentForEnum : IContentGenerator
         }
 
         sb.Append($"{EnumDescriptionHelper.GetDescription(parameters.DeclarationModifier)} enum ");
-        sb.AppendLine($"{parameters.EnumTypeName}");
+
+        // A value outside the range of an int needs a 64-bit enum - an int enum would silently hold another number
+        var needsLong = parameters.Values.Any(v => v.Value is < int.MinValue or > int.MaxValue);
+        sb.AppendLine(needsLong ? $"{parameters.EnumTypeName} : long" : $"{parameters.EnumTypeName}");
 
         sb.AppendLine("{");
         foreach (var parametersValue in parameters.Values)
@@ -51,7 +54,7 @@ public class GenerateContentForEnum : IContentGenerator
             // Add EnumMember attribute if EnumMemberValue is specified
             if (!string.IsNullOrEmpty(parametersValue.EnumMemberValue))
             {
-                sbLine.AppendLine($"[EnumMember(Value = \"{parametersValue.EnumMemberValue}\")]");
+                sbLine.AppendLine($"[EnumMember(Value = {CSharpLiteralHelper.ToStringLiteral(parametersValue.EnumMemberValue!)})]");
                 sbLine.Append(4, parametersValue.Name);
             }
             else

@@ -180,7 +180,7 @@ public record EnumValueParameters(
     AttributeParameters? DescriptionAttribute,
     string Name,
     string? EnumMemberValue,
-    int? Value);
+    long? Value);
 
 public record RecordsParameters(
     string? HeaderContent,

@@ -83,7 +83,7 @@ public class CodeDocumentationTagsGenerator : ICodeDocumentationTagsGenerator
         var sb = new StringBuilder();
         foreach (var parameter in parameters)
         {
-            sb.AppendLine(indentSpaces, $"/// <param name=\"{parameter.Key}\">{parameter.Value.EnsureEndsWithDot()}</param>");
+            sb.AppendLine(indentSpaces, $"/// <param name=\"{parameter.Key}\">{CSharpLiteralHelper.ToXmlDocText(parameter.Value.EnsureEndsWithDot())}</param>");
         }
 
         return sb.ToString();
@@ -107,7 +107,7 @@ public class CodeDocumentationTagsGenerator : ICodeDocumentationTagsGenerator
         var sb = new StringBuilder();
         sb.AppendLine(indentSpaces, $"/// <{tag}>");
 
-        var lines = value
+        var lines = CSharpLiteralHelper.EscapeXmlDoc(value)
             .EnsureEnvironmentNewLines()
             .Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
 

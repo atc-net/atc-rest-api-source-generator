@@ -285,7 +285,7 @@ public static class StringExtensions
                 var c = input[i];
 
                 // Check if current char is a separator
-                if (c is '-' or '.' or '_' or ' ')
+                if (!char.IsLetterOrDigit(c))
                 {
                     AddWordIfNotEmpty(words, currentWord);
                     continue;
