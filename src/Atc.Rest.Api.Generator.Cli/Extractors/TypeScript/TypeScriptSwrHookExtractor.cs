@@ -272,7 +272,7 @@ public static class TypeScriptSwrHookExtractor
 
         if (info.QueryParams.Count > 0)
         {
-            hookParams.Add("query?: " + TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates));
+            hookParams.Add(TypeScriptOperationHelper.BuildQueryParameter(info.QueryParams, namingStrategy, convertDates));
             keyArgs.Add("query");
         }
 
@@ -283,7 +283,7 @@ public static class TypeScriptSwrHookExtractor
 
         if (info.HeaderParams.Count > 0)
         {
-            hookParams.Add("headers?: " + TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams, convertDates));
+            hookParams.Add(TypeScriptOperationHelper.BuildHeaderParameter(info.HeaderParams, convertDates));
         }
 
         if (info.CookieParams.Count > 0)
@@ -313,7 +313,7 @@ public static class TypeScriptSwrHookExtractor
         var clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, info.CookieParams, info.QuerystringParams, hasBody: info.HasBody, namingStrategy: namingStrategy);
 
         AppendHookJsDoc(sb, info);
-        sb.Append("export function ").Append(hookName).Append('(').Append(string.Join(", ", hookParams)).AppendLine(") {");
+        sb.Append("export function ").Append(hookName).Append('(').Append(TypeScriptOperationHelper.JoinParameters(hookParams)).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
         sb.Append("  return useSWR<").Append(dataType).AppendLine(", ApiError>(");
         sb.Append("    ").Append(key).AppendLine(",");
@@ -357,7 +357,7 @@ public static class TypeScriptSwrHookExtractor
         };
 
         AppendHookJsDoc(sb, info);
-        sb.Append("export function ").Append(hookName).Append('(').Append(string.Join(", ", hookParams)).AppendLine(") {");
+        sb.Append("export function ").Append(hookName).Append('(').Append(TypeScriptOperationHelper.JoinParameters(hookParams)).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
         sb.AppendLine(revalidateInfinite ? "  const { mutate, cache } = useSWRConfig();" : "  const { mutate } = useSWRConfig();");
         sb.Append("  return useSWRMutation<").Append(dataType).Append(", ApiError, ").Append(keyType).Append(", ").Append(variablesType).AppendLine(">(");
@@ -439,7 +439,7 @@ public static class TypeScriptSwrHookExtractor
 
         if (queryParams.Count > 0)
         {
-            hookParams.Add("query?: " + TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, namingStrategy, convertDates));
+            hookParams.Add(TypeScriptOperationHelper.BuildQueryParameter(queryParams, namingStrategy, convertDates));
             keyArgs.Add("query");
         }
 
@@ -450,7 +450,7 @@ public static class TypeScriptSwrHookExtractor
 
         if (headerParams.Count > 0)
         {
-            hookParams.Add("headers?: " + TypeScriptOperationHelper.BuildHeaderTypeInline(headerParams, convertDates));
+            hookParams.Add(TypeScriptOperationHelper.BuildHeaderParameter(headerParams, convertDates));
         }
 
         if (info.CookieParams.Count > 0)
@@ -475,7 +475,7 @@ public static class TypeScriptSwrHookExtractor
         var previousToken = TokenAccess("previousPage", pagination, namingStrategy);
 
         AppendHookJsDoc(sb, info);
-        sb.Append("export function ").Append(hookName).Append('(').Append(string.Join(", ", hookParams)).AppendLine(") {");
+        sb.Append("export function ").Append(hookName).Append('(').Append(TypeScriptOperationHelper.JoinParameters(hookParams)).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
         sb.Append("  return useSWRInfinite<").Append(dataType).AppendLine(", ApiError>(");
         sb.AppendLine("    (_pageIndex, previousPage) => {");

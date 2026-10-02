@@ -146,7 +146,7 @@ export class PetClient {
   }
 
   /** Finds Pets by tags. */
-  async findPetsByTags(query?: { tags?: string[] }): Promise<FindPetsByTagsResult> {
+  async findPetsByTags(query: { tags: string[] }): Promise<FindPetsByTagsResult> {
     return this.api.request<Pet[]>('GET', '/pet/findByTags', {
       query: {
         tags: query?.tags,

@@ -326,7 +326,7 @@ public class TypeScriptReactQueryHookExtractorTests
 
         // The hook function signature includes a headers arg.
         Assert.Contains(
-            "headers?: { 'X-Correlation-Id': string }",
+            "headers: { 'X-Correlation-Id': string }",
             content,
             StringComparison.Ordinal);
 

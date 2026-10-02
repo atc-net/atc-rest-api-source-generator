@@ -38,7 +38,7 @@ export class ItemsClient {
   }
 
   /** List items with pagination via header */
-  async listItems(query?: { limit?: number }, headers?: { 'x-continuation'?: string; 'x-correlation-id': string }): Promise<ListItemsResult> {
+  async listItems(query: { limit?: number } | undefined, headers: { 'x-continuation'?: string; 'x-correlation-id': string }): Promise<ListItemsResult> {
     return this.api.request<Items>('GET', '/items', {
       query: {
         limit: query?.limit,

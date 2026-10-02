@@ -429,7 +429,7 @@ public class TypeScriptClientExtractorTests
     public void Extract_HeaderParams_AppearInSignatureAndAreForwardedToApiRequest()
     {
         // Header params used to be silently dropped by the TS client writer. They now
-        // appear as an inline `headers?: { … }` arg after query, with non-identifier
+        // appear as an inline `headers: { … }` arg (required here: one header is) after query, with non-identifier
         // names (X-Correlation-Id) quoted, required headers without `?`, and the values
         // forwarded to the ApiClient via `headers: { … }` in the request options.
         const string yaml = """
@@ -470,7 +470,7 @@ public class TypeScriptClientExtractorTests
         // callers may omit the arg entirely (the generator doesn't enforce required-ness
         // at the TS type level, just as it doesn't for required query params).
         Assert.Contains(
-            "headers?: { 'X-Correlation-Id': string; 'X-Continuation'?: string }",
+            "headers: { 'X-Correlation-Id': string; 'X-Continuation'?: string }",
             content,
             StringComparison.Ordinal);
 

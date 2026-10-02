@@ -409,14 +409,12 @@ public static class TypeScriptReactQueryHookExtractor
 
         if (info.QueryParams.Count > 0)
         {
-            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
-            hookParams.Add("query?: " + queryType);
+            hookParams.Add(TypeScriptOperationHelper.BuildQueryParameter(info.QueryParams, namingStrategy, convertDates));
         }
 
         if (info.HeaderParams.Count > 0)
         {
-            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams, convertDates);
-            hookParams.Add("headers?: " + headerType);
+            hookParams.Add(TypeScriptOperationHelper.BuildHeaderParameter(info.HeaderParams, convertDates));
         }
 
         if (info.CookieParams.Count > 0)
@@ -434,7 +432,7 @@ public static class TypeScriptReactQueryHookExtractor
         var queryDataType = info.ReturnType == "void" ? "void" : info.ReturnType;
         hookParams.Add("options?: Omit<" + optionsType + "<" + queryDataType + ", ApiError>, 'queryKey' | 'queryFn'>");
 
-        var hookParamStr = string.Join(", ", hookParams);
+        var hookParamStr = TypeScriptOperationHelper.JoinParameters(hookParams);
 
         // Build key args — headers and cookies are intentionally excluded so the React Query
         // cache does NOT fragment on per-request headers/cookies (correlation IDs, etc).
@@ -564,7 +562,7 @@ public static class TypeScriptReactQueryHookExtractor
 
         if (queryParams.Count > 0)
         {
-            hookParams.Add("query?: " + TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, namingStrategy, convertDates));
+            hookParams.Add(TypeScriptOperationHelper.BuildQueryParameter(queryParams, namingStrategy, convertDates));
             keyArgs.Add("query");
         }
 
@@ -575,7 +573,7 @@ public static class TypeScriptReactQueryHookExtractor
 
         if (headerParams.Count > 0)
         {
-            hookParams.Add("headers?: " + TypeScriptOperationHelper.BuildHeaderTypeInline(headerParams, convertDates));
+            hookParams.Add(TypeScriptOperationHelper.BuildHeaderParameter(headerParams, convertDates));
         }
 
         if (info.CookieParams.Count > 0)
@@ -590,7 +588,7 @@ public static class TypeScriptReactQueryHookExtractor
             ", string | undefined>, readonly unknown[], string | undefined>, 'queryKey' | 'queryFn' | 'initialPageParam' | 'getNextPageParam'>");
 
         AppendHookJsDoc(sb, info);
-        sb.Append("export function ").Append(hookName).Append('(').Append(string.Join(", ", hookParams)).AppendLine(") {");
+        sb.Append("export function ").Append(hookName).Append('(').Append(TypeScriptOperationHelper.JoinParameters(hookParams)).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
         sb.AppendLine("  return useInfiniteQuery({");
         sb.Append("    queryKey: ").Append(segmentCamel).Append("Keys.").Append(keyName).Append('(').Append(string.Join(", ", keyArgs)).AppendLine("),");
@@ -650,7 +648,7 @@ public static class TypeScriptReactQueryHookExtractor
         var mutationDataType = (isVoidReturn || isDelete) ? "void" : info.ReturnType;
         hookParams.Add("options?: Omit<UseMutationOptions<" + mutationDataType + ", ApiError, " + variablesType + ">, 'mutationFn'>");
 
-        var hookParamStr = string.Join(", ", hookParams);
+        var hookParamStr = TypeScriptOperationHelper.JoinParameters(hookParams);
 
         AppendHookJsDoc(sb, info);
         sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");

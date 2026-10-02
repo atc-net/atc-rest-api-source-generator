@@ -1065,7 +1065,7 @@ public static class TypeScriptOperationHelper
         {
             var rawName = param.Name ?? string.Empty;
             var paramType = GetParameterType(param, convertDates);
-            var optional = param.Required ? string.Empty : "?";
+            var optional = MustBeSupplied(param) ? string.Empty : "?";
             parts.Add("'" + rawName + "'" + optional + ": " + paramType + FormatDefaultComment(param));
         }
 
@@ -1146,10 +1146,85 @@ public static class TypeScriptOperationHelper
         {
             var paramName = PropertyKey((param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
             var paramType = GetParameterType(param, convertDates);
-            parts.Add(paramName + "?: " + paramType + FormatDefaultComment(param));
+            var optional = MustBeSupplied(param) ? string.Empty : "?";
+            parts.Add(paramName + optional + ": " + paramType + FormatDefaultComment(param));
         }
 
         return "{ " + string.Join("; ", parts) + " }";
+    }
+
+    /// <summary>
+    /// The <c>query</c> argument of a client method or hook: required (<c>query: { ... }</c>) when the
+    /// specification requires one of the query parameters, otherwise optional (<c>query?: { ... }</c>).
+    /// </summary>
+    public static string BuildQueryParameter(
+        List<OpenApiParameter> queryParams,
+        TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase,
+        bool convertDates = false)
+        => (queryParams.Exists(MustBeSupplied) ? "query: " : "query?: ") +
+           BuildQueryTypeInline(queryParams, namingStrategy, convertDates);
+
+    /// <summary>
+    /// The <c>headers</c> argument of a client method or hook: required when the specification requires
+    /// one of the header parameters, otherwise optional.
+    /// </summary>
+    public static string BuildHeaderParameter(
+        List<OpenApiParameter> headerParams,
+        bool convertDates = false)
+        => (headerParams.Exists(MustBeSupplied) ? "headers: " : "headers?: ") +
+           BuildHeaderTypeInline(headerParams, convertDates);
+
+    /// <summary>
+    /// Joins a parameter list. TypeScript does not allow an optional parameter before a required one, so an
+    /// optional parameter that is followed by a required one keeps its position and takes <c>undefined</c>
+    /// explicitly: <c>query?: T, headers: U</c> becomes <c>query: T | undefined, headers: U</c>.
+    /// </summary>
+    public static string JoinParameters(IReadOnlyList<string> parameters)
+    {
+        var lastRequired = -1;
+        for (var i = parameters.Count - 1; i >= 0; i--)
+        {
+            if (!IsOptionalParameter(parameters[i]))
+            {
+                lastRequired = i;
+                break;
+            }
+        }
+
+        var parts = new List<string>(parameters.Count);
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            var parameter = parameters[i];
+            if (i < lastRequired && IsOptionalParameter(parameter))
+            {
+                var separator = parameter.IndexOf("?: ", StringComparison.Ordinal);
+                var type = parameter[(separator + 3)..];
+                if (type.Contains("=>", StringComparison.Ordinal))
+                {
+                    type = "(" + type + ")";
+                }
+
+                parameter = parameter[..separator] + ": " + type + " | undefined";
+            }
+
+            parts.Add(parameter);
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    /// <summary>
+    /// A parameter the caller has to pass: the specification requires it and gives no default. With a default the
+    /// parameter may be left out - the default is what a missing value means (the C# clients do the same).
+    /// </summary>
+    private static bool MustBeSupplied(OpenApiParameter param)
+        => param.Required && param.Schema is not OpenApiSchema { Default: not null };
+
+    private static bool IsOptionalParameter(string parameter)
+    {
+        // "name?: type" - the "?" belongs to the parameter name, not to a member inside its type.
+        var colon = parameter.IndexOf(':', StringComparison.Ordinal);
+        return colon > 0 && parameter[colon - 1] == '?';
     }
 
     /// <summary>

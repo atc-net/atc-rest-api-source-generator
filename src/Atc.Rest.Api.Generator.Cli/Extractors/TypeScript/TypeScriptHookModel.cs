@@ -91,14 +91,13 @@ internal static class TypeScriptHookModel
 
         if (queryParams.Count > 0)
         {
-            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, namingStrategy, convertDates);
-            keyFuncParts.Add("query?: " + queryType);
+            keyFuncParts.Add(TypeScriptOperationHelper.BuildQueryParameter(queryParams, namingStrategy, convertDates));
             keySpreadValues.Add("query");
         }
 
         if (keyHeaders.Count > 0)
         {
-            keyFuncParts.Add("headers?: " + TypeScriptOperationHelper.BuildHeaderTypeInline(keyHeaders, convertDates));
+            keyFuncParts.Add(TypeScriptOperationHelper.BuildHeaderParameter(keyHeaders, convertDates));
             keySpreadValues.Add("headers");
         }
 
@@ -107,7 +106,7 @@ internal static class TypeScriptHookModel
             var spreadSuffix = keySpreadValues.Count > 0
                 ? ", " + string.Join(", ", keySpreadValues)
                 : string.Empty;
-            sb.Append("  ").Append(keyName).Append(": (").Append(string.Join(", ", keyFuncParts)).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).Append('\'').Append(spreadSuffix).AppendLine("] as const,");
+            sb.Append("  ").Append(keyName).Append(": (").Append(TypeScriptOperationHelper.JoinParameters(keyFuncParts)).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).Append('\'').Append(spreadSuffix).AppendLine("] as const,");
         }
         else
         {
@@ -145,19 +144,17 @@ internal static class TypeScriptHookModel
 
         if (info.QueryParams.Count > 0)
         {
-            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
-            hookParams.Add("query?: " + queryType);
+            hookParams.Add(TypeScriptOperationHelper.BuildQueryParameter(info.QueryParams, namingStrategy, convertDates));
         }
 
         if (info.HeaderParams.Count > 0)
         {
-            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams, convertDates);
-            hookParams.Add("headers?: " + headerType);
+            hookParams.Add(TypeScriptOperationHelper.BuildHeaderParameter(info.HeaderParams, convertDates));
         }
 
         hookParams.Add("options?: { enabled?: boolean }");
 
-        var hookParamStr = string.Join(", ", hookParams);
+        var hookParamStr = TypeScriptOperationHelper.JoinParameters(hookParams);
 
         // Client call args mirror the streaming client method:
         //   pathParams..., query, headers, controller.signal
@@ -1026,8 +1023,7 @@ internal static class TypeScriptHookModel
         // Not adding query to hookParams was the cause of TS2304 ("Cannot find name 'query'").
         if (info.QueryParams.Count > 0)
         {
-            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(info.QueryParams, namingStrategy, convertDates);
-            hookParams.Add("query?: " + queryType);
+            hookParams.Add(TypeScriptOperationHelper.BuildQueryParameter(info.QueryParams, namingStrategy, convertDates));
 
             if (!info.HasBody)
             {
@@ -1040,8 +1036,7 @@ internal static class TypeScriptHookModel
         // call site is path-params..., body, query, headers — see BuildClientCallArgs.
         if (info.HeaderParams.Count > 0)
         {
-            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(info.HeaderParams, convertDates);
-            hookParams.Add("headers?: " + headerType);
+            hookParams.Add(TypeScriptOperationHelper.BuildHeaderParameter(info.HeaderParams, convertDates));
             clientCallArgs = clientCallArgs.Length == 0 ? "headers" : clientCallArgs + ", headers";
         }
 

@@ -57,7 +57,7 @@ export class ItemsClient {
   }
 
   /** Search items by date-time range (date-time query params) */
-  async searchItems(query?: { createdAfter?: Date; createdBefore?: Date }): Promise<SearchItemsResult> {
+  async searchItems(query: { createdAfter?: Date; createdBefore: Date }): Promise<SearchItemsResult> {
     return this.api.request<Items>('GET', '/items/search', {
       query: {
         createdAfter: query?.createdAfter?.toISOString(),

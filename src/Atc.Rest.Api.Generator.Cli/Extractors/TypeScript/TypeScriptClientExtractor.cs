@@ -864,19 +864,17 @@ public static class TypeScriptClientExtractor
 
         if (queryParams.Count > 0)
         {
-            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, namingStrategy, convertDates);
-            paramParts.Add("query?: " + queryType);
+            paramParts.Add(TypeScriptOperationHelper.BuildQueryParameter(queryParams, namingStrategy, convertDates));
         }
 
         if (headerParams.Count > 0)
         {
-            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(headerParams, convertDates);
-            paramParts.Add("headers?: " + headerType);
+            paramParts.Add(TypeScriptOperationHelper.BuildHeaderParameter(headerParams, convertDates));
         }
 
         paramParts.Add("signal?: AbortSignal");
 
-        var paramList = string.Join(", ", paramParts);
+        var paramList = TypeScriptOperationHelper.JoinParameters(paramParts);
 
         sb.Append("  async *").Append(methodName).Append('(').Append(paramList).Append("): AsyncGenerator<").Append(itemType).AppendLine("> {");
 
@@ -975,15 +973,13 @@ public static class TypeScriptClientExtractor
         // Query parameters (optional object)
         if (queryParams.Count > 0)
         {
-            var queryType = TypeScriptOperationHelper.BuildQueryTypeInline(queryParams, namingStrategy, convertDates);
-            parts.Add("query?: " + queryType);
+            parts.Add(TypeScriptOperationHelper.BuildQueryParameter(queryParams, namingStrategy, convertDates));
         }
 
         // Header parameters (optional object)
         if (headerParams.Count > 0)
         {
-            var headerType = TypeScriptOperationHelper.BuildHeaderTypeInline(headerParams, convertDates);
-            parts.Add("headers?: " + headerType);
+            parts.Add(TypeScriptOperationHelper.BuildHeaderParameter(headerParams, convertDates));
         }
 
         // OAS 3.2 in:cookie parameters — grouped cookies? object placed after headers?.
@@ -993,7 +989,7 @@ public static class TypeScriptClientExtractor
             parts.Add("cookies?: " + cookieType);
         }
 
-        return string.Join(", ", parts);
+        return TypeScriptOperationHelper.JoinParameters(parts);
     }
 
     /// <summary>

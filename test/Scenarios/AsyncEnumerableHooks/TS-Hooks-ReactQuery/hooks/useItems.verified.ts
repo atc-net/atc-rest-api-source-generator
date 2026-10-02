@@ -9,7 +9,7 @@ import type { Item, ItemLogs, Items, PaginationResult } from '../models';
 const itemsKeys = {
   all: ['items'] as const,
   getItemLogs: (itemId: string, query?: { logLevel?: 'debug' | 'info' | 'warn' | 'error'; from?: Date }) => [...itemsKeys.all, 'getItemLogs', itemId, query] as const,
-  search: (query?: { createdAfter?: Date; createdBefore?: Date }) => [...itemsKeys.all, 'search', query] as const,
+  search: (query: { createdAfter?: Date; createdBefore: Date }) => [...itemsKeys.all, 'search', query] as const,
 };
 
 export { itemsKeys };
@@ -169,7 +169,7 @@ export function useGetItemLogs(itemId: string, query?: { logLevel?: 'debug' | 'i
 }
 
 /** Search items by date-time range (date-time query params) */
-export function useSearchItems(query?: { createdAfter?: Date; createdBefore?: Date }, options?: Omit<UseQueryOptions<Items, ApiError>, 'queryKey' | 'queryFn'>) {
+export function useSearchItems(query: { createdAfter?: Date; createdBefore: Date }, options?: Omit<UseQueryOptions<Items, ApiError>, 'queryKey' | 'queryFn'>) {
   const api = useApiService();
   return useQuery({
     queryKey: itemsKeys.search(query),

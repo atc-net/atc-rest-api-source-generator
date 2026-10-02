@@ -1000,7 +1000,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
 
         var result = TypeScriptOperationHelper.BuildHeaderTypeInline(headerParams);
 
-        Assert.Contains("'X-Api-Version': string /* default: 'v1' */", result, StringComparison.Ordinal);
+        Assert.Contains("'X-Api-Version'?: string /* default: 'v1' */", result, StringComparison.Ordinal);
     }
 
     [Fact]
