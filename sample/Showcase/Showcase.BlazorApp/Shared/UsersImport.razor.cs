@@ -24,14 +24,14 @@ public partial class UsersImport
                 FirstName: "Ada",
                 LastName: "Lovelace",
                 Email: $"ada.{stamp}@example.com",
-                DateOfBirth: new DateTimeOffset(1815, 12, 10, 0, 0, 0, TimeSpan.Zero),
+                DateOfBirth: new DateOnly(1815, 12, 10),
                 Role: UserRole.Admin,
                 Address: new AddressRequest(Street: "12 St James's Square", City: "London", PostalCode: "SW1Y 4JH", Country: "England", CountryCode: "GB")),
             new CreateUserRequest(
                 FirstName: "Grace",
                 LastName: "Hopper",
                 Email: $"grace.{stamp}@example.com",
-                DateOfBirth: new DateTimeOffset(1906, 12, 9, 0, 0, 0, TimeSpan.Zero),
+                DateOfBirth: new DateOnly(1906, 12, 9),
                 Role: UserRole.Manager,
                 Address: new AddressRequest(Street: "1 Navy Yard", City: "Arlington", PostalCode: "22201", Country: "United States", CountryCode: "US")),
         ];
