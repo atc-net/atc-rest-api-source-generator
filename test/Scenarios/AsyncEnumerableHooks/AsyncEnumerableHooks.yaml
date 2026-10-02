@@ -7,6 +7,7 @@ info:
     - listItemPages: async-enumerable with PaginationResult<Item> wrapper
     - getItemLogs: GET with path + query params
     - searchItems: GET with date-time query param + convertDates=true
+    - streamItemEvents: Server-Sent Events declared with a schema (no itemSchema)
   version: v1
 servers:
   - url: /api/v1
@@ -116,6 +117,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Items'
+  /items/events:
+    get:
+      summary: Item events as Server-Sent Events (a schema under text/event-stream, the way before OpenAPI 3.2)
+      operationId: streamItemEvents
+      x-return-async-enumerable: true
+      tags:
+        - items
+      responses:
+        '200':
+          description: OK
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/Item'
 components:
   schemas:
     Item:

@@ -66,4 +66,9 @@ export class ItemsClient {
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<SearchItemsResult>;
   }
+
+  /** Item events as Server-Sent Events (a schema under text/event-stream, the way before OpenAPI 3.2) */
+  async *streamItemEvents(signal?: AbortSignal): AsyncGenerator<Item> {
+    yield* this.api.requestStream<Item>('GET', '/items/events', { signal }, 'sse');
+  }
 }

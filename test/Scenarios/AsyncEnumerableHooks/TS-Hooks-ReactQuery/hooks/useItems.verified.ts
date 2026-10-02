@@ -192,3 +192,66 @@ export function useSearchItems(query: { createdAfter?: Date; createdBefore: Date
     ...options,
   });
 }
+
+/** Item events as Server-Sent Events (a schema under text/event-stream, the way before OpenAPI 3.2) */
+export function useStreamItemEventsStream(options?: { enabled?: boolean }) {
+  const api = useApiService();
+  const [items, setItems] = useState<readonly Item[]>([]);
+  const [status, setStatus] = useState<'idle' | 'streaming' | 'success' | 'error'>('idle');
+  const [error, setError] = useState<Error | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
+
+  const cancel = useCallback(() => {
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+    setStatus('idle');
+  }, []);
+
+  const reset = useCallback(() => {
+    cancel();
+    setItems([]);
+    setError(null);
+  }, [cancel]);
+
+  const enabled = options?.enabled !== false;
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    setStatus('streaming');
+    setItems([]);
+    setError(null);
+
+    let buffer: Item[] = [];
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    const flush = () => { flushTimer = null; if (!controller.signal.aborted) setItems(buffer.slice()); };
+    (async () => {
+      try {
+        for await (const item of api.items.streamItemEvents(controller.signal)) {
+          if (controller.signal.aborted) return;
+          buffer.push(item);
+          if (flushTimer === null) flushTimer = setTimeout(flush, 200);
+        }
+        if (!controller.signal.aborted) {
+          if (flushTimer !== null) clearTimeout(flushTimer);
+          setItems(buffer.slice());
+          setStatus('success');
+        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (flushTimer !== null) clearTimeout(flushTimer);
+        setItems(buffer.slice());
+        setError(err as Error);
+        setStatus('error');
+      }
+    })();
+
+    return () => { controller.abort(); if (flushTimer !== null) clearTimeout(flushTimer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
+
+  return { items, status, error, cancel, reset };
+}
