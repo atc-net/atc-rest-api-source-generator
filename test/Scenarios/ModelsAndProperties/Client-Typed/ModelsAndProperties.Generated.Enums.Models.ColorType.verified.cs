@@ -16,17 +16,22 @@ namespace ModelsAndProperties.Generated.Enums.Models;
 public enum ColorType
 {
     [EnumMember(Value = "primary-blue")]
+    [JsonStringEnumMemberName("primary-blue")]
     PrimaryBlue,
 
     [EnumMember(Value = "secondary-green")]
+    [JsonStringEnumMemberName("secondary-green")]
     SecondaryGreen,
 
     [EnumMember(Value = "accent-red")]
+    [JsonStringEnumMemberName("accent-red")]
     AccentRed,
 
     [EnumMember(Value = "neutral-gray")]
+    [JsonStringEnumMemberName("neutral-gray")]
     NeutralGray,
 
     [EnumMember(Value = "warning-yellow")]
+    [JsonStringEnumMemberName("warning-yellow")]
     WarningYellow,
 }

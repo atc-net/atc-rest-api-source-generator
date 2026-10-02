@@ -790,11 +790,10 @@ public static class HttpClientExtractor
                 var isRequired = param.Required;
                 var serialization = param.GetParameterSerialization();
 
-                // Supported form-explode array: emit repeated-key foreach
-                if (serialization.ValueKind == ParameterValueKind.Array &&
-                    serialization.Style == ParameterStyle.Form &&
-                    serialization.Explode &&
-                    serialization.IsSupported)
+                // An array: repeated keys (form, explode). A style that is not generated yet (explode: false,
+                // pipeDelimited, spaceDelimited) is sent the same way, as ATC_API_OPR026 says - never as the list's
+                // ToString()
+                if (serialization.ValueKind == ParameterValueKind.Array)
                 {
                     AppendQueryArrayForeach(builder, param.Name!, paramAccess, paramType, serialization.AllowReserved, isRequired);
                     continue;
@@ -875,12 +874,25 @@ public static class HttpClientExtractor
         IOpenApiPathItem? pathItem = null;
         _ = openApiDoc.Paths?.TryGetValue(path, out pathItem);
         string? Stamp(string requestVariable)
-            => ResilienceRequestHelper.BuildStampStatement(operation, pathItem, openApiDoc, httpMethod, requestVariable);
+        {
+            // What every send has to put on its request: the header and cookie parameters, then the retry stamp
+            var statements = new[]
+                {
+                    BuildHeaderAndCookieStatements(headerParams, cookieParams, requestVariable, openApiDoc, parametersClassName),
+                    ResilienceRequestHelper.BuildStampStatement(operation, pathItem, openApiDoc, httpMethod, requestVariable),
+                }
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToList();
+
+            return statements.Count == 0
+                ? null
+                : string.Join(Environment.NewLine, statements);
+        }
 
         switch (httpMethod)
         {
             case "GET":
-                GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), hasReturnType, builder, headerParams, cookieParams, resultStyle, Stamp, xmlRead);
+                GenerateGetMethodBody(returnType, isAsyncEnumerable, streamingItemType, operation.GetStreamingFraming(), hasReturnType, builder, resultStyle, Stamp, xmlRead);
                 break;
             case "POST":
                 GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder, resultStyle, Stamp("requestMessage"), xmlRead);
@@ -911,8 +923,6 @@ public static class HttpClientExtractor
         StreamingFraming streamingFraming,
         bool hasReturnType,
         StringBuilder builder,
-        List<(OpenApiParameter Param, string? ReferenceId)> headerParams,
-        List<(OpenApiParameter Param, string? ReferenceId)> cookieParams,
         TypedClientResultStyleType resultStyle,
         Func<string, string?> resilienceStamp,
         XmlReadPlan? xmlRead = null)
@@ -982,99 +992,6 @@ public static class HttpClientExtractor
             builder.AppendLine(8, "yield return item;");
             builder.AppendLine(4, "}");
             builder.AppendLine("}");
-        }
-        else if (headerParams.Count > 0 || cookieParams.Count > 0)
-        {
-            // Use HttpRequestMessage when request headers or cookies are needed
-            builder.AppendLine();
-            builder.AppendLine("using var request = new HttpRequestMessage(HttpMethod.Get, url);");
-            builder.AppendLine();
-
-            foreach (var (param, referenceId) in headerParams)
-            {
-                var propName = !string.IsNullOrEmpty(referenceId)
-                    ? referenceId!.ToPascalCaseForDotNet()
-                    : param.Name!.ToHeaderPropertyName();
-                var paramAccess = $"parameters.{propName}";
-                var headerName = param.Name!;
-
-                // A date, date-time or decimal header is sent as its wire text; a string as it is
-                var wireValue = WireValueHelper.TryBuildWireExpression(paramAccess, param.Schema);
-                if (wireValue is not null)
-                {
-                    var headerVariable = "header" + propName;
-                    builder.AppendLine($"if ({wireValue} is {{ }} {headerVariable})");
-                    builder.AppendLine("{");
-                    builder.AppendLine(4, $"request.Headers.Add(\"{headerName}\", {headerVariable});");
-                    builder.AppendLine("}");
-                    builder.AppendLine();
-                }
-                else if (param.Required)
-                {
-                    builder.AppendLine($"request.Headers.Add(\"{headerName}\", {paramAccess});");
-                }
-                else
-                {
-                    builder.AppendLine($"if (!string.IsNullOrEmpty({paramAccess}))");
-                    builder.AppendLine("{");
-                    builder.AppendLine(4, $"request.Headers.Add(\"{headerName}\", {paramAccess});");
-                    builder.AppendLine("}");
-                    builder.AppendLine();
-                }
-            }
-
-            // OAS 3.2 in:cookie — build RFC 6265 Cookie header (name=value; name2=value2).
-            // style:cookie omits percent-encoding; style:form (default) uses the raw value here
-            // since cookie values rarely need encoding in practice. For full correctness, the
-            // application layer should configure HttpClientHandler.UseCookies = false.
-            if (cookieParams.Count > 0)
-            {
-                builder.AppendLine("var cookieParts = new List<string>();");
-                foreach (var (param, _) in cookieParams)
-                {
-                    var propName = param.Name!.ToPascalCaseForDotNet();
-                    var paramAccess = $"parameters.{propName}";
-
-                    if (param.Required)
-                    {
-                        builder.AppendLine($"cookieParts.Add($\"{param.Name}={{{paramAccess}}}\");");
-                    }
-                    else
-                    {
-                        builder.AppendLine($"if (!string.IsNullOrEmpty({paramAccess}))");
-                        builder.AppendLine("{");
-                        builder.AppendLine(4, $"cookieParts.Add($\"{param.Name}={{{paramAccess}}}\");");
-                        builder.AppendLine("}");
-                        builder.AppendLine();
-                    }
-                }
-
-                builder.AppendLine("if (cookieParts.Count > 0)");
-                builder.AppendLine("{");
-                builder.AppendLine(4, "request.Headers.TryAddWithoutValidation(\"Cookie\", string.Join(\"; \", cookieParts));");
-                builder.AppendLine("}");
-                builder.AppendLine();
-            }
-
-            if (xmlRead?.Accept is not null)
-            {
-                builder.AppendLine($"request.Headers.Accept.ParseAdd(\"{xmlRead.Accept}\");");
-            }
-
-            if (resilienceStamp("request") is { } requestStamp)
-            {
-                builder.AppendLine(requestStamp);
-            }
-
-            builder.AppendLine("var response = await httpClient.SendAsync(request, cancellationToken);");
-
-            AppendResponseCompletion(
-                builder,
-                resultStyle,
-                hasReturnType ? (xmlRead?.ReadMethod is null || xmlRead.ByContentType ? ResponsePayloadKind.Json : ResponsePayloadKind.Xml) : ResponsePayloadKind.None,
-                returnType,
-                isLastStatement: hasReturnType,
-                xmlRead: xmlRead);
         }
         else if (hasReturnType && returnType == "DownloadedFile")
         {
@@ -1196,7 +1113,7 @@ public static class HttpClientExtractor
         string? resilienceStamp,
         XmlReadPlan? xmlRead = null)
     {
-        var hasJsonBody = operation.RequestBody?.Content?.ContainsKey("application/json") ?? false;
+        var hasJsonBody = operation.GetJsonRequestBodyMediaType() is not null;
         var requestAccess = hasParameters ? "parameters.Request" : "request";
 
         // Resolve the verb through the same helper the per-operation client uses, so both
@@ -1251,7 +1168,7 @@ public static class HttpClientExtractor
         string? resilienceStamp,
         XmlReadPlan? xmlRead = null)
     {
-        var hasJsonBody = operation.RequestBody?.Content?.ContainsKey("application/json") ?? false;
+        var hasJsonBody = operation.GetJsonRequestBodyMediaType() is not null;
         var requestAccess = hasParameters
             ? "parameters.Request"
             : "request";
@@ -1378,7 +1295,7 @@ public static class HttpClientExtractor
         string? resilienceStamp,
         XmlReadPlan? xmlRead = null)
     {
-        var hasJsonBody = operation.RequestBody?.Content?.ContainsKey("application/json") ?? false;
+        var hasJsonBody = operation.GetJsonRequestBodyMediaType() is not null;
         var requestAccess = hasParameters ? "parameters.Request" : "request";
 
         if (xmlRead?.RequestContent is not null)
@@ -1462,11 +1379,102 @@ public static class HttpClientExtractor
         if (resilienceStamp is not null)
         {
             builder.AppendLine(resilienceStamp);
+            if (resilienceStamp.Contains('\n'))
+            {
+                builder.AppendLine();
+            }
         }
 
         var completion = responseHeadersRead ? "HttpCompletionOption.ResponseHeadersRead, " : string.Empty;
         var declaration = disposeResponse ? "using var" : "var";
         builder.AppendLine($"{declaration} response = await httpClient.SendAsync(requestMessage, {completion}cancellationToken);");
+    }
+
+    /// <summary>
+    /// The statements that put the operation's header and cookie parameters on a request, or
+    /// <see langword="null"/> when it has none. A value is written as its wire text: never with the
+    /// culture of the machine the client runs on.
+    /// </summary>
+    private static string? BuildHeaderAndCookieStatements(
+        List<(OpenApiParameter Param, string? ReferenceId)> headerParams,
+        List<(OpenApiParameter Param, string? ReferenceId)> cookieParams,
+        string requestVariable,
+        OpenApiDocument openApiDoc,
+        string parametersClassName)
+    {
+        if (headerParams.Count == 0 && cookieParams.Count == 0)
+        {
+            return null;
+        }
+
+        var sb = new StringBuilder();
+        foreach (var (param, referenceId) in headerParams)
+        {
+            var propName = !string.IsNullOrEmpty(referenceId)
+                ? referenceId!.ToPascalCaseForDotNet()
+                : param.Name!.ToHeaderPropertyName();
+            var variable = "header" + propName;
+            var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName);
+
+            sb.AppendLine($"if (parameters.{propName} is {ValuePattern(paramType)} {variable})");
+            sb.AppendLine("{");
+            sb.AppendLine(4, $"{requestVariable}.Headers.Add(\"{param.Name}\", {BuildWireTextExpression(variable, paramType)});");
+            sb.AppendLine("}");
+            sb.AppendLine();
+        }
+
+        // RFC 6265 Cookie header (name=value; name2=value2), each value percent-encoded
+        if (cookieParams.Count > 0)
+        {
+            sb.AppendLine("var cookieParts = new List<string>();");
+            foreach (var (param, _) in cookieParams)
+            {
+                var propName = param.Name!.ToPascalCaseForDotNet();
+                var variable = "cookie" + propName;
+                var paramType = GetParameterTypeWithInlineEnumAwareness(param, openApiDoc, parametersClassName);
+
+                sb.AppendLine($"if (parameters.{propName} is {ValuePattern(paramType)} {variable})");
+                sb.AppendLine("{");
+                sb.AppendLine(4, $"cookieParts.Add(\"{param.Name}=\" + Uri.EscapeDataString({BuildWireTextExpression(variable, paramType)}));");
+                sb.AppendLine("}");
+                sb.AppendLine();
+            }
+
+            sb.AppendLine("if (cookieParts.Count > 0)");
+            sb.AppendLine("{");
+            sb.AppendLine(4, $"{requestVariable}.Headers.TryAddWithoutValidation(\"Cookie\", string.Join(\"; \", cookieParts));");
+            sb.AppendLine("}");
+            sb.AppendLine();
+        }
+
+        return sb.ToString().TrimEnd();
+
+        // A value that is there: an empty string is left out, as before
+        static string ValuePattern(string paramType)
+            => paramType.TrimEnd('?') == "string" ? "{ Length: > 0 }" : "{ }";
+    }
+
+    /// <summary>
+    /// A C# expression of type <c>string</c> that gives the wire text of a non-null scalar value.
+    /// </summary>
+    private static string BuildWireTextExpression(
+        string valueExpression,
+        string paramType)
+    {
+        var type = paramType.TrimEnd('?');
+        if (type == "string")
+        {
+            return valueExpression;
+        }
+
+        if (type == "bool")
+        {
+            return $"({valueExpression} ? \"true\" : \"false\")";
+        }
+
+        return WireValueHelper.TryBuildWireExpression(valueExpression, type) is { } wireValue
+            ? wireValue + "!"
+            : $"global::System.FormattableString.Invariant($\"{{{valueExpression}}}\")";
     }
 
     private static string GetParameterType(

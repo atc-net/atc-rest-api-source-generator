@@ -54,7 +54,12 @@ public class GenerateContentForEnum : IContentGenerator
             // Add EnumMember attribute if EnumMemberValue is specified
             if (!string.IsNullOrEmpty(parametersValue.EnumMemberValue))
             {
-                sbLine.AppendLine($"[EnumMember(Value = {CSharpLiteralHelper.ToStringLiteral(parametersValue.EnumMemberValue!)})]");
+                // [EnumMember] names the wire value for whoever reads it by reflection; System.Text.Json does not
+                // read it and takes the wire value from [JsonStringEnumMemberName]
+                var wireValue = CSharpLiteralHelper.ToStringLiteral(parametersValue.EnumMemberValue!);
+                sbLine.AppendLine($"[EnumMember(Value = {wireValue})]");
+                sbLine.Append(4, $"[JsonStringEnumMemberName({wireValue})]");
+                sbLine.AppendLine();
                 sbLine.Append(4, parametersValue.Name);
             }
             else

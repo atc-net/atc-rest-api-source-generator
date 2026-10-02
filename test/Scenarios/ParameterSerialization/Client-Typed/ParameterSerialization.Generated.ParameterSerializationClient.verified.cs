@@ -62,7 +62,10 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
 
         if (parameters.Legacy is not null)
         {
-            queryParams.Add($"legacy={Uri.EscapeDataString($"{parameters.Legacy}")}");
+            foreach (var item in parameters.Legacy)
+            {
+                queryParams.Add($"legacy={Uri.EscapeDataString(item)}");
+            }
         }
 
         if (parameters.Ids is not null)
@@ -84,21 +87,19 @@ public sealed class ParameterSerializationClient : IParameterSerializationClient
             url += (url.Contains('?') ? "&" : "?") + parameters.RawFilter;
         }
 
-
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
         var cookieParts = new List<string>();
-        if (!string.IsNullOrEmpty(parameters.Session))
+        if (parameters.Session is { Length: > 0 } cookieSession)
         {
-            cookieParts.Add($"session={parameters.Session}");
+            cookieParts.Add("session=" + Uri.EscapeDataString(cookieSession));
         }
 
         if (cookieParts.Count > 0)
         {
-            request.Headers.TryAddWithoutValidation("Cookie", string.Join("; ", cookieParts));
+            requestMessage.Headers.TryAddWithoutValidation("Cookie", string.Join("; ", cookieParts));
         }
 
-        var response = await httpClient.SendAsync(request, cancellationToken);
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<Item>>(jsonSerializerOptions, cancellationToken))!;
     }

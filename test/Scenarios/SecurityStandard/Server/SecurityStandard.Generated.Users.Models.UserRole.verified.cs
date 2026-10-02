@@ -16,8 +16,10 @@ namespace SecurityStandard.Generated.Users.Models;
 public enum UserRole
 {
     [EnumMember(Value = "user")]
+    [JsonStringEnumMemberName("user")]
     User,
 
     [EnumMember(Value = "admin")]
+    [JsonStringEnumMemberName("admin")]
     Admin,
 }

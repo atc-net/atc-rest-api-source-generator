@@ -16,14 +16,18 @@ namespace HostileSpec.Generated.Models;
 public enum NoteKind
 {
     [EnumMember(Value = "plain")]
+    [JsonStringEnumMemberName("plain")]
     Plain,
 
     [EnumMember(Value = "it's")]
+    [JsonStringEnumMemberName("it's")]
     Its,
 
     [EnumMember(Value = "say \"hi\"")]
+    [JsonStringEnumMemberName("say \"hi\"")]
     SayHi,
 
     [EnumMember(Value = "back\\slash")]
+    [JsonStringEnumMemberName("back\\slash")]
     BackSlash,
 }

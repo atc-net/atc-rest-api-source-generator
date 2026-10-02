@@ -5,6 +5,8 @@
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Reflection;
+using System.Runtime.Serialization;
 
 namespace ParameterSerialization.Generated;
 
@@ -51,5 +53,59 @@ public sealed class ParsableList<T> : List<T>, IParsable<ParsableList<T>>
         }
 
         return true;
+    }
+}
+
+/// <summary>
+/// The same for a list of enum values: each value is read by its wire name (the value in the
+/// specification, kept on the member as [EnumMember]) or by its member name.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class ParsableEnumList<T> : List<T>, IParsable<ParsableEnumList<T>>
+    where T : struct, Enum
+{
+    private static readonly Dictionary<string, T> WireValues = BuildWireValues();
+
+    /// <inheritdoc />
+    public static ParsableEnumList<T> Parse(string s, IFormatProvider? provider)
+        => TryParse(s, provider, out var result)
+            ? result
+            : throw new FormatException($"'{s}' is not a list of {typeof(T).Name} values.");
+
+    /// <inheritdoc />
+    public static bool TryParse(string? s, IFormatProvider? provider, out ParsableEnumList<T> result)
+    {
+        result = new ParsableEnumList<T>();
+        if (string.IsNullOrEmpty(s))
+        {
+            return true;
+        }
+
+        foreach (var item in s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!WireValues.TryGetValue(item, out var parsed) &&
+                !(Enum.TryParse(item, ignoreCase: true, out parsed) && Enum.IsDefined(parsed)))
+            {
+                return false;
+            }
+
+            result.Add(parsed);
+        }
+
+        return true;
+    }
+
+    private static Dictionary<string, T> BuildWireValues()
+    {
+        var values = new Dictionary<string, T>(StringComparer.Ordinal);
+        foreach (var field in typeof(T).GetFields(BindingFlags.Public | BindingFlags.Static))
+        {
+            if (field.GetCustomAttribute<EnumMemberAttribute>()?.Value is { } wireValue)
+            {
+                values[wireValue] = (T)field.GetValue(null)!;
+            }
+        }
+
+        return values;
     }
 }

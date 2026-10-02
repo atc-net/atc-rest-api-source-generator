@@ -3,6 +3,8 @@
 #pragma warning disable CS1591
 
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -41,7 +43,24 @@ public sealed class TrackingClient : ITrackingClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/tracking/{Uri.EscapeDataString(parameters.EventId)}";
-        var response = await httpClient.PostAsync(url, null, cancellationToken);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, url);
+        var cookieParts = new List<string>();
+        if (parameters.UserId is { Length: > 0 } cookieUserId)
+        {
+            cookieParts.Add("userId=" + Uri.EscapeDataString(cookieUserId));
+        }
+
+        if (parameters.Consent is { } cookieConsent)
+        {
+            cookieParts.Add("consent=" + Uri.EscapeDataString((cookieConsent ? "true" : "false")));
+        }
+
+        if (cookieParts.Count > 0)
+        {
+            requestMessage.Headers.TryAddWithoutValidation("Cookie", string.Join("; ", cookieParts));
+        }
+
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

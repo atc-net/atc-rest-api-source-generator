@@ -586,7 +586,7 @@ public class OperationParameterExtractorTests
         Assert.Equal("Types", param.Name);
 
         // For server-side query arrays, TypeName is ParsableList (supports TryParse for [AsParameters])
-        Assert.Equal("ParsableList<DeviceType>", param.TypeName);
+        Assert.Equal("ParsableEnumList<DeviceType>", param.TypeName);
 
         // Not required (default), so should be nullable
         Assert.True(param.IsNullableType);
@@ -1117,7 +1117,7 @@ public class OperationParameterExtractorTests
         // Server-side query arrays are wrapped with ParsableList<T> so [AsParameters]
         // binding gets a TryParse — that's pre-existing behavior; the new bit is that
         // the inner T is the generated enum, not `string`.
-        Assert.Equal("ParsableList<ListUsersParametersRoles>", param.TypeName);
+        Assert.Equal("ParsableEnumList<ListUsersParametersRoles>", param.TypeName);
         var inlineEnum = Assert.Single(inlineEnums);
         Assert.Equal("ListUsersParametersRoles", inlineEnum.TypeName);
     }

@@ -13,11 +13,14 @@ namespace PetStoreFull.Generated.Pet.Models;
 public enum FindPetsByStatusParametersStatus
 {
     [EnumMember(Value = "available")]
+    [JsonStringEnumMemberName("available")]
     Available,
 
     [EnumMember(Value = "pending")]
+    [JsonStringEnumMemberName("pending")]
     Pending,
 
     [EnumMember(Value = "sold")]
+    [JsonStringEnumMemberName("sold")]
     Sold,
 }

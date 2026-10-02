@@ -90,13 +90,44 @@ public static class OpenApiOperationExtensions
         /// <returns>The schema or null if not found.</returns>
         public IOpenApiSchema? GetRequestBodySchema(string contentType = "application/json")
         {
-            if (operation is { RequestBody.Content: not null } &&
-                operation.RequestBody.Content.TryGetValue(contentType, out var mediaType))
+            if (operation is not { RequestBody.Content: not null })
+            {
+                return null;
+            }
+
+            if (operation.RequestBody.Content.TryGetValue(contentType, out var mediaType))
             {
                 return mediaType.Schema;
             }
 
-            return null;
+            // A JSON body declared under another JSON media type (application/merge-patch+json, application/vnd.x+json)
+            return string.Equals(contentType, "application/json", StringComparison.OrdinalIgnoreCase) &&
+                   operation.GetJsonRequestBodyMediaType() is { } jsonMediaType
+                ? operation.RequestBody.Content[jsonMediaType].Schema
+                : null;
+        }
+
+        /// <summary>
+        /// The media type of the operation's JSON request body: <c>application/json</c>, else the first media type
+        /// with a <c>+json</c> suffix (<c>application/merge-patch+json</c>, <c>application/vnd.x+json</c>), by name.
+        /// </summary>
+        /// <returns>The media type as declared, or <see langword="null"/> when the body is not JSON.</returns>
+        public string? GetJsonRequestBodyMediaType()
+        {
+            if (operation.RequestBody?.Content is not { } content)
+            {
+                return null;
+            }
+
+            if (content.ContainsKey("application/json"))
+            {
+                return "application/json";
+            }
+
+            return content.Keys
+                .Where(key => key.Split(';')[0].Trim().EndsWith("+json", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(key => key, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault();
         }
 
         /// <summary>
@@ -216,10 +247,10 @@ public static class OpenApiOperationExtensions
                 return (null, string.Empty);
             }
 
-            // Priority 1: JSON
-            if (operation.RequestBody.Content.TryGetValue("application/json", out var jsonMedia))
+            // Priority 1: JSON (application/json, else a +json media type)
+            if (operation.GetJsonRequestBodyMediaType() is { } jsonMediaType)
             {
-                return (jsonMedia.Schema, "application/json");
+                return (operation.RequestBody.Content[jsonMediaType].Schema, jsonMediaType);
             }
 
             // Priority 2: File uploads

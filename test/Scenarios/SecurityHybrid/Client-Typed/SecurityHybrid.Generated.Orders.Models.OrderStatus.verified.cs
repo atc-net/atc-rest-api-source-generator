@@ -13,17 +13,22 @@ namespace SecurityHybrid.Generated.Orders.Models;
 public enum OrderStatus
 {
     [EnumMember(Value = "pending")]
+    [JsonStringEnumMemberName("pending")]
     Pending,
 
     [EnumMember(Value = "confirmed")]
+    [JsonStringEnumMemberName("confirmed")]
     Confirmed,
 
     [EnumMember(Value = "shipped")]
+    [JsonStringEnumMemberName("shipped")]
     Shipped,
 
     [EnumMember(Value = "delivered")]
+    [JsonStringEnumMemberName("delivered")]
     Delivered,
 
     [EnumMember(Value = "cancelled")]
+    [JsonStringEnumMemberName("cancelled")]
     Cancelled,
 }

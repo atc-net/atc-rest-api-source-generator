@@ -577,7 +577,7 @@ public static class CodeGenerationService
             // ParsableList<T> is server-only; client parameters use plain List<T>
             if (generatorType != GeneratorType.Server)
             {
-                content = content.Replace("ParsableList<", "List<");
+                content = content.Replace("ParsableList<", "List<").Replace("ParsableEnumList<", "List<");
             }
 
             var usings = new List<string>(ParameterUsings)

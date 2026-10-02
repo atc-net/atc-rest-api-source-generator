@@ -16,8 +16,10 @@ namespace NullableTypeArrays.Generated.Models;
 public enum ProfileStatus
 {
     [EnumMember(Value = "active")]
+    [JsonStringEnumMemberName("active")]
     Active,
 
     [EnumMember(Value = "inactive")]
+    [JsonStringEnumMemberName("inactive")]
     Inactive,
 }

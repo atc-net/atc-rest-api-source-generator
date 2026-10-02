@@ -16,20 +16,26 @@ namespace ModelsAndProperties.Generated.Enums.Models;
 public enum PriorityType
 {
     [EnumMember(Value = "very_low")]
+    [JsonStringEnumMemberName("very_low")]
     VeryLow,
 
     [EnumMember(Value = "low")]
+    [JsonStringEnumMemberName("low")]
     Low,
 
     [EnumMember(Value = "medium")]
+    [JsonStringEnumMemberName("medium")]
     Medium,
 
     [EnumMember(Value = "high")]
+    [JsonStringEnumMemberName("high")]
     High,
 
     [EnumMember(Value = "very_high")]
+    [JsonStringEnumMemberName("very_high")]
     VeryHigh,
 
     [EnumMember(Value = "critical")]
+    [JsonStringEnumMemberName("critical")]
     Critical,
 }

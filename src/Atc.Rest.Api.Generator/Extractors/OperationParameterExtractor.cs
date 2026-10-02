@@ -585,7 +585,12 @@ public static class OperationParameterExtractor
                     paramLocation == ParameterLocation.Query &&
                     cleanTypeName.StartsWith("List<", StringComparison.Ordinal))
                 {
-                    cleanTypeName = "Parsable" + cleanTypeName;
+                    // An enum has no TryParse of its own: its list is read by wire name (ParsableEnumList<T>)
+                    cleanTypeName = (IsArrayOfEnum(parameter.Schema) ? "ParsableEnum" : "Parsable") + cleanTypeName;
+
+                    static bool IsArrayOfEnum(IOpenApiSchema? schema)
+                        => (schema is OpenApiSchemaReference { Target: { } target } ? target : schema) is OpenApiSchema { Items: { } items } &&
+                           (items is OpenApiSchemaReference { Target: { } itemTarget } ? itemTarget : items).Enum is { Count: > 0 };
                 }
 
                 // Build attributes list

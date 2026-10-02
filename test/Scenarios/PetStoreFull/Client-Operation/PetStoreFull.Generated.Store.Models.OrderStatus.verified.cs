@@ -16,11 +16,14 @@ namespace PetStoreFull.Generated.Store.Models;
 public enum OrderStatus
 {
     [EnumMember(Value = "placed")]
+    [JsonStringEnumMemberName("placed")]
     Placed,
 
     [EnumMember(Value = "approved")]
+    [JsonStringEnumMemberName("approved")]
     Approved,
 
     [EnumMember(Value = "delivered")]
+    [JsonStringEnumMemberName("delivered")]
     Delivered,
 }

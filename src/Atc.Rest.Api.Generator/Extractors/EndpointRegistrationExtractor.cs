@@ -343,8 +343,7 @@ public static class EndpointRegistrationExtractor
         // Generate parameters for the lambda
         var parameters = new List<string>();
         var hasParameters = operation.Parameters is { Count: > 0 };
-        var hasRequestBody = operation.RequestBody is { Content: not null } &&
-                             operation.RequestBody.Content.ContainsKey("application/json");
+        var hasRequestBody = operation.GetJsonRequestBodyMediaType() is not null;
 
         // Add Parameters class if operation has parameters OR request body
         if (hasParameters || hasRequestBody)

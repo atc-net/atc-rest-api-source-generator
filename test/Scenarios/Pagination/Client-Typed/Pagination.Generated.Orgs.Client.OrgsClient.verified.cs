@@ -45,20 +45,18 @@ public sealed class OrgsClient : IOrgsClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/api/v1/orgs/{Uri.EscapeDataString(parameters.OrgId)}/devices";
-
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-
-        if (!string.IsNullOrEmpty(parameters.Continuation))
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Get, url);
+        if (parameters.Continuation is { Length: > 0 } headerContinuation)
         {
-            request.Headers.Add("x-continuation", parameters.Continuation);
+            requestMessage.Headers.Add("x-continuation", headerContinuation);
         }
 
-        if (!string.IsNullOrEmpty(parameters.Tenant))
+        if (parameters.Tenant is { Length: > 0 } headerTenant)
         {
-            request.Headers.Add("x-tenant", parameters.Tenant);
+            requestMessage.Headers.Add("x-tenant", headerTenant);
         }
 
-        var response = await httpClient.SendAsync(request, cancellationToken);
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<DevicePage>(jsonSerializerOptions, cancellationToken))!;
     }

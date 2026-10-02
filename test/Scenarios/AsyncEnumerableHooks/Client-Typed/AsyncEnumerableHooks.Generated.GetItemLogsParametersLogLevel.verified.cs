@@ -13,14 +13,18 @@ namespace AsyncEnumerableHooks.Generated.Models;
 public enum GetItemLogsParametersLogLevel
 {
     [EnumMember(Value = "debug")]
+    [JsonStringEnumMemberName("debug")]
     Debug,
 
     [EnumMember(Value = "info")]
+    [JsonStringEnumMemberName("info")]
     Info,
 
     [EnumMember(Value = "warn")]
+    [JsonStringEnumMemberName("warn")]
     Warn,
 
     [EnumMember(Value = "error")]
+    [JsonStringEnumMemberName("error")]
     Error,
 }

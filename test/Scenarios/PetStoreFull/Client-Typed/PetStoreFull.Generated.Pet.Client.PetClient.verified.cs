@@ -186,7 +186,13 @@ public sealed class PetClient : IPetClient
         CancellationToken cancellationToken = default)
     {
         var url = $"/pet/{parameters.PetId}";
-        var response = await httpClient.DeleteAsync(url, cancellationToken);
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Delete, url);
+        if (parameters.ApiKey is { Length: > 0 } headerApiKey)
+        {
+            requestMessage.Headers.Add("api_key", headerApiKey);
+        }
+
+        var response = await httpClient.SendAsync(requestMessage, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
     }
 

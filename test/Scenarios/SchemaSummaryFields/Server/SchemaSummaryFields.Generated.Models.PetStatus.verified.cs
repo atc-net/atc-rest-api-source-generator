@@ -16,11 +16,14 @@ namespace SchemaSummaryFields.Generated.Models;
 public enum PetStatus
 {
     [EnumMember(Value = "available")]
+    [JsonStringEnumMemberName("available")]
     Available,
 
     [EnumMember(Value = "pending")]
+    [JsonStringEnumMemberName("pending")]
     Pending,
 
     [EnumMember(Value = "adopted")]
+    [JsonStringEnumMemberName("adopted")]
     Adopted,
 }
