@@ -53,7 +53,7 @@ export class ItemsClient {
 
   /** Get a specific item */
   async getItemById(itemId: string, headers?: { 'X-Request-Id'?: string }): Promise<GetItemByIdResult> {
-    return this.api.request<Item>('GET', `/items/${itemId}`, {
+    return this.api.request<Item>('GET', `/items/${encodeURIComponent(itemId)}`, {
       headers: {
         'X-Request-Id': headers?.['X-Request-Id'],
       },

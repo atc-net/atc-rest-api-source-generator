@@ -351,7 +351,7 @@ public sealed class TypeScriptWireNames
         foreach (var (key, propertySchema) in schema.Properties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
         {
             properties.RemoveAll(p => string.Equals(p.Wire, key, StringComparison.Ordinal));
-            properties.Add(new WireProperty(key, key.ApplyNamingStrategy(namingStrategy), propertySchema));
+            properties.Add(new WireProperty(key, TypeScriptPropertyNames.Resolve(key, schema.Properties!.Keys, namingStrategy), propertySchema));
         }
 
         return properties;

@@ -20,7 +20,7 @@ export class UsersClient {
   }
 
   async getUser(id: UserId): Promise<GetUserResult> {
-    return this.api.request<User>('GET', `/users/${id}`, {
+    return this.api.request<User>('GET', `/users/${encodeURIComponent(id)}`, {
       arms: ['ok', 'badRequest', 'notFound', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetUserResult>;
   }

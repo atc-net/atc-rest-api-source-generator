@@ -50,7 +50,7 @@ export class PaymentsClient {
 
   /** Get a specific payment */
   async getPaymentById(paymentId: string): Promise<GetPaymentByIdResult> {
-    return this.api.request<PaymentMethod>('GET', `/payments/${paymentId}`, {
+    return this.api.request<PaymentMethod>('GET', `/payments/${encodeURIComponent(paymentId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetPaymentByIdResult>;
   }

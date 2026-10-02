@@ -1086,7 +1086,7 @@ public static class TypeScriptOperationHelper
             return string.Empty;
         }
 
-        return " /* default: " + FormatJsonDefault(schema.Default) + " */";
+        return " /* default: " + TypeScriptLiteralHelper.EscapeComment(FormatJsonDefault(schema.Default)) + " */";
     }
 
     private static string FormatJsonDefault(JsonNode node)
@@ -1175,9 +1175,29 @@ public static class TypeScriptOperationHelper
         foreach (var param in pathParams)
         {
             var tsName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var replacement = convertDates && IsDateParam(param)
-                ? "${" + tsName + GetDateSerializationSuffix(param) + "}"
-                : "${" + tsName + "}";
+
+            // Every value is percent-encoded: "a/b?c" must stay one path segment, not address another endpoint.
+            string value;
+            if (convertDates && IsDateParam(param))
+            {
+                value = tsName + GetDateSerializationSuffix(param);
+            }
+            else if (param.Schema is { } schema &&
+                     (schema.IsOfType(JsonSchemaType.String) ||
+                      schema.IsOfType(JsonSchemaType.Integer) ||
+                      schema.IsOfType(JsonSchemaType.Number) ||
+                      schema.IsOfType(JsonSchemaType.Boolean) ||
+                      schema is OpenApiSchemaReference))
+            {
+                value = tsName;
+            }
+            else
+            {
+                // encodeURIComponent takes a string, number or boolean
+                value = "String(" + tsName + ")";
+            }
+
+            var replacement = "${encodeURIComponent(" + value + ")}";
 
             interpolated = interpolated.Replace(
                 "{" + param.Name + "}",

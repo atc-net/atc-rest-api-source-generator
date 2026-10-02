@@ -34,7 +34,7 @@ export class ItemsClient {
 
   /** Get an item as JSON, or its PDF sheet */
   async getItemSheet(itemId: string): Promise<GetItemSheetResult> {
-    return this.api.request<Item | Blob>('GET', `/items/${itemId}/sheet`, {
+    return this.api.request<Item | Blob>('GET', `/items/${encodeURIComponent(itemId)}/sheet`, {
       headers: { Accept: 'application/json, application/pdf, application/problem+json' },
       modelOrFile: true,
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],

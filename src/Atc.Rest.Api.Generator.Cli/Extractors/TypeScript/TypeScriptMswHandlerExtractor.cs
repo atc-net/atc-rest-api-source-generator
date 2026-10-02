@@ -250,7 +250,7 @@ public static class TypeScriptMswHandlerExtractor
         }
 
         // For array responses, wrap in []
-        if (schema is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema)
+        if (schema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array))
         {
             var itemMock = GenerateMockObject(arraySchema.Items, openApiDoc, namingStrategy);
             return $"[{itemMock}]";
@@ -365,7 +365,7 @@ public static class TypeScriptMswHandlerExtractor
         if (schema is OpenApiSchemaReference schemaRef)
         {
             var target = schemaRef.Target;
-            if (target is OpenApiSchema { Type: JsonSchemaType.String, Enum.Count: > 0 } enumSchema)
+            if (target is OpenApiSchema { Enum.Count: > 0 } enumSchema && enumSchema.IsOfType(JsonSchemaType.String))
             {
                 // Return first enum value
                 var firstValue = enumSchema.Enum.FirstOrDefault();
@@ -383,7 +383,7 @@ public static class TypeScriptMswHandlerExtractor
         }
 
         // Handle enums
-        if (actualSchema is { Type: JsonSchemaType.String, Enum.Count: > 0 })
+        if (actualSchema.IsOfType(JsonSchemaType.String) && actualSchema.Enum is { Count: > 0 })
         {
             var firstValue = actualSchema.Enum.FirstOrDefault();
             return firstValue is not null ? $"'{firstValue}'" : "'unknown'";

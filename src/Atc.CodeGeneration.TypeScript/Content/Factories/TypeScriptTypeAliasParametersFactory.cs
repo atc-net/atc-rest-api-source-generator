@@ -26,7 +26,7 @@ public static class TypeScriptTypeAliasParametersFactory
     {
         var definition = string.Join(
             " | ",
-            values.Select(v => $"'{v}'"));
+            values.Select(TypeScriptLiteralHelper.ToStringLiteral));
 
         return new TypeScriptTypeAliasParameters(
             headerContent,

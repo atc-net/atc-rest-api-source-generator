@@ -49,7 +49,7 @@ export class ModelsClient {
 
   /** Get a specific model */
   async getModelById(modelId: string): Promise<GetModelByIdResult> {
-    return this.api.request<ComprehensiveModel>('GET', `/models/${modelId}`, {
+    return this.api.request<ComprehensiveModel>('GET', `/models/${encodeURIComponent(modelId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetModelByIdResult>;
   }

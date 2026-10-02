@@ -599,7 +599,9 @@ public static class TypeScriptAxiosApiClientExtractor
     private static void AppendBuildUrlMethod(StringBuilder sb)
     {
         sb.AppendLine("  private buildUrl(path: string, query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>): string {");
-        sb.AppendLine("    const url = new URL(`${this.baseUrl}${path}`);");
+        sb.AppendLine("    // A relative base URL ('/api', or an empty one) resolves against the origin of the page");
+        sb.AppendLine("    const origin = (globalThis as { location?: { origin?: string } }).location?.origin;");
+        sb.AppendLine("    const url = new URL(`${this.baseUrl}${path}`, origin);");
         sb.AppendLine("    if (query) {");
         sb.AppendLine("      for (const [key, value] of Object.entries(query)) {");
         sb.AppendLine("        if (value === undefined) {");

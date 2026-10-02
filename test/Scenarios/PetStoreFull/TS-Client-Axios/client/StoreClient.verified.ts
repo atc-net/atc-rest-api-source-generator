@@ -81,7 +81,7 @@ export class StoreClient {
 
   /** Find purchase order by ID. */
   async getOrderById(orderId: number): Promise<GetOrderByIdResult> {
-    return this.api.request<Order>('GET', `/store/order/${orderId}`, {
+    return this.api.request<Order>('GET', `/store/order/${encodeURIComponent(orderId)}`, {
       xml: { read: readOrder, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetOrderByIdResult>;
@@ -89,7 +89,7 @@ export class StoreClient {
 
   /** Delete purchase order by identifier. */
   async deleteOrder(orderId: number): Promise<DeleteOrderResult> {
-    return this.api.request<void>('DELETE', `/store/order/${orderId}`, {
+    return this.api.request<void>('DELETE', `/store/order/${encodeURIComponent(orderId)}`, {
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeleteOrderResult>;
   }

@@ -57,13 +57,13 @@ public static class TypeScriptModelExtractor
             }
 
             // Skip array schemas - they are handled by ExtractArrayTypeAliases
-            if (actualSchema.Type == JsonSchemaType.Array)
+            if (actualSchema.IsOfType(JsonSchemaType.Array))
             {
                 continue;
             }
 
             // Skip enum schemas - handled by TypeScriptEnumExtractor
-            if (actualSchema is { Type: JsonSchemaType.String, Enum.Count: > 0 })
+            if (actualSchema.IsOfType(JsonSchemaType.String) && actualSchema.Enum is { Count: > 0 })
             {
                 continue;
             }
@@ -153,7 +153,7 @@ public static class TypeScriptModelExtractor
     /// emitted by <see cref="ExtractUnionTypeAliases"/>.
     /// </summary>
     internal static bool IsObjectSchema(OpenApiSchema schema)
-        => schema.Type == JsonSchemaType.Object ||
+        => schema.IsOfType(JsonSchemaType.Object) ||
            (schema.Type is null &&
             (schema.AllOf is { Count: > 0 } || schema.Properties is { Count: > 0 }) &&
             schema.OneOf is not { Count: > 0 } &&
@@ -345,7 +345,8 @@ public static class TypeScriptModelExtractor
                 continue;
             }
 
-            if (actualSchema.Type != JsonSchemaType.Array)
+            var isScalarAlias = IsScalarAliasSchema(actualSchema);
+            if (!actualSchema.IsOfType(JsonSchemaType.Array) && !isScalarAlias)
             {
                 continue;
             }
@@ -361,6 +362,15 @@ public static class TypeScriptModelExtractor
             if (headerContent is not null)
             {
                 sb.Append(headerContent);
+            }
+
+            // A component that only names a primitive (UserId: string/uuid) or a numeric enum is
+            // referenced by name from other models, so it needs its own alias file.
+            if (isScalarAlias)
+            {
+                sb.Append("export type ").Append(schemaName).Append(" = ").Append(GetScalarAliasType(actualSchema)).AppendLine(";");
+                results.Add((schemaName, sb.ToString()));
+                continue;
             }
 
             // OpenAPI 3.1 / JSON Schema 2020-12: a `type: array` schema with `prefixItems`
@@ -389,6 +399,48 @@ public static class TypeScriptModelExtractor
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// A component schema that is only a primitive or a numeric enum: no object, no array, no
+    /// composition. A string enum is not one - <see cref="TypeScriptEnumExtractor"/> emits it.
+    /// </summary>
+    internal static bool IsScalarAliasSchema(OpenApiSchema schema)
+    {
+        if (schema.Type is not { } type ||
+            schema.AllOf is { Count: > 0 } ||
+            schema.OneOf is { Count: > 0 } ||
+            schema.AnyOf is { Count: > 0 })
+        {
+            return false;
+        }
+
+        var withoutNull = type & ~JsonSchemaType.Null;
+        if (withoutNull == JsonSchemaType.String)
+        {
+            return schema.Enum is not { Count: > 0 };
+        }
+
+        return withoutNull is JsonSchemaType.Integer or JsonSchemaType.Number or JsonSchemaType.Boolean;
+    }
+
+    /// <summary>
+    /// The literal values of a numeric enum (<c>enum: [1, 2, 3]</c>), without a <c>null</c> entry.
+    /// </summary>
+    internal static List<string> GetNumericEnumLiterals(OpenApiSchema schema)
+        => schema.Enum is null
+            ? []
+            : schema.Enum
+                .Where(v => v is not null && !JsonNullSentinel.IsJsonNullSentinel(v) && v.GetValueKind() == System.Text.Json.JsonValueKind.Number)
+                .Select(v => v.ToJsonString())
+                .ToList();
+
+    private static string GetScalarAliasType(OpenApiSchema schema)
+    {
+        var literals = GetNumericEnumLiterals(schema);
+        return literals.Count > 0
+            ? string.Join(" | ", literals)
+            : schema.ToTypeScriptReturnType();
     }
 
     private static string GetArrayItemTypeName(OpenApiSchema arraySchema)
@@ -482,7 +534,7 @@ public static class TypeScriptModelExtractor
 
         foreach (var prop in properties)
         {
-            var propName = prop.Key.ApplyNamingStrategy(namingStrategy);
+            var propName = TypeScriptPropertyNames.Resolve(prop.Key, properties.Select(p => p.Key), namingStrategy);
             var isRequired = required.Contains(prop.Key, StringComparer.Ordinal);
 
             // Replace empty array type with generic T[] for pagination base schemas
@@ -539,7 +591,7 @@ public static class TypeScriptModelExtractor
                 IsReadonly: !mutableModels,
                 TypeAnnotation: tsType,
                 IsOptional: !isRequired,
-                Name: propName,
+                Name: TypeScriptPropertyNames.ToMemberSyntax(propName),
                 DefaultValue: null));
         }
 
@@ -607,7 +659,7 @@ public static class TypeScriptModelExtractor
         foreach (var prop in properties)
         {
             // Empty items ({}) or null items means this is a generic array placeholder
-            if (prop.Value is OpenApiSchema { Type: JsonSchemaType.Array } arraySchema &&
+            if (prop.Value is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array) &&
                 (arraySchema.Items is null ||
                  (arraySchema.Items is OpenApiSchema itemSchema &&
                   itemSchema.Type is null &&

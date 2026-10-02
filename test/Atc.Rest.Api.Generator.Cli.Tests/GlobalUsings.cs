@@ -8,9 +8,11 @@ global using System.Text.RegularExpressions;
 global using Atc.Helpers;
 global using Atc.OpenApi.Helpers;
 
+global using Atc.Rest.Api.Generator.Cli.Commands;
 global using Atc.Rest.Api.Generator.Cli.Enums;
 global using Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 global using Atc.Rest.Api.Generator.Cli.Helpers;
+global using Atc.Rest.Api.Generator.Cli.Models.Migration;
 global using Atc.Rest.Api.Generator.Cli.Services;
 global using Atc.Rest.Api.Generator.Cli.Services.Migration;
 global using Atc.Rest.Api.Generator.Cli.Tests.Helpers;

@@ -65,14 +65,14 @@ export class ResourcesClient {
 
   /** Get resource by ID */
   async getResourceById(resourceId: string): Promise<GetResourceByIdResult> {
-    return this.api.request<Resource>('GET', `/resources/${resourceId}`, {
+    return this.api.request<Resource>('GET', `/resources/${encodeURIComponent(resourceId)}`, {
       arms: ['ok', 'unauthorized', 'notFound', 'badRequest', 'forbidden', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetResourceByIdResult>;
   }
 
   /** Delete a resource */
   async deleteResource(resourceId: string): Promise<DeleteResourceResult> {
-    return this.api.request<void>('DELETE', `/resources/${resourceId}`, {
+    return this.api.request<void>('DELETE', `/resources/${encodeURIComponent(resourceId)}`, {
       arms: ['noContent', 'unauthorized', 'forbidden', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeleteResourceResult>;
   }

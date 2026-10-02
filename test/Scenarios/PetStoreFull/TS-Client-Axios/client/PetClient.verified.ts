@@ -158,7 +158,7 @@ export class PetClient {
 
   /** Find pet by ID. */
   async getPetById(petId: number): Promise<GetPetByIdResult> {
-    return this.api.request<Pet>('GET', `/pet/${petId}`, {
+    return this.api.request<Pet>('GET', `/pet/${encodeURIComponent(petId)}`, {
       xml: { read: readPet, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetPetByIdResult>;
@@ -166,7 +166,7 @@ export class PetClient {
 
   /** Updates a pet in the store with form data. */
   async updatePetWithForm(petId: number, query?: { name?: string; status?: string }): Promise<UpdatePetWithFormResult> {
-    return this.api.request<Pet>('POST', `/pet/${petId}`, {
+    return this.api.request<Pet>('POST', `/pet/${encodeURIComponent(petId)}`, {
       query: {
         name: query?.name,
         status: query?.status,
@@ -178,7 +178,7 @@ export class PetClient {
 
   /** Deletes a pet. */
   async deletePet(petId: number, headers?: { 'api_key'?: string }): Promise<DeletePetResult> {
-    return this.api.request<void>('DELETE', `/pet/${petId}`, {
+    return this.api.request<void>('DELETE', `/pet/${encodeURIComponent(petId)}`, {
       headers: {
         'api_key': headers?.['api_key'],
       },
@@ -188,7 +188,7 @@ export class PetClient {
 
   /** Uploads an image. */
   async uploadFile(petId: number, file: Blob | File, query?: { additionalMetadata?: string }): Promise<UploadFileResult> {
-    return this.api.request<ApiResponse>('POST', `/pet/${petId}/uploadImage`, {
+    return this.api.request<ApiResponse>('POST', `/pet/${encodeURIComponent(petId)}/uploadImage`, {
       body: file,
       contentType: 'application/octet-stream',
       query: {

@@ -33,7 +33,7 @@ export class ItemsClient {
 
   /** Get item by ID */
   async getItemById(id: string): Promise<GetItemByIdResult> {
-    return this.api.request<Item>('GET', `/items/${id}`, {
+    return this.api.request<Item>('GET', `/items/${encodeURIComponent(id)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetItemByIdResult>;
   }

@@ -71,14 +71,14 @@ export class PetsClient {
 
   /** Get a pet by ID */
   async getPetById(petId: string): Promise<GetPetByIdResult> {
-    return this.api.request<Pet>('GET', `/pets/${petId}`, {
+    return this.api.request<Pet>('GET', `/pets/${encodeURIComponent(petId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetPetByIdResult>;
   }
 
   /** Update a pet */
   async updatePet(petId: string, body: UpdatePetRequest): Promise<UpdatePetResult> {
-    return this.api.request<Pet>('PUT', `/pets/${petId}`, {
+    return this.api.request<Pet>('PUT', `/pets/${encodeURIComponent(petId)}`, {
       body,
       arms: ['ok', 'notFound', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdatePetResult>;
@@ -86,7 +86,7 @@ export class PetsClient {
 
   /** Delete a pet */
   async deletePet(petId: string): Promise<DeletePetResult> {
-    return this.api.request<void>('DELETE', `/pets/${petId}`, {
+    return this.api.request<void>('DELETE', `/pets/${encodeURIComponent(petId)}`, {
       arms: ['noContent', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeletePetResult>;
   }

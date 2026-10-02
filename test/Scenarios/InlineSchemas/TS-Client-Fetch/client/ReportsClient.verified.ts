@@ -34,7 +34,7 @@ export class ReportsClient {
 
   /** Get a report by ID */
   async getReport(reportId: string): Promise<GetReportResult> {
-    return this.api.request<unknown>('GET', `/reports/${reportId}`, {
+    return this.api.request<unknown>('GET', `/reports/${encodeURIComponent(reportId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetReportResult>;
   }

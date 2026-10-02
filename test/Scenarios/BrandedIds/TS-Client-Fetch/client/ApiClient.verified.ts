@@ -243,7 +243,9 @@ export class ApiClient {
   }
 
   buildUrl(path: string, query?: Record<string, string | number | boolean | (string | number | boolean)[] | undefined>): string {
-    const url = new URL(`${this.baseUrl}${path}`);
+    // A relative base URL ('/api', or an empty one) resolves against the origin of the page
+    const origin = (globalThis as { location?: { origin?: string } }).location?.origin;
+    const url = new URL(`${this.baseUrl}${path}`, origin);
     if (query) {
       for (const [key, value] of Object.entries(query)) {
         if (value === undefined) {

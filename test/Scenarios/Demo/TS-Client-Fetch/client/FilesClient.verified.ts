@@ -51,7 +51,7 @@ export class FilesClient {
 
   /** Get File By Id */
   async getFileById(id: string): Promise<GetFileByIdResult> {
-    return this.api.request<Blob>('GET', `/files/${id}`, {
+    return this.api.request<Blob>('GET', `/files/${encodeURIComponent(id)}`, {
       responseType: 'blob',
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetFileByIdResult>;

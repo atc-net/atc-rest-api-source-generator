@@ -44,7 +44,7 @@ public static class TypeScriptEnumExtractor
             }
 
             // Only process string enums
-            if (actualSchema.Type != JsonSchemaType.String || actualSchema.Enum is not { Count: > 0 })
+            if (!actualSchema.IsOfType(JsonSchemaType.String) || actualSchema.Enum is not { Count: > 0 })
             {
                 continue;
             }
@@ -135,7 +135,7 @@ public static class TypeScriptEnumExtractor
                 sb.Append(", ");
             }
 
-            sb.Append('\'').Append(values[i]).Append('\'');
+            sb.Append(TypeScriptLiteralHelper.ToStringLiteral(values[i]));
         }
 
         sb.AppendLine("] as const;");
@@ -152,9 +152,23 @@ public static class TypeScriptEnumExtractor
         string typeName,
         List<string> values)
     {
-        var nameValuePairs = values
-            .Select(v => new KeyValuePair<string, string>(v.ToPascalCase(), $"'{v}'"))
-            .ToList();
+        // Whatever a value holds (quotes, slashes, a leading digit), the member name is a valid
+        // identifier, and two values that give the same name stay two members.
+        var usedNames = new HashSet<string>(StringComparer.Ordinal);
+        var nameValuePairs = new List<KeyValuePair<string, string>>();
+        foreach (var value in values)
+        {
+            var name = TypeScriptLiteralHelper.ToEnumMemberName(value.ToPascalCase());
+            var uniqueName = name;
+            var suffix = 1;
+            while (!usedNames.Add(uniqueName))
+            {
+                suffix++;
+                uniqueName = name + suffix.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            nameValuePairs.Add(new KeyValuePair<string, string>(uniqueName, TypeScriptLiteralHelper.ToStringLiteral(value)));
+        }
 
         var parameters = TypeScriptEnumParametersFactory.CreateFromNameValuePairs(
             headerContent,
@@ -183,7 +197,13 @@ public static class TypeScriptEnumExtractor
 
         foreach (var enumValue in enumValues)
         {
-            var valueStr = enumValue?.ToString();
+            // `null` in the enum list (the OpenAPI 3.1 nullable enum) is no member: null is the absence of a value.
+            if (enumValue is null || JsonNullSentinel.IsJsonNullSentinel(enumValue))
+            {
+                continue;
+            }
+
+            var valueStr = enumValue.ToString();
             if (string.IsNullOrEmpty(valueStr))
             {
                 continue;

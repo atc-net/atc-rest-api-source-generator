@@ -59,13 +59,13 @@ public static class TypeScriptZodModelExtractor
             }
 
             // Skip array schemas - handled by ExtractArrayTypeAliases
-            if (actualSchema.Type == JsonSchemaType.Array)
+            if (actualSchema.IsOfType(JsonSchemaType.Array))
             {
                 continue;
             }
 
             // Skip enum schemas - handled by TypeScriptZodEnumExtractor
-            if (actualSchema is { Type: JsonSchemaType.String, Enum.Count: > 0 })
+            if (actualSchema.IsOfType(JsonSchemaType.String) && actualSchema.Enum is { Count: > 0 })
             {
                 continue;
             }
@@ -391,7 +391,8 @@ public static class TypeScriptZodModelExtractor
                 continue;
             }
 
-            if (actualSchema.Type != JsonSchemaType.Array)
+            var isScalarAlias = TypeScriptModelExtractor.IsScalarAliasSchema(actualSchema);
+            if (!actualSchema.IsOfType(JsonSchemaType.Array) && !isScalarAlias)
             {
                 continue;
             }
@@ -399,6 +400,12 @@ public static class TypeScriptZodModelExtractor
             // Skip deprecated schemas if not including them
             if (!config.IncludeDeprecated && actualSchema.Deprecated)
             {
+                continue;
+            }
+
+            if (isScalarAlias)
+            {
+                results.Add((schemaName, GenerateZodScalarAlias(schemaName, actualSchema, headerContent, config.ConvertDates)));
                 continue;
             }
 
@@ -521,7 +528,7 @@ public static class TypeScriptZodModelExtractor
         for (var i = 0; i < properties.Count; i++)
         {
             var prop = properties[i];
-            var propName = prop.Key.ApplyNamingStrategy(namingStrategy);
+            var propName = TypeScriptPropertyNames.Resolve(prop.Key, properties.Select(p => p.Key), namingStrategy);
             var isRequired = required.Contains(prop.Key, StringComparer.Ordinal);
 
             // Parent name flows into the property mapper so recursive sub-expressions
@@ -529,7 +536,7 @@ public static class TypeScriptZodModelExtractor
             // cyclePeers extends the wrap to mutual-recursion siblings (Tag <-> Category).
             var zodChain = MapPropertyToZod(prop.Value, isRequired, enumNames, schemaName, cyclePeers, convertDates);
 
-            sb.Append("  ").Append(propName).Append(": ").Append(zodChain).Append(',');
+            sb.Append("  ").Append(TypeScriptPropertyNames.ToMemberSyntax(propName)).Append(": ").Append(zodChain).Append(',');
             sb.AppendLine();
         }
 
@@ -605,6 +612,45 @@ public static class TypeScriptZodModelExtractor
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// The Zod schema of a component that only names a primitive or a numeric enum.
+    /// </summary>
+    private static string GenerateZodScalarAlias(
+        string schemaName,
+        OpenApiSchema schema,
+        string? headerContent,
+        bool convertDates)
+    {
+        var sb = new StringBuilder();
+
+        if (headerContent is not null)
+        {
+            sb.Append(headerContent);
+        }
+
+        sb.AppendLine("import { z } from 'zod';");
+        sb.AppendLine();
+        sb.Append("export const ").Append(schemaName).Append("Schema = ");
+
+        var literals = TypeScriptModelExtractor.GetNumericEnumLiterals(schema);
+        if (literals.Count == 1)
+        {
+            sb.Append("z.literal(").Append(literals[0]).Append(')');
+        }
+        else if (literals.Count > 1)
+        {
+            sb.Append("z.union([").Append(string.Join(", ", literals.Select(l => $"z.literal({l})"))).Append("])");
+        }
+        else
+        {
+            sb.Append(MapPrimitiveToZod(schema, convertDates));
+        }
+
+        sb.AppendLine(";");
+
+        return sb.ToString();
     }
 
     private static string GenerateZodArray(

@@ -51,7 +51,7 @@ export class PetsClient {
 
   /** Get a pet by ID */
   async getPetById(petId: number): Promise<GetPetByIdResult> {
-    return this.api.request<Pet>('GET', `/pets/${petId}`, {
+    return this.api.request<Pet>('GET', `/pets/${encodeURIComponent(petId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetPetByIdResult>;
   }

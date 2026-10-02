@@ -97,6 +97,24 @@ public class TypeScriptOperationHelperOtherMethodsTests
     }
 
     [Fact]
+    public void BuildInterpolatedPath_EncodesEveryPathParameter()
+    {
+        // A value such as "a/b?c" must stay one path segment: unencoded it addresses another endpoint.
+        var pathParams = new List<OpenApiParameter>
+        {
+            new() { Name = "ownerId", In = ParameterLocation.Path, Schema = new OpenApiSchema { Type = JsonSchemaType.String } },
+            new() { Name = "petId", In = ParameterLocation.Path, Schema = new OpenApiSchema { Type = JsonSchemaType.Integer } },
+            new() { Name = "tags", In = ParameterLocation.Path, Schema = new OpenApiSchema { Type = JsonSchemaType.Array } },
+        };
+
+        var result = TypeScriptOperationHelper.BuildInterpolatedPath("/owners/{ownerId}/pets/{petId}/{tags}", pathParams, TypeScriptNamingStrategy.CamelCase);
+
+        Assert.Equal(
+            "`/owners/${encodeURIComponent(ownerId)}/pets/${encodeURIComponent(petId)}/${encodeURIComponent(String(tags))}`",
+            result);
+    }
+
+    [Fact]
     public void BuildInterpolatedPath_NoPathParams_ReturnsQuotedLiteral()
     {
         // No interpolation means a plain string literal — using a template literal would be noise.
@@ -728,7 +746,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
             TypeScriptNamingStrategy.CamelCase,
             convertDates: true);
 
-        Assert.Contains("${snapshotAt.toISOString()}", result, StringComparison.Ordinal);
+        Assert.Contains("${encodeURIComponent(snapshotAt.toISOString())}", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -752,7 +770,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
             TypeScriptNamingStrategy.CamelCase,
             convertDates: true);
 
-        Assert.Contains("${day.toISOString().substring(0, 10)}", result, StringComparison.Ordinal);
+        Assert.Contains("${encodeURIComponent(day.toISOString().substring(0, 10))}", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -775,7 +793,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
             pathParams,
             TypeScriptNamingStrategy.CamelCase);
 
-        Assert.Contains("${snapshotAt}", result, StringComparison.Ordinal);
+        Assert.Contains("${encodeURIComponent(snapshotAt)}", result, StringComparison.Ordinal);
         Assert.DoesNotContain("toISOString", result, StringComparison.Ordinal);
     }
 

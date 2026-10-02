@@ -142,7 +142,7 @@ export class UserClient {
 
   /** Get user by user name. */
   async getUserByName(username: string): Promise<GetUserByNameResult> {
-    return this.api.request<User>('GET', `/user/${username}`, {
+    return this.api.request<User>('GET', `/user/${encodeURIComponent(username)}`, {
       xml: { read: readUser, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetUserByNameResult>;
@@ -150,7 +150,7 @@ export class UserClient {
 
   /** Update user resource. */
   async updateUser(username: string, body: User): Promise<UpdateUserResult> {
-    return this.api.request<void>('PUT', `/user/${username}`, {
+    return this.api.request<void>('PUT', `/user/${encodeURIComponent(username)}`, {
       body,
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdateUserResult>;
@@ -158,7 +158,7 @@ export class UserClient {
 
   /** Delete user resource. */
   async deleteUser(username: string): Promise<DeleteUserResult> {
-    return this.api.request<void>('DELETE', `/user/${username}`, {
+    return this.api.request<void>('DELETE', `/user/${encodeURIComponent(username)}`, {
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeleteUserResult>;
   }

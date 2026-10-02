@@ -44,7 +44,7 @@ public static class TypeScriptZodEnumExtractor
             }
 
             // Only process string enums
-            if (actualSchema.Type != JsonSchemaType.String || actualSchema.Enum is not { Count: > 0 })
+            if (!actualSchema.IsOfType(JsonSchemaType.String) || actualSchema.Enum is not { Count: > 0 })
             {
                 continue;
             }
@@ -92,7 +92,7 @@ public static class TypeScriptZodEnumExtractor
                 sb.Append(", ");
             }
 
-            sb.Append('\'').Append(values[i]).Append('\'');
+            sb.Append(TypeScriptLiteralHelper.ToStringLiteral(values[i]));
         }
 
         sb.AppendLine("]);");
@@ -111,6 +111,12 @@ public static class TypeScriptZodEnumExtractor
 
         foreach (var enumValue in enumValues)
         {
+            // `null` in the enum list (the OpenAPI 3.1 nullable enum) is no member: null is the absence of a value.
+            if (enumValue is null || JsonNullSentinel.IsJsonNullSentinel(enumValue))
+            {
+                continue;
+            }
+
             var valueStr = enumValue.ToString();
             if (string.IsNullOrEmpty(valueStr))
             {

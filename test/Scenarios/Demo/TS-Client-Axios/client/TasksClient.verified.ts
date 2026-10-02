@@ -71,21 +71,21 @@ export class TasksClient {
 
   /** Get a specific task */
   async getTaskById(taskId: string): Promise<GetTaskByIdResult> {
-    return this.api.request<Task>('GET', `/tasks/${taskId}`, {
+    return this.api.request<Task>('GET', `/tasks/${encodeURIComponent(taskId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetTaskByIdResult>;
   }
 
   /** Delete a specific task */
   async deleteTaskById(taskId: string): Promise<DeleteTaskByIdResult> {
-    return this.api.request<void>('DELETE', `/tasks/${taskId}`, {
+    return this.api.request<void>('DELETE', `/tasks/${encodeURIComponent(taskId)}`, {
       arms: ['noContent', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeleteTaskByIdResult>;
   }
 
   /** Update a specific task */
   async updateTaskById(taskId: string, body: Task): Promise<UpdateTaskByIdResult> {
-    return this.api.request<Task>('PUT', `/tasks/${taskId}`, {
+    return this.api.request<Task>('PUT', `/tasks/${encodeURIComponent(taskId)}`, {
       body,
       arms: ['ok', 'notFound', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdateTaskByIdResult>;

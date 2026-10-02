@@ -78,21 +78,21 @@ export class AccountsClient {
 
   /** Get a specific account */
   async getAccountById(accountId: string): Promise<GetAccountByIdResult> {
-    return this.api.request<Account>('GET', `/accounts/${accountId}`, {
+    return this.api.request<Account>('GET', `/accounts/${encodeURIComponent(accountId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetAccountByIdResult>;
   }
 
   /** Delete a specific account */
   async deleteAccountById(accountId: string): Promise<DeleteAccountByIdResult> {
-    return this.api.request<void>('DELETE', `/accounts/${accountId}`, {
+    return this.api.request<void>('DELETE', `/accounts/${encodeURIComponent(accountId)}`, {
       arms: ['noContent', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeleteAccountByIdResult>;
   }
 
   /** Update a specific account */
   async updateAccountById(accountId: string, body: Account): Promise<UpdateAccountByIdResult> {
-    return this.api.request<Account>('PUT', `/accounts/${accountId}`, {
+    return this.api.request<Account>('PUT', `/accounts/${encodeURIComponent(accountId)}`, {
       body,
       arms: ['ok', 'notFound', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdateAccountByIdResult>;

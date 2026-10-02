@@ -60,7 +60,7 @@ export class OrdersClient {
 
   /** Get order (inherits orders-fast) */
   async getOrderById(orderId: string): Promise<GetOrderByIdResult> {
-    return this.api.request<Order>('GET', `/orders/${orderId}`, {
+    return this.api.request<Order>('GET', `/orders/${encodeURIComponent(orderId)}`, {
       retry: { policy: retryPolicies.ordersFast },
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetOrderByIdResult>;
@@ -68,7 +68,7 @@ export class OrdersClient {
 
   /** Delete order (idempotent - can retry) */
   async deleteOrder(orderId: string): Promise<DeleteOrderResult> {
-    return this.api.request<void>('DELETE', `/orders/${orderId}`, {
+    return this.api.request<void>('DELETE', `/orders/${encodeURIComponent(orderId)}`, {
       retry: { policy: retryPolicies.ordersDelete },
       arms: ['noContent', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeleteOrderResult>;

@@ -68,7 +68,7 @@ export class PetsClient {
 
   /** Info for a specific pet */
   async showPetById(petId: string): Promise<ShowPetByIdResult> {
-    return this.api.request<Pet>('GET', `/pets/${petId}`, {
+    return this.api.request<Pet>('GET', `/pets/${encodeURIComponent(petId)}`, {
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<ShowPetByIdResult>;
   }

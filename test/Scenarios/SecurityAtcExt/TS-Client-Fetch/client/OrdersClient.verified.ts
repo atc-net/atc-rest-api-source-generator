@@ -71,21 +71,21 @@ export class OrdersClient {
 
   /** Get order (manager role inherited) */
   async getOrderById(orderId: string): Promise<GetOrderByIdResult> {
-    return this.api.request<Order>('GET', `/orders/${orderId}`, {
+    return this.api.request<Order>('GET', `/orders/${encodeURIComponent(orderId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetOrderByIdResult>;
   }
 
   /** Delete order (override to admin only) */
   async deleteOrder(orderId: string): Promise<DeleteOrderResult> {
-    return this.api.request<void>('DELETE', `/orders/${orderId}`, {
+    return this.api.request<void>('DELETE', `/orders/${encodeURIComponent(orderId)}`, {
       arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeleteOrderResult>;
   }
 
   /** Get tracking (public override) */
   async getOrderTracking(orderId: string): Promise<GetOrderTrackingResult> {
-    return this.api.request<TrackingInfo>('GET', `/orders/${orderId}/tracking`, {
+    return this.api.request<TrackingInfo>('GET', `/orders/${encodeURIComponent(orderId)}/tracking`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetOrderTrackingResult>;
   }

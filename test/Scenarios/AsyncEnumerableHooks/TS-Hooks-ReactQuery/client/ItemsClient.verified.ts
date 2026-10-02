@@ -47,7 +47,7 @@ export class ItemsClient {
 
   /** Get logs for an item with filters (path + query, no streaming) */
   async getItemLogs(itemId: string, query?: { logLevel?: 'debug' | 'info' | 'warn' | 'error'; from?: Date }): Promise<GetItemLogsResult> {
-    return this.api.request<ItemLogs>('GET', `/items/${itemId}/logs`, {
+    return this.api.request<ItemLogs>('GET', `/items/${encodeURIComponent(itemId)}/logs`, {
       query: {
         logLevel: query?.logLevel,
         from: query?.from?.toISOString(),

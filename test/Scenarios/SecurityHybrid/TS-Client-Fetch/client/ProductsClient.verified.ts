@@ -36,7 +36,7 @@ export class ProductsClient {
 
   /** Get product by ID */
   async getProductById(productId: string): Promise<GetProductByIdResult> {
-    return this.api.request<Product>('GET', `/products/${productId}`, {
+    return this.api.request<Product>('GET', `/products/${encodeURIComponent(productId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetProductByIdResult>;
   }

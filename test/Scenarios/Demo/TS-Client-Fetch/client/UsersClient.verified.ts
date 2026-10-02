@@ -74,14 +74,14 @@ export class UsersClient {
 
   /** Get a specific user */
   async getUserById(userId: string): Promise<GetUserByIdResult> {
-    return this.api.request<User>('GET', `/users/${userId}`, {
+    return this.api.request<User>('GET', `/users/${encodeURIComponent(userId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetUserByIdResult>;
   }
 
   /** Update a specific user */
   async updateUserById(userId: string, body: UpdateUserRequest): Promise<UpdateUserByIdResult> {
-    return this.api.request<User>('PUT', `/users/${userId}`, {
+    return this.api.request<User>('PUT', `/users/${encodeURIComponent(userId)}`, {
       body,
       arms: ['ok', 'badRequest', 'notFound', 'conflict', 'clientError', 'serverError', 'parseError'],
     }) as Promise<UpdateUserByIdResult>;
@@ -89,7 +89,7 @@ export class UsersClient {
 
   /** Delete a specific user */
   async deleteUserById(userId: string): Promise<DeleteUserByIdResult> {
-    return this.api.request<void>('DELETE', `/users/${userId}`, {
+    return this.api.request<void>('DELETE', `/users/${encodeURIComponent(userId)}`, {
       arms: ['noContent', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeleteUserByIdResult>;
   }

@@ -50,7 +50,7 @@ export class OwnersClient {
 
   /** Get an owner by ID */
   async getOwnerById(ownerId: string): Promise<GetOwnerByIdResult> {
-    return this.api.request<Owner>('GET', `/owners/${ownerId}`, {
+    return this.api.request<Owner>('GET', `/owners/${encodeURIComponent(ownerId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetOwnerByIdResult>;
   }

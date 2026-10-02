@@ -61,14 +61,14 @@ export class OrdersClient {
 
   /** Get order (inherits orders-standard) */
   async getOrderById(orderId: string): Promise<GetOrderByIdResult> {
-    return this.api.request<Order>('GET', `/orders/${orderId}`, {
+    return this.api.request<Order>('GET', `/orders/${encodeURIComponent(orderId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetOrderByIdResult>;
   }
 
   /** Delete order (strict policy override) */
   async deleteOrder(orderId: string): Promise<DeleteOrderResult> {
-    return this.api.request<void>('DELETE', `/orders/${orderId}`, {
+    return this.api.request<void>('DELETE', `/orders/${encodeURIComponent(orderId)}`, {
       arms: ['noContent', 'notFound', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeleteOrderResult>;
   }
