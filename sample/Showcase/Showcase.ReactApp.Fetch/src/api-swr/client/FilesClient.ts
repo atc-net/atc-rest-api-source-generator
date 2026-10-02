@@ -61,7 +61,7 @@ export class FilesClient {
 
   /** Get File By Id */
   async getFileById(id: string): Promise<GetFileByIdResult> {
-    return this.api.request<Blob>('GET', `/files/${id}`, {
+    return this.api.request<Blob>('GET', `/files/${encodeURIComponent(id)}`, {
       responseType: 'blob',
       retry: { policy: retryPolicies.files },
       arms: ['ok', 'notFound', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],

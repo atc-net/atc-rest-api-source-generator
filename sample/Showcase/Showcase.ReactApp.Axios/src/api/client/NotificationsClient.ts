@@ -66,14 +66,14 @@ export class NotificationsClient {
 
   /** Get subscription details */
   async getSubscriptionById(subscriptionId: string): Promise<GetSubscriptionByIdResult> {
-    return this.api.request<Subscription>('GET', `/notifications/subscriptions/${subscriptionId}`, {
+    return this.api.request<Subscription>('GET', `/notifications/subscriptions/${encodeURIComponent(subscriptionId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetSubscriptionByIdResult>;
   }
 
   /** Cancel a subscription */
   async deleteSubscription(subscriptionId: string): Promise<DeleteSubscriptionResult> {
-    return this.api.request<void>('DELETE', `/notifications/subscriptions/${subscriptionId}`, {
+    return this.api.request<void>('DELETE', `/notifications/subscriptions/${encodeURIComponent(subscriptionId)}`, {
       arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeleteSubscriptionResult>;
   }

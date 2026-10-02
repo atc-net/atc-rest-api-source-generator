@@ -92,7 +92,7 @@ export class AccountsClient {
 
   /** Get a specific account */
   async getAccountById(accountId: string): Promise<GetAccountByIdResult> {
-    return this.api.request<Account>('GET', `/accounts/${accountId}`, {
+    return this.api.request<Account>('GET', `/accounts/${encodeURIComponent(accountId)}`, {
       retry: { policy: retryPolicies.accountsFast },
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetAccountByIdResult>;
@@ -100,7 +100,7 @@ export class AccountsClient {
 
   /** Delete a specific account */
   async deleteAccountById(accountId: string): Promise<DeleteAccountByIdResult> {
-    return this.api.request<void>('DELETE', `/accounts/${accountId}`, {
+    return this.api.request<void>('DELETE', `/accounts/${encodeURIComponent(accountId)}`, {
       retry: { policy: retryPolicies.accountsFast },
       arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeleteAccountByIdResult>;
@@ -108,7 +108,7 @@ export class AccountsClient {
 
   /** Update a specific account */
   async updateAccountById(accountId: string, body: Account): Promise<UpdateAccountByIdResult> {
-    return this.api.request<Account>('PUT', `/accounts/${accountId}`, {
+    return this.api.request<Account>('PUT', `/accounts/${encodeURIComponent(accountId)}`, {
       body,
       retry: { policy: retryPolicies.accountsFast },
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],

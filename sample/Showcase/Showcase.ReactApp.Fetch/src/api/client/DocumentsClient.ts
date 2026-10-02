@@ -82,7 +82,7 @@ export class DocumentsClient {
 
   /** Download a document - with its own media type and file name */
   async getDocument(documentId: string): Promise<GetDocumentResult> {
-    return this.api.request<Blob>('GET', `/documents/${documentId}`, {
+    return this.api.request<Blob>('GET', `/documents/${encodeURIComponent(documentId)}`, {
       responseType: 'blob',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetDocumentResult>;
@@ -90,7 +90,7 @@ export class DocumentsClient {
 
   /** A document's summary - as JSON, or as a printable PDF */
   async getDocumentSummary(documentId: string, query?: { printable?: boolean /* default: false */ }, headers?: { 'If-None-Match'?: string }): Promise<GetDocumentSummaryResult> {
-    return this.api.request<DocumentSummary | Blob>('GET', `/documents/${documentId}/summary`, {
+    return this.api.request<DocumentSummary | Blob>('GET', `/documents/${encodeURIComponent(documentId)}/summary`, {
       query: {
         printable: query?.printable,
       },
@@ -105,7 +105,7 @@ export class DocumentsClient {
 
   /** Copy a document - answered with 303 See Other to the copy's summary */
   async copyDocument(documentId: string): Promise<CopyDocumentResult> {
-    return this.api.request<void>('POST', `/documents/${documentId}/copy`, {
+    return this.api.request<void>('POST', `/documents/${encodeURIComponent(documentId)}/copy`, {
       arms: ['ok', 'redirection', 'notFound', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<CopyDocumentResult>;
   }

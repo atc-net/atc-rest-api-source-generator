@@ -128,7 +128,7 @@ export class UsersClient {
 
   /** Get a specific user */
   async getUserById(userId: string): Promise<GetUserByIdResult> {
-    return this.api.request<User>('GET', `/users/${userId}`, {
+    return this.api.request<User>('GET', `/users/${encodeURIComponent(userId)}`, {
       retry: { policy: retryPolicies.users },
       xml: { read: readUser, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
@@ -137,7 +137,7 @@ export class UsersClient {
 
   /** Update a specific user */
   async updateUserById(userId: string, body: UpdateUserRequest): Promise<UpdateUserByIdResult> {
-    return this.api.request<User>('PUT', `/users/${userId}`, {
+    return this.api.request<User>('PUT', `/users/${encodeURIComponent(userId)}`, {
       body,
       retry: { policy: retryPolicies.users },
       arms: ['ok', 'badRequest', 'notFound', 'conflict', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
@@ -146,7 +146,7 @@ export class UsersClient {
 
   /** Delete a specific user */
   async deleteUserById(userId: string): Promise<DeleteUserByIdResult> {
-    return this.api.request<void>('DELETE', `/users/${userId}`, {
+    return this.api.request<void>('DELETE', `/users/${encodeURIComponent(userId)}`, {
       retry: { policy: retryPolicies.users },
       arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
     }) as Promise<DeleteUserByIdResult>;
