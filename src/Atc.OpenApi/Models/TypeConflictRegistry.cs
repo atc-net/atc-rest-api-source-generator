@@ -118,7 +118,12 @@ public sealed class TypeConflictRegistry
         return conflicts;
     }
 
-    private static bool IsGeneratedType(IOpenApiSchema schemaValue)
+    /// <summary>
+    /// Whether a component schema is generated as a C# type. A component that only names an array or a
+    /// primitive (<c>Accounts: array of Account</c>, <c>ExternalId: string</c>) is not - its users take the
+    /// aliased type itself.
+    /// </summary>
+    public static bool IsGeneratedType(IOpenApiSchema schemaValue)
     {
         if (schemaValue is not OpenApiSchema schema || schema.Type is not { } type)
         {

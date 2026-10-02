@@ -1801,6 +1801,15 @@ public static class OpenApiSchemaExtensions
 
                         return itemType;
                     }
+
+                    // The override names an array alias component (results: $ref Accounts): its items are the page's items
+                    if (prop.Value is OpenApiSchemaReference { Target: OpenApiSchema aliasSchema } &&
+                        aliasSchema.IsOfType(JsonSchemaType.Array) &&
+                        aliasSchema.Items is not null &&
+                        !aliasSchema.HasPrefixItems())
+                    {
+                        return aliasSchema.GetArrayItemType(registry);
+                    }
                 }
             }
 

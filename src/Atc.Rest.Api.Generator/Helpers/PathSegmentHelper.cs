@@ -521,6 +521,17 @@ public static class PathSegmentHelper
 
         // Return only schemas NOT in the shared set
         allForSegment.ExceptWith(sharedSchemas);
+
+        // An alias component (one that only names an array or a primitive, such as "Accounts: array of Account")
+        // is no generated type, so it is no model of the segment either - a segment that has nothing else must
+        // not get a Models namespace.
+        if (openApiDoc.Components?.Schemas is { } componentSchemas)
+        {
+            allForSegment.RemoveWhere(name =>
+                componentSchemas.TryGetValue(name, out var schema) &&
+                !TypeConflictRegistry.IsGeneratedType(schema));
+        }
+
         return allForSegment;
     }
 
