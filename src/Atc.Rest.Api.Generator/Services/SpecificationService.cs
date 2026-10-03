@@ -696,7 +696,7 @@ public static class SpecificationService
         if (partFile.Document.Info?.Version is not null)
         {
             diagnostics.Add(DiagnosticMessage.Warning(
-                RuleIdentifiers.PartFileMissingOpenApiVersion,
+                RuleIdentifiers.PartFileInfoIgnored,
                 $"Part file '{partFile.FileName}' has 'info' section - will be ignored during merge",
                 partFile.FilePath));
         }

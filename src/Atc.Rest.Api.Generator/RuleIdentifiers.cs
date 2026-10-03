@@ -105,11 +105,6 @@ public static class RuleIdentifiers
     public const string ClientRequiresAtcRestClient = "ATC_API_DEP003";
 
     /// <summary>
-    /// ATC_API_DEP004: Rate limiting extensions require Microsoft.AspNetCore.RateLimiting reference.
-    /// </summary>
-    public const string RateLimitingRequiresPackage = "ATC_API_DEP004";
-
-    /// <summary>
     /// ATC_API_DEP005: Resilience extensions require Microsoft.Extensions.Http.Resilience reference.
     /// </summary>
     public const string ResilienceRequiresPackage = "ATC_API_DEP005";
@@ -654,19 +649,14 @@ public static class RuleIdentifiers
     public const string MultiPartMergeSuccessful = "ATC_API_MPT004";
 
     /// <summary>
-    /// ATC_API_MPT005: Referenced part file not found.
-    /// </summary>
-    public const string PartFileNotFound = "ATC_API_MPT005";
-
-    /// <summary>
     /// ATC_API_MPT006: Unresolved reference after merge.
     /// </summary>
     public const string UnresolvedReferenceAfterMerge = "ATC_API_MPT006";
 
     /// <summary>
-    /// ATC_API_MPT007: Part file missing openapi version - will use base file version.
+    /// ATC_API_MPT007: Part file has an info section - it is ignored, the merge takes info from the base file.
     /// </summary>
-    public const string PartFileMissingOpenApiVersion = "ATC_API_MPT007";
+    public const string PartFileInfoIgnored = "ATC_API_MPT007";
 
     /// <summary>
     /// ATC_API_MPT008: Base file not found for multi-part specification.

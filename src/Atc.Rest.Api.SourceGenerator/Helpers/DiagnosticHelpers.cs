@@ -184,17 +184,6 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI013: Rate limiting extensions require Microsoft.AspNetCore.RateLimiting reference.
-    /// </summary>
-    public static readonly DiagnosticDescriptor RateLimitingRequiresPackage = new(
-        RuleIdentifiers.RateLimitingRequiresPackage,
-        "Rate Limiting Package Recommended",
-        "The OpenAPI specification contains x-ratelimit-* extensions. Ensure the Microsoft.AspNetCore.RateLimiting package is installed in the consuming API project.",
-        RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
-
-    /// <summary>
     /// ATCAPI014: Resilience extensions require Microsoft.Extensions.Http.Resilience reference.
     /// </summary>
     public static readonly DiagnosticDescriptor ResilienceRequiresPackage = new(
@@ -206,14 +195,14 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATCAPI015: JWT Bearer security requires Microsoft.AspNetCore.Authentication.JwtBearer reference.
+    /// ATC_API_DEP006: a bearer scheme asks for a handler registered as "Bearer", and no package that provides one is referenced.
     /// </summary>
     public static readonly DiagnosticDescriptor JwtBearerRequiresPackage = new(
         RuleIdentifiers.JwtBearerRequiresPackage,
-        "JWT Bearer Authentication Package Recommended",
-        "The OpenAPI specification contains JWT Bearer security scheme. Ensure the Microsoft.AspNetCore.Authentication.JwtBearer package is installed in the consuming API project.",
+        "Bearer authentication handler package recommended",
+        "The OpenAPI specification has a bearer security scheme, so the generated endpoints ask for an authentication scheme named \"Bearer\". Register one - AddJwtBearer() from Microsoft.AspNetCore.Authentication.JwtBearer or AddMicrosoftIdentityWebApi() from Microsoft.Identity.Web - unless the project registers its own handler under that name.",
         RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
+        DiagnosticSeverity.Info,
         isEnabledByDefault: true);
 
     /// <summary>
@@ -588,17 +577,6 @@ internal static class DiagnosticHelpers
     {
         context.ReportDiagnostic(Diagnostic.Create(
             ClientRequiresAtcRestClient,
-            Location.None));
-    }
-
-    /// <summary>
-    /// Reports that rate limiting extensions require Microsoft.AspNetCore.RateLimiting package.
-    /// </summary>
-    public static void ReportRateLimitingRequiresPackage(
-        SourceProductionContext context)
-    {
-        context.ReportDiagnostic(Diagnostic.Create(
-            RateLimitingRequiresPackage,
             Location.None));
     }
 

@@ -27,41 +27,55 @@ public class ApiServerGenerator : IIncrementalGenerator
             .Collect()
             .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
 
-        // Check for ASP.NET Core references (required for compilation)
-        var hasAspNetCoreProvider = context.CompilationProvider
-            .Select(static (compilation, _) => compilation.ReferencedAssemblyNames
-                .Any(a => a.Name.StartsWith("Microsoft.AspNetCore", StringComparison.OrdinalIgnoreCase)));
-
-        // Check for Atc.Rest.MinimalApi package reference (for IEndpointDefinition interface)
-        var hasMinimalApiProvider = context.CompilationProvider
-            .Select(static (compilation, _) => compilation.ReferencedAssemblyNames
-                .Any(a => a.Name.Equals("Atc.Rest.MinimalApi", StringComparison.OrdinalIgnoreCase)));
-
-        // Check for Atc.Rest.HealthChecks package reference (for structured JSON health responses)
-        var hasHealthChecksProvider = context.CompilationProvider
-            .Select(static (compilation, _) => compilation.ReferencedAssemblyNames
-                .Any(a => a.Name.Equals("Atc.Rest.HealthChecks", StringComparison.OrdinalIgnoreCase)));
+        // The packages the generated code needs or recommends, read from the project's references
+        var packagesProvider = context.CompilationProvider
+            .Select(static (compilation, _) => new ServerPackageReferences
+            {
+                HasAspNetCore = compilation.ReferencedAssemblyNames
+                    .Any(a => a.Name.StartsWith("Microsoft.AspNetCore", StringComparison.OrdinalIgnoreCase)),
+                HasMinimalApi = compilation.ReferencedAssemblyNames
+                    .Any(a => a.Name.Equals("Atc.Rest.MinimalApi", StringComparison.OrdinalIgnoreCase)),
+                HasHealthChecks = compilation.ReferencedAssemblyNames
+                    .Any(a => a.Name.Equals("Atc.Rest.HealthChecks", StringComparison.OrdinalIgnoreCase)),
+                HasBearerHandler = compilation.ReferencedAssemblyNames
+                    .Any(a => a.Name.Equals("Microsoft.AspNetCore.Authentication.JwtBearer", StringComparison.OrdinalIgnoreCase) ||
+                              a.Name.Equals("Microsoft.Identity.Web", StringComparison.OrdinalIgnoreCase)),
+            });
 
         // Combine ALL YAML files (as collection) with marker files and compilation info
         var combined = yamlFiles
             .Combine(markerFiles)
-            .Combine(hasAspNetCoreProvider)
-            .Combine(hasMinimalApiProvider)
-            .Combine(hasHealthChecksProvider);
+            .Combine(packagesProvider);
 
         // Register source output - processes all YAML files together for multi-parts support
         context.RegisterSourceOutput(combined, RegisterSourceOutputAction);
     }
 
+    /// <summary>
+    /// The packages a server project references, as far as the generated code cares: ASP.NET Core (required),
+    /// Atc.Rest.MinimalApi (the IEndpointDefinition and filters), Atc.Rest.HealthChecks (structured health
+    /// responses), and a bearer handler package - JwtBearer or Microsoft.Identity.Web - for a bearer scheme.
+    /// </summary>
+    private sealed record ServerPackageReferences
+    {
+        public bool HasAspNetCore { get; init; }
+
+        public bool HasMinimalApi { get; init; }
+
+        public bool HasHealthChecks { get; init; }
+
+        public bool HasBearerHandler { get; init; }
+    }
+
     private static void RegisterSourceOutputAction(
         SourceProductionContext productionContext,
-        ((((EquatableArray<YamlFileInfo> Left,
+        ((EquatableArray<YamlFileInfo> Left,
             EquatableArray<MarkerFileInfo> Right) Left,
-            bool Right) Left,
-            bool Right) Left,
-            bool Right) combinedData)
+            ServerPackageReferences Right) combinedData)
     {
-        var ((((yamlFiles, markers), hasAspNetCore), hasMinimalApi), hasHealthChecksPackage) = combinedData;
+        var ((yamlFiles, markers), packages) = combinedData;
+        var hasAspNetCore = packages.HasAspNetCore;
+        var hasMinimalApi = packages.HasMinimalApi;
 
         // Skip if no marker file found - marker file presence IS the trigger
         if (markers.IsEmpty)
@@ -175,7 +189,7 @@ public class ApiServerGenerator : IIncrementalGenerator
                     useMinimalApiPackage,
                     useValidationFilter,
                     useGlobalErrorHandler,
-                    hasHealthChecksPackage);
+                    packages);
             }
             else
             {
@@ -188,7 +202,7 @@ public class ApiServerGenerator : IIncrementalGenerator
                     useMinimalApiPackage,
                     useValidationFilter,
                     useGlobalErrorHandler,
-                    hasHealthChecksPackage);
+                    packages);
             }
         }
         catch (Exception ex)
@@ -209,7 +223,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool useMinimalApiPackage,
         bool useValidationFilter,
         bool useGlobalErrorHandler,
-        bool hasHealthChecksPackage)
+        ServerPackageReferences packages)
     {
         // Convert to SpecificationFile objects
         var baseName = Path.GetFileNameWithoutExtension(baseFile.Path);
@@ -265,7 +279,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             useMinimalApiPackage,
             useValidationFilter,
             useGlobalErrorHandler,
-            hasHealthChecksPackage);
+            packages);
     }
 
     private static void GenerateApiServer(
@@ -276,7 +290,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool useMinimalApiPackage,
         bool useValidationFilter,
         bool useGlobalErrorHandler,
-        bool hasHealthChecksPackage)
+        ServerPackageReferences packages)
     {
         // Parse the OpenAPI YAML content
         var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
@@ -320,7 +334,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             useMinimalApiPackage,
             useValidationFilter,
             useGlobalErrorHandler,
-            hasHealthChecksPackage);
+            packages);
     }
 
     /// <summary>
@@ -336,7 +350,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool useMinimalApiPackage,
         bool useValidationFilter,
         bool useGlobalErrorHandler,
-        bool hasHealthChecksPackage)
+        ServerPackageReferences packages)
     {
         // An inline allOf over a plain base becomes one inline object, so it gets a model of its own
         InlineAllOfFlattener.Flatten(openApiDoc);
@@ -345,6 +359,13 @@ public class ApiServerGenerator : IIncrementalGenerator
         foreach (var diagnostic in DiagnosticHelpers.DetectUnsupportedFeatures(openApiDoc))
         {
             context.ReportDiagnostic(diagnostic);
+        }
+
+        // A bearer scheme asks the host for a handler registered as "Bearer": say so when no package that
+        // provides one is referenced (a hand-written handler is a valid choice, hence information only)
+        if (openApiDoc.HasJwtBearerSecurity() && !packages.HasBearerHandler)
+        {
+            DiagnosticHelpers.ReportJwtBearerRequiresPackage(context);
         }
 
         // Filter paths based on include/exclude patterns before segmentation
@@ -678,12 +699,12 @@ public class ApiServerGenerator : IIncrementalGenerator
                 DiagnosticHelpers.ReportHealthCheckPathConflict(context, healthPath);
             }
 
-            if (!hasHealthChecksPackage)
+            if (!packages.HasHealthChecks)
             {
                 DiagnosticHelpers.ReportHealthChecksPackageRecommended(context);
             }
 
-            GenerateHealthCheckEndpoints(generatedContext, projectName, config.HealthChecks, hasHealthChecksPackage);
+            GenerateHealthCheckEndpoints(generatedContext, projectName, config.HealthChecks, packages.HasHealthChecks);
             GenerateHealthCheckServiceExtensions(generatedContext, projectName);
         }
 

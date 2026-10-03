@@ -174,7 +174,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         var hasAspNetCore = compilation.ReferencedAssemblyNames
             .Any(a => a.Name.StartsWith("Microsoft.AspNetCore", StringComparison.OrdinalIgnoreCase));
 
-        var hasLogging = hasAspNetCore || compilation.ReferencedAssemblyNames
+        var hasLogging = compilation.ReferencedAssemblyNames
             .Any(a => a.Name.Equals("Microsoft.Extensions.Logging.Abstractions", StringComparison.OrdinalIgnoreCase));
 
         var assemblyName = compilation.AssemblyName;
