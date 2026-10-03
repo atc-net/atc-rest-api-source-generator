@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Test-suite report of atc-rest-api-source-generator: every generated client against the generated server over HTTP, the compile gate over every scenario and generator, the diagnostics coverage and the Playwright apps - recorded results of a real run.">
 <title>Test-suite report</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -43,25 +44,44 @@
   a { color: var(--accent); }
   code, .mono { font-family: "IBM Plex Mono", ui-monospace, Consolas, monospace; font-size: 0.9em; }
   code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+  pre { margin: 0; background: var(--code-bg); padding: 10px 12px; border-radius: 6px; overflow-x: auto; font: 12px/1.5 "IBM Plex Mono", ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }
+  pre code { background: none; padding: 0; font-size: inherit; }
   .eyebrow { font: 500 11.5px/1 "IBM Plex Mono", ui-monospace, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
   header { display: grid; gap: 10px; }
   .lead { font-size: 16px; }
   .meta { color: var(--muted); font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 6px 18px; }
-  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap; position: sticky; top: 0; background: var(--bg); z-index: 2; }
   .tabs button { font: inherit; font-weight: 500; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); padding: 8px 12px; cursor: pointer; }
   .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
-  .tabs button:focus-visible, .chipbox label:focus-within, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .tabs button:focus-visible, .chipbox label:focus-within, select:focus-visible, input:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .tabs .sep { flex: 1 1 auto; }
   section[hidden] { display: none !important; }
+  section[role="tabpanel"] { display: grid; gap: 16px; }
   .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; align-content: start; }
   .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; align-items: stretch; }
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
   .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 2px; }
   .stat b { font-size: 22px; font-variant-numeric: tabular-nums; }
   .stat span { color: var(--muted); font-size: 12.5px; }
+  .stat.good b { color: var(--pass); } .stat.warn b { color: var(--lossy); } .stat.bad b { color: var(--fail); }
+  .hero { display: grid; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+  .hero .state { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+  .state-pill { display: inline-flex; align-items: center; gap: 8px; font: 600 13px/1 "IBM Plex Mono", ui-monospace, monospace; letter-spacing: 0.04em; text-transform: uppercase; padding: 8px 14px; border-radius: 999px; }
+  .state-pill::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .state-pill.green { background: var(--pass-soft); color: var(--pass); }
+  .state-pill.known { background: var(--lossy-soft); color: var(--lossy); }
+  .state-pill.regressions { background: var(--fail-soft); color: var(--fail); }
+  .hero .what { color: var(--muted); max-width: none; }
+  .persona { display: grid; gap: 10px; grid-template-rows: auto auto 1fr auto; }
+  .persona h3 { display: flex; align-items: center; gap: 8px; }
+  .persona .who { font: 500 11px/1 "IBM Plex Mono", ui-monospace, monospace; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+  .persona ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; font-size: 13px; }
+  .persona .go { justify-self: start; }
   .v { display: inline-block; font: 500 11px/1.2 "IBM Plex Mono", ui-monospace, monospace; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
   .v.pass { background: var(--pass-soft); color: var(--pass); } .v.lossy { background: var(--lossy-soft); color: var(--lossy); }
   .v.fail { background: var(--fail-soft); color: var(--fail); } .v.platform { background: var(--platform-soft); color: var(--platform); }
-  .v.na { background: var(--na-soft); color: var(--na); }
+  .v.na { background: var(--na-soft); color: var(--na); } .v.known { background: var(--design-soft); color: var(--design); }
   .lk { display: inline-block; font: 500 10.5px/1.2 "IBM Plex Mono", ui-monospace, monospace; padding: 1px 6px; margin-left: 4px; border-radius: 4px; border: 1px solid var(--lossy); color: var(--lossy); white-space: nowrap; vertical-align: 1px; }
   .lk.good { border-color: var(--pass); color: var(--pass); background: var(--pass-soft); }
   .lk.by-design { border-color: var(--design); color: var(--design); background: var(--design-soft); }
@@ -107,6 +127,7 @@
   select, input[type="search"] { font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); }
   .btn { font: inherit; font-size: 12.5px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; }
   .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 500; }
   .matrix td.cell { cursor: pointer; min-width: 150px; max-width: 280px; }
   .matrix td.cell .s { display: block; margin-top: 3px; color: var(--muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; word-break: break-word; }
   .compact .matrix td.cell .s { display: none; }
@@ -120,7 +141,6 @@
   dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); max-width: min(900px, calc(100vw - 32px)); width: 100%; padding: 0; }
   dialog::backdrop { background: rgb(0 0 0 / 0.45); }
   dialog .inner { padding: 18px; display: grid; gap: 12px; max-height: 85vh; overflow: auto; }
-  dialog pre { margin: 0; background: var(--code-bg); padding: 10px 12px; border-radius: 6px; overflow-x: auto; font: 12px/1.5 "IBM Plex Mono", ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }
   dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; font-size: 13px; }
   dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; word-break: break-word; }
   .note { background: var(--accent-soft); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; }
@@ -131,22 +151,27 @@
   .ask { border-left: 3px solid var(--lossy); padding: 4px 0 4px 12px; display: grid; gap: 4px; }
   .ask.done { border-left-color: var(--pass); }
   .empty { padding: 24px; color: var(--muted); text-align: center; }
+  .copy { font: 500 11px/1 "IBM Plex Mono", ui-monospace, monospace; padding: 3px 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--muted); cursor: pointer; }
+  .copy:hover { color: var(--ink); border-color: var(--accent); }
+  .cmd { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+  .kv-table td:first-child { white-space: nowrap; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; }
+  #agent-summary { max-height: 340px; overflow: auto; }
   @media (prefers-reduced-motion: no-preference) { .bar i { transition: width 0.3s ease; } }
 </style>
 </head>
 <body>
 <main>
   <header>
-    <div class="eyebrow">atc-rest-api-source-generator 3.0 · proven by an end-to-end run</div>
+    <div class="eyebrow">atc-rest-api-source-generator · test-suite report · a recorded run, not a claim</div>
     <h1>Test-suite report</h1>
-    <p class="lead">Four end-to-end runs of the generated server on Kestrel with every generated client calling it over HTTP - error bodies for every HTTP status, body media types, request binding, security and rate limiting - next to the compile gate over every scenario and generator, the diagnostics coverage and the Playwright apps. Every cell is a recorded result of a real run.</p>
+    <p class="lead">What the generated code has been proven to do: the generated server on Kestrel with every generated client calling it over HTTP (error bodies for every status, body media types, request binding, security and rate limiting, streaming and the other features), the compile gate over every scenario and generator, the diagnostics coverage and the Playwright apps. Every cell is the result of a real run.</p>
     <div class="meta" id="provenance"></div>
   </header>
   <div id="banners"></div>
 
   <nav class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-tab="overview">Overview</button>
-    <button role="tab" aria-selected="false" data-tab="matrix">Matrix</button>
+    <button role="tab" aria-selected="false" data-tab="matrix">Error bodies</button>
     <button role="tab" aria-selected="false" data-tab="media">Body media types</button>
     <button role="tab" aria-selected="false" data-tab="binding">Request binding</button>
     <button role="tab" aria-selected="false" data-tab="guard">Security &amp; rate limiting</button>
@@ -156,11 +181,15 @@
     <button role="tab" aria-selected="false" data-tab="playwright">Playwright</button>
     <button role="tab" aria-selected="false" data-tab="changes">Changes since previous run</button>
     <button role="tab" aria-selected="false" data-tab="method">How it was tested</button>
-    <button role="tab" aria-selected="false" data-tab="readiness">3.0 readiness</button>
+    <span class="sep"></span>
+    <button role="tab" aria-selected="false" data-tab="agents">For agents</button>
+    <button role="tab" aria-selected="false" data-tab="readiness" id="tab-btn-readiness" hidden>3.0 readiness</button>
   </nav>
 
   <section id="tab-overview" role="tabpanel">
-    <div class="stats" id="stats"></div>
+    <div class="hero" id="hero"></div>
+    <div class="grid-3" id="personas"></div>
+    <div class="panel" id="attention"></div>
     <div class="grid-2">
       <div class="panel">
         <h2>Verdicts</h2>
@@ -168,20 +197,20 @@
           <div><span class="v pass">pass</span><span>The client exposes what the documented contract says: the right status, accessor, type and arm, every field of the body as on the wire, no exception.</span></div>
           <div><span class="v lossy">lossy</span><span>The client does what the documentation says and does not throw, but the typed value cannot hold some fields of the body - the cell names them; they stay in the raw body (<code>Content</code>). E.g. the custom error model reading a ProblemDetails, or a string accessor reading a validation 400. The badge next to it says what was lost; its colour is our <i>suggested</i> assessment (see <b>Design review</b> below): <span class="lvl good">good</span> <span class="lvl by-design">by design</span> <span class="lvl improve">design iteration</span> <span class="lvl fix">fix</span>.</span></div>
           <div class="loss-legend" id="loss-legend"></div>
-          <div><span class="v fail">fail</span><span>The contract is broken: a wrong status, accessor, type, arm or field value, or an exception.</span></div>
+          <div><span class="v fail">fail</span><span>The contract is broken: a wrong status, accessor, type, arm or field value, or an exception. A fail that a matrix's ratchet lists is <span class="v known">known</span> - expected, with a recorded reason; any other fail is a regression and fails the test.</span></div>
           <div><span class="v platform">platform</span><span>Outside the generated code: the runtime itself refuses the response (reproduced with a plain call).</span></div>
           <div><span class="v na">na</span><span>Not applicable: a 1xx status is never a final response (RFC 9110 §15.2), so no factory, accessor or arm exists - the server row checks that none is generated.</span></div>
         </div>
       </div>
       <div class="panel">
-        <h2>Reading the axes</h2>
+        <h2>Reading the axes of the error-body matrix</h2>
         <p>The server has one mode: it writes what the specification declares. <b>TypedClient</b> and <b>EndpointPerOperation</b> are generation modes of the <b>C# client</b>, and <code>errorResponseFormat</code> is read by the C# EndpointPerOperation client only - it decides how a status with <i>nothing</i> declared is read. The TypeScript clients have one mode. So the matrix is one server against eight clients, per declaration style and status.</p>
         <div class="table-wrap"><table class="axes"><tbody id="axes"></tbody></table></div>
       </div>
     </div>
     <div class="panel">
       <h2>Every status code</h2>
-      <p>One tile per status: the verdicts of the server and all eight clients over every case of that status. Click a tile to open the matrix filtered to it.</p>
+      <p>One tile per status: the verdicts of the server and all eight clients over every case of that status. Click a tile to open the error-body matrix filtered to it.</p>
       <div class="codes" id="codes"></div>
       <div class="codes-legend">A dashed tile is a status that is not a <code>System.Net.HttpStatusCode</code> value (418, 425, 499, 599 - swept as well).</div>
     </div>
@@ -196,7 +225,7 @@
       <div id="review-lossy"></div>
     </div>
     <div class="panel">
-      <h2>Findings from this run</h2>
+      <h2>Findings from the error-body matrix</h2>
       <div id="findings"></div>
     </div>
   </section>
@@ -262,6 +291,10 @@
     <div class="panel" id="method"></div>
   </section>
 
+  <section id="tab-agents" role="tabpanel" hidden>
+    <div class="panel" id="agents"></div>
+  </section>
+
   <section id="tab-readiness" role="tabpanel" hidden>
     <div class="panel" id="readiness"></div>
   </section>
@@ -271,7 +304,6 @@
 
 <script>
 const REPORT = /*__REPORT_DATA__*/null;
-
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const VERDICTS = ['pass', 'lossy', 'fail', 'platform'];
@@ -348,14 +380,14 @@ if (!REPORT) {
     ...Object.entries(p.siblings ?? {}).map(([repo, rev]) => `${esc(repo)} <span class="mono">${esc(rev)}</span>`),
     `.NET ${esc(p.dotnet)} · Node ${esc(p.node)}`,
     esc(p.os),
-    `${cases.length} cases × ${clients.length} clients`,
+    `error bodies: ${cases.length} cases × ${clients.length} clients`,
   ].map((s) => `<span>${s}</span>`).join('');
 
   // Banners: a run from an uncommitted working tree is not reproducible; an old run may not describe the code any more
   const runAge = (Date.now() - Date.parse(String(REPORT.generatedAt).replace(/ (\d\d:\d\d:\d\d) /, "T$1"))) / 86400000;
   const banners = [];
   if (p.uncommittedFiles) banners.push(`This run comes from an <b>uncommitted working tree</b>: commit <span class="mono">${esc(p.commit)}</span> plus ${esc(p.uncommittedFiles)} uncommitted files. Its results may not match that commit - regenerate from a clean tree before sharing numbers.`);
-  if (Number.isFinite(runAge) && runAge > 14) banners.push(`This run is <b>${Math.floor(runAge)} days old</b> (${esc(REPORT.generatedAt)}). The code has probably moved on - regenerate with <code>Report_EndToEndErrorBodyMatrix</code>.`);
+  if (Number.isFinite(runAge) && runAge > 14) banners.push(`This run is <b>${Math.floor(runAge)} days old</b> (${esc(REPORT.generatedAt)}). The code has probably moved on - regenerate with <code>Report_EndToEndErrorBodyMatrix</code> (the <b>For agents</b> tab has the command).`);
   $('#banners').innerHTML = banners.map((b) => `<div class="banner">${b}</div>`).join('');
 
   // What a matrix does not exercise, from the data (REPORT.notExercised.<matrix>)
@@ -364,15 +396,6 @@ if (!REPORT) {
     const inline = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
     return items.length ? `<ul class="tight">${items.map((s) => `<li>${inline(s)}</li>`).join('')}</ul>` : '<i>nothing recorded</i>';
   };
-
-  // Stats
-  const all = [];
-  for (const c of cases) { all.push({ v: c.wire.verdict }); for (const id in c.clients) all.push({ v: c.clients[id].verdict }); }
-  const cnt = (v) => all.filter((x) => x.v === v).length;
-  $('#stats').innerHTML = [
-    ['Cells checked', all.length], ['pass', cnt('pass')], ['lossy', cnt('lossy')], ['fail', cnt('fail')], ['platform', cnt('platform')],
-    ['Status codes', new Set(cases.map((c) => c.status)).size],
-  ].map(([k, v]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(k)}</span></div>`).join('');
 
   // Axes
   $('#axes').innerHTML = `<tr><th>Declaration (the spec)</th><th>What it is</th></tr>` +
@@ -637,12 +660,13 @@ if (!REPORT) {
       <li><b>Verdicts.</b> Each cell is judged by rules written from the documented contract (wiki: <i>Working with Error Responses</i>): the expected accessor, type and arm come from the specification (never from the generated client), and every typed value is compared field by field with the body on the wire. <span class="v lossy">lossy</span> is only given with the exact fields the typed value cannot hold; any other difference is a <span class="v fail">fail</span>. The same rules run as the test <code>EndToEnd_EveryClientReadsWhatTheServerWrites</code>, which fails on any fail; this page is its data. The test <code>MatrixVerdicts_FailRegressedResults</code> is a negative control: for each rule - wire (success, validation, handler value, default body, exceptions, Retry-After, stub), EndpointPerOperation (success, IsSuccess, value, JSON-text string, custom field, default accessor, undeclared <code>Content</code>, non-JSON bodies, the fields a lossy names), TypedClient Throw and Result, TypeScript (arm, generated arms, class, status, body, fields, message, validation errors, success arm) - it asserts that a correct result passes and a regressed one fails, so a pass is evidence rather than the absence of a check.</li>
       <li><b>Not exercised.</b> ${notExercisedHtml('errorBodies')} Secured and rate-limited operations, the requests no client can send (a value of the wrong type, 413, 415) and <code>x-retry-*</code> have tabs of their own; binary bodies, uploads and XML are the <b>Body media types</b> tab.</li>
     </ul>
-    <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*Report_EndToEndErrorBodyMatrix" --explicit only</code> writes this page and <code>issues/return-body-report.json</code>.</p></div>
+    <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*Report_EndToEndErrorBodyMatrix" --explicit only</code> writes this page (<code>docs/test-suite-report.html</code>) and its data (<code>docs/test-suite-report.json</code>).</p></div>
     <div id="review"></div>`;
   $('#review').innerHTML = REPORT.review ? `<h3>Independent review</h3>${REPORT.review}` : '';
 
-  // Readiness
-  $('#readiness').innerHTML = REPORT.readiness ?? '<p>No readiness notes embedded.</p>';
+  // Readiness: hand-written notes, shown only when they were embedded
+  $('#readiness').innerHTML = REPORT.readiness ?? '';
+  $('#tab-btn-readiness').hidden = !REPORT.readiness;
 }
 
 // Body media types: files, uploads, XML and a model or a file, through every client
@@ -763,13 +787,174 @@ renderCaseMatrix('#feature-intro', '#feature', REPORT?.feature, `
 (function renderChanges() {
   const ch = REPORT?.changes;
   if (!ch) { $('#changes').innerHTML = '<p>No history in this run.</p>'; return; }
-  if (!ch.previous) { $('#changes').innerHTML = '<h2>Changes since previous run</h2><p>This is the first run recorded in <code>issues/return-body-report.history.jsonl</code>; the next run will be compared with it.</p>'; return; }
+  if (!ch.previous) { $('#changes').innerHTML = '<h2>Changes since previous run</h2><p>This is the first run recorded in <code>docs/test-suite-report.history.jsonl</code>; the next run will be compared with it.</p>'; return; }
   const cellRow = (key) => { const [m, c, cl] = key.split('|'); return `<td>${esc(m)}</td><td>${esc(c)}</td><td>${esc(cl)}</td>`; };
   $('#changes').innerHTML = `<h2>Changes since previous run</h2>
     <p>Previous run ${esc(ch.previous.generatedAt)}, commit <span class="mono">${esc(ch.previous.commit)}</span>${ch.previous.uncommittedFiles ? ` + ${ch.previous.uncommittedFiles} uncommitted files` : ''}; this run commit <span class="mono">${esc(REPORT.provenance.commit)}</span>. ${ch.changed.length} cells changed verdict, ${ch.added.length} cells are new, ${ch.removed.length} cells are gone.</p>
     ${ch.changed.length ? `<h3>Changed</h3><div class="table-wrap"><table><thead><tr><th>Matrix</th><th>Case</th><th>Client</th><th>Was</th><th>Now</th></tr></thead><tbody>${ch.changed.map((x) => `<tr>${cellRow(x.cell)}<td><span class="v ${esc(x.from)}">${esc(x.from)}</span></td><td><span class="v ${esc(x.to)}">${esc(x.to)}</span></td></tr>`).join('')}</tbody></table></div>` : '<p>No cell changed its verdict.</p>'}
     ${ch.added.length ? `<details><summary style="cursor:pointer">${ch.added.length} new cells</summary><div class="table-wrap"><table><tbody>${ch.added.map((k) => `<tr>${cellRow(k)}</tr>`).join('')}</tbody></table></div></details>` : ''}
     ${ch.removed.length ? `<details><summary style="cursor:pointer">${ch.removed.length} cells gone</summary><div class="table-wrap"><table><tbody>${ch.removed.map((k) => `<tr>${cellRow(k)}</tr>`).join('')}</tbody></table></div></details>` : ''}`;
+})();
+
+
+// ---------------------------------------------------------------------------------------------------------------
+// The top of the Overview: the state of the run in one glance, a start for each reader, and what needs attention.
+// Everything here is computed from REPORT.summary (written by the test) and REPORT.ratchet.
+// ---------------------------------------------------------------------------------------------------------------
+const MATRIX_NAMES = { errorBodies: 'Error bodies', bodyMedia: 'Body media types', requestBinding: 'Request binding', guard: 'Security & rate limiting', feature: 'Features' };
+const MATRIX_TABS = { errorBodies: 'matrix', bodyMedia: 'media', requestBinding: 'binding', guard: 'guard', feature: 'feature' };
+const MATRIX_TESTS = {
+  errorBodies: 'EndToEnd_EveryClientReadsWhatTheServerWrites',
+  bodyMedia: 'EndToEnd_EveryClientReadsEveryBodyMediaType',
+  requestBinding: 'EndToEnd_EveryClientSendsWhatTheServerBinds',
+  guard: 'EndToEnd_EveryClientIsGuardedAsTheSpecificationSays',
+  feature: 'EndToEnd_EveryClientRunsEveryFeature',
+};
+const REPORT_TEST = 'Report_EndToEndErrorBodyMatrix';
+const cmdFor = (test, explicit) => `dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*${test}"${explicit ? ' --explicit only' : ''}`;
+const copyButton = (text) => `<button class="copy" data-copy="${esc(text)}" title="Copy to clipboard">copy</button>`;
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-copy]');
+  if (!b) return;
+  navigator.clipboard?.writeText(b.dataset.copy).then(() => { b.textContent = 'copied'; setTimeout(() => { b.textContent = 'copy'; }, 1200); });
+});
+
+(function renderTop() {
+  if (!REPORT) return;
+  const s = REPORT.summary;
+  const p = REPORT.provenance ?? {};
+  const matrices = Object.entries(s?.matrices ?? {});
+  const totalCells = matrices.reduce((a, [, m]) => a + Object.values(m.verdicts).reduce((x, y) => x + y, 0), 0);
+  const sum = (v) => matrices.reduce((a, [, m]) => a + (m.verdicts[v] ?? 0), 0);
+  const known = matrices.reduce((a, [, m]) => a + m.knownFailures, 0);
+  const unexpected = (s?.unexpectedFailures ?? []).length;
+  const state = s?.state ?? 'unknown';
+  const stateText = {
+    green: 'All green: no client breaks the contract anywhere, and nothing is expected to.',
+    'known-failures': `Every fail is a known one: ${known} cell${known === 1 ? '' : 's'} the matrices expect to fail, each with a recorded reason. No regression.`,
+    regressions: `${unexpected} cell${unexpected === 1 ? '' : 's'} fail that no ratchet lists - a regression, or a new case not yet judged. The end-to-end tests fail until they are fixed or recorded.`,
+    unknown: 'This page was generated without a summary.',
+  }[state] ?? '';
+  const pillClass = state === 'green' ? 'green' : state === 'known-failures' ? 'known' : 'regressions';
+  const pillText = state === 'green' ? 'all green' : state === 'known-failures' ? 'green · known failures' : state === 'regressions' ? 'regressions' : 'unknown';
+  const gate = s?.compileGate;
+  const diag = s?.diagnostics;
+  const pw = s?.playwright;
+  const stat = (value, label, cls = '') => `<div class="stat ${cls}"><b>${esc(value)}</b><span>${esc(label)}</span></div>`;
+  $('#hero').innerHTML = `
+    <div class="state"><span class="state-pill ${pillClass}">${esc(pillText)}</span><span class="what">${stateText}</span></div>
+    <div class="stats">
+      ${stat(totalCells.toLocaleString(), `cells checked over ${matrices.length} runtime matrices`)}
+      ${stat(sum('fail') - known, 'unexpected fails', unexpected ? 'bad' : 'good')}
+      ${stat(known, 'known fails (ratchet)', known ? 'warn' : 'good')}
+      ${stat(sum('lossy'), 'lossy, each with an assessment', 'warn')}
+      ${gate ? stat(`${gate.clean} / ${gate.scenarios}`, `scenarios compile clean for all ${gate.generators} C# generators`, gate.clean === gate.scenarios ? 'good' : 'bad') : ''}
+      ${diag ? stat(`${diag.tested} / ${diag.rules}`, 'diagnostic rules with a test', diag.tested === diag.rules ? 'good' : 'warn') : ''}
+      ${pw ? stat(pw.failed ? `${pw.failed} failed` : 'green', `Playwright, ${pw.apps} apps`, pw.failed ? 'bad' : 'good') : stat('not run', 'Playwright (Showcase apps)', '')}
+    </div>
+    <p class="counts">Run ${esc(REPORT.generatedAt)} on commit <span class="mono">${esc(p.commit)}</span>${p.uncommittedFiles ? ' + uncommitted changes' : ''} · regenerate: <code>${esc(cmdFor(REPORT_TEST, true))}</code> ${copyButton(cmdFor(REPORT_TEST, true))}</p>`;
+
+  // One card per reader
+  const cards = [
+    {
+      who: 'New here?', title: 'Is this tool solid?',
+      body: `<ul>
+        <li>${totalCells.toLocaleString()} recorded checks of generated code - a real server on Kestrel, real clients over HTTP - not unit-test mocks.</li>
+        <li>Every HTTP status, every body media type, every way a parameter travels, security, rate limiting, streaming, pagination, polymorphism: each has a tab with the cases and the verdict per client.</li>
+        <li>${gate ? `${gate.clean} of ${gate.scenarios} scenario specifications compile warning-free for every C# generator; ` : ''}${diag ? `${diag.tested} of ${diag.rules} build diagnostics have a test that triggers them.` : ''}</li>
+        <li>A <span class="v lossy">lossy</span> cell is a documented trade-off, not a bug: open <b>Design review</b> below to see why.</li></ul>`,
+      go: ['method', 'How it was tested'],
+    },
+    {
+      who: 'Maintaining it?', title: 'What needs a look',
+      body: `<ul>
+        <li><b>${unexpected}</b> unexpected fail${unexpected === 1 ? '' : 's'}${unexpected ? ' - listed under <b>Needs attention</b> below' : ''}; <b>${known}</b> known (ratchet).</li>
+        <li><b>Changes since previous run</b>: ${REPORT.changes?.previous ? `${REPORT.changes.changed.length} changed, ${REPORT.changes.added.length} new, ${REPORT.changes.removed.length} gone` : 'first recorded run'}.</li>
+        <li>The lossy cells grouped by suggested assessment - confirm or change each in <code>LossAssessment.cs</code>.</li>
+        <li>${REPORT.notExercised ? Object.values(REPORT.notExercised).reduce((a, l) => a + l.length, 0) : 0} things the matrices do not exercise, listed per tab - candidates for the next case.</li></ul>`,
+      go: ['changes', 'Changes since previous run'],
+    },
+    {
+      who: 'An AI agent?', title: 'Read the data, not the page',
+      body: `<ul>
+        <li>The whole dataset is the <code>REPORT</code> constant in this file's script; <code>REPORT.summary</code> is the verdict counts, the state and the unexpected failures.</li>
+        <li>One command regenerates everything; one test per matrix fails on any unexpected fail - the commands are on the <b>For agents</b> tab.</li>
+        <li>A fail you introduce is either fixed or recorded in the matrix's <code>Known…Failures</code> ratchet with its reason; never both.</li>
+        <li>The cases, verdict rules and not-exercised lists live next to each other in <code>ErrorResponseBodyRuntimeTests.*.cs</code>.</li></ul>`,
+      go: ['agents', 'For agents'],
+    },
+  ];
+  $('#personas').innerHTML = cards.map((c) => `<div class="panel persona"><span class="who">${esc(c.who)}</span><h3>${esc(c.title)}</h3>${c.body}<button class="btn go" data-go="${esc(c.go[0])}">${esc(c.go[1])} →</button></div>`).join('');
+  $('#personas').addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if (b) { selectTab(b.dataset.go); window.scrollTo({ top: 0 }); } });
+
+  // Needs attention: the unexpected fails, then the known ones with their matrix, then nothing
+  const ratchet = REPORT.ratchet ?? {};
+  const knownRows = Object.entries(ratchet).flatMap(([m, cells]) => cells.map((c) => ({ m, c })));
+  const unexpectedRows = (s?.unexpectedFailures ?? []).map((k) => { const [m, c, cl] = k.split('|'); return { m, c, cl }; });
+  $('#attention').innerHTML = `<h2>Needs attention</h2>` +
+    (unexpectedRows.length
+      ? `<p><span class="v fail">fail</span> ${unexpectedRows.length} cell${unexpectedRows.length === 1 ? '' : 's'} no ratchet lists. Fix the generator, or - when the matrix is wrong or the gap is a design decision - record the cell in the matrix's known-failures set with its reason.</p>
+         <div class="table-wrap"><table><thead><tr><th>Matrix</th><th>Case</th><th>Client</th><th></th></tr></thead><tbody>${unexpectedRows.map((r) => `<tr><td>${esc(MATRIX_NAMES[r.m] ?? r.m)}</td><td>${esc(r.c)}</td><td class="mono">${esc(r.cl)}</td><td><button class="btn" data-go="${esc(MATRIX_TABS[r.m] ?? 'overview')}">open</button></td></tr>`).join('')}</tbody></table></div>`
+      : `<p><span class="v pass">0 unexpected</span> No cell fails that is not expected to.</p>`) +
+    (knownRows.length
+      ? `<details><summary style="cursor:pointer"><span class="v known">known</span> ${knownRows.length} cell${knownRows.length === 1 ? '' : 's'} expected to fail - the ratchets (a listed cell must fail; the test asks to remove it once it passes)</summary>
+         <div class="table-wrap" style="margin-top:10px"><table><thead><tr><th>Matrix</th><th>Cell</th><th>Why (from the matrix's not-exercised list)</th></tr></thead><tbody>${knownRows.map((r) => {
+           const why = (REPORT.notExercised?.[r.m] ?? []).find((t) => /ratchet/i.test(t)) ?? '';
+           return `<tr><td>${esc(MATRIX_NAMES[r.m] ?? r.m)}</td><td class="mono">${esc(r.c)}</td><td>${esc(why)}</td></tr>`;
+         }).join('')}</tbody></table></div></details>`
+      : '');
+  $('#attention').addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if (b) selectTab(b.dataset.go); });
+})();
+
+// For agents: the data, the commands, the vocabulary and the conventions, in one place
+(function renderAgents() {
+  if (!REPORT) return;
+  const s = REPORT.summary ?? {};
+  const summaryJson = JSON.stringify({ generatedAt: REPORT.generatedAt, commit: REPORT.provenance?.commit, uncommittedFiles: REPORT.provenance?.uncommittedFiles, ...s }, null, 2);
+  const rows = Object.entries(MATRIX_TESTS).map(([m, t]) => `<tr><td>${esc(MATRIX_NAMES[m])}</td><td class="mono">${esc(t)}</td><td><div class="cmd"><code>${esc(cmdFor(t))}</code>${copyButton(cmdFor(t))}</div></td><td class="mono">${esc(({ errorBodies: 'EndToEndMatrix', bodyMedia: 'BodyMediaMatrix', requestBinding: 'RequestBindingMatrix', guard: 'SecurityAndRateLimit', feature: 'FeatureMatrix' })[m])}.cs</td></tr>`).join('');
+  $('#agents').innerHTML = `
+    <h2>For agents</h2>
+    <p>This page is a data file with a view on top. Read the data; the prose is for people.</p>
+    <h3>Machine summary <span class="counts">(REPORT.summary)</span></h3>
+    <div class="cmd"><pre id="agent-summary">${esc(summaryJson)}</pre>${copyButton(summaryJson)}</div>
+    <h3>Where the data is</h3>
+    <ul class="tight">
+      <li>In this file: <code>const REPORT = {…}</code> at the start of the script - the whole dataset. <code>docs/test-suite-report.html</code> in the repository is the last committed run.</li>
+      <li>Beside this page: <code>docs/test-suite-report.json</code> (the same object, indented) and <code>docs/test-suite-report.history.jsonl</code> (the last run's verdict per cell - what <b>Changes since previous run</b> is computed from; overwritten each run, git keeps the older ones); all three are committed together, so a new run is compared with the last committed one.</li>
+      <li>In CI: the <code>test-suite-report</code> artifact of the build workflow.</li>
+    </ul>
+    <h3>Shape of REPORT</h3>
+    <div class="table-wrap"><table class="kv-table"><tbody>
+      <tr><td>summary</td><td><code>state</code> = <code>green</code> | <code>known-failures</code> | <code>regressions</code>; <code>unexpectedFailures</code> = cell keys <code>matrix|case|client</code>; <code>matrices[key]</code> = { cases, clients, verdicts{pass,lossy,fail,platform,na}, knownFailures }; <code>compileGate</code>, <code>diagnostics</code>, <code>playwright</code> = one number each.</td></tr>
+      <tr><td>cases</td><td>The error-body matrix: one object per case - <code>id</code>, <code>status</code>, <code>group</code> (scenario), <code>operation</code> (declaration), <code>handler</code>, <code>wire</code> { verdict, status, contentType, body, why } and <code>clients[clientId]</code> { verdict, why, summary, loss?, assessment? }.</td></tr>
+      <tr><td>bodyMedia, requestBinding, guard, feature</td><td>The other matrices: { generatedAt, durationSeconds, clients[], cases[] } with the same cell shape; a case may carry <code>expects</code> and a <code>wire</code>.</td></tr>
+      <tr><td>ratchet[key]</td><td>The cells each matrix expects to fail, as <code>case [clientId]</code> - mirrors the <code>Known…Failures</code> set in the matrix's test file. A fail not listed here fails the test; a listed cell that passes fails it too (remove it).</td></tr>
+      <tr><td>notExercised[key]</td><td>What the matrix deliberately leaves out, one sentence each (<code>…NotExercised</code> arrays in <code>Report.cs</code>, checked against the cases by <code>NotExercised_NamesNothingAMatrixCovers</code>).</td></tr>
+      <tr><td>clients, declarations, statusCodes, assessments</td><td>The axes of the error-body matrix and the suggested assessments of its lossy cells (<code>LossAssessment.cs</code>).</td></tr>
+      <tr><td>support</td><td>Every scenario × C# generator from the compile gate (<code>errors</code>, <code>warnings</code>, <code>files</code>, the scenario's OpenAPI version) and the strict-tsc matrix when its gate has run.</td></tr>
+      <tr><td>diagnostics</td><td>Every rule id with <code>tested</code> | <code>tested elsewhere</code> | <code>untested</code> and a note.</td></tr>
+      <tr><td>changes</td><td>Against the previous history line: <code>changed</code> [{cell, from, to}], <code>added</code>, <code>removed</code>.</td></tr>
+      <tr><td>provenance</td><td>Commit, uncommitted file count, sibling repository revisions, .NET and Node versions, OS.</td></tr>
+    </tbody></table></div>
+    <h3>Verdicts</h3>
+    <p><code>pass</code> the documented contract holds · <code>lossy</code> holds, but the typed value cannot carry the fields named in <code>loss</code> (each has an <code>assessment</code>) · <code>fail</code> the contract is broken · <code>platform</code> the runtime refuses the response outside generated code · <code>na</code> not applicable. Only <code>fail</code> fails a test, and only when the cell is not in the ratchet.</p>
+    <h3>Commands</h3>
+    <p>Each matrix is one test that runs the generated server and every client; it fails on any unexpected fail. The report test runs all of them and writes this page (explicit: it does not run with the suite). All need .NET 10 and Node (the TypeScript clients run on <code>tsx</code>).</p>
+    <div class="table-wrap"><table><thead><tr><th>Matrix</th><th>Test</th><th>Command</th><th>Cases live in</th></tr></thead><tbody>
+      ${rows}
+      <tr><td><b>This page</b></td><td class="mono">${esc(REPORT_TEST)}</td><td><div class="cmd"><code>${esc(cmdFor(REPORT_TEST, true))}</code>${copyButton(cmdFor(REPORT_TEST, true))}</div></td><td class="mono">Report.cs · ErrorBodyReport.template.html</td></tr>
+      <tr><td>Compile gate</td><td class="mono">GeneratorCompilationGateTests</td><td><div class="cmd"><code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-class "*GeneratorCompilationGateTests"</code>${copyButton('dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-class "*GeneratorCompilationGateTests"')}</div></td><td class="mono">test/Scenarios/*</td></tr>
+      <tr><td>tsc matrix</td><td class="mono">TypeScriptScenarioTscMatrixGateTests</td><td><div class="cmd"><code>dotnet test --project test/Atc.Rest.Api.Generator.Cli.Tests -c Release --filter-class "*TypeScriptScenarioTscMatrixGateTests"</code>${copyButton('dotnet test --project test/Atc.Rest.Api.Generator.Cli.Tests -c Release --filter-class "*TypeScriptScenarioTscMatrixGateTests"')}</div></td><td class="mono">writes issues/report-data/tsc-matrix.json</td></tr>
+      <tr><td>Playwright</td><td class="mono">test/Showcase.E2ETests</td><td><div class="cmd"><code>npx playwright test</code>${copyButton('npx playwright test')}</div></td><td class="mono">writes test-results/results.json</td></tr>
+    </tbody></table></div>
+    <h3>Conventions</h3>
+    <ul class="tight">
+      <li><b>Adding a case</b>: add it to the matrix's case list (the <code>…Cases()</code> method in the file above) with its expected values; the verdict rules judge it like every other case. If it needs a new handler, add it to the matrix's handler source next to the cases.</li>
+      <li><b>A new fail</b>: fix the generator (test first), or record the cell as <code>case [client]</code> in the matrix's <code>Known…Failures</code> set and add the reason to its <code>…NotExercised</code> list. The matrix test fails until one of the two is done, and again when a known cell starts passing.</li>
+      <li><b>A new "not exercised"</b> line must name something no case covers (<code>NotExercised_NamesNothingAMatrixCovers</code>).</li>
+      <li><b>Regenerate this page</b> before a release or after a change to a matrix, from a clean tree (the banner says when a run is not reproducible), and commit <code>docs/test-suite-report.*</code> with the change.</li>
+      <li><b>Private data</b>: a downstream production specification never goes into a case, a fixture or this page; describe it generically.</li>
+    </ul>`;
 })();
 
 // Tabs

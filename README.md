@@ -165,6 +165,17 @@ The project uses a **three-layer architecture**:
 
 **Benefits**: Testability, reusability across CLI and source generators, clear separation of concerns.
 
+## ✅ Quality - how we know it works
+
+Every release is proven, not promised. The **[test-suite report](https://html-preview.github.io/?url=https://github.com/atc-net/atc-rest-api-source-generator/blob/main/docs/test-suite-report.html)** ([`docs/test-suite-report.html`](docs/test-suite-report.html), regenerated from a real run) is the one page to read:
+
+- **End-to-end runtime matrices** - the generated server on Kestrel with every generated client (C# typed, C# endpoint-per-operation, TypeScript Fetch and Axios, Zod, React Query, SWR) calling it over HTTP: error bodies for every HTTP status and every way a specification can declare one, body media types (files, uploads, XML), request binding (path, query, header, cookie, JSON, multipart and URL-encoded bodies, and the requests the server must refuse), security and rate limiting, streaming, pagination, polymorphism, dates and conditional requests. Thousands of recorded cells, each with a verdict and the reason.
+- **Compile gate** - every scenario specification under `test/Scenarios` through every generator, compiled as a strict consumer does (nullable, documentation, warnings as errors), plus the strict `tsc` matrix for TypeScript.
+- **Diagnostics coverage** - every `ATC_API_*` build diagnostic and the test that triggers it.
+- **What is not covered** - each matrix lists what it deliberately leaves out, and the cells it still expects to fail, with the reason.
+
+The page has a start for every reader - a newcomer judging the tool, a maintainer looking for what moved, and an AI agent that wants the data and the commands - and is written by `Report_EndToEndErrorBodyMatrix` (see [Development Notes](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Development-Notes#-the-test-suite-report)).
+
 ## 🖥️ CLI Tool
 
 > **[Installation Guide](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-CLI#-installation)**

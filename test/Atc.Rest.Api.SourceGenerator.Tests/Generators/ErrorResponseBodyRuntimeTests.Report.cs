@@ -2,19 +2,15 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
 /// <summary>
-/// The test-suite report shown to coworkers (<c>issues/return-body-report.html</c>): the four runtime matrices
-/// (error bodies, body media types, request binding, security and rate limiting), what each one does not exercise,
+/// The test-suite report (<c>docs/test-suite-report.html</c>, its data <c>docs/test-suite-report.json</c>, all tracked in git):
+/// the five runtime matrices (error bodies, body media types, request binding, security and rate limiting, features),
+/// what each one does not exercise, the ratchets (the cells expected to fail), a machine-readable summary,
 /// the specification-feature support table (every scenario through every generator, by OpenAPI version), the
-/// diagnostics coverage, the Playwright summary, and the changes since the previous run (a line per run in
-/// <c>issues/return-body-report.history.jsonl</c>).
+/// diagnostics coverage, the Playwright summary, and the changes since the previous run (that run's verdict per cell,
+/// <c>docs/test-suite-report.history.jsonl</c>).
 /// </summary>
 public partial class ErrorResponseBodyRuntimeTests
 {
-    private const string ReportJsonFileName = "return-body-report.json";
-    private const string ReportHtmlFileName = "return-body-report.html";
-    private const string ReportHistoryFileName = "return-body-report.history.jsonl";
-    private const string ReportDataFolderName = "report-data";
-
     /// <summary>
     /// What the error-body matrix does not exercise - the generated list on the "How it was tested" tab, kept here
     /// next to the cases so it changes with them.
@@ -76,9 +72,21 @@ public partial class ErrorResponseBodyRuntimeTests
         "A value the C# clients' enum does not know: the two ratcheted cells (System.Text.Json throws; a tolerant enum is a roadmap item).",
     ];
 
+    private const string ReportJsonFileName = "test-suite-report.json";
+
+    private const string ReportHtmlFileName = "test-suite-report.html";
+
+    private const string ReportHistoryFileName = "test-suite-report.history.jsonl";
+
+    private const string ReportFolderName = "docs";
+
+    private const string ReportDataFolderName = "report-data";
+
     /// <summary>
-    /// Writes the report: <c>issues/return-body-report.json</c>, <c>issues/return-body-report.html</c> (rendered
-    /// from <c>Generators/ErrorBodyReport.template.html</c>) and a line in <c>issues/return-body-report.history.jsonl</c>.
+    /// Writes the report: <c>docs/test-suite-report.html</c> (rendered from <c>Generators/ErrorBodyReport.template.html</c>,
+    /// the page the README links to), <c>docs/test-suite-report.json</c> (its data) and
+    /// <c>docs/test-suite-report.history.jsonl</c> (this run's verdict per cell, which the next run is compared with) - all
+    /// three tracked, so a run is compared with the last committed one.
     /// </summary>
     [Fact(Explicit = true)]
     public async Task Report_EndToEndErrorBodyMatrix()
@@ -102,12 +110,15 @@ public partial class ErrorResponseBodyRuntimeTests
 
         var root = FindRepositoryRoot();
         var issues = Path.Combine(root, "issues");
-        Directory.CreateDirectory(issues);
+        var docs = Path.Combine(root, ReportFolderName);
+        Directory.CreateDirectory(docs);
 
         matrix["support"] = CollectFeatureSupport(root);
         matrix["diagnostics"] = CollectDiagnosticsCoverage();
         matrix["playwright"] = CollectPlaywrightSummary(root);
+        matrix["ratchet"] = Ratchets();
         matrix["durationSeconds"] = System.Math.Round((DateTimeOffset.Now - started).TotalSeconds, 1);
+        matrix["summary"] = Summary(matrix);
 
         // Hand-written context shown next to the data: the 3.0 readiness notes, and the independent review's findings.
         foreach (var (key, file) in ((string, string)[])[("readiness", "return-body-readiness.html"), ("review", "return-body-review.html")])
@@ -119,21 +130,22 @@ public partial class ErrorResponseBodyRuntimeTests
             }
         }
 
-        // History: one summary line per run, and the changes since the previous one
-        var historyPath = Path.Combine(issues, ReportHistoryFileName);
+        // History: the previous run's verdict per cell, replaced by this run's - one line of a few hundred kB, so the
+        // file is overwritten rather than appended to (git keeps the older runs)
+        var historyPath = Path.Combine(docs, ReportHistoryFileName);
         var current = HistoryEntry(matrix);
         var previous = await ReadLastHistoryEntryAsync(historyPath);
         matrix["changes"] = ChangesSince(previous, current);
-        await File.AppendAllTextAsync(historyPath, current.ToJsonString() + Environment.NewLine, TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(historyPath, current.ToJsonString() + Environment.NewLine, TestContext.Current.CancellationToken);
 
         var json = matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(Path.Combine(issues, ReportJsonFileName), json, TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(docs, ReportJsonFileName), json, TestContext.Current.CancellationToken);
 
         var template = await File.ReadAllTextAsync(
             Path.Combine(root, "test", "Atc.Rest.Api.SourceGenerator.Tests", "Generators", "ErrorBodyReport.template.html"),
             TestContext.Current.CancellationToken);
         var html = template.Replace("/*__REPORT_DATA__*/null", matrix.ToJsonString().Replace("</", "<\\/", StringComparison.Ordinal), StringComparison.Ordinal);
-        await File.WriteAllTextAsync(Path.Combine(issues, ReportHtmlFileName), html, TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(docs, ReportHtmlFileName), html, TestContext.Current.CancellationToken);
     }
 
     /// <summary>
@@ -183,6 +195,105 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(["errorBodies|new|cs-epo"], changes["added"]!.AsArray().Select(c => (string)c!).ToList(), StringComparer.Ordinal);
         Assert.Equal(["errorBodies|gone|cs-epo"], changes["removed"]!.AsArray().Select(c => (string)c!).ToList(), StringComparer.Ordinal);
         Assert.Null(ChangesSince(previous: null, current)["previous"]);
+    }
+
+    /// <summary>
+    /// The cells each matrix expects to fail - its ratchet: a listed cell must fail, an unlisted one must pass, so a
+    /// fail on the page is either known (listed here, with the reason the matrix records) or a regression.
+    /// </summary>
+    private static JsonObject Ratchets()
+        => new()
+        {
+            ["errorBodies"] = new JsonArray(),
+            ["bodyMedia"] = new JsonArray(),
+            ["requestBinding"] = new JsonArray([.. KnownRequestBindingFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+            ["guard"] = new JsonArray([.. KnownGuardFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+            ["feature"] = new JsonArray([.. KnownFeatureFailures.Order(StringComparer.Ordinal).Select(s => (JsonNode)s)]),
+        };
+
+    /// <summary>
+    /// The machine-readable summary of the run: per matrix the verdict counts and the known failures; the compile
+    /// gate, the diagnostics coverage and Playwright in one number each; and the overall state - <c>green</c> (no
+    /// fail), <c>known-failures</c> (every fail is in a ratchet) or <c>regressions</c> (a fail no ratchet lists).
+    /// </summary>
+    private static JsonObject Summary(JsonObject matrix)
+    {
+        var matrices = new JsonObject();
+        var unexpected = new JsonArray();
+        var knownCount = 0;
+        foreach (var (key, cases) in MatrixCases(matrix))
+        {
+            var known = matrix["ratchet"]?[key]?.AsArray().Select(k => (string)k!).ToHashSet(StringComparer.Ordinal) ?? [];
+            var tally = new Dictionary<string, int>(StringComparer.Ordinal);
+            var caseCount = 0;
+            var clients = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var item in cases)
+            {
+                caseCount++;
+                if (item["wire"]?["verdict"] is { } wireVerdict)
+                {
+                    tally[(string)wireVerdict!] = tally.GetValueOrDefault((string)wireVerdict!) + 1;
+                    if (string.Equals((string)wireVerdict!, "fail", StringComparison.Ordinal))
+                    {
+                        unexpected.Add($"{key}|{item["id"]}|wire");
+                    }
+                }
+
+                foreach (var cell in item["clients"]!.AsObject())
+                {
+                    clients.Add(cell.Key);
+                    var verdict = (string)cell.Value!["verdict"]!;
+                    tally[verdict] = tally.GetValueOrDefault(verdict) + 1;
+                    if (!string.Equals(verdict, "fail", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    if (known.Contains($"{item["id"]} [{cell.Key}]"))
+                    {
+                        knownCount++;
+                    }
+                    else
+                    {
+                        unexpected.Add($"{key}|{item["id"]}|{cell.Key}");
+                    }
+                }
+            }
+
+            matrices[key] = new JsonObject
+            {
+                ["cases"] = caseCount,
+                ["clients"] = clients.Count,
+                ["verdicts"] = new JsonObject(tally.OrderBy(t => t.Key, StringComparer.Ordinal).Select(t => new KeyValuePair<string, JsonNode?>(t.Key, t.Value))),
+                ["knownFailures"] = known.Count,
+            };
+        }
+
+        var support = matrix["support"]?["scenarios"]?.AsArray();
+        var diagnostics = matrix["diagnostics"]?["rules"]?.AsArray();
+        var playwright = matrix["playwright"]?["apps"]?.AsObject();
+        return new JsonObject
+        {
+            ["state"] = unexpected.Count > 0 ? "regressions" : knownCount > 0 ? "known-failures" : "green",
+            ["unexpectedFailures"] = unexpected,
+            ["matrices"] = matrices,
+            ["compileGate"] = support is null ? null : new JsonObject
+            {
+                ["scenarios"] = support.Count,
+                ["clean"] = support.Count(s => s!["generators"]!.AsObject().All(g => (int?)g.Value!["errors"] == 0 && (int?)g.Value!["warnings"] == 0)),
+                ["generators"] = matrix["support"]!["generators"]!.AsArray().Count,
+            },
+            ["diagnostics"] = diagnostics is null ? null : new JsonObject
+            {
+                ["rules"] = diagnostics.Count,
+                ["tested"] = diagnostics.Count(r => !string.Equals((string?)r!["status"], "untested", StringComparison.Ordinal)),
+            },
+            ["playwright"] = playwright is null ? null : new JsonObject
+            {
+                ["apps"] = playwright.Count,
+                ["failed"] = playwright.Sum(a => a.Value!.AsObject().Where(s => s.Key is not ("expected" or "passed" or "skipped")).Sum(s => (int)s.Value!)),
+            },
+        };
     }
 
     /// <summary>
