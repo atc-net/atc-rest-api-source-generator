@@ -46,6 +46,9 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 
 ```bash
 dotnet add package Atc.Rest.Api.SourceGenerator
+
+# Server (contracts project): validation filter, global error handler, ProblemDetails wiring
+dotnet add package Atc.Rest.MinimalApi
 ```
 
 ### 2. Add Your OpenAPI Spec
@@ -130,21 +133,24 @@ public class GetPetByIdHandler : IGetPetByIdHandler
 
 ### 6. Wire Up Program.cs
 
+With `Atc.Rest.MinimalApi` referenced, the generator emits `Add{Project}Api()` and `Map{Project}Api()` (here for a project named `PetStore`):
+
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
-builder.Services.AddApiHandlersFromDomain();
+builder.Services.AddPetStoreApi();            // ProblemDetails, validation, the generated services
+builder.Services.AddApiHandlersFromDomain();   // your handlers (domain project)
 
 var app = builder.Build();
 
 app.MapOpenApi();
-app.MapEndpoints();
+app.MapPetStoreApi();                          // status-code pages, auth, global error handler, every endpoint
 
 app.Run();
 ```
 
-> 💡 With [Atc.Rest.MinimalApi](https://www.nuget.org/packages/Atc.Rest.MinimalApi) referenced, the generated `Add{Project}Api()` / `Map{Project}Api()` also wire up RFC 9457 ProblemDetails for every error (`AddProblemDetails()` + `UseStatusCodePages()`). Without it, add those two calls yourself - see [Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses).
+> 💡 Without `Atc.Rest.MinimalApi` there is no `Add{Project}Api()` / `Map{Project}Api()`: call `app.MapEndpoints()` to map every endpoint, and add `builder.Services.AddProblemDetails()` and `app.UseStatusCodePages()` yourself so every error is RFC 9457 ProblemDetails - see [Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses).
 
 ## 📋 Requirements
 
