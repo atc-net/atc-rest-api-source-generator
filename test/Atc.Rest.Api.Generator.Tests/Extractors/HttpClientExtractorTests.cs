@@ -398,6 +398,10 @@ public class HttpClientExtractorTests
         Assert.Contains("defaultJsonSerializerOptions", declarations, StringComparison.Ordinal);
         Assert.Contains("JsonStringEnumConverter", declarations, StringComparison.Ordinal);
         Assert.Contains("PropertyNameCaseInsensitive", declarations, StringComparison.Ordinal);
+
+        // The wire names of the specification are camelCase (the models carry [JsonPropertyName] only where
+        // they are not): the client must write camelCase, not the C# property names
+        Assert.Contains("PropertyNamingPolicy = JsonNamingPolicy.CamelCase", declarations, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -10,14 +10,22 @@ internal sealed class XmlTestHost : IAsyncDisposable
     private readonly WebApplication app;
     private readonly HttpClient client;
 
-    private XmlTestHost(WebApplication app)
+    private XmlTestHost(
+        WebApplication app,
+        Assembly assembly)
     {
         this.app = app;
+        Assembly = assembly;
         BaseAddress = new Uri(app.Urls.First());
         client = new HttpClient { BaseAddress = BaseAddress };
     }
 
     public Uri BaseAddress { get; }
+
+    /// <summary>
+    /// The compiled server (generated code and the test handlers), for a test that reads a handler's static state.
+    /// </summary>
+    public Assembly Assembly { get; }
 
     public static async Task<XmlTestHost> StartAsync(
         string yaml,
@@ -48,7 +56,7 @@ internal sealed class XmlTestHost : IAsyncDisposable
         configure?.Invoke(webApp);
         assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedWebApplicationExtensions", throwOnError: true)!.GetMethod("MapErrorBodiesApi")!.Invoke(null, [webApp, null]);
         await webApp.StartAsync(TestContext.Current.CancellationToken);
-        return new XmlTestHost(webApp);
+        return new XmlTestHost(webApp, assembly);
     }
 
     public async Task<string> PostAsync(

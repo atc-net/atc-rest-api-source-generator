@@ -150,6 +150,7 @@
     <button role="tab" aria-selected="false" data-tab="media">Body media types</button>
     <button role="tab" aria-selected="false" data-tab="binding">Request binding</button>
     <button role="tab" aria-selected="false" data-tab="guard">Security &amp; rate limiting</button>
+    <button role="tab" aria-selected="false" data-tab="feature">Features</button>
     <button role="tab" aria-selected="false" data-tab="support">Feature support</button>
     <button role="tab" aria-selected="false" data-tab="diagnostics">Diagnostics coverage</button>
     <button role="tab" aria-selected="false" data-tab="playwright">Playwright</button>
@@ -234,6 +235,11 @@
   <section id="tab-guard" role="tabpanel" hidden>
     <div class="panel" id="guard-intro"></div>
     <div id="guard"></div>
+  </section>
+
+  <section id="tab-feature" role="tabpanel" hidden>
+    <div class="panel" id="feature-intro"></div>
+    <div id="feature"></div>
   </section>
 
   <section id="tab-support" role="tabpanel" hidden>
@@ -708,6 +714,12 @@ renderCaseMatrix('#guard-intro', '#guard', REPORT?.guard, `
   <p>The generated server with two test authentication schemes (a bearer token that spells out subject, scopes and roles; an API key) and every generated client calling its secured and rate-limited operations - without credentials, with the wrong ones, with the right ones, and past a limiter's budget. Each cell lists the statuses the client saw, call by call, against what the specification and the documented contract say; the server's own log of the cell's requests (<i>server</i>) proves what the client's retry policy did with a 429: a <code>Retry-After</code> past the cap is handed back at once, a short one is waited for and the retry succeeds, a 429 without one is retried with the policy's back-off.</p>
   <p><b>Not exercised.</b> ${notExercisedHtml('guard')}</p>
   <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientIsGuardedAsTheSpecificationSays"</code></p></div>`);
+
+renderCaseMatrix('#feature-intro', '#feature', REPORT?.feature, `
+  <h2>Features</h2>
+  <p>The generated server with handlers that stream, page, echo and version, and every generated client - the C# EndpointPerOperation and typed clients, the TypeScript Fetch and Axios clients, the Fetch client with Zod runtime validation, and the React Query and SWR hooks rendered with React - running each feature against it over HTTP: Server-Sent Events, JSON Lines and a JSON array streamed as <code>IAsyncEnumerable</code>, each to the end, with the handler failing mid-stream, and cancelled by the client (the server must see the cancellation); a paginated read walked by its continuation (the infinite hooks walk it); a <code>oneOf</code> with a discriminator and a three-level <code>allOf</code> round-tripped through the client; an enum by its value and an unknown value from the server; a date and a date-time; a conditional 304.</p>
+  <p><b>Not exercised.</b> ${notExercisedHtml('feature')}</p>
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientRunsEveryFeature"</code></p></div>`);
 
 // Feature support: every scenario specification through every C# generator (the compile gate), by OpenAPI version; the tsc matrix when its gate has run
 (function renderSupport() {

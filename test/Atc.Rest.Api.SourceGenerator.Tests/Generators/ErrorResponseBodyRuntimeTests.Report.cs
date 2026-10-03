@@ -66,6 +66,18 @@ public partial class ErrorResponseBodyRuntimeTests
     ];
 
     /// <summary>
+    /// What the feature matrix does not exercise.
+    /// </summary>
+    internal static readonly string[] FeatureNotExercised =
+    [
+        "JSON Text Sequence and multipart/mixed stream framings.",
+        "A browser runtime: the React Query and SWR hooks render with React on jsdom in Node.",
+        "The hooks on a 304: a browser cache sends the condition, not a hook.",
+        "Webhooks and output caching.",
+        "A value the C# clients' enum does not know: the two ratcheted cells (System.Text.Json throws; a tolerant enum is a roadmap item).",
+    ];
+
+    /// <summary>
     /// Writes the report: <c>issues/return-body-report.json</c>, <c>issues/return-body-report.html</c> (rendered
     /// from <c>Generators/ErrorBodyReport.template.html</c>) and a line in <c>issues/return-body-report.history.jsonl</c>.
     /// </summary>
@@ -79,12 +91,14 @@ public partial class ErrorResponseBodyRuntimeTests
         matrix["bodyMedia"] = await CollectBodyMediaMatrixAsync();
         matrix["requestBinding"] = await CollectRequestBindingMatrixAsync();
         matrix["guard"] = await CollectGuardMatrixAsync();
+        matrix["feature"] = await CollectFeatureMatrixAsync();
         matrix["notExercised"] = new JsonObject
         {
             ["errorBodies"] = new JsonArray([.. EndToEndNotExercised.Select(s => (JsonNode)s)]),
             ["bodyMedia"] = new JsonArray([.. BodyMediaNotExercised.Select(s => (JsonNode)s)]),
             ["requestBinding"] = new JsonArray([.. RequestBindingNotExercised.Select(s => (JsonNode)s)]),
             ["guard"] = new JsonArray([.. GuardNotExercised.Select(s => (JsonNode)s)]),
+            ["feature"] = new JsonArray([.. FeatureNotExercised.Select(s => (JsonNode)s)]),
         };
 
         var root = FindRepositoryRoot();
@@ -217,7 +231,7 @@ public partial class ErrorResponseBodyRuntimeTests
         JsonObject matrix)
     {
         yield return ("errorBodies", matrix["cases"]!.AsArray().Select(c => c!.AsObject()));
-        foreach (var key in (string[])["bodyMedia", "requestBinding", "guard"])
+        foreach (var key in (string[])["bodyMedia", "requestBinding", "guard", "feature"])
         {
             if (matrix[key]?["cases"] is JsonArray cases)
             {

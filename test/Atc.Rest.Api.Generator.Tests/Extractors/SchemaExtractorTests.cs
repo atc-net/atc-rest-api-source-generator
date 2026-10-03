@@ -945,6 +945,63 @@ public class SchemaExtractorTests
         Assert.Null(accountPage.Parameters[1].DefaultValue);
     }
 
+    /// <summary>
+    /// A chain of allOf: the deepest component derives from the one above it and forwards every inherited
+    /// parameter to that base, so the record carries every property of the chain.
+    /// </summary>
+    [Fact]
+    public void ExtractForSchemas_ThreeLevelAllOf_EachLevelDerivesFromTheOneAbove()
+    {
+        const string yaml = """
+                            openapi: 3.0.3
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Base:
+                                  type: object
+                                  required: [id]
+                                  properties:
+                                    id: { type: string }
+                                Mid:
+                                  allOf:
+                                    - $ref: '#/components/schemas/Base'
+                                    - type: object
+                                      required: [name]
+                                      properties:
+                                        name: { type: string }
+                                Leaf:
+                                  allOf:
+                                    - $ref: '#/components/schemas/Mid'
+                                    - type: object
+                                      properties:
+                                        extra: { type: string }
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Base", "Mid", "Leaf" };
+
+        var result = SchemaExtractor.ExtractForSchemas(
+            document,
+            "TestProject",
+            schemaNames,
+            pathSegment: null);
+
+        Assert.NotNull(result);
+        var mid = result.Parameters.Single(r => r.Name == "Mid");
+        Assert.Equal("Base", mid.BaseTypeName);
+        Assert.Equal(["Id"], mid.BaseConstructorArguments);
+        Assert.Equal(DeclarationModifiers.PublicRecord, mid.DeclarationModifier);
+
+        var leaf = result.Parameters.Single(r => r.Name == "Leaf");
+        Assert.Equal("Mid", leaf.BaseTypeName);
+        Assert.Equal(["Id", "Name"], leaf.BaseConstructorArguments);
+        Assert.NotNull(leaf.Parameters);
+        Assert.Equal(["Id", "Name", "Extra"], leaf.Parameters.Select(p => p.Name), StringComparer.Ordinal);
+    }
+
     [Fact]
     public void ExtractForSchemas_WithoutDescriptionOrExample_NullDocumentationTags()
     {
