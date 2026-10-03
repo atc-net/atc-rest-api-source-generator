@@ -26,12 +26,6 @@ public sealed class ScaffoldingOptions
     public bool NoCodingRules { get; set; }
 
     /// <summary>
-    /// Test framework to use for generated test project.
-    /// Default: "xunit".
-    /// </summary>
-    public string TestFramework { get; set; } = "xunit";
-
-    /// <summary>
     /// Target framework for generated projects.
     /// Default: Uses TargetFrameworkResult.RequiredTargetFramework.
     /// </summary>
@@ -102,10 +96,4 @@ public sealed class ScaffoldingOptions
     /// Default: false.
     /// </summary>
     public bool Aspire { get; set; }
-
-    /// <summary>
-    /// Remove blank lines between namespace groups in GlobalUsings.cs.
-    /// Default: false (blank lines are preserved between groups).
-    /// </summary>
-    public bool RemoveNamespaceGroupSeparatorInGlobalUsings { get; set; }
 }

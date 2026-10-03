@@ -376,7 +376,6 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             ProjectStructure = options.Scaffolding.ProjectStructure,
             NoCodingRules = options.Scaffolding.NoCodingRules,
-            TestFramework = options.Scaffolding.TestFramework,
             TargetFramework = options.Scaffolding.TargetFramework,
             HostProjectName = options.Scaffolding.HostProjectName,
             ContractsProjectName = options.Scaffolding.ContractsProjectName,
@@ -387,7 +386,6 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             HostUi = options.Scaffolding.HostUi,
             HostUiMode = options.Scaffolding.HostUiMode,
             Aspire = options.Scaffolding.Aspire,
-            RemoveNamespaceGroupSeparatorInGlobalUsings = options.Scaffolding.RemoveNamespaceGroupSeparatorInGlobalUsings,
         };
 
         // Override with CLI flags

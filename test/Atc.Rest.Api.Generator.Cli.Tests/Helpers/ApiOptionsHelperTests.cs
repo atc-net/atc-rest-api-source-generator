@@ -123,6 +123,22 @@ public sealed class ApiOptionsHelperTests : IDisposable
         Assert.Equal("Client", options.Client.ClientSuffix);
     }
 
+    [Theory]
+    [InlineData("testFramework", "\"nunit\"")]
+    [InlineData("removeNamespaceGroupSeparatorInGlobalUsings", "true")]
+    public void ValidateOptionsFile_ScaffoldingSettingWithNoEffect_WarnsThatItIsIgnored(
+        string property,
+        string value)
+    {
+        File.WriteAllText(
+            Path.Combine(tempPath, ApiGeneratorOptions.FileName),
+            $$"""{ "scaffolding": { "{{property}}": {{value}} } }""");
+
+        var result = ApiOptionsHelper.ValidateOptionsFile(tempPath);
+
+        Assert.Contains(result.Warnings, w => w.Contains($"scaffolding.{property}", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void ValidateOptionsFile_MisspelledProperty_WarnsWithItsPath()
     {
