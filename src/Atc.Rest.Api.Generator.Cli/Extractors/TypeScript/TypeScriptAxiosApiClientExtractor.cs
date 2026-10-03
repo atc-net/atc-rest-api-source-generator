@@ -284,6 +284,7 @@ public static class TypeScriptAxiosApiClientExtractor
         {
             sb.AppendLine("      transformRequest: [(data: unknown, headers: Record<string, string>) => {");
             sb.AppendLine("        if (data instanceof FormData || data instanceof Blob) return data;");
+            sb.AppendLine("        if (data instanceof URLSearchParams) return data.toString();");
             sb.AppendLine("        if (data !== undefined && !headers['Content-Type']) headers['Content-Type'] = 'application/json';");
             sb.AppendLine("        return data !== undefined ? JSON.stringify(data, dateReplacer) : data;");
             sb.AppendLine("      }],");
@@ -331,6 +332,9 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine();
         sb.AppendLine("    if (options?.body !== undefined) {");
         sb.AppendLine("      if (options.body instanceof FormData) {");
+        sb.AppendLine("        data = options.body;");
+        sb.AppendLine("      } else if (options.body instanceof URLSearchParams) {");
+        sb.AppendLine("        headers['Content-Type'] = 'application/x-www-form-urlencoded';");
         sb.AppendLine("        data = options.body;");
         sb.AppendLine("      } else if (options.body instanceof Blob) {");
         sb.AppendLine("        const fileType = options.contentType ?? (options.body.type || 'application/octet-stream');");

@@ -42,7 +42,7 @@ public static class WireBindingHelper
     }
 
     /// <summary>
-    /// Whether any operation of the document needs the step.
+    /// Whether any operation of the document needs the step (or the form step).
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document.</param>
     /// <returns><see langword="true"/> when the helper has to be generated.</returns>
@@ -60,13 +60,43 @@ public static class WireBindingHelper
                 continue;
             }
 
-            if (pathItem.Operations.Values.Any(operation => operation is not null && IsNeeded(operation, pathItem)))
+            if (pathItem.Operations.Values.Any(operation => operation is not null && (IsNeeded(operation, pathItem) || operation.RequiresFormBindingFlattening())))
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// The fields of an operation's form body (bound field by field) as the arguments of <c>WithWireFormBinding</c>:
+    /// the field's name, its C# type (an item's for a list), whether the specification requires it, and whether it is
+    /// a list. A file is checked for presence only.
+    /// </summary>
+    /// <param name="operation">The operation.</param>
+    /// <returns>C# tuple literals, <c>("count", typeof(int), false, false)</c>.</returns>
+    public static IReadOnlyList<string> FormFieldArguments(
+        OpenApiOperation operation)
+    {
+        if (operation is null)
+        {
+            throw new ArgumentNullException(nameof(operation));
+        }
+
+        var arguments = new List<string>();
+        var (_, properties, required) = operation.GetFormBodySchemaInfo();
+        foreach (var property in properties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
+        {
+            var (isFile, _) = property.Value.GetFileUploadInfo();
+            var isArray = property.Value.IsOfType(JsonSchemaType.Array);
+            var type = isFile
+                ? "typeof(global::Microsoft.AspNetCore.Http.IFormFile)"
+                : $"typeof({(isArray ? property.Value.Items?.ToCSharpType(isRequired: true, registry: null) ?? "string" : property.Value.ToCSharpType(isRequired: true, registry: null)).TrimEnd('?')})";
+            arguments.Add($"(\"{property.Key}\", {type}, {(required.Contains(property.Key) ? "true" : "false")}, {(isArray ? "true" : "false")})");
+        }
+
+        return arguments;
     }
 
     /// <summary>
@@ -213,6 +243,123 @@ public static class WireBindingHelper
                     });
 
                     return builder;
+                }
+
+                /// <summary>
+                /// Adds the step for a form bound field by field (multipart/form-data, application/x-www-form-urlencoded):
+                /// a required field that is missing, or a value that does not parse, is answered with a problem naming
+                /// the field, and an enum's wire value is rewritten to the member name the binder reads.
+                /// </summary>
+                public static TBuilder WithWireFormBinding<TBuilder>(this TBuilder builder, params (string Name, Type Type, bool Required, bool IsArray)[] fields)
+                    where TBuilder : IEndpointConventionBuilder
+                {
+                    var checks = new List<FormField>();
+                    foreach (var (name, type, required, isArray) in fields)
+                    {
+                        var members = type.IsEnum ? MemberNames(type) : null;
+                        checks.Add(new FormField(name, required, type == typeof(IFormFile), Parser(type, members), type.Name, members, isArray));
+                    }
+
+                    builder.Add(endpoint =>
+                    {
+                        if (endpoint.RequestDelegate is not { } next)
+                        {
+                            return;
+                        }
+
+                        endpoint.RequestDelegate = async context =>
+                        {
+                            // Another media type is the framework's 415 (the Accepts metadata)
+                            if (!context.Request.HasFormContentType)
+                            {
+                                await next(context);
+                                return;
+                            }
+
+                            var form = await context.Request.ReadFormAsync(context.RequestAborted);
+                            var errors = CheckForm(form, checks, out var rewritten);
+                            if (errors is not null)
+                            {
+                                await global::Microsoft.AspNetCore.Http.Results.ValidationProblem(errors).ExecuteAsync(context);
+                                return;
+                            }
+
+                            if (rewritten is not null)
+                            {
+                                context.Request.Form = rewritten;
+                            }
+
+                            await next(context);
+                        };
+                    });
+
+                    return builder;
+                }
+
+                private sealed record FormField(string Name, bool Required, bool IsFile, Func<string, bool>? Parses, string TypeName, Dictionary<string, string>? Members, bool IsArray);
+
+                // The form as the binder reads it (an enum by its member name); the values it cannot bind and the
+                // required fields that are missing, by field name, or null
+                private static Dictionary<string, string[]>? CheckForm(
+                    IFormCollection form,
+                    List<FormField> fields,
+                    out IFormCollection? rewritten)
+                {
+                    rewritten = null;
+                    Dictionary<string, string[]>? errors = null;
+                    Dictionary<string, StringValues>? values = null;
+                    foreach (var field in fields)
+                    {
+                        if (field.IsFile)
+                        {
+                            if (field.Required && form.Files.GetFiles(field.Name).Count == 0)
+                            {
+                                errors ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
+                                errors[field.Name] = [$"The {field.Name} field is required."];
+                            }
+
+                            continue;
+                        }
+
+                        if (!form.TryGetValue(field.Name, out var raw))
+                        {
+                            if (field.Required)
+                            {
+                                errors ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
+                                errors[field.Name] = [$"The {field.Name} field is required."];
+                            }
+
+                            continue;
+                        }
+
+                        var items = raw.Where(v => !string.IsNullOrEmpty(v)).Select(v => v!).ToArray();
+                        if (field.Parses is { } parses && Array.Find(items, item => !parses(item)) is { } invalid)
+                        {
+                            errors ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
+                            errors[field.Name] = [$"'{invalid}' is not a valid {field.TypeName}."];
+                            continue;
+                        }
+
+                        // A list: its items as one value with the item separator between them (the parsable list type
+                        // splits on it; form binding would read a List<T> from indexed keys). An enum by its member name.
+                        if (field.IsArray)
+                        {
+                            values ??= form.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+                            values[field.Name] = string.Join(ItemSeparator, items);
+                        }
+                        else if (field.Members is { Count: > 0 } members)
+                        {
+                            values ??= form.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+                            values[field.Name] = new StringValues(items.Select(item => members.TryGetValue(item, out var member) ? member : item).ToArray());
+                        }
+                    }
+
+                    if (values is not null)
+                    {
+                        rewritten = new FormCollection(values, form.Files);
+                    }
+
+                    return errors;
                 }
 
                 // The request as the binder reads it; the values it cannot bind, by parameter name, or null

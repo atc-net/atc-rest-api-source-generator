@@ -982,6 +982,55 @@ public class HttpClientExtractorTests
         Assert.DoesNotContain(".", clientClass.ClassTypeName, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_UrlEncodedFormBody_SendsTheFieldsAsFormUrlEncodedContent()
+    {
+        // A URL-encoded form body was not sent at all (the method had no body). Every field is its wire text; a list is
+        // one field per item.
+        var document = ParseYaml(UrlEncodedFormYaml);
+        Assert.NotNull(document);
+
+        var clientClass = HttpClientExtractor.Extract(document, "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false);
+
+        var content = clientClass!.Methods!.First(m => m.Name == "LoginAsync").Content!;
+        Assert.Contains("var fields = new List<KeyValuePair<string, string>>();", content, StringComparison.Ordinal);
+        Assert.Contains("if (parameters.Request?.User is { } user)", content, StringComparison.Ordinal);
+        Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"remember\", (remember ? \"true\" : \"false\")));", content, StringComparison.Ordinal);
+        Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"role\", role.ToWireValue()));", content, StringComparison.Ordinal);
+        Assert.Contains("foreach (var item in scopes)", content, StringComparison.Ordinal);
+        Assert.Contains("using var content = new FormUrlEncodedContent(fields);", content, StringComparison.Ordinal);
+        Assert.Contains("httpClient.PostAsync(url, content, cancellationToken)", content, StringComparison.Ordinal);
+    }
+
+    private const string UrlEncodedFormYaml = """
+        openapi: 3.0.0
+        info: { title: T, version: 1.0.0 }
+        paths:
+          /login:
+            post:
+              operationId: login
+              requestBody:
+                required: true
+                content:
+                  application/x-www-form-urlencoded:
+                    schema: { $ref: '#/components/schemas/Credentials' }
+              responses:
+                '204': { description: ok }
+        components:
+          schemas:
+            Role:
+              type: string
+              enum: [admin, read-only]
+            Credentials:
+              type: object
+              required: [user]
+              properties:
+                user: { type: string }
+                remember: { type: boolean }
+                role: { $ref: '#/components/schemas/Role' }
+                scopes: { type: array, items: { type: string } }
+        """;
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

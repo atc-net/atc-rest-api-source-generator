@@ -321,6 +321,108 @@ public class OpenApiOperationExtensionsTests
     }
 
     [Fact]
+    public void GetRequestBodySchemaWithContentType_FallsBackToAUrlEncodedForm()
+    {
+        // A body that is only a URL-encoded form was (null, "") - every generator left the operation without a body
+        var op = CreateOperationWithContentType("application/x-www-form-urlencoded");
+
+        var (schema, contentType) = op.GetRequestBodySchemaWithContentType();
+
+        Assert.NotNull(schema);
+        Assert.Equal("application/x-www-form-urlencoded", contentType);
+    }
+
+    [Fact]
+    public void GetRequestBodySchemaWithContentType_JsonWinsOverAForm()
+    {
+        var op = new OpenApiOperation
+        {
+            RequestBody = new OpenApiRequestBody
+            {
+                Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal)
+                {
+                    ["application/x-www-form-urlencoded"] = new OpenApiMediaType { Schema = new OpenApiSchema() },
+                    ["application/json"] = new OpenApiMediaType { Schema = new OpenApiSchema() },
+                },
+            },
+        };
+
+        var (_, contentType) = op.GetRequestBodySchemaWithContentType();
+
+        Assert.Equal("application/json", contentType);
+    }
+
+    [Theory]
+    [InlineData("multipart/form-data", true)]
+    [InlineData("multipart/form-data; boundary=x", true)]
+    [InlineData("application/x-www-form-urlencoded", true)]
+    [InlineData("application/x-www-form-urlencoded; charset=utf-8", true)]
+    [InlineData("application/json", false)]
+    [InlineData("application/octet-stream", false)]
+    [InlineData("multipart/mixed", false)]
+    public void IsFormContentType_ReturnsExpected(
+        string contentType,
+        bool expected)
+        => Assert.Equal(expected, OpenApiOperationExtensions.IsFormContentType(contentType));
+
+    [Theory]
+    [InlineData("multipart/form-data")]
+    [InlineData("application/x-www-form-urlencoded")]
+    public void GetFormBodySchemaInfo_AModelForm_ReturnsTheSchemaAndItsProperties(
+        string contentType)
+    {
+        var document = OpenApiDocumentHelper.ParseYaml($$"""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /login:
+                post:
+                  operationId: login
+                  requestBody:
+                    content:
+                      {{contentType}}:
+                        schema: { $ref: '#/components/schemas/Credentials' }
+                  responses:
+                    '204': { description: ok }
+            components:
+              schemas:
+                Credentials:
+                  type: object
+                  required: [user]
+                  properties:
+                    user: { type: string }
+                    remember: { type: boolean }
+            """);
+        var op = document.Paths["/login"].Operations![HttpMethod.Post];
+
+        Assert.True(op.RequiresFormBindingFlattening());
+        Assert.Equal(contentType, op.GetFormBodyMediaType());
+        var (schemaName, properties, required) = op.GetFormBodySchemaInfo();
+        Assert.Equal("Credentials", schemaName);
+        Assert.Equal(["user", "remember"], properties!.Keys.ToList());
+        Assert.Equal(["user"], required.ToList());
+    }
+
+    [Fact]
+    public void GetFormBodyMediaType_PrefersMultipartWhenBothAreDeclared()
+    {
+        var op = new OpenApiOperation
+        {
+            RequestBody = new OpenApiRequestBody
+            {
+                Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal)
+                {
+                    ["application/x-www-form-urlencoded"] = new OpenApiMediaType { Schema = new OpenApiSchema() },
+                    ["multipart/form-data"] = new OpenApiMediaType { Schema = new OpenApiSchema() },
+                },
+            },
+        };
+
+        Assert.Equal("multipart/form-data", op.GetFormBodyMediaType());
+        Assert.Equal(["multipart/form-data", "application/x-www-form-urlencoded"], op.GetFormBodyMediaTypes());
+    }
+
+    [Fact]
     public void GetRequestBodySchemaWithContentType_NoBody_ReturnsNullSchema()
     {
         var op = new OpenApiOperation();

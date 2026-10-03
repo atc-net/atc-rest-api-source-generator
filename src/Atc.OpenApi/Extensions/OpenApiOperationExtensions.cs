@@ -262,7 +262,16 @@ public static class OpenApiOperationExtensions
                 }
             }
 
-            // Priority 3: an XML model body (written by the model's generated XML mapping)
+            // Priority 3: a URL-encoded form (a model sent as form fields)
+            foreach (var kvp in operation.RequestBody.Content)
+            {
+                if (IsFormContentType(kvp.Key))
+                {
+                    return (kvp.Value.Schema, kvp.Key);
+                }
+            }
+
+            // Priority 4: an XML model body (written by the model's generated XML mapping)
             foreach (var kvp in operation.RequestBody.Content)
             {
                 if (ResponseBodyClassifier.Classify(kvp.Key, kvp.Value.Schema) == ResponseBodyKind.Xml)
@@ -581,32 +590,51 @@ public static class OpenApiOperationExtensions
         }
 
         /// <summary>
-        /// Checks if the operation has a multipart/form-data request body with a complex schema
-        /// that requires flattening for proper parameter binding in Minimal APIs.
-        /// This is needed for any schema reference (complex type wrapper) because ASP.NET Core
-        /// Minimal APIs with [AsParameters] can't bind wrapped complex types from form data.
+        /// The media type of the operation's form body: <c>multipart/form-data</c> (first, it can carry files), else
+        /// <c>application/x-www-form-urlencoded</c>, as declared (with its parameters).
+        /// </summary>
+        /// <returns>The media type, or <see langword="null"/> when the body is not a form.</returns>
+        public string? GetFormBodyMediaType()
+        {
+            var mediaTypes = operation.GetFormBodyMediaTypes();
+            return mediaTypes.Count > 0 ? mediaTypes[0] : null;
+        }
+
+        /// <summary>
+        /// The form media types the operation declares, <c>multipart/form-data</c> before
+        /// <c>application/x-www-form-urlencoded</c>: a server bound by form binding reads both.
+        /// </summary>
+        /// <returns>The media types as declared; empty when the body is not a form.</returns>
+        public IReadOnlyList<string> GetFormBodyMediaTypes()
+        {
+            if (operation.RequestBody?.Content is not { } content)
+            {
+                return [];
+            }
+
+            var keys = content.Keys.Where(IsFormContentType).ToList();
+            return keys
+                .Where(k => k.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase))
+                .Concat(keys.Where(k => !k.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+        }
+
+        /// <summary>
+        /// Checks if the operation has a form request body (<c>multipart/form-data</c> or
+        /// <c>application/x-www-form-urlencoded</c>) with a model schema, which the Minimal API handler binds field by
+        /// field: ASP.NET Core Minimal APIs with [AsParameters] can't bind wrapped complex types from form data.
+        /// A body that is also JSON is bound as JSON (what the clients send; ATC_API_OPR031 reports the form).
         /// </summary>
         /// <returns>True if the request body requires form binding flattening.</returns>
         public bool RequiresFormBindingFlattening()
         {
-            if (operation.RequestBody?.Content is null)
+            if (operation.GetJsonRequestBodyMediaType() is not null ||
+                operation.GetFormBodyMediaType() is not { } formMediaType ||
+                operation.RequestBody!.Content![formMediaType].Schema is not { } schema)
             {
                 return false;
             }
 
-            // Only applies to multipart/form-data
-            if (!operation.RequestBody.Content.TryGetValue("multipart/form-data", out var mediaType))
-            {
-                return false;
-            }
-
-            var schema = mediaType.Schema;
-            if (schema is null)
-            {
-                return false;
-            }
-
-            // Check if it's a schema reference (complex type) with properties
             // Direct file upload schemas (binary type) don't need flattening
             var (isFile, _) = schema.GetFileUploadInfo();
             if (isFile)
@@ -614,38 +642,27 @@ public static class OpenApiOperationExtensions
                 return false;
             }
 
-            // Check if schema has properties - if it's a reference, resolve it
-            var properties = schema.Properties;
-            if (properties is null || properties.Count == 0)
-            {
-                return false;
-            }
-
-            // Any complex schema (object wrapper) with properties needs flattening
-            // because ASP.NET Core Minimal APIs can't bind wrapped types from form data
-            return true;
+            // Any model (object wrapper) with properties needs flattening
+            return schema.Properties is { Count: > 0 };
         }
 
         /// <summary>
-        /// Gets the multipart/form-data schema and its properties for flattening.
+        /// Gets the form body's schema name, its properties and its required property names, for binding the form
+        /// field by field (<see cref="RequiresFormBindingFlattening"/>).
         /// </summary>
-        /// <returns>The schema reference name and its properties, or null if not applicable.</returns>
-        public (string? SchemaName, IDictionary<string, IOpenApiSchema>? Properties) GetMultipartFormDataSchemaInfo()
+        /// <returns>The schema reference name, its properties and its required names; nulls when the body is not a form.</returns>
+        public (string? SchemaName, IDictionary<string, IOpenApiSchema>? Properties, ISet<string> Required) GetFormBodySchemaInfo()
         {
-            if (operation.RequestBody?.Content is null)
+            var required = new HashSet<string>(StringComparer.Ordinal);
+            if (operation.GetFormBodyMediaType() is not { } formMediaType ||
+                operation.RequestBody!.Content![formMediaType].Schema is not { } schema)
             {
-                return (null, null);
+                return (null, null, required);
             }
 
-            if (!operation.RequestBody.Content.TryGetValue("multipart/form-data", out var mediaType))
+            if (schema.Required is { } requiredNames)
             {
-                return (null, null);
-            }
-
-            var schema = mediaType.Schema;
-            if (schema is null)
-            {
-                return (null, null);
+                required.UnionWith(requiredNames);
             }
 
             // Get schema name from reference
@@ -655,7 +672,7 @@ public static class OpenApiOperationExtensions
                 schemaName = schemaRef.Reference?.Id ?? schemaRef.Id;
             }
 
-            return (schemaName, schema.Properties);
+            return (schemaName, schema.Properties, required);
         }
 
         private IEnumerable<OpenApiParameter> GetParametersByLocationIterator(
@@ -692,6 +709,24 @@ public static class OpenApiOperationExtensions
     public static bool IsFileUploadContentType(string contentType)
         => contentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) ||
            IsRawFileUploadContentType(contentType);
+
+    /// <summary>
+    /// Determines if a content type is a form: <c>multipart/form-data</c> or <c>application/x-www-form-urlencoded</c>
+    /// (with or without parameters) - the two media types ASP.NET Core's form binding reads and a browser form posts.
+    /// </summary>
+    /// <param name="contentType">The content type to check.</param>
+    /// <returns>True if the content type is a form.</returns>
+    public static bool IsFormContentType(string? contentType)
+    {
+        if (contentType is null)
+        {
+            return false;
+        }
+
+        var type = contentType.Split(';')[0].Trim();
+        return type.Equals("multipart/form-data", StringComparison.OrdinalIgnoreCase) ||
+               type.Equals("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// Determines if a request body media type is a raw file upload: the body is the file itself, of any binary media

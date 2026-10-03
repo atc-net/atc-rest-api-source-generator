@@ -45,9 +45,9 @@ public sealed class UploadFormDataFileEndpoint : IUploadFormDataFileEndpoint
         var client = factory.CreateClient(httpClientName);
 
         var requestBuilder = httpMessageFactory.FromTemplate("/files/form-data/singleObject");
-        if (parameters.Request?.ItemName is not null)
+        if (parameters.Request?.ItemName is { } itemName)
         {
-            requestBuilder.WithFormField("itemName", parameters.Request.ItemName.ToString()!);
+            requestBuilder.WithFormField("itemName", itemName);
         }
 
         if (parameters.Request?.File is not null)
@@ -59,7 +59,7 @@ public sealed class UploadFormDataFileEndpoint : IUploadFormDataFileEndpoint
         {
             foreach (var item in parameters.Request.Items)
             {
-                requestBuilder.WithFormField("items", item?.ToString() ?? string.Empty);
+                requestBuilder.WithFormField("items", item);
             }
         }
 

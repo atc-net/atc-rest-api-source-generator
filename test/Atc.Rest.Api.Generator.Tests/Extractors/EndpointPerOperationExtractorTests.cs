@@ -1404,6 +1404,55 @@ public class EndpointPerOperationExtractorTests
         Assert.DoesNotContain("sealed class GetDeviceByIdEndpointResult", operationFile.ResultClassContent, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_UrlEncodedFormBody_SendsTheFieldsAsAFormUrlEncodedBody()
+    {
+        // The endpoint called WithBody(parameters.Request) on a record without a Request: the client did not compile.
+        // The request builder has no URL-encoded form of its own, so the fields are encoded by FormUrlEncodedContent
+        // and sent as a binary body of the form's media type.
+        var document = ParseYaml(UrlEncodedFormYaml);
+        Assert.NotNull(document);
+
+        var (files, _) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(document, "TestApi", "login", registry: null, includeDeprecated: false);
+
+        var content = Assert.Single(files).EndpointClassContent!;
+        Assert.Contains("var fields = new List<KeyValuePair<string, string>>();", content, StringComparison.Ordinal);
+        Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"user\", user));", content, StringComparison.Ordinal);
+        Assert.Contains("fields.Add(new KeyValuePair<string, string>(\"role\", role.ToWireValue()));", content, StringComparison.Ordinal);
+        Assert.Contains("using var formContent = new FormUrlEncodedContent(fields);", content, StringComparison.Ordinal);
+        Assert.Contains("requestBuilder.WithBinaryBody(formContent.ReadAsStream(), \"application/x-www-form-urlencoded\");", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("WithBody(parameters.Request)", content, StringComparison.Ordinal);
+    }
+
+    private const string UrlEncodedFormYaml = """
+        openapi: 3.0.0
+        info: { title: T, version: 1.0.0 }
+        paths:
+          /login:
+            post:
+              operationId: login
+              requestBody:
+                required: true
+                content:
+                  application/x-www-form-urlencoded:
+                    schema: { $ref: '#/components/schemas/Credentials' }
+              responses:
+                '204': { description: ok }
+        components:
+          schemas:
+            Role:
+              type: string
+              enum: [admin, read-only]
+            Credentials:
+              type: object
+              required: [user]
+              properties:
+                user: { type: string }
+                remember: { type: boolean }
+                role: { $ref: '#/components/schemas/Role' }
+                scopes: { type: array, items: { type: string } }
+        """;
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

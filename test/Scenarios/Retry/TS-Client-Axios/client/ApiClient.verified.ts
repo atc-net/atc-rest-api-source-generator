@@ -147,6 +147,9 @@ export class ApiClient {
     if (options?.body !== undefined) {
       if (options.body instanceof FormData) {
         data = options.body;
+      } else if (options.body instanceof URLSearchParams) {
+        headers['Content-Type'] = 'application/x-www-form-urlencoded';
+        data = options.body;
       } else if (options.body instanceof Blob) {
         const fileType = options.contentType ?? (options.body.type || 'application/octet-stream');
         headers['Content-Type'] = fileType;

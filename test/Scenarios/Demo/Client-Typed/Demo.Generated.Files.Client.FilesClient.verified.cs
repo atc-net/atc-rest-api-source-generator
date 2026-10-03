@@ -57,9 +57,9 @@ public sealed class FilesClient : IFilesClient
         var url = "/files/form-data/singleObject";
         using var content = new MultipartFormDataContent();
 
-        if (parameters.Request?.ItemName is not null)
+        if (parameters.Request?.ItemName is { } itemName)
         {
-            content.Add(new StringContent(parameters.Request.ItemName.ToString()!), "itemName");
+            content.Add(new StringContent(itemName), "itemName");
         }
 
         if (parameters.Request?.File is not null)
@@ -78,7 +78,7 @@ public sealed class FilesClient : IFilesClient
         {
             foreach (var item in parameters.Request.Items)
             {
-                content.Add(new StringContent(item?.ToString() ?? string.Empty), "items");
+                content.Add(new StringContent(item), "items");
             }
         }
 

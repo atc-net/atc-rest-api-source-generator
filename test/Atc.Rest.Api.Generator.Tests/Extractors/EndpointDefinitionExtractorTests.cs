@@ -612,6 +612,49 @@ public class EndpointDefinitionExtractorTests
         Assert.DoesNotContain("SecurityPolicies.", deleteOrder, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_UrlEncodedFormBody_BindsTheFieldsAndAcceptsTheForm()
+    {
+        // A URL-encoded form is bound field by field like a multipart one: the handler takes [FromForm] parameters,
+        // builds the model, and the route accepts the form's media type (form binding opts the endpoint into
+        // antiforgery validation, so it is disabled as for a file upload)
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths:
+              /login:
+                post:
+                  operationId: login
+                  requestBody:
+                    required: true
+                    content:
+                      application/x-www-form-urlencoded:
+                        schema: { $ref: '#/components/schemas/Credentials' }
+                  responses:
+                    '204': { description: ok }
+            components:
+              schemas:
+                Credentials:
+                  type: object
+                  required: [user]
+                  properties:
+                    user: { type: string }
+                    remember: { type: boolean }
+            """);
+
+        var (_, classes) = EndpointDefinitionExtractor.Extract(document, "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]));
+
+        var methods = classes!.SelectMany(c => c.Methods ?? []).ToList();
+        var login = Registration(Assert.Single(methods, m => m.Name == "DefineEndpoints").Content, "Login");
+        Assert.Contains(".Accepts<Credentials>(\"application/x-www-form-urlencoded\")", login, StringComparison.Ordinal);
+        Assert.Contains(".DisableAntiforgery()", login, StringComparison.Ordinal);
+
+        var handler = Assert.Single(methods, m => m.Name == "Login");
+        var user = Assert.Single(handler.Parameters!, p => p.Name == "user");
+        Assert.Equal("FromForm", Assert.Single(user.Attributes!).Name);
+        Assert.Contains("new Credentials(User: user ?? string.Empty, Remember: remember)", handler.Content, StringComparison.Ordinal);
+    }
+
     /// <summary>
     /// The chained calls of one endpoint registration: from its MapX up to the next blank line.
     /// </summary>

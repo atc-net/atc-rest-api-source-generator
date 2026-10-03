@@ -923,7 +923,7 @@ public static class HttpClientExtractor
                 GeneratePostMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, hasLocationHeader, builder, resultStyle, Stamp("requestMessage"), xmlRead);
                 break;
             case "PUT":
-                GeneratePutMethodBody(operation, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage"), xmlRead);
+                GeneratePutMethodBody(operation, openApiDoc, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage"), xmlRead);
                 break;
             case "DELETE":
                 GenerateDeleteMethodBody(returnType, hasReturnType, builder, resultStyle, Stamp("requestMessage"), xmlRead);
@@ -932,7 +932,7 @@ public static class HttpClientExtractor
                 // Non-standard verbs: OpenAPI 3.2 `query` and `additionalOperations`
                 // (e.g. LINK), plus PATCH. No dedicated HttpClient JSON helper exists,
                 // so build the request explicitly and dispatch by body/return presence.
-                GenerateGenericMethodBody(httpMethod, operation, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage"), xmlRead);
+                GenerateGenericMethodBody(httpMethod, operation, openApiDoc, returnType, hasParameters, hasReturnType, builder, resultStyle, Stamp("requestMessage"), xmlRead);
                 break;
         }
 
@@ -1130,6 +1130,7 @@ public static class HttpClientExtractor
     private static void GenerateGenericMethodBody(
         string httpMethod,
         OpenApiOperation operation,
+        OpenApiDocument openApiDoc,
         string returnType,
         bool hasParameters,
         bool hasReturnType,
@@ -1140,6 +1141,7 @@ public static class HttpClientExtractor
     {
         var hasJsonBody = operation.GetJsonRequestBodyMediaType() is not null;
         var requestAccess = hasParameters ? "parameters.Request" : "request";
+        var formSchema = hasParameters ? UrlEncodedFormSchema(operation, openApiDoc) : null;
 
         // Resolve the verb through the same helper the per-operation client uses, so both
         // generated clients express the same verb the same way: the static HttpMethod property
@@ -1148,9 +1150,19 @@ public static class HttpClientExtractor
         var httpMethodExpression = EndpointMapHelper.BuildHttpMethodExpression(httpMethod);
 
         builder.AppendLine();
+        if (formSchema is not null)
+        {
+            // A URL-encoded form: the model's fields
+            GenerateUrlEncodedForm(builder, formSchema, requestAccess);
+        }
+
         builder.AppendLine($"using var requestMessage = new HttpRequestMessage({httpMethodExpression}, url);");
 
-        if (xmlRead?.RequestContent is not null)
+        if (formSchema is not null)
+        {
+            builder.AppendLine("requestMessage.Content = content;");
+        }
+        else if (xmlRead?.RequestContent is not null)
         {
             builder.AppendLine($"requestMessage.Content = {xmlRead.RequestContent};");
         }
@@ -1265,6 +1277,12 @@ public static class HttpClientExtractor
             builder.AppendLine();
             AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken);", resilienceStamp, "HttpMethod.Post", "content");
         }
+        else if (UrlEncodedFormSchema(operation, openApiDoc) is { } formSchema && hasParameters)
+        {
+            // A URL-encoded form: the model's fields
+            GenerateUrlEncodedForm(builder, formSchema, requestAccess);
+            AppendSend(builder, "var response = await httpClient.PostAsync(url, content, cancellationToken);", resilienceStamp, "HttpMethod.Post", "content");
+        }
         else if (xmlRead?.RequestContent is not null)
         {
             // An XML body: the model's XML with its media type
@@ -1315,6 +1333,7 @@ public static class HttpClientExtractor
 
     private static void GeneratePutMethodBody(
         OpenApiOperation operation,
+        OpenApiDocument openApiDoc,
         string returnType,
         bool hasParameters,
         bool hasReturnType,
@@ -1330,6 +1349,13 @@ public static class HttpClientExtractor
         {
             // An XML body: the model's XML with its media type
             AppendSend(builder, $"var response = await httpClient.PutAsync(url, {xmlRead.RequestContent}, cancellationToken);", resilienceStamp, "HttpMethod.Put", xmlRead.RequestContent, accept: xmlRead.Accept);
+        }
+        else if (UrlEncodedFormSchema(operation, openApiDoc) is { } formSchema && hasParameters)
+        {
+            // A URL-encoded form: the model's fields
+            builder.AppendLine();
+            GenerateUrlEncodedForm(builder, formSchema, requestAccess);
+            AppendSend(builder, "var response = await httpClient.PutAsync(url, content, cancellationToken);", resilienceStamp, "HttpMethod.Put", "content");
         }
         else
         {
@@ -2131,6 +2157,46 @@ public static class HttpClientExtractor
     }
 
     /// <summary>
+    /// The model of a request body that is sent as a URL-encoded form: the operation's form body is
+    /// <c>application/x-www-form-urlencoded</c> (not multipart, which carries files) and is not also JSON (JSON is
+    /// sent then).
+    /// </summary>
+    private static IOpenApiSchema? UrlEncodedFormSchema(
+        OpenApiOperation operation,
+        OpenApiDocument openApiDoc)
+    {
+        if (operation.GetJsonRequestBodyMediaType() is not null ||
+            operation.HasFileUpload() ||
+            operation.GetFormBodyMediaType() is not { } formMediaType ||
+            operation.RequestBody?.Content?[formMediaType].Schema is not OpenApiSchemaReference schemaRef)
+        {
+            return null;
+        }
+
+        var schemaId = schemaRef.Reference?.Id;
+        return !string.IsNullOrEmpty(schemaId) &&
+               openApiDoc.Components?.Schemas is not null &&
+               openApiDoc.Components.Schemas.TryGetValue(schemaId!, out var schema)
+            ? schema
+            : null;
+    }
+
+    /// <summary>
+    /// Generates the <c>FormUrlEncodedContent</c> of a form model: every field as its wire text, a list as repeated
+    /// fields (<see cref="FormBodyHelper"/>).
+    /// </summary>
+    private static void GenerateUrlEncodedForm(
+        StringBuilder builder,
+        IOpenApiSchema schema,
+        string requestAccess)
+    {
+        builder.AppendLine("var fields = new List<KeyValuePair<string, string>>();");
+        FormBodyHelper.AppendUrlEncodedFields(builder, schema, requestAccess, "fields");
+        builder.AppendLine("using var content = new FormUrlEncodedContent(fields);");
+        builder.AppendLine();
+    }
+
+    /// <summary>
     /// Generates code for schema-based multipart/form-data requests.
     /// Creates MultipartFormDataContent with StringContent for text fields and StreamContent for binary fields.
     /// </summary>
@@ -2198,22 +2264,25 @@ public static class HttpClientExtractor
             }
             else if (isArray)
             {
-                // Array of non-binary values - add as multiple form fields
+                // Array of non-binary values - one form field per item, as its wire text
+                var itemType = propSchema.Items?.ToCSharpType(isRequired: true, registry: null).TrimEnd('?') ?? "string";
                 builder.AppendLine($"if ({requestAccess}?.{pascalPropName} is not null)");
                 builder.AppendLine("{");
                 builder.AppendLine(4, $"foreach (var item in {requestAccess}.{pascalPropName})");
                 builder.AppendLine(4, "{");
-                builder.AppendLine(8, $"content.Add(new StringContent(item?.ToString() ?? string.Empty), \"{propName}\");");
+                builder.AppendLine(8, $"content.Add(new StringContent({FormBodyHelper.WireText("item", itemType, WireValueHelper.IsStringEnum(propSchema))}), \"{propName}\");");
                 builder.AppendLine(4, "}");
                 builder.AppendLine("}");
                 builder.AppendLine();
             }
             else
             {
-                // Simple value - use StringContent
-                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} is not null)");
+                // Simple value - its wire text (never ToString(), which is culture-dependent)
+                var variable = char.ToLowerInvariant(pascalPropName[0]) + pascalPropName.Substring(1);
+                var valueType = propSchema.ToCSharpType(isRequired: true, registry: null).TrimEnd('?');
+                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} is {{ }} {variable})");
                 builder.AppendLine("{");
-                builder.AppendLine(4, $"content.Add(new StringContent({requestAccess}.{pascalPropName}.ToString()!), \"{propName}\");");
+                builder.AppendLine(4, $"content.Add(new StringContent({FormBodyHelper.WireText(variable, valueType, WireValueHelper.IsStringEnum(propSchema))}), \"{propName}\");");
                 builder.AppendLine("}");
                 builder.AppendLine();
             }

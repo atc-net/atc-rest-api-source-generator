@@ -979,7 +979,8 @@ public static class CodeGenerationService
         => HybridCachePoliciesExtractor.Extract(openApiDoc, projectName, includeDeprecated);
 
     /// <summary>
-    /// Checks if the OpenAPI document contains any query parameters with array type.
+    /// Checks if the OpenAPI document contains any query parameters with array type, or a form body (bound field by
+    /// field) with a list field - both are bound through the generated ParsableList types.
     /// </summary>
     public static bool HasQueryArrayParameters(OpenApiDocument openApiDoc)
     {
@@ -1008,6 +1009,13 @@ public static class CodeGenerationService
 
             foreach (var operation in pathItem.Operations)
             {
+                if (operation.Value is { } formOperation &&
+                    formOperation.RequiresFormBindingFlattening() &&
+                    formOperation.GetFormBodySchemaInfo().Properties?.Values.Any(p => p.IsOfType(JsonSchemaType.Array) && !p.GetFileUploadInfo().IsFile) == true)
+                {
+                    return true;
+                }
+
                 if (operation.Value?.Parameters is null)
                 {
                     continue;

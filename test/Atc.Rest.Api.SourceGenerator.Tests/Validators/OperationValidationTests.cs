@@ -2132,7 +2132,8 @@ public class OperationValidationTests
     [Fact]
     public void Validate_FormUrlEncodedRequestBody_ReportsOPR031()
     {
-        // Arrange: a form body is not generated on any side - the operation would silently lose its body
+        // Arrange: a form-only body is generated as the form's fields (no warning); beside JSON the body is JSON; a field
+        // that is an object has no form encoding
         var document = ParseYaml("""
             openapi: 3.0.3
             info:
@@ -2147,10 +2148,19 @@ public class OperationValidationTests
                     content:
                       application/x-www-form-urlencoded:
                         schema:
-                          type: object
-                          properties:
-                            name:
-                              type: string
+                          $ref: '#/components/schemas/Pet'
+                  responses:
+                    '204':
+                      description: Stored
+              /form-with-an-object:
+                post:
+                  operationId: postNestedForm
+                  requestBody:
+                    required: true
+                    content:
+                      application/x-www-form-urlencoded:
+                        schema:
+                          $ref: '#/components/schemas/Order'
                   responses:
                     '204':
                       description: Stored
@@ -2183,6 +2193,15 @@ public class OperationValidationTests
                       description: Stored
             components:
               schemas:
+                Order:
+                  type: object
+                  title: Order
+                  properties:
+                    pet:
+                      $ref: '#/components/schemas/Pet'
+                    tags:
+                      type: array
+                      items: { type: string }
                 Pet:
                   type: object
                   title: Pet
@@ -2200,19 +2219,19 @@ public class OperationValidationTests
             [],
             TestFilePath).Where(d => d.RuleId == Generator.RuleIdentifiers.BodyNotGeneratedAsDeclared).ToList();
 
-        // Assert: one warning per form body, saying what happens to it; none for the JSON-only operation
+        // Assert: the form beside JSON, and the object field; nothing for the form-only and the JSON-only operations
         Assert.All(diagnostics, d => Assert.Equal(Generator.Models.DiagnosticSeverity.Warning, d.Severity));
         Assert.Collection(
             diagnostics.Select(d => d.Message).Order(StringComparer.Ordinal),
             m =>
             {
-                Assert.Contains("'postForm' request body (application/x-www-form-urlencoded)", m, StringComparison.Ordinal);
-                Assert.Contains("without a request body", m, StringComparison.Ordinal);
+                Assert.Contains("'postFormOrJson' request body (application/x-www-form-urlencoded)", m, StringComparison.Ordinal);
+                Assert.Contains("as JSON only", m, StringComparison.Ordinal);
             },
             m =>
             {
-                Assert.Contains("'postFormOrJson' request body (application/x-www-form-urlencoded)", m, StringComparison.Ordinal);
-                Assert.Contains("as JSON only", m, StringComparison.Ordinal);
+                Assert.Contains("'postNestedForm' request body (application/x-www-form-urlencoded) field 'pet' is an object", m, StringComparison.Ordinal);
+                Assert.Contains("no form encoding", m, StringComparison.Ordinal);
             });
     }
 

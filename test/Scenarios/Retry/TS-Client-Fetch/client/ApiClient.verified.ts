@@ -106,6 +106,9 @@ export class ApiClient {
     if (options?.body !== undefined) {
       if (options.body instanceof FormData) {
         fetchBody = options.body;
+      } else if (options.body instanceof URLSearchParams) {
+        headers.set('Content-Type', 'application/x-www-form-urlencoded');
+        fetchBody = options.body;
       } else if (options.body instanceof Blob) {
         headers.set('Content-Type', options.contentType ?? (options.body.type || 'application/octet-stream'));
         fetchBody = options.body;

@@ -272,6 +272,9 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("    if (options?.body !== undefined) {");
         sb.AppendLine("      if (options.body instanceof FormData) {");
         sb.AppendLine("        fetchBody = options.body;");
+        sb.AppendLine("      } else if (options.body instanceof URLSearchParams) {");
+        sb.AppendLine("        headers.set('Content-Type', 'application/x-www-form-urlencoded');");
+        sb.AppendLine("        fetchBody = options.body;");
         sb.AppendLine("      } else if (options.body instanceof Blob) {");
         sb.AppendLine("        headers.set('Content-Type', options.contentType ?? (options.body.type || 'application/octet-stream'));");
         sb.AppendLine("        fetchBody = options.body;");

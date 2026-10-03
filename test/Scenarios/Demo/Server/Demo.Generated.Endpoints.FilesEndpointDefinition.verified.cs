@@ -50,6 +50,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireFormBinding(("itemName", typeof(string), true, false), ("file", typeof(global::Microsoft.AspNetCore.Http.IFormFile), false, false), ("items", typeof(string), true, true))
             .Accepts<IFormFile>("multipart/form-data")
             .DisableAntiforgery();
 
@@ -62,6 +63,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
+            .WithWireFormBinding(("files", typeof(global::Microsoft.AspNetCore.Http.IFormFile), true, true))
             .Accepts<IFormFile>("multipart/form-data")
             .DisableAntiforgery();
 
@@ -103,7 +105,7 @@ public sealed class FilesEndpointDefinition : IEndpointDefinition
         [FromServices] IUploadFormDataFileHandler handler,
         [FromForm(Name = "itemName")] string? itemName,
         IFormFile? file,
-        [FromForm(Name = "items")] List<string>? items,
+        [FromForm(Name = "items")] ParsableList<string>? items,
         CancellationToken cancellationToken)
     {
         var request = new FileAsFormDataRequest(ItemName: itemName ?? string.Empty, File: file, Items: items ?? new List<string>());

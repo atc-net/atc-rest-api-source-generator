@@ -1576,6 +1576,64 @@ public class TypeScriptClientExtractorTests
         Assert.Contains("session", content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Extract_UrlEncodedFormBody_SendsTheModelAsURLSearchParams()
+    {
+        // The method took no body for a URL-encoded form. It takes the model, like a JSON body, and sends its fields
+        // as a URLSearchParams (the runtime sets application/x-www-form-urlencoded); a list is one field per item.
+        var document = ParseYaml(UrlEncodedFormYaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains("async login(body: Credentials)", content, StringComparison.Ordinal);
+        Assert.Contains("const form = new URLSearchParams();", content, StringComparison.Ordinal);
+        Assert.Contains("if (body.user != null) form.append('user', String(body.user));", content, StringComparison.Ordinal);
+        Assert.Contains("if (body.remember != null) form.append('remember', String(body.remember));", content, StringComparison.Ordinal);
+        Assert.Contains("for (const item of body.scopes ?? []) form.append('scopes', String(item));", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("FormData", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_UrlEncodedFormBodyWithConvertDates_WritesADateAsItsIsoText()
+    {
+        var document = ParseYaml(UrlEncodedFormYaml.Replace("remember: { type: boolean }", "since: { type: string, format: date }", StringComparison.Ordinal));
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null, convertDates: true));
+
+        Assert.Contains("form.append('since', body.since instanceof Date ? body.since.toISOString().substring(0, 10) : String(body.since));", content, StringComparison.Ordinal);
+    }
+
+    private const string UrlEncodedFormYaml = """
+        openapi: 3.0.0
+        info: { title: T, version: 1.0.0 }
+        paths:
+          /login:
+            post:
+              operationId: login
+              requestBody:
+                required: true
+                content:
+                  application/x-www-form-urlencoded:
+                    schema: { $ref: '#/components/schemas/Credentials' }
+              responses:
+                '204': { description: ok }
+        components:
+          schemas:
+            Role:
+              type: string
+              enum: [admin, read-only]
+            Credentials:
+              type: object
+              required: [user]
+              properties:
+                user: { type: string }
+                remember: { type: boolean }
+                role: { $ref: '#/components/schemas/Role' }
+                scopes: { type: array, items: { type: string } }
+        """;
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

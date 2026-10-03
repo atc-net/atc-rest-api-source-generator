@@ -1278,6 +1278,18 @@ public static class EndpointPerOperationExtractor
                     sb.AppendLine("requestBuilder.WithBody(parameters.File!.OpenReadStream());");
                 }
             }
+            else if (operation.GetJsonRequestBodyMediaType() is null &&
+                     operation.GetFormBodyMediaType() is { } formMediaType &&
+                     operation.RequestBody.Content[formMediaType].Schema is OpenApiSchemaReference formSchemaRef &&
+                     openApiDoc.Components?.Schemas?.TryGetValue(formSchemaRef.Reference?.Id ?? string.Empty, out var formSchema) == true)
+            {
+                // A URL-encoded form: the model's fields, encoded by FormUrlEncodedContent (the request builder has no
+                // URL-encoded form of its own; its form fields are multipart)
+                sb.AppendLine("var fields = new List<KeyValuePair<string, string>>();");
+                FormBodyHelper.AppendUrlEncodedFields(sb, formSchema, "parameters.Request", "fields");
+                sb.AppendLine("using var formContent = new FormUrlEncodedContent(fields);");
+                sb.AppendLine("requestBuilder.WithBinaryBody(formContent.ReadAsStream(), \"application/x-www-form-urlencoded\");");
+            }
             else if (XmlBodyHelper.ClientRequestBody(operation, preferXml) is { } xmlRequestBody)
             {
                 // An XML body (XML-only, or with preferXml the XML alternative): the model's XML with its media type
@@ -2421,22 +2433,25 @@ public static class EndpointPerOperationExtractor
             }
             else if (isArray)
             {
-                // Array of non-binary values - serialize as JSON or comma-separated
+                // Array of non-binary values - one form field per item, as its wire text
+                var itemType = propSchema.Items?.ToCSharpType(isRequired: true, registry: null).TrimEnd('?') ?? "string";
                 sb.AppendLine($"if (parameters.Request?.{pascalPropName} is not null)");
                 sb.AppendLine("{");
                 sb.AppendLine(4, $"foreach (var item in parameters.Request.{pascalPropName})");
                 sb.AppendLine(4, "{");
-                sb.AppendLine(8, $"requestBuilder.WithFormField(\"{propName}\", item?.ToString() ?? string.Empty);");
+                sb.AppendLine(8, $"requestBuilder.WithFormField(\"{propName}\", {FormBodyHelper.WireText("item", itemType, WireValueHelper.IsStringEnum(propSchema))});");
                 sb.AppendLine(4, "}");
                 sb.AppendLine("}");
                 sb.AppendLine();
             }
             else
             {
-                // Simple value - use WithFormField
-                sb.AppendLine($"if (parameters.Request?.{pascalPropName} is not null)");
+                // Simple value - its wire text (never ToString(), which is culture-dependent)
+                var variable = char.ToLowerInvariant(pascalPropName[0]) + pascalPropName.Substring(1);
+                var valueType = propSchema.ToCSharpType(isRequired: true, registry: null).TrimEnd('?');
+                sb.AppendLine($"if (parameters.Request?.{pascalPropName} is {{ }} {variable})");
                 sb.AppendLine("{");
-                sb.AppendLine(4, $"requestBuilder.WithFormField(\"{propName}\", parameters.Request.{pascalPropName}.ToString()!);");
+                sb.AppendLine(4, $"requestBuilder.WithFormField(\"{propName}\", {FormBodyHelper.WireText(variable, valueType, WireValueHelper.IsStringEnum(propSchema))});");
                 sb.AppendLine("}");
                 sb.AppendLine();
             }

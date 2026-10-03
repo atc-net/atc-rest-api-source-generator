@@ -2341,12 +2341,28 @@ public static class OpenApiDocumentValidator
         {
             var hasJson = requestContent.Any(e => ResponseBodyClassifier.Classify(e.Key, e.Value.Schema) == ResponseBodyKind.Json);
 
-            // A URL-encoded form body is not generated on any side (server, C# clients, TypeScript)
+            // A URL-encoded form beside JSON: the body is JSON (a form-only body is generated as the form's fields)
             foreach (var form in requestContent.Keys.Where(k => k.StartsWith("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase)))
             {
-                yield return hasJson
-                    ? $"Operation '{operationId}' request body ({form}) is not generated: the body is sent and bound as JSON only."
-                    : $"Operation '{operationId}' request body ({form}) is not generated: URL-encoded form bodies are not supported, so the operation is generated without a request body. Declare the body as application/json (or multipart/form-data).";
+                if (hasJson)
+                {
+                    yield return $"Operation '{operationId}' request body ({form}) is not generated: the body is sent and bound as JSON only.";
+                }
+            }
+
+            // A form is flat: a field that is an object, or a list of objects, has no form encoding
+            if (!hasJson && operation.GetFormBodyMediaType() is { } formMediaType)
+            {
+                var (_, formProperties, _) = operation.GetFormBodySchemaInfo();
+                foreach (var property in formProperties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
+                {
+                    var itemSchema = property.Value.IsOfType(JsonSchemaType.Array) ? property.Value.Items : property.Value;
+                    if ((itemSchema is OpenApiSchemaReference { Target: { } target } && (target.IsOfType(JsonSchemaType.Object) || target.Properties is { Count: > 0 })) ||
+                        itemSchema is OpenApiSchema { Properties.Count: > 0 })
+                    {
+                        yield return $"Operation '{operationId}' request body ({formMediaType}) field '{property.Key}' is an object, which has no form encoding: the generated clients send its text, not its properties. Declare it as a scalar, a list of scalars or a file, or declare the body as application/json.";
+                    }
+                }
             }
 
             var xmlOnly = XmlBodyHelper.FindXmlOnlyBody(requestContent);

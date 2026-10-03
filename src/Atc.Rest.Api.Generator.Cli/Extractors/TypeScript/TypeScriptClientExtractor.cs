@@ -538,8 +538,9 @@ public static class TypeScriptClientExtractor
         // does on its own (its default policy for safe methods, no retry for POST/PATCH).
         var retryOption = BuildRetryOption(operation, path, httpMethod, openApiDoc);
 
-        // How to rename the body's, the response's and the error bodies' keys between the wire and the models.
-        var wireOption = wireNames.OperationOption(operation, isStreaming, isFileUpload, isFileDownload || isTextDownload);
+        // How to rename the body's, the response's and the error bodies' keys between the wire and the models
+        // (a form's fields are written under their wire names already).
+        var wireOption = wireNames.OperationOption(operation, isStreaming, isFileUpload || OpenApiOperationExtensions.IsFormContentType(bodyContentType), isFileDownload || isTextDownload);
 
         // Emit a /** ... */ block when the spec has anything worth saying
         // about this operation — summary, description, or deprecated marker. The same
@@ -740,6 +741,9 @@ public static class TypeScriptClientExtractor
         var hasHeaders = headerParams.Count > 0 || cookieParams.Count > 0;
         var hasBody = bodySchema is not null;
 
+        // A URL-encoded form: the model's fields in a URLSearchParams (a multipart form is a file upload)
+        var isUrlEncodedForm = hasBody && !isFileUpload && OpenApiOperationExtensions.IsFormContentType(bodyContentType);
+
         // Cast suffix narrows the generic ApiResult<T> returned by ApiClient.request to the
         // per-op union — sound because handleResponse emits the same discriminator names.
         var castSuffix = perOpResultTypeName is not null
@@ -759,6 +763,10 @@ public static class TypeScriptClientExtractor
             if (hasBody && isFileUpload)
             {
                 AppendFormDataBody(sb, bodySchema!, bodyContentType, namingStrategy, rawUploadMediaTypes);
+            }
+            else if (hasBody && isUrlEncodedForm)
+            {
+                AppendUrlEncodedBody(sb, bodySchema!, namingStrategy, convertDates);
             }
             else if (hasBody)
             {
@@ -1205,6 +1213,62 @@ public static class TypeScriptClientExtractor
         // Fallback
         sb.AppendLine("        return data;");
         sb.AppendLine("      })(),");
+    }
+
+    /// <summary>
+    /// A URL-encoded form body: the model's fields in a <c>URLSearchParams</c> (the runtime sends it as
+    /// <c>application/x-www-form-urlencoded</c>), a list as one field per item, a <c>Date</c> (with
+    /// <c>--convert-dates</c>) as its ISO text. A file has no URL-encoded form and is left out (ATC_API_OPR031
+    /// reports it).
+    /// </summary>
+    private static void AppendUrlEncodedBody(
+        StringBuilder sb,
+        IOpenApiSchema bodySchema,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates)
+    {
+        sb.AppendLine("      body: (() => {");
+        sb.AppendLine("        const form = new URLSearchParams();");
+
+        var properties = bodySchema.Properties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal);
+        foreach (var prop in properties)
+        {
+            var (isFile, _) = prop.Value.GetFileUploadInfo();
+            if (isFile)
+            {
+                continue;
+            }
+
+            var name = TypeScriptPropertyNames.Resolve(prop.Key, properties.Keys, namingStrategy);
+            var access = TypeScriptOperationHelper.OptionalPropertyAccess("body", name).Replace("body?.", "body.", StringComparison.Ordinal);
+            var itemSchema = prop.Value.IsOfType(JsonSchemaType.Array) ? prop.Value.Items : prop.Value;
+            var isDate = convertDates && IsDate(itemSchema);
+            if (prop.Value.IsOfType(JsonSchemaType.Array))
+            {
+                sb.Append("        for (const item of ").Append(access).Append(" ?? []) form.append('").Append(prop.Key).Append("', ").Append(Text("item", isDate, itemSchema)).AppendLine(");");
+            }
+            else
+            {
+                sb.Append("        if (").Append(access).Append(" != null) form.append('").Append(prop.Key).Append("', ").Append(Text(access, isDate, itemSchema)).AppendLine(");");
+            }
+        }
+
+        sb.AppendLine("        return form;");
+        sb.AppendLine("      })(),");
+
+        static bool IsDate(IOpenApiSchema? schema)
+            => schema?.IsOfType(JsonSchemaType.String) == true &&
+               (string.Equals(schema.Format, "date-time", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(schema.Format, "date", StringComparison.OrdinalIgnoreCase));
+
+        // The field's text: a Date as its ISO text (a date as its first ten characters), anything else as String()
+        static string Text(
+            string value,
+            bool isDate,
+            IOpenApiSchema? schema)
+            => isDate
+                ? $"{value} instanceof Date ? {value}.toISOString(){(string.Equals(schema?.Format, "date", StringComparison.OrdinalIgnoreCase) ? ".substring(0, 10)" : string.Empty)} : String({value})"
+                : $"String({value})";
     }
 
     private static void AppendQueryObject(

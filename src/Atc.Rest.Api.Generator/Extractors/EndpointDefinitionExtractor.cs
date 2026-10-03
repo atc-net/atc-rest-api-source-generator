@@ -1028,9 +1028,20 @@ using Microsoft.AspNetCore.Builder;
             }
             else
             {
-                builder.Append("    .Accepts<IFormFile>(\"multipart/form-data\")");
+                // A form that may also be posted URL-encoded is accepted as both (form binding reads both)
+                builder.Append($"    .Accepts<IFormFile>({string.Join(", ", operation.GetFormBodyMediaTypes().Select(m => $"\"{m}\""))})");
             }
 
+            builder.AppendLine();
+            builder.Append("    .DisableAntiforgery()");
+        }
+        else if (operation.RequiresFormBindingFlattening() && operation.GetFormBodyMediaTypes() is { Count: > 0 } formMediaTypes)
+        {
+            // A URL-encoded form: the model's fields, read by form binding - which opts the endpoint into antiforgery
+            // validation, as a file upload does; an undeclared media type is a 415
+            var (formSchemaName, _, _) = operation.GetFormBodySchemaInfo();
+            builder.AppendLine();
+            builder.Append($"    .Accepts<{formSchemaName?.ToPascalCaseForDotNet() ?? "object"}>({string.Join(", ", formMediaTypes.Select(m => $"\"{m}\""))})");
             builder.AppendLine();
             builder.Append("    .DisableAntiforgery()");
         }
@@ -1180,14 +1191,34 @@ using Microsoft.AspNetCore.Builder;
         }
     }
 
+    /// <summary>
+    /// Whether a form field's C# type is a value type (a nullable one on the handler, read with <c>.Value</c>): a
+    /// number, a boolean, a date, a time, a uuid, or a string enum.
+    /// </summary>
+    private static bool IsFormValueType(IOpenApiSchema schema)
+        => schema.IsOfType(JsonSchemaType.Integer) ||
+           schema.IsOfType(JsonSchemaType.Number) ||
+           schema.IsOfType(JsonSchemaType.Boolean) ||
+           WireValueHelper.IsStringEnum(schema) ||
+           (schema.IsOfType(JsonSchemaType.String) &&
+            schema.Format?.ToLowerInvariant() is "date" or "date-time" or "time" or "uuid" or "guid" or "duration");
+
     private static void GenerateWireBindingMetadata(
         StringBuilder builder,
         OpenApiOperation operation,
         IOpenApiPathItem? pathItem,
         string methodName)
     {
-        // Form binding flattening has no [AsParameters] record to read the parameters from
-        if (operation.RequiresFormBindingFlattening() || !WireBindingHelper.IsNeeded(operation, pathItem))
+        // A form bound field by field: the fields are checked by name (a required one is there, a value parses, an
+        // enum by its wire value) - there is no [AsParameters] record to read the parameters from
+        if (operation.RequiresFormBindingFlattening())
+        {
+            builder.AppendLine();
+            builder.Append($"    .WithWireFormBinding({string.Join(", ", WireBindingHelper.FormFieldArguments(operation))})");
+            return;
+        }
+
+        if (!WireBindingHelper.IsNeeded(operation, pathItem))
         {
             return;
         }
@@ -1588,16 +1619,21 @@ using Microsoft.AspNetCore.Builder;
             DefaultValue: null));
 
         // For form flattening, add individual form parameters instead of [AsParameters]
-        var formParameterNames = new List<(string ParamName, string PropName, string TypeName, bool IsRequired)>();
+        var formParameterNames = new List<(string ParamName, string PropName, string TypeName, bool IsRequired, bool IsValueType)>();
         var routeParameterNames = new List<(string ParamName, string PropName)>();
         if (requiresFormFlattening)
         {
-            var (schemaName, properties) = operation.GetMultipartFormDataSchemaInfo();
-            var formRequired = operation.RequestBody?.Content is { } formContent &&
-                               formContent.TryGetValue("multipart/form-data", out var formMediaType) &&
-                               formMediaType.Schema?.Required is { } formRequiredNames
-                ? formRequiredNames
-                : new HashSet<string>(StringComparer.Ordinal);
+            // A form field named like a path, query or header parameter (PUT /user/{username} with a username field)
+            // gets a prefixed handler parameter; the [FromForm] name stays the field's
+            var otherParameterNames = new HashSet<string>(
+                (pathParameters ?? []).Concat(operation.Parameters ?? [])
+                    .Select(p => p.GetName())
+                    .Where(n => !string.IsNullOrEmpty(n))
+                    .Select(n => n!.ToPascalCaseForDotNet())
+                    .Select(n => char.ToLowerInvariant(n[0]) + n.Substring(1)),
+                StringComparer.Ordinal);
+
+            var (_, properties, formRequired) = operation.GetFormBodySchemaInfo();
             if (properties is not null)
             {
                 foreach (var kvp in properties)
@@ -1608,6 +1644,11 @@ using Microsoft.AspNetCore.Builder;
 
                     // Convert to camelCase for parameter name
                     var paramName = char.ToLowerInvariant(pascalPropName[0]) + pascalPropName.Substring(1);
+                    if (otherParameterNames.Contains(paramName))
+                    {
+                        paramName = "form" + pascalPropName;
+                    }
+
                     var (isFile, isCollection) = propSchema.GetFileUploadInfo();
 
                     string typeName;
@@ -1627,6 +1668,22 @@ using Microsoft.AspNetCore.Builder;
                         // Use ToCSharpType for proper type mapping (handles format, nullable, etc.)
                         typeName = propSchema.ToCSharpType(isRequired: false, registry: null);
 
+                        // Every field is nullable: a required one is checked by the wire-form-binding step, which
+                        // answers a problem naming it; the framework's own check answers a bare 400. (ToCSharpType
+                        // leaves a DateOnly / TimeOnly non-nullable: CSharpTypeHelper.IsExtendedValueType does not
+                        // know them.)
+                        if (!typeName.EndsWith("?", StringComparison.Ordinal))
+                        {
+                            typeName += "?";
+                        }
+
+                        // A list is bound as one value with the items joined by the wire-form-binding step (form
+                        // binding reads a List<T> as a complex type, from indexed keys): the generated parsable list
+                        if (typeName.StartsWith("List<", StringComparison.Ordinal))
+                        {
+                            typeName = (WireValueHelper.IsStringEnum(propSchema) ? "ParsableEnum" : "Parsable") + typeName;
+                        }
+
                         attributes = new List<AttributeParameters>
                         {
                             new("FromForm", $"Name = \"{propName}\""),
@@ -1643,7 +1700,7 @@ using Microsoft.AspNetCore.Builder;
                         Name: paramName,
                         DefaultValue: null));
 
-                    formParameterNames.Add((paramName, pascalPropName, typeName, formRequired.Contains(propName)));
+                    formParameterNames.Add((paramName, pascalPropName, typeName, formRequired.Contains(propName), !isFile && IsFormValueType(propSchema)));
                 }
             }
 
@@ -1747,7 +1804,7 @@ using Microsoft.AspNetCore.Builder;
         if (requiresFormFlattening)
         {
             // For form flattening, construct the request object and parameters manually
-            var (schemaName, _) = operation.GetMultipartFormDataSchemaInfo();
+            var (schemaName, _, _) = operation.GetFormBodySchemaInfo();
             var requestTypeName = schemaName?.ToPascalCaseForDotNet() ?? "Request";
             var parameterClassName = $"{methodName}Parameters";
 
@@ -1756,7 +1813,7 @@ using Microsoft.AspNetCore.Builder;
             var requestArgs = string.Join(", ", formParameterNames.Select(p => $"{p.PropName}: {RequestArgument(p)}"));
 
             static string RequestArgument(
-                (string ParamName, string PropName, string TypeName, bool IsRequired) p)
+                (string ParamName, string PropName, string TypeName, bool IsRequired, bool IsValueType) p)
             {
                 var cleanTypeName = p.TypeName.TrimEnd('?');
                 if (!p.IsRequired)
@@ -1764,6 +1821,12 @@ using Microsoft.AspNetCore.Builder;
                     return cleanTypeName == "IFormFileCollection"
                         ? $"{p.ParamName}?.ToList()"
                         : p.ParamName;
+                }
+
+                // A required value: the wire-form-binding step answered a problem when it was missing
+                if (p.IsValueType)
+                {
+                    return $"{p.ParamName}!.Value";
                 }
 
                 // IFormFile types - handle collection conversion if needed
@@ -1785,10 +1848,16 @@ using Microsoft.AspNetCore.Builder;
                     return $"{p.ParamName} ?? string.Empty";
                 }
 
-                // List parameters - use null-coalescing with empty list
+                // List parameters - use null-coalescing with empty list (a parsable list is a List<T>)
                 if (cleanTypeName.StartsWith("List<", StringComparison.Ordinal))
                 {
                     return $"{p.ParamName} ?? new {cleanTypeName}()";
+                }
+
+                if (cleanTypeName.StartsWith("ParsableList<", StringComparison.Ordinal) ||
+                    cleanTypeName.StartsWith("ParsableEnumList<", StringComparison.Ordinal))
+                {
+                    return $"{p.ParamName} ?? new List<{cleanTypeName.Substring(cleanTypeName.IndexOf('<') + 1).TrimEnd('>')}>()";
                 }
 
                 return p.ParamName;

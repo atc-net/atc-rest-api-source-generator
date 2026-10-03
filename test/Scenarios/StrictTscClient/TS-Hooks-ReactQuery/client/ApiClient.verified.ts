@@ -124,6 +124,7 @@ export class ApiClient {
       }],
       transformRequest: [(data: unknown, headers: Record<string, string>) => {
         if (data instanceof FormData || data instanceof Blob) return data;
+        if (data instanceof URLSearchParams) return data.toString();
         if (data !== undefined && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
         return data !== undefined ? JSON.stringify(data, dateReplacer) : data;
       }],
@@ -159,6 +160,9 @@ export class ApiClient {
 
     if (options?.body !== undefined) {
       if (options.body instanceof FormData) {
+        data = options.body;
+      } else if (options.body instanceof URLSearchParams) {
+        headers['Content-Type'] = 'application/x-www-form-urlencoded';
         data = options.body;
       } else if (options.body instanceof Blob) {
         const fileType = options.contentType ?? (options.body.type || 'application/octet-stream');

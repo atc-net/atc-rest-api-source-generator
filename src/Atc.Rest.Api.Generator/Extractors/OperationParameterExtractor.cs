@@ -741,14 +741,13 @@ public static class OperationParameterExtractor
                     // Add binding attribute only for server-side parameters
                     if (includeBindingAttributes)
                     {
-                        // For multipart/form-data with schema reference (e.g., objects containing IFormFile),
-                        // don't add any binding attribute - ASP.NET Core will automatically use form binding
-                        // when it detects IFormFile properties. [FromBody] would force JSON deserialization,
-                        // and [FromForm] causes issues with complex types in minimal APIs.
+                        // A form (multipart/form-data, application/x-www-form-urlencoded) with a model schema gets no
+                        // binding attribute: the handler binds its fields one by one ([FromForm] on the record would
+                        // make the record the form, and [FromBody] would force JSON).
                         // A model offered as XML is bound by its Content-Type (the generated BindAsync of the model):
                         // [FromBody] reads JSON only
-                        var isMultipartFormData = contentType?.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) == true;
-                        if (!isMultipartFormData && XmlBodyHelper.ServerBoundRequestBody(operation.RequestBody?.Content) is null)
+                        var isForm = OpenApiOperationExtensions.IsFormContentType(contentType);
+                        if (!isForm && XmlBodyHelper.ServerBoundRequestBody(operation.RequestBody?.Content) is null)
                         {
                             bodyAttributes.Add(new AttributeParameters("FromBody", null));
                         }
