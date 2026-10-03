@@ -32,7 +32,7 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
     /// Gets a value indicating whether the specification is validated with the standard strategy instead of the strict one.
     /// </summary>
     [CommandOption("--no-strict")]
-    [Description("Disable strict validation mode (skip additional naming convention checks).")]
+    [Description("Validate with the Standard strategy: only the OpenAPI parser's errors and structural checks, not the ATC rules.")]
     [DefaultValue(false)]
     public bool DisableStrictMode { get; init; }
 

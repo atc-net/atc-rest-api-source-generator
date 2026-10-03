@@ -13,10 +13,10 @@ public sealed class GenerateServerCommandSettings : BaseGenerateCommandSettings
     public string? SubFolderStrategy { get; init; }
 
     /// <summary>
-    /// Gets how the API is versioned: <c>None</c>, <c>QueryString</c>, <c>Header</c>, <c>UrlSegment</c> or <c>Combined</c>.
+    /// Gets how the API is versioned: <c>None</c>, <c>QueryString</c>, <c>UrlSegment</c> or <c>Header</c>.
     /// </summary>
     [CommandOption("--versioning-strategy <STRATEGY>")]
-    [Description("API versioning strategy: None, QueryString, Header, UrlSegment, or Combined.")]
+    [Description("API versioning strategy: None, QueryString, UrlSegment or Header.")]
     public string? VersioningStrategy { get; init; }
 
     /// <summary>
@@ -163,7 +163,7 @@ public sealed class GenerateServerCommandSettings : BaseGenerateCommandSettings
         if (!string.IsNullOrWhiteSpace(VersioningStrategy) &&
             !Enum.TryParse<VersioningStrategyType>(VersioningStrategy, ignoreCase: true, out _))
         {
-            return ValidationResult.Error($"Invalid versioning strategy: '{VersioningStrategy}'. Valid values: None, QueryString, Header, UrlSegment, Combined.");
+            return ValidationResult.Error($"Invalid versioning strategy: '{VersioningStrategy}'. Valid values: {string.Join(", ", Enum.GetNames<VersioningStrategyType>())}.");
         }
 
         // Validate default API version format if provided
