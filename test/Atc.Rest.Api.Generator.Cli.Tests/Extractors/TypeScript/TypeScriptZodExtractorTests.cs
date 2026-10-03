@@ -83,6 +83,35 @@ public class TypeScriptZodExtractorTests
     }
 
     // ============ TypeScriptZodModelExtractor ============
+
+    /// <summary>
+    /// A date-time on the wire carries an offset as often as a Z (a .NET server writes <c>+00:00</c> for a
+    /// <c>DateTimeOffset</c>); Zod's <c>datetime()</c> accepts only Z unless told about offsets.
+    /// </summary>
+    [Fact]
+    public void ZodModel_DateTime_AcceptsAnOffset()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Moment:
+                                  type: object
+                                  properties:
+                                    day: { type: string, format: date }
+                                    at: { type: string, format: date-time }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig()), r => r.Name == "Moment");
+
+        Assert.Contains("day: z.string().date()", content, StringComparison.Ordinal);
+        Assert.Contains("at: z.string().datetime({ offset: true })", content, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ZodModel_AllOfWithoutType_ExtendsEveryBaseAndKeepsTheInlineProperties()
     {

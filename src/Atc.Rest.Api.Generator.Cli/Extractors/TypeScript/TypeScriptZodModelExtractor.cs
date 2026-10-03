@@ -982,7 +982,7 @@ public static class TypeScriptZodModelExtractor
                     sb.Append(".date()");
                     break;
                 case "date-time":
-                    sb.Append(".datetime()");
+                    sb.Append(".datetime({ offset: true })");
                     break;
             }
 
