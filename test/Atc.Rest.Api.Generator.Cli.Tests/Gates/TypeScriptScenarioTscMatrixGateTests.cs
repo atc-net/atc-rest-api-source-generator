@@ -164,6 +164,8 @@ public sealed class TypeScriptScenarioTscMatrixGateTests
                 failing.Add(combination);
             }
 
+            WriteReportData(combinations, failing);
+
             var newlyFailing = failing.Where(c => !KnownNonCompilingCombinations.Contains(c)).ToList();
             var nowCompiling = KnownNonCompilingCombinations.Where(c => !failing.Contains(c)).ToList();
 
@@ -279,6 +281,37 @@ public sealed class TypeScriptScenarioTscMatrixGateTests
     /// Every "{scenario}/{scenario}.yaml" copied next to the test assembly (the base spec of a
     /// multi-part scenario; its part files are merged from there).
     /// </summary>
+    /// <summary>
+    /// Leaves the matrix's result for the test-suite report (<c>Report_EndToEndErrorBodyMatrix</c> in the
+    /// source-generator tests reads <c>issues/report-data/tsc-matrix.json</c>); nothing when the repository root
+    /// is not above the test binaries (a packaged run).
+    /// </summary>
+    private static void WriteReportData(
+        IReadOnlyCollection<string> combinations,
+        IReadOnlyCollection<string> failing)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "test", "Scenarios")))
+        {
+            directory = directory.Parent;
+        }
+
+        if (directory is null)
+        {
+            return;
+        }
+
+        var folder = Path.Combine(directory.FullName, "issues", "report-data");
+        Directory.CreateDirectory(folder);
+        var data = new System.Text.Json.Nodes.JsonObject
+        {
+            ["generatedAt"] = DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss zzz", System.Globalization.CultureInfo.InvariantCulture),
+            ["combinations"] = new System.Text.Json.Nodes.JsonArray([.. combinations.Select(c => (System.Text.Json.Nodes.JsonNode)c)]),
+            ["failing"] = new System.Text.Json.Nodes.JsonArray([.. failing.Select(c => (System.Text.Json.Nodes.JsonNode)c)]),
+        };
+        File.WriteAllText(Path.Combine(folder, "tsc-matrix.json"), data.ToJsonString());
+    }
+
     private static IEnumerable<(string Scenario, string SpecPath)> DiscoverScenarioSpecs()
     {
         var root = Path.Combine(AppContext.BaseDirectory, "Scenarios");

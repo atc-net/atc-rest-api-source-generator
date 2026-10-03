@@ -11,7 +11,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: [['html', { open: 'never' }]],
+  // The JSON file feeds the Playwright tab of the test-suite report (Report_EndToEndErrorBodyMatrix)
+  reporter: [['html', { open: 'never' }], ['json', { outputFile: 'test-results/results.json' }]],
 
   use: {
     trace: 'on-first-retry',

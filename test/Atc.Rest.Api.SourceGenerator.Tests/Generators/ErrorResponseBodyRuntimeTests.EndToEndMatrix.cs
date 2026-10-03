@@ -110,42 +110,6 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
-    /// Writes the matrix as <c>issues/return-body-report.json</c> and renders <c>issues/return-body-report.html</c>
-    /// from <c>Generators/ErrorBodyReport.template.html</c>.
-    /// </summary>
-    [Fact(Explicit = true)]
-    public async Task Report_EndToEndErrorBodyMatrix()
-    {
-        Assert.True(IsNodeAvailable(out var reason), reason);
-
-        var matrix = await CollectEndToEndMatrixAsync();
-        matrix["bodyMedia"] = await CollectBodyMediaMatrixAsync();
-
-        var root = FindRepositoryRoot();
-        var issues = Path.Combine(root, "issues");
-        Directory.CreateDirectory(issues);
-
-        // Hand-written context shown next to the data: the 3.0 readiness notes, and the independent review's findings.
-        foreach (var (key, file) in ((string, string)[])[("readiness", "return-body-readiness.html"), ("review", "return-body-review.html")])
-        {
-            var path = Path.Combine(issues, file);
-            if (File.Exists(path))
-            {
-                matrix[key] = await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken);
-            }
-        }
-
-        var json = matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(Path.Combine(issues, "return-body-report.json"), json, TestContext.Current.CancellationToken);
-
-        var template = await File.ReadAllTextAsync(
-            Path.Combine(root, "test", "Atc.Rest.Api.SourceGenerator.Tests", "Generators", "ErrorBodyReport.template.html"),
-            TestContext.Current.CancellationToken);
-        var html = template.Replace("/*__REPORT_DATA__*/null", matrix.ToJsonString().Replace("</", "<\\/", StringComparison.Ordinal), StringComparison.Ordinal);
-        await File.WriteAllTextAsync(Path.Combine(issues, "return-body-report.html"), html, TestContext.Current.CancellationToken);
-    }
-
-    /// <summary>
     /// A custom error model named like a schema of the specification (the Monta sample's <c>ErrorResponse</c> next
     /// to the spec's own <c>ErrorResponse</c>): the spec's model keeps its type for the <c>default</c> response - the
     /// custom one used to shadow it through the root namespace - and the custom model's accessor reads a body that

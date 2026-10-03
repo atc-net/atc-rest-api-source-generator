@@ -11,7 +11,7 @@ public class RuleCoverageTests
     /// Rules that cannot be unit tested (with documented reasons).
     /// Each entry explains why the rule requires integration testing or is not yet implemented.
     /// </summary>
-    private static readonly Dictionary<string, string> ExcludedRules = new(StringComparer.Ordinal)
+    internal static readonly Dictionary<string, string> ExcludedRules = new(StringComparer.Ordinal)
     {
         // ========== Generation Rules (GEN) - Runtime errors ==========
         ["ATC_API_GEN001"] = "ServerGenerationError - Reported during code generation, requires integration test",
@@ -144,7 +144,7 @@ public class RuleCoverageTests
             $"{string.Join("\n", testedExclusions.Select(r => $"  - {r}"))}");
     }
 
-    private static HashSet<string> GetAllRuleIdentifiers()
+    internal static HashSet<string> GetAllRuleIdentifiers()
     {
         var ruleIdentifiersType = typeof(Generator.RuleIdentifiers);
         var fields = ruleIdentifiersType.GetFields(
@@ -167,7 +167,7 @@ public class RuleCoverageTests
         return rules;
     }
 
-    private static HashSet<string> GetTestedRules()
+    internal static HashSet<string> GetTestedRules()
     {
         var testedRules = new HashSet<string>(StringComparer.Ordinal);
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Error Body Matrix</title>
+<title>Test-suite report</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -124,6 +124,8 @@
   dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; font-size: 13px; }
   dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; word-break: break-word; }
   .note { background: var(--accent-soft); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; }
+  .banner { background: #fff4e5; border: 1px solid #f0c47a; border-radius: 8px; padding: 10px 14px; margin: 12px 0; color: #5a3b00; }
+  .cell-ok { color: #1a7f37; } .cell-bad { color: #b42318; font-weight: 600; } .cell-dim { color: var(--muted); }
   .axes td, .axes th { font-size: 13px; }
   ul.tight { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
   .ask { border-left: 3px solid var(--lossy); padding: 4px 0 4px 12px; display: grid; gap: 4px; }
@@ -136,15 +138,22 @@
 <main>
   <header>
     <div class="eyebrow">atc-rest-api-source-generator 3.0 · proven by an end-to-end run</div>
-    <h1>Error Body Matrix</h1>
-    <p class="lead">What the generated server writes for every HTTP status (every <code>System.Net.HttpStatusCode</code> value, plus 418, 425, 499 and 599) and every way a specification can declare it, and what each generated client makes of those bytes. Every cell is a recorded result of a real run: the generated server on Kestrel, each generated client calling it over HTTP.</p>
+    <h1>Test-suite report</h1>
+    <p class="lead">Four end-to-end runs of the generated server on Kestrel with every generated client calling it over HTTP - error bodies for every HTTP status, body media types, request binding, security and rate limiting - next to the compile gate over every scenario and generator, the diagnostics coverage and the Playwright apps. Every cell is a recorded result of a real run.</p>
     <div class="meta" id="provenance"></div>
   </header>
+  <div id="banners"></div>
 
   <nav class="tabs" role="tablist">
     <button role="tab" aria-selected="true" data-tab="overview">Overview</button>
     <button role="tab" aria-selected="false" data-tab="matrix">Matrix</button>
     <button role="tab" aria-selected="false" data-tab="media">Body media types</button>
+    <button role="tab" aria-selected="false" data-tab="binding">Request binding</button>
+    <button role="tab" aria-selected="false" data-tab="guard">Security &amp; rate limiting</button>
+    <button role="tab" aria-selected="false" data-tab="support">Feature support</button>
+    <button role="tab" aria-selected="false" data-tab="diagnostics">Diagnostics coverage</button>
+    <button role="tab" aria-selected="false" data-tab="playwright">Playwright</button>
+    <button role="tab" aria-selected="false" data-tab="changes">Changes since previous run</button>
     <button role="tab" aria-selected="false" data-tab="method">How it was tested</button>
     <button role="tab" aria-selected="false" data-tab="readiness">3.0 readiness</button>
   </nav>
@@ -215,6 +224,32 @@
   <section id="tab-media" role="tabpanel" hidden>
     <div class="panel" id="media-intro"></div>
     <div id="media"></div>
+  </section>
+
+  <section id="tab-binding" role="tabpanel" hidden>
+    <div class="panel" id="binding-intro"></div>
+    <div id="binding"></div>
+  </section>
+
+  <section id="tab-guard" role="tabpanel" hidden>
+    <div class="panel" id="guard-intro"></div>
+    <div id="guard"></div>
+  </section>
+
+  <section id="tab-support" role="tabpanel" hidden>
+    <div class="panel" id="support"></div>
+  </section>
+
+  <section id="tab-diagnostics" role="tabpanel" hidden>
+    <div class="panel" id="diagnostics"></div>
+  </section>
+
+  <section id="tab-playwright" role="tabpanel" hidden>
+    <div class="panel" id="playwright"></div>
+  </section>
+
+  <section id="tab-changes" role="tabpanel" hidden>
+    <div class="panel" id="changes"></div>
   </section>
 
   <section id="tab-method" role="tabpanel" hidden>
@@ -309,6 +344,20 @@ if (!REPORT) {
     esc(p.os),
     `${cases.length} cases × ${clients.length} clients`,
   ].map((s) => `<span>${s}</span>`).join('');
+
+  // Banners: a run from an uncommitted working tree is not reproducible; an old run may not describe the code any more
+  const runAge = (Date.now() - Date.parse(String(REPORT.generatedAt).replace(/ (\d\d:\d\d:\d\d) /, "T$1"))) / 86400000;
+  const banners = [];
+  if (p.uncommittedFiles) banners.push(`This run comes from an <b>uncommitted working tree</b>: commit <span class="mono">${esc(p.commit)}</span> plus ${esc(p.uncommittedFiles)} uncommitted files. Its results may not match that commit - regenerate from a clean tree before sharing numbers.`);
+  if (Number.isFinite(runAge) && runAge > 14) banners.push(`This run is <b>${Math.floor(runAge)} days old</b> (${esc(REPORT.generatedAt)}). The code has probably moved on - regenerate with <code>Report_EndToEndErrorBodyMatrix</code>.`);
+  $('#banners').innerHTML = banners.map((b) => `<div class="banner">${b}</div>`).join('');
+
+  // What a matrix does not exercise, from the data (REPORT.notExercised.<matrix>)
+  window.notExercisedHtml = (key) => {
+    const items = REPORT.notExercised?.[key] ?? [];
+    const inline = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
+    return items.length ? `<ul class="tight">${items.map((s) => `<li>${inline(s)}</li>`).join('')}</ul>` : '<i>nothing recorded</i>';
+  };
 
   // Stats
   const all = [];
@@ -580,7 +629,7 @@ if (!REPORT) {
       <li><b>C# clients.</b> The source generator generates each client (EndpointPerOperation with each <code>errorResponseFormat</code> - Custom with the Monta sample's <code>customErrorResponseModel</code> - and the TypedClient in both result styles); a probe calls every case against the host and records the status, <code>IsSuccess</code>, the typed accessor and its value (or its exception).</li>
       <li><b>TypeScript clients.</b> The CLI executable (<code>atc-rest-api-gen generate client-typescript</code>) generates the Fetch and the Axios client; a Node harness (<code>tsx</code>) calls every case over HTTP and records the result arm, the error class, <code>message</code>, <code>detail</code>, <code>body</code> and <code>errors</code>. Every client must report every case.</li>
       <li><b>Verdicts.</b> Each cell is judged by rules written from the documented contract (wiki: <i>Working with Error Responses</i>): the expected accessor, type and arm come from the specification (never from the generated client), and every typed value is compared field by field with the body on the wire. <span class="v lossy">lossy</span> is only given with the exact fields the typed value cannot hold; any other difference is a <span class="v fail">fail</span>. The same rules run as the test <code>EndToEnd_EveryClientReadsWhatTheServerWrites</code>, which fails on any fail; this page is its data. The test <code>MatrixVerdicts_FailRegressedResults</code> is a negative control: for each rule - wire (success, validation, handler value, default body, exceptions, Retry-After, stub), EndpointPerOperation (success, IsSuccess, value, JSON-text string, custom field, default accessor, undeclared <code>Content</code>, non-JSON bodies, the fields a lossy names), TypedClient Throw and Result, TypeScript (arm, generated arms, class, status, body, fields, message, validation errors, success arm) - it asserts that a correct result passes and a regressed one fails, so a pass is evidence rather than the absence of a check.</li>
-      <li><b>Not exercised.</b> Secured and rate-limited operations (a 401/403 from the authentication handler, the generated rate limiter's 429, <code>WWW-Authenticate</code>); validation exceptions thrown by handler code; the framework's 413/415 and bad parameter values; the Development environment (5xx <code>detail</code>); OpenAPI 3.1/3.2 specifications; a server without Atc.Rest.MinimalApi or with the ValidationFilter / global error handler switched off; <code>x-retry-*</code> policies; network failures, timeouts and cancellation; 1xx and 3xx statuses, HEAD, 2xx other than 200/204; binary bodies, uploads and XML (the <b>Body media types</b> tab - a streamed download there is checked for its bytes only); streaming operations other than a download; the React Query / SWR hooks, Zod runtime validation, date conversion and naming strategies (the error path is the same <code>ApiError</code>); a browser runtime (the TypeScript clients run in Node - CORS and header exposure are not observed; Axios' <code>Blob</code> error bodies on downloads are, on its http and fetch adapters, in the <b>Body media types</b> tab); text bodies in a charset other than UTF-8 in the TypeScript clients. Node's fetch rejects every 407 response, so the Fetch client cannot be observed on 407.</li>
+      <li><b>Not exercised.</b> ${notExercisedHtml('errorBodies')} Secured and rate-limited operations, the requests no client can send (a value of the wrong type, 413, 415) and <code>x-retry-*</code> have tabs of their own; binary bodies, uploads and XML are the <b>Body media types</b> tab.</li>
     </ul>
     <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*Report_EndToEndErrorBodyMatrix" --explicit only</code> writes this page and <code>issues/return-body-report.json</code>.</p></div>
     <div id="review"></div>`;
@@ -611,7 +660,7 @@ if (!REPORT) {
     <p>The generated server (one specification, handwritten handlers) on Kestrel, and every generated client calling it over HTTP: files of every kind - PDF, Excel, PNG, JPEG, <code>application/octet-stream</code> - as bytes with a file name, as a stream without one, and streamed to the client (<code>x-return-stream</code>); raw uploads; XML bodies (XML-only, a list, a request body, JSON or XML by <code>Accept</code>, a declared XML error model); a response that is a model or a file; and the errors on each - a handler's 404, an exception's 500, a validation 400 and a proxy's HTML 502 (a stub in front of the API).</p>
     <p><b>The server</b> is checked against values computed by the test, not by the handlers: each file's bytes (SHA-256 and length), media type and exact file name (<code>filename*</code> - the names have an Å; none for a stream); the handler's model, read back from the JSON or XML on the wire; and for an error its status, media type and body (a ProblemDetails' title and validation key, the declared XML error model's fields, the proxy's page; no exception text). Whether a case expects a file, a model or an error comes from the case, never from the wire. A JSON-or-XML case is captured twice: without an <code>Accept</code>, and XML first as a <code>preferXml</code> client asks (the server then writes <code>application/xml</code> and <code>application/problem+xml</code>).</p>
     <p><b>A client</b> passes when it exposes what the server wrote: a file with the same bytes, content type (the file's own - <code>DownloadedFile.ContentType</code>, the <code>Blob</code>'s <code>type</code>; no fallback to the headers) and file name; a model equal to the handler's, field by field, with the status and media type it got (a <code>preferXml</code> client must get XML, the others JSON; the TypedClient <code>Throw</code> style exposes neither and is checked on the model only); an error with the server's status and media type and, read into the typed value, the ProblemDetails' <code>detail</code> (else <code>title</code>) and validation keys, or the XML error model's <code>code</code> and <code>message</code> (the TypedClient has no typed errors by design: its <code>Result</code> style must hold the server's raw body, its <code>Throw</code> style throws with the status).</p>
-    <p><b>Limits.</b> The files are synthetic bytes (every byte value) under the media types, not real PDFs or images. A streamed case (<code>x-return-stream</code>) proves the bytes arrive through the streamed C# EndpointPerOperation result; the probe buffers them, and the other clients download them as any file. Axios is run on Node's default adapter (http) and on its fetch adapter; a browser's default (XHR) is not exercised. The 502 rows come from a stub in front of the API (no generated server code runs), and the 404/500/502 rows repeat per file kind. Uploads cover PDF and PNG, sent as a file without a type (the generated client must send the declared one).</p>
+    <p><b>Not exercised.</b> ${notExercisedHtml('bodyMedia')} The 502 rows come from a stub in front of the API (no generated server code runs), and the 404/500/502 rows repeat per file kind.</p>
     <p class="counts">${media.cases.length} cases × ${media.clients.length} clients = ${total} client cells: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')} · ${wireTotal} server answers: ${Object.entries(wireCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')} · run ${esc(media.generatedAt)} in ${esc(media.durationSeconds)} s</p>
     <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientReadsEveryBodyMediaType"</code> (fails on any fail cell).</p></div>`;
 
@@ -624,6 +673,91 @@ if (!REPORT) {
       ${media.clients.map((cl) => { const cell = c.clients[cl.id]; return cell ? `<td class="cell" title="${esc(cell.why)}"><span class="v ${esc(cell.verdict)}">${esc(cell.verdict)}</span>${cell.loss ? ` <span class="lk">${esc(cell.loss.kind)}</span>` : ''}<span class="s">${esc(cell.summary)}</span></td>` : '<td class="cell"><span class="v na">na</span></td>'; }).join('')}
     </tr>`).join('')}</tbody></table></div></div>`;
   }).join('');
+})();
+
+// A case x client matrix with a wire column (the request-binding and the security matrices)
+function renderCaseMatrix(introSel, bodySel, data, intro) {
+  if (!data) { $(introSel).innerHTML = `<p>This report was generated without this matrix.</p>`; return; }
+  const counts = {};
+  for (const c of data.cases) for (const cell of Object.values(c.clients)) counts[cell.verdict] = (counts[cell.verdict] ?? 0) + 1;
+  const wire = data.cases.filter((c) => c.wire);
+  const wireCounts = {};
+  for (const c of wire) wireCounts[c.wire.verdict] = (wireCounts[c.wire.verdict] ?? 0) + 1;
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  $(introSel).innerHTML = intro + `<p class="counts">${data.cases.length} cases × ${data.clients.length} clients = ${total} client cells: ${Object.entries(counts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}${wire.length ? ` · ${wire.length} server answers: ${Object.entries(wireCounts).map(([v, n]) => `<span class="v ${esc(v)}">${esc(v)}</span> ${n}`).join(' ')}` : ''} · run ${esc(data.generatedAt)} in ${esc(data.durationSeconds)} s</p>`;
+  const groups = [...new Set(data.cases.map((c) => c.group))];
+  $(bodySel).innerHTML = groups.map((g) => {
+    const rows = data.cases.filter((c) => c.group === g);
+    const hasWire = rows.some((c) => c.wire);
+    return `<div class="panel"><h3>${esc(g)}</h3><div class="table-wrap"><table class="matrix"><thead><tr><th>Case</th>${hasWire ? '<th>Server wire</th>' : ''}${data.clients.map((cl) => `<th title="${esc(cl.group + ' · ' + cl.label)}">${esc(cl.group.replace('C# EndpointPerOperation', 'C# EPO'))}<br>${esc(cl.label.replace('typedClientResultStyle: ', '').replace('errorResponseFormat: ', ''))}</th>`).join('')}</tr></thead><tbody>${rows.map((c) => `<tr>
+      <td><b>${esc(c.id)}</b><br><span class="mono" style="font-size:11.5px">${esc(c.operation ?? '')}${c.expects ? ' · expects ' + esc(c.expects) : ''}</span></td>
+      ${hasWire ? (c.wire ? `<td class="wire cell" title="${esc(c.wire.why)}"><span class="v ${esc(c.wire.verdict)}">${esc(c.wire.verdict)}</span> <span class="ct">${esc(c.wire.status)} ${esc(c.wire.mediaType ?? '')}</span><span class="s">${esc(String(c.wire.body ?? '').slice(0, 120))}</span></td>` : '<td class="cell"></td>') : ''}
+      ${data.clients.map((cl) => { const cell = c.clients[cl.id]; return cell ? `<td class="cell" title="${esc(cell.why)}"><span class="v ${esc(cell.verdict)}">${esc(cell.verdict)}</span><span class="s">${esc(cell.summary)}${cell.server ? ' · server ' + esc(cell.server) : ''}</span></td>` : '<td class="cell"><span class="v na">na</span></td>'; }).join('')}
+    </tr>`).join('')}</tbody></table></div></div>`;
+  }).join('');
+}
+
+renderCaseMatrix('#binding-intro', '#binding', REPORT?.requestBinding, `
+  <h2>Request binding</h2>
+  <p>The generated server with handlers that answer with what they were given, and every generated client calling it with values in the path, the query string, headers, cookies and the body (JSON, a <code>+json</code> media type, multipart). Each cell compares what the server bound with what the client was given; the last group sends, without a client, the requests no typed client can send - a value of the wrong type, a missing required value, a malformed body, a media type the operation does not take, a body that is too large - and checks the server's answer (the status as an RFC 9457 problem, naming the parameter).</p>
+  <p><b>Not exercised.</b> ${notExercisedHtml('requestBinding')}</p>
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientSendsWhatTheServerBinds"</code></p></div>`);
+
+renderCaseMatrix('#guard-intro', '#guard', REPORT?.guard, `
+  <h2>Security &amp; rate limiting</h2>
+  <p>The generated server with two test authentication schemes (a bearer token that spells out subject, scopes and roles; an API key) and every generated client calling its secured and rate-limited operations - without credentials, with the wrong ones, with the right ones, and past a limiter's budget. Each cell lists the statuses the client saw, call by call, against what the specification and the documented contract say; the server's own log of the cell's requests (<i>server</i>) proves what the client's retry policy did with a 429: a <code>Retry-After</code> past the cap is handed back at once, a short one is waited for and the retry succeeds, a 429 without one is retried with the policy's back-off.</p>
+  <p><b>Not exercised.</b> ${notExercisedHtml('guard')}</p>
+  <div class="note"><p><b>Reproduce:</b> <code>dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --filter-method "*EndToEnd_EveryClientIsGuardedAsTheSpecificationSays"</code></p></div>`);
+
+// Feature support: every scenario specification through every C# generator (the compile gate), by OpenAPI version; the tsc matrix when its gate has run
+(function renderSupport() {
+  const s = REPORT?.support;
+  if (!s) { $('#support').innerHTML = '<p>No support data in this run.</p>'; return; }
+  const cellHtml = (g) => !g ? '<td class="cell-dim">-</td>' : g.errors ? `<td class="cell-bad" title="${esc(g.detail)}">${g.errors} error${g.errors === 1 ? '' : 's'}</td>` : g.warnings ? `<td class="cell-bad" title="${esc(g.detail)}">${g.warnings} warning${g.warnings === 1 ? '' : 's'}</td>` : `<td class="cell-ok" title="${g.files} files">✓${g.marker ? '' : ' <span class="cell-dim" title="no marker folder: generated with the default marker">(default)</span>'}</td>`;
+  const tsc = s.tsc;
+  const tscByScenario = {};
+  if (tsc) for (const combo of tsc.combinations ?? []) { const [sc] = combo.split('/'); (tscByScenario[sc] ??= { total: 0, failing: 0 }).total++; if ((tsc.failing ?? []).includes(combo)) tscByScenario[sc].failing++; }
+  const versions = [...new Set(s.scenarios.map((x) => x.openApi))].sort();
+  const byVersion = versions.map((v) => { const rows = s.scenarios.filter((x) => x.openApi === v); const bad = rows.filter((x) => Object.values(x.generators).some((g) => g.errors || g.warnings)).length; return `<b>OpenAPI ${esc(v)}</b>: ${rows.length} scenarios, ${rows.length - bad} compile clean for every generator`; }).join(' · ');
+  $('#support').innerHTML = `<h2>Feature support</h2>
+    <p>Every scenario specification under <code>test/Scenarios</code> is given to every C# generator - with its marker folder when it has one, else the default marker - and the output is compiled the way a strict consumer does (nullable, documentation, warnings). A ✓ is a clean compilation; the compile gate (<code>GeneratorCompilationGateTests</code>) fails on anything else. The TypeScript column is the strict <code>tsc</code> matrix over the same specifications (Fetch and Axios × no hooks, React Query, SWR × Default and Full flavours), from its gate's data file.</p>
+    <p class="counts">${byVersion}${tsc ? ` · tsc matrix: ${(tsc.combinations ?? []).length} combinations, ${(tsc.failing ?? []).length} failing (run ${esc(tsc.generatedAt)})` : ' · tsc matrix: not run on this machine (<code>TypeScriptScenarioTscMatrixGateTests</code> writes <code>issues/report-data/tsc-matrix.json</code>)'}</p>
+    <div class="table-wrap"><table class="matrix"><thead><tr><th>Scenario</th><th>OpenAPI</th>${s.generators.map((g) => `<th>${esc(g)}</th>`).join('')}<th>TypeScript (tsc)</th></tr></thead><tbody>
+    ${s.scenarios.map((x) => `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.openApi)}</td>${s.generators.map((g) => cellHtml(x.generators[g])).join('')}<td>${tscByScenario[x.name] ? (tscByScenario[x.name].failing ? `<span class="cell-bad">${tscByScenario[x.name].failing} of ${tscByScenario[x.name].total} failing</span>` : `<span class="cell-ok">✓ ${tscByScenario[x.name].total}</span>`) : '<span class="cell-dim">-</span>'}</td></tr>`).join('')}
+    </tbody></table></div>`;
+})();
+
+// Diagnostics coverage: every rule id and how it is tested
+(function renderDiagnostics() {
+  const d = REPORT?.diagnostics;
+  if (!d) { $('#diagnostics').innerHTML = '<p>No diagnostics data in this run.</p>'; return; }
+  const count = (st) => d.rules.filter((r) => r.status === st).length;
+  const families = [...new Set(d.rules.map((r) => r.id.replace(/^ATC_API_/, '').replace(/\d+$/, '')))];
+  $('#diagnostics').innerHTML = `<h2>Diagnostics coverage</h2>
+    <p>Every diagnostic the generator can report (<code>RuleIdentifiers</code>) and whether a test exercises it: <b>tested</b> - a test in the source-generator test assembly names its code (<code>RuleCoverageTests</code> enforces this); <b>tested elsewhere</b> - the exclusion names the test project; <b>untested</b> - the recorded reason. ${count('tested')} tested, ${count('tested elsewhere')} tested elsewhere, ${count('untested')} untested of ${d.rules.length}.</p>
+    ${families.map((fam) => { const rows = d.rules.filter((r) => r.id.replace(/^ATC_API_/, '').replace(/\d+$/, '') === fam); return `<h3>${esc(fam)} <span class="counts">${rows.filter((r) => r.status !== 'untested').length} of ${rows.length}</span></h3><div class="table-wrap"><table><tbody>${rows.map((r) => `<tr><td class="mono">${esc(r.id)}</td><td>${r.status === 'untested' ? '<span class="v fail">untested</span>' : r.status === 'tested' ? '<span class="v pass">tested</span>' : '<span class="v lossy">tested elsewhere</span>'}</td><td class="counts">${esc(r.note ?? '')}</td></tr>`).join('')}</tbody></table></div>`; }).join('')}`;
+})();
+
+// Playwright: the Showcase apps, when the suite has run on this machine
+(function renderPlaywright() {
+  const pw = REPORT?.playwright;
+  if (!pw) { $('#playwright').innerHTML = '<h2>Playwright</h2><p>The Showcase end-to-end suite (<code>test/Showcase.E2ETests</code>) has not run on this machine: no <code>test-results/results.json</code>. Run <code>npx playwright test</code> there and regenerate this report.</p>'; return; }
+  $('#playwright').innerHTML = `<h2>Playwright</h2>
+    <p>The Showcase apps (Blazor, React on fetch, React on Axios) driven by Playwright against the generated API: ${pw.specs} spec files, run ${esc(pw.startTime)} in ${esc(pw.durationSeconds)} s.</p>
+    <div class="table-wrap"><table><thead><tr><th>App (project)</th><th>Results</th></tr></thead><tbody>${Object.entries(pw.apps).map(([app, t]) => `<tr><td><b>${esc(app)}</b></td><td>${Object.entries(t).map(([st, n]) => `<span class="v ${st === 'expected' || st === 'passed' ? 'pass' : st === 'skipped' ? 'na' : 'fail'}">${esc(st)}</span> ${n}`).join(' ')}</td></tr>`).join('')}</tbody></table></div>`;
+})();
+
+// Changes since the previous run (from the history file)
+(function renderChanges() {
+  const ch = REPORT?.changes;
+  if (!ch) { $('#changes').innerHTML = '<p>No history in this run.</p>'; return; }
+  if (!ch.previous) { $('#changes').innerHTML = '<h2>Changes since previous run</h2><p>This is the first run recorded in <code>issues/return-body-report.history.jsonl</code>; the next run will be compared with it.</p>'; return; }
+  const cellRow = (key) => { const [m, c, cl] = key.split('|'); return `<td>${esc(m)}</td><td>${esc(c)}</td><td>${esc(cl)}</td>`; };
+  $('#changes').innerHTML = `<h2>Changes since previous run</h2>
+    <p>Previous run ${esc(ch.previous.generatedAt)}, commit <span class="mono">${esc(ch.previous.commit)}</span>${ch.previous.uncommittedFiles ? ` + ${ch.previous.uncommittedFiles} uncommitted files` : ''}; this run commit <span class="mono">${esc(REPORT.provenance.commit)}</span>. ${ch.changed.length} cells changed verdict, ${ch.added.length} cells are new, ${ch.removed.length} cells are gone.</p>
+    ${ch.changed.length ? `<h3>Changed</h3><div class="table-wrap"><table><thead><tr><th>Matrix</th><th>Case</th><th>Client</th><th>Was</th><th>Now</th></tr></thead><tbody>${ch.changed.map((x) => `<tr>${cellRow(x.cell)}<td><span class="v ${esc(x.from)}">${esc(x.from)}</span></td><td><span class="v ${esc(x.to)}">${esc(x.to)}</span></td></tr>`).join('')}</tbody></table></div>` : '<p>No cell changed its verdict.</p>'}
+    ${ch.added.length ? `<details><summary style="cursor:pointer">${ch.added.length} new cells</summary><div class="table-wrap"><table><tbody>${ch.added.map((k) => `<tr>${cellRow(k)}</tr>`).join('')}</tbody></table></div></details>` : ''}
+    ${ch.removed.length ? `<details><summary style="cursor:pointer">${ch.removed.length} cells gone</summary><div class="table-wrap"><table><tbody>${ch.removed.map((k) => `<tr>${cellRow(k)}</tr>`).join('')}</tbody></table></div></details>` : ''}`;
 })();
 
 // Tabs
