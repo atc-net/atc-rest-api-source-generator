@@ -140,6 +140,25 @@ public sealed class GenerateServerCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task GenerateServer_TwoProjects_ProgramWiresProblemDetailsForEveryError()
+    {
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var repoRoot = Path.Combine(tempOutputDir, "TwoProjectsProblemDetails");
+        var arguments = $"generate server -s \"{yamlPath}\" -o \"{repoRoot}\" -n Contoso --project-structure TwoProjects";
+
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+        var program = await File.ReadAllTextAsync(Path.Combine(repoRoot, "src", "Contoso.Api", "Program.cs"), TestContext.Current.CancellationToken);
+        Assert.Contains("builder.Services.AddProblemDetails();", program, StringComparison.Ordinal);
+        Assert.Contains("app.UseStatusCodePages();", program, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task GenerateServer_WithDomainProject_WritesDomainNamespaceToHandlersMarkerFile()
     {
         // Arrange - Default ThreeProjects creates domain project with marker file

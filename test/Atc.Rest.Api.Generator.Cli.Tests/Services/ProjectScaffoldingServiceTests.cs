@@ -47,6 +47,26 @@ public sealed class ProjectScaffoldingServiceTests : IDisposable
     }
 
     [Fact]
+    public void GenerateHostProject_ProgramWiresProblemDetailsForEveryError()
+    {
+        var result = sut.GenerateHostProject(
+            tempSrcPath,
+            "Demo.Api",
+            "Demo.Api.Contracts",
+            "Demo.Api.Domain",
+            "net10.0",
+            HostUiType.Scalar,
+            HostUiModeType.DevelopmentOnly);
+
+        Assert.True(result);
+        var program = File.ReadAllText(Path.Combine(tempSrcPath, "Demo.Api", "Program.cs"));
+        Assert.Contains("builder.Services.AddProblemDetails();", program, StringComparison.Ordinal);
+        var statusCodePages = program.IndexOf("app.UseStatusCodePages();", StringComparison.Ordinal);
+        Assert.True(statusCodePages > program.IndexOf("var app = builder.Build();", StringComparison.Ordinal), program);
+        Assert.True(statusCodePages < program.IndexOf("app.MapOpenApi();", StringComparison.Ordinal), program);
+    }
+
+    [Fact]
     public void GenerateHostProject_NoHostUi_DoesNotAddOpenApiPackageReferences()
     {
         // Act

@@ -1321,10 +1321,16 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             sb.AppendLine();
         }
 
+        sb.AppendLine("// RFC 9457 ProblemDetails for every error");
+        sb.AppendLine("builder.Services.AddProblemDetails();");
+        sb.AppendLine();
         sb.AppendLine("// Register handler implementations from Domain project");
         sb.AppendLine("builder.Services.AddApiHandlersFromDomain();");
         sb.AppendLine();
         sb.AppendLine("var app = builder.Build();");
+        sb.AppendLine();
+        sb.AppendLine("// A ProblemDetails body for error responses that have none (first in the pipeline)");
+        sb.AppendLine("app.UseStatusCodePages();");
         sb.AppendLine();
 
         // Generate UI mapping based on configuration

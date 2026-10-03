@@ -63,6 +63,8 @@ public sealed class GenerateCommandOptionsFileTests : IDisposable
         Assert.True(isSuccessful, $"Expected success but got failure. Output: {output}");
         var marker = await ReadFile("server", "src", "Contoso.Api.Contracts", ".atc-rest-api-server");
         Assert.Contains("\"namespace\": \"Contoso.Pets\"", marker, StringComparison.Ordinal);
+        var handlersMarker = await ReadFile("server", "src", "Contoso.Domain", ".atc-rest-api-server-handlers");
+        Assert.Contains("\"namespace\": \"Contoso.Pets\"", handlersMarker, StringComparison.Ordinal);
     }
 
     [Fact]
