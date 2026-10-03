@@ -40,13 +40,21 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         var specPath = Path.GetFullPath(settings.SpecificationPath);
         var outputPath = Path.GetFullPath(settings.OutputPath);
 
-        // Use client project name override if provided
-        var projectName = !string.IsNullOrWhiteSpace(settings.ClientProjectName)
-            ? settings.ClientProjectName
-            : settings.ProjectName;
+        // Load options from file (auto-discovery or explicit path); a file that cannot be read stops the command
+        ApiGeneratorOptions options;
+        try
+        {
+            options = ApiOptionsHelper.LoadOptions(settings.OptionsPath, specPath);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+            return 1;
+        }
 
-        // Load options from file (auto-discovery or explicit path)
-        var options = ApiOptionsHelper.LoadOptions(settings.OptionsPath, specPath);
+        // Project name: --client-project, then scaffolding.clientProjectName from the options file, then --name
+        var projectName = new[] { settings.ClientProjectName, options.Scaffolding.ClientProjectName }
+            .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name)) ?? settings.ProjectName;
 
         // Apply CLI argument overrides
         var clientConfig = ApplyCliOverrides(options, settings);
@@ -245,16 +253,20 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             config.IncludeDeprecated = true;
         }
 
-        // Override namespace: client-namespace takes precedence over --namespace
+        // Namespace: --client-namespace, scaffolding.clientNamespace, --namespace, then client.namespace from the options file
         if (!string.IsNullOrWhiteSpace(settings.ClientNamespace))
         {
             config.Namespace = settings.ClientNamespace;
+        }
+        else if (!string.IsNullOrWhiteSpace(options.Scaffolding.ClientNamespace))
+        {
+            config.Namespace = options.Scaffolding.ClientNamespace;
         }
         else if (!string.IsNullOrWhiteSpace(settings.Namespace))
         {
             config.Namespace = settings.Namespace;
         }
-        else
+        else if (string.IsNullOrWhiteSpace(config.Namespace))
         {
             config.Namespace = ProjectNameHelper.ExtractSolutionName(settings.ProjectName);
         }

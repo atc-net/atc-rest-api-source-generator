@@ -42,8 +42,17 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         var outputPath = Path.GetFullPath(settings.OutputPath);
         var projectName = settings.ProjectName;
 
-        // Load options from file (auto-discovery or explicit path)
-        var options = ApiOptionsHelper.LoadOptions(settings.OptionsPath, specPath);
+        // Load options from file (auto-discovery or explicit path); a file that cannot be read stops the command
+        ApiGeneratorOptions options;
+        try
+        {
+            options = ApiOptionsHelper.LoadOptions(settings.OptionsPath, specPath);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException)
+        {
+            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+            return 1;
+        }
 
         // Apply CLI argument overrides (scaffolding first, then use it for server/domain)
         var scaffoldingConfig = ApplyScaffoldingCliOverrides(options, settings);
@@ -218,7 +227,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                         domainProjectName,
                         scaffoldingConfig.TargetFramework,
                         scaffoldingConfig.HostUi,
-                        scaffoldingConfig.HostUiMode))
+                        scaffoldingConfig.HostUiMode,
+                        scaffoldingConfig.HostNamespace))
                     {
                         return 1;
                     }
@@ -368,8 +378,15 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             NoCodingRules = options.Scaffolding.NoCodingRules,
             TestFramework = options.Scaffolding.TestFramework,
             TargetFramework = options.Scaffolding.TargetFramework,
+            HostProjectName = options.Scaffolding.HostProjectName,
+            ContractsProjectName = options.Scaffolding.ContractsProjectName,
+            DomainProjectName = options.Scaffolding.DomainProjectName,
+            HostNamespace = options.Scaffolding.HostNamespace,
+            ContractsNamespace = options.Scaffolding.ContractsNamespace,
+            DomainNamespace = options.Scaffolding.DomainNamespace,
             HostUi = options.Scaffolding.HostUi,
             HostUiMode = options.Scaffolding.HostUiMode,
+            Aspire = options.Scaffolding.Aspire,
             RemoveNamespaceGroupSeparatorInGlobalUsings = options.Scaffolding.RemoveNamespaceGroupSeparatorInGlobalUsings,
         };
 
@@ -459,7 +476,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             config.IncludeDeprecated = true;
         }
 
-        // Override namespace: contracts-namespace takes precedence over --namespace
+        // Namespace: the contracts namespace, then --namespace, then server.namespace from the options file
         if (!string.IsNullOrWhiteSpace(scaffoldingConfig.ContractsNamespace))
         {
             config.Namespace = scaffoldingConfig.ContractsNamespace;
@@ -468,7 +485,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             config.Namespace = settings.Namespace;
         }
-        else
+        else if (string.IsNullOrWhiteSpace(config.Namespace))
         {
             config.Namespace = ProjectNameHelper.ExtractSolutionName(settings.ProjectName);
         }
@@ -516,7 +533,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             config.IncludeDeprecated = true;
         }
 
-        // Override namespace: domain-namespace takes precedence
+        // Namespace: the domain namespace, then --namespace, then server.namespace from the options file
         if (!string.IsNullOrWhiteSpace(scaffoldingConfig.DomainNamespace))
         {
             config.Namespace = scaffoldingConfig.DomainNamespace;
@@ -524,6 +541,10 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         else if (!string.IsNullOrWhiteSpace(settings.Namespace))
         {
             config.Namespace = settings.Namespace;
+        }
+        else if (!string.IsNullOrWhiteSpace(options.Server.Namespace))
+        {
+            config.Namespace = options.Server.Namespace;
         }
         else
         {

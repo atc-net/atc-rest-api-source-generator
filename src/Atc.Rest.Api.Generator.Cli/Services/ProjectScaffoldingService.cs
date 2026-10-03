@@ -391,6 +391,7 @@ public sealed class ProjectScaffoldingService
     /// <param name="targetFramework">Target framework (e.g., "net10.0").</param>
     /// <param name="hostUi">API documentation UI type.</param>
     /// <param name="hostUiMode">When to enable the UI.</param>
+    /// <param name="hostNamespace">The host project's root namespace; the project name when not set.</param>
     /// <returns>True if successful, false otherwise.</returns>
     public bool GenerateHostProject(
         string srcPath,
@@ -399,7 +400,8 @@ public sealed class ProjectScaffoldingService
         string domainProjectName,
         string targetFramework,
         HostUiType hostUi,
-        HostUiModeType hostUiMode)
+        HostUiModeType hostUiMode,
+        string? hostNamespace = null)
     {
         var hostProjectPath = Path.Combine(srcPath, hostProjectName);
         var csprojPath = Path.Combine(hostProjectPath, $"{hostProjectName}.csproj");
@@ -421,7 +423,8 @@ public sealed class ProjectScaffoldingService
                     contractsProjectName,
                     domainProjectName,
                     targetFramework,
-                    hostUi);
+                    hostUi,
+                    hostNamespace);
                 File.WriteAllText(csprojPath, csprojContent);
                 AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {hostProjectName}.csproj");
             }
@@ -569,13 +572,20 @@ public sealed class ProjectScaffoldingService
         string contractsProjectName,
         string domainProjectName,
         string targetFramework,
-        HostUiType hostUi)
+        HostUiType hostUi,
+        string? hostNamespace)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<Project Sdk=\"Microsoft.NET.Sdk.Web\">");
         sb.AppendLine();
         sb.AppendLine(2, "<PropertyGroup>");
         sb.AppendLine(4, $"<TargetFramework>{targetFramework}</TargetFramework>");
+
+        if (!string.IsNullOrWhiteSpace(hostNamespace))
+        {
+            sb.AppendLine(4, $"<RootNamespace>{hostNamespace}</RootNamespace>");
+        }
+
         sb.AppendLine(2, "</PropertyGroup>");
         sb.AppendLine();
         sb.AppendLine(2, "<ItemGroup>");

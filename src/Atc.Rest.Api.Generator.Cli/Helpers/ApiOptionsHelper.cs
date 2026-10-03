@@ -16,28 +16,30 @@ public static class ApiOptionsHelper
     /// </summary>
     /// <param name="optionsPath">Explicit path to options file (optional).</param>
     /// <param name="specificationPath">Path to OpenAPI specification file (used for auto-discovery).</param>
-    /// <returns>Loaded options or default options if no file found.</returns>
+    /// <returns>The loaded options, or the defaults when no options file is found.</returns>
+    /// <exception cref="FileNotFoundException">An explicit <paramref name="optionsPath"/> does not lead to a file.</exception>
+    /// <exception cref="InvalidDataException">The options file is not valid JSON or has a value of the wrong type.</exception>
     public static ApiGeneratorOptions LoadOptions(
         string? optionsPath,
         string? specificationPath)
     {
         var resolvedPath = ResolveOptionsFilePath(optionsPath, specificationPath);
 
-        if (resolvedPath is null ||
-            !File.Exists(resolvedPath))
+        if (resolvedPath is null)
         {
-            return new ApiGeneratorOptions();
+            return string.IsNullOrWhiteSpace(optionsPath)
+                ? new ApiGeneratorOptions()
+                : throw new FileNotFoundException($"Options file not found: {Path.GetFullPath(optionsPath)}", optionsPath);
         }
 
         try
         {
             var json = File.ReadAllText(resolvedPath);
-            var options = JsonSerializer.Deserialize<ApiGeneratorOptions>(json, JsonOptions);
-            return options ?? new ApiGeneratorOptions();
+            return JsonSerializer.Deserialize<ApiGeneratorOptions>(json, JsonOptions) ?? new ApiGeneratorOptions();
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            return new ApiGeneratorOptions();
+            throw new InvalidDataException($"Options file {resolvedPath} is not valid: {ex.Message}", ex);
         }
     }
 
@@ -171,6 +173,7 @@ public static class ApiOptionsHelper
             }
 
             // Validate specific values
+            ReportUnknownProperties(document.RootElement, typeof(ApiGeneratorOptions), path: null, result.Warnings);
             ValidateOptions(options, result);
 
             result.IsValid = result.Errors.Count == 0;
@@ -201,6 +204,49 @@ public static class ApiOptionsHelper
 
         return fullPath;
     }
+
+    /// <summary>
+    /// Adds a warning for every JSON property the options classes do not have (a misspelled name is
+    /// otherwise ignored silently), walking into the nested sections.
+    /// </summary>
+    private static void ReportUnknownProperties(
+        JsonElement element,
+        Type optionsType,
+        string? path,
+        ICollection<string> warnings)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        var comparison = JsonOptions.PropertyNameCaseInsensitive
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        var properties = optionsType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+
+        foreach (var jsonProperty in element.EnumerateObject())
+        {
+            var propertyPath = path is null ? jsonProperty.Name : $"{path}.{jsonProperty.Name}";
+            var property = properties.FirstOrDefault(p => string.Equals(JsonNameOf(p), jsonProperty.Name, comparison));
+            if (property is null)
+            {
+                warnings.Add($"Unknown property '{propertyPath}' is ignored.");
+                continue;
+            }
+
+            if (property.PropertyType.IsClass &&
+                property.PropertyType.Namespace == typeof(ApiGeneratorOptions).Namespace)
+            {
+                ReportUnknownProperties(jsonProperty.Value, property.PropertyType, propertyPath, warnings);
+            }
+        }
+    }
+
+    private static string JsonNameOf(System.Reflection.PropertyInfo property)
+        => System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Text.Json.Serialization.JsonPropertyNameAttribute>(property)?.Name
+           ?? JsonOptions.PropertyNamingPolicy?.ConvertName(property.Name)
+           ?? property.Name;
 
     /// <summary>
     /// Validates the loaded options and populates the result with any errors or warnings.

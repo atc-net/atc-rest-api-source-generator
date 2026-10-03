@@ -84,13 +84,57 @@ public sealed class ApiOptionsHelperTests : IDisposable
     }
 
     [Fact]
-    public void LoadOptions_InvalidJson_ReturnsDefaults()
+    public void LoadOptions_InvalidJson_ThrowsNamingTheFile()
     {
-        File.WriteAllText(Path.Combine(tempPath, ApiGeneratorOptions.FileName), "{ not json");
+        var filePath = Path.Combine(tempPath, ApiGeneratorOptions.FileName);
+        File.WriteAllText(filePath, "{ not json");
 
-        var options = ApiOptionsHelper.LoadOptions(tempPath, specificationPath: null);
+        var exception = Assert.Throws<InvalidDataException>(() => ApiOptionsHelper.LoadOptions(tempPath, specificationPath: null));
+
+        Assert.Contains(filePath, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LoadOptions_UnknownEnumValue_ThrowsNamingTheFile()
+    {
+        var filePath = Path.Combine(tempPath, ApiGeneratorOptions.FileName);
+        File.WriteAllText(filePath, """{ "server": { "subFolderStrategy": "BySegment" } }""");
+
+        var exception = Assert.Throws<InvalidDataException>(() => ApiOptionsHelper.LoadOptions(tempPath, specificationPath: null));
+
+        Assert.Contains(filePath, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LoadOptions_ExplicitPathMissing_Throws()
+    {
+        var missingPath = Path.Combine(tempPath, "missing", ApiGeneratorOptions.FileName);
+
+        var exception = Assert.Throws<FileNotFoundException>(() => ApiOptionsHelper.LoadOptions(missingPath, specificationPath: null));
+
+        Assert.Contains(missingPath, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LoadOptions_NoFileAnywhere_ReturnsDefaults()
+    {
+        var options = ApiOptionsHelper.LoadOptions(optionsPath: null, Path.Combine(tempPath, "api.yaml"));
 
         Assert.Equal("Client", options.Client.ClientSuffix);
+    }
+
+    [Fact]
+    public void ValidateOptionsFile_MisspelledProperty_WarnsWithItsPath()
+    {
+        File.WriteAllText(
+            Path.Combine(tempPath, ApiGeneratorOptions.FileName),
+            """{ "server": { "domain": { "handlerSufix": "Service" } }, "clinet": {} }""");
+
+        var result = ApiOptionsHelper.ValidateOptionsFile(tempPath);
+
+        Assert.True(result.IsValid);
+        Assert.Contains(result.Warnings, w => w.Contains("server.domain.handlerSufix", StringComparison.Ordinal));
+        Assert.Contains(result.Warnings, w => w.Contains("'clinet'", StringComparison.Ordinal));
     }
 
     [Fact]
