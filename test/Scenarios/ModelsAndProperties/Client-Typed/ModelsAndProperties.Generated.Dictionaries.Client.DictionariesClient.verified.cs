@@ -17,6 +17,7 @@ public sealed class DictionariesClient : IDictionariesClient
 {
     private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
     {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         Converters = { new JsonStringEnumConverter() },
     };

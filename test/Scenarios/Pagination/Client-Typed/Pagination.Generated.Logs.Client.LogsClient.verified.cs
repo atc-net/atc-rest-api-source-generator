@@ -18,6 +18,7 @@ public sealed class LogsClient : ILogsClient
 {
     private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
     {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         Converters = { new JsonStringEnumConverter() },
     };

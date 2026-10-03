@@ -10,5 +10,9 @@ namespace AllOfMultiLevel.Generated.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public record Person(
+    Guid Id,
+    string Name,
     [property: Required, EmailAddress] string Email,
-    [property: Range(0, 150)] int? Age = null);
+    DateTimeOffset? CreatedAt = null,
+    string? Description = null,
+    [property: Range(0, 150)] int? Age = null) : NamedEntity(Id, Name, CreatedAt, Description);

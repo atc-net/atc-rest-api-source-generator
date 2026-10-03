@@ -16,6 +16,7 @@ public sealed class TreeClient : ITreeClient
 {
     private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
     {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         Converters = { new JsonStringEnumConverter() },
     };

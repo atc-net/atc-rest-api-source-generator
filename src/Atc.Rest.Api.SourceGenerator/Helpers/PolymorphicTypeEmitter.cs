@@ -98,11 +98,11 @@ internal static class PolymorphicTypeEmitter
             return PolymorphicTypeExtractor.GenerateUnionConverter(config, projectName, pathSegment, additionalUsings);
         }
 
-        // A discriminated type only needs a converter to honour a defaultMapping fallback;
-        // otherwise [JsonPolymorphic] on the base already does the dispatch.
-        return config.DefaultVariantTypeName is null
-            ? null
-            : PolymorphicTypeExtractor.GenerateDiscriminatorFallbackConverter(config, projectName, pathSegment, additionalUsings);
+        // A discriminated type needs a converter to honour a defaultMapping fallback, or when a variant declares
+        // the discriminator property ([JsonPolymorphic] refuses that); otherwise the attributes do the dispatch.
+        return config.UsesDiscriminatorConverter
+            ? PolymorphicTypeExtractor.GenerateDiscriminatorFallbackConverter(config, projectName, pathSegment, additionalUsings)
+            : null;
     }
 
     /// <summary>

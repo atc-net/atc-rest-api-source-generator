@@ -17,6 +17,7 @@ public sealed class ApiKeysClient : IApiKeysClient
 {
     private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
     {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         Converters = { new JsonStringEnumConverter() },
     };

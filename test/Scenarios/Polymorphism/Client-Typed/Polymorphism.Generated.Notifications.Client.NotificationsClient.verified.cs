@@ -17,6 +17,7 @@ public sealed class NotificationsClient : INotificationsClient
 {
     private static readonly JsonSerializerOptions defaultJsonSerializerOptions = new JsonSerializerOptions
     {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         Converters = { new JsonStringEnumConverter() },
     };

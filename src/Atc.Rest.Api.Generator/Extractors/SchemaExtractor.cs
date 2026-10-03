@@ -626,7 +626,7 @@ public static class SchemaExtractor
         TypeConflictRegistry? registry)
     {
         var baseName = OpenApiSchemaExtensions.SanitizeSchemaName(allOfBaseName);
-        var baseArgs = GetBaseConstructorArguments(openApiDoc, allOfBaseName);
+        var baseArgs = GetBaseConstructorArguments(openApiDoc, allOfBaseName, registry);
 
         if (openApiDoc.Components?.Schemas is null ||
             !openApiDoc.Components.Schemas.TryGetValue(allOfBaseName, out var baseSchemaValue) ||
@@ -1363,10 +1363,15 @@ public static class SchemaExtractor
         {
             foreach (var sub in schema.AllOf)
             {
-                // Resolve references to get the actual schema
+                // Resolve references to get the actual schema; a part that is itself an allOf (a base that
+                // extends another base) contributes everything it merges to, so the chain is flattened
                 var actualSub = sub is OpenApiSchemaReference subRef && subRef.Target is not null
                     ? subRef.Target
                     : sub;
+                if (actualSub is OpenApiSchema { AllOf.Count: > 0 } composite)
+                {
+                    actualSub = MergeAllOfProperties(composite);
+                }
 
                 if (actualSub.Properties is not null)
                 {
@@ -1424,30 +1429,34 @@ public static class SchemaExtractor
     }
 
     /// <summary>
-    /// Gets the base type's property names as constructor arguments for allOf inheritance.
+    /// Gets the base record's constructor parameter names, in the order its own extraction puts them (a base that
+    /// extends another base merges the chain first; parameters with a default value come last), so the derived
+    /// record forwards them as the base's constructor takes them.
     /// </summary>
     private static IList<string> GetBaseConstructorArguments(
         OpenApiDocument doc,
-        string baseSchemaName)
+        string baseSchemaName,
+        TypeConflictRegistry? registry)
     {
-        if (doc.Components?.Schemas is null)
+        if (doc.Components?.Schemas is null ||
+            !doc.Components.Schemas.TryGetValue(baseSchemaName, out var baseSchemaValue) ||
+            baseSchemaValue is not OpenApiSchema baseSchema)
         {
             return [];
         }
 
-        if (!doc.Components.Schemas.TryGetValue(baseSchemaName, out var baseSchema))
+        var effective = baseSchema.AllOf is { Count: > 0 }
+            ? MergeAllOfProperties(baseSchema)
+            : baseSchema;
+
+        if (effective.Properties is null || effective.Properties.Count == 0)
         {
             return [];
         }
 
-        if (baseSchema.Properties is null || baseSchema.Properties.Count == 0)
-        {
-            return [];
-        }
-
-        return baseSchema.Properties
-            .Select(p => p.Key.ToPascalCaseForDotNet())
-            .ToList();
+        var baseRecord = ExtractRecordFromSchema(OpenApiSchemaExtensions.SanitizeSchemaName(baseSchemaName), effective, registry);
+        return baseRecord?.Parameters?.Select(p => p.Name).ToList()
+               ?? effective.Properties.Select(p => p.Key.ToPascalCaseForDotNet()).ToList();
     }
 
     /// <summary>

@@ -43,6 +43,22 @@ public class PolymorphicConfig
     public string? DefaultVariantTypeName { get; set; }
 
     /// <summary>
+    /// Gets or sets a value indicating whether a variant schema declares the discriminator property itself (the
+    /// usual OpenAPI shape: <c>kind</c> is a property of <c>Circle</c>). System.Text.Json refuses a
+    /// <c>[JsonPolymorphic]</c> discriminator that is also a property of a derived type, so such a type gets the
+    /// discriminator JsonConverter instead.
+    /// </summary>
+    public bool DiscriminatorDeclaredByVariants { get; set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the discriminated type is read and written by the generated discriminator
+    /// JsonConverter rather than by <c>[JsonPolymorphic]</c> attributes: to honour a <c>defaultMapping</c>, or
+    /// because a variant declares the discriminator property.
+    /// </summary>
+    public bool UsesDiscriminatorConverter
+        => DefaultVariantTypeName is not null || DiscriminatorDeclaredByVariants;
+
+    /// <summary>
     /// Gets the list of polymorphic variants.
     /// </summary>
     public List<PolymorphicVariant> Variants { get; } = [];

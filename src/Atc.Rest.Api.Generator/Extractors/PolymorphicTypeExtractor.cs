@@ -90,12 +90,16 @@ public static class PolymorphicTypeExtractor
                 : "discriminator was auto-detected";
             sb.AppendLine($"/// Note: Uses a custom JsonConverter because {reason} (fallback: {config.DefaultVariantTypeName}).");
         }
+        else if (config.DiscriminatorDeclaredByVariants)
+        {
+            sb.AppendLine($"/// Note: Uses a custom JsonConverter because a variant declares '{config.DiscriminatorPropertyName}' as a property of its own; an unknown value is a JsonException.");
+        }
 
         sb.AppendLine("/// </summary>");
 
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
 
-        if (config.DefaultVariantTypeName is not null)
+        if (config.UsesDiscriminatorConverter)
         {
             sb.AppendLine($"[JsonConverter(typeof({config.BaseTypeName}JsonConverter))]");
         }
@@ -145,8 +149,16 @@ public static class PolymorphicTypeExtractor
 
         sb.AppendLine("/// <summary>");
         sb.AppendLine($"/// Discriminator-based JSON converter for <see cref=\"{config.BaseTypeName}\"/>.");
-        sb.AppendLine($"/// Dispatches on property '{config.DiscriminatorPropertyName}' and falls back to");
-        sb.AppendLine($"/// <see cref=\"{config.DefaultVariantTypeName}\"/> for unrecognized discriminator values.");
+        if (config.DefaultVariantTypeName is not null)
+        {
+            sb.AppendLine($"/// Dispatches on property '{config.DiscriminatorPropertyName}' and falls back to");
+            sb.AppendLine($"/// <see cref=\"{config.DefaultVariantTypeName}\"/> for unrecognized discriminator values.");
+        }
+        else
+        {
+            sb.AppendLine($"/// Dispatches on property '{config.DiscriminatorPropertyName}'; an unrecognized value is a <see cref=\"JsonException\"/>.");
+        }
+
         sb.AppendLine("/// </summary>");
 
         sb.AppendLine($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]");
@@ -172,7 +184,15 @@ public static class PolymorphicTypeExtractor
             sb.AppendLine($"            \"{variant.DiscriminatorValue}\" => JsonSerializer.Deserialize<{variant.TypeName}>(rawText, options),");
         }
 
-        sb.AppendLine($"            _ => JsonSerializer.Deserialize<{config.DefaultVariantTypeName}>(rawText, options),");
+        if (config.DefaultVariantTypeName is not null)
+        {
+            sb.AppendLine($"            _ => JsonSerializer.Deserialize<{config.DefaultVariantTypeName}>(rawText, options),");
+        }
+        else
+        {
+            sb.AppendLine($"            _ => throw new JsonException($\"Unknown '{config.DiscriminatorPropertyName}' value '{{discriminatorValue}}' for {config.BaseTypeName}.\"),");
+        }
+
         sb.AppendLine("        };");
         sb.AppendLine("    }");
 
@@ -262,6 +282,7 @@ public static class PolymorphicTypeExtractor
             IsOneOf = isOneOf,
             IsDiscriminatorExplicit = isExplicit,
             DefaultVariantTypeName = defaultVariantTypeName,
+            DiscriminatorDeclaredByVariants = variantNames.Any(v => VariantDeclaresProperty(document, v, discriminatorPropertyName!)),
         };
 
         // Get discriminator mapping (explicit or generate from schema names)
@@ -280,6 +301,40 @@ public static class PolymorphicTypeExtractor
         }
 
         return config;
+    }
+
+    /// <summary>
+    /// Whether a variant schema (or a base it extends through <c>allOf</c>) declares the property itself.
+    /// </summary>
+    private static bool VariantDeclaresProperty(
+        OpenApiDocument document,
+        string variantName,
+        string propertyName)
+    {
+        if (document.Components?.Schemas is null ||
+            !document.Components.Schemas.TryGetValue(variantName, out var variant))
+        {
+            return false;
+        }
+
+        return Declares(variant, depth: 0);
+
+        bool Declares(
+            IOpenApiSchema schema,
+            int depth)
+        {
+            if (depth > 8)
+            {
+                return false;
+            }
+
+            if (schema.Properties?.ContainsKey(propertyName) == true)
+            {
+                return true;
+            }
+
+            return schema.AllOf?.Any(part => Declares(part, depth + 1)) == true;
+        }
     }
 
     /// <summary>

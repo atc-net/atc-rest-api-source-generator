@@ -11,6 +11,12 @@ namespace AllOfMultiLevel.Generated.Employees.Models;
 
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Employee(
+    Guid Id,
+    string Name,
+    string Email,
     [property: Required] string Department,
+    DateTimeOffset? CreatedAt = null,
+    string? Description = null,
+    int? Age = null,
     string? Title = null,
-    DateOnly? HireDate = null);
+    DateOnly? HireDate = null) : Person(Id, Name, Email, CreatedAt, Description, Age);
