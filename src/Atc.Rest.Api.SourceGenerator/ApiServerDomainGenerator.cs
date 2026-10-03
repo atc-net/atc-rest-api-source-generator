@@ -257,6 +257,10 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // An inline allOf over a plain base becomes one inline object, so it gets a model of its own
         InlineAllOfFlattener.Flatten(openApiDoc);
 
+        // The same path filter as the server's: a scaffold for an operation the server leaves out would
+        // implement a handler interface that is never generated (on a copy: the parsed document is cached and shared)
+        openApiDoc = PathFilterHelper.WithFilteredPaths(openApiDoc, config.IncludePaths, config.ExcludePaths);
+
         // Determine contracts namespace for GlobalUsings:
         // Priority: explicit config > server marker (same dir or sibling) > derive from domain namespace
         var serverNamespace = MarkerFileHelper.TryGetServerNamespace(markerDirectory);
