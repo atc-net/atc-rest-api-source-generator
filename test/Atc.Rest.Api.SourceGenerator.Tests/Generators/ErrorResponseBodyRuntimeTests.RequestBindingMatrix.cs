@@ -4,14 +4,13 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// <summary>
 /// End-to-end request-binding matrix: the generated server runs on Kestrel with handlers that answer with what they
 /// were given, and every generated client calls it over HTTP with values in the path, the query string, headers,
-/// cookies and the body (JSON, a <c>+json</c> media type, multipart). Each cell compares what the server bound with
-/// what the client was given. A second group sends, without a client, the requests no typed client can send - a
-/// value of the wrong type, a missing required value, a malformed body, a media type the operation does not take, a
-/// body that is too large - and checks the server's answer.
+/// cookies and the body (JSON, a <c>+json</c> media type, multipart, a URL-encoded form). Each cell compares what the
+/// server bound with what the client was given. A second group sends, without a client, the requests no typed client
+/// can send - a value of the wrong type, a missing required value, a malformed body, a media type the operation does
+/// not take, a body that is too large - and checks the server's answer.
 /// </summary>
 /// <remarks>
-/// Not exercised: an <c>application/x-www-form-urlencoded</c> body (not generated; ATC_API_OPR031 reports it), and
-/// cookies from a browser (a page cannot set the Cookie header; the TypeScript cells run on Node).
+/// Not exercised: cookies from a browser (a page cannot set the Cookie header; the TypeScript cells run on Node).
 /// </remarks>
 public partial class ErrorResponseBodyRuntimeTests
 {
@@ -103,6 +102,12 @@ public partial class ErrorResponseBodyRuntimeTests
               requestBody: { required: true, content: { multipart/form-data: { schema: { $ref: '#/components/schemas/Upload' } } } }
               responses:
                 '200': { description: What the server bound, content: { application/json: { schema: { $ref: '#/components/schemas/Echo' } } } }
+          /bind/body/form:
+            post:
+              operationId: bindForm
+              requestBody: { required: true, content: { application/x-www-form-urlencoded: { schema: { $ref: '#/components/schemas/Form' } } } }
+              responses:
+                '200': { description: What the server bound, content: { application/json: { schema: { $ref: '#/components/schemas/Echo' } } } }
         components:
           schemas:
             Color:
@@ -129,6 +134,18 @@ public partial class ErrorResponseBodyRuntimeTests
                 name: { type: string }
                 count: { type: integer, format: int32 }
                 ratio: { type: number, format: double }
+                when: { type: string, format: date-time }
+                day: { type: string, format: date }
+                color: { $ref: '#/components/schemas/Color' }
+                tags: { type: array, items: { type: string } }
+            Form:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                count: { type: integer, format: int32 }
+                ratio: { type: number, format: double }
+                flag: { type: boolean }
                 when: { type: string, format: date-time }
                 day: { type: string, format: date }
                 color: { $ref: '#/components/schemas/Color' }
@@ -264,6 +281,12 @@ public partial class ErrorResponseBodyRuntimeTests
                 => System.Threading.Tasks.Task.FromResult(BindMultipartResult.Ok(BindEcho.Of(parameters, accessor)));
         }
 
+        public sealed class BindFormHandlerImpl(IHttpContextAccessor accessor) : IBindFormHandler
+        {
+            public System.Threading.Tasks.Task<BindFormResult> ExecuteAsync(BindFormParameters parameters, System.Threading.CancellationToken cancellationToken = default)
+                => System.Threading.Tasks.Task.FromResult(BindFormResult.Ok(BindEcho.Of(parameters, accessor)));
+        }
+
         public static class RequestBindingRegistration
         {
             public static void Register(IServiceCollection services)
@@ -277,6 +300,7 @@ public partial class ErrorResponseBodyRuntimeTests
                 services.AddScoped<IBindJsonHandler, BindJsonHandlerImpl>();
                 services.AddScoped<IBindVendorJsonHandler, BindVendorJsonHandlerImpl>();
                 services.AddScoped<IBindMultipartHandler, BindMultipartHandlerImpl>();
+                services.AddScoped<IBindFormHandler, BindFormHandlerImpl>();
             }
         }
         """";
@@ -650,6 +674,24 @@ public partial class ErrorResponseBodyRuntimeTests
             },
             Expected: Expect(("Name", "doc é"), ("Count", "2"), ("File", fileText), ("@contentType", "multipart/form-data"))));
 
+        // A URL-encoded form: every scalar formatting (a boolean, a fractional number, an offset, an enum wire name) and
+        // a list as repeated keys; the values carry the characters a careless encoder gets wrong (+, &, =, %)
+        cases.Add(new RequestBindingCase(
+            "body: application/x-www-form-urlencoded (every field)",
+            "body",
+            "BindForm",
+            Body: new JsonObject
+            {
+                ["name"] = text, ["count"] = -3, ["ratio"] = 1.5, ["flag"] = true, ["when"] = BindInstant, ["day"] = "2026-03-04", ["color"] = "dark-blue", ["tags"] = new JsonArray("a b", "c&d=e"),
+            },
+            Expected: Expect(("Name", text), ("Count", "-3"), ("Ratio", "1.5"), ("Flag", "true"), ("When", BindInstantUtc), ("Day", "2026-03-04"), ("Color", "DarkBlue"), ("Tags", "a b|c&d=e"), ("@contentType", "application/x-www-form-urlencoded"))));
+        cases.Add(new RequestBindingCase(
+            "body: application/x-www-form-urlencoded, only the required field",
+            "body",
+            "BindForm",
+            Body: new JsonObject { ["name"] = "only" },
+            Expected: Expect(("Name", "only"), ("@contentType", "application/x-www-form-urlencoded"))));
+
         return cases;
 
         static string QueryLabel(string name)
@@ -719,6 +761,9 @@ public partial class ErrorResponseBodyRuntimeTests
             new("body: the required property is missing", "POST", "/bind/body/json", 400, "name", ContentType: "application/json", Body: "{ \"count\": 1 }"),
             new("body: a media type the operation does not take", "POST", "/bind/body/json", 415, ContentType: "text/plain", Body: "name=x"),
             new("body: larger than the server allows", "POST", "/bind/body/json", 413, Headers: [("X-Test-Body-Limit", "64")], ContentType: "application/json", Body: "{ \"name\": \"" + new string('x', 500) + "\" }"),
+            new("form: the required field is missing", "POST", "/bind/body/form", 400, "name", ContentType: "application/x-www-form-urlencoded", Body: "count=1"),
+            new("form: an integer that is none", "POST", "/bind/body/form", 400, "count", ContentType: "application/x-www-form-urlencoded", Body: "name=x&count=abc"),
+            new("form: a media type the operation does not take", "POST", "/bind/body/form", 415, ContentType: "application/json", Body: "{ \"name\": \"x\" }"),
         ];
 
     /// <summary>

@@ -49,7 +49,6 @@ public partial class ErrorResponseBodyRuntimeTests
     /// </summary>
     internal static readonly string[] RequestBindingNotExercised =
     [
-        "An `application/x-www-form-urlencoded` body: not generated (ATC_API_OPR031 reports it).",
         "Cookies from a browser: a page cannot set the Cookie header; the TypeScript cells run on Node.",
         "Axios on its fetch adapter sending multipart from Node (the one cell in the ratchet: axios sends the FormData as form-urlencoded; its http adapter and a browser send multipart).",
     ];
