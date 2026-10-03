@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using SecurityHybrid.Generated.Reports.Handlers;
 using SecurityHybrid.Generated.Reports.Models;
 using SecurityHybrid.Generated.Reports.Results;
+using SecurityHybrid.Generated.Security;
 
 namespace SecurityHybrid.Generated.Endpoints;
 
@@ -39,7 +40,8 @@ public sealed class ReportsEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
-            .RequireAuthorization(policy => policy.RequireRole("admin", "manager"));
+            .RequireAuthorization(policy => policy.RequireRole("admin", "manager"))
+            .RequireAuthorization(SecurityPolicies.Oauth2OrdersRead);
     }
 
     internal async Task<IResult> ListReports(

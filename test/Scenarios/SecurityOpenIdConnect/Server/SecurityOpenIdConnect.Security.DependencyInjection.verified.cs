@@ -2,7 +2,9 @@
 #nullable enable
 #pragma warning disable CS1591
 
+using System;
 using System.CodeDom.Compiler;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -26,18 +28,37 @@ public static class SecurityServiceCollectionExtensions
         services.AddAuthorization(options =>
         {
             options.AddPolicy(SecurityPolicies.OidcOpenid, policy =>
-                policy.RequireClaim("scope", "openid"));
+                policy.RequireAssertion(context => HasScope(context.User, "openid")));
 
-            // Combined policy (AND logic - all scopes required)
             options.AddPolicy(SecurityPolicies.OidcOpenidAndProfile, policy =>
                 policy.RequireAssertion(context =>
-                    context.User.HasClaim("scope", "openid") &&
-                    context.User.HasClaim("scope", "profile")));
+                    HasScope(context.User, "openid") &&
+                    HasScope(context.User, "profile")));
 
             options.AddPolicy(SecurityPolicies.OidcProfile, policy =>
-                policy.RequireClaim("scope", "profile"));
+                policy.RequireAssertion(context => HasScope(context.User, "profile")));
         });
 
         return services;
+    }
+
+    /// <summary>
+    /// Whether the caller has a scope - as token handlers deliver scopes: one claim per scope, or one
+    /// space-separated claim, under <c>scope</c>, <c>scp</c>, or the claim type <c>scp</c> is mapped to.
+    /// </summary>
+    private static bool HasScope(
+        ClaimsPrincipal user,
+        string scope)
+    {
+        foreach (var claim in user.Claims)
+        {
+            if (claim.Type is "scope" or "scp" or "http://schemas.microsoft.com/identity/claims/scope" &&
+                Array.IndexOf(claim.Value.Split(' '), scope) >= 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

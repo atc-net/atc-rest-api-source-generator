@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using SecurityHybrid.Generated.Public.Handlers;
 using SecurityHybrid.Generated.Public.Models;
 using SecurityHybrid.Generated.Public.Results;
+using SecurityHybrid.Generated.Security;
 
 namespace SecurityHybrid.Generated.Endpoints;
 

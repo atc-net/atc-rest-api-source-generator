@@ -603,5 +603,11 @@ public static class EndpointRegistrationExtractor
             // Just require authorization (no specific roles or schemes)
             builder.AppendLine(4, ".RequireAuthorization()");
         }
+
+        // The scopes the requirements ask for: the generated policy, combined with the authorization above
+        if (SecurityPoliciesExtractor.OperationPolicyName(security.Requirements) is { } scopePolicy)
+        {
+            builder.AppendLine(4, $".RequireAuthorization(SecurityPolicies.{SecurityPoliciesExtractor.GenerateConstantName(scopePolicy)})");
+        }
     }
 }

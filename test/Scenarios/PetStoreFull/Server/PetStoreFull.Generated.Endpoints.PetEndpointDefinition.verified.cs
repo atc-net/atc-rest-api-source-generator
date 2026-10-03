@@ -12,6 +12,7 @@ using PetStoreFull.Generated.Pet.Handlers;
 using PetStoreFull.Generated.Pet.Models;
 using PetStoreFull.Generated.Pet.Parameters;
 using PetStoreFull.Generated.Pet.Results;
+using PetStoreFull.Generated.Security;
 
 namespace PetStoreFull.Generated.Endpoints;
 
@@ -46,6 +47,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
                 .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.PetstoreAuthReadPetsAndWritePets)
             .Accepts<PetStoreFull.Generated.Pet.Models.Pet>("application/json", "application/xml");
 
         pet
@@ -62,6 +64,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
                 .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.PetstoreAuthReadPetsAndWritePets)
             .Accepts<PetStoreFull.Generated.Pet.Models.Pet>("application/json", "application/xml");
 
         pet
@@ -76,7 +79,8 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .WithWireBinding<RouteHandlerBuilder, FindPetsByStatusParameters>()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.PetstoreAuthReadPetsAndWritePets);
 
         pet
             .MapGet("findByTags", FindPetsByTags)
@@ -90,7 +94,8 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .WithWireBinding<RouteHandlerBuilder, FindPetsByTagsParameters>()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.PetstoreAuthReadPetsAndWritePets);
 
         pet
             .MapGet("{petId}", GetPetById)
@@ -105,7 +110,8 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .WithWireBinding<RouteHandlerBuilder, GetPetByIdParameters>()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("api_key", "petstore_auth")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.ApiKeyOrPetstoreAuthReadPetsAndWritePets);
 
         pet
             .MapPost("{petId}", UpdatePetWithForm)
@@ -120,7 +126,8 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .WithWireBinding<RouteHandlerBuilder, UpdatePetWithFormParameters>()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.PetstoreAuthReadPetsAndWritePets);
 
         pet
             .MapDelete("{petId}", DeletePet)
@@ -135,7 +142,8 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .WithWireBinding<RouteHandlerBuilder, DeletePetParameters>()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.PetstoreAuthReadPetsAndWritePets);
 
         pet
             .MapPost("{petId}/uploadImage", UploadFile)
@@ -152,6 +160,7 @@ public sealed class PetEndpointDefinition : IEndpointDefinition
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("petstore_auth")
                 .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.PetstoreAuthReadPetsAndWritePets)
             .Accepts<Stream>("application/octet-stream")
             .DisableAntiforgery();
     }

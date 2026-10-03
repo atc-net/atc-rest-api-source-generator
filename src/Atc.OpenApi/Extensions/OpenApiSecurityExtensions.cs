@@ -279,6 +279,7 @@ public static class OpenApiSecurityExtensions
                 requirements.Add(new SecurityRequirement
                 {
                     SchemeName = schemeName,
+                    AuthenticationScheme = ResolveAuthenticationSchemeName(document, schemeName),
                     Scopes = scopes,
                 });
             }

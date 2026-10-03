@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using SecurityOpenIdConnect.Generated.Me.Handlers;
 using SecurityOpenIdConnect.Generated.Me.Models;
 using SecurityOpenIdConnect.Generated.Me.Results;
+using SecurityOpenIdConnect.Generated.Security;
 
 namespace SecurityOpenIdConnect.Generated.Endpoints;
 
@@ -41,7 +42,8 @@ public sealed class MeEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("oidc")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.OidcOpenid);
 
         me
             .MapGet("profile", GetCurrentUserProfile)
@@ -54,7 +56,8 @@ public sealed class MeEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("oidc")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.OidcOpenidAndProfile);
     }
 
     internal async Task<IResult> GetCurrentUser(

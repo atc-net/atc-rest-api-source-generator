@@ -1116,6 +1116,13 @@ public class ApiServerGenerator : IIncrementalGenerator
                 sb.AppendLine($"using {projectName}.Generated.RateLimiting;");
             }
 
+            // Add Security namespace when an operation requires scopes (for the SecurityPolicies
+            // const class referenced by .RequireAuthorization(SecurityPolicies.X) calls)
+            if (SecurityPoliciesExtractor.HasPolicies(openApiDoc, includeDeprecated))
+            {
+                sb.AppendLine($"using {projectName}.Generated.Security;");
+            }
+
             sb.AppendLine();
             sb.AppendLine($"namespace {endpointsNamespace};");
             sb.AppendLine();

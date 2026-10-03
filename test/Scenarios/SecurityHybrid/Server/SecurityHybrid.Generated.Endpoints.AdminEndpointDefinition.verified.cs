@@ -12,6 +12,7 @@ using SecurityHybrid.Generated.Admin.Handlers;
 using SecurityHybrid.Generated.Admin.Models;
 using SecurityHybrid.Generated.Admin.Parameters;
 using SecurityHybrid.Generated.Admin.Results;
+using SecurityHybrid.Generated.Security;
 
 namespace SecurityHybrid.Generated.Endpoints;
 

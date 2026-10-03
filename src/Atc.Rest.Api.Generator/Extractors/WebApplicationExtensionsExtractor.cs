@@ -70,7 +70,12 @@ public static class WebApplicationExtensionsExtractor
         var hasRateLimiting = openApiDoc.HasRateLimiting();
         var hasSecurity = openApiDoc.HasSecuritySchemes() || openApiDoc.HasJwtBearerSecurity();
 
-        return GenerateUnifiedFileContent(projectName, hasRateLimiting, hasSecurity);
+        // A limiter partitioned by user reads HttpContext.User: authentication has to run before it
+        var limiterNeedsUser = hasRateLimiting && hasSecurity &&
+                               RateLimitPoliciesExtractor.CollectPolicies(openApiDoc, config?.IncludeDeprecated ?? false)
+                                   .Values.Any(p => p.Partition == RateLimitPartitionStrategy.User);
+
+        return GenerateUnifiedFileContent(projectName, hasRateLimiting, hasSecurity, limiterNeedsUser);
     }
 
     /// <summary>
@@ -79,7 +84,8 @@ public static class WebApplicationExtensionsExtractor
     private static string GenerateUnifiedFileContent(
         string projectName,
         bool hasRateLimiting,
-        bool hasSecurity)
+        bool hasSecurity,
+        bool limiterNeedsUser)
     {
         // Generate content first to analyze for required usings
         var contentBuilder = new StringBuilder();
@@ -108,7 +114,7 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine("{");
 
         // Generate Map{ProjectName}Api method
-        GenerateMapApiMethod(builder, projectName, hasRateLimiting, hasSecurity);
+        GenerateMapApiMethod(builder, projectName, hasRateLimiting, hasSecurity, limiterNeedsUser);
 
         builder.AppendLine("}");
 
@@ -122,7 +128,8 @@ public static class WebApplicationExtensionsExtractor
         StringBuilder builder,
         string projectName,
         bool hasRateLimiting,
-        bool hasSecurity)
+        bool hasSecurity,
+        bool limiterNeedsUser)
     {
         builder.AppendLine(4, "/// <summary>");
         builder.AppendLine(4, $"/// Configures {projectName} API middleware and maps all endpoints.");
@@ -165,34 +172,18 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine(12, "app.UseStatusCodePages();");
         builder.AppendLine(8, "}");
 
-        // Rate limiter (optional)
-        if (hasRateLimiting)
+        // The rate limiter runs before authentication, so a rejected request costs no token validation -
+        // unless a policy partitions by user: then the limiter needs the authenticated user, and the
+        // order is turned around.
+        if (limiterNeedsUser)
         {
-            builder.AppendLine();
-            builder.AppendLine(8, "// Rate limiter middleware (before auth to protect against DDoS)");
-            builder.AppendLine(8, "if (options.UseRateLimiter)");
-            builder.AppendLine(8, "{");
-            builder.AppendLine(12, "app.UseRateLimiter();");
-            builder.AppendLine(8, "}");
+            AppendAuthentication(builder, hasSecurity);
+            AppendRateLimiter(builder, hasRateLimiting, "// Rate limiter middleware (after authentication: a policy partitions by user)");
         }
-
-        // Authentication and authorization (optional)
-        if (hasSecurity)
+        else
         {
-            builder.AppendLine();
-            builder.AppendLine(8, "// Authentication and authorization middleware");
-            builder.AppendLine(8, "if (options.UseAuthentication)");
-            builder.AppendLine(8, "{");
-            builder.AppendLine(12, "app.UseAuthentication();");
-            builder.AppendLine(12, "if (options.UseAuthorization)");
-            builder.AppendLine(12, "{");
-            builder.AppendLine(16, "app.UseAuthorization();");
-            builder.AppendLine(12, "}");
-            builder.AppendLine(8, "}");
-            builder.AppendLine(8, "else if (options.UseAuthorization)");
-            builder.AppendLine(8, "{");
-            builder.AppendLine(12, "app.UseAuthorization();");
-            builder.AppendLine(8, "}");
+            AppendRateLimiter(builder, hasRateLimiting, "// Rate limiter middleware (before auth to protect against DDoS)");
+            AppendAuthentication(builder, hasSecurity);
         }
 
         // Global error handler (always)
@@ -207,6 +198,49 @@ public static class WebApplicationExtensionsExtractor
         builder.AppendLine();
         builder.AppendLine(8, "return app;");
         builder.AppendLine(4, "}");
+    }
+
+    private static void AppendRateLimiter(
+        StringBuilder builder,
+        bool hasRateLimiting,
+        string comment)
+    {
+        if (!hasRateLimiting)
+        {
+            return;
+        }
+
+        builder.AppendLine();
+        builder.AppendLine(8, comment);
+        builder.AppendLine(8, "if (options.UseRateLimiter)");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "app.UseRateLimiter();");
+        builder.AppendLine(8, "}");
+    }
+
+    private static void AppendAuthentication(
+        StringBuilder builder,
+        bool hasSecurity)
+    {
+        if (!hasSecurity)
+        {
+            return;
+        }
+
+        builder.AppendLine();
+        builder.AppendLine(8, "// Authentication and authorization middleware");
+        builder.AppendLine(8, "if (options.UseAuthentication)");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "app.UseAuthentication();");
+        builder.AppendLine(12, "if (options.UseAuthorization)");
+        builder.AppendLine(12, "{");
+        builder.AppendLine(16, "app.UseAuthorization();");
+        builder.AppendLine(12, "}");
+        builder.AppendLine(8, "}");
+        builder.AppendLine(8, "else if (options.UseAuthorization)");
+        builder.AppendLine(8, "{");
+        builder.AppendLine(12, "app.UseAuthorization();");
+        builder.AppendLine(8, "}");
     }
 
     private static string GenerateHeaderContent(

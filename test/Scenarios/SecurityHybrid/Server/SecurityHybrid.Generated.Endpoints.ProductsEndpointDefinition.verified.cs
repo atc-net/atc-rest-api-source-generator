@@ -12,6 +12,7 @@ using SecurityHybrid.Generated.Products.Handlers;
 using SecurityHybrid.Generated.Products.Models;
 using SecurityHybrid.Generated.Products.Parameters;
 using SecurityHybrid.Generated.Products.Results;
+using SecurityHybrid.Generated.Security;
 
 namespace SecurityHybrid.Generated.Endpoints;
 

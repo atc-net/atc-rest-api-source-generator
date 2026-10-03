@@ -12,6 +12,7 @@ using SecurityHybrid.Generated.Orders.Handlers;
 using SecurityHybrid.Generated.Orders.Models;
 using SecurityHybrid.Generated.Orders.Parameters;
 using SecurityHybrid.Generated.Orders.Results;
+using SecurityHybrid.Generated.Security;
 
 namespace SecurityHybrid.Generated.Endpoints;
 
@@ -41,7 +42,8 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("oauth2")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.Oauth2OrdersRead);
 
         orders
             .MapPost("/", CreateOrder)
@@ -56,7 +58,8 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("oauth2")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.Oauth2OrdersWrite);
 
         orders
             .MapGet("{orderId}", GetOrderById)
@@ -72,7 +75,8 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .WithWireBinding<RouteHandlerBuilder, GetOrderByIdParameters>()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("api_key", "oauth2")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.ApiKeyOrOauth2OrdersRead);
 
         orders
             .MapDelete("{orderId}", DeleteOrder)
@@ -88,7 +92,8 @@ public sealed class OrdersEndpointDefinition : IEndpointDefinition
             .WithWireBinding<RouteHandlerBuilder, DeleteOrderParameters>()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("oauth2")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.Oauth2AdminAndOrdersWrite);
 
         orders
             .MapGet("{orderId}/tracking", GetOrderTracking)

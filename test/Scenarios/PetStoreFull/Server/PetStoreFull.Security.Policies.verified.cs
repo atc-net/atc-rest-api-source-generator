@@ -26,4 +26,9 @@ public static class SecurityPolicies
     /// Policy requiring scope: write:pets
     /// </summary>
     public const string PetstoreAuthWritePets = "petstore_auth:write:pets";
+
+    /// <summary>
+    /// Policy met by any of: api_key (authenticated); petstore_auth with scopes read:pets AND write:pets
+    /// </summary>
+    public const string ApiKeyOrPetstoreAuthReadPetsAndWritePets = "api_key|petstore_auth:read:pets+write:pets";
 }

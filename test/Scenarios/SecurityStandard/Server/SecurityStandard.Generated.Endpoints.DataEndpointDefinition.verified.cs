@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using SecurityStandard.Generated.Data.Handlers;
 using SecurityStandard.Generated.Data.Models;
 using SecurityStandard.Generated.Data.Results;
+using SecurityStandard.Generated.Security;
 
 namespace SecurityStandard.Generated.Endpoints;
 
@@ -41,7 +42,8 @@ public sealed class DataEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("api_key", "Bearer", "oauth2")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.ApiKeyOrBearerAuthOrOauth2OrdersRead);
     }
 
     internal async Task<IResult> GetData(

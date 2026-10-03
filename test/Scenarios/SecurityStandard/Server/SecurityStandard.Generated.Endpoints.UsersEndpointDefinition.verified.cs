@@ -12,6 +12,7 @@ using SecurityStandard.Generated.Users.Handlers;
 using SecurityStandard.Generated.Users.Models;
 using SecurityStandard.Generated.Users.Parameters;
 using SecurityStandard.Generated.Users.Results;
+using SecurityStandard.Generated.Security;
 
 namespace SecurityStandard.Generated.Endpoints;
 

@@ -12,6 +12,7 @@ using SecurityOpenIdConnect.Generated.Resources.Handlers;
 using SecurityOpenIdConnect.Generated.Resources.Models;
 using SecurityOpenIdConnect.Generated.Resources.Parameters;
 using SecurityOpenIdConnect.Generated.Resources.Results;
+using SecurityOpenIdConnect.Generated.Security;
 
 namespace SecurityOpenIdConnect.Generated.Endpoints;
 
@@ -42,7 +43,8 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("oidc")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.OidcOpenidAndProfile);
 
         resources
             .MapPost("/", CreateResource)
@@ -57,7 +59,8 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
             .ProducesProblem(StatusCodes.Status504GatewayTimeout)
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("oidc")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.OidcOpenidAndProfile);
 
         resources
             .MapGet("{resourceId}", GetResourceById)
@@ -73,7 +76,8 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
             .WithWireBinding<RouteHandlerBuilder, GetResourceByIdParameters>()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("oidc")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.OidcOpenidAndProfile);
 
         resources
             .MapDelete("{resourceId}", DeleteResource)
@@ -89,7 +93,8 @@ public sealed class ResourcesEndpointDefinition : IEndpointDefinition
             .WithWireBinding<RouteHandlerBuilder, DeleteResourceParameters>()
             .RequireAuthorization(policy => policy
                 .AddAuthenticationSchemes("oidc")
-                .RequireAuthenticatedUser());
+                .RequireAuthenticatedUser())
+            .RequireAuthorization(SecurityPolicies.OidcOpenidAndProfile);
     }
 
     internal async Task<IResult> ListResources(

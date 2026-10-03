@@ -12,6 +12,7 @@ using PetStoreFull.Generated.User.Handlers;
 using PetStoreFull.Generated.User.Models;
 using PetStoreFull.Generated.User.Parameters;
 using PetStoreFull.Generated.User.Results;
+using PetStoreFull.Generated.Security;
 
 namespace PetStoreFull.Generated.Endpoints;
 

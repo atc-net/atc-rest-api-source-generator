@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using SecurityOpenIdConnect.Generated.Health.Handlers;
 using SecurityOpenIdConnect.Generated.Health.Models;
 using SecurityOpenIdConnect.Generated.Health.Results;
+using SecurityOpenIdConnect.Generated.Security;
 
 namespace SecurityOpenIdConnect.Generated.Endpoints;
 

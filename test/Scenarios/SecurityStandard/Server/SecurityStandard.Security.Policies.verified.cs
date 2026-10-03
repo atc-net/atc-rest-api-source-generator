@@ -31,4 +31,14 @@ public static class SecurityPolicies
     /// Policy requiring scope: orders:write
     /// </summary>
     public const string Oauth2OrdersWrite = "oauth2:orders:write";
+
+    /// <summary>
+    /// Policy met by any of: api_key (authenticated); Bearer (authenticated); oauth2 with scope orders:read
+    /// </summary>
+    public const string ApiKeyOrBearerAuthOrOauth2OrdersRead = "api_key|bearer_auth|oauth2:orders:read";
+
+    /// <summary>
+    /// Policy met by any of: api_key (authenticated); oauth2 with scope orders:read
+    /// </summary>
+    public const string ApiKeyOrOauth2OrdersRead = "api_key|oauth2:orders:read";
 }
