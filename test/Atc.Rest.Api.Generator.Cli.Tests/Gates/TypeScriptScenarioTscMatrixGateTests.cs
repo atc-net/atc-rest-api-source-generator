@@ -303,13 +303,26 @@ public sealed class TypeScriptScenarioTscMatrixGateTests
 
         var folder = Path.Combine(directory.FullName, "docs");
         Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "test-suite-report.tsc-matrix.json");
+        var combinationsNode = new System.Text.Json.Nodes.JsonArray([.. combinations.Select(c => (System.Text.Json.Nodes.JsonNode)c)]);
+        var failingNode = new System.Text.Json.Nodes.JsonArray([.. failing.Select(c => (System.Text.Json.Nodes.JsonNode)c)]);
+
+        // The file is tracked: an unchanged result keeps it as it is, so a test run does not dirty the tree
+        if (File.Exists(path) &&
+            System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path)) is { } previous &&
+            System.Text.Json.Nodes.JsonNode.DeepEquals(previous["combinations"], combinationsNode) &&
+            System.Text.Json.Nodes.JsonNode.DeepEquals(previous["failing"], failingNode))
+        {
+            return;
+        }
+
         var data = new System.Text.Json.Nodes.JsonObject
         {
             ["generatedAt"] = DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss zzz", System.Globalization.CultureInfo.InvariantCulture),
-            ["combinations"] = new System.Text.Json.Nodes.JsonArray([.. combinations.Select(c => (System.Text.Json.Nodes.JsonNode)c)]),
-            ["failing"] = new System.Text.Json.Nodes.JsonArray([.. failing.Select(c => (System.Text.Json.Nodes.JsonNode)c)]),
+            ["combinations"] = combinationsNode,
+            ["failing"] = failingNode,
         };
-        File.WriteAllText(Path.Combine(folder, "test-suite-report.tsc-matrix.json"), data.ToJsonString());
+        File.WriteAllText(path, data.ToJsonString());
     }
 
     private static IEnumerable<(string Scenario, string SpecPath)> DiscoverScenarioSpecs()
