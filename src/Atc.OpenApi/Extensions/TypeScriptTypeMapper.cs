@@ -344,7 +344,7 @@ public static class TypeScriptTypeMapper
 
                 itemType = itemSchemaName;
                 break;
-            case OpenApiSchema itemSchema when itemSchema.Type is not null:
+            case OpenApiSchema { Type: not null } itemSchema:
                 itemType = itemSchema.ToTypeScriptReturnType();
                 break;
             default:
@@ -363,8 +363,7 @@ public static class TypeScriptTypeMapper
         => schema?.Properties?.Values.Any(p =>
                p is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array) &&
                (arraySchema.Items is null ||
-                (arraySchema.Items is OpenApiSchema itemSchema &&
-                 itemSchema.Type is null &&
+                (arraySchema.Items is OpenApiSchema { Type: null } itemSchema &&
                  itemSchema.Properties?.Count is null or 0))) == true;
 
     private static bool IsTypeScriptIdentifier(string name)
@@ -533,8 +532,7 @@ public static class TypeScriptTypeMapper
 
         if (schema.Extensions is not null &&
             schema.Extensions.TryGetValue("prefixItems", out var extension) &&
-            extension is JsonNodeExtension jsonNodeExt &&
-            jsonNodeExt.Node is JsonArray extensionArray)
+            extension is JsonNodeExtension { Node: JsonArray extensionArray })
         {
             return extensionArray;
         }

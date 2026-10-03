@@ -5,7 +5,9 @@ namespace Atc.OpenApi.Extensions;
 /// Supports both ATC-specific extensions (x-authentication-required, x-authentication-schemes, x-authorize-roles)
 /// and standard OpenAPI 3.0 security (components/securitySchemes + security arrays).
 /// </summary>
+[SuppressMessage("", "CA1024:Use properties where appropriate", Justification = "OK - CLang14 - extension")]
 [SuppressMessage("", "CA1034:Do not nest type", Justification = "OK - CLang14 - extension")]
+[SuppressMessage("", "CA1708:Names should differ by more than case", Justification = "OK - CLang14 - multiple extension(...) blocks")]
 [SuppressMessage("", "S3398:Move this method inside", Justification = "OK - CLang14 - extension")]
 public static class OpenApiSecurityExtensions
 {
@@ -383,6 +385,51 @@ public static class OpenApiSecurityExtensions
         return config;
     }
 
+    /// <param name="document">The OpenAPI document.</param>
+    extension(OpenApiDocument document)
+    {
+        /// <summary>
+        /// Checks if the document has any security schemes defined.
+        /// </summary>
+        /// <returns>True if security schemes are defined.</returns>
+        public bool HasSecuritySchemes()
+            => document.Components?.SecuritySchemes?.Count > 0;
+
+        /// <summary>
+        /// Checks if the document has document-level security requirements.
+        /// </summary>
+        /// <returns>True if document-level security is defined.</returns>
+        public bool HasDocumentSecurity()
+            => document.Security?.Count > 0;
+
+        /// <summary>
+        /// Checks if the document has JWT Bearer authentication configured.
+        /// This includes HTTP type security schemes with 'bearer' scheme.
+        /// </summary>
+        /// <returns>True if JWT Bearer authentication is used.</returns>
+        public bool HasJwtBearerSecurity()
+        {
+            if (document.Components?.SecuritySchemes is null)
+            {
+                return false;
+            }
+
+            foreach (var kvp in document.Components.SecuritySchemes)
+            {
+                var scheme = kvp.Value;
+
+                // Check for HTTP type with 'bearer' scheme (JWT)
+                if (scheme.Type == Microsoft.OpenApi.SecuritySchemeType.Http &&
+                    string.Equals(scheme.Scheme, "bearer", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
     /// <summary>
     /// Maps a securityScheme key to the ASP.NET Core authentication scheme name it stands for:
     /// the <c>x-authentication-scheme</c> extension when present, <c>"Bearer"</c> for
@@ -409,50 +456,6 @@ public static class OpenApiSecurityExtensions
                string.Equals(scheme.Scheme, "bearer", StringComparison.OrdinalIgnoreCase)
             ? AspNetBearerAuthenticationScheme
             : schemeKey;
-    }
-
-    /// <summary>
-    /// Checks if the document has any security schemes defined.
-    /// </summary>
-    /// <param name="document">The OpenAPI document.</param>
-    /// <returns>True if security schemes are defined.</returns>
-    public static bool HasSecuritySchemes(this OpenApiDocument document)
-        => document.Components?.SecuritySchemes?.Count > 0;
-
-    /// <summary>
-    /// Checks if the document has document-level security requirements.
-    /// </summary>
-    /// <param name="document">The OpenAPI document.</param>
-    /// <returns>True if document-level security is defined.</returns>
-    public static bool HasDocumentSecurity(this OpenApiDocument document)
-        => document.Security?.Count > 0;
-
-    /// <summary>
-    /// Checks if the document has JWT Bearer authentication configured.
-    /// This includes HTTP type security schemes with 'bearer' scheme.
-    /// </summary>
-    /// <param name="document">The OpenAPI document.</param>
-    /// <returns>True if JWT Bearer authentication is used.</returns>
-    public static bool HasJwtBearerSecurity(this OpenApiDocument document)
-    {
-        if (document.Components?.SecuritySchemes is null)
-        {
-            return false;
-        }
-
-        foreach (var kvp in document.Components.SecuritySchemes)
-        {
-            var scheme = kvp.Value;
-
-            // Check for HTTP type with 'bearer' scheme (JWT)
-            if (scheme.Type == Microsoft.OpenApi.SecuritySchemeType.Http &&
-                string.Equals(scheme.Scheme, "bearer", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /// <summary>
@@ -527,199 +530,161 @@ public static class OpenApiSecurityExtensions
         };
     }
 
-    /// <summary>
-    /// Checks if the document has OAuth2 security schemes with Client Credentials flow.
-    /// </summary>
     /// <param name="document">The OpenAPI document.</param>
-    /// <returns>True if OAuth2 Client Credentials flow is configured.</returns>
-    public static bool HasOAuth2ClientCredentials(this OpenApiDocument document)
+    extension(OpenApiDocument document)
     {
-        if (document.Components?.SecuritySchemes is null)
+        /// <summary>
+        /// Checks if the document has OAuth2 security schemes with Client Credentials flow.
+        /// </summary>
+        /// <returns>True if OAuth2 Client Credentials flow is configured.</returns>
+        public bool HasOAuth2ClientCredentials()
         {
-            return false;
-        }
-
-        foreach (var kvp in document.Components.SecuritySchemes)
-        {
-            var scheme = kvp.Value;
-
-            if (scheme.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2 &&
-                scheme.Flows?.ClientCredentials is not null &&
-                !string.IsNullOrEmpty(scheme.Flows.ClientCredentials.TokenUrl?.ToString()))
+            if (document.Components?.SecuritySchemes is null)
             {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Checks if the document has OAuth2 security schemes with Authorization Code flow (for refresh token support).
-    /// </summary>
-    /// <param name="document">The OpenAPI document.</param>
-    /// <returns>True if OAuth2 Authorization Code flow is configured.</returns>
-    public static bool HasOAuth2AuthorizationCode(this OpenApiDocument document)
-    {
-        if (document.Components?.SecuritySchemes is null)
-        {
-            return false;
-        }
-
-        foreach (var kvp in document.Components.SecuritySchemes)
-        {
-            var scheme = kvp.Value;
-
-            if (scheme.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2 &&
-                scheme.Flows?.AuthorizationCode is not null &&
-                !string.IsNullOrEmpty(scheme.Flows.AuthorizationCode.TokenUrl?.ToString()))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Checks if the document has any OAuth2 security that requires client-side token management.
-    /// This includes Client Credentials flow or Authorization Code flow with refresh URL.
-    /// </summary>
-    /// <param name="document">The OpenAPI document.</param>
-    /// <returns>True if OAuth2 token management is needed.</returns>
-    public static bool HasOAuth2TokenManagement(this OpenApiDocument document)
-        => document.HasOAuth2ClientCredentials() || document.HasOAuth2AuthorizationCode();
-
-    /// <summary>
-    /// Gets the OAuth2 Client Credentials flow configuration.
-    /// </summary>
-    /// <param name="document">The OpenAPI document.</param>
-    /// <returns>OAuthFlowInfo for Client Credentials, or null if not configured.</returns>
-    public static OAuthFlowInfo? GetOAuth2ClientCredentialsFlow(this OpenApiDocument document)
-    {
-        if (document.Components?.SecuritySchemes is null)
-        {
-            return null;
-        }
-
-        foreach (var kvp in document.Components.SecuritySchemes)
-        {
-            var scheme = kvp.Value;
-
-            if (scheme.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2 &&
-                scheme.Flows?.ClientCredentials is not null)
-            {
-                return ExtractOAuthFlow(scheme.Flows.ClientCredentials);
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Gets the OAuth2 Authorization Code flow configuration.
-    /// </summary>
-    /// <param name="document">The OpenAPI document.</param>
-    /// <returns>OAuthFlowInfo for Authorization Code, or null if not configured.</returns>
-    public static OAuthFlowInfo? GetOAuth2AuthorizationCodeFlow(this OpenApiDocument document)
-    {
-        if (document.Components?.SecuritySchemes is null)
-        {
-            return null;
-        }
-
-        foreach (var kvp in document.Components.SecuritySchemes)
-        {
-            var scheme = kvp.Value;
-
-            if (scheme.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2 &&
-                scheme.Flows?.AuthorizationCode is not null)
-            {
-                return ExtractOAuthFlow(scheme.Flows.AuthorizationCode);
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Gets all OAuth2 scopes defined across all flows.
-    /// </summary>
-    /// <param name="document">The OpenAPI document.</param>
-    /// <returns>Dictionary of scope name to description.</returns>
-    public static IReadOnlyDictionary<string, string> GetAllOAuth2Scopes(this OpenApiDocument document)
-    {
-        var scopes = new Dictionary<string, string>(StringComparer.Ordinal);
-
-        if (document.Components?.SecuritySchemes is null)
-        {
-            return scopes;
-        }
-
-        foreach (var kvp in document.Components.SecuritySchemes)
-        {
-            var scheme = kvp.Value;
-
-            if (scheme.Type != Microsoft.OpenApi.SecuritySchemeType.OAuth2 || scheme.Flows is null)
-            {
-                continue;
+                return false;
             }
 
-            // Collect scopes from all flows
-            AddScopesFromFlow(scopes, scheme.Flows.ClientCredentials);
-            AddScopesFromFlow(scopes, scheme.Flows.AuthorizationCode);
-            AddScopesFromFlow(scopes, scheme.Flows.Implicit);
-            AddScopesFromFlow(scopes, scheme.Flows.Password);
-        }
-
-        return scopes;
-    }
-
-    /// <summary>
-    /// Checks if any operations in the document require OAuth2 authentication.
-    /// </summary>
-    /// <param name="document">The OpenAPI document.</param>
-    /// <returns>True if any operations require OAuth2.</returns>
-    public static bool HasOperationsRequiringOAuth2(this OpenApiDocument document)
-    {
-        // Check document-level security first
-        if (document.Security is not null)
-        {
-            foreach (var requirement in document.Security)
+            foreach (var kvp in document.Components.SecuritySchemes)
             {
-                foreach (var kvp in requirement)
+                var scheme = kvp.Value;
+
+                if (scheme.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2 &&
+                    scheme.Flows?.ClientCredentials is not null &&
+                    !string.IsNullOrEmpty(scheme.Flows.ClientCredentials.TokenUrl?.ToString()))
                 {
-                    var schemeName = kvp.Key.Reference?.Id ?? kvp.Key.Name ?? string.Empty;
-                    if (IsOAuth2Scheme(document, schemeName))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
-        }
 
-        // Check operation-level security
-        if (document.Paths is null)
-        {
             return false;
         }
 
-        foreach (var pathPair in document.Paths)
+        /// <summary>
+        /// Checks if the document has OAuth2 security schemes with Authorization Code flow (for refresh token support).
+        /// </summary>
+        /// <returns>True if OAuth2 Authorization Code flow is configured.</returns>
+        public bool HasOAuth2AuthorizationCode()
         {
-            if (pathPair.Value is not IOpenApiPathItem pathItem || pathItem.Operations is null)
+            if (document.Components?.SecuritySchemes is null)
             {
-                continue;
+                return false;
             }
 
-            foreach (var operationPair in pathItem.Operations)
+            foreach (var kvp in document.Components.SecuritySchemes)
             {
-                var operation = operationPair.Value;
-                if (operation?.Security is null)
+                var scheme = kvp.Value;
+
+                if (scheme.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2 &&
+                    scheme.Flows?.AuthorizationCode is not null &&
+                    !string.IsNullOrEmpty(scheme.Flows.AuthorizationCode.TokenUrl?.ToString()))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if the document has any OAuth2 security that requires client-side token management.
+        /// This includes Client Credentials flow or Authorization Code flow with refresh URL.
+        /// </summary>
+        /// <returns>True if OAuth2 token management is needed.</returns>
+        public bool HasOAuth2TokenManagement()
+            => document.HasOAuth2ClientCredentials() || document.HasOAuth2AuthorizationCode();
+
+        /// <summary>
+        /// Gets the OAuth2 Client Credentials flow configuration.
+        /// </summary>
+        /// <returns>OAuthFlowInfo for Client Credentials, or null if not configured.</returns>
+        public OAuthFlowInfo? GetOAuth2ClientCredentialsFlow()
+        {
+            if (document.Components?.SecuritySchemes is null)
+            {
+                return null;
+            }
+
+            foreach (var kvp in document.Components.SecuritySchemes)
+            {
+                var scheme = kvp.Value;
+
+                if (scheme.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2 &&
+                    scheme.Flows?.ClientCredentials is not null)
+                {
+                    return ExtractOAuthFlow(scheme.Flows.ClientCredentials);
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets the OAuth2 Authorization Code flow configuration.
+        /// </summary>
+        /// <returns>OAuthFlowInfo for Authorization Code, or null if not configured.</returns>
+        public OAuthFlowInfo? GetOAuth2AuthorizationCodeFlow()
+        {
+            if (document.Components?.SecuritySchemes is null)
+            {
+                return null;
+            }
+
+            foreach (var kvp in document.Components.SecuritySchemes)
+            {
+                var scheme = kvp.Value;
+
+                if (scheme.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2 &&
+                    scheme.Flows?.AuthorizationCode is not null)
+                {
+                    return ExtractOAuthFlow(scheme.Flows.AuthorizationCode);
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets all OAuth2 scopes defined across all flows.
+        /// </summary>
+        /// <returns>Dictionary of scope name to description.</returns>
+        public IReadOnlyDictionary<string, string> GetAllOAuth2Scopes()
+        {
+            var scopes = new Dictionary<string, string>(StringComparer.Ordinal);
+
+            if (document.Components?.SecuritySchemes is null)
+            {
+                return scopes;
+            }
+
+            foreach (var kvp in document.Components.SecuritySchemes)
+            {
+                var scheme = kvp.Value;
+
+                if (scheme.Type != Microsoft.OpenApi.SecuritySchemeType.OAuth2 || scheme.Flows is null)
                 {
                     continue;
                 }
 
-                foreach (var requirement in operation.Security)
+                // Collect scopes from all flows
+                AddScopesFromFlow(scopes, scheme.Flows.ClientCredentials);
+                AddScopesFromFlow(scopes, scheme.Flows.AuthorizationCode);
+                AddScopesFromFlow(scopes, scheme.Flows.Implicit);
+                AddScopesFromFlow(scopes, scheme.Flows.Password);
+            }
+
+            return scopes;
+        }
+
+        /// <summary>
+        /// Checks if any operations in the document require OAuth2 authentication.
+        /// </summary>
+        /// <returns>True if any operations require OAuth2.</returns>
+        public bool HasOperationsRequiringOAuth2()
+        {
+            // Check document-level security first
+            if (document.Security is not null)
+            {
+                foreach (var requirement in document.Security)
                 {
                     foreach (var kvp in requirement)
                     {
@@ -731,32 +696,66 @@ public static class OpenApiSecurityExtensions
                     }
                 }
             }
+
+            // Check operation-level security
+            if (document.Paths is null)
+            {
+                return false;
+            }
+
+            foreach (var pathPair in document.Paths)
+            {
+                if (pathPair.Value is not IOpenApiPathItem pathItem || pathItem.Operations is null)
+                {
+                    continue;
+                }
+
+                foreach (var operationPair in pathItem.Operations)
+                {
+                    var operation = operationPair.Value;
+                    if (operation?.Security is null)
+                    {
+                        continue;
+                    }
+
+                    foreach (var requirement in operation.Security)
+                    {
+                        foreach (var kvp in requirement)
+                        {
+                            var schemeName = kvp.Key.Reference?.Id ?? kvp.Key.Name ?? string.Empty;
+                            if (IsOAuth2Scheme(document, schemeName))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return false;
         }
 
-        return false;
-    }
-
-    /// <summary>
-    /// Gets the name of the first OAuth2 security scheme.
-    /// </summary>
-    /// <param name="document">The OpenAPI document.</param>
-    /// <returns>The scheme name, or null if not found.</returns>
-    public static string? GetOAuth2SchemeName(this OpenApiDocument document)
-    {
-        if (document.Components?.SecuritySchemes is null)
+        /// <summary>
+        /// Gets the name of the first OAuth2 security scheme.
+        /// </summary>
+        /// <returns>The scheme name, or null if not found.</returns>
+        public string? GetOAuth2SchemeName()
         {
+            if (document.Components?.SecuritySchemes is null)
+            {
+                return null;
+            }
+
+            foreach (var kvp in document.Components.SecuritySchemes)
+            {
+                if (kvp.Value.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2)
+                {
+                    return kvp.Key;
+                }
+            }
+
             return null;
         }
-
-        foreach (var kvp in document.Components.SecuritySchemes)
-        {
-            if (kvp.Value.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2)
-            {
-                return kvp.Key;
-            }
-        }
-
-        return null;
     }
 
     /// <summary>

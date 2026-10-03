@@ -227,7 +227,7 @@ public static class OpenApiSchemaExtensions
             // honoured wherever it appears, and ATC_API_SCH022 tells the author to migrate.
             if (openApiSchema.UnrecognizedKeywords is { } unrecognized &&
                 unrecognized.TryGetValue("nullable", out var nullableNode) &&
-                nullableNode?.GetValueKind() == System.Text.Json.JsonValueKind.True)
+                nullableNode?.GetValueKind() == JsonValueKind.True)
             {
                 return true;
             }
@@ -867,7 +867,7 @@ public static class OpenApiSchemaExtensions
             {
                 if (item is JsonObject schemaObj)
                 {
-                    var itemInfo = ParseTupleItemFromJson(schemaObj, index, document, registry);
+                    var itemInfo = ParseTupleItemFromJson(schemaObj, index, registry);
                     result.Add(itemInfo);
                 }
 
@@ -883,7 +883,6 @@ public static class OpenApiSchemaExtensions
         private static TupleItemInfo ParseTupleItemFromJson(
             JsonObject schemaObj,
             int index,
-            OpenApiDocument? document,
             TypeConflictRegistry? registry)
         {
             // Extract type info

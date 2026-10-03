@@ -3,6 +3,7 @@ namespace Atc.OpenApi.Extensions;
 /// <summary>
 /// Extension methods for JsonSchemaType to handle C# type name resolution.
 /// </summary>
+[SuppressMessage("", "CA1034:Do not nest type", Justification = "OK - CLang14 - extension")]
 public static class JsonSchemaTypeExtensions
 {
     /// <summary>
@@ -19,115 +20,115 @@ public static class JsonSchemaTypeExtensions
         bool includeIFormFile = false)
         => ((JsonSchemaType?)schemaType).ToCSharpTypeName(format, includeIFormFile);
 
-    /// <summary>
-    /// Maps a nullable JsonSchemaType and format to a C# type name.
-    /// Handles combined type flags (e.g., String | Null in OpenAPI 3.1).
-    /// </summary>
     /// <param name="schemaType">The JSON schema type (can be combined flags like String | Null).</param>
-    /// <param name="format">Optional format string (e.g., "int64", "uuid", "date-time").</param>
-    /// <param name="includeIFormFile">When true, maps "binary" format to IFormFile instead of string.</param>
-    /// <returns>The C# type name, or "object" if type cannot be determined.</returns>
-    public static string ToCSharpTypeName(
-        this JsonSchemaType? schemaType,
-        string? format = null,
-        bool includeIFormFile = false)
+    extension(JsonSchemaType? schemaType)
     {
-        if (schemaType is null)
+        /// <summary>
+        /// Maps a nullable JsonSchemaType and format to a C# type name.
+        /// Handles combined type flags (e.g., String | Null in OpenAPI 3.1).
+        /// </summary>
+        /// <param name="format">Optional format string (e.g., "int64", "uuid", "date-time").</param>
+        /// <param name="includeIFormFile">When true, maps "binary" format to IFormFile instead of string.</param>
+        /// <returns>The C# type name, or "object" if type cannot be determined.</returns>
+        public string ToCSharpTypeName(
+            string? format = null,
+            bool includeIFormFile = false)
         {
+            if (schemaType is null)
+            {
+                return "object";
+            }
+
+            var typeValue = schemaType.Value;
+
+            // Strip the Null flag for matching (JsonSchemaType is a flags enum in OpenAPI 3.1.0)
+            if (typeValue.HasFlag(JsonSchemaType.Null))
+            {
+                typeValue &= ~JsonSchemaType.Null;
+            }
+
+            // Check for specific types using HasFlag (handles combined flags)
+            if (typeValue.HasFlag(JsonSchemaType.Integer))
+            {
+                return GetIntegerTypeName(format);
+            }
+
+            if (typeValue.HasFlag(JsonSchemaType.Number))
+            {
+                return GetNumberTypeName(format);
+            }
+
+            if (typeValue.HasFlag(JsonSchemaType.String))
+            {
+                return GetStringTypeName(format, includeIFormFile);
+            }
+
+            if (typeValue.HasFlag(JsonSchemaType.Boolean))
+            {
+                return "bool";
+            }
+
+            if (typeValue.HasFlag(JsonSchemaType.Array))
+            {
+                return "object[]";
+            }
+
             return "object";
         }
 
-        var typeValue = schemaType.Value;
-
-        // Strip the Null flag for matching (JsonSchemaType is a flags enum in OpenAPI 3.1.0)
-        if (typeValue.HasFlag(JsonSchemaType.Null))
+        /// <summary>
+        /// Maps a JsonSchemaType to a primitive C# type name, or null for Array types.
+        /// This allows callers to handle array types specially (e.g., determining item type).
+        /// </summary>
+        /// <param name="format">Optional format string (e.g., "int64", "uuid", "date-time").</param>
+        /// <param name="includeIFormFile">When true, maps "binary" format to IFormFile instead of string.</param>
+        /// <returns>The C# type name, null for Array types, or "object" for unknown types.</returns>
+        public string? ToPrimitiveCSharpTypeName(
+            string? format = null,
+            bool includeIFormFile = false)
         {
-            typeValue &= ~JsonSchemaType.Null;
-        }
+            if (schemaType is null)
+            {
+                return "object";
+            }
 
-        // Check for specific types using HasFlag (handles combined flags)
-        if (typeValue.HasFlag(JsonSchemaType.Integer))
-        {
-            return GetIntegerTypeName(format);
-        }
+            var typeValue = schemaType.Value;
 
-        if (typeValue.HasFlag(JsonSchemaType.Number))
-        {
-            return GetNumberTypeName(format);
-        }
+            // Strip the Null flag for matching (JsonSchemaType is a flags enum in OpenAPI 3.1.0)
+            if (typeValue.HasFlag(JsonSchemaType.Null))
+            {
+                typeValue &= ~JsonSchemaType.Null;
+            }
 
-        if (typeValue.HasFlag(JsonSchemaType.String))
-        {
-            return GetStringTypeName(format, includeIFormFile);
-        }
+            // Array types return null - caller must handle
+            if (typeValue.HasFlag(JsonSchemaType.Array))
+            {
+                return null;
+            }
 
-        if (typeValue.HasFlag(JsonSchemaType.Boolean))
-        {
-            return "bool";
-        }
+            // Check for specific types using HasFlag (handles combined flags)
+            if (typeValue.HasFlag(JsonSchemaType.Integer))
+            {
+                return GetIntegerTypeName(format);
+            }
 
-        if (typeValue.HasFlag(JsonSchemaType.Array))
-        {
-            return "object[]";
-        }
+            if (typeValue.HasFlag(JsonSchemaType.Number))
+            {
+                return GetNumberTypeName(format);
+            }
 
-        return "object";
-    }
+            if (typeValue.HasFlag(JsonSchemaType.String))
+            {
+                return GetStringTypeName(format, includeIFormFile);
+            }
 
-    /// <summary>
-    /// Maps a JsonSchemaType to a primitive C# type name, or null for Array types.
-    /// This allows callers to handle array types specially (e.g., determining item type).
-    /// </summary>
-    /// <param name="schemaType">The JSON schema type (can be combined flags like String | Null).</param>
-    /// <param name="format">Optional format string (e.g., "int64", "uuid", "date-time").</param>
-    /// <param name="includeIFormFile">When true, maps "binary" format to IFormFile instead of string.</param>
-    /// <returns>The C# type name, null for Array types, or "object" for unknown types.</returns>
-    public static string? ToPrimitiveCSharpTypeName(
-        this JsonSchemaType? schemaType,
-        string? format = null,
-        bool includeIFormFile = false)
-    {
-        if (schemaType is null)
-        {
+            if (typeValue.HasFlag(JsonSchemaType.Boolean))
+            {
+                return "bool";
+            }
+
             return "object";
         }
-
-        var typeValue = schemaType.Value;
-
-        // Strip the Null flag for matching (JsonSchemaType is a flags enum in OpenAPI 3.1.0)
-        if (typeValue.HasFlag(JsonSchemaType.Null))
-        {
-            typeValue &= ~JsonSchemaType.Null;
-        }
-
-        // Array types return null - caller must handle
-        if (typeValue.HasFlag(JsonSchemaType.Array))
-        {
-            return null;
-        }
-
-        // Check for specific types using HasFlag (handles combined flags)
-        if (typeValue.HasFlag(JsonSchemaType.Integer))
-        {
-            return GetIntegerTypeName(format);
-        }
-
-        if (typeValue.HasFlag(JsonSchemaType.Number))
-        {
-            return GetNumberTypeName(format);
-        }
-
-        if (typeValue.HasFlag(JsonSchemaType.String))
-        {
-            return GetStringTypeName(format, includeIFormFile);
-        }
-
-        if (typeValue.HasFlag(JsonSchemaType.Boolean))
-        {
-            return "bool";
-        }
-
-        return "object";
     }
 
     /// <summary>
