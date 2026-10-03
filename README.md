@@ -95,7 +95,7 @@ Generated code includes:
 - 📦 **Models** - C# records with validation attributes
 - 🔌 **Handler Interfaces** - `IListPetsHandler`, `ICreatePetHandler`, etc.
 - 🛣️ **Endpoints** - Minimal API `MapGet`, `MapPost`, etc.
-- 🔧 **DI Extensions** - `AddApiHandlersFromDomain()`, `MapApiEndpoints()`
+- 🔧 **DI Extensions** - `AddApiHandlersFromDomain()`, `MapEndpoints()`
 
 ### 5. Implement Handlers
 
@@ -134,7 +134,7 @@ builder.Services.AddApiHandlersFromDomain();
 var app = builder.Build();
 
 app.MapOpenApi();
-app.MapApiEndpoints();
+app.MapEndpoints();
 
 app.Run();
 ```
