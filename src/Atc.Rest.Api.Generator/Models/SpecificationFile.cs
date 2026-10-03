@@ -16,12 +16,6 @@ public sealed class SpecificationFile
     public string FileName => Path.GetFileName(FilePath);
 
     /// <summary>
-    /// The file name without extension.
-    /// </summary>
-    public string FileNameWithoutExtension
-        => Path.GetFileNameWithoutExtension(FilePath);
-
-    /// <summary>
     /// The YAML content of the file.
     /// </summary>
     public string Content { get; }
@@ -55,11 +49,6 @@ public sealed class SpecificationFile
     /// Number of schemas defined in this file.
     /// </summary>
     public int SchemaCount => Document?.Components?.Schemas?.Count ?? 0;
-
-    /// <summary>
-    /// Number of parameters defined in this file.
-    /// </summary>
-    public int ParameterCount => Document?.Components?.Parameters?.Count ?? 0;
 
     /// <summary>
     /// Number of operations defined in this file.

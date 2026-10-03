@@ -96,9 +96,8 @@ public sealed class FilesClient : IFilesClient
 
         if (parameters.Request?.Files is not null)
         {
-            for (var i = 0; i < parameters.Request.Files.Count; i++)
+            foreach (var fileItem in parameters.Request.Files)
             {
-                var fileItem = parameters.Request.Files[i];
                 var fileContent = new StreamContent(fileItem.OpenReadStream());
 
                 if (fileItem.ContentType is not null)

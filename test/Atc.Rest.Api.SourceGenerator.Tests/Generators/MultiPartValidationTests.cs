@@ -76,6 +76,14 @@ public sealed class MultiPartValidationTests : IDisposable
         Assert.Empty(multiPart);
     }
 
+    public void Dispose()
+    {
+        if (Directory.Exists(markerDirectory))
+        {
+            Directory.Delete(markerDirectory, recursive: true);
+        }
+    }
+
     /// <summary>
     /// The rule ids the document validator owns (naming, operation, schema, security, ... rules);
     /// generator, dependency and multi-part merge diagnostics are not validation results.
@@ -91,14 +99,6 @@ public sealed class MultiPartValidationTests : IDisposable
             .Distinct(StringComparer.Ordinal)
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToArray();
-
-    public void Dispose()
-    {
-        if (Directory.Exists(markerDirectory))
-        {
-            Directory.Delete(markerDirectory, recursive: true);
-        }
-    }
 
     private ImmutableArray<Diagnostic> Run(
         string generatorName,

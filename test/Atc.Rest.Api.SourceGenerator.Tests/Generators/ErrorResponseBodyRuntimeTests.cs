@@ -12,14 +12,88 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// </remarks>
 public partial class ErrorResponseBodyRuntimeTests
 {
-    private const string ProjectName = "ErrorBodies";
-    private const string ValidReason = "ok";
-    private const string TooLongReason = "far-too-long";
-
     /// <summary>
     /// Where the redirect statuses point: the 200 operation of the status set.
     /// </summary>
     internal const string RedirectTarget = "/statuses/200/s200";
+
+    internal const string ServerMarker = """
+        {
+          "useMinimalApiPackage": "Enabled",
+          "useValidationFilter": "Enabled",
+          "useGlobalErrorHandler": "Enabled"
+        }
+        """;
+
+    /// <summary>
+    /// Every registered 4xx/5xx status code, plus two non-standard codes (499, 599). The <c>all-*</c>
+    /// operations declare all of them.
+    /// </summary>
+    internal static readonly int[] AllErrorStatusCodes =
+    [
+        400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418,
+        421, 422, 423, 424, 425, 426, 428, 429, 431, 451, 499,
+        500, 501, 502, 503, 504, 505, 506, 507, 508, 510, 511, 599,
+    ];
+
+    /// <summary>
+    /// Error responses the generated server never writes - a proxy's page, another framework's body, a malformed or
+    /// untyped one - served on the <c>getFault</c> route (<c>/faults/stub-…</c>: 503 is declared without content, 502
+    /// is not declared) and on the <c>setAllJsonProblem</c> route (every status declared as the <c>ApiProblem</c>
+    /// model), so every generated client reads them.
+    /// </summary>
+    internal static readonly Dictionary<string, (int Status, string? ContentType, string Body, string Description)> StubResponses = new(StringComparer.Ordinal)
+    {
+        ["stub-xml"] = (503, "application/xml", "<error><message>xml down</message></error>", "XML"),
+        ["stub-octet"] = (503, "application/octet-stream", "binary down", "application/octet-stream"),
+        ["stub-untyped"] = (503, null, "untyped down", "a body without a Content-Type"),
+        ["stub-empty"] = (503, null, string.Empty, "no body, no Content-Type"),
+        ["stub-html"] = (502, "text/html; charset=utf-8", "<html><body><h1>502 Bad Gateway</h1></body></html>", "a proxy's HTML page (undeclared 502)"),
+        ["stub-invalid-json"] = (503, "application/json", "{\"detail\": \"cut", "malformed JSON"),
+        ["stub-empty-json"] = (503, "application/json", string.Empty, "an empty body under application/json"),
+        ["stub-blank-json"] = (503, "application/json", "   ", "a whitespace body under application/json"),
+        ["stub-problem-casing"] = (503, "Application/Problem+JSON; charset=utf-8", "{\"title\":\"Casing\",\"status\":503,\"detail\":\"casing down\"}", "a ProblemDetails under a mixed-case media type"),
+        ["stub-vendor-json"] = (503, "application/vnd.error+json", "{\"message\":\"vendor down\"}", "a vendor +json object"),
+        ["stub-utf8-text"] = (503, "text/plain; charset=utf-8", "nede: æøå – 🚫", "non-ASCII text"),
+        ["stub-json-string"] = (503, "application/json", "\"42\"", "a JSON string that reads like a number"),
+    };
+
+    /// <summary>
+    /// Every <c>System.Net.HttpStatusCode</c> value below 400 (1xx, 2xx, 3xx, aliases counted once). Each has its own
+    /// operation <c>getStatus{code}</c> (<c>/statuses/{code}/{mode}</c>) - an operation declares one 2xx
+    /// (ATC_API_OPR018).
+    /// </summary>
+    internal static readonly int[] NonErrorStatusCodes = [.. Enum.GetValues<HttpStatusCode>().Select(c => (int)c).Where(c => c < 400).Distinct().Order()];
+
+    /// <summary>
+    /// The statuses below 400 declared with a JSON body (<c>Item</c>): the 2xx that carry content, and 300.
+    /// </summary>
+    internal static readonly int[] StatusCodesWithBody = [200, 201, 202, 203, 206, 207, 208, 226, 300];
+
+    /// <summary>
+    /// The redirects: declared with a <c>Location</c> header, no body.
+    /// </summary>
+    internal static readonly int[] RedirectStatusCodes = [301, 302, 303, 307, 308];
+
+    internal static readonly string[] ErrorResponseFormats =
+    [
+        "ProblemDetails",
+        "PlainText",
+        "PlainTextOnly",
+        "Custom",
+    ];
+
+    internal static readonly string[] TypedResultStyles =
+    [
+        "Throw",
+        "Result",
+    ];
+
+    private const string ProjectName = "ErrorBodies";
+
+    private const string ValidReason = "ok";
+
+    private const string TooLongReason = "far-too-long";
 
     /// <summary>
     /// Two operations with only a success and a <c>default</c> response: a problem-shaped default
@@ -287,14 +361,6 @@ public partial class ErrorResponseBodyRuntimeTests
                         $ref: '#/components/schemas/ErrorResponse'
         """;
 
-    internal const string ServerMarker = """
-        {
-          "useMinimalApiPackage": "Enabled",
-          "useValidationFilter": "Enabled",
-          "useGlobalErrorHandler": "Enabled"
-        }
-        """;
-
     /// <summary>
     /// The PUT operations. Each declares 204 plus 400/404/409/422, differing only in how the error
     /// responses declare their body.
@@ -315,17 +381,6 @@ public partial class ErrorResponseBodyRuntimeTests
         new("all-framework-problem", "setAllFrameworkProblem", "AllFrameworkProblem", FrameworkProblemJsonContent, IncludeConflict: true, AllStatuses: true),
         new("all-json-string", "setAllJsonString", "AllJsonString", JsonStringContent, IncludeConflict: true, AllStatuses: true),
         new("all-text-plain", "setAllTextPlain", "AllTextPlain", TextPlainContent, IncludeConflict: true, AllStatuses: true),
-    ];
-
-    /// <summary>
-    /// Every registered 4xx/5xx status code, plus two non-standard codes (499, 599). The <c>all-*</c>
-    /// operations declare all of them.
-    /// </summary>
-    internal static readonly int[] AllErrorStatusCodes =
-    [
-        400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418,
-        421, 422, 423, 424, 425, 426, 428, 429, 431, 451, 499,
-        500, 501, 502, 503, 504, 505, 506, 507, 508, 510, 511, 599,
     ];
 
     /// <summary>
@@ -372,90 +427,7 @@ public partial class ErrorResponseBodyRuntimeTests
         .. AllErrorStatusCodes.Select(c => $"d{c}"),
     ];
 
-    /// <summary>
-    /// Error responses the generated server never writes - a proxy's page, another framework's body, a malformed or
-    /// untyped one - served on the <c>getFault</c> route (<c>/faults/stub-…</c>: 503 is declared without content, 502
-    /// is not declared) and on the <c>setAllJsonProblem</c> route (every status declared as the <c>ApiProblem</c>
-    /// model), so every generated client reads them.
-    /// </summary>
-    internal static readonly Dictionary<string, (int Status, string? ContentType, string Body, string Description)> StubResponses = new(StringComparer.Ordinal)
-    {
-        ["stub-xml"] = (503, "application/xml", "<error><message>xml down</message></error>", "XML"),
-        ["stub-octet"] = (503, "application/octet-stream", "binary down", "application/octet-stream"),
-        ["stub-untyped"] = (503, null, "untyped down", "a body without a Content-Type"),
-        ["stub-empty"] = (503, null, string.Empty, "no body, no Content-Type"),
-        ["stub-html"] = (502, "text/html; charset=utf-8", "<html><body><h1>502 Bad Gateway</h1></body></html>", "a proxy's HTML page (undeclared 502)"),
-        ["stub-invalid-json"] = (503, "application/json", "{\"detail\": \"cut", "malformed JSON"),
-        ["stub-empty-json"] = (503, "application/json", string.Empty, "an empty body under application/json"),
-        ["stub-blank-json"] = (503, "application/json", "   ", "a whitespace body under application/json"),
-        ["stub-problem-casing"] = (503, "Application/Problem+JSON; charset=utf-8", "{\"title\":\"Casing\",\"status\":503,\"detail\":\"casing down\"}", "a ProblemDetails under a mixed-case media type"),
-        ["stub-vendor-json"] = (503, "application/vnd.error+json", "{\"message\":\"vendor down\"}", "a vendor +json object"),
-        ["stub-utf8-text"] = (503, "text/plain; charset=utf-8", "nede: æøå – 🚫", "non-ASCII text"),
-        ["stub-json-string"] = (503, "application/json", "\"42\"", "a JSON string that reads like a number"),
-    };
-
-    /// <summary>
-    /// Every <c>System.Net.HttpStatusCode</c> value below 400 (1xx, 2xx, 3xx, aliases counted once). Each has its own
-    /// operation <c>getStatus{code}</c> (<c>/statuses/{code}/{mode}</c>) - an operation declares one 2xx
-    /// (ATC_API_OPR018).
-    /// </summary>
-    internal static readonly int[] NonErrorStatusCodes = [.. Enum.GetValues<HttpStatusCode>().Select(c => (int)c).Where(c => c < 400).Distinct().Order()];
-
-    /// <summary>
-    /// The statuses below 400 declared with a JSON body (<c>Item</c>): the 2xx that carry content, and 300.
-    /// </summary>
-    internal static readonly int[] StatusCodesWithBody = [200, 201, 202, 203, 206, 207, 208, 226, 300];
-
-    /// <summary>
-    /// The redirects: declared with a <c>Location</c> header, no body.
-    /// </summary>
-    internal static readonly int[] RedirectStatusCodes = [301, 302, 303, 307, 308];
-
-    internal static readonly string[] ErrorResponseFormats =
-    [
-        "ProblemDetails",
-        "PlainText",
-        "PlainTextOnly",
-        "Custom",
-    ];
-
-    internal static readonly string[] TypedResultStyles =
-    [
-        "Throw",
-        "Result",
-    ];
-
     internal static string Yaml { get; } = BuildYaml();
-
-    internal static string ClientOperationMarker(string errorResponseFormat)
-        => string.Equals(errorResponseFormat, "Custom", StringComparison.Ordinal)
-            ? """
-              {
-                "generationMode": "EndpointPerOperation",
-                "errorResponseFormat": "Custom",
-                "customErrorResponseModel": {
-                  "name": "ApiError",
-                  "schema": {
-                    "code": { "type": "string" },
-                    "message": { "type": "string" }
-                  }
-                }
-              }
-              """
-            : $$"""
-              {
-                "generationMode": "EndpointPerOperation",
-                "errorResponseFormat": "{{errorResponseFormat}}"
-              }
-              """;
-
-    internal static string ClientTypedMarker(string resultStyle)
-        => $$"""
-          {
-            "generationMode": "TypedClient",
-            "typedClientResultStyle": "{{resultStyle}}"
-          }
-          """;
 
     /// <summary>
     /// Writes every generated source to disk, for reading the output by hand.
@@ -573,54 +545,6 @@ public partial class ErrorResponseBodyRuntimeTests
 
         await File.WriteAllTextAsync(path, sb.ToString(), TestContext.Current.CancellationToken);
     }
-
-    /// <summary>
-    /// One row per status code for the <c>all-*</c> operations: the factory the server generated, what
-    /// it put on the wire with and without a message, and what the default and PlainText clients read.
-    /// </summary>
-    private static void AppendStatusSweep(
-        StringBuilder sb,
-        ErrorBodyHost host,
-        List<WireResult> wireResults,
-        Dictionary<string, (GeneratedClient Client, List<string[]> Rows)> clients)
-    {
-        var wire = wireResults.ToDictionary(w => w.Case, StringComparer.Ordinal);
-        var problemDetailsClient = clients["ProblemDetails"].Rows.ToDictionary(r => r[0], StringComparer.Ordinal);
-        var plainTextClient = clients["PlainText"].Rows.ToDictionary(r => r[0], StringComparer.Ordinal);
-
-        string Factory(
-            string operationId,
-            int code)
-            => host.Factories[operationId].TryGetValue(HttpStatusCodeHelper.ToEnumName(code), out var f)
-                ? $"{HttpStatusCodeHelper.ToEnumName(code)}({f.Signature})"
-                : "(no factory)";
-
-        string Wire(string caseName)
-            => wire.TryGetValue(caseName, out var w)
-                ? $"{w.Status} {w.ContentType.Split(';')[0]} {Short(w.Body)}"
-                : "-";
-
-        static string Accessor(
-            Dictionary<string, string[]> rows,
-            string caseName)
-            => rows.TryGetValue(caseName, out var r) ? Short(r[4]) : "-";
-
-        sb.AppendLine();
-        sb.AppendLine("## Status sweep (every 4xx/5xx)");
-        sb.AppendLine();
-        sb.AppendLine("`all-none` declares every code with no content; `all-json-problem` declares every code with `application/json` + `ApiProblem`.");
-        sb.AppendLine();
-        sb.AppendLine("| Code | Factory (all-none) | Factory (all-json-problem) | Wire all-none, with message | Wire all-none, empty | Wire all-json-problem, with argument | Default client (all-none, message) | PlainText client (all-none, message) |");
-        sb.AppendLine("|---|---|---|---|---|---|---|---|");
-        foreach (var code in AllErrorStatusCodes)
-        {
-            var noneCase = $"setAllNone/s{code}";
-            sb.AppendLine(CultureInfo.InvariantCulture, $"| {code} | `{Cell(Factory("setAllNone", code))}` | `{Cell(Factory("setAllJsonProblem", code))}` | `{Cell(Wire(noneCase))}` | `{Cell(Wire(noneCase + "-empty"))}` | `{Cell(Wire($"setAllJsonProblem/s{code}"))}` | `{Cell(Accessor(problemDetailsClient, noneCase))}` | `{Cell(Accessor(plainTextClient, noneCase))}` |");
-        }
-    }
-
-    private static string Short(string value)
-        => value.Length <= 110 ? value : value[..110] + "…";
 
     /// <summary>
     /// <c>.Produces(StatusCodes.{constant})</c> is emitted for every declared status, so each constant
@@ -1195,17 +1119,6 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
-    /// The message of a ProblemDetails body: its <c>detail</c>, else its <c>title</c>, else empty.
-    /// </summary>
-    internal static string ProblemMessage(string body)
-    {
-        var problem = JsonNode.Parse(body)!.AsObject();
-        return problem["detail"] is JsonValue detail && ((string?)detail)?.Length > 0
-            ? (string)detail!
-            : (string?)problem["title"] ?? string.Empty;
-    }
-
-    /// <summary>
     /// The spec's <c>default</c> response on the EndpointPerOperation client, over every error status code:
     /// the handler's <c>Error(body, status)</c> is read as the default model (<c>IsDefaultError</c> /
     /// <c>DefaultErrorContent</c>) - also for 400/404/500/504, which the client registers as ProblemDetails
@@ -1588,6 +1501,126 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.True(mismatches.Count == 0, $"{mismatches.Count} metadata mismatches:\n" + string.Join("\n", mismatches));
     }
 
+    internal static string ClientOperationMarker(string errorResponseFormat)
+        => string.Equals(errorResponseFormat, "Custom", StringComparison.Ordinal)
+            ? """
+              {
+                "generationMode": "EndpointPerOperation",
+                "errorResponseFormat": "Custom",
+                "customErrorResponseModel": {
+                  "name": "ApiError",
+                  "schema": {
+                    "code": { "type": "string" },
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+              """
+            : $$"""
+              {
+                "generationMode": "EndpointPerOperation",
+                "errorResponseFormat": "{{errorResponseFormat}}"
+              }
+              """;
+
+    internal static string ClientTypedMarker(string resultStyle)
+        => $$"""
+          {
+            "generationMode": "TypedClient",
+            "typedClientResultStyle": "{{resultStyle}}"
+          }
+          """;
+
+    /// <summary>
+    /// The message of a ProblemDetails body: its <c>detail</c>, else its <c>title</c>, else empty.
+    /// </summary>
+    internal static string ProblemMessage(string body)
+    {
+        var problem = JsonNode.Parse(body)!.AsObject();
+        return problem["detail"] is JsonValue detail && ((string?)detail)?.Length > 0
+            ? (string)detail!
+            : (string?)problem["title"] ?? string.Empty;
+    }
+
+    internal static List<(string HintName, string Source)> GenerateServer()
+        => Generate(new ApiServerGenerator(), ".atc-rest-api-server", ServerMarker, includeMinimalApi: true);
+
+    internal static List<(string HintName, string Source)> Generate(
+        IIncrementalGenerator generator,
+        string markerFileName,
+        string markerContent,
+        bool includeMinimalApi = false,
+        string? yaml = null)
+    {
+        var additionalTexts = ImmutableArray.Create<AdditionalText>(
+            new CompilationVerificationHarness.InMemoryAdditionalText($"{ProjectName}.yaml", yaml ?? Yaml),
+            new CompilationVerificationHarness.InMemoryAdditionalText(markerFileName, markerContent));
+
+        var compilation = CSharpCompilation.Create(
+            ProjectName,
+            references: CompilationVerificationHarness.GetFullFrameworkReferences(includeMinimalApi),
+            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var driver = CSharpGeneratorDriver
+            .Create(generator)
+            .AddAdditionalTexts(additionalTexts);
+
+        driver = (CSharpGeneratorDriver)driver.RunGeneratorsAndUpdateCompilation(
+            compilation, out _, out _, CancellationToken.None);
+
+        return driver.GetRunResult().GeneratedTrees
+            .Select(t => (t.FilePath, t.GetText().ToString()))
+            .ToList();
+    }
+
+    /// <summary>
+    /// One row per status code for the <c>all-*</c> operations: the factory the server generated, what
+    /// it put on the wire with and without a message, and what the default and PlainText clients read.
+    /// </summary>
+    private static void AppendStatusSweep(
+        StringBuilder sb,
+        ErrorBodyHost host,
+        List<WireResult> wireResults,
+        Dictionary<string, (GeneratedClient Client, List<string[]> Rows)> clients)
+    {
+        var wire = wireResults.ToDictionary(w => w.Case, StringComparer.Ordinal);
+        var problemDetailsClient = clients["ProblemDetails"].Rows.ToDictionary(r => r[0], StringComparer.Ordinal);
+        var plainTextClient = clients["PlainText"].Rows.ToDictionary(r => r[0], StringComparer.Ordinal);
+
+        string Factory(
+            string operationId,
+            int code)
+            => host.Factories[operationId].TryGetValue(HttpStatusCodeHelper.ToEnumName(code), out var f)
+                ? $"{HttpStatusCodeHelper.ToEnumName(code)}({f.Signature})"
+                : "(no factory)";
+
+        string Wire(string caseName)
+            => wire.TryGetValue(caseName, out var w)
+                ? $"{w.Status} {w.ContentType.Split(';')[0]} {Short(w.Body)}"
+                : "-";
+
+        static string Accessor(
+            Dictionary<string, string[]> rows,
+            string caseName)
+            => rows.TryGetValue(caseName, out var r) ? Short(r[4]) : "-";
+
+        sb.AppendLine();
+        sb.AppendLine("## Status sweep (every 4xx/5xx)");
+        sb.AppendLine();
+        sb.AppendLine("`all-none` declares every code with no content; `all-json-problem` declares every code with `application/json` + `ApiProblem`.");
+        sb.AppendLine();
+        sb.AppendLine("| Code | Factory (all-none) | Factory (all-json-problem) | Wire all-none, with message | Wire all-none, empty | Wire all-json-problem, with argument | Default client (all-none, message) | PlainText client (all-none, message) |");
+        sb.AppendLine("|---|---|---|---|---|---|---|---|");
+        foreach (var code in AllErrorStatusCodes)
+        {
+            var noneCase = $"setAllNone/s{code}";
+            sb.AppendLine(CultureInfo.InvariantCulture, $"| {code} | `{Cell(Factory("setAllNone", code))}` | `{Cell(Factory("setAllJsonProblem", code))}` | `{Cell(Wire(noneCase))}` | `{Cell(Wire(noneCase + "-empty"))}` | `{Cell(Wire($"setAllJsonProblem/s{code}"))}` | `{Cell(Accessor(problemDetailsClient, noneCase))}` | `{Cell(Accessor(plainTextClient, noneCase))}` |");
+        }
+    }
+
+    private static string Short(string value)
+        => value.Length <= 110 ? value : value[..110] + "…";
+
     private static string? CheckErrorContract(
         ProbeCase probeCase,
         WireResult wire)
@@ -1696,37 +1729,6 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         return false;
-    }
-
-    internal static List<(string HintName, string Source)> GenerateServer()
-        => Generate(new ApiServerGenerator(), ".atc-rest-api-server", ServerMarker, includeMinimalApi: true);
-
-    internal static List<(string HintName, string Source)> Generate(
-        IIncrementalGenerator generator,
-        string markerFileName,
-        string markerContent,
-        bool includeMinimalApi = false,
-        string? yaml = null)
-    {
-        var additionalTexts = ImmutableArray.Create<AdditionalText>(
-            new CompilationVerificationHarness.InMemoryAdditionalText($"{ProjectName}.yaml", yaml ?? Yaml),
-            new CompilationVerificationHarness.InMemoryAdditionalText(markerFileName, markerContent));
-
-        var compilation = CSharpCompilation.Create(
-            ProjectName,
-            references: CompilationVerificationHarness.GetFullFrameworkReferences(includeMinimalApi),
-            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        var driver = CSharpGeneratorDriver
-            .Create(generator)
-            .AddAdditionalTexts(additionalTexts);
-
-        driver = (CSharpGeneratorDriver)driver.RunGeneratorsAndUpdateCompilation(
-            compilation, out _, out _, CancellationToken.None);
-
-        return driver.GetRunResult().GeneratedTrees
-            .Select(t => (t.FilePath, t.GetText().ToString()))
-            .ToList();
     }
 
     private static string BuildYaml()
@@ -2326,6 +2328,34 @@ public partial class ErrorResponseBodyRuntimeTests
         }
     }
 
+    internal sealed record ProbeCase(
+        string OperationId,
+        string Segment,
+        string Mode,
+        string? Reason,
+        bool IsPut)
+    {
+        public string Name
+            => Reason is null or ValidReason
+                ? $"{OperationId}/{Mode}"
+                : $"{OperationId}/{Mode} (reason too long)";
+    }
+
+    internal sealed record WireResult(
+        string Case,
+        int Status,
+        string ContentType,
+        string Body,
+        string? RetryAfter = null,
+        string? Location = null)
+    {
+        /// <summary>
+        /// The media type without parameters (<c>application/problem+json</c>), or <c>(none)</c>.
+        /// </summary>
+        public string MediaType
+            => ContentType.Split(';')[0].Trim();
+    }
+
     private sealed record SetOperation(
         string Path,
         string OperationId,
@@ -2366,34 +2396,6 @@ public partial class ErrorResponseBodyRuntimeTests
         bool LeadsWithRetryAfter = false,
         bool EndsWithRetryAfter = false);
 
-    internal sealed record ProbeCase(
-        string OperationId,
-        string Segment,
-        string Mode,
-        string? Reason,
-        bool IsPut)
-    {
-        public string Name
-            => Reason is null or ValidReason
-                ? $"{OperationId}/{Mode}"
-                : $"{OperationId}/{Mode} (reason too long)";
-    }
-
-    internal sealed record WireResult(
-        string Case,
-        int Status,
-        string ContentType,
-        string Body,
-        string? RetryAfter = null,
-        string? Location = null)
-    {
-        /// <summary>
-        /// The media type without parameters (<c>application/problem+json</c>), or <c>(none)</c>.
-        /// </summary>
-        public string MediaType
-            => ContentType.Split(';')[0].Trim();
-    }
-
     private sealed record GeneratedClient(
         Assembly Assembly,
         List<string> Registrations);
@@ -2404,7 +2406,9 @@ public partial class ErrorResponseBodyRuntimeTests
     private sealed class ErrorBodyHost : IAsyncDisposable
     {
         private readonly WebApplication app;
+
         private readonly HttpClientHandler handler;
+
         private readonly HttpClient client;
 
         private ErrorBodyHost(

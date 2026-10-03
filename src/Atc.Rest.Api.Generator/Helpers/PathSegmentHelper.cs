@@ -70,35 +70,6 @@ public static class PathSegmentHelper
     }
 
     /// <summary>
-    /// Normalizes the casing of a path segment for use in generated namespaces/file names.
-    /// Concatenated lowercase segments (e.g., "thirdpartyapi") have no natural word-boundary
-    /// signal for PascalCasing, so as a narrow, low-risk heuristic a trailing "api"/"apis"
-    /// suffix is split off before PascalCasing, producing "ThirdpartyApi" instead of
-    /// "Thirdpartyapi". This does not attempt general-purpose word splitting.
-    /// </summary>
-    private static string NormalizeSegmentCasing(string segment)
-    {
-        const string apisSuffix = "apis";
-        const string apiSuffix = "api";
-
-        if (segment.Length > apisSuffix.Length &&
-            segment.EndsWith(apisSuffix, StringComparison.OrdinalIgnoreCase))
-        {
-            var head = segment.Substring(0, segment.Length - apisSuffix.Length);
-            return $"{head.ToPascalCaseForDotNet()}Apis";
-        }
-
-        if (segment.Length > apiSuffix.Length &&
-            segment.EndsWith(apiSuffix, StringComparison.OrdinalIgnoreCase))
-        {
-            var head = segment.Substring(0, segment.Length - apiSuffix.Length);
-            return $"{head.ToPascalCaseForDotNet()}Api";
-        }
-
-        return segment.ToPascalCaseForDotNet();
-    }
-
-    /// <summary>
     /// Resolves the effective path segment to use when building generated namespaces and file names.
     /// Returns <see langword="null" /> when the segment is redundant, which makes consumers fall back
     /// to the segment-less namespace shape (<c>{root}.Generated.{Category}</c>).
@@ -158,53 +129,6 @@ public static class PathSegmentHelper
         return duplicateCount == 1
             ? null
             : pathSegment;
-    }
-
-    /// <summary>
-    /// Determines whether a path segment duplicates the last dot-part of the root namespace,
-    /// ignoring case (e.g. "ThirdpartyApi" vs. "Eloverblik.Api.ThirdPartyApi").
-    /// </summary>
-    private static bool DuplicatesRootNamespaceTail(
-        string rootNamespace,
-        string pathSegment)
-    {
-        if (string.IsNullOrEmpty(rootNamespace))
-        {
-            return false;
-        }
-
-        var lastSeparatorIndex = rootNamespace.LastIndexOf('.');
-        var tail = lastSeparatorIndex >= 0
-            ? rootNamespace.Substring(lastSeparatorIndex + 1)
-            : rootNamespace;
-
-        return string.Equals(tail, pathSegment, StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// Checks if a segment is a version pattern (v1, v2, v3, etc.).
-    /// </summary>
-    private static bool IsVersionSegment(string segment)
-    {
-        if (segment.Length < 2)
-        {
-            return false;
-        }
-
-        if (segment[0] != 'v' && segment[0] != 'V')
-        {
-            return false;
-        }
-
-        for (var i = 1; i < segment.Length; i++)
-        {
-            if (!char.IsDigit(segment[i]))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /// <summary>
@@ -497,18 +421,6 @@ public static class PathSegmentHelper
     }
 
     /// <summary>
-    /// Gets schema names that are used by only one path segment (segment-specific types).
-    /// These should be generated under the segment-specific namespace.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document.</param>
-    /// <param name="pathSegment">The path segment to get specific schemas for.</param>
-    /// <returns>A set of schema names used only by the specified segment.</returns>
-    public static HashSet<string> GetSegmentSpecificSchemas(
-        OpenApiDocument openApiDoc,
-        string pathSegment)
-        => GetSegmentSpecificSchemas(openApiDoc, pathSegment, GetSharedSchemas(openApiDoc));
-
-    /// <summary>
     /// Gets schema names that are used by only one path segment (segment-specific types),
     /// using a pre-computed shared schemas set to avoid recomputation in loops.
     /// </summary>
@@ -533,33 +445,6 @@ public static class PathSegmentHelper
         }
 
         return allForSegment;
-    }
-
-    /// <summary>
-    /// Gets the segment that a schema belongs to, or null if it's a shared schema.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document.</param>
-    /// <param name="schemaName">The schema name to find.</param>
-    /// <returns>The path segment the schema belongs to, or null if shared (including webhook-only schemas).</returns>
-    public static string? GetSchemaSegment(
-        OpenApiDocument openApiDoc,
-        string schemaName)
-    {
-        var sharedSchemas = GetSharedSchemas(openApiDoc);
-        if (sharedSchemas.Contains(schemaName))
-        {
-            return null; // Shared schema - no segment
-        }
-
-        // Find which segment uses this schema
-        var schemaSegmentMap = GetSchemaSegmentMap(openApiDoc);
-        if (schemaSegmentMap.TryGetValue(schemaName, out var segments) && segments.Count == 1)
-        {
-            return segments.First();
-        }
-
-        // Default to null (shared) if not found or ambiguous
-        return null;
     }
 
     /// <summary>
@@ -641,94 +526,6 @@ public static class PathSegmentHelper
         return usings
             .OrderBy(u => u, StringComparer.Ordinal)
             .ToList();
-    }
-
-    /// <summary>
-    /// Collects schema names from an OpenAPI schema recursively.
-    /// Uses a visited set to prevent infinite recursion on circular inline schemas.
-    /// </summary>
-    private static void CollectSchemaNames(
-        IOpenApiSchema? schema,
-        HashSet<string> schemaNames)
-        => CollectSchemaNames(schema, schemaNames, []);
-
-    private static void CollectSchemaNames(
-        IOpenApiSchema? schema,
-        HashSet<string> schemaNames,
-        HashSet<object> visited)
-    {
-        if (schema is null)
-        {
-            return;
-        }
-
-        // Guard against circular references in inline schemas
-        if (!visited.Add(schema))
-        {
-            return;
-        }
-
-        if (schema is OpenApiSchemaReference schemaRef)
-        {
-            var refId = schemaRef.Reference.Id ?? schemaRef.Id;
-            if (!string.IsNullOrEmpty(refId))
-            {
-                schemaNames.Add(refId!);
-            }
-
-            return;
-        }
-
-        if (schema is OpenApiSchema actualSchema)
-        {
-            // Handle array items (use HasFlag since JsonSchemaType is a flags enum in OpenAPI 3.1.x)
-            if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true && actualSchema.Items is not null)
-            {
-                CollectSchemaNames(actualSchema.Items, schemaNames, visited);
-            }
-
-            // Handle object properties
-            if (actualSchema.Properties is not null)
-            {
-                foreach (var property in actualSchema.Properties)
-                {
-                    CollectSchemaNames(property.Value, schemaNames, visited);
-                }
-            }
-
-            // Handle additionalProperties
-            if (actualSchema.AdditionalProperties is not null)
-            {
-                CollectSchemaNames(actualSchema.AdditionalProperties, schemaNames, visited);
-            }
-
-            // Handle allOf
-            if (actualSchema.AllOf is not null)
-            {
-                foreach (var allOfSchema in actualSchema.AllOf)
-                {
-                    CollectSchemaNames(allOfSchema, schemaNames, visited);
-                }
-            }
-
-            // Handle oneOf
-            if (actualSchema.OneOf is not null)
-            {
-                foreach (var oneOfSchema in actualSchema.OneOf)
-                {
-                    CollectSchemaNames(oneOfSchema, schemaNames, visited);
-                }
-            }
-
-            // Handle anyOf
-            if (actualSchema.AnyOf is not null)
-            {
-                foreach (var anyOfSchema in actualSchema.AnyOf)
-                {
-                    CollectSchemaNames(anyOfSchema, schemaNames, visited);
-                }
-            }
-        }
     }
 
     /// <summary>
@@ -898,55 +695,6 @@ public static class PathSegmentHelper
         return false;
     }
 
-    private static bool OperationHasInlineModel(OpenApiOperation operation)
-    {
-        if (operation.Responses is not null)
-        {
-            foreach (var response in operation.Responses)
-            {
-                if (response.Value?.Content is null)
-                {
-                    continue;
-                }
-
-                foreach (var media in response.Value.Content)
-                {
-                    if (SchemaYieldsInlineModel(media.Value?.Schema))
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        if (operation.RequestBody?.Content is null)
-        {
-            return false;
-        }
-
-        foreach (var media in operation.RequestBody.Content)
-        {
-            if (SchemaYieldsInlineModel(media.Value?.Schema))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool SchemaYieldsInlineModel(IOpenApiSchema? schema)
-    {
-        if (InlineSchemaExtractor.IsInlineObjectSchema(schema))
-        {
-            return true;
-        }
-
-        // An array of anonymous objects yields an inline "…ResponseItem" record.
-        return schema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array) &&
-               InlineSchemaExtractor.IsInlineObjectSchema(arraySchema.Items);
-    }
-
     /// <summary>
     /// Gets comprehensive namespace availability information for a path segment.
     /// </summary>
@@ -1017,5 +765,218 @@ public static class PathSegmentHelper
         {
             yield return $"{prefix}{projectName}.Generated{segmentPart}.Results;";
         }
+    }
+
+    /// <summary>
+    /// Normalizes the casing of a path segment for use in generated namespaces/file names.
+    /// Concatenated lowercase segments (e.g., "thirdpartyapi") have no natural word-boundary
+    /// signal for PascalCasing, so as a narrow, low-risk heuristic a trailing "api"/"apis"
+    /// suffix is split off before PascalCasing, producing "ThirdpartyApi" instead of
+    /// "Thirdpartyapi". This does not attempt general-purpose word splitting.
+    /// </summary>
+    private static string NormalizeSegmentCasing(string segment)
+    {
+        const string apisSuffix = "apis";
+        const string apiSuffix = "api";
+
+        if (segment.Length > apisSuffix.Length &&
+            segment.EndsWith(apisSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            var head = segment.Substring(0, segment.Length - apisSuffix.Length);
+            return $"{head.ToPascalCaseForDotNet()}Apis";
+        }
+
+        if (segment.Length > apiSuffix.Length &&
+            segment.EndsWith(apiSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            var head = segment.Substring(0, segment.Length - apiSuffix.Length);
+            return $"{head.ToPascalCaseForDotNet()}Api";
+        }
+
+        return segment.ToPascalCaseForDotNet();
+    }
+
+    /// <summary>
+    /// Determines whether a path segment duplicates the last dot-part of the root namespace,
+    /// ignoring case (e.g. "ThirdpartyApi" vs. "Eloverblik.Api.ThirdPartyApi").
+    /// </summary>
+    private static bool DuplicatesRootNamespaceTail(
+        string rootNamespace,
+        string pathSegment)
+    {
+        if (string.IsNullOrEmpty(rootNamespace))
+        {
+            return false;
+        }
+
+        var lastSeparatorIndex = rootNamespace.LastIndexOf('.');
+        var tail = lastSeparatorIndex >= 0
+            ? rootNamespace.Substring(lastSeparatorIndex + 1)
+            : rootNamespace;
+
+        return string.Equals(tail, pathSegment, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Checks if a segment is a version pattern (v1, v2, v3, etc.).
+    /// </summary>
+    private static bool IsVersionSegment(string segment)
+    {
+        if (segment.Length < 2)
+        {
+            return false;
+        }
+
+        if (segment[0] != 'v' && segment[0] != 'V')
+        {
+            return false;
+        }
+
+        for (var i = 1; i < segment.Length; i++)
+        {
+            if (!char.IsDigit(segment[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Collects schema names from an OpenAPI schema recursively.
+    /// Uses a visited set to prevent infinite recursion on circular inline schemas.
+    /// </summary>
+    private static void CollectSchemaNames(
+        IOpenApiSchema? schema,
+        HashSet<string> schemaNames)
+        => CollectSchemaNames(schema, schemaNames, []);
+
+    private static void CollectSchemaNames(
+        IOpenApiSchema? schema,
+        HashSet<string> schemaNames,
+        HashSet<object> visited)
+    {
+        if (schema is null)
+        {
+            return;
+        }
+
+        // Guard against circular references in inline schemas
+        if (!visited.Add(schema))
+        {
+            return;
+        }
+
+        if (schema is OpenApiSchemaReference schemaRef)
+        {
+            var refId = schemaRef.Reference.Id ?? schemaRef.Id;
+            if (!string.IsNullOrEmpty(refId))
+            {
+                schemaNames.Add(refId!);
+            }
+
+            return;
+        }
+
+        if (schema is OpenApiSchema actualSchema)
+        {
+            // Handle array items (use HasFlag since JsonSchemaType is a flags enum in OpenAPI 3.1.x)
+            if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true && actualSchema.Items is not null)
+            {
+                CollectSchemaNames(actualSchema.Items, schemaNames, visited);
+            }
+
+            // Handle object properties
+            if (actualSchema.Properties is not null)
+            {
+                foreach (var property in actualSchema.Properties)
+                {
+                    CollectSchemaNames(property.Value, schemaNames, visited);
+                }
+            }
+
+            // Handle additionalProperties
+            if (actualSchema.AdditionalProperties is not null)
+            {
+                CollectSchemaNames(actualSchema.AdditionalProperties, schemaNames, visited);
+            }
+
+            // Handle allOf
+            if (actualSchema.AllOf is not null)
+            {
+                foreach (var allOfSchema in actualSchema.AllOf)
+                {
+                    CollectSchemaNames(allOfSchema, schemaNames, visited);
+                }
+            }
+
+            // Handle oneOf
+            if (actualSchema.OneOf is not null)
+            {
+                foreach (var oneOfSchema in actualSchema.OneOf)
+                {
+                    CollectSchemaNames(oneOfSchema, schemaNames, visited);
+                }
+            }
+
+            // Handle anyOf
+            if (actualSchema.AnyOf is not null)
+            {
+                foreach (var anyOfSchema in actualSchema.AnyOf)
+                {
+                    CollectSchemaNames(anyOfSchema, schemaNames, visited);
+                }
+            }
+        }
+    }
+
+    private static bool OperationHasInlineModel(OpenApiOperation operation)
+    {
+        if (operation.Responses is not null)
+        {
+            foreach (var response in operation.Responses)
+            {
+                if (response.Value?.Content is null)
+                {
+                    continue;
+                }
+
+                foreach (var media in response.Value.Content)
+                {
+                    if (SchemaYieldsInlineModel(media.Value?.Schema))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        if (operation.RequestBody?.Content is null)
+        {
+            return false;
+        }
+
+        foreach (var media in operation.RequestBody.Content)
+        {
+            if (SchemaYieldsInlineModel(media.Value?.Schema))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool SchemaYieldsInlineModel(IOpenApiSchema? schema)
+    {
+        if (InlineSchemaExtractor.IsInlineObjectSchema(schema))
+        {
+            return true;
+        }
+
+        // An array of anonymous objects yields an inline "…ResponseItem" record.
+        return schema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array) &&
+               InlineSchemaExtractor.IsInlineObjectSchema(arraySchema.Items);
     }
 }

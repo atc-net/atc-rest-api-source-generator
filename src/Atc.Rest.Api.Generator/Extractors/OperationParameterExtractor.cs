@@ -12,44 +12,6 @@ namespace Atc.Rest.Api.Generator.Extractors;
 public static class OperationParameterExtractor
 {
     /// <summary>
-    /// Extracts parameter DTO records from OpenAPI document paths and operations.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing path and operation definitions.</param>
-    /// <param name="projectName">The name of the project (used for namespace).</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
-    /// <returns>RecordsParameters containing all parameter records, or null if no parameters exist.</returns>
-    public static RecordsParameters? Extract(
-        OpenApiDocument openApiDoc,
-        string projectName,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false,
-        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
-    {
-        var recordsList = ExtractIndividual(openApiDoc, projectName, pathSegment: null, registry: registry, includeBindingAttributes: true, namespaceSubFolder: "Parameters", includeDeprecated: includeDeprecated, validateStrategy: validateStrategy);
-
-        if (recordsList is null || recordsList.Count == 0)
-        {
-            return null;
-        }
-
-        var namespaceValue = NamespaceBuilder.ForParameters(projectName);
-        var modelsNamespace = NamespaceBuilder.ForModels(projectName);
-        var headerContent = BuildHeaderContent(
-            includeBindingAttributes: true,
-            modelsNamespace,
-            records: recordsList);
-
-        return new RecordsParameters(
-            HeaderContent: headerContent,
-            Namespace: namespaceValue,
-            DocumentationTags: null,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.Public,
-            Parameters: recordsList);
-    }
-
-    /// <summary>
     /// Extracts parameter DTO records from OpenAPI document paths and operations filtered by path segment.
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document containing path and operation definitions.</param>
@@ -70,7 +32,7 @@ public static class OperationParameterExtractor
         bool includeSegmentModelsUsing = true,
         ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
     {
-        var recordsList = ExtractIndividual(openApiDoc, projectName, pathSegment, registry: registry, includeBindingAttributes: true, namespaceSubFolder: "Parameters", includeDeprecated: includeDeprecated, validateStrategy: validateStrategy);
+        var recordsList = ExtractIndividual(openApiDoc, projectName, pathSegment, registry: registry, includeBindingAttributes: true, includeDeprecated: includeDeprecated, validateStrategy: validateStrategy);
 
         if (recordsList is null || recordsList.Count == 0)
         {
@@ -136,7 +98,6 @@ public static class OperationParameterExtractor
             pathSegment,
             registry: registry,
             includeBindingAttributes: true,
-            namespaceSubFolder: "Parameters",
             includeDeprecated: includeDeprecated,
             inlineEnumsByValuesKey: inlineEnumsByValuesKey,
             validateStrategy: validateStrategy,
@@ -181,44 +142,6 @@ public static class OperationParameterExtractor
         return (records, ToInlineEnumList(inlineEnumsByValuesKey));
     }
 
-    private static List<InlineEnumInfo> ToInlineEnumList(
-        Dictionary<string, InlineEnumInfo>? inlineEnumsByValuesKey)
-        => inlineEnumsByValuesKey is null
-            ? []
-            : [.. inlineEnumsByValuesKey.Values];
-
-    /// <summary>
-    /// Extracts individual parameter records from OpenAPI document paths and operations.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing path and operation definitions.</param>
-    /// <param name="projectName">The name of the project (used for namespace).</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
-    /// <returns>List of RecordParameters for each operation that has parameters.</returns>
-    public static List<RecordParameters>? ExtractIndividual(
-        OpenApiDocument openApiDoc,
-        string projectName,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false)
-        => ExtractIndividual(openApiDoc, projectName, pathSegment: null, registry: registry, includeBindingAttributes: true, namespaceSubFolder: "Parameters", includeDeprecated: includeDeprecated);
-
-    /// <summary>
-    /// Extracts individual parameter records from OpenAPI document paths and operations filtered by path segment.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing path and operation definitions.</param>
-    /// <param name="projectName">The name of the project (used for namespace).</param>
-    /// <param name="pathSegment">The path segment to filter by (e.g., "Pets"). If null, extracts all parameters.</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
-    /// <returns>List of RecordParameters for each operation that has parameters in the path segment.</returns>
-    public static List<RecordParameters>? ExtractIndividual(
-        OpenApiDocument openApiDoc,
-        string projectName,
-        string? pathSegment,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false)
-        => ExtractIndividual(openApiDoc, projectName, pathSegment, registry: registry, includeBindingAttributes: true, namespaceSubFolder: "Parameters", includeDeprecated: includeDeprecated);
-
     /// <summary>
     /// Extracts individual parameter records from OpenAPI document paths and operations filtered by path segment.
     /// </summary>
@@ -227,7 +150,6 @@ public static class OperationParameterExtractor
     /// <param name="pathSegment">The path segment to filter by (e.g., "Pets"). If null, extracts all parameters.</param>
     /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
     /// <param name="includeBindingAttributes">If true, includes ASP.NET Core binding attributes ([FromQuery], [FromRoute], etc.). Set to false for client DTOs.</param>
-    /// <param name="namespaceSubFolder">The namespace subfolder (e.g., "Parameters" for server, "Client" for client).</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
     /// <param name="inlineEnumsByValuesKey">Optional accumulator for inline enums discovered on parameter schemas. When supplied, inline-enum params produce a generated type name instead of <c>string</c>; the discovered enum is recorded here for the caller to emit as a separate file.</param>
     /// <returns>List of RecordParameters for each operation that has parameters in the path segment.</returns>
@@ -237,7 +159,6 @@ public static class OperationParameterExtractor
         string? pathSegment,
         TypeConflictRegistry? registry,
         bool includeBindingAttributes,
-        string namespaceSubFolder,
         bool includeDeprecated = false,
         Dictionary<string, InlineEnumInfo>? inlineEnumsByValuesKey = null,
         ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
@@ -357,7 +278,6 @@ public static class OperationParameterExtractor
         string? pathSegment,
         TypeConflictRegistry? registry,
         bool includeBindingAttributes,
-        string namespaceSubFolder,
         bool includeDeprecated = false,
         bool emitInlineEnums = true,
         ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
@@ -374,7 +294,6 @@ public static class OperationParameterExtractor
             pathSegment,
             registry,
             includeBindingAttributes,
-            namespaceSubFolder,
             includeDeprecated,
             inlineEnumsByValuesKey,
             validateStrategy,
@@ -382,6 +301,12 @@ public static class OperationParameterExtractor
 
         return (records, ToInlineEnumList(inlineEnumsByValuesKey));
     }
+
+    private static List<InlineEnumInfo> ToInlineEnumList(
+        Dictionary<string, InlineEnumInfo>? inlineEnumsByValuesKey)
+        => inlineEnumsByValuesKey is null
+            ? []
+            : [.. inlineEnumsByValuesKey.Values];
 
     /// <summary>
     /// Builds the header content for the generated file.

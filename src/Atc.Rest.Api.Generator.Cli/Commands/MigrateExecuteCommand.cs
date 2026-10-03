@@ -8,11 +8,109 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 {
     private readonly INugetPackageVersionService nugetService;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MigrateExecuteCommand"/> class.
+    /// </summary>
+    /// <param name="nugetService">Resolves the source generator package version written into the migrated project files.</param>
     public MigrateExecuteCommand(INugetPackageVersionService nugetService)
     {
         this.nugetService = nugetService;
     }
 
+    internal static void UpdateGlobalUsings(
+        MigrationValidationReport report,
+        string projectName,
+        bool dryRun,
+        MigrationSummary summary)
+    {
+        var contractsNamespace = $"{projectName}.Api.Contracts";
+
+        // Process Domain project
+        if (!string.IsNullOrEmpty(report.ProjectStructure.DomainProject))
+        {
+            var domainDir = Path.GetDirectoryName(report.ProjectStructure.DomainProject)!;
+            ProcessGlobalUsingsForProject(report, domainDir, contractsNamespace, dryRun, summary);
+        }
+
+        // Process Domain.Tests project
+        if (!string.IsNullOrEmpty(report.ProjectStructure.DomainTestProject))
+        {
+            var testDir = Path.GetDirectoryName(report.ProjectStructure.DomainTestProject)!;
+            ProcessGlobalUsingsForProject(report, testDir, contractsNamespace, dryRun, summary);
+        }
+    }
+
+    internal static void UpdateHostProject(
+        MigrationValidationReport report,
+        string projectName,
+        bool dryRun,
+        MigrationSummary summary)
+    {
+        if (string.IsNullOrEmpty(report.ProjectStructure.HostApiProject))
+        {
+            return;
+        }
+
+        var hostDir = Path.GetDirectoryName(report.ProjectStructure.HostApiProject)!;
+
+        // Required namespaces for MapEndpoints() and AddApiHandlersFromDomain()
+        var requiredNamespaces = new List<string>
+        {
+            $"{projectName}.Api.Contracts",
+            $"{projectName}.Api.Contracts.Generated.Endpoints",
+        };
+
+        // Update GlobalUsings.cs - remove old patterns, add required, sort properly
+        var globalUsingsResult = GlobalUsingsModifier.CleanupAndSortGlobalUsings(
+            hostDir,
+            projectName,
+            requiredNamespaces,
+            dryRun: dryRun);
+
+        if (globalUsingsResult.WasModified)
+        {
+            if (!summary.ModifiedFiles.Contains(globalUsingsResult.FilePath, StringComparer.Ordinal))
+            {
+                summary.ModifiedFiles.Add(globalUsingsResult.FilePath);
+            }
+
+            summary.HostProjectUpdates.AddRange(globalUsingsResult.RemovedUsings.Select(ns => $"- {ns}"));
+            summary.HostProjectUpdates.AddRange(globalUsingsResult.AddedUsings.Select(ns => $"+ {ns}"));
+            summary.HostProjectUpdates.AddRange(globalUsingsResult.UpdatedUsings);
+        }
+
+        // Update Program.cs - remove old patterns, add new ones
+        var programResult = ProgramCsModifier.UpdateToSourceGenerator(hostDir, projectName, dryRun);
+        if (programResult.WasModified)
+        {
+            if (!summary.ModifiedFiles.Contains(programResult.FilePath, StringComparer.Ordinal))
+            {
+                summary.ModifiedFiles.Add(programResult.FilePath);
+            }
+
+            summary.HostProjectUpdates.AddRange(programResult.RemovedStatements.Select(s => $"- {s}"));
+            summary.HostProjectUpdates.AddRange(programResult.ReplacedStatements);
+            summary.HostProjectUpdates.AddRange(programResult.AddedStatements.Select(s => $"+ {s}"));
+        }
+
+        if (!string.IsNullOrEmpty(globalUsingsResult.Error))
+        {
+            AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(globalUsingsResult.Error)}");
+        }
+
+        if (!string.IsNullOrEmpty(programResult.Error))
+        {
+            AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(programResult.Error)}");
+        }
+    }
+
+    /// <summary>
+    /// Re-runs the migration validation and, when the solution is ready, rewrites it for the source generators.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when the migration (or dry run) completed; otherwise 1.</returns>
     protected override int Execute(
         CommandContext context,
         MigrateExecuteCommandSettings settings,
@@ -472,29 +570,6 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         }
     }
 
-    internal static void UpdateGlobalUsings(
-        MigrationValidationReport report,
-        string projectName,
-        bool dryRun,
-        MigrationSummary summary)
-    {
-        var contractsNamespace = $"{projectName}.Api.Contracts";
-
-        // Process Domain project
-        if (!string.IsNullOrEmpty(report.ProjectStructure.DomainProject))
-        {
-            var domainDir = Path.GetDirectoryName(report.ProjectStructure.DomainProject)!;
-            ProcessGlobalUsingsForProject(report, domainDir, contractsNamespace, dryRun, summary);
-        }
-
-        // Process Domain.Tests project
-        if (!string.IsNullOrEmpty(report.ProjectStructure.DomainTestProject))
-        {
-            var testDir = Path.GetDirectoryName(report.ProjectStructure.DomainTestProject)!;
-            ProcessGlobalUsingsForProject(report, testDir, contractsNamespace, dryRun, summary);
-        }
-    }
-
     private static void ProcessGlobalUsingsForProject(
         MigrationValidationReport report,
         string projectDir,
@@ -599,70 +674,6 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         if (!string.IsNullOrEmpty(result.Error))
         {
             AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(result.Error)}");
-        }
-    }
-
-    internal static void UpdateHostProject(
-        MigrationValidationReport report,
-        string projectName,
-        bool dryRun,
-        MigrationSummary summary)
-    {
-        if (string.IsNullOrEmpty(report.ProjectStructure.HostApiProject))
-        {
-            return;
-        }
-
-        var hostDir = Path.GetDirectoryName(report.ProjectStructure.HostApiProject)!;
-
-        // Required namespaces for MapEndpoints() and AddApiHandlersFromDomain()
-        var requiredNamespaces = new List<string>
-        {
-            $"{projectName}.Api.Contracts",
-            $"{projectName}.Api.Contracts.Generated.Endpoints",
-        };
-
-        // Update GlobalUsings.cs - remove old patterns, add required, sort properly
-        var globalUsingsResult = GlobalUsingsModifier.CleanupAndSortGlobalUsings(
-            hostDir,
-            projectName,
-            requiredNamespaces,
-            dryRun: dryRun);
-
-        if (globalUsingsResult.WasModified)
-        {
-            if (!summary.ModifiedFiles.Contains(globalUsingsResult.FilePath, StringComparer.Ordinal))
-            {
-                summary.ModifiedFiles.Add(globalUsingsResult.FilePath);
-            }
-
-            summary.HostProjectUpdates.AddRange(globalUsingsResult.RemovedUsings.Select(ns => $"- {ns}"));
-            summary.HostProjectUpdates.AddRange(globalUsingsResult.AddedUsings.Select(ns => $"+ {ns}"));
-            summary.HostProjectUpdates.AddRange(globalUsingsResult.UpdatedUsings);
-        }
-
-        // Update Program.cs - remove old patterns, add new ones
-        var programResult = ProgramCsModifier.UpdateToSourceGenerator(hostDir, projectName, dryRun);
-        if (programResult.WasModified)
-        {
-            if (!summary.ModifiedFiles.Contains(programResult.FilePath, StringComparer.Ordinal))
-            {
-                summary.ModifiedFiles.Add(programResult.FilePath);
-            }
-
-            summary.HostProjectUpdates.AddRange(programResult.RemovedStatements.Select(s => $"- {s}"));
-            summary.HostProjectUpdates.AddRange(programResult.ReplacedStatements);
-            summary.HostProjectUpdates.AddRange(programResult.AddedStatements.Select(s => $"+ {s}"));
-        }
-
-        if (!string.IsNullOrEmpty(globalUsingsResult.Error))
-        {
-            AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(globalUsingsResult.Error)}");
-        }
-
-        if (!string.IsNullOrEmpty(programResult.Error))
-        {
-            AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(programResult.Error)}");
         }
     }
 

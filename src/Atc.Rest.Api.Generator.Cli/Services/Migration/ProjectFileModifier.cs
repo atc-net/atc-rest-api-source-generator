@@ -171,47 +171,6 @@ internal static class ProjectFileModifier
         return result;
     }
 
-    /// <summary>
-    /// Updates project references from old names to new names.
-    /// </summary>
-    /// <param name="projectPath">Path to the .csproj file.</param>
-    /// <param name="oldName">The old project name (e.g., "Api.Generated").</param>
-    /// <param name="newName">The new project name (e.g., "Api.Contracts").</param>
-    /// <param name="dryRun">If true, only returns what would be modified.</param>
-    /// <returns>The modifications made.</returns>
-    public static ProjectModificationResult UpdateProjectReference(
-        string projectPath,
-        string oldName,
-        string newName,
-        bool dryRun = false)
-    {
-        var result = new ProjectModificationResult { ProjectPath = projectPath };
-
-        if (!File.Exists(projectPath))
-        {
-            result.Error = "Project file not found.";
-            return result;
-        }
-
-        var content = File.ReadAllText(projectPath);
-
-        if (!content.Contains(oldName, StringComparison.OrdinalIgnoreCase))
-        {
-            return result;
-        }
-
-        var modified = content.Replace(oldName, newName, StringComparison.OrdinalIgnoreCase);
-        result.UpdatedReferences.Add($"{oldName} → {newName}");
-
-        if (!dryRun && modified != content)
-        {
-            File.WriteAllText(projectPath, modified);
-        }
-
-        result.WasModified = modified != content;
-        return result;
-    }
-
     private static string GenerateSourceGeneratorPackageReference(
         string version)
         => $"""

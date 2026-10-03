@@ -5,6 +5,13 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 /// </summary>
 public sealed class OptionsCreateCommand : Command<OptionsCommandSettings>
 {
+    /// <summary>
+    /// Writes a default ApiGeneratorOptions.json to the output path, refusing to overwrite an existing file unless forced.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when the file was written; otherwise 1.</returns>
     protected override int Execute(
         CommandContext context,
         OptionsCommandSettings settings,

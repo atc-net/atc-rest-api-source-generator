@@ -1,7 +1,12 @@
 namespace Atc.CodeGeneration.TypeScript.CodeDocumentation;
 
+/// <summary>
+/// Renders a <see cref="JsDocComment"/>: a description alone becomes a one-line <c>/** text */</c>, anything
+/// more a multi-line block with one <c> * </c> line per description line and tag.
+/// </summary>
 public class JsDocCommentGenerator : IJsDocCommentGenerator
 {
+    /// <inheritdoc />
     public bool ShouldGenerateTags(JsDocComment jsDocComment)
     {
         if (jsDocComment is null)
@@ -21,6 +26,7 @@ public class JsDocCommentGenerator : IJsDocCommentGenerator
                !jsDocComment.Description.StartsWith(Constants.UndefinedDescription, StringComparison.Ordinal);
     }
 
+    /// <inheritdoc />
     public string GenerateTags(
         ushort indentSpaces,
         JsDocComment jsDocComment)

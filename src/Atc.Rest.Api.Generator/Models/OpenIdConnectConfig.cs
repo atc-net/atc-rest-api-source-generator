@@ -27,19 +27,4 @@ public class OpenIdConnectConfig
     /// Key is scope name, value is description.
     /// </summary>
     public Dictionary<string, string> DefaultScopes { get; } = new(StringComparer.Ordinal);
-
-    /// <summary>
-    /// Gets the default scope string (space-separated) for use in authentication.
-    /// If no scopes are specified, defaults to standard OpenID Connect scopes.
-    /// </summary>
-    public string DefaultScopeString
-        => DefaultScopes.Count > 0
-            ? string.Join(" ", DefaultScopes.Keys)
-            : "openid profile";
-
-    /// <summary>
-    /// Gets a value indicating whether the discovery URL is configured.
-    /// </summary>
-    public bool HasDiscoveryUrl
-        => !string.IsNullOrEmpty(OpenIdConnectUrl);
 }

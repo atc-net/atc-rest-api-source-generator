@@ -132,77 +132,6 @@ public static class JsonSchemaTypeExtensions
     }
 
     /// <summary>
-    /// Gets the C# type name for Integer JsonSchemaType with format.
-    /// </summary>
-    /// <param name="format">The format specifier (e.g., "int32", "int64").</param>
-    /// <returns>The C# integer type name.</returns>
-    private static string GetIntegerTypeName(string? format)
-        => format switch
-        {
-            "int32" => "int",
-            "int64" => "long",
-            _ => "int",
-        };
-
-    /// <summary>
-    /// Gets the C# type name for Number JsonSchemaType with format.
-    /// </summary>
-    /// <param name="format">The format specifier (e.g., "float", "double", "int32", "int64").</param>
-    /// <returns>The C# number type name.</returns>
-    private static string GetNumberTypeName(string? format)
-        => format switch
-        {
-            "int32" => "int",
-            "int64" => "long",
-            "float" => "float",
-            "double" => "double",
-            _ => "double",
-        };
-
-    /// <summary>
-    /// Gets the C# type name for String JsonSchemaType with format.
-    /// </summary>
-    /// <param name="format">The format specifier (e.g., "uuid", "date-time", "uri", "binary", "byte").</param>
-    /// <param name="includeIFormFile">When true, maps "binary" format to IFormFile.</param>
-    /// <param name="contentEncoding">Optional contentEncoding value (e.g., "base64", "base64url").</param>
-    /// <returns>The C# string type name.</returns>
-    private static string GetStringTypeName(
-        string? format,
-        bool includeIFormFile,
-        string? contentEncoding = null)
-    {
-        // Check contentEncoding first (OpenAPI 3.1 / JSON Schema 2020-12)
-        if (IsBase64ContentEncoding(contentEncoding))
-        {
-            return "byte[]";
-        }
-
-        return format?.ToLowerInvariant() switch
-        {
-            "binary" when includeIFormFile => "IFormFile",
-            "byte" => "byte[]", // base64 encoded content - System.Text.Json handles serialization
-            "uuid" => "Guid",
-            "guid" => "Guid",
-            "date-time" => "DateTimeOffset",
-            "date" => "DateOnly",
-            "uri" => "Uri",
-            "int32" => "int",
-            "int" => "int",
-            "int64" => "long",
-            "long" => "long",
-            _ => "string",
-        };
-    }
-
-    /// <summary>
-    /// Checks if the contentEncoding indicates base64-encoded content.
-    /// </summary>
-    /// <param name="contentEncoding">The contentEncoding value.</param>
-    /// <returns>True if the content is base64-encoded.</returns>
-    private static bool IsBase64ContentEncoding(string? contentEncoding)
-        => contentEncoding?.ToLowerInvariant() is "base64" or "base64url";
-
-    /// <summary>
     /// Counts the number of non-null types in a JsonSchemaType flags value.
     /// OpenAPI 3.1 supports type arrays like ["string", "integer", "null"].
     /// </summary>
@@ -375,4 +304,75 @@ public static class JsonSchemaTypeExtensions
     /// <returns>A list of type names, or an empty list if null.</returns>
     public static IReadOnlyList<string> GetNonNullTypeNames(this JsonSchemaType? schemaType)
         => schemaType?.GetNonNullTypeNames() ?? [];
+
+    /// <summary>
+    /// Gets the C# type name for Integer JsonSchemaType with format.
+    /// </summary>
+    /// <param name="format">The format specifier (e.g., "int32", "int64").</param>
+    /// <returns>The C# integer type name.</returns>
+    private static string GetIntegerTypeName(string? format)
+        => format switch
+        {
+            "int32" => "int",
+            "int64" => "long",
+            _ => "int",
+        };
+
+    /// <summary>
+    /// Gets the C# type name for Number JsonSchemaType with format.
+    /// </summary>
+    /// <param name="format">The format specifier (e.g., "float", "double", "int32", "int64").</param>
+    /// <returns>The C# number type name.</returns>
+    private static string GetNumberTypeName(string? format)
+        => format switch
+        {
+            "int32" => "int",
+            "int64" => "long",
+            "float" => "float",
+            "double" => "double",
+            _ => "double",
+        };
+
+    /// <summary>
+    /// Gets the C# type name for String JsonSchemaType with format.
+    /// </summary>
+    /// <param name="format">The format specifier (e.g., "uuid", "date-time", "uri", "binary", "byte").</param>
+    /// <param name="includeIFormFile">When true, maps "binary" format to IFormFile.</param>
+    /// <param name="contentEncoding">Optional contentEncoding value (e.g., "base64", "base64url").</param>
+    /// <returns>The C# string type name.</returns>
+    private static string GetStringTypeName(
+        string? format,
+        bool includeIFormFile,
+        string? contentEncoding = null)
+    {
+        // Check contentEncoding first (OpenAPI 3.1 / JSON Schema 2020-12)
+        if (IsBase64ContentEncoding(contentEncoding))
+        {
+            return "byte[]";
+        }
+
+        return format?.ToLowerInvariant() switch
+        {
+            "binary" when includeIFormFile => "IFormFile",
+            "byte" => "byte[]", // base64 encoded content - System.Text.Json handles serialization
+            "uuid" => "Guid",
+            "guid" => "Guid",
+            "date-time" => "DateTimeOffset",
+            "date" => "DateOnly",
+            "uri" => "Uri",
+            "int32" => "int",
+            "int" => "int",
+            "int64" => "long",
+            "long" => "long",
+            _ => "string",
+        };
+    }
+
+    /// <summary>
+    /// Checks if the contentEncoding indicates base64-encoded content.
+    /// </summary>
+    /// <param name="contentEncoding">The contentEncoding value.</param>
+    /// <returns>True if the content is base64-encoded.</returns>
+    private static bool IsBase64ContentEncoding(string? contentEncoding)
+        => contentEncoding?.ToLowerInvariant() is "base64" or "base64url";
 }

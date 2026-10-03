@@ -194,20 +194,6 @@ public static class OpenApiOperationExtensions
             => operation.GetParametersByLocation(ParameterLocation.Path);
 
         /// <summary>
-        /// Gets all header parameters from the operation.
-        /// </summary>
-        /// <returns>Enumerable of header parameters.</returns>
-        public IEnumerable<OpenApiParameter> GetHeaderParameters()
-            => operation.GetParametersByLocation(ParameterLocation.Header);
-
-        /// <summary>
-        /// Gets all cookie parameters from the operation.
-        /// </summary>
-        /// <returns>Enumerable of cookie parameters.</returns>
-        public IEnumerable<OpenApiParameter> GetCookieParameters()
-            => operation.GetParametersByLocation(ParameterLocation.Cookie);
-
-        /// <summary>
         /// Checks if the operation has a file upload request body.
         /// </summary>
         /// <returns>True if the operation has a file upload request body.</returns>
@@ -544,18 +530,6 @@ public static class OpenApiOperationExtensions
             => operation.Responses is not null &&
                operation.Responses.TryGetValue("200", out var response) &&
                response.TryGetTextResponseMediaType(out _, out _);
-
-        /// <summary>
-        /// Gets the textual response media type for the 200 response if present
-        /// (e.g. <c>"text/plain"</c>, <c>"text/csv"</c>, <c>"application/xml"</c>).
-        /// </summary>
-        /// <returns>The textual response media type or null when none matches.</returns>
-        public string? GetTextResponseMediaType()
-            => operation.Responses is not null &&
-               operation.Responses.TryGetValue("200", out var response) &&
-               response.TryGetTextResponseMediaType(out var mediaType, out _)
-                ? mediaType
-                : null;
 
         /// <summary>
         /// The file media types of a 200 response that is a model <b>or</b> a file (<c>application/json</c> and

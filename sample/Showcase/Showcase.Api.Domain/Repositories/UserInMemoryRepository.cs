@@ -126,155 +126,6 @@ public sealed class UserInMemoryRepository
         GenerateUsaUsers(random, usedEmails, 10);
     }
 
-    private void GenerateUsers(
-        Random random,
-        HashSet<string> usedEmails,
-        int count,
-        string country,
-        string countryCode,
-        (string City, string PostalCode, double Lat, double Lon)[] cities,
-        string? state)
-    {
-        for (var i = 0; i < count; i++)
-        {
-            var firstName = FirstNames[random.Next(FirstNames.Length)];
-            var lastName = LastNames[random.Next(LastNames.Length)];
-            var email = GenerateUniqueEmail(random, usedEmails, firstName, lastName);
-            var city = cities[random.Next(cities.Length)];
-            var role = (UserRoleType)random.Next(4);
-            var dob = DateOnly.FromDateTime(
-                DateTime
-                    .Today
-                    .AddYears(-random.Next(20, 65))
-                    .AddDays(-random.Next(365)));
-
-            var user = new UserEntity(
-                Id: Guid.NewGuid(),
-                FirstName: firstName,
-                LastName: lastName,
-                Email: email,
-                Phone: GeneratePhone(random, countryCode),
-                Website: random.Next(3) == 0 ? $"https://{firstName.ToLowerInvariant()}{lastName.ToLowerInvariant()}.com" : null,
-                DateOfBirth: dob,
-                Age: CalculateAge(dob),
-                Bio: random.Next(2) == 0 ? Bios[random.Next(Bios.Length)] : null,
-                AvatarUrl: $"https://api.dicebear.com/7.x/avataaars/svg?seed={firstName}{lastName}",
-                IsActive: random.Next(10) > 1, // 90% active
-                Role: role,
-                Address: new AddressEntity(
-                    Street: $"{random.Next(1, 200)} {StreetNames[random.Next(StreetNames.Length)]}",
-                    City: city.City,
-                    State: state,
-                    PostalCode: city.PostalCode,
-                    Country: country,
-                    CountryCode: countryCode,
-                    Latitude: city.Lat + (random.NextDouble() - 0.5) * 0.1,
-                    Longitude: city.Lon + (random.NextDouble() - 0.5) * 0.1),
-                CreatedAt: DateTime.UtcNow.AddDays(-random.Next(1, 365)),
-                UpdatedAt: DateTime.UtcNow.AddDays(-random.Next(0, 30)));
-
-            users.Add(user);
-        }
-    }
-
-    private void GenerateUsaUsers(
-        Random random,
-        HashSet<string> usedEmails,
-        int count)
-    {
-        for (var i = 0; i < count; i++)
-        {
-            var firstName = FirstNames[random.Next(FirstNames.Length)];
-            var lastName = LastNames[random.Next(LastNames.Length)];
-            var email = GenerateUniqueEmail(random, usedEmails, firstName, lastName);
-            var city = UsaCities[random.Next(UsaCities.Length)];
-            var role = (UserRoleType)random.Next(4);
-            var dob = DateOnly.FromDateTime(
-                DateTime
-                    .Today
-                    .AddYears(-random.Next(20, 65))
-                    .AddDays(-random.Next(365)));
-
-            var user = new UserEntity(
-                Id: Guid.NewGuid(),
-                FirstName: firstName,
-                LastName: lastName,
-                Email: email,
-                Phone: GeneratePhone(random, "US"),
-                Website: random.Next(3) == 0 ? $"https://{firstName.ToLowerInvariant()}{lastName.ToLowerInvariant()}.com" : null,
-                DateOfBirth: dob,
-                Age: CalculateAge(dob),
-                Bio: random.Next(2) == 0 ? Bios[random.Next(Bios.Length)] : null,
-                AvatarUrl: $"https://api.dicebear.com/7.x/avataaars/svg?seed={firstName}{lastName}",
-                IsActive: random.Next(10) > 1,
-                Role: role,
-                Address: new AddressEntity(
-                    Street: $"{random.Next(1, 9999)} {StreetNames[random.Next(StreetNames.Length)]}",
-                    City: city.City,
-                    State: city.State,
-                    PostalCode: city.PostalCode,
-                    Country: "United States",
-                    CountryCode: "US",
-                    Latitude: city.Lat + (random.NextDouble() - 0.5) * 0.1,
-                    Longitude: city.Lon + (random.NextDouble() - 0.5) * 0.1),
-                CreatedAt: DateTime.UtcNow.AddDays(-random.Next(1, 365)),
-                UpdatedAt: DateTime.UtcNow.AddDays(-random.Next(0, 30)));
-
-            users.Add(user);
-        }
-    }
-
-    private static string GenerateUniqueEmail(
-        Random random,
-        HashSet<string> usedEmails,
-        string firstName,
-        string lastName)
-    {
-        var domains = new[] { "example.com", "test.org", "demo.net", "sample.io", "mail.com" };
-        string email;
-        var attempt = 0;
-
-        do
-        {
-            var suffix = attempt > 0
-                ? random
-                    .Next(100, 999)
-                    .ToString(CultureInfo.InvariantCulture)
-                : string.Empty;
-            email = $"{firstName.ToLowerInvariant()}.{lastName.ToLowerInvariant()}{suffix}@{domains[random.Next(domains.Length)]}";
-            attempt++;
-        }
-        while (!usedEmails.Add(email));
-
-        return email;
-    }
-
-    private static string GeneratePhone(
-        Random random,
-        string countryCode)
-        => countryCode switch
-        {
-            "DK" => $"+45{random.Next(20000000, 99999999)}",
-            "SE" => $"+46{random.Next(70000000, 79999999):D8}",
-            "FI" => $"+358{random.Next(40000000, 49999999):D8}",
-            "DE" => $"+49{random.Next(15000000, 17999999):D8}0",
-            "GB" => $"+44{random.Next(70000000, 79999999):D8}",
-            "US" => $"+1{random.Next(200000000, 999999999):D9}",
-            _ => $"+{random.Next(100000000, int.MaxValue)}",
-        };
-
-    private static int CalculateAge(DateOnly dateOfBirth)
-    {
-        var today = DateOnly.FromDateTime(DateTime.Today);
-        var age = today.Year - dateOfBirth.Year;
-        if (dateOfBirth > today.AddYears(-age))
-        {
-            age--;
-        }
-
-        return age;
-    }
-
     public Task<List<UserEntity>> GetAll(
         string? search = null,
         string? country = null,
@@ -435,4 +286,153 @@ public sealed class UserInMemoryRepository
             .Distinct(StringComparer.Ordinal)
             .OrderBy(c => c, StringComparer.Ordinal)
             .ToArray());
+
+    private void GenerateUsers(
+        Random random,
+        HashSet<string> usedEmails,
+        int count,
+        string country,
+        string countryCode,
+        (string City, string PostalCode, double Lat, double Lon)[] cities,
+        string? state)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            var firstName = FirstNames[random.Next(FirstNames.Length)];
+            var lastName = LastNames[random.Next(LastNames.Length)];
+            var email = GenerateUniqueEmail(random, usedEmails, firstName, lastName);
+            var city = cities[random.Next(cities.Length)];
+            var role = (UserRoleType)random.Next(4);
+            var dob = DateOnly.FromDateTime(
+                DateTime
+                    .Today
+                    .AddYears(-random.Next(20, 65))
+                    .AddDays(-random.Next(365)));
+
+            var user = new UserEntity(
+                Id: Guid.NewGuid(),
+                FirstName: firstName,
+                LastName: lastName,
+                Email: email,
+                Phone: GeneratePhone(random, countryCode),
+                Website: random.Next(3) == 0 ? $"https://{firstName.ToLowerInvariant()}{lastName.ToLowerInvariant()}.com" : null,
+                DateOfBirth: dob,
+                Age: CalculateAge(dob),
+                Bio: random.Next(2) == 0 ? Bios[random.Next(Bios.Length)] : null,
+                AvatarUrl: $"https://api.dicebear.com/7.x/avataaars/svg?seed={firstName}{lastName}",
+                IsActive: random.Next(10) > 1, // 90% active
+                Role: role,
+                Address: new AddressEntity(
+                    Street: $"{random.Next(1, 200)} {StreetNames[random.Next(StreetNames.Length)]}",
+                    City: city.City,
+                    State: state,
+                    PostalCode: city.PostalCode,
+                    Country: country,
+                    CountryCode: countryCode,
+                    Latitude: city.Lat + (random.NextDouble() - 0.5) * 0.1,
+                    Longitude: city.Lon + (random.NextDouble() - 0.5) * 0.1),
+                CreatedAt: DateTime.UtcNow.AddDays(-random.Next(1, 365)),
+                UpdatedAt: DateTime.UtcNow.AddDays(-random.Next(0, 30)));
+
+            users.Add(user);
+        }
+    }
+
+    private void GenerateUsaUsers(
+        Random random,
+        HashSet<string> usedEmails,
+        int count)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            var firstName = FirstNames[random.Next(FirstNames.Length)];
+            var lastName = LastNames[random.Next(LastNames.Length)];
+            var email = GenerateUniqueEmail(random, usedEmails, firstName, lastName);
+            var city = UsaCities[random.Next(UsaCities.Length)];
+            var role = (UserRoleType)random.Next(4);
+            var dob = DateOnly.FromDateTime(
+                DateTime
+                    .Today
+                    .AddYears(-random.Next(20, 65))
+                    .AddDays(-random.Next(365)));
+
+            var user = new UserEntity(
+                Id: Guid.NewGuid(),
+                FirstName: firstName,
+                LastName: lastName,
+                Email: email,
+                Phone: GeneratePhone(random, "US"),
+                Website: random.Next(3) == 0 ? $"https://{firstName.ToLowerInvariant()}{lastName.ToLowerInvariant()}.com" : null,
+                DateOfBirth: dob,
+                Age: CalculateAge(dob),
+                Bio: random.Next(2) == 0 ? Bios[random.Next(Bios.Length)] : null,
+                AvatarUrl: $"https://api.dicebear.com/7.x/avataaars/svg?seed={firstName}{lastName}",
+                IsActive: random.Next(10) > 1,
+                Role: role,
+                Address: new AddressEntity(
+                    Street: $"{random.Next(1, 9999)} {StreetNames[random.Next(StreetNames.Length)]}",
+                    City: city.City,
+                    State: city.State,
+                    PostalCode: city.PostalCode,
+                    Country: "United States",
+                    CountryCode: "US",
+                    Latitude: city.Lat + (random.NextDouble() - 0.5) * 0.1,
+                    Longitude: city.Lon + (random.NextDouble() - 0.5) * 0.1),
+                CreatedAt: DateTime.UtcNow.AddDays(-random.Next(1, 365)),
+                UpdatedAt: DateTime.UtcNow.AddDays(-random.Next(0, 30)));
+
+            users.Add(user);
+        }
+    }
+
+    private static string GenerateUniqueEmail(
+        Random random,
+        HashSet<string> usedEmails,
+        string firstName,
+        string lastName)
+    {
+        var domains = new[] { "example.com", "test.org", "demo.net", "sample.io", "mail.com" };
+        string email;
+        var attempt = 0;
+
+        do
+        {
+            var suffix = attempt > 0
+                ? random
+                    .Next(100, 999)
+                    .ToString(CultureInfo.InvariantCulture)
+                : string.Empty;
+            email = $"{firstName.ToLowerInvariant()}.{lastName.ToLowerInvariant()}{suffix}@{domains[random.Next(domains.Length)]}";
+            attempt++;
+        }
+        while (!usedEmails.Add(email));
+
+        return email;
+    }
+
+    private static string GeneratePhone(
+        Random random,
+        string countryCode)
+        => countryCode switch
+        {
+            "DK" => $"+45{random.Next(20000000, 99999999)}",
+            "SE" => $"+46{random.Next(70000000, 79999999):D8}",
+            "FI" => $"+358{random.Next(40000000, 49999999):D8}",
+            "DE" => $"+49{random.Next(15000000, 17999999):D8}0",
+            "GB" => $"+44{random.Next(70000000, 79999999):D8}",
+            "US" => $"+1{random.Next(200000000, 999999999):D9}",
+            _ => $"+{random.Next(100000000, int.MaxValue)}",
+        };
+
+    private static int CalculateAge(DateOnly dateOfBirth)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var age = today.Year - dateOfBirth.Year;
+        if (dateOfBirth > today.AddYears(-age))
+        {
+            age--;
+        }
+
+        return age;
+    }
 }

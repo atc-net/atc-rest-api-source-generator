@@ -267,57 +267,6 @@ internal static class GlobalUsingsModifier
     }
 
     /// <summary>
-    /// Parses an OpenAPI document from a file path.
-    /// </summary>
-    /// <param name="specFilePath">The path to the OpenAPI specification file.</param>
-    /// <returns>The parsed OpenAPI document, or null if parsing failed.</returns>
-    private static OpenApiDocument? ParseOpenApiDocument(string specFilePath)
-    {
-        var content = File.ReadAllText(specFilePath);
-
-        if (OpenApiDocumentHelper.TryParseYaml(content, specFilePath, out var document))
-        {
-            return document;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Finds the best index to insert new usings (after existing project-related usings).
-    /// </summary>
-    /// <param name="lines">The existing file lines.</param>
-    /// <param name="contractsNamespace">The contracts namespace to look for.</param>
-    /// <returns>The index where new usings should be inserted.</returns>
-    private static int FindInsertIndex(
-        List<string> lines,
-        string contractsNamespace)
-    {
-        var lastContractsIndex = -1;
-        var lastGlobalUsingIndex = -1;
-
-        for (var i = 0; i < lines.Count; i++)
-        {
-            var line = lines[i];
-            if (line.StartsWith("global using ", StringComparison.Ordinal))
-            {
-                lastGlobalUsingIndex = i;
-                if (line.Contains(contractsNamespace, StringComparison.Ordinal))
-                {
-                    lastContractsIndex = i;
-                }
-            }
-        }
-
-        if (lastContractsIndex >= 0)
-        {
-            return lastContractsIndex + 1;
-        }
-
-        return lastGlobalUsingIndex >= 0 ? lastGlobalUsingIndex + 1 : lines.Count;
-    }
-
-    /// <summary>
     /// Removes old namespace patterns and sorts all global usings using GlobalUsingsHelper.
     /// System namespaces are placed first, followed by other namespaces grouped by prefix.
     /// </summary>
@@ -438,35 +387,6 @@ internal static class GlobalUsingsModifier
     }
 
     /// <summary>
-    /// Reads existing namespaces from a GlobalUsings.cs file.
-    /// </summary>
-    private static List<string> ReadExistingNamespaces(string globalUsingsPath)
-    {
-        var namespaces = new List<string>();
-
-        if (!File.Exists(globalUsingsPath))
-        {
-            return namespaces;
-        }
-
-        var lines = File.ReadAllLines(globalUsingsPath);
-        foreach (var line in lines)
-        {
-            var trimmed = line.Trim();
-            if (trimmed.StartsWith("global using ", StringComparison.Ordinal))
-            {
-                var ns = ExtractUsingNamespace(trimmed);
-                if (!string.IsNullOrEmpty(ns))
-                {
-                    namespaces.Add(ns);
-                }
-            }
-        }
-
-        return namespaces;
-    }
-
-    /// <summary>
     /// Sorts global usings using GlobalUsingsHelper (System first, then by namespace group).
     /// </summary>
     /// <param name="projectDirectory">The directory containing the project.</param>
@@ -515,6 +435,86 @@ internal static class GlobalUsingsModifier
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Parses an OpenAPI document from a file path.
+    /// </summary>
+    /// <param name="specFilePath">The path to the OpenAPI specification file.</param>
+    /// <returns>The parsed OpenAPI document, or null if parsing failed.</returns>
+    private static OpenApiDocument? ParseOpenApiDocument(string specFilePath)
+    {
+        var content = File.ReadAllText(specFilePath);
+
+        if (OpenApiDocumentHelper.TryParseYaml(content, specFilePath, out var document))
+        {
+            return document;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the best index to insert new usings (after existing project-related usings).
+    /// </summary>
+    /// <param name="lines">The existing file lines.</param>
+    /// <param name="contractsNamespace">The contracts namespace to look for.</param>
+    /// <returns>The index where new usings should be inserted.</returns>
+    private static int FindInsertIndex(
+        List<string> lines,
+        string contractsNamespace)
+    {
+        var lastContractsIndex = -1;
+        var lastGlobalUsingIndex = -1;
+
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var line = lines[i];
+            if (line.StartsWith("global using ", StringComparison.Ordinal))
+            {
+                lastGlobalUsingIndex = i;
+                if (line.Contains(contractsNamespace, StringComparison.Ordinal))
+                {
+                    lastContractsIndex = i;
+                }
+            }
+        }
+
+        if (lastContractsIndex >= 0)
+        {
+            return lastContractsIndex + 1;
+        }
+
+        return lastGlobalUsingIndex >= 0 ? lastGlobalUsingIndex + 1 : lines.Count;
+    }
+
+    /// <summary>
+    /// Reads existing namespaces from a GlobalUsings.cs file.
+    /// </summary>
+    private static List<string> ReadExistingNamespaces(string globalUsingsPath)
+    {
+        var namespaces = new List<string>();
+
+        if (!File.Exists(globalUsingsPath))
+        {
+            return namespaces;
+        }
+
+        var lines = File.ReadAllLines(globalUsingsPath);
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith("global using ", StringComparison.Ordinal))
+            {
+                var ns = ExtractUsingNamespace(trimmed);
+                if (!string.IsNullOrEmpty(ns))
+                {
+                    namespaces.Add(ns);
+                }
+            }
+        }
+
+        return namespaces;
     }
 
     /// <summary>

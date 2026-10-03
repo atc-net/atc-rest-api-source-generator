@@ -14,6 +14,16 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// </remarks>
 public partial class ErrorResponseBodyRuntimeTests
 {
+    internal static readonly (string Id, string Group, string Label, string Marker, bool Typed)[] RequestBindingClients =
+    [
+        ("cs-epo", "C# EndpointPerOperation", "errorResponseFormat: ProblemDetails", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails" }""", false),
+        ("cs-typed-Throw", "C# TypedClient", "typedClientResultStyle: Throw", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Throw" }""", true),
+        ("cs-typed-Result", "C# TypedClient", "typedClientResultStyle: Result", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Result" }""", true),
+        ("ts-fetch", "TypeScript", "Fetch client", string.Empty, false),
+        ("ts-axios", "TypeScript", "Axios client (Node's default http adapter)", string.Empty, false),
+        ("ts-axios-fetch", "TypeScript", "Axios client (fetch adapter)", string.Empty, false),
+    ];
+
     private const string RequestBindingYaml = """
         openapi: 3.0.3
         info:
@@ -550,9 +560,10 @@ public partial class ErrorResponseBodyRuntimeTests
         """";
 
     private const string BindGuid = "3f2504e0-4f89-11d3-9a0c-0305e82c3301";
+
     private const string BindInstant = "2026-03-04T05:06:07+02:00";
+
     private const string BindInstantUtc = "2026-03-04T03:06:07.000Z";
-    private const string BindVendorMediaType = "application/vnd.contoso.thing+json";
 
     /// <summary>
     /// One call of the matrix.
@@ -578,6 +589,82 @@ public partial class ErrorResponseBodyRuntimeTests
         JsonObject? Body = null,
         JsonObject? Multipart = null,
         Dictionary<string, string>? Expected = null);
+
+    /// <summary>
+    /// Every generated client, called over HTTP against the generated server, sends its arguments so that the server
+    /// binds the same values - in the path, the query string, headers, cookies and the body - and the server answers a
+    /// request it cannot bind with the right status (no <c>fail</c> verdict in the request-binding matrix outside
+    /// <see cref="KnownRequestBindingFailures"/>).
+    /// </summary>
+    [Fact]
+    [Trait("Category", "TypeScriptToolchain")]
+    public async Task EndToEnd_EveryClientSendsWhatTheServerBinds()
+    {
+        if (!IsNodeAvailable(out var reason))
+        {
+            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Fail(reason + " (running under CI where the request-binding matrix is required)");
+            }
+
+            Assert.Skip(reason);
+        }
+
+        var matrix = await CollectRequestBindingMatrixAsync();
+        if (Environment.GetEnvironmentVariable("REQUESTBINDING_E2E_JSON") is { Length: > 0 } dumpPath)
+        {
+            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), TestContext.Current.CancellationToken);
+        }
+
+        var failures = RequestBindingFailingCells(matrix);
+        var unexpected = failures.Where(f => !KnownRequestBindingFailures.Contains(f.Key)).ToList();
+        var fixedCells = KnownRequestBindingFailures.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
+
+        Assert.True(
+            unexpected.Count == 0,
+            $"{unexpected.Count} failing cells:\n" + string.Join("\n", unexpected.Take(120).Select(f => $"{f.Key}: {f.Why}")));
+        Assert.True(
+            fixedCells.Count == 0,
+            $"{fixedCells.Count} cells pass now. Remove them from {nameof(KnownRequestBindingFailures)}:\n" + string.Join("\n", fixedCells));
+    }
+
+    /// <summary>
+    /// The verdict is not blind: a changed value, a missing value and a value the client did not send each fail,
+    /// and the echo of what was sent passes.
+    /// </summary>
+    [Fact]
+    public void RequestBindingVerdicts_FailAChangedMissingOrExtraValue()
+    {
+        var expected = new Dictionary<string, string>(StringComparer.Ordinal) { ["S"] = "a b", ["I"] = "1" };
+
+        Assert.Equal(VerdictPass, (string?)RequestBindingVerdict(expected, Echo(("S", "a b"), ("I", "1")))["verdict"]);
+        Assert.Equal(VerdictFail, (string?)RequestBindingVerdict(expected, Echo(("S", "a+b"), ("I", "1")))["verdict"]);
+        Assert.Equal(VerdictFail, (string?)RequestBindingVerdict(expected, Echo(("S", "a b")))["verdict"]);
+        Assert.Equal(VerdictFail, (string?)RequestBindingVerdict(expected, Echo(("S", "a b"), ("I", "1"), ("X", "extra")))["verdict"]);
+        Assert.Equal(VerdictFail, (string?)RequestBindingVerdict(expected, new JsonObject { ["kind"] = "error", ["status"] = 400, ["detail"] = "bad" })["verdict"]);
+        Assert.Equal(VerdictFail, (string?)RequestBindingVerdict(expected, new JsonObject { ["kind"] = "threw", ["detail"] = "boom" })["verdict"]);
+
+        static JsonObject Echo(params (string Key, string Value)[] values)
+            => new()
+            {
+                ["kind"] = "echo",
+                ["values"] = new JsonObject(values.Select(v => new KeyValuePair<string, JsonNode?>(v.Key, v.Value))),
+            };
+    }
+
+    /// <summary>
+    /// A request no generated client can send (a client's arguments are typed): what the server answers a value it
+    /// cannot bind, a body it cannot read, a media type it does not take and a body that is too large.
+    /// </summary>
+    internal sealed record RequestBindingWireCase(
+        string Name,
+        string Method,
+        string Path,
+        int Status,
+        string? ExpectedKey = null,
+        (string Name, string Value)[]? Headers = null,
+        string? ContentType = null,
+        string? Body = null);
 
     /// <summary>
     /// The cases. The values are picked to break a careless encoder: a string with every character that means
@@ -733,20 +820,6 @@ public partial class ErrorResponseBodyRuntimeTests
         return bytes;
     }
 
-    /// <summary>
-    /// A request no generated client can send (a client's arguments are typed): what the server answers a value it
-    /// cannot bind, a body it cannot read, a media type it does not take and a body that is too large.
-    /// </summary>
-    internal sealed record RequestBindingWireCase(
-        string Name,
-        string Method,
-        string Path,
-        int Status,
-        string? ExpectedKey = null,
-        (string Name, string Value)[]? Headers = null,
-        string? ContentType = null,
-        string? Body = null);
-
     internal static List<RequestBindingWireCase> RequestBindingWireCases()
         =>
         [
@@ -765,68 +838,6 @@ public partial class ErrorResponseBodyRuntimeTests
             new("form: an integer that is none", "POST", "/bind/body/form", 400, "count", ContentType: "application/x-www-form-urlencoded", Body: "name=x&count=abc"),
             new("form: a media type the operation does not take", "POST", "/bind/body/form", 415, ContentType: "application/json", Body: "{ \"name\": \"x\" }"),
         ];
-
-    /// <summary>
-    /// Every generated client, called over HTTP against the generated server, sends its arguments so that the server
-    /// binds the same values - in the path, the query string, headers, cookies and the body - and the server answers a
-    /// request it cannot bind with the right status (no <c>fail</c> verdict in the request-binding matrix outside
-    /// <see cref="KnownRequestBindingFailures"/>).
-    /// </summary>
-    [Fact]
-    [Trait("Category", "TypeScriptToolchain")]
-    public async Task EndToEnd_EveryClientSendsWhatTheServerBinds()
-    {
-        if (!IsNodeAvailable(out var reason))
-        {
-            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
-            {
-                Assert.Fail(reason + " (running under CI where the request-binding matrix is required)");
-            }
-
-            Assert.Skip(reason);
-        }
-
-        var matrix = await CollectRequestBindingMatrixAsync();
-        if (Environment.GetEnvironmentVariable("REQUESTBINDING_E2E_JSON") is { Length: > 0 } dumpPath)
-        {
-            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), TestContext.Current.CancellationToken);
-        }
-
-        var failures = RequestBindingFailingCells(matrix);
-        var unexpected = failures.Where(f => !KnownRequestBindingFailures.Contains(f.Key)).ToList();
-        var fixedCells = KnownRequestBindingFailures.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
-
-        Assert.True(
-            unexpected.Count == 0,
-            $"{unexpected.Count} failing cells:\n" + string.Join("\n", unexpected.Take(120).Select(f => $"{f.Key}: {f.Why}")));
-        Assert.True(
-            fixedCells.Count == 0,
-            $"{fixedCells.Count} cells pass now. Remove them from {nameof(KnownRequestBindingFailures)}:\n" + string.Join("\n", fixedCells));
-    }
-
-    /// <summary>
-    /// The verdict is not blind: a changed value, a missing value and a value the client did not send each fail,
-    /// and the echo of what was sent passes.
-    /// </summary>
-    [Fact]
-    public void RequestBindingVerdicts_FailAChangedMissingOrExtraValue()
-    {
-        var expected = new Dictionary<string, string>(StringComparer.Ordinal) { ["S"] = "a b", ["I"] = "1" };
-
-        Assert.Equal(VerdictPass, (string?)RequestBindingVerdict(expected, Echo(("S", "a b"), ("I", "1")))["verdict"]);
-        Assert.Equal(VerdictFail, (string?)RequestBindingVerdict(expected, Echo(("S", "a+b"), ("I", "1")))["verdict"]);
-        Assert.Equal(VerdictFail, (string?)RequestBindingVerdict(expected, Echo(("S", "a b")))["verdict"]);
-        Assert.Equal(VerdictFail, (string?)RequestBindingVerdict(expected, Echo(("S", "a b"), ("I", "1"), ("X", "extra")))["verdict"]);
-        Assert.Equal(VerdictFail, (string?)RequestBindingVerdict(expected, new JsonObject { ["kind"] = "error", ["status"] = 400, ["detail"] = "bad" })["verdict"]);
-        Assert.Equal(VerdictFail, (string?)RequestBindingVerdict(expected, new JsonObject { ["kind"] = "threw", ["detail"] = "boom" })["verdict"]);
-
-        static JsonObject Echo(params (string Key, string Value)[] values)
-            => new()
-            {
-                ["kind"] = "echo",
-                ["values"] = new JsonObject(values.Select(v => new KeyValuePair<string, JsonNode?>(v.Key, v.Value))),
-            };
-    }
 
     private static List<(string Key, string Why)> RequestBindingFailingCells(
         JsonObject matrix)
@@ -1145,6 +1156,8 @@ public partial class ErrorResponseBodyRuntimeTests
         }
     }
 
+    private const string BindVendorMediaType = "application/vnd.contoso.thing+json";
+
     // Calls every case through the generated ApiService against the live host: the positional arguments of the case
     // (a file as a File of its bytes), and the outcome is the server's echo, an error arm or an exception.
     private const string RequestBindingHarness = """
@@ -1196,16 +1209,6 @@ public partial class ErrorResponseBodyRuntimeTests
 
         writeFileSync(`results-${which}.json`, JSON.stringify(results));
         """;
-
-    internal static readonly (string Id, string Group, string Label, string Marker, bool Typed)[] RequestBindingClients =
-    [
-        ("cs-epo", "C# EndpointPerOperation", "errorResponseFormat: ProblemDetails", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails" }""", false),
-        ("cs-typed-Throw", "C# TypedClient", "typedClientResultStyle: Throw", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Throw" }""", true),
-        ("cs-typed-Result", "C# TypedClient", "typedClientResultStyle: Result", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Result" }""", true),
-        ("ts-fetch", "TypeScript", "Fetch client", string.Empty, false),
-        ("ts-axios", "TypeScript", "Axios client (Node's default http adapter)", string.Empty, false),
-        ("ts-axios-fetch", "TypeScript", "Axios client (fetch adapter)", string.Empty, false),
-    ];
 
     /// <summary>
     /// The cells that fail today, as <c>case [client]</c>: a cell not listed here must pass, and a listed cell that passes

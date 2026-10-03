@@ -42,37 +42,6 @@ public static class ApiOptionsHelper
     }
 
     /// <summary>
-    /// Loads ApiGeneratorOptions asynchronously from the specified path or auto-discovers the options file.
-    /// </summary>
-    /// <param name="optionsPath">Explicit path to options file (optional).</param>
-    /// <param name="specificationPath">Path to OpenAPI specification file (used for auto-discovery).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Loaded options or default options if no file found.</returns>
-    public static async Task<ApiGeneratorOptions> LoadOptionsAsync(
-        string? optionsPath,
-        string? specificationPath,
-        CancellationToken cancellationToken = default)
-    {
-        var resolvedPath = ResolveOptionsFilePath(optionsPath, specificationPath);
-
-        if (resolvedPath is null || !File.Exists(resolvedPath))
-        {
-            return new ApiGeneratorOptions();
-        }
-
-        try
-        {
-            await using var stream = File.OpenRead(resolvedPath);
-            var options = await JsonSerializer.DeserializeAsync<ApiGeneratorOptions>(stream, JsonOptions, cancellationToken);
-            return options ?? new ApiGeneratorOptions();
-        }
-        catch (JsonException)
-        {
-            return new ApiGeneratorOptions();
-        }
-    }
-
-    /// <summary>
     /// Resolves the path to the ApiGeneratorOptions.json file using priority order:
     /// 1. Explicit path provided via --options argument
     /// 2. Same folder as specification file
@@ -162,38 +131,6 @@ public static class ApiOptionsHelper
     }
 
     /// <summary>
-    /// Creates a default ApiGeneratorOptions.json file at the specified path asynchronously.
-    /// </summary>
-    /// <param name="outputPath">Directory or file path for the options file.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>True if file was created successfully; otherwise, false.</returns>
-    public static async Task<bool> CreateDefaultOptionsFileAsync(
-        string outputPath,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var filePath = ResolveOutputPath(outputPath);
-            var defaultOptions = new ApiGeneratorOptions();
-
-            // Ensure directory exists
-            var directory = Path.GetDirectoryName(filePath);
-            if (!string.IsNullOrWhiteSpace(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            await using var stream = File.Create(filePath);
-            await JsonSerializer.SerializeAsync(stream, defaultOptions, JsonOptions, cancellationToken);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
     /// Validates the structure and values of an ApiGeneratorOptions.json file.
     /// </summary>
     /// <param name="optionsPath">Path to the options file.</param>
@@ -220,62 +157,6 @@ public static class ApiOptionsHelper
         try
         {
             var json = File.ReadAllText(filePath);
-
-            // Try to parse as JSON
-            using var document = JsonDocument.Parse(json);
-
-            // Try to deserialize to ApiGeneratorOptions
-            var options = JsonSerializer.Deserialize<ApiGeneratorOptions>(json, JsonOptions);
-
-            if (options is null)
-            {
-                result.Errors.Add("Failed to deserialize options file.");
-                return result;
-            }
-
-            // Validate specific values
-            ValidateOptions(options, result);
-
-            result.IsValid = result.Errors.Count == 0;
-            result.Options = options;
-        }
-        catch (JsonException ex)
-        {
-            result.Errors.Add($"Invalid JSON format: {ex.Message}");
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Validates the structure and values of an ApiGeneratorOptions.json file asynchronously.
-    /// </summary>
-    /// <param name="optionsPath">Path to the options file.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Validation result with any error messages.</returns>
-    public static async Task<OptionsValidationResult> ValidateOptionsFileAsync(
-        string optionsPath,
-        CancellationToken cancellationToken = default)
-    {
-        var result = new OptionsValidationResult();
-
-        var filePath = Path.GetFullPath(optionsPath);
-
-        // If it's a directory, append the default file name
-        if (Directory.Exists(filePath))
-        {
-            filePath = Path.Combine(filePath, ApiGeneratorOptions.FileName);
-        }
-
-        if (!File.Exists(filePath))
-        {
-            result.Errors.Add($"Options file not found: {filePath}");
-            return result;
-        }
-
-        try
-        {
-            var json = await File.ReadAllTextAsync(filePath, cancellationToken);
 
             // Try to parse as JSON
             using var document = JsonDocument.Parse(json);

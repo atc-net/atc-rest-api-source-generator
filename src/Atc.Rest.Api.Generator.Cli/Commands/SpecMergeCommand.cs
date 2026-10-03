@@ -6,6 +6,13 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
 public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
 {
+    /// <summary>
+    /// Merges the base specification and its part files into one document, previewing or writing the result.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when the merge succeeded; otherwise 1.</returns>
     protected override int Execute(
         CommandContext context,
         SpecMergeCommandSettings settings,

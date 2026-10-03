@@ -25,6 +25,17 @@ public static class XmlBodyReachability
         OpenApiDocument openApiDoc)
         => Collect(openApiDoc, includeResponses: false);
 
+    /// <summary>
+    /// Whether a body of this media type and schema is an XML model body.
+    /// </summary>
+    /// <param name="mediaType">The media type.</param>
+    /// <param name="schema">The body schema.</param>
+    /// <returns><see langword="true"/> for an XML model body.</returns>
+    public static bool IsXmlModelBody(
+        string mediaType,
+        IOpenApiSchema? schema)
+        => ResponseBodyClassifier.Classify(mediaType, schema) == ResponseBodyKind.Xml;
+
     private static HashSet<string> Collect(
         OpenApiDocument openApiDoc,
         bool includeResponses)
@@ -54,17 +65,6 @@ public static class XmlBodyReachability
 
         return reachable;
     }
-
-    /// <summary>
-    /// Whether a body of this media type and schema is an XML model body.
-    /// </summary>
-    /// <param name="mediaType">The media type.</param>
-    /// <param name="schema">The body schema.</param>
-    /// <returns><see langword="true"/> for an XML model body.</returns>
-    public static bool IsXmlModelBody(
-        string mediaType,
-        IOpenApiSchema? schema)
-        => ResponseBodyClassifier.Classify(mediaType, schema) == ResponseBodyKind.Xml;
 
     private static void AddXmlContent(
         IDictionary<string, IOpenApiMediaType>? content,

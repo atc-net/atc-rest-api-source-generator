@@ -56,12 +56,6 @@ public record DiagnosticMessage(
         => new(ruleId, message, DiagnosticSeverity.Info, filePath);
 
     /// <summary>
-    /// Creates a new diagnostic message with additional context.
-    /// </summary>
-    public DiagnosticMessage WithContext(string context)
-        => this with { Context = context };
-
-    /// <summary>
     /// Creates a new diagnostic message with location information.
     /// </summary>
     public DiagnosticMessage WithLocation(
@@ -69,23 +63,4 @@ public record DiagnosticMessage(
         int lineNumber,
         int? columnNumber = null)
         => this with { FilePath = filePath, LineNumber = lineNumber, ColumnNumber = columnNumber };
-
-    /// <summary>
-    /// Creates a new diagnostic message with suggestions.
-    /// </summary>
-    public DiagnosticMessage WithSuggestions(params string[] suggestions)
-        => this with { Suggestions = suggestions };
-
-    /// <summary>
-    /// Creates a new diagnostic message with documentation URL.
-    /// </summary>
-    public DiagnosticMessage WithDocumentation(string url)
-        => this with { DocumentationUrl = url };
-
-    /// <summary>
-    /// Gets whether this diagnostic has rich context (location, suggestions, or documentation).
-    /// </summary>
-    public bool HasRichContext
-        => LineNumber.HasValue || ColumnNumber.HasValue || Context is not null ||
-           (Suggestions is not null && Suggestions.Count > 0) || DocumentationUrl is not null;
 }

@@ -11,6 +11,10 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
     private const string AttributeName = "EndpointRegistrationAttribute";
     private const string AttributeShortName = "EndpointRegistration";
 
+    /// <summary>
+    /// Registers the pipeline: the partial classes decorated with <c>[EndpointRegistration]</c>, and the endpoint fields and constructors as the output.
+    /// </summary>
+    /// <param name="context">The initialization context.</param>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // 1. Always generate the attribute as post-initialization (required for semantic analysis)

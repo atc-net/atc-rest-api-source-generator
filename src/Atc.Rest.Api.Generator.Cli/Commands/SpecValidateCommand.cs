@@ -6,6 +6,13 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
 public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
 {
+    /// <summary>
+    /// Validates the specification (or multi-part set) with the strict or standard strategy and prints the diagnostics.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when the specification has no errors; otherwise 1.</returns>
     protected override int Execute(
         CommandContext context,
         SpecValidateCommandSettings settings,

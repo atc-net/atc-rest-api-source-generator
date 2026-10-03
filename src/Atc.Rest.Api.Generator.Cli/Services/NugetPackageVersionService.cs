@@ -10,11 +10,21 @@ public sealed class NugetPackageVersionService : INugetPackageVersionService
     private static readonly ConcurrentDictionary<string, Version> VersionCache = new(StringComparer.Ordinal);
     private readonly HttpClient httpClient;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="NugetPackageVersionService"/> class.
+    /// </summary>
+    /// <param name="httpClient">The client the NuGet flat container index is fetched with.</param>
     public NugetPackageVersionService(HttpClient httpClient)
     {
         this.httpClient = httpClient;
     }
 
+    /// <summary>
+    /// Gets the latest version of a NuGet package from the flat container index, caching it per process.
+    /// </summary>
+    /// <param name="packageId">The package ID (e.g., "Atc.Rest.Client").</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The latest version, or null when the lookup fails or times out.</returns>
     public async Task<Version?> GetLatestVersionAsync(
         string packageId,
         CancellationToken cancellationToken = default)
@@ -60,6 +70,13 @@ public sealed class NugetPackageVersionService : INugetPackageVersionService
         return null;
     }
 
+    /// <summary>
+    /// Gets the latest version of a NuGet package, with a fallback if lookup fails.
+    /// </summary>
+    /// <param name="packageId">The package ID.</param>
+    /// <param name="fallbackVersion">The fallback version to use if lookup fails.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The latest version or the fallback version.</returns>
     public async Task<Version> GetLatestVersionOrFallbackAsync(
         string packageId,
         Version fallbackVersion,

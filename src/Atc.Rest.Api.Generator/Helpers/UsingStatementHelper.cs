@@ -335,16 +335,6 @@ public static class UsingStatementHelper
     }
 
     /// <summary>
-    /// Gets the sort order for a namespace per SA1210: System namespaces first, then all others alphabetically.
-    /// </summary>
-    /// <param name="ns">The namespace to get sort order for.</param>
-    /// <returns>A sort order value.</returns>
-    private static int GetSortOrder(string ns)
-        => ns.StartsWith("System", StringComparison.Ordinal)
-            ? 0
-            : 1;
-
-    /// <summary>
     /// Sorts global using directives with System namespaces first, then groups by namespace prefix
     /// with empty lines between groups.
     /// </summary>
@@ -401,4 +391,14 @@ public static class UsingStatementHelper
         var dotIndex = ns.IndexOf('.');
         return dotIndex > 0 ? ns.Substring(0, dotIndex) : ns;
     }
+
+    /// <summary>
+    /// Gets the sort order for a namespace per SA1210: System namespaces first, then all others alphabetically.
+    /// </summary>
+    /// <param name="ns">The namespace to get sort order for.</param>
+    /// <returns>A sort order value.</returns>
+    private static int GetSortOrder(string ns)
+        => ns.StartsWith("System", StringComparison.Ordinal)
+            ? 0
+            : 1;
 }

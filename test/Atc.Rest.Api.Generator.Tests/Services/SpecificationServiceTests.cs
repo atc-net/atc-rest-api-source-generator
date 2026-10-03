@@ -1745,6 +1745,209 @@ public class SpecificationServiceTests
         Assert.Contains("getVersion", other.Content, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ReadFromFile_ExistingFile_ReadsAndParsesIt()
+    {
+        var directory = CreateTempDirectory("atc-read-from-file");
+        try
+        {
+            var filePath = Path.Combine(directory, "Shop.yaml");
+            File.WriteAllText(filePath, """
+                openapi: 3.0.3
+                info:
+                  title: Shop
+                  version: 1.0.0
+                paths:
+                  /orders:
+                    get:
+                      operationId: listOrders
+                      responses:
+                        '200':
+                          description: OK
+                """);
+
+            var file = SpecificationService.ReadFromFile(filePath);
+
+            Assert.Equal(filePath, file.FilePath);
+            Assert.Equal("Shop.yaml", file.FileName);
+            Assert.NotNull(file.Document);
+            Assert.Equal("Shop", file.Document.Info.Title);
+            Assert.Equal(1, file.OperationCount);
+            Assert.True(file.IsBaseFile);
+            Assert.Contains("operationId: listOrders", file.Content, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ReadFromFile_MissingFile_ReturnsAnEmptySpecification()
+    {
+        var filePath = Path.Combine(Path.GetTempPath(), "atc-read-from-file", Guid.NewGuid().ToString("N"), "Missing.yaml");
+
+        var file = SpecificationService.ReadFromFile(filePath);
+
+        Assert.Equal(filePath, file.FilePath);
+        Assert.Null(file.Document);
+        Assert.Equal(string.Empty, file.Content);
+        Assert.True(file.IsBaseFile);
+    }
+
+    [Fact]
+    public void DiscoverPartFiles_BaseWithTwoParts_ReturnsThePartsSortedAndNotTheBase()
+    {
+        var directory = CreateTempDirectory("atc-discover-parts");
+        try
+        {
+            var basePath = Path.Combine(directory, "MyApi.yaml");
+            File.WriteAllText(basePath, """
+                openapi: 3.0.3
+                info:
+                  title: My API
+                  version: 1.0.0
+                paths: {}
+                """);
+            File.WriteAllText(Path.Combine(directory, "MyApi_Users.yaml"), """
+                openapi: 3.0.3
+                paths:
+                  /users:
+                    get:
+                      operationId: listUsers
+                      responses:
+                        '200':
+                          description: OK
+                """);
+            File.WriteAllText(Path.Combine(directory, "MyApi_Orders.yaml"), """
+                openapi: 3.0.3
+                paths:
+                  /orders:
+                    get:
+                      operationId: listOrders
+                      responses:
+                        '200':
+                          description: OK
+                """);
+
+            // Neither a part of MyApi: a different base name, and a different extension.
+            File.WriteAllText(Path.Combine(directory, "OtherApi_Users.yaml"), "openapi: 3.0.3\npaths: {}\n");
+            File.WriteAllText(Path.Combine(directory, "MyApi_Legacy.json"), "{}");
+
+            var parts = SpecificationService.DiscoverPartFiles(basePath);
+
+            Assert.Equal(["MyApi_Orders.yaml", "MyApi_Users.yaml"], parts.Select(p => p.FileName), StringComparer.Ordinal);
+            Assert.All(parts, p => Assert.True(p.IsPartFile));
+            Assert.All(parts, p => Assert.False(p.IsBaseFile));
+            Assert.Equal(["Orders", "Users"], parts.Select(p => p.PartName), StringComparer.Ordinal);
+            Assert.Equal(1, parts[0].OperationCount);
+            Assert.Equal(1, parts[1].OperationCount);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void DiscoverPartFiles_BaseWithoutParts_ReturnsEmpty()
+    {
+        var directory = CreateTempDirectory("atc-discover-parts");
+        try
+        {
+            var basePath = Path.Combine(directory, "MyApi.yaml");
+            File.WriteAllText(basePath, "openapi: 3.0.3\ninfo:\n  title: My API\n  version: 1.0.0\npaths: {}\n");
+
+            var parts = SpecificationService.DiscoverPartFiles(basePath);
+
+            Assert.Empty(parts);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Validate_NoneStrategy_ReportsNothing()
+    {
+        const string yaml = """
+                            openapi: 3.0.3
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var diagnostics = SpecificationService.Validate(document, "test.yaml", ValidateSpecificationStrategy.None, yaml);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public void Validate_StandardStrategy_WarnsAboutAMissingOperationId()
+    {
+        const string yaml = """
+                            openapi: 3.0.3
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var diagnostics = SpecificationService.Validate(document, "test.yaml");
+
+        var warning = Assert.Single(diagnostics, d => d.RuleId == RuleIdentifiers.OperationIdMissing);
+        Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+        Assert.Equal("test.yaml", warning.FilePath);
+        Assert.Equal("GET /pets", warning.Context);
+    }
+
+    [Fact]
+    public void Validate_StrictStrategyWithSourceText_RunsTheSpecVersionRulesOnTheText()
+    {
+        // ATC_API_VER001 reads the raw text: the parser drops a 'nullable' that has no sibling 'type'.
+        const string yaml = """
+                            openapi: 3.0.3
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Account:
+                                  type: object
+                                  properties:
+                                    owner:
+                                      nullable: true
+                                      oneOf:
+                                        - $ref: '#/components/schemas/Owner'
+                                Owner:
+                                  type: object
+                            """;
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var withText = SpecificationService.Validate(document, "test.yaml", ValidateSpecificationStrategy.Strict, yaml);
+        var withoutText = SpecificationService.Validate(document, "test.yaml", ValidateSpecificationStrategy.Strict);
+
+        var diagnostic = Assert.Single(withText, d => d.RuleId == RuleIdentifiers.NullableWithoutSiblingType);
+        Assert.Equal(12, diagnostic.LineNumber);
+        Assert.Equal("test.yaml", diagnostic.FilePath);
+        Assert.DoesNotContain(withoutText, d => d.RuleId == RuleIdentifiers.NullableWithoutSiblingType);
+    }
+
     /// <summary>
     /// A specification that is neither a part file (<c>{Base}_{Part}.yaml</c> next to <c>{Base}.yaml</c>) nor the
     /// base of part files.
@@ -1757,6 +1960,13 @@ public class SpecificationServiceTests
         var isPart = separator > 0 && File.Exists(Path.Combine(directory, name[..separator] + ".yaml"));
         var hasParts = Directory.GetFiles(directory, name + "_*.yaml").Length > 0;
         return !isPart && !hasParts;
+    }
+
+    private static string CreateTempDirectory(string name)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), name, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        return directory;
     }
 
     private static string FindRepositoryRoot()

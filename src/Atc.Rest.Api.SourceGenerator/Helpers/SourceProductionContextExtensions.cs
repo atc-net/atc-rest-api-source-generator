@@ -6,31 +6,39 @@ namespace Atc.Rest.Api.SourceGenerator.Helpers;
 /// </summary>
 internal static class SourceProductionContextExtensions
 {
-    public static void AddGeneratedSource(
-        this SourceProductionContext context,
-        string hintName,
-        SourceText sourceText)
-        => context.AddSource(
-            hintName,
-            SourceText.From(
-                GeneratedCodeAttributeHelper.SuppressMissingXmlComment(sourceText.ToString()),
-                sourceText.Encoding ?? Encoding.UTF8));
+    /// <param name="context">The source-production context of the generator step.</param>
+    extension(SourceProductionContext context)
+    {
+        /// <summary>
+        /// Adds a generated file to the compilation, with the missing-XML-comment warning suppressed in it.
+        /// </summary>
+        /// <param name="hintName">The file's hint name.</param>
+        /// <param name="sourceText">The file's source.</param>
+        public void AddGeneratedSource(
+            string hintName,
+            SourceText sourceText)
+            => context.AddSource(
+                hintName,
+                SourceText.From(
+                    GeneratedCodeAttributeHelper.SuppressMissingXmlComment(sourceText.ToString()),
+                    sourceText.Encoding ?? Encoding.UTF8));
+    }
 
-    public static void AddGeneratedSource(
-        this SourceProductionContext context,
-        string hintName,
-        string source)
-        => context.AddSource(
-            hintName,
-            SourceText.From(GeneratedCodeAttributeHelper.SuppressMissingXmlComment(source), Encoding.UTF8));
-
-    public static void AddGeneratedSource(
-        this IncrementalGeneratorPostInitializationContext context,
-        string hintName,
-        SourceText sourceText)
-        => context.AddSource(
-            hintName,
-            SourceText.From(
-                GeneratedCodeAttributeHelper.SuppressMissingXmlComment(sourceText.ToString()),
-                sourceText.Encoding ?? Encoding.UTF8));
+    /// <param name="context">The post-initialization context of the generator.</param>
+    extension(IncrementalGeneratorPostInitializationContext context)
+    {
+        /// <summary>
+        /// Adds a generated file to the compilation, with the missing-XML-comment warning suppressed in it.
+        /// </summary>
+        /// <param name="hintName">The file's hint name.</param>
+        /// <param name="sourceText">The file's source.</param>
+        public void AddGeneratedSource(
+            string hintName,
+            SourceText sourceText)
+            => context.AddSource(
+                hintName,
+                SourceText.From(
+                    GeneratedCodeAttributeHelper.SuppressMissingXmlComment(sourceText.ToString()),
+                    sourceText.Encoding ?? Encoding.UTF8));
+    }
 }

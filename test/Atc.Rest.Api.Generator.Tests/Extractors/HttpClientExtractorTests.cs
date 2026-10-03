@@ -20,7 +20,7 @@ public class HttpClientExtractorTests
         string typeName,
         bool expected)
     {
-        var result = HttpClientExtractor.IsPaginationBaseType(typeName);
+        var result = PaginationTypeResolver.IsPaginationBaseType(typeName);
         Assert.Equal(expected, result);
     }
 
@@ -1001,6 +1001,192 @@ public class HttpClientExtractorTests
         Assert.Contains("using var content = new FormUrlEncodedContent(fields);", content, StringComparison.Ordinal);
         Assert.Contains("httpClient.PostAsync(url, content, cancellationToken)", content, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Extract_WithPathSegment_KeepsOnlyThatSegmentsOperationsAndNamesTheClientAfterIt()
+    {
+        var document = ParseYaml(TwoSegmentsYaml);
+        Assert.NotNull(document);
+
+        var clientClass = HttpClientExtractor.Extract(
+            document,
+            "TestApi",
+            "Pets",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false,
+            useServersBasePath: false,
+            resultStyle: TypedClientResultStyleType.Throw);
+
+        Assert.NotNull(clientClass);
+        Assert.Equal("PetsClient", clientClass.ClassTypeName);
+        Assert.Equal("TestApi.Generated.Pets.Client", clientClass.Namespace);
+        Assert.NotNull(clientClass.Methods);
+        var listPets = Assert.Single(clientClass.Methods, m => m.Name == "ListPetsAsync");
+        Assert.DoesNotContain(clientClass.Methods, m => m.Name == "ListUsersAsync");
+
+        // useServersBasePath: false leaves the servers[0] path off the URL.
+        Assert.Contains("var url = \"/pets\";", listPets.Content, StringComparison.Ordinal);
+        Assert.Equal("Task", listPets.ReturnGenericTypeName);
+        Assert.Equal("List<Pet>", listPets.ReturnTypeName);
+    }
+
+    [Fact]
+    public void Extract_WithPathSegmentAndServersBasePathAndResultStyle_PrependsBasePathAndWrapsInEnvelope()
+    {
+        var document = ParseYaml(TwoSegmentsYaml);
+        Assert.NotNull(document);
+
+        var clientClass = HttpClientExtractor.Extract(
+            document,
+            "TestApi",
+            "Users",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false,
+            useServersBasePath: true,
+            resultStyle: TypedClientResultStyleType.Result);
+
+        Assert.NotNull(clientClass);
+        Assert.Equal("UsersClient", clientClass.ClassTypeName);
+        var listUsers = Assert.Single(clientClass.Methods!, m => m.Name == "ListUsersAsync");
+        Assert.Contains("var url = \"/api/v1/users\";", listUsers.Content, StringComparison.Ordinal);
+        Assert.Equal("EndpointResponse<List<User>>", listUsers.ReturnTypeName);
+    }
+
+    [Fact]
+    public void ExtractParameters_WithPathSegment_ProducesClientParameterRecordsWithoutBindingAttributes()
+    {
+        var document = ParseYaml(TwoSegmentsYaml);
+        Assert.NotNull(document);
+
+        var records = HttpClientExtractor.ExtractParameters(
+            document,
+            "TestApi",
+            "Pets",
+            registry: null,
+            includeDeprecated: false,
+            validateStrategy: ValidateSpecificationStrategy.Strict);
+
+        Assert.NotNull(records);
+        var record = Assert.Single(records);
+        Assert.Equal("ListPetsParameters", record.Name);
+        Assert.NotNull(record.Parameters);
+
+        // The client DTO carries the schema-derived property, but no [FromQuery] - that is server-side binding.
+        var limit = Assert.Single(record.Parameters, p => p.Name == "Limit");
+        Assert.Equal("int", limit.TypeName);
+        Assert.True(limit.IsNullableType);
+        Assert.True(limit.Attributes is null || limit.Attributes.All(a => a.Name != "FromQuery"));
+    }
+
+    [Fact]
+    public void ExtractParameters_PathSegmentWithoutParameterizedOperations_ReturnsNull()
+    {
+        var document = ParseYaml(TwoSegmentsYaml);
+        Assert.NotNull(document);
+
+        var records = HttpClientExtractor.ExtractParameters(
+            document,
+            "TestApi",
+            "Users",
+            registry: null,
+            includeDeprecated: false,
+            validateStrategy: ValidateSpecificationStrategy.Strict);
+
+        Assert.Null(records);
+    }
+
+    [Fact]
+    public void ExtractParametersWithInlineEnums_InlineEnumQueryParameter_TypesTheParameterAndReportsTheEnum()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  parameters:
+                                    - name: status
+                                      in: query
+                                      required: true
+                                      schema:
+                                        type: string
+                                        enum:
+                                          - available
+                                          - sold
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (records, inlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(
+            document,
+            "TestApi",
+            "Pets",
+            registry: null,
+            includeDeprecated: false,
+            validateStrategy: ValidateSpecificationStrategy.Strict,
+            namespaceSegment: string.Empty);
+
+        Assert.NotNull(records);
+        var record = Assert.Single(records);
+        var status = Assert.Single(record.Parameters!);
+        Assert.Equal("ListPetsParametersStatus", status.TypeName);
+        Assert.False(status.IsNullableType);
+
+        // The enum is handed back for separate file emission; an empty namespace segment flattens it to the root Models namespace.
+        var inlineEnum = Assert.Single(inlineEnums);
+        Assert.Equal("ListPetsParametersStatus", inlineEnum.TypeName);
+        Assert.Equal("TestApi.Generated.Models", inlineEnum.EnumParameters.Namespace);
+        Assert.Equal(["Available", "Sold"], inlineEnum.EnumParameters.Values.Select(v => v.Name), StringComparer.Ordinal);
+    }
+
+    private const string TwoSegmentsYaml = """
+        openapi: 3.0.0
+        info: { title: T, version: 1.0.0 }
+        servers:
+          - url: https://example.com/api/v1
+        paths:
+          /pets:
+            get:
+              operationId: listPets
+              parameters:
+                - name: limit
+                  in: query
+                  schema: { type: integer }
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema: { type: array, items: { $ref: '#/components/schemas/Pet' } }
+          /users:
+            get:
+              operationId: listUsers
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema: { type: array, items: { $ref: '#/components/schemas/User' } }
+        components:
+          schemas:
+            Pet:
+              type: object
+              properties:
+                name: { type: string }
+            User:
+              type: object
+              properties:
+                name: { type: string }
+        """;
 
     private const string UrlEncodedFormYaml = """
         openapi: 3.0.0

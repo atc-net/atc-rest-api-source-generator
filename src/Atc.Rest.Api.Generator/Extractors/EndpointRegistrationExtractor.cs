@@ -174,23 +174,6 @@ public static class EndpointRegistrationExtractor
             GenerateToStringMethod: false);
     }
 
-    private static string GenerateEndpointMappingMethodContent(
-        List<string> endpointDefinitionClassNames)
-    {
-        var builder = new StringBuilder();
-
-        // Generate instantiation and DefineEndpoints call for each endpoint definition (sorted alphabetically)
-        foreach (var className in endpointDefinitionClassNames.OrderBy(x => x, StringComparer.Ordinal))
-        {
-            builder.AppendLine($"new {className}().DefineEndpoints(app);");
-        }
-
-        builder.AppendLine();
-        builder.Append("return app;");
-
-        return builder.ToString();
-    }
-
     /// <summary>
     /// Extracts endpoint registration class parameters from OpenAPI document.
     /// </summary>
@@ -270,6 +253,23 @@ public static class EndpointRegistrationExtractor
             Properties: null,
             Methods: new List<MethodParameters> { method },
             GenerateToStringMethod: false);
+    }
+
+    private static string GenerateEndpointMappingMethodContent(
+        List<string> endpointDefinitionClassNames)
+    {
+        var builder = new StringBuilder();
+
+        // Generate instantiation and DefineEndpoints call for each endpoint definition (sorted alphabetically)
+        foreach (var className in endpointDefinitionClassNames.OrderBy(x => x, StringComparer.Ordinal))
+        {
+            builder.AppendLine($"new {className}().DefineEndpoints(app);");
+        }
+
+        builder.AppendLine();
+        builder.Append("return app;");
+
+        return builder.ToString();
     }
 
     private static string GenerateMethodContent(OpenApiDocument openApiDoc)

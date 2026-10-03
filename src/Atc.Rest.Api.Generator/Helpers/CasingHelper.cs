@@ -150,56 +150,7 @@ public static class CasingHelper
     /// <param name="value">The value to check.</param>
     /// <returns><see langword="true"/> if the value is valid snake_case; otherwise, <see langword="false"/>.</returns>
     public static bool IsSnakeCase(string? value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return false;
-        }
-
-        // First character must be lowercase letter
-        if (!char.IsLower(value![0]))
-        {
-            return false;
-        }
-
-        var previousWasUnderscore = false;
-
-        for (var i = 0; i < value.Length; i++)
-        {
-            var c = value[i];
-
-            if (c == '_')
-            {
-                // No consecutive underscores
-                if (previousWasUnderscore)
-                {
-                    return false;
-                }
-
-                // No trailing underscore
-                if (i == value.Length - 1)
-                {
-                    return false;
-                }
-
-                previousWasUnderscore = true;
-                continue;
-            }
-
-            previousWasUnderscore = false;
-
-            // Only lowercase letters and digits allowed (no uppercase)
-            if (char.IsLower(c) || char.IsDigit(c))
-            {
-                continue;
-            }
-
-            // Uppercase letters are not allowed in snake_case
-            return false;
-        }
-
-        return true;
-    }
+        => IsSnakeCaseWithLetters(value, char.IsLower);
 
     /// <summary>
     /// Determines whether the specified value is valid UPPER_SNAKE_CASE.
@@ -209,56 +160,7 @@ public static class CasingHelper
     /// <param name="value">The value to check.</param>
     /// <returns><see langword="true"/> if the value is valid UPPER_SNAKE_CASE; otherwise, <see langword="false"/>.</returns>
     public static bool IsUpperSnakeCase(string? value)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return false;
-        }
-
-        // First character must be uppercase letter
-        if (!char.IsUpper(value![0]))
-        {
-            return false;
-        }
-
-        var previousWasUnderscore = false;
-
-        for (var i = 0; i < value.Length; i++)
-        {
-            var c = value[i];
-
-            if (c == '_')
-            {
-                // No consecutive underscores
-                if (previousWasUnderscore)
-                {
-                    return false;
-                }
-
-                // No trailing underscore
-                if (i == value.Length - 1)
-                {
-                    return false;
-                }
-
-                previousWasUnderscore = true;
-                continue;
-            }
-
-            previousWasUnderscore = false;
-
-            // Only uppercase letters and digits allowed (no lowercase)
-            if (char.IsUpper(c) || char.IsDigit(c))
-            {
-                continue;
-            }
-
-            // Lowercase letters are not allowed in UPPER_SNAKE_CASE
-            return false;
-        }
-
-        return true;
-    }
+        => IsSnakeCaseWithLetters(value, char.IsUpper);
 
     /// <summary>
     /// Determines whether the specified operationId uses a valid casing style.
@@ -434,19 +336,6 @@ public static class CasingHelper
     }
 
     /// <summary>
-    /// Known acronyms that should be kept together when converting to kebab-case.
-    /// These are replaced with their lowercase equivalents before processing.
-    /// </summary>
-    private static readonly string[] KnownAcronyms =
-    [
-        "IoT",
-        "API",
-        "OAuth",
-        "OpenID",
-        "GraphQL",
-    ];
-
-    /// <summary>
     /// Gets a suggestion for converting a value to kebab-case.
     /// </summary>
     /// <param name="value">The value to convert.</param>
@@ -522,6 +411,19 @@ public static class CasingHelper
 
         return result.ToString();
     }
+
+    /// <summary>
+    /// Known acronyms that should be kept together when converting to kebab-case.
+    /// These are replaced with their lowercase equivalents before processing.
+    /// </summary>
+    private static readonly string[] KnownAcronyms =
+    [
+        "IoT",
+        "API",
+        "OAuth",
+        "OpenID",
+        "GraphQL",
+    ];
 
     /// <summary>
     /// Converts a value to PascalCase format suitable for .NET identifiers.
@@ -667,5 +569,44 @@ public static class CasingHelper
         return segment.EndsWith(effectiveSuffix, StringComparison.OrdinalIgnoreCase)
             ? segment
             : segment + effectiveSuffix;
+    }
+
+    /// <summary>
+    /// snake_case and UPPER_SNAKE_CASE differ only in the letters they allow: the first character is a letter of that
+    /// case, every other character is one or a digit, and underscores separate words (never doubled, never last).
+    /// </summary>
+    private static bool IsSnakeCaseWithLetters(
+        string? value,
+        Func<char, bool> isLetterOfTheCase)
+    {
+        if (string.IsNullOrEmpty(value) || !isLetterOfTheCase(value![0]))
+        {
+            return false;
+        }
+
+        var previousWasUnderscore = false;
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (c == '_')
+            {
+                // No consecutive underscores, no trailing underscore
+                if (previousWasUnderscore || i == value.Length - 1)
+                {
+                    return false;
+                }
+
+                previousWasUnderscore = true;
+                continue;
+            }
+
+            previousWasUnderscore = false;
+            if (!isLetterOfTheCase(c) && !char.IsDigit(c))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

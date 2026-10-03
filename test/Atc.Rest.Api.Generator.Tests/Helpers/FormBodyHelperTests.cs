@@ -50,4 +50,106 @@ public class FormBodyHelperTests
         // A file has no URL-encoded form; it is left out (ATC_API_OPR031 reports it)
         Assert.DoesNotContain("\"file\"", code, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void AppendMultipartFields_WritesFilesFileListsScalarListsAndScalarsThroughTheWriter()
+    {
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Color:
+                  type: string
+                  enum: [red, dark-blue]
+                Upload:
+                  type: object
+                  properties:
+                    file: { type: string, format: binary }
+                    attachments: { type: array, items: { type: string, format: binary } }
+                    tags: { type: array, items: { type: string } }
+                    count: { type: integer, format: int32 }
+                    color: { $ref: '#/components/schemas/Color' }
+            """);
+        var schema = document.Components!.Schemas!["Upload"];
+        var sb = new StringBuilder();
+        var writer = new MultipartPartWriter(
+            File: (builder, indent, name, expression) => builder.AppendLine(new string(' ', indent) + "content.Add(" + expression + ", \"" + name + "\");"),
+            Text: (builder, indent, name, expression) => builder.AppendLine(new string(' ', indent) + "content.Add(new StringContent(" + expression + "), \"" + name + "\");"));
+
+        FormBodyHelper.AppendMultipartFields(sb, schema, "parameters.Request", writer);
+        var code = sb.ToString();
+
+        // A file: one part
+        Assert.Contains(
+            "if (parameters.Request?.File is not null)" + Environment.NewLine +
+            "{" + Environment.NewLine +
+            "    content.Add(parameters.Request.File, \"file\");" + Environment.NewLine +
+            "}" + Environment.NewLine,
+            code,
+            StringComparison.Ordinal);
+
+        // A list of files: one part per file
+        Assert.Contains(
+            "if (parameters.Request?.Attachments is not null)" + Environment.NewLine +
+            "{" + Environment.NewLine +
+            "    foreach (var fileItem in parameters.Request.Attachments)" + Environment.NewLine +
+            "    {" + Environment.NewLine +
+            "        content.Add(fileItem, \"attachments\");" + Environment.NewLine +
+            "    }" + Environment.NewLine +
+            "}" + Environment.NewLine,
+            code,
+            StringComparison.Ordinal);
+
+        // A list of scalars: one text part per item
+        Assert.Contains(
+            "if (parameters.Request?.Tags is not null)" + Environment.NewLine +
+            "{" + Environment.NewLine +
+            "    foreach (var item in parameters.Request.Tags)" + Environment.NewLine +
+            "    {" + Environment.NewLine +
+            "        content.Add(new StringContent(item), \"tags\");" + Environment.NewLine +
+            "    }" + Environment.NewLine +
+            "}" + Environment.NewLine,
+            code,
+            StringComparison.Ordinal);
+
+        // A scalar: its wire text; an enum: its wire name
+        Assert.Contains(
+            "if (parameters.Request?.Count is { } count)" + Environment.NewLine +
+            "{" + Environment.NewLine +
+            "    content.Add(new StringContent(global::System.FormattableString.Invariant($\"{count}\")), \"count\");" + Environment.NewLine +
+            "}" + Environment.NewLine,
+            code,
+            StringComparison.Ordinal);
+        Assert.Contains("content.Add(new StringContent(color.ToWireValue()), \"color\");", code, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AppendMultipartFields_NullWriter_Throws()
+    {
+        var document = OpenApiDocumentHelper.ParseYaml(FormYaml);
+        var schema = document.Components!.Schemas!["Form"];
+
+        Assert.Throws<ArgumentNullException>(() => FormBodyHelper.AppendMultipartFields(new StringBuilder(), schema, "parameters.Request", null!));
+    }
+
+    [Theory]
+    [InlineData("value", "string", false, "value")]
+    [InlineData("flag", "bool", false, "(flag ? \"true\" : \"false\")")]
+    [InlineData("count", "int", false, "global::System.FormattableString.Invariant($\"{count}\")")]
+    [InlineData("id", "Guid", false, "global::System.FormattableString.Invariant($\"{id}\")")]
+    [InlineData("ratio", "double", false, "((global::System.IFormattable?)ratio)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture)!")]
+    [InlineData("price", "decimal", false, "((global::System.IFormattable?)price)?.ToString(null, global::System.Globalization.CultureInfo.InvariantCulture)!")]
+    [InlineData("when", "DateTimeOffset", false, "((global::System.IFormattable?)when)?.ToString(\"yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK\", global::System.Globalization.CultureInfo.InvariantCulture)!")]
+    [InlineData("day", "DateOnly", false, "((global::System.IFormattable?)day)?.ToString(\"yyyy-MM-dd\", global::System.Globalization.CultureInfo.InvariantCulture)!")]
+    [InlineData("color", "Color", true, "color.ToWireValue()")]
+    public void WireText_ReturnsExpectedExpression(
+        string valueExpression,
+        string csharpType,
+        bool isEnum,
+        string expected)
+    {
+        Assert.Equal(expected, FormBodyHelper.WireText(valueExpression, csharpType, isEnum));
+    }
 }

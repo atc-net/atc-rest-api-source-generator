@@ -2,25 +2,6 @@ namespace Atc.Rest.Api.Generator.Tests.Helpers;
 
 public class DiagnosticMessageFormatterTests
 {
-    private static DiagnosticMessage CreateTestMessage(
-        DiagnosticSeverity severity = DiagnosticSeverity.Warning,
-        string? context = null,
-        string? filePath = null,
-        int? lineNumber = null,
-        int? columnNumber = null,
-        IReadOnlyList<string>? suggestions = null,
-        string? documentationUrl = null)
-        => new(
-            RuleId: "ATC_API_TEST001",
-            Message: "Test diagnostic message",
-            Severity: severity,
-            FilePath: filePath,
-            LineNumber: lineNumber,
-            ColumnNumber: columnNumber,
-            Context: context,
-            Suggestions: suggestions,
-            DocumentationUrl: documentationUrl);
-
     // ========== FormatRich Tests ==========
     [Fact]
     public void FormatRich_MinimalMessage_ContainsRuleIdAndMessage()
@@ -251,4 +232,23 @@ public class DiagnosticMessageFormatterTests
         // Assert
         Assert.DoesNotContain("Documentation:", result, StringComparison.Ordinal);
     }
+
+    private static DiagnosticMessage CreateTestMessage(
+        DiagnosticSeverity severity = DiagnosticSeverity.Warning,
+        string? context = null,
+        string? filePath = null,
+        int? lineNumber = null,
+        int? columnNumber = null,
+        IReadOnlyList<string>? suggestions = null,
+        string? documentationUrl = null)
+        => new(
+            RuleId: "ATC_API_TEST001",
+            Message: "Test diagnostic message",
+            Severity: severity,
+            FilePath: filePath,
+            LineNumber: lineNumber,
+            ColumnNumber: columnNumber,
+            Context: context,
+            Suggestions: suggestions,
+            DocumentationUrl: documentationUrl);
 }

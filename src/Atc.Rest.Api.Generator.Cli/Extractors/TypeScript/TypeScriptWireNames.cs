@@ -18,6 +18,12 @@ public sealed class TypeScriptWireNames
     private readonly Dictionary<string, List<WireProperty>> models = new(StringComparer.Ordinal);
     private readonly HashSet<string> mapped = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TypeScriptWireNames"/> class, collecting the properties every
+    /// component object model renames under <paramref name="namingStrategy"/>.
+    /// </summary>
+    /// <param name="document">The parsed OpenAPI document.</param>
+    /// <param name="namingStrategy">How the models case their property names; <c>Original</c> renames nothing.</param>
     public TypeScriptWireNames(
         OpenApiDocument document,
         TypeScriptNamingStrategy namingStrategy)

@@ -1033,4 +1033,143 @@ public class SchemaExtractorTests
         var record = result.Parameters[0];
         Assert.Null(record.DocumentationTags);
     }
+
+    [Fact]
+    public void ExtractIndividual_WithoutFilter_ReturnsObjectRecordsAndSkipsEnumsArraysAndDeprecated()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  required: [name]
+                                  properties:
+                                    name:
+                                      type: string
+                                Pets:
+                                  type: array
+                                  items:
+                                    $ref: '#/components/schemas/Pet'
+                                Status:
+                                  type: string
+                                  enum: [available, sold]
+                                LegacyPet:
+                                  type: object
+                                  deprecated: true
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var result = SchemaExtractor.ExtractIndividual(document);
+        var withDeprecated = SchemaExtractor.ExtractIndividual(document, includeDeprecated: true);
+
+        Assert.NotNull(result);
+        var pet = Assert.Single(result);
+        Assert.Equal("Pet", pet.Name);
+        Assert.Equal(DeclarationModifiers.PublicSealedRecord, pet.DeclarationModifier);
+        var name = Assert.Single(pet.Parameters!);
+        Assert.Equal("Name", name.Name);
+        Assert.Equal("string", name.TypeName);
+        Assert.False(name.IsNullableType);
+
+        Assert.Equal(["Pet", "LegacyPet"], withDeprecated!.Select(r => r.Name), StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void ExtractIndividual_GeneratePartialModels_EmitsPartialRecords()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var result = SchemaExtractor.ExtractIndividual(document, generatePartialModels: true);
+
+        Assert.Equal(DeclarationModifiers.PublicPartialRecord, Assert.Single(result!).DeclarationModifier);
+    }
+
+    [Fact]
+    public void ExtractIndividual_NoSchemas_ReturnsNull()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        Assert.Null(SchemaExtractor.ExtractIndividual(document));
+        Assert.Null(SchemaExtractor.ExtractIndividualWithPolymorphism(document, polymorphicConfigs: null));
+    }
+
+    [Fact]
+    public void ExtractIndividualWithPolymorphism_VariantInheritsBaseAndBaseIsSkipped()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Shape:
+                                  oneOf:
+                                    - $ref: '#/components/schemas/Circle'
+                                    - $ref: '#/components/schemas/Square'
+                                  discriminator:
+                                    propertyName: shapeType
+                                    mapping:
+                                      circle: '#/components/schemas/Circle'
+                                      square: '#/components/schemas/Square'
+                                Circle:
+                                  type: object
+                                  properties:
+                                    shapeType:
+                                      type: string
+                                    radius:
+                                      type: number
+                                Square:
+                                  type: object
+                                  properties:
+                                    shapeType:
+                                      type: string
+                                    sideLength:
+                                      type: number
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var configs = PolymorphicTypeExtractor.ExtractPolymorphicConfigs(document);
+        Assert.NotNull(configs);
+
+        var withConfigs = SchemaExtractor.ExtractIndividualWithPolymorphism(document, configs);
+        var withoutConfigs = SchemaExtractor.ExtractIndividualWithPolymorphism(document, polymorphicConfigs: null);
+
+        // The oneOf base is handled by PolymorphicTypeExtractor; the variants inherit it only when told about it
+        Assert.Equal(["Circle : Shape", "Square : Shape"], withConfigs!.Select(r => r.Name), StringComparer.Ordinal);
+        Assert.Equal(["Circle", "Square"], withoutConfigs!.Select(r => r.Name), StringComparer.Ordinal);
+    }
 }

@@ -326,7 +326,73 @@ public class OpenApiRateLimitExtensionsTests
         RateLimitPartitionStrategy expected)
         => Assert.Equal(expected, OpenApiRateLimitExtensions.ParsePartitionStrategy(partitionValue));
 
+    // ========== ParseAlgorithm Tests ==========
+    [Theory]
+    [InlineData("fixed", RateLimitAlgorithm.Fixed)]
+    [InlineData("sliding", RateLimitAlgorithm.Sliding)]
+    [InlineData("sliding-window", RateLimitAlgorithm.Sliding)]
+    [InlineData("token-bucket", RateLimitAlgorithm.TokenBucket)]
+    [InlineData("TokenBucket", RateLimitAlgorithm.TokenBucket)]
+    [InlineData("concurrency", RateLimitAlgorithm.Concurrency)]
+    [InlineData("", RateLimitAlgorithm.Fixed)]
+    [InlineData(null, RateLimitAlgorithm.Fixed)]
+    [InlineData("bogus", RateLimitAlgorithm.Fixed)]
+    public void ParseAlgorithm_ReturnsExpectedResult(
+        string? algorithmValue,
+        RateLimitAlgorithm expected)
+        => Assert.Equal(expected, OpenApiRateLimitExtensions.ParseAlgorithm(algorithmValue));
+
     // ========== Extension Value Extraction Tests ==========
+    [Fact]
+    public void ExtractRateLimitEmitRetryAfter_DocumentDeclaresFalse_ReturnsFalse()
+    {
+        var doc = ParseYaml(YamlWithDocumentLevelEmitRetryAfterFalse);
+        Assert.NotNull(doc);
+
+        Assert.False(doc.Extensions.ExtractRateLimitEmitRetryAfter());
+    }
+
+    [Fact]
+    public void ExtractRateLimitEmitRetryAfter_NotDeclared_ReturnsNull()
+    {
+        var doc = ParseYaml(YamlWithDocumentRateLimitPolicy);
+        Assert.NotNull(doc);
+
+        Assert.Null(doc.Extensions.ExtractRateLimitEmitRetryAfter());
+    }
+
+    [Fact]
+    public void ExtractRateLimitPartition_PathDeclaresIp_ReturnsRawString()
+    {
+        var pathItem = GetFirstPathItem(ParseYaml(YamlWithPathLevelPartitionIp)!);
+
+        Assert.Equal("ip", pathItem.Extensions.ExtractRateLimitPartition());
+    }
+
+    [Fact]
+    public void ExtractRateLimitPartition_NotDeclared_ReturnsNull()
+    {
+        var pathItem = GetFirstPathItem(ParseYaml(YamlWithDocumentRateLimitPolicy)!);
+
+        Assert.Null(pathItem.Extensions.ExtractRateLimitPartition());
+    }
+
+    [Fact]
+    public void ExtractRateLimitPartitionClaim_OperationDeclaresClaim_ReturnsIt()
+    {
+        var operation = GetFirstOperation(GetFirstPathItem(ParseYaml(YamlWithOperationPartitionUserOverridingPathIp)!));
+
+        Assert.Equal("oid", operation.Extensions.ExtractRateLimitPartitionClaim());
+    }
+
+    [Fact]
+    public void ExtractRateLimitPartitionClaim_NotDeclared_ReturnsNull()
+    {
+        var pathItem = GetFirstPathItem(ParseYaml(YamlWithOperationPartitionUserOverridingPathIp)!);
+
+        Assert.Null(pathItem.Extensions.ExtractRateLimitPartitionClaim());
+    }
+
     [Fact]
     public void ExtractRateLimitPolicy_NullExtensions_ReturnsNull()
     {

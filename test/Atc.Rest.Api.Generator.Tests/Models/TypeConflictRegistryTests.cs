@@ -142,4 +142,104 @@ public class TypeConflictRegistryTests
         // Assert
         Assert.Equal("Pet", resolved);
     }
+
+    [Fact]
+    public void IsConflicting_NameInScannedConflicts_ReturnsTrue()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml(YamlWithTaskSchema);
+        var registry = TypeConflictRegistry.Build(doc, "MyApi");
+
+        Assert.True(registry.IsConflicting("Task"));
+    }
+
+    [Fact]
+    public void IsConflicting_NameNotInConflicts_ReturnsFalse()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml(MinimalYamlWithDeviceSchema);
+        var registry = TypeConflictRegistry.Build(doc, "MyApi");
+
+        Assert.False(registry.IsConflicting("Pet"));
+    }
+
+    [Fact]
+    public void ForSegment_SharedSchema_ResolvesToSharedModelsNamespace()
+    {
+        var conflicts = new HashSet<string>(StringComparer.Ordinal) { "Device" };
+        var shared = new HashSet<string>(StringComparer.Ordinal) { "Device" };
+
+        var registry = TypeConflictRegistry.ForSegment(conflicts, "MyApi", "Devices", shared);
+
+        Assert.Equal("MyApi.Generated.Models.Device", registry.GetFullyQualifiedName("Device"));
+    }
+
+    [Fact]
+    public void ForSegment_SegmentOwnedSchema_ResolvesToSegmentNamespace()
+    {
+        var conflicts = new HashSet<string>(StringComparer.Ordinal) { "Device" };
+
+        var registry = TypeConflictRegistry.ForSegment(conflicts, "MyApi", "Devices");
+
+        Assert.Equal("MyApi.Generated.Devices.Models.Device", registry.GetFullyQualifiedName("Device"));
+        Assert.True(registry.IsConflicting("Device"));
+    }
+
+    [Theory]
+    [InlineData("type: object", true)]
+    [InlineData("type: [object, 'null']", true)]
+    [InlineData("type: string\nenum: [a, b]", true)]
+    [InlineData("allOf:\n  - type: object", true)]
+    [InlineData("oneOf:\n  - type: string\n  - type: integer", true)]
+    [InlineData("type: string", false)]
+    [InlineData("type: array\nitems:\n  type: string", false)]
+    [InlineData("type: integer\nformat: int64", false)]
+    public void IsGeneratedType_DependsOnWhetherAliasOrModel(
+        string schemaBody,
+        bool expected)
+    {
+        // Every line of the body sits under "Candidate:" (6 spaces in the stripped literal).
+        var doc = OpenApiDocumentHelper.ParseYaml(
+            $$"""
+            openapi: "3.1.1"
+            info:
+              title: Test API
+              version: "1.0.0"
+            paths: {}
+            components:
+              schemas:
+                Candidate:
+                  {{schemaBody.Replace("\n", "\n      ", StringComparison.Ordinal)}}
+            """);
+
+        var schema = doc.Components!.Schemas!["Candidate"];
+
+        Assert.Equal(expected, TypeConflictRegistry.IsGeneratedType(schema));
+    }
+
+    [Fact]
+    public void IsGeneratedType_UntypedSchema_ReturnsTrue()
+        => Assert.True(TypeConflictRegistry.IsGeneratedType(new OpenApiSchema()));
+
+    [Fact]
+    public void IsGeneratedType_PrefixItemsTuple_ReturnsTrue()
+    {
+        var doc = OpenApiDocumentHelper.ParseYaml(
+            """
+            openapi: "3.1.1"
+            info:
+              title: Test API
+              version: "1.0.0"
+            paths: {}
+            components:
+              schemas:
+                Point:
+                  type: array
+                  prefixItems:
+                    - type: number
+                    - type: number
+            """);
+
+        var schema = doc.Components!.Schemas!["Point"];
+
+        Assert.True(TypeConflictRegistry.IsGeneratedType(schema));
+    }
 }

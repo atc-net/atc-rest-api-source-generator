@@ -3,26 +3,30 @@ namespace Atc.Rest.Api.Generator.Cli.Extensions;
 /// <summary>
 /// Extension methods for configuring the command application.
 /// </summary>
+[SuppressMessage("", "CA1034:Do not nest type", Justification = "OK - CLang14 - extension")]
 public static class CommandAppExtensions
 {
-    /// <summary>
-    /// Configures all CLI commands for the application.
-    /// </summary>
     /// <param name="app">The command application.</param>
-    public static void ConfigureCommands(this CommandApp app)
+    extension(CommandApp app)
     {
-        ArgumentNullException.ThrowIfNull(app);
-
-        app.Configure(config =>
+        /// <summary>
+        /// Configures all CLI commands for the application.
+        /// </summary>
+        public void ConfigureCommands()
         {
-            config.SetApplicationName("atc-rest-api-gen");
-            config.SetApplicationVersion(CliHelper.GetCurrentVersion().ToString());
+            ArgumentNullException.ThrowIfNull(app);
 
-            config.AddBranch("spec", ConfigureSpecCommands());
-            config.AddBranch("generate", ConfigureGenerateCommands());
-            config.AddBranch("options", ConfigureOptionsCommands());
-            config.AddBranch("migrate", ConfigureMigrateCommands());
-        });
+            app.Configure(config =>
+            {
+                config.SetApplicationName("atc-rest-api-gen");
+                config.SetApplicationVersion(CliHelper.GetCurrentVersion().ToString());
+
+                config.AddBranch("spec", ConfigureSpecCommands());
+                config.AddBranch("generate", ConfigureGenerateCommands());
+                config.AddBranch("options", ConfigureOptionsCommands());
+                config.AddBranch("migrate", ConfigureMigrateCommands());
+            });
+        }
     }
 
     private static Action<IConfigurator<CommandSettings>> ConfigureSpecCommands()

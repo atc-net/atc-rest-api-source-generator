@@ -406,6 +406,83 @@ public class UsingStatementHelperTests
         Assert.False(UsingStatementHelper.RecordUsesSystemTypes(record));
     }
 
+    // ========== RecordUsesJsonPropertyName Tests ==========
+    [Fact]
+    public void RecordUsesJsonPropertyName_WithJsonPropertyNameAttribute_ReturnsTrue()
+    {
+        var record = new RecordParameters(
+            DocumentationTags: null,
+            DeclarationModifier: DeclarationModifiers.Public,
+            Name: "TestRecord",
+            Parameters:
+            [
+                new ParameterBaseParameters(
+                    Attributes: [new AttributeParameters("Required", null)],
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: "string",
+                    IsNullableType: false,
+                    IsReferenceType: true,
+                    Name: "Name",
+                    DefaultValue: null),
+                new ParameterBaseParameters(
+                    Attributes: [new AttributeParameters("JsonPropertyName", "\"user_name\"")],
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: "string",
+                    IsNullableType: true,
+                    IsReferenceType: true,
+                    Name: "UserName",
+                    DefaultValue: null),
+            ]);
+
+        Assert.True(UsingStatementHelper.RecordUsesJsonPropertyName(record));
+    }
+
+    [Fact]
+    public void RecordUsesJsonPropertyName_WithOtherAttributesOnly_ReturnsFalse()
+    {
+        var record = new RecordParameters(
+            DocumentationTags: null,
+            DeclarationModifier: DeclarationModifiers.Public,
+            Name: "TestRecord",
+            Parameters:
+            [
+                new ParameterBaseParameters(
+                    Attributes: [new AttributeParameters("Required", null), new AttributeParameters("JsonConverter", "typeof(X)")],
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: "string",
+                    IsNullableType: false,
+                    IsReferenceType: true,
+                    Name: "Name",
+                    DefaultValue: null),
+                new ParameterBaseParameters(
+                    Attributes: null,
+                    GenericTypeName: null,
+                    IsGenericListType: false,
+                    TypeName: "int",
+                    IsNullableType: false,
+                    IsReferenceType: false,
+                    Name: "Age",
+                    DefaultValue: null),
+            ]);
+
+        Assert.False(UsingStatementHelper.RecordUsesJsonPropertyName(record));
+    }
+
+    [Fact]
+    public void RecordUsesJsonPropertyName_WithNullParameters_ReturnsFalse()
+    {
+        var record = new RecordParameters(
+            DocumentationTags: null,
+            DeclarationModifier: DeclarationModifiers.Public,
+            Name: "TestRecord",
+            Parameters: null);
+
+        Assert.False(UsingStatementHelper.RecordUsesJsonPropertyName(record));
+    }
+
     // ========== ExtractNamespaceFromGlobalUsing Tests ==========
     [Theory]
     [InlineData("global using System;", "System")]

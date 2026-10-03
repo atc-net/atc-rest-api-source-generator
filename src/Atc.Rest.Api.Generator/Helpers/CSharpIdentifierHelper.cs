@@ -38,12 +38,4 @@ public static class CSharpIdentifierHelper
         => ReservedKeywords.Contains(identifier)
             ? "@" + identifier
             : identifier;
-
-    /// <summary>
-    /// Indicates whether <paramref name="identifier"/> is a C# keyword.
-    /// </summary>
-    /// <param name="identifier">The candidate identifier.</param>
-    /// <returns><see langword="true"/> when the value is a reserved keyword.</returns>
-    public static bool IsKeyword(string identifier)
-        => ReservedKeywords.Contains(identifier);
 }

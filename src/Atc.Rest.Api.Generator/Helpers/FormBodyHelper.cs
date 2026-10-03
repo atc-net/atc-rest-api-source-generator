@@ -69,6 +69,86 @@ public static class FormBodyHelper
     }
 
     /// <summary>
+    /// Appends the statements that add every field of the multipart form model read through
+    /// <paramref name="requestAccess"/>: a file through <see cref="MultipartPartWriter.File"/>, a list of files one
+    /// by one, a list of scalars as one text part per item, a scalar as its wire text.
+    /// </summary>
+    /// <param name="builder">The builder to append to.</param>
+    /// <param name="schema">The form model's schema (a component).</param>
+    /// <param name="requestAccess">The expression that reads the model, e.g. <c>parameters.Request</c>.</param>
+    /// <param name="writer">How a part is added.</param>
+    public static void AppendMultipartFields(
+        StringBuilder builder,
+        IOpenApiSchema schema,
+        string requestAccess,
+        MultipartPartWriter writer)
+    {
+        if (builder is null)
+        {
+            throw new ArgumentNullException(nameof(builder));
+        }
+
+        if (schema is null)
+        {
+            throw new ArgumentNullException(nameof(schema));
+        }
+
+        if (writer is null)
+        {
+            throw new ArgumentNullException(nameof(writer));
+        }
+
+        foreach (var property in schema.Properties ?? new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal))
+        {
+            var propertyName = property.Key.ToPascalCaseForDotNet();
+            var access = $"{requestAccess}.{propertyName}";
+            var (isFile, isFileList) = property.Value.GetFileUploadInfo();
+            var isList = property.Value.IsOfType(JsonSchemaType.Array);
+            var isEnum = WireValueHelper.IsStringEnum(property.Value);
+
+            if (isFile && isFileList)
+            {
+                builder.AppendLine($"if ({requestAccess}?.{propertyName} is not null)");
+                builder.AppendLine("{");
+                builder.AppendLine(4, $"foreach (var fileItem in {access})");
+                builder.AppendLine(4, "{");
+                writer.File(builder, 8, property.Key, "fileItem");
+                builder.AppendLine(4, "}");
+                builder.AppendLine("}");
+            }
+            else if (isFile)
+            {
+                builder.AppendLine($"if ({requestAccess}?.{propertyName} is not null)");
+                builder.AppendLine("{");
+                writer.File(builder, 4, property.Key, access);
+                builder.AppendLine("}");
+            }
+            else if (isList)
+            {
+                var itemType = property.Value.Items?.ToCSharpType(isRequired: true, registry: null).TrimEnd('?') ?? "string";
+                builder.AppendLine($"if ({requestAccess}?.{propertyName} is not null)");
+                builder.AppendLine("{");
+                builder.AppendLine(4, $"foreach (var item in {access})");
+                builder.AppendLine(4, "{");
+                writer.Text(builder, 8, property.Key, WireText("item", itemType, isEnum));
+                builder.AppendLine(4, "}");
+                builder.AppendLine("}");
+            }
+            else
+            {
+                var variable = char.ToLowerInvariant(propertyName[0]) + propertyName.Substring(1);
+                var valueType = property.Value.ToCSharpType(isRequired: true, registry: null).TrimEnd('?');
+                builder.AppendLine($"if ({requestAccess}?.{propertyName} is {{ }} {variable})");
+                builder.AppendLine("{");
+                writer.Text(builder, 4, property.Key, WireText(variable, valueType, isEnum));
+                builder.AppendLine("}");
+            }
+
+            builder.AppendLine();
+        }
+    }
+
+    /// <summary>
     /// A C# expression of type <c>string</c> giving the wire text of a non-null value of <paramref name="csharpType"/>.
     /// </summary>
     /// <param name="valueExpression">The expression that reads the value.</param>

@@ -12,10 +12,25 @@ public sealed partial class WebhookDemo : IAsyncDisposable
     private IConfiguration Configuration { get; set; } = null!;
 
     private readonly List<SystemNotification> notifications = [];
+
     private bool isConnecting;
+
     private bool isSubscribed;
+
     private bool isSending;
+
     private string? lastError;
+
+    public async ValueTask DisposeAsync()
+    {
+        HubService.OnSystemNotification -= HandleSystemNotification;
+        HubService.OnUserActivity -= HandleUserActivity;
+        HubService.OnDataChange -= HandleDataChange;
+        HubService.OnConnectionStateChanged -= HandleConnectionStateChanged;
+
+        // Don't dispose the hub service - it's a singleton shared across pages
+        await Task.CompletedTask;
+    }
 
     protected override void OnInitialized()
     {
@@ -113,6 +128,7 @@ public sealed partial class WebhookDemo : IAsyncDisposable
 #pragma warning disable CA5394 // Random is insecure - acceptable for demo
     private static int GetRandomIndex(int maxValue)
         => Random.Shared.Next(maxValue);
+
 #pragma warning restore CA5394
 
     private async Task SendWebhookAsync(
@@ -247,15 +263,4 @@ public sealed partial class WebhookDemo : IAsyncDisposable
             NotificationSeverity.Critical => Color.Dark,
             _ => Color.Default,
         };
-
-    public async ValueTask DisposeAsync()
-    {
-        HubService.OnSystemNotification -= HandleSystemNotification;
-        HubService.OnUserActivity -= HandleUserActivity;
-        HubService.OnDataChange -= HandleDataChange;
-        HubService.OnConnectionStateChanged -= HandleConnectionStateChanged;
-
-        // Don't dispose the hub service - it's a singleton shared across pages
-        await Task.CompletedTask;
-    }
 }

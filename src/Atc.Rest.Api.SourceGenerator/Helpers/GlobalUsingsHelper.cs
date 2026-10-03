@@ -119,6 +119,88 @@ internal static class DomainGlobalUsingsHelper
     ];
 
     /// <summary>
+    /// Builds the set of required global using directives based on discovered namespaces,
+    /// path segments, and the OpenAPI document. This is a pure function with no filesystem access.
+    /// </summary>
+    public static HashSet<string> BuildRequiredUsings(
+        HashSet<string> discoveredInterfaceNamespaces,
+        string rootNamespace,
+        List<string> pathSegments,
+        OpenApiDocument openApiDoc,
+        bool injectLogger = false,
+        bool injectTracing = false)
+    {
+        var requiredUsings = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "global using System;",
+            "global using System.Threading;",
+            "global using System.Threading.Tasks;",
+        };
+
+        if (injectTracing)
+        {
+            requiredUsings.Add("global using System.Diagnostics;");
+        }
+
+        if (injectLogger)
+        {
+            requiredUsings.Add("global using Microsoft.Extensions.Logging;");
+        }
+
+        // Use discovered interface namespaces if available
+        if (discoveredInterfaceNamespaces.Count > 0)
+        {
+            // Add discovered namespaces and their related Parameters/Results namespaces
+            foreach (var ns in discoveredInterfaceNamespaces.OrderBy(s => s, StringComparer.Ordinal))
+            {
+                requiredUsings.Add($"global using {ns};");
+
+                // Derive Parameters and Results namespaces from Handlers namespace
+                if (ns.EndsWith(".Handlers", StringComparison.Ordinal))
+                {
+                    var baseNs = ns.Substring(0, ns.Length - ".Handlers".Length);
+
+                    // Extract segment name from namespace to check if it has parameters/results
+                    var segments = baseNs.Split('.');
+                    var segmentName = segments.Length > 0 ? segments[segments.Length - 1] : string.Empty;
+                    var namespaces = PathSegmentHelper.GetPathSegmentNamespaces(openApiDoc, segmentName);
+
+                    if (namespaces.HasParameters)
+                    {
+                        requiredUsings.Add($"global using {baseNs}.Parameters;");
+                    }
+
+                    if (namespaces.HasResults)
+                    {
+                        requiredUsings.Add($"global using {baseNs}.Results;");
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Fall back to path segment usings (sorted), conditionally based on OpenAPI spec
+            var sortedSegments = pathSegments
+                .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var segment in sortedSegments)
+            {
+                var namespaces = PathSegmentHelper.GetPathSegmentNamespaces(openApiDoc, segment);
+
+                // Add conditional segment usings (exclude Models for domain handlers)
+                foreach (var usingDirective in PathSegmentHelper.GetSegmentUsings(
+                    rootNamespace, segment, namespaces, includeModels: false, isGlobalUsing: true))
+                {
+                    requiredUsings.Add(usingDirective);
+                }
+            }
+        }
+
+        return requiredUsings;
+    }
+
+    /// <summary>
     /// Returns true for `global using {someRoot}.Generated.{Segment}.{Handlers|Parameters|Results|Models};`
     /// lines whose `{someRoot}` differs from the current <paramref name="rootNamespace"/>
     /// AND whose `{Segment}` matches a path segment in the current OpenAPI spec.
@@ -234,87 +316,5 @@ internal static class DomainGlobalUsingsHelper
             : $"global using {rootNamespace}.Generated.{effectiveSegment}{matchedSuffix};";
 
         return true;
-    }
-
-    /// <summary>
-    /// Builds the set of required global using directives based on discovered namespaces,
-    /// path segments, and the OpenAPI document. This is a pure function with no filesystem access.
-    /// </summary>
-    public static HashSet<string> BuildRequiredUsings(
-        HashSet<string> discoveredInterfaceNamespaces,
-        string rootNamespace,
-        List<string> pathSegments,
-        OpenApiDocument openApiDoc,
-        bool injectLogger = false,
-        bool injectTracing = false)
-    {
-        var requiredUsings = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "global using System;",
-            "global using System.Threading;",
-            "global using System.Threading.Tasks;",
-        };
-
-        if (injectTracing)
-        {
-            requiredUsings.Add("global using System.Diagnostics;");
-        }
-
-        if (injectLogger)
-        {
-            requiredUsings.Add("global using Microsoft.Extensions.Logging;");
-        }
-
-        // Use discovered interface namespaces if available
-        if (discoveredInterfaceNamespaces.Count > 0)
-        {
-            // Add discovered namespaces and their related Parameters/Results namespaces
-            foreach (var ns in discoveredInterfaceNamespaces.OrderBy(s => s, StringComparer.Ordinal))
-            {
-                requiredUsings.Add($"global using {ns};");
-
-                // Derive Parameters and Results namespaces from Handlers namespace
-                if (ns.EndsWith(".Handlers", StringComparison.Ordinal))
-                {
-                    var baseNs = ns.Substring(0, ns.Length - ".Handlers".Length);
-
-                    // Extract segment name from namespace to check if it has parameters/results
-                    var segments = baseNs.Split('.');
-                    var segmentName = segments.Length > 0 ? segments[segments.Length - 1] : string.Empty;
-                    var namespaces = PathSegmentHelper.GetPathSegmentNamespaces(openApiDoc, segmentName);
-
-                    if (namespaces.HasParameters)
-                    {
-                        requiredUsings.Add($"global using {baseNs}.Parameters;");
-                    }
-
-                    if (namespaces.HasResults)
-                    {
-                        requiredUsings.Add($"global using {baseNs}.Results;");
-                    }
-                }
-            }
-        }
-        else
-        {
-            // Fall back to path segment usings (sorted), conditionally based on OpenAPI spec
-            var sortedSegments = pathSegments
-                .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            foreach (var segment in sortedSegments)
-            {
-                var namespaces = PathSegmentHelper.GetPathSegmentNamespaces(openApiDoc, segment);
-
-                // Add conditional segment usings (exclude Models for domain handlers)
-                foreach (var usingDirective in PathSegmentHelper.GetSegmentUsings(
-                    rootNamespace, segment, namespaces, includeModels: false, isGlobalUsing: true))
-                {
-                    requiredUsings.Add(usingDirective);
-                }
-            }
-        }
-
-        return requiredUsings;
     }
 }

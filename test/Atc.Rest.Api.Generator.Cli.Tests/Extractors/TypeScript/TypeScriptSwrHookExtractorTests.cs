@@ -523,11 +523,6 @@ public class TypeScriptSwrHookExtractorTests
                                                       filter: { type: string }
                                               """;
 
-    private static OpenApiDocument? ParseYaml(string yaml)
-        => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
-            ? document
-            : null;
-
     [Fact]
     public void Extract_QueryHook_TakesEveryParameterAndGuardsOnThePathParameter()
     {
@@ -756,4 +751,9 @@ public class TypeScriptSwrHookExtractorTests
         Assert.Contains("export function useListItems(", content, StringComparison.Ordinal);
         Assert.DoesNotContain("Infinite", content, StringComparison.Ordinal);
     }
+
+    private static OpenApiDocument? ParseYaml(string yaml)
+        => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
+            ? document
+            : null;
 }

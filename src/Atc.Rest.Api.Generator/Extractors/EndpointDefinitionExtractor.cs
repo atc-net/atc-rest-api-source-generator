@@ -118,6 +118,75 @@ public static class EndpointDefinitionExtractor
         return (interfaceParams, classes.Count > 0 ? classes : null);
     }
 
+    internal static string GetCommonPathPrefix(List<string> paths)
+    {
+        if (paths.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        if (paths.Count == 1)
+        {
+            // For single path, use only the first segment (the group identity).
+            // This avoids overly specific MapGroup bases and is consistent with
+            // multi-path groups where additional paths would narrow the prefix.
+            var path = paths[0];
+            var allSegments = path
+                .Split('/')
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToArray();
+
+            var firstSegment = allSegments.FirstOrDefault(s => !s.StartsWith("{", StringComparison.Ordinal));
+            return firstSegment is not null ? "/" + firstSegment : "/";
+        }
+
+        // Find common prefix among all paths
+        var firstPath = paths[0];
+        var firstSegments = firstPath
+            .Split('/')
+            .Where(s => !string.IsNullOrEmpty(s))
+            .ToArray();
+
+        var commonSegments = new List<string>();
+        for (var i = 0; i < firstSegments.Length; i++)
+        {
+            var segment = firstSegments[i];
+
+            // Skip path parameters
+            if (segment.StartsWith("{", StringComparison.Ordinal))
+            {
+                break;
+            }
+
+            // Check if this segment exists in all other paths at the same position
+            var allMatch = true;
+            foreach (var path in paths.Skip(1))
+            {
+                var pathSegments = path
+                    .Split('/')
+                    .Where(s => !string.IsNullOrEmpty(s))
+                    .ToArray();
+
+                if (i >= pathSegments.Length || !pathSegments[i].Equals(segment, StringComparison.Ordinal))
+                {
+                    allMatch = false;
+                    break;
+                }
+            }
+
+            if (allMatch)
+            {
+                commonSegments.Add(segment);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return commonSegments.Count > 0 ? "/" + string.Join("/", commonSegments) : "/";
+    }
+
     private static Dictionary<string, List<(string Path, string Method, OpenApiOperation Operation, IList<IOpenApiParameter>? PathParameters)>> GroupOperationsByStrategy(
         OpenApiDocument openApiDoc,
         string? pathSegment,
@@ -574,75 +643,6 @@ using Microsoft.AspNetCore.Builder;
 
         var routeBase = serverBasePath is not null ? $"{serverBasePath}{commonPrefix}" : commonPrefix;
         return (routeBase, commonPrefix);
-    }
-
-    internal static string GetCommonPathPrefix(List<string> paths)
-    {
-        if (paths.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        if (paths.Count == 1)
-        {
-            // For single path, use only the first segment (the group identity).
-            // This avoids overly specific MapGroup bases and is consistent with
-            // multi-path groups where additional paths would narrow the prefix.
-            var path = paths[0];
-            var allSegments = path
-                .Split('/')
-                .Where(s => !string.IsNullOrEmpty(s))
-                .ToArray();
-
-            var firstSegment = allSegments.FirstOrDefault(s => !s.StartsWith("{", StringComparison.Ordinal));
-            return firstSegment is not null ? "/" + firstSegment : "/";
-        }
-
-        // Find common prefix among all paths
-        var firstPath = paths[0];
-        var firstSegments = firstPath
-            .Split('/')
-            .Where(s => !string.IsNullOrEmpty(s))
-            .ToArray();
-
-        var commonSegments = new List<string>();
-        for (var i = 0; i < firstSegments.Length; i++)
-        {
-            var segment = firstSegments[i];
-
-            // Skip path parameters
-            if (segment.StartsWith("{", StringComparison.Ordinal))
-            {
-                break;
-            }
-
-            // Check if this segment exists in all other paths at the same position
-            var allMatch = true;
-            foreach (var path in paths.Skip(1))
-            {
-                var pathSegments = path
-                    .Split('/')
-                    .Where(s => !string.IsNullOrEmpty(s))
-                    .ToArray();
-
-                if (i >= pathSegments.Length || !pathSegments[i].Equals(segment, StringComparison.Ordinal))
-                {
-                    allMatch = false;
-                    break;
-                }
-            }
-
-            if (allMatch)
-            {
-                commonSegments.Add(segment);
-            }
-            else
-            {
-                break;
-            }
-        }
-
-        return commonSegments.Count > 0 ? "/" + string.Join("/", commonSegments) : "/";
     }
 
     private static string GenerateDefineEndpointsContent(

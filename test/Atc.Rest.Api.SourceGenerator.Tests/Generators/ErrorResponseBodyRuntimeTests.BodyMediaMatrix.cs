@@ -17,10 +17,26 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// </remarks>
 public partial class ErrorResponseBodyRuntimeTests
 {
+    internal static readonly (string Id, string Group, string Label, string Marker, bool Typed)[] BodyMediaClients =
+    [
+        ("cs-epo", "C# EndpointPerOperation", "errorResponseFormat: ProblemDetails", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails" }""", false),
+        ("cs-epo-preferXml", "C# EndpointPerOperation", "preferXml: true", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails", "preferXml": true }""", false),
+        ("cs-typed-Throw", "C# TypedClient", "typedClientResultStyle: Throw", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Throw" }""", true),
+        ("cs-typed-Result", "C# TypedClient", "typedClientResultStyle: Result", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Result" }""", true),
+        ("cs-typed-Result-preferXml", "C# TypedClient", "Result, preferXml: true", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Result", "preferXml": true }""", true),
+        ("ts-fetch", "TypeScript", "Fetch client", string.Empty, false),
+        ("ts-axios", "TypeScript", "Axios client (Node's default http adapter)", string.Empty, false),
+        ("ts-axios-fetch", "TypeScript", "Axios client (fetch adapter)", string.Empty, false),
+    ];
+
     private const string LossBytes = "bytes";
+
     private const string LossContentType = "content-type";
+
     private const string LossFileName = "file-name";
+
     private const string LossStatus = "status";
+
     private const string LossShape = "shape";
 
     private const string BodyMediaYaml = """
@@ -619,18 +635,6 @@ public partial class ErrorResponseBodyRuntimeTests
         }
         """";
 
-    internal static readonly (string Id, string Group, string Label, string Marker, bool Typed)[] BodyMediaClients =
-    [
-        ("cs-epo", "C# EndpointPerOperation", "errorResponseFormat: ProblemDetails", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails" }""", false),
-        ("cs-epo-preferXml", "C# EndpointPerOperation", "preferXml: true", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails", "preferXml": true }""", false),
-        ("cs-typed-Throw", "C# TypedClient", "typedClientResultStyle: Throw", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Throw" }""", true),
-        ("cs-typed-Result", "C# TypedClient", "typedClientResultStyle: Result", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Result" }""", true),
-        ("cs-typed-Result-preferXml", "C# TypedClient", "Result, preferXml: true", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Result", "preferXml": true }""", true),
-        ("ts-fetch", "TypeScript", "Fetch client", string.Empty, false),
-        ("ts-axios", "TypeScript", "Axios client (Node's default http adapter)", string.Empty, false),
-        ("ts-axios-fetch", "TypeScript", "Axios client (fetch adapter)", string.Empty, false),
-    ];
-
     /// <summary>
     /// The files the server writes: kind, operation, media type and file extension.
     /// </summary>
@@ -737,20 +741,6 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
-    /// The receipt an upload of <see cref="BodyMediaBytes"/> gets back.
-    /// </summary>
-    private static JsonObject Receipt(string mediaType)
-    {
-        var bytes = BodyMediaBytes(mediaType);
-        return new JsonObject
-        {
-            ["sha256"] = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant(),
-            ["contentType"] = mediaType,
-            ["length"] = bytes.LongLength,
-        };
-    }
-
-    /// <summary>
     /// The bytes uploaded as a media type (every value, 0x00 and 0xFF included).
     /// </summary>
     internal static byte[] BodyMediaBytes(string mediaType)
@@ -762,5 +752,19 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         return bytes;
+    }
+
+    /// <summary>
+    /// The receipt an upload of <see cref="BodyMediaBytes"/> gets back.
+    /// </summary>
+    private static JsonObject Receipt(string mediaType)
+    {
+        var bytes = BodyMediaBytes(mediaType);
+        return new JsonObject
+        {
+            ["sha256"] = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant(),
+            ["contentType"] = mediaType,
+            ["length"] = bytes.LongLength,
+        };
     }
 }

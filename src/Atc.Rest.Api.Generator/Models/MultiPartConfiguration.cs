@@ -40,17 +40,7 @@ public sealed record MultiPartConfiguration
     public MergeStrategy ParametersMergeStrategy { get; init; } = MergeStrategy.MergeIfIdentical;
 
     /// <summary>
-    /// Merge strategy for tags.
-    /// </summary>
-    public MergeStrategy TagsMergeStrategy { get; init; } = MergeStrategy.AppendUnique;
-
-    /// <summary>
     /// Creates a default configuration with auto-discovery enabled.
     /// </summary>
     public static MultiPartConfiguration Default { get; } = new();
-
-    /// <summary>
-    /// Creates a configuration with multi-part disabled (single file mode).
-    /// </summary>
-    public static MultiPartConfiguration Disabled { get; } = new() { Enabled = false };
 }

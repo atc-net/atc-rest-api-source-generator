@@ -209,6 +209,45 @@ public static class OpenApiRateLimitExtensions
     }
 
     /// <summary>
+    /// Parses a rate limit algorithm string to the enum value.
+    /// Unknown or empty values fall back to <see cref="RateLimitAlgorithm.Fixed"/>.
+    /// </summary>
+    public static RateLimitAlgorithm ParseAlgorithm(string? algorithmString)
+    {
+        if (string.IsNullOrEmpty(algorithmString))
+        {
+            return RateLimitAlgorithm.Fixed;
+        }
+
+        return algorithmString.ToLowerInvariant() switch
+        {
+            "sliding" or "sliding-window" => RateLimitAlgorithm.Sliding,
+            "token-bucket" or "tokenbucket" => RateLimitAlgorithm.TokenBucket,
+            "concurrency" => RateLimitAlgorithm.Concurrency,
+            _ => RateLimitAlgorithm.Fixed,
+        };
+    }
+
+    /// <summary>
+    /// Parses a rate limit partition strategy string to the enum value.
+    /// Unknown or empty values fall back to <see cref="RateLimitPartitionStrategy.Global"/>.
+    /// </summary>
+    public static RateLimitPartitionStrategy ParsePartitionStrategy(string? partitionString)
+    {
+        if (string.IsNullOrEmpty(partitionString))
+        {
+            return RateLimitPartitionStrategy.Global;
+        }
+
+        return partitionString.ToLowerInvariant() switch
+        {
+            "ip" => RateLimitPartitionStrategy.Ip,
+            "user" => RateLimitPartitionStrategy.User,
+            _ => RateLimitPartitionStrategy.Global,
+        };
+    }
+
+    /// <summary>
     /// Extracts a string value from an OpenAPI extension.
     /// </summary>
     private static string? ExtractStringValue(
@@ -316,44 +355,5 @@ public static class OpenApiRateLimitExtensions
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// Parses a rate limit algorithm string to the enum value.
-    /// Unknown or empty values fall back to <see cref="RateLimitAlgorithm.Fixed"/>.
-    /// </summary>
-    public static RateLimitAlgorithm ParseAlgorithm(string? algorithmString)
-    {
-        if (string.IsNullOrEmpty(algorithmString))
-        {
-            return RateLimitAlgorithm.Fixed;
-        }
-
-        return algorithmString.ToLowerInvariant() switch
-        {
-            "sliding" or "sliding-window" => RateLimitAlgorithm.Sliding,
-            "token-bucket" or "tokenbucket" => RateLimitAlgorithm.TokenBucket,
-            "concurrency" => RateLimitAlgorithm.Concurrency,
-            _ => RateLimitAlgorithm.Fixed,
-        };
-    }
-
-    /// <summary>
-    /// Parses a rate limit partition strategy string to the enum value.
-    /// Unknown or empty values fall back to <see cref="RateLimitPartitionStrategy.Global"/>.
-    /// </summary>
-    public static RateLimitPartitionStrategy ParsePartitionStrategy(string? partitionString)
-    {
-        if (string.IsNullOrEmpty(partitionString))
-        {
-            return RateLimitPartitionStrategy.Global;
-        }
-
-        return partitionString.ToLowerInvariant() switch
-        {
-            "ip" => RateLimitPartitionStrategy.Ip,
-            "user" => RateLimitPartitionStrategy.User,
-            _ => RateLimitPartitionStrategy.Global,
-        };
     }
 }

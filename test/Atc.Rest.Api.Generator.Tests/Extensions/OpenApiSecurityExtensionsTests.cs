@@ -532,6 +532,59 @@ public class OpenApiSecurityExtensionsTests
         Assert.Empty(extensions.ExtractAuthenticationSchemes());
     }
 
+    [Fact]
+    public void ExtractAuthenticationScheme_SchemeDeclaresOverride_ReturnsIt()
+    {
+        var doc = ParseYaml(CreateSingleSchemeYaml(
+            """
+            BearerAuth:
+              type: http
+              scheme: bearer
+              x-authentication-scheme: AzureAd
+            """,
+            "BearerAuth"));
+        Assert.NotNull(doc);
+
+        var scheme = doc.Components!.SecuritySchemes!["BearerAuth"];
+
+        Assert.Equal("AzureAd", scheme.Extensions.ExtractAuthenticationScheme());
+    }
+
+    [Fact]
+    public void ExtractAuthenticationScheme_NotDeclared_ReturnsNull()
+    {
+        var doc = ParseYaml(CreateSingleSchemeYaml(
+            """
+            BearerAuth:
+              type: http
+              scheme: bearer
+            """,
+            "BearerAuth"));
+        Assert.NotNull(doc);
+
+        var scheme = doc.Components!.SecuritySchemes!["BearerAuth"];
+
+        Assert.Null(scheme.Extensions.ExtractAuthenticationScheme());
+    }
+
+    [Fact]
+    public void ExtractAuthenticationScheme_BlankValue_ReturnsNull()
+    {
+        var doc = ParseYaml(CreateSingleSchemeYaml(
+            """
+            BearerAuth:
+              type: http
+              scheme: bearer
+              x-authentication-scheme: '  '
+            """,
+            "BearerAuth"));
+        Assert.NotNull(doc);
+
+        var scheme = doc.Components!.SecuritySchemes!["BearerAuth"];
+
+        Assert.Null(scheme.Extensions.ExtractAuthenticationScheme());
+    }
+
     // ========== ATC Extension YAML-Based Tests ==========
     [Fact]
     public void ExtractSecurityConfiguration_WithAtcAuthRequired_ReturnsConfig()

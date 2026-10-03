@@ -904,6 +904,283 @@ public class ResultClassExtractorTests
         Assert.DoesNotContain("TypedResults.Accepted()", acceptedMethod.Content, StringComparison.Ordinal);
     }
 
+    // ========== Path segment overload / inline schemas ==========
+
+    [Fact]
+    public void Extract_WithPathSegment_KeepsOnlyThatSegmentsOperationsInItsNamespace()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                              /users:
+                                get:
+                                  operationId: listUsers
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var resultClasses = ResultClassExtractor.Extract(
+            document,
+            "TestApi",
+            pathSegment: "Pets",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        var resultClass = Assert.Single(resultClasses);
+        Assert.Equal("ListPetsResult", resultClass.ClassTypeName);
+        Assert.Equal("TestApi.Generated.Pets.Results", resultClass.Namespace);
+    }
+
+    [Fact]
+    public void Extract_WithUnknownPathSegment_ReturnsNull()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var resultClasses = ResultClassExtractor.Extract(
+            document,
+            "TestApi",
+            pathSegment: "Orders",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.Null(resultClasses);
+    }
+
+    [Fact]
+    public void ExtractWithInlineSchemas_InlineResponseObject_RecordsTheInlineTypeUnderThePathSegment()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /status:
+                                get:
+                                  operationId: getStatus
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: object
+                                            properties:
+                                              healthy:
+                                                type: boolean
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (resultClasses, inlineSchemas) = ResultClassExtractor.ExtractWithInlineSchemas(
+            document,
+            "TestApi",
+            pathSegment: "Status",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false);
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        var resultClass = Assert.Single(resultClasses);
+        Assert.Equal("TestApi.Generated.Status.Results", resultClass.Namespace);
+        var okMethod = resultClass.Methods?.FirstOrDefault(m => m.Name == "Ok");
+        Assert.NotNull(okMethod);
+        Assert.Equal("GetStatusResponse", okMethod.Parameters![0].TypeName);
+
+        var inline = Assert.Single(inlineSchemas);
+        Assert.Equal("GetStatusResponse", inline.Key);
+        Assert.Equal("GetStatusResponse", inline.Value.TypeName);
+        Assert.Equal("Status", inline.Value.PathSegment);
+        Assert.Equal("GetStatusResponse", inline.Value.RecordParameters.Name);
+        var property = Assert.Single(inline.Value.RecordParameters.Parameters!);
+        Assert.Equal("Healthy", property.Name);
+        Assert.Equal("bool", property.TypeName);
+    }
+
+    [Fact]
+    public void ExtractWithInlineSchemas_WithNamespaceSegment_DrivesNamespaceAndInlineSegmentWithoutChangingTheFilter()
+    {
+        // Arrange - the raw path segment filters operations, the namespace segment is where the files are emitted
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /status:
+                                get:
+                                  operationId: getStatus
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            type: object
+                                            properties:
+                                              healthy:
+                                                type: boolean
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (resultClasses, inlineSchemas) = ResultClassExtractor.ExtractWithInlineSchemas(
+            document,
+            "TestApi",
+            pathSegment: "Status",
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]),
+            includeDeprecated: false,
+            namespaceSegment: "Shared");
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        Assert.Equal("TestApi.Generated.Shared.Results", Assert.Single(resultClasses).Namespace);
+        Assert.Equal("Shared", Assert.Single(inlineSchemas).Value.PathSegment);
+    }
+
+    [Fact]
+    public void ExtractWithInlineSchemas_NoInlineSchemas_ReturnsEmptyDictionary()
+    {
+        // Arrange
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Pet'
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        // Act
+        var (resultClasses, inlineSchemas) = ResultClassExtractor.ExtractWithInlineSchemas(
+            document,
+            "TestApi",
+            pathSegment: null,
+            registry: null,
+            systemTypeResolver: new SystemTypeConflictResolver([]));
+
+        // Assert
+        Assert.NotNull(resultClasses);
+        Assert.Equal("Pet", Assert.Single(resultClasses).Methods!.First(m => m.Name == "Ok").Parameters![0].TypeName);
+        Assert.Empty(inlineSchemas);
+    }
+
+    // ========== Shared IResult sources ==========
+
+    [Fact]
+    public void LocationHttpResultSource_WrapsAResultWithALocationHeader()
+    {
+        var source = ResultClassExtractor.LocationHttpResultSource();
+
+        Assert.Contains("internal sealed class LocationHttpResult : IResult", source, StringComparison.Ordinal);
+        Assert.Contains($"[GeneratedCode(\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\")]", source, StringComparison.Ordinal);
+        Assert.Contains("httpContext.Response.Headers.Location = location;", source, StringComparison.Ordinal);
+        Assert.Contains("return inner.ExecuteAsync(httpContext);", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void XmlHttpResultSource_WritesTheBytesWithStatusAndUtf8MediaType()
+    {
+        var source = ResultClassExtractor.XmlHttpResultSource();
+
+        Assert.Contains("internal sealed class XmlHttpResult : IResult, IStatusCodeHttpResult, IContentTypeHttpResult", source, StringComparison.Ordinal);
+        Assert.Contains("ContentType = mediaType + \"; charset=utf-8\";", source, StringComparison.Ordinal);
+        Assert.Contains("httpContext.Response.StatusCode = StatusCode;", source, StringComparison.Ordinal);
+        Assert.Contains("httpContext.Response.ContentLength = body.Length;", source, StringComparison.Ordinal);
+        Assert.Contains("return httpContext.Response.Body.WriteAsync(body, httpContext.RequestAborted).AsTask();", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NegotiatedHttpResultSource_PicksXmlOnlyWhenAcceptPrefersIt()
+    {
+        var source = ResultClassExtractor.NegotiatedHttpResultSource();
+
+        Assert.Contains("internal sealed class NegotiatedHttpResult : IResult, IStatusCodeHttpResult", source, StringComparison.Ordinal);
+        Assert.Contains("params string[] xmlMediaTypes)", source, StringComparison.Ordinal);
+        Assert.Contains("=> (json as IStatusCodeHttpResult)?.StatusCode;", source, StringComparison.Ordinal);
+        Assert.Contains("? xml(mediaType).ExecuteAsync(httpContext)", source, StringComparison.Ordinal);
+        Assert.Contains(": json.ExecuteAsync(httpContext);", source, StringComparison.Ordinal);
+
+        // */* and a tie are JSON, never a 406
+        Assert.Contains("if (type is \"*/*\" or \"application/*\" or \"application/json\" ||", source, StringComparison.Ordinal);
+        Assert.Contains("return xmlQuality > jsonQuality ? chosen : null;", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RetryAfterHttpResultSource_SetsRetryAfterInSecondsOnlyWhenGiven()
+    {
+        var source = ResultClassExtractor.RetryAfterHttpResultSource();
+
+        Assert.Contains("internal sealed class RetryAfterHttpResult : IResult", source, StringComparison.Ordinal);
+        Assert.Contains("private readonly int? retryAfterSeconds;", source, StringComparison.Ordinal);
+        Assert.Contains("if (retryAfterSeconds is not null)", source, StringComparison.Ordinal);
+        Assert.Contains("httpContext.Response.Headers.RetryAfter = retryAfterSeconds.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture);", source, StringComparison.Ordinal);
+        Assert.Contains("return inner.ExecuteAsync(httpContext);", source, StringComparison.Ordinal);
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

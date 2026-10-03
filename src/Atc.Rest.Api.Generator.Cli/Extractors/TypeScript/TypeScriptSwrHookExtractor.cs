@@ -17,6 +17,17 @@ using static Atc.Rest.Api.Generator.Cli.Extractors.TypeScript.TypeScriptHookMode
 [SuppressMessage("Design", "MA0051:Method is too long", Justification = "Code generation methods require sequential StringBuilder operations.")]
 public static class TypeScriptSwrHookExtractor
 {
+    /// <summary>
+    /// Extracts one SWR hook file per path segment from the OpenAPI document.
+    /// </summary>
+    /// <param name="openApiDoc">The parsed OpenAPI document.</param>
+    /// <param name="headerContent">Optional auto-generated file header.</param>
+    /// <param name="enumNames">Names of types that are enums (for correct import type).</param>
+    /// <param name="namingStrategy">How property and parameter names are cased in the models.</param>
+    /// <param name="brandedIds">Whether <c>uuid</c> id properties use branded types.</param>
+    /// <param name="convertDates">Whether date and date-time values are typed <c>Date</c>.</param>
+    /// <param name="writableSchemas">Schemas that have a separate writable variant for request bodies.</param>
+    /// <returns>List of (FileName, FileContent) tuples for each segment hook file.</returns>
     public static List<(string FileName, string Content)> Extract(
         OpenApiDocument openApiDoc,
         string? headerContent,

@@ -37,58 +37,6 @@ public static class EndpointPerOperationExtractor
         string? ResultClassContent);
 
     /// <summary>
-    /// Checks if an operation returns binary content (application/octet-stream).
-    /// </summary>
-    /// <remarks>
-    /// Binary endpoints use BinaryEndpointResponse from Atc.Rest.Client instead of
-    /// generating custom result classes.
-    /// </remarks>
-    private static bool IsBinaryEndpoint(OpenApiOperation operation)
-        => operation.IsStreamedDownloadOperation();
-
-    /// <summary>
-    /// Extracts all endpoint files for operations in the OpenAPI document filtered by path segment.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document.</param>
-    /// <param name="projectName">The project name.</param>
-    /// <param name="pathSegment">The path segment to filter by.</param>
-    /// <param name="registry">Optional conflict registry.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
-    /// <param name="errorResponseFormat">The expected error response format from the API.</param>
-    /// <param name="customErrorTypeName">Optional custom error type name (used when ErrorResponseFormat is Custom).</param>
-    /// <param name="customHttpClientName">Optional custom HTTP client name.</param>
-    /// <param name="hasSegmentModels">Whether the segment has segment-specific models.</param>
-    /// <param name="hasSharedModels">Whether there are shared models in the project.</param>
-    /// <param name="useServersBasePath">Whether to prepend the base path from OpenAPI servers[0].url to URLs. Default: true.</param>
-    public static List<OperationFiles> Extract(
-        OpenApiDocument openApiDoc,
-        string projectName,
-        string pathSegment,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false,
-        ErrorResponseFormatType errorResponseFormat = ErrorResponseFormatType.ProblemDetails,
-        string? customErrorTypeName = null,
-        string? customHttpClientName = null,
-        bool hasSegmentModels = true,
-        bool hasSharedModels = false,
-        bool useServersBasePath = true)
-    {
-        var (files, _) = ExtractWithInlineSchemas(
-            openApiDoc,
-            projectName,
-            pathSegment,
-            registry,
-            includeDeprecated,
-            errorResponseFormat,
-            customErrorTypeName,
-            customHttpClientName,
-            hasSegmentModels,
-            hasSharedModels,
-            useServersBasePath);
-        return files;
-    }
-
-    /// <summary>
     /// Extracts all endpoint files for operations in the OpenAPI document filtered by path segment,
     /// including any inline schemas discovered during extraction.
     /// </summary>
@@ -200,6 +148,92 @@ public static class EndpointPerOperationExtractor
         }
 
         return (result, inlineSchemas);
+    }
+
+    /// <summary>
+    /// Resolves the effective HTTP client name based on project name and optional configured name.
+    /// </summary>
+    /// <param name="projectName">The project/namespace name.</param>
+    /// <param name="configuredName">Optional configured HTTP client name.</param>
+    /// <returns>The resolved HTTP client name.</returns>
+    /// <remarks>
+    /// Resolution rules:
+    /// - If configuredName is null/empty: strips ".ApiClient" or "ApiClient" suffix from projectName, appends "-ApiClient"
+    /// - If configuredName contains '.' or '-': uses configuredName as-is (full name)
+    /// - Otherwise: strips suffix from projectName, appends "-{configuredName}" (simple name)
+    /// </remarks>
+    internal static string GetEffectiveHttpClientName(
+        string projectName,
+        string? configuredName)
+    {
+        // Get base name by stripping common ApiClient suffixes
+        var baseName = projectName;
+        if (baseName.EndsWith(".ApiClient", StringComparison.OrdinalIgnoreCase))
+        {
+            baseName = baseName.Substring(0, baseName.Length - ".ApiClient".Length);
+        }
+        else if (baseName.EndsWith("ApiClient", StringComparison.OrdinalIgnoreCase))
+        {
+            baseName = baseName.Substring(0, baseName.Length - "ApiClient".Length);
+        }
+
+        // Replace dots with dashes for cleaner HTTP client names
+        baseName = baseName.Replace('.', '-');
+
+        // If no configured name, use default pattern
+        if (string.IsNullOrWhiteSpace(configuredName))
+        {
+            return $"{baseName}-ApiClient";
+        }
+
+        // If full name (contains . or -), use as-is
+        if (configuredName.Contains('.') || configuredName.Contains('-'))
+        {
+            return configuredName!;
+        }
+
+        // Simple name - combine with base
+        return $"{baseName}-{configuredName}";
+    }
+
+    /// <summary>
+    /// Checks if an operation returns binary content (application/octet-stream).
+    /// </summary>
+    /// <remarks>
+    /// Binary endpoints use BinaryEndpointResponse from Atc.Rest.Client instead of
+    /// generating custom result classes.
+    /// </remarks>
+    private static bool IsBinaryEndpoint(OpenApiOperation operation)
+        => operation.IsStreamedDownloadOperation();
+
+    /// <summary>
+    /// Information about a response from an operation.
+    /// </summary>
+    /// <param name="StatusCode">The HTTP status code (e.g., "200", "404").</param>
+    /// <param name="StatusEnumName">The HttpStatusCode enum name (e.g., "OK", "NotFound") - used with HttpStatusCode.{value}.</param>
+    /// <param name="PropertyName">The property-friendly name (e.g., "Ok", "NotFound") - used for Is{value}, {value}Content.</param>
+    /// <param name="ContentType">The content type returned by this response.</param>
+    /// <param name="IsSuccess">Whether this is a success (2xx) response.</param>
+    /// <param name="TextMediaType">The text media type of a raw text body, or <see langword="null"/>.</param>
+    /// <param name="IsAutoAdded">Whether the generator added this response (the spec does not list it).</param>
+    /// <param name="ErrorMediaType">The declared media type of an error response's body, or <see langword="null"/>.</param>
+    /// <param name="IsFile">Whether the body is a file (a DownloadedFile).</param>
+    /// <param name="Xml">The XML body, or <see langword="null"/>.</param>
+    /// <param name="FileMediaTypes">A model or a file: the file media types (the file is read by <c>{PropertyName}File</c>), else <see langword="null"/>.</param>
+    private sealed record ResponseInfo(string StatusCode, string StatusEnumName, string PropertyName, string? ContentType, bool IsSuccess, string? TextMediaType = null, bool IsAutoAdded = false, string? ErrorMediaType = null, bool IsFile = false, XmlBody? Xml = null, IReadOnlyList<string>? FileMediaTypes = null)
+    {
+        /// <summary>
+        /// Whether this is the spec's <c>default</c> response: the body of any error status the operation does not list.
+        /// </summary>
+        public bool IsDefault
+            => string.Equals(StatusCode, "default", StringComparison.Ordinal);
+
+        /// <summary>
+        /// The <c>HttpStatusCode</c> expression for this status: the enum member, or a numeric cast for
+        /// codes the enum does not define (418, 499, ...).
+        /// </summary>
+        public string StatusCodeExpression
+            => HttpStatusCodeHelper.ToHttpStatusCodeExpression(int.Parse(StatusCode, NumberStyles.Integer, CultureInfo.InvariantCulture));
     }
 
     private static OperationFiles? ExtractOperationFiles(
@@ -423,36 +457,6 @@ public static class EndpointPerOperationExtractor
             ResultInterfaceContent: resultInterfaceContent,
             ResultClassFileName: resultClassFileName,
             ResultClassContent: resultClassContent);
-    }
-
-    /// <summary>
-    /// Information about a response from an operation.
-    /// </summary>
-    /// <param name="StatusCode">The HTTP status code (e.g., "200", "404").</param>
-    /// <param name="StatusEnumName">The HttpStatusCode enum name (e.g., "OK", "NotFound") - used with HttpStatusCode.{value}.</param>
-    /// <param name="PropertyName">The property-friendly name (e.g., "Ok", "NotFound") - used for Is{value}, {value}Content.</param>
-    /// <param name="ContentType">The content type returned by this response.</param>
-    /// <param name="IsSuccess">Whether this is a success (2xx) response.</param>
-    /// <param name="TextMediaType">The text media type of a raw text body, or <see langword="null"/>.</param>
-    /// <param name="IsAutoAdded">Whether the generator added this response (the spec does not list it).</param>
-    /// <param name="ErrorMediaType">The declared media type of an error response's body, or <see langword="null"/>.</param>
-    /// <param name="IsFile">Whether the body is a file (a DownloadedFile).</param>
-    /// <param name="Xml">The XML body, or <see langword="null"/>.</param>
-    /// <param name="FileMediaTypes">A model or a file: the file media types (the file is read by <c>{PropertyName}File</c>), else <see langword="null"/>.</param>
-    private sealed record ResponseInfo(string StatusCode, string StatusEnumName, string PropertyName, string? ContentType, bool IsSuccess, string? TextMediaType = null, bool IsAutoAdded = false, string? ErrorMediaType = null, bool IsFile = false, XmlBody? Xml = null, IReadOnlyList<string>? FileMediaTypes = null)
-    {
-        /// <summary>
-        /// Whether this is the spec's <c>default</c> response: the body of any error status the operation does not list.
-        /// </summary>
-        public bool IsDefault
-            => string.Equals(StatusCode, "default", StringComparison.Ordinal);
-
-        /// <summary>
-        /// The <c>HttpStatusCode</c> expression for this status: the enum member, or a numeric cast for
-        /// codes the enum does not define (418, 499, ...).
-        /// </summary>
-        public string StatusCodeExpression
-            => HttpStatusCodeHelper.ToHttpStatusCodeExpression(int.Parse(StatusCode, NumberStyles.Integer, CultureInfo.InvariantCulture));
     }
 
     private static List<ResponseInfo> ExtractResponses(
@@ -682,40 +686,7 @@ public static class EndpointPerOperationExtractor
         headerBuilder.AppendLine();
 
         // Build method parameters
-        var methodParameters = new List<ParameterBaseParameters>();
-
-        if (hasParameters)
-        {
-            methodParameters.Add(new ParameterBaseParameters(
-                Attributes: null,
-                GenericTypeName: null,
-                IsGenericListType: false,
-                TypeName: $"{operationName}Parameters",
-                IsNullableType: false,
-                IsReferenceType: true,
-                Name: "parameters",
-                DefaultValue: null));
-        }
-
-        methodParameters.Add(new ParameterBaseParameters(
-            Attributes: null,
-            GenericTypeName: null,
-            IsGenericListType: false,
-            TypeName: "string",
-            IsNullableType: false,
-            IsReferenceType: true,
-            Name: "httpClientName",
-            DefaultValue: "Constants.HttpClientName"));
-
-        methodParameters.Add(new ParameterBaseParameters(
-            Attributes: null,
-            GenericTypeName: null,
-            IsGenericListType: false,
-            TypeName: "CancellationToken",
-            IsNullableType: false,
-            IsReferenceType: false,
-            Name: "cancellationToken",
-            DefaultValue: "default"));
+        var methodParameters = ExecuteAsyncParameters(operationName, hasParameters);
 
         // Determine return type: BinaryEndpointResponse for binary, StreamingEndpointResponse for streaming, custom result class otherwise
         string returnTypeName;
@@ -941,40 +912,7 @@ public static class EndpointPerOperationExtractor
             Parameters: constructorParams);
 
         // Build ExecuteAsync method parameters
-        var methodParameters = new List<ParameterBaseParameters>();
-
-        if (hasParameters)
-        {
-            methodParameters.Add(new ParameterBaseParameters(
-                Attributes: null,
-                GenericTypeName: null,
-                IsGenericListType: false,
-                TypeName: $"{operationName}Parameters",
-                IsNullableType: false,
-                IsReferenceType: true,
-                Name: "parameters",
-                DefaultValue: null));
-        }
-
-        methodParameters.Add(new ParameterBaseParameters(
-            Attributes: null,
-            GenericTypeName: null,
-            IsGenericListType: false,
-            TypeName: "string",
-            IsNullableType: false,
-            IsReferenceType: true,
-            Name: "httpClientName",
-            DefaultValue: "Constants.HttpClientName"));
-
-        methodParameters.Add(new ParameterBaseParameters(
-            Attributes: null,
-            GenericTypeName: null,
-            IsGenericListType: false,
-            TypeName: "CancellationToken",
-            IsNullableType: false,
-            IsReferenceType: false,
-            Name: "cancellationToken",
-            DefaultValue: "default"));
+        var methodParameters = ExecuteAsyncParameters(operationName, hasParameters);
 
         // Build method body content
         var methodBodyContent = BuildExecuteAsyncMethodBody(
@@ -1987,52 +1925,6 @@ public static class EndpointPerOperationExtractor
         return content + "}\n";
     }
 
-    /// <summary>
-    /// Resolves the effective HTTP client name based on project name and optional configured name.
-    /// </summary>
-    /// <param name="projectName">The project/namespace name.</param>
-    /// <param name="configuredName">Optional configured HTTP client name.</param>
-    /// <returns>The resolved HTTP client name.</returns>
-    /// <remarks>
-    /// Resolution rules:
-    /// - If configuredName is null/empty: strips ".ApiClient" or "ApiClient" suffix from projectName, appends "-ApiClient"
-    /// - If configuredName contains '.' or '-': uses configuredName as-is (full name)
-    /// - Otherwise: strips suffix from projectName, appends "-{configuredName}" (simple name)
-    /// </remarks>
-    internal static string GetEffectiveHttpClientName(
-        string projectName,
-        string? configuredName)
-    {
-        // Get base name by stripping common ApiClient suffixes
-        var baseName = projectName;
-        if (baseName.EndsWith(".ApiClient", StringComparison.OrdinalIgnoreCase))
-        {
-            baseName = baseName.Substring(0, baseName.Length - ".ApiClient".Length);
-        }
-        else if (baseName.EndsWith("ApiClient", StringComparison.OrdinalIgnoreCase))
-        {
-            baseName = baseName.Substring(0, baseName.Length - "ApiClient".Length);
-        }
-
-        // Replace dots with dashes for cleaner HTTP client names
-        baseName = baseName.Replace('.', '-');
-
-        // If no configured name, use default pattern
-        if (string.IsNullOrWhiteSpace(configuredName))
-        {
-            return $"{baseName}-ApiClient";
-        }
-
-        // If full name (contains . or -), use as-is
-        if (configuredName.Contains('.') || configuredName.Contains('-'))
-        {
-            return configuredName!;
-        }
-
-        // Simple name - combine with base
-        return $"{baseName}-{configuredName}";
-    }
-
     private static string GetSchemaTypeName(
         IOpenApiSchema? schema,
         OpenApiDocument openApiDoc,
@@ -2078,7 +1970,7 @@ public static class EndpointPerOperationExtractor
             // Handle allOf composition - look for PaginatedResult pattern
             if (actualSchema.AllOf is { Count: > 0 })
             {
-                var allOfType = GetAllOfSchemaTypeName(actualSchema.AllOf, openApiDoc, registry);
+                var allOfType = PaginationTypeResolver.GetAllOfSchemaTypeName(actualSchema.AllOf, openApiDoc, registry, item => item.Type.ToPrimitiveCSharpTypeName(item.Format) ?? "object");
                 if (isAsyncEnumerable && allOfType != "object")
                 {
                     return $"IAsyncEnumerable<{allOfType}>";
@@ -2142,107 +2034,6 @@ public static class EndpointPerOperationExtractor
         return isAsyncEnumerable
             ? $"IAsyncEnumerable<{itemType}>"
             : $"IEnumerable<{itemType}>";
-    }
-
-    /// <summary>
-    /// Handles allOf composition schemas, specifically for PaginatedResult patterns.
-    /// </summary>
-    private static string GetAllOfSchemaTypeName(
-        IList<IOpenApiSchema> allOfSchemas,
-        OpenApiDocument openApiDoc,
-        TypeConflictRegistry? registry)
-    {
-        // Look for pagination pattern: allOf with $ref to PaginationResult/PaginatedResult and items/results array
-        string? baseType = null;
-        string? itemType = null;
-
-        foreach (var schemaItem in allOfSchemas)
-        {
-            if (schemaItem is OpenApiSchemaReference refSchema)
-            {
-                var refId = refSchema.Reference.Id;
-                if (!string.IsNullOrEmpty(refId))
-                {
-                    baseType = OpenApiSchemaExtensions.ResolveTypeName(refId!, registry);
-                }
-            }
-            else if (schemaItem is OpenApiSchema { Properties: not null } objSchema)
-            {
-                // Look for "items" or "results" property which contains the array item type
-                foreach (var prop in objSchema.Properties)
-                {
-                    if (prop.Key.Equals("items", StringComparison.OrdinalIgnoreCase) ||
-                        prop.Key.Equals("results", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var propSchema = prop.Value;
-                        if (propSchema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array))
-                        {
-                            // Get the item type from the array
-                            itemType = GetArrayItemTypeName(arraySchema, openApiDoc, registry);
-                        }
-                        else if (propSchema is OpenApiSchemaReference propRef)
-                        {
-                            // Resolve the reference
-                            var propRefId = propRef.Reference.Id;
-                            if (!string.IsNullOrEmpty(propRefId) &&
-                                openApiDoc.Components?.Schemas?.TryGetValue(propRefId!, out var resolvedSchema) == true &&
-                                resolvedSchema is OpenApiSchema resolvedArray && resolvedArray.IsOfType(JsonSchemaType.Array))
-                            {
-                                itemType = GetArrayItemTypeName(resolvedArray, openApiDoc, registry);
-                            }
-                        }
-
-                        break;
-                    }
-                }
-            }
-        }
-
-        // If we found PaginationResult<T> or PaginatedResult<T> pattern, return it
-        if (baseType is not null && HttpClientExtractor.IsPaginationBaseType(baseType) && itemType is not null)
-        {
-            return $"{baseType}<{itemType}>";
-        }
-
-        // Return the base type if found
-        return baseType ?? "object";
-    }
-
-    /// <summary>
-    /// Gets the item type name from an array schema.
-    /// </summary>
-    private static string GetArrayItemTypeName(
-        OpenApiSchema arraySchema,
-        OpenApiDocument openApiDoc,
-        TypeConflictRegistry? registry)
-    {
-        if (arraySchema.Items is null)
-        {
-            return "object";
-        }
-
-        if (arraySchema.Items is OpenApiSchemaReference itemRef)
-        {
-            var itemRefId = itemRef.Reference.Id;
-            if (!string.IsNullOrEmpty(itemRefId))
-            {
-                // Check if this is an array type alias
-                if (openApiDoc.Components?.Schemas?.TryGetValue(itemRefId!, out var itemSchema) == true &&
-                    itemSchema is OpenApiSchema innerArray && innerArray.IsOfType(JsonSchemaType.Array))
-                {
-                    return GetArrayItemTypeName(innerArray, openApiDoc, registry);
-                }
-
-                return OpenApiSchemaExtensions.ResolveTypeName(itemRefId!, registry);
-            }
-        }
-
-        if (arraySchema.Items is OpenApiSchema itemSchema2)
-        {
-            return itemSchema2.Type.ToPrimitiveCSharpTypeName(itemSchema2.Format) ?? "object";
-        }
-
-        return "object";
     }
 
     /// <summary>
@@ -2366,6 +2157,51 @@ public static class EndpointPerOperationExtractor
     }
 
     /// <summary>
+    /// The parameters of the generated <c>ExecuteAsync</c> - the operation's parameters record when it has one, the
+    /// HTTP client name and the cancellation token - the same on the endpoint interface and its class.
+    /// </summary>
+    private static List<ParameterBaseParameters> ExecuteAsyncParameters(
+        string operationName,
+        bool hasParameters)
+    {
+        var methodParameters = new List<ParameterBaseParameters>();
+        if (hasParameters)
+        {
+            methodParameters.Add(new ParameterBaseParameters(
+                Attributes: null,
+                GenericTypeName: null,
+                IsGenericListType: false,
+                TypeName: $"{operationName}Parameters",
+                IsNullableType: false,
+                IsReferenceType: true,
+                Name: "parameters",
+                DefaultValue: null));
+        }
+
+        methodParameters.Add(new ParameterBaseParameters(
+            Attributes: null,
+            GenericTypeName: null,
+            IsGenericListType: false,
+            TypeName: "string",
+            IsNullableType: false,
+            IsReferenceType: true,
+            Name: "httpClientName",
+            DefaultValue: "Constants.HttpClientName"));
+
+        methodParameters.Add(new ParameterBaseParameters(
+            Attributes: null,
+            GenericTypeName: null,
+            IsGenericListType: false,
+            TypeName: "CancellationToken",
+            IsNullableType: false,
+            IsReferenceType: false,
+            Name: "cancellationToken",
+            DefaultValue: "default"));
+
+        return methodParameters;
+    }
+
+    /// <summary>
     /// Generates code for multipart/form-data requests with schema-based content.
     /// Maps schema properties to WithFile() for binary properties and WithFormField() for others.
     /// </summary>
@@ -2374,88 +2210,25 @@ public static class EndpointPerOperationExtractor
         OpenApiSchemaReference schemaRef,
         OpenApiDocument openApiDoc)
     {
-        // Resolve the schema from the document
+        // A model without properties, or one the document does not have: the whole model as the body
         var schemaId = schemaRef.Reference?.Id;
-        if (string.IsNullOrEmpty(schemaId))
-        {
-            // Fallback to simple body if schema can't be resolved
-            sb.AppendLine("requestBuilder.WithBody(parameters.Request);");
-            return;
-        }
-
-        if (openApiDoc.Components?.Schemas is null ||
-            !openApiDoc.Components.Schemas.TryGetValue(schemaId!, out var schema))
-        {
-            // Fallback to simple body if schema can't be resolved
-            sb.AppendLine("requestBuilder.WithBody(parameters.Request);");
-            return;
-        }
-
-        var properties = schema.Properties?.ToList() ?? [];
-        if (properties.Count == 0)
+        if (string.IsNullOrEmpty(schemaId) ||
+            openApiDoc.Components?.Schemas is null ||
+            !openApiDoc.Components.Schemas.TryGetValue(schemaId!, out var schema) ||
+            schema.Properties is not { Count: > 0 })
         {
             sb.AppendLine("requestBuilder.WithBody(parameters.Request);");
             return;
         }
 
-        // Generate code for each property
-        foreach (var prop in properties)
-        {
-            var propName = prop.Key;
-            var propSchema = prop.Value;
-            var pascalPropName = CasingHelper.ToPascalCase(propName);
-            var isBinary = propSchema.Type?.HasFlag(JsonSchemaType.String) == true && propSchema.Format == "binary";
-            var isArray = propSchema.Type?.HasFlag(JsonSchemaType.Array) == true;
-            var isArrayOfBinary = isArray &&
-                                  propSchema.Items?.Type?.HasFlag(JsonSchemaType.String) == true &&
-                                  propSchema.Items?.Format == "binary";
-
-            if (isBinary)
-            {
-                // Single file property - use WithFile with IFileContent
-                sb.AppendLine($"if (parameters.Request?.{pascalPropName} is not null)");
-                sb.AppendLine("{");
-                sb.AppendLine(4, $"requestBuilder.WithFile(parameters.Request.{pascalPropName}.OpenReadStream(), \"{propName}\", parameters.Request.{pascalPropName}.FileName, parameters.Request.{pascalPropName}.ContentType);");
-                sb.AppendLine("}");
-                sb.AppendLine();
-            }
-            else if (isArrayOfBinary)
-            {
-                // Array of files - use WithFile for each IFileContent
-                sb.AppendLine($"if (parameters.Request?.{pascalPropName} is not null)");
-                sb.AppendLine("{");
-                sb.AppendLine(4, $"foreach (var (fileItem, index) in parameters.Request.{pascalPropName}.Select((f, i) => (f, i)))");
-                sb.AppendLine(4, "{");
-                sb.AppendLine(8, $"requestBuilder.WithFile(fileItem.OpenReadStream(), \"{propName}\", fileItem.FileName, fileItem.ContentType);");
-                sb.AppendLine(4, "}");
-                sb.AppendLine("}");
-                sb.AppendLine();
-            }
-            else if (isArray)
-            {
-                // Array of non-binary values - one form field per item, as its wire text
-                var itemType = propSchema.Items?.ToCSharpType(isRequired: true, registry: null).TrimEnd('?') ?? "string";
-                sb.AppendLine($"if (parameters.Request?.{pascalPropName} is not null)");
-                sb.AppendLine("{");
-                sb.AppendLine(4, $"foreach (var item in parameters.Request.{pascalPropName})");
-                sb.AppendLine(4, "{");
-                sb.AppendLine(8, $"requestBuilder.WithFormField(\"{propName}\", {FormBodyHelper.WireText("item", itemType, WireValueHelper.IsStringEnum(propSchema))});");
-                sb.AppendLine(4, "}");
-                sb.AppendLine("}");
-                sb.AppendLine();
-            }
-            else
-            {
-                // Simple value - its wire text (never ToString(), which is culture-dependent)
-                var variable = char.ToLowerInvariant(pascalPropName[0]) + pascalPropName.Substring(1);
-                var valueType = propSchema.ToCSharpType(isRequired: true, registry: null).TrimEnd('?');
-                sb.AppendLine($"if (parameters.Request?.{pascalPropName} is {{ }} {variable})");
-                sb.AppendLine("{");
-                sb.AppendLine(4, $"requestBuilder.WithFormField(\"{propName}\", {FormBodyHelper.WireText(variable, valueType, WireValueHelper.IsStringEnum(propSchema))});");
-                sb.AppendLine("}");
-                sb.AppendLine();
-            }
-        }
+        // A file through WithFile (with its metadata), a text field through WithFormField
+        FormBodyHelper.AppendMultipartFields(
+            sb,
+            schema,
+            "parameters.Request",
+            new MultipartPartWriter(
+                File: (b, indent, name, file) => b.AppendLine(indent, $"requestBuilder.WithFile({file}.OpenReadStream(), \"{name}\", {file}.FileName, {file}.ContentType);"),
+                Text: (b, indent, name, text) => b.AppendLine(indent, $"requestBuilder.WithFormField(\"{name}\", {text});")));
     }
 
     /// <summary>

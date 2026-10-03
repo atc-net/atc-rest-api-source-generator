@@ -7,6 +7,7 @@ namespace Showcase.Api.Domain.Repositories;
 public sealed class FileInMemoryRepository
 {
     private readonly Dictionary<string, StoredFile> files = new(StringComparer.OrdinalIgnoreCase);
+
     private long nextId = 1;
 
     public FileInMemoryRepository()
@@ -80,15 +81,6 @@ public sealed class FileInMemoryRepository
             GenerateCheckerboardPng(64, 64, 8));
     }
 
-    private void AddSampleFile(
-        string fileName,
-        string contentType,
-        byte[] content)
-    {
-        var id = nextId++.ToString(CultureInfo.InvariantCulture);
-        files[id] = new StoredFile(id, fileName, contentType, content, DateTimeOffset.UtcNow);
-    }
-
     public Task<StoredFile?> GetByIdAsync(
         string id,
         CancellationToken cancellationToken = default)
@@ -142,6 +134,15 @@ public sealed class FileInMemoryRepository
     {
         _ = cancellationToken;
         return Task.FromResult(files.Remove(id));
+    }
+
+    private void AddSampleFile(
+        string fileName,
+        string contentType,
+        byte[] content)
+    {
+        var id = nextId++.ToString(CultureInfo.InvariantCulture);
+        files[id] = new StoredFile(id, fileName, contentType, content, DateTimeOffset.UtcNow);
     }
 
     /// <summary>

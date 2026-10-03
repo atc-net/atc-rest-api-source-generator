@@ -167,37 +167,6 @@ public static class OpenApiSecurityExtensions
     }
 
     /// <summary>
-    /// Extracts a string array from an OpenAPI extension using reflection.
-    /// </summary>
-    private static IReadOnlyList<string> ExtractStringArray(IOpenApiExtension extension)
-    {
-        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
-        var extensionType = extension.GetType();
-        var nodeProperty = extensionType.GetProperty("Node");
-        if (nodeProperty is null)
-        {
-            return [];
-        }
-
-        var node = nodeProperty.GetValue(extension);
-        if (node is not JsonArray jsonArray)
-        {
-            return [];
-        }
-
-        var result = new List<string>();
-        foreach (var item in jsonArray)
-        {
-            if (item is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var value) && !string.IsNullOrEmpty(value))
-            {
-                result.Add(value);
-            }
-        }
-
-        return result;
-    }
-
-    /// <summary>
     /// Extracts all security schemes from the OpenAPI document's components/securitySchemes.
     /// </summary>
     /// <param name="document">The OpenAPI document.</param>
@@ -431,106 +400,6 @@ public static class OpenApiSecurityExtensions
         }
     }
 
-    /// <summary>
-    /// Maps a securityScheme key to the ASP.NET Core authentication scheme name it stands for:
-    /// the <c>x-authentication-scheme</c> extension when present, <c>"Bearer"</c> for
-    /// <c>type: http, scheme: bearer</c>, and the key itself otherwise.
-    /// </summary>
-    private static string ResolveAuthenticationSchemeName(
-        OpenApiDocument document,
-        string schemeKey)
-    {
-        if (document.Components?.SecuritySchemes is null ||
-            !document.Components.SecuritySchemes.TryGetValue(schemeKey, out var scheme) ||
-            scheme is null)
-        {
-            return schemeKey;
-        }
-
-        var overrideName = scheme.Extensions.ExtractAuthenticationScheme();
-        if (overrideName is not null)
-        {
-            return overrideName;
-        }
-
-        return scheme.Type == Microsoft.OpenApi.SecuritySchemeType.Http &&
-               string.Equals(scheme.Scheme, "bearer", StringComparison.OrdinalIgnoreCase)
-            ? AspNetBearerAuthenticationScheme
-            : schemeKey;
-    }
-
-    /// <summary>
-    /// Maps OpenAPI SecuritySchemeType enum to our SecuritySchemeType.
-    /// </summary>
-    private static Models.SecuritySchemeType MapSecuritySchemeType(Microsoft.OpenApi.SecuritySchemeType type)
-        => type switch
-        {
-            Microsoft.OpenApi.SecuritySchemeType.Http => Models.SecuritySchemeType.Http,
-            Microsoft.OpenApi.SecuritySchemeType.ApiKey => Models.SecuritySchemeType.ApiKey,
-            Microsoft.OpenApi.SecuritySchemeType.OAuth2 => Models.SecuritySchemeType.OAuth2,
-            Microsoft.OpenApi.SecuritySchemeType.OpenIdConnect => Models.SecuritySchemeType.OpenIdConnect,
-            _ => Models.SecuritySchemeType.Http,
-        };
-
-    /// <summary>
-    /// Maps OpenAPI ParameterLocation to our ApiKeyLocation.
-    /// </summary>
-    private static ApiKeyLocation? MapApiKeyLocation(ParameterLocation? location)
-        => location switch
-        {
-            ParameterLocation.Header => ApiKeyLocation.Header,
-            ParameterLocation.Query => ApiKeyLocation.Query,
-            ParameterLocation.Cookie => ApiKeyLocation.Cookie,
-            _ => null,
-        };
-
-    /// <summary>
-    /// Extracts OAuth flows information from OpenApiOAuthFlows.
-    /// </summary>
-    private static OAuthFlowsInfo? ExtractOAuthFlows(OpenApiOAuthFlows? flows)
-    {
-        if (flows is null)
-        {
-            return null;
-        }
-
-        return new OAuthFlowsInfo
-        {
-            Implicit = ExtractOAuthFlow(flows.Implicit),
-            Password = ExtractOAuthFlow(flows.Password),
-            ClientCredentials = ExtractOAuthFlow(flows.ClientCredentials),
-            AuthorizationCode = ExtractOAuthFlow(flows.AuthorizationCode),
-        };
-    }
-
-    /// <summary>
-    /// Extracts a single OAuth flow information.
-    /// </summary>
-    private static OAuthFlowInfo? ExtractOAuthFlow(OpenApiOAuthFlow? flow)
-    {
-        if (flow is null)
-        {
-            return null;
-        }
-
-        var scopes = new Dictionary<string, string>(StringComparer.Ordinal);
-        if (flow.Scopes is not null)
-        {
-            foreach (var kvp in flow.Scopes)
-            {
-                scopes[kvp.Key] = kvp.Value;
-            }
-        }
-
-        return new OAuthFlowInfo
-        {
-            AuthorizationUrl = flow.AuthorizationUrl?.ToString(),
-            TokenUrl = flow.TokenUrl?.ToString(),
-            RefreshUrl = flow.RefreshUrl?.ToString(),
-            Scopes = scopes,
-        };
-    }
-
     /// <param name="document">The OpenAPI document.</param>
     extension(OpenApiDocument document)
     {
@@ -760,22 +629,6 @@ public static class OpenApiSecurityExtensions
     }
 
     /// <summary>
-    /// Checks if the named security scheme is an OAuth2 scheme.
-    /// </summary>
-    private static bool IsOAuth2Scheme(
-        OpenApiDocument document,
-        string schemeName)
-    {
-        if (string.IsNullOrEmpty(schemeName) || document.Components?.SecuritySchemes is null)
-        {
-            return false;
-        }
-
-        return document.Components.SecuritySchemes.TryGetValue(schemeName, out var scheme) &&
-               scheme.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2;
-    }
-
-    /// <summary>
     /// Checks if the document has OpenID Connect security schemes.
     /// </summary>
     /// <param name="document">The OpenAPI document.</param>
@@ -846,6 +699,153 @@ public static class OpenApiSecurityExtensions
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Extracts a string array from an OpenAPI extension using reflection.
+    /// </summary>
+    private static IReadOnlyList<string> ExtractStringArray(IOpenApiExtension extension)
+    {
+        // Use reflection to access Node property (Microsoft.OpenApi v3.0.1 pattern)
+        var extensionType = extension.GetType();
+        var nodeProperty = extensionType.GetProperty("Node");
+        if (nodeProperty is null)
+        {
+            return [];
+        }
+
+        var node = nodeProperty.GetValue(extension);
+        if (node is not JsonArray jsonArray)
+        {
+            return [];
+        }
+
+        var result = new List<string>();
+        foreach (var item in jsonArray)
+        {
+            if (item is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var value) && !string.IsNullOrEmpty(value))
+            {
+                result.Add(value);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Maps a securityScheme key to the ASP.NET Core authentication scheme name it stands for:
+    /// the <c>x-authentication-scheme</c> extension when present, <c>"Bearer"</c> for
+    /// <c>type: http, scheme: bearer</c>, and the key itself otherwise.
+    /// </summary>
+    private static string ResolveAuthenticationSchemeName(
+        OpenApiDocument document,
+        string schemeKey)
+    {
+        if (document.Components?.SecuritySchemes is null ||
+            !document.Components.SecuritySchemes.TryGetValue(schemeKey, out var scheme) ||
+            scheme is null)
+        {
+            return schemeKey;
+        }
+
+        var overrideName = scheme.Extensions.ExtractAuthenticationScheme();
+        if (overrideName is not null)
+        {
+            return overrideName;
+        }
+
+        return scheme.Type == Microsoft.OpenApi.SecuritySchemeType.Http &&
+               string.Equals(scheme.Scheme, "bearer", StringComparison.OrdinalIgnoreCase)
+            ? AspNetBearerAuthenticationScheme
+            : schemeKey;
+    }
+
+    /// <summary>
+    /// Maps OpenAPI SecuritySchemeType enum to our SecuritySchemeType.
+    /// </summary>
+    private static Models.SecuritySchemeType MapSecuritySchemeType(Microsoft.OpenApi.SecuritySchemeType type)
+        => type switch
+        {
+            Microsoft.OpenApi.SecuritySchemeType.Http => Models.SecuritySchemeType.Http,
+            Microsoft.OpenApi.SecuritySchemeType.ApiKey => Models.SecuritySchemeType.ApiKey,
+            Microsoft.OpenApi.SecuritySchemeType.OAuth2 => Models.SecuritySchemeType.OAuth2,
+            Microsoft.OpenApi.SecuritySchemeType.OpenIdConnect => Models.SecuritySchemeType.OpenIdConnect,
+            _ => Models.SecuritySchemeType.Http,
+        };
+
+    /// <summary>
+    /// Maps OpenAPI ParameterLocation to our ApiKeyLocation.
+    /// </summary>
+    private static ApiKeyLocation? MapApiKeyLocation(ParameterLocation? location)
+        => location switch
+        {
+            ParameterLocation.Header => ApiKeyLocation.Header,
+            ParameterLocation.Query => ApiKeyLocation.Query,
+            ParameterLocation.Cookie => ApiKeyLocation.Cookie,
+            _ => null,
+        };
+
+    /// <summary>
+    /// Extracts OAuth flows information from OpenApiOAuthFlows.
+    /// </summary>
+    private static OAuthFlowsInfo? ExtractOAuthFlows(OpenApiOAuthFlows? flows)
+    {
+        if (flows is null)
+        {
+            return null;
+        }
+
+        return new OAuthFlowsInfo
+        {
+            Implicit = ExtractOAuthFlow(flows.Implicit),
+            Password = ExtractOAuthFlow(flows.Password),
+            ClientCredentials = ExtractOAuthFlow(flows.ClientCredentials),
+            AuthorizationCode = ExtractOAuthFlow(flows.AuthorizationCode),
+        };
+    }
+
+    /// <summary>
+    /// Extracts a single OAuth flow information.
+    /// </summary>
+    private static OAuthFlowInfo? ExtractOAuthFlow(OpenApiOAuthFlow? flow)
+    {
+        if (flow is null)
+        {
+            return null;
+        }
+
+        var scopes = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (flow.Scopes is not null)
+        {
+            foreach (var kvp in flow.Scopes)
+            {
+                scopes[kvp.Key] = kvp.Value;
+            }
+        }
+
+        return new OAuthFlowInfo
+        {
+            AuthorizationUrl = flow.AuthorizationUrl?.ToString(),
+            TokenUrl = flow.TokenUrl?.ToString(),
+            RefreshUrl = flow.RefreshUrl?.ToString(),
+            Scopes = scopes,
+        };
+    }
+
+    /// <summary>
+    /// Checks if the named security scheme is an OAuth2 scheme.
+    /// </summary>
+    private static bool IsOAuth2Scheme(
+        OpenApiDocument document,
+        string schemeName)
+    {
+        if (string.IsNullOrEmpty(schemeName) || document.Components?.SecuritySchemes is null)
+        {
+            return false;
+        }
+
+        return document.Components.SecuritySchemes.TryGetValue(schemeName, out var scheme) &&
+               scheme.Type == Microsoft.OpenApi.SecuritySchemeType.OAuth2;
     }
 
     /// <summary>

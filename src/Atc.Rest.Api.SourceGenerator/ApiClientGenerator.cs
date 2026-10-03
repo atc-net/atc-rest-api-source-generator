@@ -4,10 +4,17 @@
 // ReSharper disable ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
 namespace Atc.Rest.Api.SourceGenerator;
 
+/// <summary>
+/// The source generator behind the <c>.atc-rest-api-client</c> marker file: the models and the HTTP clients (typed, or one endpoint per operation) of every OpenAPI specification in the project.
+/// </summary>
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "OK.")]
 [Generator(LanguageNames.CSharp)]
 public class ApiClientGenerator : IIncrementalGenerator
 {
+    /// <summary>
+    /// Registers the pipeline: the marker file and the specifications as additional texts, the project's package references, and the client code as the output.
+    /// </summary>
+    /// <param name="context">The initialization context.</param>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Find marker files - marker file presence IS the trigger for this generator
@@ -138,42 +145,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         ClientConfig config,
         ClientPackageReferences packages)
     {
-        // Convert to SpecificationFile objects
-        var baseSpec = SpecificationService.ReadFromContent(baseFile.Content, baseFile.Path);
-        var partSpecs = partFiles
-            .Select(p => SpecificationService.ReadFromContent(p.Content, p.Path))
-            .ToList();
-
-        // Merge specifications using SpecificationService
-        var mergeConfig = config.MultiPartConfiguration ?? MultiPartConfiguration.Default;
-        var mergeResult = SpecificationService.MergeSpecifications(baseSpec, partSpecs, mergeConfig);
-
-        // Report merge diagnostics
-        foreach (var diagnostic in mergeResult.Diagnostics)
-        {
-            context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
-        }
-
-        // Stop if merge failed
-        if (!mergeResult.IsSuccess || mergeResult.Document is null)
-        {
-            return;
-        }
-
-        // Validate the merged document according to the configured strategy, like a single file
-        var validationDiagnostics = OpenApiDocumentValidator.Validate(
-            config.ValidateSpecificationStrategy,
-            mergeResult.Document,
-            Array.Empty<OpenApiError>(),
-            baseFile.Path);
-
-        foreach (var diagnostic in validationDiagnostics)
-        {
-            context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
-        }
-
-        // Stop generation if there are validation errors (not warnings)
-        if (DiagnosticHelpers.HasErrors(validationDiagnostics))
+        var openApiDoc = SpecificationLoader.MergeAndValidate(context, baseFile, partFiles, config.MultiPartConfiguration, config.ValidateSpecificationStrategy);
+        if (openApiDoc is null)
         {
             return;
         }
@@ -181,11 +154,10 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Resolve the root namespace: marker namespace, qualifying info.title, then base file name.
         var projectName = NamespaceResolver.Resolve(
             config.Namespace,
-            mergeResult.Document.Info?.Title,
+            openApiDoc.Info?.Title,
             baseFile.Path);
 
-        // Continue with normal generation using merged document
-        GenerateApiClientFromDocument(context, baseFile.Path, mergeResult.Document, config, packages, projectName);
+        GenerateApiClientFromDocument(context, baseFile.Path, openApiDoc, config, packages, projectName);
     }
 
     /// <summary>
@@ -211,31 +183,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         ClientConfig config,
         ClientPackageReferences packages)
     {
-        // Parse the OpenAPI YAML content
-        var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
-
+        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportClientParsingError);
         if (openApiDoc is null)
-        {
-            DiagnosticHelpers.ReportClientParsingError(context, yamlPath);
-            return;
-        }
-
-        // Validate OpenAPI document according to configured strategy
-        var validationDiagnostics = OpenApiDocumentValidator.Validate(
-            config.ValidateSpecificationStrategy,
-            openApiDoc,
-            openApiDiagnostic?.Errors ?? Array.Empty<OpenApiError>(),
-            yamlPath,
-            yamlContent);
-
-        // Report all validation diagnostics (convert from platform-agnostic to Roslyn)
-        foreach (var diagnostic in validationDiagnostics)
-        {
-            context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
-        }
-
-        // Stop generation if there are validation errors (not warnings)
-        if (DiagnosticHelpers.HasErrors(validationDiagnostics))
         {
             return;
         }
@@ -246,7 +195,6 @@ public class ApiClientGenerator : IIncrementalGenerator
             openApiDoc.Info?.Title,
             yamlPath);
 
-        // Continue with generation from the parsed document
         GenerateApiClientFromDocument(context, yamlPath, openApiDoc, config, packages, projectName);
     }
 
@@ -1020,46 +968,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             : NamespaceBuilder.ForClient(projectName, namespaceSegment);
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, namespaceSegment);
 
-        // Generate client parameters using shared OperationParameterExtractor (without binding attributes)
-        // Each parameter record is generated as a separate file to avoid multiple file-scoped namespace declarations
-        var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated, validateStrategy, namespaceSegment);
-
-        // Emit inline enum files for any inline enums on parameter schemas — these must
-        // appear before the parameter records that reference them.
-        foreach (var inlineEnum in parameterInlineEnums)
-        {
-            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
-            context.AddGeneratedSource(
-                NamespaceBuilder.ToFileName(clientNamespace, inlineEnum.TypeName),
-                SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
-        }
-
-        if (parameterRecords is { Count: > 0 })
-        {
-            var codeDocGenerator = new CodeDocumentationTagsGenerator();
-
-            foreach (var paramRecord in parameterRecords)
-            {
-                // Wrap single record in RecordsParameters container with proper header
-                var recordsContainer = new RecordsParameters(
-                    HeaderContent: BuildClientParameterHeader(projectName, namespaceSegment, hasSegmentModels, hasSharedModels, paramRecord),
-                    Namespace: clientNamespace,
-                    DocumentationTags: null,
-                    Attributes: null,
-                    DeclarationModifier: DeclarationModifiers.Public,
-                    Parameters: [paramRecord]);
-
-                var paramContentGenerator = new GenerateContentForRecords(
-                    codeDocGenerator,
-                    recordsContainer);
-
-                var generatedParamContent = paramContentGenerator.Generate();
-
-                context.AddGeneratedSource(
-                    NamespaceBuilder.ToFileName(clientNamespace, paramRecord.Name),
-                    SourceText.From(generatedParamContent.NormalizeForSourceOutput(), Encoding.UTF8));
-            }
-        }
+        GenerateClientParameters(context, openApiDoc, projectName, pathSegment, namespaceSegment, clientNamespace, registry, includeDeprecated, validateStrategy, hasSegmentModels, hasSharedModels);
 
         // Use HttpClientExtractor to extract HTTP client class parameters filtered by path segment
         // This also extracts inline schemas for type generation
@@ -1227,45 +1136,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         var clientNamespace = NamespaceBuilder.ForClient(projectName, namespaceSegment);
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, namespaceSegment);
 
-        // Generate client parameters using shared OperationParameterExtractor (without binding attributes)
-        // Parameters are shared between TypedClient and EndpointPerOperation modes
-        var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated, validateStrategy, namespaceSegment);
-
-        // Emit inline enum files for any inline enums on parameter schemas.
-        foreach (var inlineEnum in parameterInlineEnums)
-        {
-            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
-            context.AddGeneratedSource(
-                NamespaceBuilder.ToFileName(clientNamespace, inlineEnum.TypeName),
-                SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
-        }
-
-        if (parameterRecords is { Count: > 0 })
-        {
-            var codeDocGenerator = new CodeDocumentationTagsGenerator();
-
-            foreach (var paramRecord in parameterRecords)
-            {
-                // Wrap single record in RecordsParameters container with proper header
-                var recordsContainer = new RecordsParameters(
-                    HeaderContent: BuildClientParameterHeader(projectName, namespaceSegment, hasSegmentModels, hasSharedModels, paramRecord),
-                    Namespace: clientNamespace,
-                    DocumentationTags: null,
-                    Attributes: null,
-                    DeclarationModifier: DeclarationModifiers.Public,
-                    Parameters: [paramRecord]);
-
-                var paramContentGenerator = new GenerateContentForRecords(
-                    codeDocGenerator,
-                    recordsContainer);
-
-                var generatedParamContent = paramContentGenerator.Generate();
-
-                context.AddGeneratedSource(
-                    NamespaceBuilder.ToFileName(clientNamespace, paramRecord.Name),
-                    SourceText.From(generatedParamContent.NormalizeForSourceOutput(), Encoding.UTF8));
-            }
-        }
+        GenerateClientParameters(context, openApiDoc, projectName, pathSegment, namespaceSegment, clientNamespace, registry, includeDeprecated, validateStrategy, hasSegmentModels, hasSharedModels);
 
         // Generate endpoint files using EndpointPerOperationExtractor (with inline schema support)
         var (operationFiles, inlineSchemas) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
@@ -2073,6 +1944,58 @@ public class ApiClientGenerator : IIncrementalGenerator
         context.AddGeneratedSource(
             $"{projectName}.{config.Name}.g.cs",
             SourceText.From(normalizedContent, Encoding.UTF8));
+    }
+
+    /// <summary>
+    /// Emits the parameter records of the operations (and the inline enums they use) into the client namespace -
+    /// the same files for the typed and the per-operation client, which share the parameters.
+    /// </summary>
+    private static void GenerateClientParameters(
+        GeneratedSourceContext context,
+        OpenApiDocument openApiDoc,
+        string projectName,
+        string? pathSegment,
+        string? namespaceSegment,
+        string clientNamespace,
+        TypeConflictRegistry? registry,
+        bool includeDeprecated,
+        ValidateSpecificationStrategy validateStrategy,
+        bool hasSegmentModels,
+        bool hasSharedModels)
+    {
+        var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated, validateStrategy, namespaceSegment);
+
+        // The inline enums first: the parameter records reference them
+        foreach (var inlineEnum in parameterInlineEnums)
+        {
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
+            context.AddGeneratedSource(
+                NamespaceBuilder.ToFileName(clientNamespace, inlineEnum.TypeName),
+                SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
+        }
+
+        if (parameterRecords is not { Count: > 0 })
+        {
+            return;
+        }
+
+        var codeDocGenerator = new CodeDocumentationTagsGenerator();
+        foreach (var paramRecord in parameterRecords)
+        {
+            // One record per file (a file-scoped namespace per file)
+            var recordsContainer = new RecordsParameters(
+                HeaderContent: BuildClientParameterHeader(projectName, namespaceSegment, hasSegmentModels, hasSharedModels, paramRecord),
+                Namespace: clientNamespace,
+                DocumentationTags: null,
+                Attributes: null,
+                DeclarationModifier: DeclarationModifiers.Public,
+                Parameters: [paramRecord]);
+
+            var generatedParamContent = new GenerateContentForRecords(codeDocGenerator, recordsContainer).Generate();
+            context.AddGeneratedSource(
+                NamespaceBuilder.ToFileName(clientNamespace, paramRecord.Name),
+                SourceText.From(generatedParamContent.NormalizeForSourceOutput(), Encoding.UTF8));
+        }
     }
 
     /// <summary>

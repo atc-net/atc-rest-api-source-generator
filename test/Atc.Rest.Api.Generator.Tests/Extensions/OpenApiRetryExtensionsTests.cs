@@ -164,6 +164,106 @@ public class OpenApiRetryExtensionsTests
         Assert.Null(extensions.ExtractRetryCircuitBreaker());
     }
 
+    [Fact]
+    public void ExtractRetryBackoff_OperationDeclaresBackoff_ReturnsRawString()
+    {
+        var operation = GetFirstOperation(GetFirstPathItem(ParseYaml(YamlWithResilienceValues)!));
+
+        Assert.Equal("exponential", operation.Extensions.ExtractRetryBackoff());
+    }
+
+    [Fact]
+    public void ExtractRetryBackoff_NotDeclared_ReturnsNull()
+    {
+        var operation = GetFirstOperation(GetFirstPathItem(ParseYaml(YamlWithOperationRetryPolicy)!));
+
+        Assert.Null(operation.Extensions.ExtractRetryBackoff());
+    }
+
+    [Fact]
+    public void ExtractRetryUseJitter_OperationDeclaresFalse_ReturnsFalse()
+    {
+        var operation = GetFirstOperation(GetFirstPathItem(ParseYaml(YamlWithResilienceValues)!));
+
+        Assert.False(operation.Extensions.ExtractRetryUseJitter());
+    }
+
+    [Fact]
+    public void ExtractRetryUseJitter_NotDeclared_ReturnsNull()
+    {
+        var operation = GetFirstOperation(GetFirstPathItem(ParseYaml(YamlWithOperationRetryPolicy)!));
+
+        Assert.Null(operation.Extensions.ExtractRetryUseJitter());
+    }
+
+    [Fact]
+    public void ExtractRetryTimeoutSeconds_OperationDeclaresSeconds_ReturnsDouble()
+    {
+        var operation = GetFirstOperation(GetFirstPathItem(ParseYaml(YamlWithResilienceValues)!));
+
+        var result = operation.Extensions.ExtractRetryTimeoutSeconds();
+
+        Assert.NotNull(result);
+        Assert.Equal(30.5, result.Value, precision: 5);
+    }
+
+    [Fact]
+    public void ExtractCircuitBreakerFailureRatio_OperationDeclaresRatio_ReturnsDouble()
+    {
+        var operation = GetFirstOperation(GetFirstPathItem(ParseYaml(YamlWithResilienceValues)!));
+
+        var result = operation.Extensions.ExtractCircuitBreakerFailureRatio();
+
+        Assert.NotNull(result);
+        Assert.Equal(0.25, result.Value, precision: 5);
+    }
+
+    [Fact]
+    public void ExtractCircuitBreakerSamplingDurationSeconds_OperationDeclaresSeconds_ReturnsDouble()
+    {
+        var operation = GetFirstOperation(GetFirstPathItem(ParseYaml(YamlWithResilienceValues)!));
+
+        var result = operation.Extensions.ExtractCircuitBreakerSamplingDurationSeconds();
+
+        Assert.NotNull(result);
+        Assert.Equal(45, result.Value, precision: 5);
+    }
+
+    [Fact]
+    public void ExtractCircuitBreakerMinimumThroughput_OperationDeclaresCount_ReturnsInt()
+    {
+        var operation = GetFirstOperation(GetFirstPathItem(ParseYaml(YamlWithResilienceValues)!));
+
+        Assert.Equal(12, operation.Extensions.ExtractCircuitBreakerMinimumThroughput());
+    }
+
+    [Fact]
+    public void ExtractCircuitBreakerBreakDurationSeconds_OperationDeclaresSeconds_ReturnsDouble()
+    {
+        var operation = GetFirstOperation(GetFirstPathItem(ParseYaml(YamlWithResilienceValues)!));
+
+        var result = operation.Extensions.ExtractCircuitBreakerBreakDurationSeconds();
+
+        Assert.NotNull(result);
+        Assert.Equal(15, result.Value, precision: 5);
+    }
+
+    [Fact]
+    public void ExtractRetryHandle429_OperationDeclaresFalse_ReturnsFalse()
+    {
+        var operation = GetFirstOperation(GetFirstPathItem(ParseYaml(YamlWithResilienceValues)!));
+
+        Assert.False(operation.Extensions.ExtractRetryHandle429());
+    }
+
+    [Fact]
+    public void ExtractRetryHandle429_NotDeclared_ReturnsNull()
+    {
+        var operation = GetFirstOperation(GetFirstPathItem(ParseYaml(YamlWithOperationRetryPolicy)!));
+
+        Assert.Null(operation.Extensions.ExtractRetryHandle429());
+    }
+
     // ========== ResolveOperationRetry Tests ==========
     [Theory]
     [InlineData("/items", "GET", "GET", OperationRetryMode.Default, null, null)]
@@ -387,6 +487,30 @@ public class OpenApiRetryExtensionsTests
               x-retry-policy: PetsRetry
               x-retry-max-attempts: 5
               x-retry-delay-seconds: 2.5
+              responses:
+                '200':
+                  description: OK
+        """;
+
+    private const string YamlWithResilienceValues = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            get:
+              operationId: getPets
+              x-retry-policy: PetsRetry
+              x-retry-backoff: exponential
+              x-retry-use-jitter: false
+              x-retry-timeout-seconds: 30.5
+              x-retry-circuit-breaker: true
+              x-retry-cb-failure-ratio: 0.25
+              x-retry-cb-sampling-duration-seconds: 45
+              x-retry-cb-minimum-throughput: 12
+              x-retry-cb-break-duration-seconds: 15
+              x-retry-handle-429: false
               responses:
                 '200':
                   description: OK

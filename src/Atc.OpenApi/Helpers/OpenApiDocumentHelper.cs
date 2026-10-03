@@ -1,5 +1,9 @@
 namespace Atc.OpenApi.Helpers;
 
+/// <summary>
+/// Parses OpenAPI YAML into an <see cref="OpenApiDocument"/>, caching the result per path so the
+/// source generator and the CLI do not re-parse an unchanged specification on every pass.
+/// </summary>
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "OK.")]
 [SuppressMessage("Design", "S1075:Refactor your code not to use hardcoded absolute paths or URIs", Justification = "OK.")]
 public static class OpenApiDocumentHelper

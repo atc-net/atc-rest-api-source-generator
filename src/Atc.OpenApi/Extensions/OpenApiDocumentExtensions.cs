@@ -57,16 +57,6 @@ public static class OpenApiDocumentExtensions
             => document?.Webhooks?.Count > 0;
 
         /// <summary>
-        /// Gets all webhooks from the document (OpenAPI 3.1 feature).
-        /// Webhooks are callback-style operations where the API sends data to a consumer's endpoint.
-        /// </summary>
-        /// <returns>Enumerable of tuples containing webhook name and path item.</returns>
-        public IEnumerable<(string Name, IOpenApiPathItem PathItem)> GetAllWebhooks()
-            => document is null
-                ? throw new ArgumentNullException(nameof(document))
-                : GetAllWebhooksIterator(document);
-
-        /// <summary>
         /// Gets all webhook operations from the document (OpenAPI 3.1 feature).
         /// </summary>
         /// <returns>Enumerable of tuples containing webhook name, HTTP method, and operation.</returns>
@@ -106,23 +96,6 @@ public static class OpenApiDocumentExtensions
                 method = method.ToUpperInvariant();
 
                 yield return (path.Key, method, operation.Value);
-            }
-        }
-    }
-
-    private static IEnumerable<(string Name, IOpenApiPathItem PathItem)> GetAllWebhooksIterator(
-        OpenApiDocument document)
-    {
-        if (document.Webhooks is null)
-        {
-            yield break;
-        }
-
-        foreach (var webhook in document.Webhooks)
-        {
-            if (webhook.Value is not null)
-            {
-                yield return (webhook.Key, webhook.Value);
             }
         }
     }

@@ -46,75 +46,6 @@ internal static class TypeScriptHookModel
         sb.Append("export { ").Append(segmentCamel).AppendLine("Keys };");
     }
 
-    private static void AppendKeyEntry(
-        StringBuilder sb,
-        string segmentCamel,
-        string keyName,
-        HookInfo info,
-        List<OpenApiParameter> queryParams,
-        List<OpenApiParameter> keyHeaders,
-        TypeScriptNamingStrategy namingStrategy,
-        bool convertDates,
-        bool brandedIds)
-    {
-        // Build key function param list and key spread values incrementally.
-        // Order: pathParams..., body, querystringParams (individual)..., query?
-        // Headers and cookies are intentionally excluded — they fragment the cache
-        // per-request rather than per-resource, which breaks cache sharing.
-        var keyFuncParts = new List<string>();
-        var keySpreadValues = new List<string>();
-
-        foreach (var p in info.PathParams)
-        {
-            var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            keyFuncParts.Add(pName + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path));
-            keySpreadValues.Add(pName);
-        }
-
-        // A read that carries a body (OpenAPI 3.2 QUERY) is identified by that body, so it
-        // has to participate in the cache key — otherwise every distinct criteria set would
-        // collide on one entry. React Query hashes the key structurally, so the body object
-        // is used directly rather than a digest: a digest would cost the same serialization
-        // and lose readability in the devtools.
-        if (info.HasBody)
-        {
-            keyFuncParts.Add("body: " + info.BodyType);
-            keySpreadValues.Add("body");
-        }
-
-        foreach (var p in info.QuerystringParams)
-        {
-            var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            keyFuncParts.Add(pName + "?: string");
-            keySpreadValues.Add(pName);
-        }
-
-        if (queryParams.Count > 0)
-        {
-            keyFuncParts.Add(TypeScriptOperationHelper.BuildQueryParameter(queryParams, namingStrategy, convertDates));
-            keySpreadValues.Add("query");
-        }
-
-        if (keyHeaders.Count > 0)
-        {
-            keyFuncParts.Add(TypeScriptOperationHelper.BuildHeaderParameter(keyHeaders, convertDates));
-            keySpreadValues.Add("headers");
-        }
-
-        if (keyFuncParts.Count > 0)
-        {
-            var spreadSuffix = keySpreadValues.Count > 0
-                ? ", " + string.Join(", ", keySpreadValues)
-                : string.Empty;
-            sb.Append("  ").Append(keyName).Append(": (").Append(TypeScriptOperationHelper.JoinParameters(keyFuncParts)).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).Append('\'').Append(spreadSuffix).AppendLine("] as const,");
-        }
-        else
-        {
-            // Simple key with no params
-            sb.Append("  ").Append(keyName).Append(": () => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).AppendLine("'] as const,");
-        }
-    }
-
     /// <summary>
     /// Emits Option A from issues/001-feedback.md: a useState/useEffect/useRef-backed hook
     /// that consumes the AsyncGenerator-style client method and accumulates items into local
@@ -751,17 +682,6 @@ internal static class TypeScriptHookModel
             : null;
     }
 
-    private static string NormalizeParameterName(string? name)
-    {
-        var lower = (name ?? string.Empty).ToLowerInvariant();
-        if (lower.StartsWith("x-", StringComparison.Ordinal))
-        {
-            lower = lower[2..];
-        }
-
-        return lower.Replace("-", string.Empty, StringComparison.Ordinal).Replace("_", string.Empty, StringComparison.Ordinal);
-    }
-
     /// <summary>
     /// The headers a query key includes. Headers normally stay out of keys (correlation ids and the like would
     /// fragment the cache), but an operation that pages through a header is identified by its headers: without
@@ -1063,6 +983,86 @@ internal static class TypeScriptHookModel
 
         var colon = inner.IndexOf(':', StringComparison.Ordinal);
         return colon > 0 ? inner[..colon].Trim() : inner;
+    }
+
+    private static void AppendKeyEntry(
+        StringBuilder sb,
+        string segmentCamel,
+        string keyName,
+        HookInfo info,
+        List<OpenApiParameter> queryParams,
+        List<OpenApiParameter> keyHeaders,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates,
+        bool brandedIds)
+    {
+        // Build key function param list and key spread values incrementally.
+        // Order: pathParams..., body, querystringParams (individual)..., query?
+        // Headers and cookies are intentionally excluded — they fragment the cache
+        // per-request rather than per-resource, which breaks cache sharing.
+        var keyFuncParts = new List<string>();
+        var keySpreadValues = new List<string>();
+
+        foreach (var p in info.PathParams)
+        {
+            var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            keyFuncParts.Add(pName + ": " + TypeScriptOperationHelper.GetParameterType(p, convertDates, brandedIds, info.Path));
+            keySpreadValues.Add(pName);
+        }
+
+        // A read that carries a body (OpenAPI 3.2 QUERY) is identified by that body, so it
+        // has to participate in the cache key — otherwise every distinct criteria set would
+        // collide on one entry. React Query hashes the key structurally, so the body object
+        // is used directly rather than a digest: a digest would cost the same serialization
+        // and lose readability in the devtools.
+        if (info.HasBody)
+        {
+            keyFuncParts.Add("body: " + info.BodyType);
+            keySpreadValues.Add("body");
+        }
+
+        foreach (var p in info.QuerystringParams)
+        {
+            var pName = (p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            keyFuncParts.Add(pName + "?: string");
+            keySpreadValues.Add(pName);
+        }
+
+        if (queryParams.Count > 0)
+        {
+            keyFuncParts.Add(TypeScriptOperationHelper.BuildQueryParameter(queryParams, namingStrategy, convertDates));
+            keySpreadValues.Add("query");
+        }
+
+        if (keyHeaders.Count > 0)
+        {
+            keyFuncParts.Add(TypeScriptOperationHelper.BuildHeaderParameter(keyHeaders, convertDates));
+            keySpreadValues.Add("headers");
+        }
+
+        if (keyFuncParts.Count > 0)
+        {
+            var spreadSuffix = keySpreadValues.Count > 0
+                ? ", " + string.Join(", ", keySpreadValues)
+                : string.Empty;
+            sb.Append("  ").Append(keyName).Append(": (").Append(TypeScriptOperationHelper.JoinParameters(keyFuncParts)).Append(") => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).Append('\'').Append(spreadSuffix).AppendLine("] as const,");
+        }
+        else
+        {
+            // Simple key with no params
+            sb.Append("  ").Append(keyName).Append(": () => [...").Append(segmentCamel).Append("Keys.all, '").Append(keyName).AppendLine("'] as const,");
+        }
+    }
+
+    private static string NormalizeParameterName(string? name)
+    {
+        var lower = (name ?? string.Empty).ToLowerInvariant();
+        if (lower.StartsWith("x-", StringComparison.Ordinal))
+        {
+            lower = lower[2..];
+        }
+
+        return lower.Replace("-", string.Empty, StringComparison.Ordinal).Replace("_", string.Empty, StringComparison.Ordinal);
     }
 
     /// <summary>

@@ -462,6 +462,188 @@ public class PolymorphicTypeExtractorTests
         Assert.Contains("no matching variant found", result, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void GenerateDiscriminatorFallbackConverter_WithDefaultVariant_FallsBackToItForUnknownValues()
+    {
+        var config = new PolymorphicConfig
+        {
+            BaseTypeName = "Order",
+            DiscriminatorPropertyName = "orderType",
+            IsOneOf = true,
+            IsDiscriminatorExplicit = true,
+            DefaultVariantTypeName = "OnlineOrder",
+            Variants =
+            {
+                new PolymorphicVariant { TypeName = "OnlineOrder", DiscriminatorValue = "online" },
+                new PolymorphicVariant { TypeName = "InStoreOrder", DiscriminatorValue = "in_store" },
+            },
+        };
+
+        var result = PolymorphicTypeExtractor.GenerateDiscriminatorFallbackConverter(
+            config,
+            "TestProject",
+            pathSegment: null,
+            additionalUsings: ["TestProject.Generated.Shared.Models"]);
+
+        Assert.Contains("namespace TestProject.Generated.Models;", result, StringComparison.Ordinal);
+        Assert.Contains("using System.Text.Json;", result, StringComparison.Ordinal);
+        Assert.Contains("using TestProject.Generated.Shared.Models;", result, StringComparison.Ordinal);
+        Assert.Contains("public sealed class OrderJsonConverter : JsonConverter<Order>", result, StringComparison.Ordinal);
+        Assert.Contains("/// <see cref=\"OnlineOrder\"/> for unrecognized discriminator values.", result, StringComparison.Ordinal);
+        Assert.Contains("if (document.RootElement.TryGetProperty(\"orderType\", out var discriminatorElement))", result, StringComparison.Ordinal);
+        Assert.Contains("\"online\" => JsonSerializer.Deserialize<OnlineOrder>(rawText, options),", result, StringComparison.Ordinal);
+        Assert.Contains("\"in_store\" => JsonSerializer.Deserialize<InStoreOrder>(rawText, options),", result, StringComparison.Ordinal);
+        Assert.Contains("_ => JsonSerializer.Deserialize<OnlineOrder>(rawText, options),", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("throw new JsonException", result, StringComparison.Ordinal);
+        Assert.Contains("JsonSerializer.Serialize(writer, value, value.GetType(), options);", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GenerateDiscriminatorFallbackConverter_WithoutDefaultVariant_ThrowsForUnknownValuesAndUsesSegmentNamespace()
+    {
+        var config = new PolymorphicConfig
+        {
+            BaseTypeName = "Order",
+            DiscriminatorPropertyName = "orderType",
+            IsOneOf = true,
+            IsDiscriminatorExplicit = true,
+            DiscriminatorDeclaredByVariants = true,
+            Variants =
+            {
+                new PolymorphicVariant { TypeName = "OnlineOrder", DiscriminatorValue = "online" },
+            },
+        };
+
+        var result = PolymorphicTypeExtractor.GenerateDiscriminatorFallbackConverter(config, "TestProject", "Orders");
+
+        Assert.Contains("namespace TestProject.Generated.Orders.Models;", result, StringComparison.Ordinal);
+        Assert.Contains("/// Dispatches on property 'orderType'; an unrecognized value is a <see cref=\"JsonException\"/>.", result, StringComparison.Ordinal);
+        Assert.Contains("_ => throw new JsonException($\"Unknown 'orderType' value '{discriminatorValue}' for Order.\"),", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GetPolymorphicConfig_ExplicitDiscriminatorWithDefaultMapping_SetsMappedValuesAndFallbackVariant()
+    {
+        const string yaml = """
+                            openapi: "3.2.0"
+                            info:
+                              title: T
+                              version: "1.0.0"
+                            paths: {}
+                            components:
+                              schemas:
+                                Order:
+                                  oneOf:
+                                    - $ref: '#/components/schemas/OnlineOrder'
+                                    - $ref: '#/components/schemas/InStoreOrder'
+                                  discriminator:
+                                    propertyName: orderType
+                                    mapping:
+                                      online: '#/components/schemas/OnlineOrder'
+                                      in_store: '#/components/schemas/InStoreOrder'
+                                    defaultMapping: '#/components/schemas/OnlineOrder'
+                                OnlineOrder:
+                                  type: object
+                                  properties:
+                                    orderType:
+                                      type: string
+                                InStoreOrder:
+                                  type: object
+                                  properties:
+                                    orderType:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var config = PolymorphicTypeExtractor.GetPolymorphicConfig("Order", document.Components!.Schemas!["Order"], document);
+
+        Assert.NotNull(config);
+        Assert.Equal("Order", config.BaseTypeName);
+        Assert.Equal("orderType", config.DiscriminatorPropertyName);
+        Assert.True(config.IsOneOf);
+        Assert.True(config.IsDiscriminatorExplicit);
+        Assert.False(config.UsesCustomConverter);
+        Assert.Equal("OnlineOrder", config.DefaultVariantTypeName);
+
+        // Both variants declare orderType as a property of their own, so STJ's [JsonPolymorphic] cannot be used.
+        Assert.True(config.DiscriminatorDeclaredByVariants);
+        Assert.True(config.UsesDiscriminatorConverter);
+
+        Assert.Equal(2, config.Variants.Count);
+        var online = config.Variants.Single(v => v.TypeName == "OnlineOrder");
+        Assert.Equal("online", online.DiscriminatorValue);
+        Assert.Equal("OnlineOrder", online.SchemaRefId);
+        var inStore = config.Variants.Single(v => v.TypeName == "InStoreOrder");
+        Assert.Equal("in_store", inStore.DiscriminatorValue);
+    }
+
+    [Fact]
+    public void GetPolymorphicConfig_NoDiscriminatorAndNoCommonProperty_ReturnsUnionConfig()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: T
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                PaymentResult:
+                                  oneOf:
+                                    - $ref: '#/components/schemas/SuccessPayment'
+                                    - $ref: '#/components/schemas/FailedPayment'
+                                SuccessPayment:
+                                  type: object
+                                  properties:
+                                    transactionId:
+                                      type: string
+                                FailedPayment:
+                                  type: object
+                                  properties:
+                                    reason:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var config = PolymorphicTypeExtractor.GetPolymorphicConfig("PaymentResult", document.Components!.Schemas!["PaymentResult"], document);
+
+        Assert.NotNull(config);
+        Assert.Equal("PaymentResult", config.BaseTypeName);
+        Assert.True(config.IsOneOf);
+        Assert.False(config.IsDiscriminatorExplicit);
+        Assert.True(config.UsesCustomConverter);
+        Assert.Null(config.DefaultVariantTypeName);
+        Assert.Equal(["SuccessPayment", "FailedPayment"], config.Variants.Select(v => v.TypeName), StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void GetPolymorphicConfig_PlainObjectSchema_ReturnsNull()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: T
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        Assert.Null(PolymorphicTypeExtractor.GetPolymorphicConfig("Pet", document.Components!.Schemas!["Pet"], document));
+    }
+
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)
             ? document

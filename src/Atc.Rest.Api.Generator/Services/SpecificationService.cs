@@ -722,16 +722,6 @@ public static class SpecificationService
         return diagnostics;
     }
 
-    /// <summary>
-    /// Generates a merged YAML content string from the merged document.
-    /// </summary>
-    /// <param name="mergeResult">The merge result.</param>
-    /// <returns>The merged YAML content.</returns>
-    public static string GenerateMergedYaml(MergeResult mergeResult)
-        => mergeResult.Document is null
-            ? string.Empty
-            : SerializeToYaml(mergeResult.Document);
-
     private static IReadOnlyList<SpecificationFile> LoadExplicitPartFiles(
         string baseFilePath,
         IReadOnlyList<string> parts)

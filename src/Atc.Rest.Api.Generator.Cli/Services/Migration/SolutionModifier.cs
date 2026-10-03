@@ -6,47 +6,6 @@ namespace Atc.Rest.Api.Generator.Cli.Services.Migration;
 internal static class SolutionModifier
 {
     /// <summary>
-    /// Updates project references in a solution file.
-    /// </summary>
-    /// <param name="solutionPath">Path to the solution file (.sln or .slnx).</param>
-    /// <param name="oldName">The old project name (e.g., "Api.Generated").</param>
-    /// <param name="newName">The new project name (e.g., "Api.Contracts").</param>
-    /// <param name="dryRun">If true, only returns what would be modified.</param>
-    /// <returns>The result of the modification.</returns>
-    public static SolutionModificationResult UpdateProjectReference(
-        string solutionPath,
-        string oldName,
-        string newName,
-        bool dryRun = false)
-    {
-        var result = new SolutionModificationResult { SolutionPath = solutionPath };
-
-        if (!File.Exists(solutionPath))
-        {
-            result.Error = "Solution file not found.";
-            return result;
-        }
-
-        var content = File.ReadAllText(solutionPath);
-
-        if (!content.Contains(oldName, StringComparison.OrdinalIgnoreCase))
-        {
-            return result;
-        }
-
-        var modified = content.Replace(oldName, newName, StringComparison.OrdinalIgnoreCase);
-        result.UpdatedReferences.Add($"{oldName} → {newName}");
-
-        if (!dryRun && modified != content)
-        {
-            File.WriteAllText(solutionPath, modified);
-        }
-
-        result.WasModified = modified != content;
-        return result;
-    }
-
-    /// <summary>
     /// Updates all project references for migration.
     /// </summary>
     /// <param name="solutionPath">Path to the solution file.</param>

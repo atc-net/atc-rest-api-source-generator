@@ -5,6 +5,13 @@ namespace Atc.Rest.Api.Generator.JsonConverters;
 /// </summary>
 public class ValidateSpecificationStrategyTypeConverter : JsonConverter<ValidateSpecificationStrategy>
 {
+    /// <summary>
+    /// Reads the strategy from its PascalCase (<c>Strict</c>) or kebab-case (<c>strict</c>, <c>atc-rules</c>) name.
+    /// </summary>
+    /// <param name="reader">The reader, at the string.</param>
+    /// <param name="typeToConvert">The enum type.</param>
+    /// <param name="options">The serializer options.</param>
+    /// <returns>The strategy.</returns>
     public override ValidateSpecificationStrategy Read(
         ref Utf8JsonReader reader,
         Type typeToConvert,
@@ -25,6 +32,12 @@ public class ValidateSpecificationStrategyTypeConverter : JsonConverter<Validate
         };
     }
 
+    /// <summary>
+    /// Writes the strategy as its PascalCase name.
+    /// </summary>
+    /// <param name="writer">The writer.</param>
+    /// <param name="value">The strategy.</param>
+    /// <param name="options">The serializer options.</param>
     public override void Write(
         Utf8JsonWriter writer,
         ValidateSpecificationStrategy value,

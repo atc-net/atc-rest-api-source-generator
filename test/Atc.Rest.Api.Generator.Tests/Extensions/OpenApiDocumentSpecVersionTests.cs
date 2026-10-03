@@ -2,17 +2,6 @@ namespace Atc.Rest.Api.Generator.Tests.Extensions;
 
 public class OpenApiDocumentSpecVersionTests
 {
-    private static string MinimalYaml(
-        string openApiVersion,
-        string title)
-        => $$"""
-            openapi: {{openApiVersion}}
-            info:
-              title: {{title}}
-              version: 1.0.0
-            paths: {}
-            """;
-
     [Fact]
     public void GetOpenApiSpecVersion_Parsed32Document_ReturnsOpenApi3_2()
     {
@@ -53,4 +42,15 @@ public class OpenApiDocumentSpecVersionTests
 
         Assert.Null(document.GetOpenApiSpecVersion());
     }
+
+    private static string MinimalYaml(
+        string openApiVersion,
+        string title)
+        => $$"""
+            openapi: {{openApiVersion}}
+            info:
+              title: {{title}}
+              version: 1.0.0
+            paths: {}
+            """;
 }

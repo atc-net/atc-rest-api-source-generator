@@ -6,6 +6,13 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
 public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientTypeScriptCommandSettings>
 {
+    /// <summary>
+    /// Validates the specification and generates the TypeScript client files, once or in watch mode.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command, which also ends watch mode.</param>
+    /// <returns>0 when generation succeeded; otherwise 1.</returns>
     protected override int Execute(
         CommandContext context,
         GenerateClientTypeScriptCommandSettings settings,

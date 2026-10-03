@@ -1,6 +1,9 @@
 // ReSharper disable once CheckNamespace
 namespace System;
 
+/// <summary>
+/// String extensions that turn specification text into TypeScript identifiers and tidy generated source.
+/// </summary>
 [SuppressMessage("", "CA1034:Do not nest type", Justification = "OK - CLang14 - extension")]
 public static class TypeScriptStringExtensions
 {
@@ -22,8 +25,14 @@ public static class TypeScriptStringExtensions
         "async", "await",
     };
 
+    /// <param name="value">The string to convert.</param>
     extension(string value)
     {
+        /// <summary>
+        /// Converts the string to camelCase: <see cref="ToPascalCase"/> with the first letter lowered
+        /// (<c>"pet-store"</c> becomes <c>"petStore"</c>).
+        /// </summary>
+        /// <returns>The camelCase string; empty stays empty.</returns>
         public string ToCamelCase()
         {
             if (string.IsNullOrEmpty(value))
@@ -40,6 +49,11 @@ public static class TypeScriptStringExtensions
             return char.ToLowerInvariant(pascalCase[0]) + pascalCase.Substring(1);
         }
 
+        /// <summary>
+        /// Converts the string to PascalCase, splitting on <c>-</c>, <c>.</c>, <c>_</c>, space and case
+        /// transitions and lowering the rest of each word (<c>"XMLParser"</c> becomes <c>"XmlParser"</c>).
+        /// </summary>
+        /// <returns>The PascalCase string; empty stays empty.</returns>
         public string ToPascalCase()
         {
             if (string.IsNullOrEmpty(value))
@@ -67,6 +81,10 @@ public static class TypeScriptStringExtensions
             return result.ToString();
         }
 
+        /// <summary>
+        /// Splits the string on <c>\r\n</c>, <c>\n</c> or <c>\r</c> and drops blank lines.
+        /// </summary>
+        /// <returns>The non-blank lines; empty for an empty string.</returns>
         public string[] SplitIntoLines()
             => string.IsNullOrEmpty(value)
                 ? Array.Empty<string>()
@@ -75,11 +93,20 @@ public static class TypeScriptStringExtensions
                     .Where(x => !string.IsNullOrWhiteSpace(x))
                     .ToArray();
 
+        /// <summary>
+        /// Splits the string on <c>\r\n</c>, <c>\n</c> or <c>\r</c>, keeping blank lines so spacing between
+        /// members survives.
+        /// </summary>
+        /// <returns>All lines; empty for an empty string.</returns>
         public string[] SplitIntoLinesPreserveEmpty()
             => string.IsNullOrEmpty(value)
                 ? Array.Empty<string>()
                 : value.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
 
+        /// <summary>
+        /// Removes trailing whitespace so a generated file ends at its last token.
+        /// </summary>
+        /// <returns>The string without trailing whitespace.</returns>
         public string NormalizeForSourceOutput()
             => string.IsNullOrEmpty(value)
                 ? value

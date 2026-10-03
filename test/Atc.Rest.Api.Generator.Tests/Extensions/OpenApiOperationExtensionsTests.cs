@@ -2,23 +2,6 @@ namespace Atc.Rest.Api.Generator.Tests.Extensions;
 
 public class OpenApiOperationExtensionsTests
 {
-    // ========== Streaming (OpenAPI 3.2 itemSchema) Tests ==========
-    private static OpenApiOperation CreateOperationWithItemSchema(
-        string contentType)
-        => new()
-        {
-            Responses = new OpenApiResponses
-            {
-                ["200"] = new OpenApiResponse
-                {
-                    Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal)
-                    {
-                        [contentType] = new OpenApiMediaType { ItemSchema = new OpenApiSchema { Title = "Event" } },
-                    },
-                },
-            },
-        };
-
     [Fact]
     public void GetStreamingItemSchema_ItemSchemaPresent_ReturnsItem()
     {
@@ -768,7 +751,494 @@ public class OpenApiOperationExtensionsTests
         Assert.False(operation.IsStreamingResponse());
     }
 
+    // ========== IsStringSchema Tests ==========
+    [Fact]
+    public void IsStringSchema_PlainString_ReturnsTrue()
+        => Assert.True(OpenApiOperationExtensions.IsStringSchema(new OpenApiSchema { Type = JsonSchemaType.String }));
+
+    [Fact]
+    public void IsStringSchema_NullableString_ReturnsTrue()
+        => Assert.True(OpenApiOperationExtensions.IsStringSchema(new OpenApiSchema { Type = JsonSchemaType.String | JsonSchemaType.Null }));
+
+    [Fact]
+    public void IsStringSchema_StringOrInteger_ReturnsFalse()
+        => Assert.False(OpenApiOperationExtensions.IsStringSchema(new OpenApiSchema { Type = JsonSchemaType.String | JsonSchemaType.Integer }));
+
+    [Fact]
+    public void IsStringSchema_IntegerOrNull_ReturnsFalse()
+    {
+        Assert.False(OpenApiOperationExtensions.IsStringSchema(new OpenApiSchema { Type = JsonSchemaType.Integer }));
+        Assert.False(OpenApiOperationExtensions.IsStringSchema(new OpenApiSchema()));
+        Assert.False(OpenApiOperationExtensions.IsStringSchema(schema: null));
+    }
+
+    // ========== GetJsonRequestBodyMediaType Tests ==========
+    [Fact]
+    public void GetJsonRequestBodyMediaType_ApplicationJson_ReturnsIt()
+        => Assert.Equal("application/json", CreateOperationWithJsonBody().GetJsonRequestBodyMediaType());
+
+    [Fact]
+    public void GetJsonRequestBodyMediaType_OnlyJsonSuffixTypes_ReturnsFirstByName()
+    {
+        var op = new OpenApiOperation
+        {
+            RequestBody = new OpenApiRequestBody
+            {
+                Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal)
+                {
+                    ["application/vnd.x+json; charset=utf-8"] = new OpenApiMediaType { Schema = new OpenApiSchema() },
+                    ["application/merge-patch+json"] = new OpenApiMediaType { Schema = new OpenApiSchema() },
+                },
+            },
+        };
+
+        Assert.Equal("application/merge-patch+json", op.GetJsonRequestBodyMediaType());
+    }
+
+    [Fact]
+    public void GetJsonRequestBodyMediaType_NoJson_ReturnsNull()
+    {
+        Assert.Null(CreateOperationWithContentType("application/xml").GetJsonRequestBodyMediaType());
+        Assert.Null(new OpenApiOperation().GetJsonRequestBodyMediaType());
+    }
+
+    // ========== GetParametersByLocation Tests ==========
+    [Fact]
+    public void GetParametersByLocation_ParsedOperation_FiltersInlineAndReferencedParameters()
+    {
+        var operation = ParsePetsOperation(YamlWithMixedParameters);
+
+        var header = operation.GetParametersByLocation(ParameterLocation.Header).Select(p => p.Name).ToList();
+        var query = operation.GetParametersByLocation(ParameterLocation.Query).Select(p => p.Name).ToList();
+        var cookie = operation.GetParametersByLocation(ParameterLocation.Cookie).Select(p => p.Name).ToList();
+        var path = operation.GetParametersByLocation(ParameterLocation.Path).Select(p => p.Name).ToList();
+
+        Assert.Equal(["X-Tenant"], header);
+        Assert.Equal(["page", "size"], query);
+        Assert.Equal(["session"], cookie);
+        Assert.Empty(path);
+    }
+
+    [Fact]
+    public void GetParametersByLocation_NoParameters_ReturnsEmpty()
+        => Assert.Empty(new OpenApiOperation().GetParametersByLocation(ParameterLocation.Query));
+
+    // ========== GetFileUploadContentType Tests ==========
+    [Theory]
+    [InlineData("multipart/form-data", "multipart/form-data")]
+    [InlineData("multipart/form-data; boundary=x", "multipart/form-data; boundary=x")]
+    [InlineData("application/octet-stream", "application/octet-stream")]
+    [InlineData("image/png", "image/png")]
+    [InlineData("application/json", null)]
+    [InlineData("application/x-www-form-urlencoded", null)]
+    public void GetFileUploadContentType_ReturnsTheUploadMediaTypeOrNull(
+        string contentType,
+        string? expected)
+        => Assert.Equal(expected, CreateOperationWithContentType(contentType).GetFileUploadContentType());
+
+    [Fact]
+    public void GetFileUploadContentType_NoBody_ReturnsNull()
+        => Assert.Null(new OpenApiOperation().GetFileUploadContentType());
+
+    // ========== GetResponseCardinalityAnnotation Tests ==========
+    [Theory]
+    [InlineData("single", "single")]
+    [InlineData("ARRAY", "array")]
+    [InlineData("Single", "single")]
+    [InlineData("many", null)]
+    [InlineData("", null)]
+    public void GetResponseCardinalityAnnotation_NormalizesRecognizedValues(
+        string value,
+        string? expected)
+    {
+        var op = new OpenApiOperation
+        {
+            Extensions = new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
+            {
+                ["x-operation-response-cardinality"] = new JsonNodeExtension(JsonValue.Create(value)),
+            },
+        };
+
+        Assert.Equal(expected, op.GetResponseCardinalityAnnotation());
+    }
+
+    [Fact]
+    public void GetResponseCardinalityAnnotation_Absent_ReturnsNull()
+        => Assert.Null(new OpenApiOperation().GetResponseCardinalityAnnotation());
+
+    [Fact]
+    public void GetResponseCardinalityAnnotation_NonStringValue_ReturnsNull()
+    {
+        var op = new OpenApiOperation
+        {
+            Extensions = new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
+            {
+                ["x-operation-response-cardinality"] = new JsonNodeExtension(JsonValue.Create(true)),
+            },
+        };
+
+        Assert.Null(op.GetResponseCardinalityAnnotation());
+    }
+
+    // ========== IsStreamedDownloadOperation Tests ==========
+    [Fact]
+    public void IsStreamedDownloadOperation_FileDownloadWithReturnStream_ReturnsTrue()
+    {
+        var op = CreateOperationWithResponseContentType("200", "application/pdf");
+        op.Extensions = new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
+        {
+            ["x-return-stream"] = new JsonNodeExtension(JsonValue.Create(true)),
+        };
+
+        Assert.True(op.IsStreamedDownloadOperation());
+    }
+
+    [Fact]
+    public void IsStreamedDownloadOperation_FileDownloadWithoutAnnotation_ReturnsFalse()
+        => Assert.False(CreateOperationWithResponseContentType("200", "application/pdf").IsStreamedDownloadOperation());
+
+    [Fact]
+    public void IsStreamedDownloadOperation_JsonResponseWithAnnotation_ReturnsFalse()
+    {
+        var op = CreateOperationWithResponse("200");
+        op.Extensions = new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
+        {
+            ["x-return-stream"] = new JsonNodeExtension(JsonValue.Create(true)),
+        };
+
+        Assert.False(op.IsStreamedDownloadOperation());
+    }
+
+    [Fact]
+    public void IsStreamedDownloadOperation_AnnotationFalse_ReturnsFalse()
+    {
+        var op = CreateOperationWithResponseContentType("200", "application/pdf");
+        op.Extensions = new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
+        {
+            ["x-return-stream"] = new JsonNodeExtension(JsonValue.Create(false)),
+        };
+
+        Assert.False(op.IsStreamedDownloadOperation());
+    }
+
+    // ========== IsAsyncEnumerableOperation Tests ==========
+    [Fact]
+    public void IsAsyncEnumerableOperation_AnnotationTrue_ReturnsTrue()
+        => Assert.True(BuildAsyncEnumerableAnnotatedOperation().IsAsyncEnumerableOperation());
+
+    [Fact]
+    public void IsAsyncEnumerableOperation_AnnotationFalse_ReturnsFalse()
+        => Assert.False(BuildAnnotatedOperation("application/json", new OpenApiSchema(), annotated: false).IsAsyncEnumerableOperation());
+
+    [Fact]
+    public void IsAsyncEnumerableOperation_NoExtensions_ReturnsFalse()
+        => Assert.False(new OpenApiOperation().IsAsyncEnumerableOperation());
+
+    [Fact]
+    public void IsAsyncEnumerableOperation_ParsedAnnotation_ReturnsTrue()
+    {
+        var operation = ParsePetsOperation(YamlWithAsyncEnumerableAnnotation);
+
+        Assert.True(operation.IsAsyncEnumerableOperation());
+    }
+
+    // ========== GetPaginationTokenProperty Tests ==========
+    [Theory]
+    [InlineData("continuationToken", "continuationToken")]
+    [InlineData("NextPageToken", "NextPageToken")]
+    [InlineData("cursor", "cursor")]
+    [InlineData("offset", null)]
+    public void GetPaginationTokenProperty_DirectProperty_ReturnsDeclaredName(
+        string propertyName,
+        string? expected)
+    {
+        var operation = ParsePetsOperation(YamlWithPagedResponseProperty(propertyName, "string"));
+
+        Assert.Equal(expected, operation.GetPaginationTokenProperty());
+    }
+
+    [Fact]
+    public void GetPaginationTokenProperty_NonStringToken_ReturnsNull()
+    {
+        var operation = ParsePetsOperation(YamlWithPagedResponseProperty("continuationToken", "integer"));
+
+        Assert.Null(operation.GetPaginationTokenProperty());
+    }
+
+    [Fact]
+    public void GetPaginationTokenProperty_TokenInAllOfPart_ReturnsIt()
+    {
+        var operation = ParsePetsOperation(YamlWithPaginationWrapper);
+
+        Assert.Equal("continuationToken", operation.GetPaginationTokenProperty());
+    }
+
+    [Fact]
+    public void GetPaginationTokenProperty_PrefersContinuationTokenOverCursor()
+    {
+        var operation = ParsePetsOperation(YamlWithTwoTokenCandidates);
+
+        Assert.Equal("continuationToken", operation.GetPaginationTokenProperty());
+    }
+
+    [Fact]
+    public void GetPaginationTokenProperty_StreamingResponse_ReturnsNull()
+        => Assert.Null(BuildStreamingOperation("application/jsonl").GetPaginationTokenProperty());
+
+    [Fact]
+    public void GetPaginationTokenProperty_NoResponseSchema_ReturnsNull()
+        => Assert.Null(new OpenApiOperation().GetPaginationTokenProperty());
+
+    // ========== GetFirstTag Tests ==========
+    [Fact]
+    public void GetFirstTag_ParsedTags_ReturnsFirstInPascalCase()
+    {
+        var operation = ParsePetsOperation(YamlWithTags);
+
+        Assert.Equal("PetStore", operation.GetFirstTag());
+    }
+
+    [Fact]
+    public void GetFirstTag_NoTags_ReturnsEmpty()
+        => Assert.Equal(string.Empty, new OpenApiOperation().GetFirstTag());
+
+    // ========== GetModelOrFileMediaTypes Tests ==========
+    [Fact]
+    public void GetModelOrFileMediaTypes_JsonAndPdf_ReturnsThePdf()
+    {
+        var op = new OpenApiOperation
+        {
+            Responses = new OpenApiResponses
+            {
+                ["200"] = new OpenApiResponse
+                {
+                    Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal)
+                    {
+                        ["application/json"] = new OpenApiMediaType { Schema = new OpenApiSchema { Type = JsonSchemaType.Object } },
+                        ["application/pdf"] = new OpenApiMediaType { Schema = new OpenApiSchema { Type = JsonSchemaType.String, Format = "binary" } },
+                    },
+                },
+            },
+        };
+
+        Assert.Equal(["application/pdf"], op.GetModelOrFileMediaTypes());
+    }
+
+    [Fact]
+    public void GetModelOrFileMediaTypes_FileOnly_ReturnsEmpty()
+        => Assert.Empty(CreateOperationWithResponseContentType("200", "application/pdf").GetModelOrFileMediaTypes());
+
+    [Fact]
+    public void GetModelOrFileMediaTypes_No200Response_ReturnsEmpty()
+        => Assert.Empty(CreateOperationWithResponse("201").GetModelOrFileMediaTypes());
+
+    // ========== GetFileDownloadContentType Tests ==========
+    [Theory]
+    [InlineData("application/pdf", "application/pdf")]
+    [InlineData("application/octet-stream", "application/octet-stream")]
+    [InlineData("image/png", "image/png")]
+    [InlineData("application/json", null)]
+    [InlineData("text/plain", null)]
+    public void GetFileDownloadContentType_ReturnsTheBinaryMediaTypeOrNull(
+        string contentType,
+        string? expected)
+        => Assert.Equal(expected, CreateOperationWithResponseContentType("200", contentType).GetFileDownloadContentType());
+
+    [Fact]
+    public void GetFileDownloadContentType_No200Response_ReturnsNull()
+    {
+        Assert.Null(CreateOperationWithResponseContentType("201", "application/pdf").GetFileDownloadContentType());
+        Assert.Null(new OpenApiOperation().GetFileDownloadContentType());
+    }
+
+    // ========== IsRawFileUploadContentType Tests ==========
+    [Theory]
+    [InlineData("application/octet-stream", true)]
+    [InlineData("application/pdf; version=1.7", true)]
+    [InlineData("image/png", true)]
+    [InlineData("multipart/form-data", false)]
+    [InlineData("multipart/mixed", false)]
+    [InlineData("application/x-www-form-urlencoded", false)]
+    [InlineData("application/json", false)]
+    [InlineData("text/plain", false)]
+    [InlineData(null, false)]
+    public void IsRawFileUploadContentType_ReturnsExpectedResult(
+        string? contentType,
+        bool expected)
+        => Assert.Equal(expected, OpenApiOperationExtensions.IsRawFileUploadContentType(contentType));
+
+    // ========== Streaming (OpenAPI 3.2 itemSchema) Tests ==========
+    private static OpenApiOperation CreateOperationWithItemSchema(
+        string contentType)
+        => new()
+        {
+            Responses = new OpenApiResponses
+            {
+                ["200"] = new OpenApiResponse
+                {
+                    Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal)
+                    {
+                        [contentType] = new OpenApiMediaType { ItemSchema = new OpenApiSchema { Title = "Event" } },
+                    },
+                },
+            },
+        };
+
     // ========== Helper Methods ==========
+    private static OpenApiOperation ParsePetsOperation(string yaml)
+        => OpenApiDocumentHelper.ParseYaml(yaml).Paths["/pets"].Operations!.Values.First();
+
+    private const string YamlWithMixedParameters = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            get:
+              operationId: getPets
+              parameters:
+                - name: X-Tenant
+                  in: header
+                  schema:
+                    type: string
+                - name: page
+                  in: query
+                  schema:
+                    type: integer
+                - $ref: '#/components/parameters/Size'
+                - name: session
+                  in: cookie
+                  schema:
+                    type: string
+              responses:
+                '200':
+                  description: OK
+        components:
+          parameters:
+            Size:
+              name: size
+              in: query
+              schema:
+                type: integer
+        """;
+
+    private const string YamlWithAsyncEnumerableAnnotation = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            get:
+              operationId: getPets
+              x-return-async-enumerable: true
+              responses:
+                '200':
+                  description: OK
+        """;
+
+    private const string YamlWithTags = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            get:
+              operationId: getPets
+              tags:
+                - pet-store
+                - admin
+              responses:
+                '200':
+                  description: OK
+        """;
+
+    private static string YamlWithPagedResponseProperty(
+        string propertyName,
+        string propertyType)
+        => $"""
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            get:
+              operationId: getPets
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              type: string
+                          {propertyName}:
+                            type: {propertyType}
+        """;
+
+    private const string YamlWithPaginationWrapper = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            get:
+              operationId: getPets
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        allOf:
+                          - $ref: '#/components/schemas/PaginatedResult'
+                          - type: object
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  type: string
+        components:
+          schemas:
+            PaginatedResult:
+              type: object
+              properties:
+                continuationToken:
+                  type: string
+                  nullable: true
+        """;
+
+    private const string YamlWithTwoTokenCandidates = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /pets:
+            get:
+              operationId: getPets
+              responses:
+                '200':
+                  description: OK
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        properties:
+                          cursor:
+                            type: string
+                          continuationToken:
+                            type: string
+        """;
+
     private static OpenApiOperation BuildAnnotatedOperation(
         string mediaType,
         OpenApiSchema schema,

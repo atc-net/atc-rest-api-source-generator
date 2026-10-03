@@ -78,6 +78,187 @@ public static class ResultClassExtractor
         return (resultClasses, inlineSchemas);
     }
 
+    /// <summary>
+    /// The <c>LocationHttpResult</c> type the 303 factories use (ASP.NET Core has no redirect result for 303): the
+    /// wrapped result, written with a <c>Location</c> header.
+    /// </summary>
+    public static string LocationHttpResultSource()
+        => $$"""
+
+            /// <summary>
+            /// Writes the wrapped result with a <c>Location</c> header.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal sealed class LocationHttpResult : IResult
+            {
+                private readonly IResult inner;
+                private readonly string location;
+
+                public LocationHttpResult(
+                    IResult inner,
+                    string location)
+                {
+                    this.inner = inner;
+                    this.location = location;
+                }
+
+                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+                {
+                    httpContext.Response.Headers.Location = location;
+                    return inner.ExecuteAsync(httpContext);
+                }
+            }
+            """;
+
+    /// <summary>
+    /// The <c>XmlHttpResult</c> type the factories of an XML body use: the status, the declared media type (UTF-8) and
+    /// the body the generated <c>{Model}Xml</c> wrote.
+    /// </summary>
+    public static string XmlHttpResultSource()
+        => $$"""
+
+            /// <summary>
+            /// Writes an XML body (the model's generated XML mapping) with its status and media type.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal sealed class XmlHttpResult : IResult, IStatusCodeHttpResult, IContentTypeHttpResult
+            {
+                private readonly byte[] body;
+
+                public XmlHttpResult(
+                    int statusCode,
+                    string mediaType,
+                    byte[] body)
+                {
+                    StatusCode = statusCode;
+                    ContentType = mediaType + "; charset=utf-8";
+                    this.body = body;
+                }
+
+                public int StatusCode { get; }
+
+                int? IStatusCodeHttpResult.StatusCode => StatusCode;
+
+                public string ContentType { get; }
+
+                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+                {
+                    httpContext.Response.StatusCode = StatusCode;
+                    httpContext.Response.ContentType = ContentType;
+                    httpContext.Response.ContentLength = body.Length;
+                    return httpContext.Response.Body.WriteAsync(body, httpContext.RequestAborted).AsTask();
+                }
+            }
+            """;
+
+    /// <summary>
+    /// The <c>NegotiatedHttpResult</c> type the factories of a body offered as JSON and XML use: the JSON result unless
+    /// the request's <c>Accept</c> prefers one of the XML media types (a higher quality than any JSON one; <c>*/*</c>
+    /// and a tie are JSON - never a 406).
+    /// </summary>
+    public static string NegotiatedHttpResultSource()
+        => $$"""
+
+            /// <summary>
+            /// Writes the JSON result, or the XML one when the request's Accept prefers XML.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal sealed class NegotiatedHttpResult : IResult, IStatusCodeHttpResult
+            {
+                private readonly IResult json;
+                private readonly global::System.Func<string, IResult> xml;
+                private readonly string[] xmlMediaTypes;
+
+                public NegotiatedHttpResult(
+                    IResult json,
+                    global::System.Func<string, IResult> xml,
+                    params string[] xmlMediaTypes)
+                {
+                    this.json = json;
+                    this.xml = xml;
+                    this.xmlMediaTypes = xmlMediaTypes;
+                }
+
+                public int? StatusCode
+                    => (json as IStatusCodeHttpResult)?.StatusCode;
+
+                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+                    => PreferredXmlMediaType(httpContext.Request.Headers.Accept) is { } mediaType
+                        ? xml(mediaType).ExecuteAsync(httpContext)
+                        : json.ExecuteAsync(httpContext);
+
+                private string? PreferredXmlMediaType(global::Microsoft.Extensions.Primitives.StringValues accept)
+                {
+                    if (accept.Count == 0 ||
+                        !global::Microsoft.Net.Http.Headers.MediaTypeHeaderValue.TryParseList(accept, out var values))
+                    {
+                        return null;
+                    }
+
+                    var jsonQuality = 0d;
+                    var xmlQuality = 0d;
+                    string? chosen = null;
+                    foreach (var value in values)
+                    {
+                        var quality = value.Quality ?? 1d;
+                        var type = value.MediaType.Value ?? string.Empty;
+                        if (type is "*/*" or "application/*" or "application/json" ||
+                            type.EndsWith("+json", global::System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            jsonQuality = global::System.Math.Max(jsonQuality, quality);
+                        }
+
+                        foreach (var xmlMediaType in xmlMediaTypes)
+                        {
+                            if (string.Equals(type, xmlMediaType, global::System.StringComparison.OrdinalIgnoreCase) && quality > xmlQuality)
+                            {
+                                xmlQuality = quality;
+                                chosen = xmlMediaType;
+                            }
+                        }
+                    }
+
+                    return xmlQuality > jsonQuality ? chosen : null;
+                }
+            }
+            """;
+
+    /// <summary>
+    /// The source of the <c>IResult</c> wrapper that adds a <c>Retry-After</c> header, emitted once into a
+    /// Results file whose factories use it (429 responses).
+    /// </summary>
+    public static string RetryAfterHttpResultSource()
+        => $$"""
+
+            /// <summary>
+            /// Writes the wrapped result with a <c>Retry-After</c> header (in seconds), when one is given.
+            /// </summary>
+            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
+            internal sealed class RetryAfterHttpResult : IResult
+            {
+                private readonly IResult inner;
+                private readonly int? retryAfterSeconds;
+
+                public RetryAfterHttpResult(
+                    IResult inner,
+                    int? retryAfterSeconds)
+                {
+                    this.inner = inner;
+                    this.retryAfterSeconds = retryAfterSeconds;
+                }
+
+                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
+                {
+                    if (retryAfterSeconds is not null)
+                    {
+                        httpContext.Response.Headers.RetryAfter = retryAfterSeconds.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
+                    }
+
+                    return inner.ExecuteAsync(httpContext);
+                }
+            }
+            """;
+
     private static List<ClassParameters>? ExtractInternal(
         OpenApiDocument openApiDoc,
         string projectName,
@@ -669,187 +850,6 @@ public static class ResultClassExtractor
             Name: name,
             DefaultValue: defaultValue);
 
-    /// <summary>
-    /// The <c>LocationHttpResult</c> type the 303 factories use (ASP.NET Core has no redirect result for 303): the
-    /// wrapped result, written with a <c>Location</c> header.
-    /// </summary>
-    public static string LocationHttpResultSource()
-        => $$"""
-
-            /// <summary>
-            /// Writes the wrapped result with a <c>Location</c> header.
-            /// </summary>
-            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-            internal sealed class LocationHttpResult : IResult
-            {
-                private readonly IResult inner;
-                private readonly string location;
-
-                public LocationHttpResult(
-                    IResult inner,
-                    string location)
-                {
-                    this.inner = inner;
-                    this.location = location;
-                }
-
-                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
-                {
-                    httpContext.Response.Headers.Location = location;
-                    return inner.ExecuteAsync(httpContext);
-                }
-            }
-            """;
-
-    /// <summary>
-    /// The <c>XmlHttpResult</c> type the factories of an XML body use: the status, the declared media type (UTF-8) and
-    /// the body the generated <c>{Model}Xml</c> wrote.
-    /// </summary>
-    public static string XmlHttpResultSource()
-        => $$"""
-
-            /// <summary>
-            /// Writes an XML body (the model's generated XML mapping) with its status and media type.
-            /// </summary>
-            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-            internal sealed class XmlHttpResult : IResult, IStatusCodeHttpResult, IContentTypeHttpResult
-            {
-                private readonly byte[] body;
-
-                public XmlHttpResult(
-                    int statusCode,
-                    string mediaType,
-                    byte[] body)
-                {
-                    StatusCode = statusCode;
-                    ContentType = mediaType + "; charset=utf-8";
-                    this.body = body;
-                }
-
-                public int StatusCode { get; }
-
-                int? IStatusCodeHttpResult.StatusCode => StatusCode;
-
-                public string ContentType { get; }
-
-                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
-                {
-                    httpContext.Response.StatusCode = StatusCode;
-                    httpContext.Response.ContentType = ContentType;
-                    httpContext.Response.ContentLength = body.Length;
-                    return httpContext.Response.Body.WriteAsync(body, httpContext.RequestAborted).AsTask();
-                }
-            }
-            """;
-
-    /// <summary>
-    /// The <c>NegotiatedHttpResult</c> type the factories of a body offered as JSON and XML use: the JSON result unless
-    /// the request's <c>Accept</c> prefers one of the XML media types (a higher quality than any JSON one; <c>*/*</c>
-    /// and a tie are JSON - never a 406).
-    /// </summary>
-    public static string NegotiatedHttpResultSource()
-        => $$"""
-
-            /// <summary>
-            /// Writes the JSON result, or the XML one when the request's Accept prefers XML.
-            /// </summary>
-            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-            internal sealed class NegotiatedHttpResult : IResult, IStatusCodeHttpResult
-            {
-                private readonly IResult json;
-                private readonly global::System.Func<string, IResult> xml;
-                private readonly string[] xmlMediaTypes;
-
-                public NegotiatedHttpResult(
-                    IResult json,
-                    global::System.Func<string, IResult> xml,
-                    params string[] xmlMediaTypes)
-                {
-                    this.json = json;
-                    this.xml = xml;
-                    this.xmlMediaTypes = xmlMediaTypes;
-                }
-
-                public int? StatusCode
-                    => (json as IStatusCodeHttpResult)?.StatusCode;
-
-                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
-                    => PreferredXmlMediaType(httpContext.Request.Headers.Accept) is { } mediaType
-                        ? xml(mediaType).ExecuteAsync(httpContext)
-                        : json.ExecuteAsync(httpContext);
-
-                private string? PreferredXmlMediaType(global::Microsoft.Extensions.Primitives.StringValues accept)
-                {
-                    if (accept.Count == 0 ||
-                        !global::Microsoft.Net.Http.Headers.MediaTypeHeaderValue.TryParseList(accept, out var values))
-                    {
-                        return null;
-                    }
-
-                    var jsonQuality = 0d;
-                    var xmlQuality = 0d;
-                    string? chosen = null;
-                    foreach (var value in values)
-                    {
-                        var quality = value.Quality ?? 1d;
-                        var type = value.MediaType.Value ?? string.Empty;
-                        if (type is "*/*" or "application/*" or "application/json" ||
-                            type.EndsWith("+json", global::System.StringComparison.OrdinalIgnoreCase))
-                        {
-                            jsonQuality = global::System.Math.Max(jsonQuality, quality);
-                        }
-
-                        foreach (var xmlMediaType in xmlMediaTypes)
-                        {
-                            if (string.Equals(type, xmlMediaType, global::System.StringComparison.OrdinalIgnoreCase) && quality > xmlQuality)
-                            {
-                                xmlQuality = quality;
-                                chosen = xmlMediaType;
-                            }
-                        }
-                    }
-
-                    return xmlQuality > jsonQuality ? chosen : null;
-                }
-            }
-            """;
-
-    /// <summary>
-    /// The source of the <c>IResult</c> wrapper that adds a <c>Retry-After</c> header, emitted once into a
-    /// Results file whose factories use it (429 responses).
-    /// </summary>
-    public static string RetryAfterHttpResultSource()
-        => $$"""
-
-            /// <summary>
-            /// Writes the wrapped result with a <c>Retry-After</c> header (in seconds), when one is given.
-            /// </summary>
-            [GeneratedCode("{{GeneratorInfo.Name}}", "{{GeneratorInfo.Version}}")]
-            internal sealed class RetryAfterHttpResult : IResult
-            {
-                private readonly IResult inner;
-                private readonly int? retryAfterSeconds;
-
-                public RetryAfterHttpResult(
-                    IResult inner,
-                    int? retryAfterSeconds)
-                {
-                    this.inner = inner;
-                    this.retryAfterSeconds = retryAfterSeconds;
-                }
-
-                public global::System.Threading.Tasks.Task ExecuteAsync(HttpContext httpContext)
-                {
-                    if (retryAfterSeconds is not null)
-                    {
-                        httpContext.Response.Headers.RetryAfter = retryAfterSeconds.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture);
-                    }
-
-                    return inner.ExecuteAsync(httpContext);
-                }
-            }
-            """;
-
     private static MethodParameters FileDownloadMethod(
         CodeDocumentationTags doc,
         string className,
@@ -1399,7 +1399,7 @@ public static class ResultClassExtractor
             {
                 // Check if this is a resolved schema reference (e.g., Coordinate tuple type)
                 // If it's a component schema (has prefixItems or is a named array), return the schema name
-                var schemaName = FindSchemaNameByReference(openApiDoc, actualSchema);
+                var schemaName = SchemaLookup.FindSchemaNameByReference(openApiDoc, actualSchema);
                 if (!string.IsNullOrEmpty(schemaName))
                 {
                     return OpenApiSchemaExtensions.ResolveTypeName(schemaName!, registry);
@@ -1430,41 +1430,6 @@ public static class ResultClassExtractor
         }
 
         return "object";
-    }
-
-    /// <summary>
-    /// Finds the schema name in Components.Schemas by comparing schema properties.
-    /// This is needed when Microsoft.OpenApi resolves $ref to the actual schema object.
-    /// </summary>
-    private static string? FindSchemaNameByReference(
-        OpenApiDocument openApiDoc,
-        OpenApiSchema itemSchema)
-    {
-        if (openApiDoc.Components?.Schemas is null)
-        {
-            return null;
-        }
-
-        foreach (var kvp in openApiDoc.Components.Schemas)
-        {
-            // First try: compare by reference (same object instance)
-            if (ReferenceEquals(kvp.Value, itemSchema))
-            {
-                return kvp.Key;
-            }
-
-            // Second try: match by Title property if set
-            // OpenAPI specs often have title matching the schema name
-            if (kvp.Value is OpenApiSchema componentSchema &&
-                !string.IsNullOrEmpty(componentSchema.Title) &&
-                !string.IsNullOrEmpty(itemSchema.Title) &&
-                string.Equals(componentSchema.Title, itemSchema.Title, StringComparison.Ordinal))
-            {
-                return kvp.Key;
-            }
-        }
-
-        return null;
     }
 
     private static string GetArraySchemaType(

@@ -75,9 +75,6 @@ public static class TypeScriptOperationHelper
     }
 
     /// <summary>
-    /// Gets the TypeScript return type for an operation.
-    /// </summary>
-    /// <summary>
     /// Resolves the Zod schema expression for an operation's success response. Returns
     /// <c>null</c> when runtime validation can't apply: no JSON response, no <c>$ref</c>,
     /// inline objects with no canonical schema name, or unsupported shapes.
@@ -182,6 +179,15 @@ public static class TypeScriptOperationHelper
             : null;
     }
 
+    /// <summary>
+    /// Gets the TypeScript return type for an operation: the 200/201 model (or <c>Model | Blob</c> when the
+    /// answer may be a file), the per-item type for a stream, <c>Blob</c> for a download, <c>string</c> for a
+    /// textual body, else <c>void</c>.
+    /// </summary>
+    /// <param name="operation">The operation whose responses are inspected.</param>
+    /// <param name="isStreaming">Whether the client method yields the items of a streamed response.</param>
+    /// <param name="isFileDownload">Whether the operation always answers with a file.</param>
+    /// <returns>The TypeScript type the generated client method resolves with.</returns>
     public static string GetReturnType(
         OpenApiOperation operation,
         bool isStreaming,
@@ -432,43 +438,6 @@ public static class TypeScriptOperationHelper
         return (sb.ToString(), imports, [.. successDiscriminators, .. errorArms.Select(a => a.Discriminator), "parseError"]);
     }
 
-    /// <summary>
-    /// The discriminator and base error type <c>handleResponse</c> uses for an error status.
-    /// </summary>
-    private static (string Discriminator, string BaseType) ErrorArmFor(
-        string statusCode)
-        => ErrorStatusMapping.TryGetValue(statusCode, out var mapped)
-            ? mapped
-            : statusCode.StartsWith('4')
-                ? ("clientError", "ApiError")
-                : ("serverError", "ApiError");
-
-    /// <summary>
-    /// The TypeScript type of a declared error body - the declared model, <c>string</c> for a JSON
-    /// string or text - or <see langword="null"/> when nothing usable is declared (then the arm's error
-    /// stays an untyped ApiError). Uses the same resolution as the generated server and C# client.
-    /// </summary>
-    private static string? ResolveErrorBodyType(
-        IOpenApiResponse? response,
-        HashSet<string> imports)
-    {
-        var shape = ErrorResponseShapeResolver.Resolve(response);
-        switch (shape.Kind)
-        {
-            case ErrorResponseKind.JsonString:
-            case ErrorResponseKind.Text:
-                return "string";
-            case ErrorResponseKind.JsonObject:
-            case ErrorResponseKind.XmlObject:
-            case ErrorResponseKind.Problem when shape.Schema is not null:
-            case ErrorResponseKind.ValidationProblem when shape.Schema is not null:
-                CollectSchemaRefTypes(shape.Schema!, imports);
-                return shape.Schema!.ToTypeScriptReturnType();
-            default:
-                return null;
-        }
-    }
-
     private static readonly Dictionary<string, (string Discriminator, string ErrorType)> ErrorStatusMapping =
         new(StringComparer.Ordinal)
         {
@@ -535,127 +504,6 @@ public static class TypeScriptOperationHelper
         }
 
         return discriminators;
-    }
-
-    private static string? BuildResultArmForStatus(
-        string statusCode,
-        OpenApiOperation operation,
-        bool isFileDownload,
-        bool isTextDownload,
-        string responseType,
-        HashSet<string> imports,
-        out string? discriminator)
-    {
-        discriminator = null;
-
-        switch (statusCode)
-        {
-            case "200":
-            case "201":
-            case "202":
-            {
-                discriminator = statusCode switch
-                {
-                    "201" => "created",
-                    "202" => "accepted",
-                    _ => "ok",
-                };
-
-                var dataType = ResolveSuccessDataType(statusCode, operation, isFileDownload, isTextDownload, imports);
-                return dataType is null
-                    ? $"  | {{ status: '{discriminator}'; response: {responseType} }}"
-                    : $"  | {{ status: '{discriminator}'; data: {dataType}; response: {responseType} }}";
-            }
-
-            case "204":
-            case "205":
-                discriminator = "noContent";
-                return $"  | {{ status: 'noContent'; response: {responseType} }}";
-
-            // The other 2xx with content (203, 206, 207, 208, 226) are ok, with their declared data.
-            case "203":
-            case "206":
-            case "207":
-            case "208":
-            case "226":
-            {
-                discriminator = "ok";
-                var dataType = ResolveSuccessDataType(statusCode, operation, isFileDownload, isTextDownload, imports);
-                return dataType is null
-                    ? $"  | {{ status: 'ok'; response: {responseType} }}"
-                    : $"  | {{ status: 'ok'; data: {dataType}; response: {responseType} }}";
-            }
-
-            // A redirect is followed by fetch / axios (their default): its target's response is what comes back. The
-            // redirect arms are added after the loop, so a declared 200 keeps its typed ok arm.
-            case "301":
-            case "302":
-            case "303":
-            case "307":
-            case "308":
-                return null;
-
-            case "304":
-                discriminator = "notModified";
-                return $"  | {{ status: 'notModified'; response: {responseType} }}";
-
-            // A 3xx the runtime does not follow (300, 305, 306): its body, if one is declared.
-            case "300":
-            case "305":
-            case "306":
-            {
-                discriminator = "redirection";
-                var dataType = GetResponseModelSchema(operation, statusCode) is not null
-                    ? ResolveSuccessDataType(statusCode, operation, isFileDownload: false, isTextDownload: false, imports)
-                    : null;
-                return $"  | {{ status: 'redirection'; data?: {dataType ?? "unknown"}; response: {responseType} }}";
-            }
-        }
-
-        // Error statuses are handled by BuildPerOperationResultType (ErrorArmFor).
-        return null;
-    }
-
-    private static string? ResolveSuccessDataType(
-        string statusCode,
-        OpenApiOperation operation,
-        bool isFileDownload,
-        bool isTextDownload,
-        HashSet<string> imports)
-    {
-        if (isFileDownload)
-        {
-            return "Blob";
-        }
-
-        if (isTextDownload)
-        {
-            return "string";
-        }
-
-        var schema = GetResponseModelSchema(operation, statusCode);
-
-        // Fall back to text/xml on 200/201/202 — handleResponse delivers those as raw strings.
-        if (schema is null &&
-            operation.Responses is not null &&
-            operation.Responses.TryGetValue(statusCode, out var response) &&
-            response.TryGetTextResponseMediaType(out _, out var textMedia) &&
-            textMedia is not null)
-        {
-            return "string";
-        }
-
-        if (schema is null)
-        {
-            return null;
-        }
-
-        CollectSchemaRefTypes(schema, imports);
-
-        // A model or a file: the model, or the file as a Blob
-        return statusCode == "200" && operation.GetModelOrFileMediaTypes().Count > 0
-            ? schema.ToTypeScriptReturnType() + " | Blob"
-            : schema.ToTypeScriptReturnType();
     }
 
     /// <summary>
@@ -759,44 +607,6 @@ public static class TypeScriptOperationHelper
         return ".toISOString()";
     }
 
-    private static string? BuildLiteralUnion(OpenApiSchema schema)
-    {
-        var isStringEnum = schema.Type?.HasFlag(JsonSchemaType.String) == true;
-        var isNumericEnum =
-            schema.Type?.HasFlag(JsonSchemaType.Integer) == true ||
-            schema.Type?.HasFlag(JsonSchemaType.Number) == true;
-
-        if (!isStringEnum && !isNumericEnum)
-        {
-            return null;
-        }
-
-        var parts = new List<string>(schema.Enum!.Count);
-        foreach (var value in schema.Enum)
-        {
-            if (value is not JsonValue jsonValue)
-            {
-                return null;
-            }
-
-            if (isStringEnum)
-            {
-                if (!jsonValue.TryGetValue<string>(out var s))
-                {
-                    return null;
-                }
-
-                parts.Add("'" + s.Replace("'", "\\'", StringComparison.Ordinal) + "'");
-            }
-            else
-            {
-                parts.Add(jsonValue.ToJsonString());
-            }
-        }
-
-        return parts.Count == 0 ? null : string.Join(" | ", parts);
-    }
-
     private static readonly Regex BlockCommentPattern = new(@"/\*.*?\*/", RegexOptions.Singleline, TimeSpan.FromSeconds(1));
 
     /// <summary>
@@ -837,9 +647,6 @@ public static class TypeScriptOperationHelper
 
         return false;
     }
-
-    private static bool IsIdentifierChar(char c)
-        => char.IsLetterOrDigit(c) || c == '_' || c == '$';
 
     /// <summary>
     /// Collects all import types needed by an operation (from response schemas, request body,
@@ -1073,49 +880,6 @@ public static class TypeScriptOperationHelper
     }
 
     /// <summary>
-    /// Formats a parameter's <c>default:</c> value as an inline TypeScript comment so it
-    /// shows up in IDE hover/autocomplete. Returns empty when the parameter has no
-    /// default — callers append the result verbatim, so empty means "emit nothing extra".
-    /// String defaults are single-quoted, primitives are emitted verbatim, and anything
-    /// else falls through to <see cref="JsonNode.ToJsonString"/>.
-    /// </summary>
-    private static string FormatDefaultComment(OpenApiParameter param)
-    {
-        if (param.Schema is not OpenApiSchema schema || schema.Default is null)
-        {
-            return string.Empty;
-        }
-
-        return " /* default: " + TypeScriptLiteralHelper.EscapeComment(FormatJsonDefault(schema.Default)) + " */";
-    }
-
-    private static string FormatJsonDefault(JsonNode node)
-    {
-        if (node is JsonValue jsonValue)
-        {
-            if (jsonValue.TryGetValue<string>(out var s))
-            {
-                return "'" + s.Replace("'", "\\'", StringComparison.Ordinal) + "'";
-            }
-
-            if (jsonValue.TryGetValue<bool>(out var b))
-            {
-                return b ? "true" : "false";
-            }
-
-            // Numbers (int/long/double/decimal) and any other primitives fall back to
-            // their JSON representation, which is the canonical TS literal form.
-            return jsonValue.ToJsonString();
-        }
-
-        // Arrays / objects — uncommon as parameter defaults, but keep them readable.
-        return node.ToJsonString();
-    }
-
-    /// <summary>
-    /// Builds a TypeScript inline type for query parameters (e.g., { limit?: number; offset?: number }).
-    /// </summary>
-    /// <summary>
     /// An object-literal / type-literal key: the name itself when it is an identifier, otherwise quoted
     /// (<c>'page-token'</c>), as the <c>Original</c> naming strategy keeps hyphenated names.
     /// </summary>
@@ -1131,11 +895,13 @@ public static class TypeScriptOperationHelper
         string name)
         => IsIdentifier(name) ? variable + "?." + name : variable + "?.['" + name + "']";
 
-    private static bool IsIdentifier(string name)
-        => name.Length > 0 &&
-           (char.IsLetter(name[0]) || name[0] is '_' or '$') &&
-           name.All(c => char.IsLetterOrDigit(c) || c is '_' or '$');
-
+    /// <summary>
+    /// Builds a TypeScript inline type for query parameters (e.g., { limit?: number; offset?: number }).
+    /// </summary>
+    /// <param name="queryParams">The operation's query parameters.</param>
+    /// <param name="namingStrategy">How the parameter names are cased in the type.</param>
+    /// <param name="convertDates">When true, date and date-time parameters are typed <c>Date</c> instead of <c>string</c>.</param>
+    /// <returns>The type literal; a parameter is optional unless the specification requires it without a default.</returns>
     public static string BuildQueryTypeInline(
         List<OpenApiParameter> queryParams,
         TypeScriptNamingStrategy namingStrategy = TypeScriptNamingStrategy.CamelCase,
@@ -1214,20 +980,6 @@ public static class TypeScriptOperationHelper
     }
 
     /// <summary>
-    /// A parameter the caller has to pass: the specification requires it and gives no default. With a default the
-    /// parameter may be left out - the default is what a missing value means (the C# clients do the same).
-    /// </summary>
-    private static bool MustBeSupplied(OpenApiParameter param)
-        => param.Required && param.Schema is not OpenApiSchema { Default: not null };
-
-    private static bool IsOptionalParameter(string parameter)
-    {
-        // "name?: type" - the "?" belongs to the parameter name, not to a member inside its type.
-        var colon = parameter.IndexOf(':', StringComparison.Ordinal);
-        return colon > 0 && parameter[colon - 1] == '?';
-    }
-
-    /// <summary>
     /// Builds a path string with template literal interpolation for path parameters.
     /// When <paramref name="convertDates"/> is true and a path parameter has
     /// <c>format: date</c> or <c>format: date-time</c>, the interpolation includes
@@ -1284,11 +1036,6 @@ public static class TypeScriptOperationHelper
     }
 
     /// <summary>
-    /// Emits the ApiClient's <c>requestStream</c> for a specification whose models rename keys: it reads the items
-    /// with <c>readStream</c> and renames each from the API's property names to the models'. Shared by the Axios and
-    /// Fetch ApiClient extractors.
-    /// </summary>
-    /// <summary>
     /// Emits the request body of a streamed read - a POST or QUERY search sends its criteria - as JSON (renamed to
     /// the API's property names and with dates as ISO strings, like <c>request</c>), into <c>streamBody</c>.
     /// Shared by the Axios and Fetch ApiClient extractors; expects a <c>headers: Headers</c> local.
@@ -1307,6 +1054,11 @@ public static class TypeScriptOperationHelper
         sb.AppendLine();
     }
 
+    /// <summary>
+    /// Emits the ApiClient's <c>requestStream</c> for a specification whose models rename keys: it reads the items
+    /// with <c>readStream</c> and renames each from the API's property names to the models'. Shared by the Axios and
+    /// Fetch ApiClient extractors.
+    /// </summary>
     internal static void AppendRenamingRequestStream(StringBuilder sb)
     {
         sb.AppendLine("  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {");
@@ -1351,5 +1103,263 @@ public static class TypeScriptOperationHelper
         sb.AppendLine("  }");
         sb.AppendLine("}");
         sb.AppendLine();
+    }
+
+    /// <summary>
+    /// The discriminator and base error type <c>handleResponse</c> uses for an error status.
+    /// </summary>
+    private static (string Discriminator, string BaseType) ErrorArmFor(
+        string statusCode)
+        => ErrorStatusMapping.TryGetValue(statusCode, out var mapped)
+            ? mapped
+            : statusCode.StartsWith('4')
+                ? ("clientError", "ApiError")
+                : ("serverError", "ApiError");
+
+    /// <summary>
+    /// The TypeScript type of a declared error body - the declared model, <c>string</c> for a JSON
+    /// string or text - or <see langword="null"/> when nothing usable is declared (then the arm's error
+    /// stays an untyped ApiError). Uses the same resolution as the generated server and C# client.
+    /// </summary>
+    private static string? ResolveErrorBodyType(
+        IOpenApiResponse? response,
+        HashSet<string> imports)
+    {
+        var shape = ErrorResponseShapeResolver.Resolve(response);
+        switch (shape.Kind)
+        {
+            case ErrorResponseKind.JsonString:
+            case ErrorResponseKind.Text:
+                return "string";
+            case ErrorResponseKind.JsonObject:
+            case ErrorResponseKind.XmlObject:
+            case ErrorResponseKind.Problem when shape.Schema is not null:
+            case ErrorResponseKind.ValidationProblem when shape.Schema is not null:
+                CollectSchemaRefTypes(shape.Schema!, imports);
+                return shape.Schema!.ToTypeScriptReturnType();
+            default:
+                return null;
+        }
+    }
+
+    private static string? BuildResultArmForStatus(
+        string statusCode,
+        OpenApiOperation operation,
+        bool isFileDownload,
+        bool isTextDownload,
+        string responseType,
+        HashSet<string> imports,
+        out string? discriminator)
+    {
+        discriminator = null;
+
+        switch (statusCode)
+        {
+            case "200":
+            case "201":
+            case "202":
+            {
+                discriminator = statusCode switch
+                {
+                    "201" => "created",
+                    "202" => "accepted",
+                    _ => "ok",
+                };
+
+                var dataType = ResolveSuccessDataType(statusCode, operation, isFileDownload, isTextDownload, imports);
+                return dataType is null
+                    ? $"  | {{ status: '{discriminator}'; response: {responseType} }}"
+                    : $"  | {{ status: '{discriminator}'; data: {dataType}; response: {responseType} }}";
+            }
+
+            case "204":
+            case "205":
+                discriminator = "noContent";
+                return $"  | {{ status: 'noContent'; response: {responseType} }}";
+
+            // The other 2xx with content (203, 206, 207, 208, 226) are ok, with their declared data.
+            case "203":
+            case "206":
+            case "207":
+            case "208":
+            case "226":
+            {
+                discriminator = "ok";
+                var dataType = ResolveSuccessDataType(statusCode, operation, isFileDownload, isTextDownload, imports);
+                return dataType is null
+                    ? $"  | {{ status: 'ok'; response: {responseType} }}"
+                    : $"  | {{ status: 'ok'; data: {dataType}; response: {responseType} }}";
+            }
+
+            // A redirect is followed by fetch / axios (their default): its target's response is what comes back. The
+            // redirect arms are added after the loop, so a declared 200 keeps its typed ok arm.
+            case "301":
+            case "302":
+            case "303":
+            case "307":
+            case "308":
+                return null;
+
+            case "304":
+                discriminator = "notModified";
+                return $"  | {{ status: 'notModified'; response: {responseType} }}";
+
+            // A 3xx the runtime does not follow (300, 305, 306): its body, if one is declared.
+            case "300":
+            case "305":
+            case "306":
+            {
+                discriminator = "redirection";
+                var dataType = GetResponseModelSchema(operation, statusCode) is not null
+                    ? ResolveSuccessDataType(statusCode, operation, isFileDownload: false, isTextDownload: false, imports)
+                    : null;
+                return $"  | {{ status: 'redirection'; data?: {dataType ?? "unknown"}; response: {responseType} }}";
+            }
+        }
+
+        // Error statuses are handled by BuildPerOperationResultType (ErrorArmFor).
+        return null;
+    }
+
+    private static string? ResolveSuccessDataType(
+        string statusCode,
+        OpenApiOperation operation,
+        bool isFileDownload,
+        bool isTextDownload,
+        HashSet<string> imports)
+    {
+        if (isFileDownload)
+        {
+            return "Blob";
+        }
+
+        if (isTextDownload)
+        {
+            return "string";
+        }
+
+        var schema = GetResponseModelSchema(operation, statusCode);
+
+        // Fall back to text/xml on 200/201/202 — handleResponse delivers those as raw strings.
+        if (schema is null &&
+            operation.Responses is not null &&
+            operation.Responses.TryGetValue(statusCode, out var response) &&
+            response.TryGetTextResponseMediaType(out _, out var textMedia) &&
+            textMedia is not null)
+        {
+            return "string";
+        }
+
+        if (schema is null)
+        {
+            return null;
+        }
+
+        CollectSchemaRefTypes(schema, imports);
+
+        // A model or a file: the model, or the file as a Blob
+        return statusCode == "200" && operation.GetModelOrFileMediaTypes().Count > 0
+            ? schema.ToTypeScriptReturnType() + " | Blob"
+            : schema.ToTypeScriptReturnType();
+    }
+
+    private static string? BuildLiteralUnion(OpenApiSchema schema)
+    {
+        var isStringEnum = schema.Type?.HasFlag(JsonSchemaType.String) == true;
+        var isNumericEnum =
+            schema.Type?.HasFlag(JsonSchemaType.Integer) == true ||
+            schema.Type?.HasFlag(JsonSchemaType.Number) == true;
+
+        if (!isStringEnum && !isNumericEnum)
+        {
+            return null;
+        }
+
+        var parts = new List<string>(schema.Enum!.Count);
+        foreach (var value in schema.Enum)
+        {
+            if (value is not JsonValue jsonValue)
+            {
+                return null;
+            }
+
+            if (isStringEnum)
+            {
+                if (!jsonValue.TryGetValue<string>(out var s))
+                {
+                    return null;
+                }
+
+                parts.Add("'" + s.Replace("'", "\\'", StringComparison.Ordinal) + "'");
+            }
+            else
+            {
+                parts.Add(jsonValue.ToJsonString());
+            }
+        }
+
+        return parts.Count == 0 ? null : string.Join(" | ", parts);
+    }
+
+    private static bool IsIdentifierChar(char c)
+        => char.IsLetterOrDigit(c) || c == '_' || c == '$';
+
+    /// <summary>
+    /// Formats a parameter's <c>default:</c> value as an inline TypeScript comment so it
+    /// shows up in IDE hover/autocomplete. Returns empty when the parameter has no
+    /// default — callers append the result verbatim, so empty means "emit nothing extra".
+    /// String defaults are single-quoted, primitives are emitted verbatim, and anything
+    /// else falls through to <see cref="JsonNode.ToJsonString"/>.
+    /// </summary>
+    private static string FormatDefaultComment(OpenApiParameter param)
+    {
+        if (param.Schema is not OpenApiSchema schema || schema.Default is null)
+        {
+            return string.Empty;
+        }
+
+        return " /* default: " + TypeScriptLiteralHelper.EscapeComment(FormatJsonDefault(schema.Default)) + " */";
+    }
+
+    private static string FormatJsonDefault(JsonNode node)
+    {
+        if (node is JsonValue jsonValue)
+        {
+            if (jsonValue.TryGetValue<string>(out var s))
+            {
+                return "'" + s.Replace("'", "\\'", StringComparison.Ordinal) + "'";
+            }
+
+            if (jsonValue.TryGetValue<bool>(out var b))
+            {
+                return b ? "true" : "false";
+            }
+
+            // Numbers (int/long/double/decimal) and any other primitives fall back to
+            // their JSON representation, which is the canonical TS literal form.
+            return jsonValue.ToJsonString();
+        }
+
+        // Arrays / objects — uncommon as parameter defaults, but keep them readable.
+        return node.ToJsonString();
+    }
+
+    private static bool IsIdentifier(string name)
+        => name.Length > 0 &&
+           (char.IsLetter(name[0]) || name[0] is '_' or '$') &&
+           name.All(c => char.IsLetterOrDigit(c) || c is '_' or '$');
+
+    /// <summary>
+    /// A parameter the caller has to pass: the specification requires it and gives no default. With a default the
+    /// parameter may be left out - the default is what a missing value means (the C# clients do the same).
+    /// </summary>
+    private static bool MustBeSupplied(OpenApiParameter param)
+        => param.Required && param.Schema is not OpenApiSchema { Default: not null };
+
+    private static bool IsOptionalParameter(string parameter)
+    {
+        // "name?: type" - the "?" belongs to the parameter name, not to a member inside its type.
+        var colon = parameter.IndexOf(':', StringComparison.Ordinal);
+        return colon > 0 && parameter[colon - 1] == '?';
     }
 }

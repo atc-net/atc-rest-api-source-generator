@@ -1459,17 +1459,6 @@ public class OpenApiSchemaExtensionsTests
         Assert.Equal("Address?", address.ToCSharpTypeForModel(isRequired: true, registry: null));
     }
 
-    private static void AssertNicknameIsNullable(string yaml)
-    {
-        var document = ParseYaml(yaml);
-        Assert.NotNull(document);
-
-        var person = (OpenApiSchema)document.Components!.Schemas!["Person"];
-        var nickname = person.Properties!["nickname"];
-
-        Assert.Equal("string?", nickname.ToCSharpTypeForModel(isRequired: true, registry: null));
-    }
-
     [Fact]
     public void ToCSharpTypeForModel_OneOfRefPlusNullBranch_IsTheReferencedTypeMadeNullable()
     {
@@ -1595,6 +1584,747 @@ public class OpenApiSchemaExtensionsTests
 
         Assert.False(((OpenApiSchema)address.Properties!["street"]).IsNullable());
         Assert.True(((OpenApiSchema)address.Properties!["state"]).IsNullable());
+    }
+
+    // ========== IsSchemaReference / IsOfType Tests ==========
+    [Fact]
+    public void IsSchemaReference_ReferenceAndInline_AreToldApart()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.True(doc.Components!.Schemas!["Animal"].OneOf![0].IsSchemaReference());
+        Assert.False(doc.Components.Schemas["Pet"].IsSchemaReference());
+    }
+
+    [Theory]
+    [InlineData(JsonSchemaType.Object, JsonSchemaType.Object, true)]
+    [InlineData(JsonSchemaType.Object | JsonSchemaType.Null, JsonSchemaType.Object, true)]
+    [InlineData(JsonSchemaType.Array | JsonSchemaType.Null, JsonSchemaType.Array, true)]
+    [InlineData(JsonSchemaType.String, JsonSchemaType.Object, false)]
+    [InlineData(JsonSchemaType.String | JsonSchemaType.Integer, JsonSchemaType.String, false)]
+    public void IsOfType_IgnoresTheNullFlagOnly(
+        JsonSchemaType declared,
+        JsonSchemaType wanted,
+        bool expected)
+        => Assert.Equal(expected, new OpenApiSchema { Type = declared }.IsOfType(wanted));
+
+    [Fact]
+    public void IsOfType_NoTypeOrReference_ReturnsFalse()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.False(new OpenApiSchema().IsOfType(JsonSchemaType.Object));
+        Assert.False(doc.Components!.Schemas!["Animal"].OneOf![0].IsOfType(JsonSchemaType.Object));
+    }
+
+    // ========== oneOf branch inspection Tests ==========
+    [Fact]
+    public void HasNullBranchInOneOf_TypeNullBranch_ReturnsTrue()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.True(doc.Components!.Schemas!["NullablePet"].HasNullBranchInOneOf());
+    }
+
+    [Fact]
+    public void HasNullBranchInOneOf_OnlyReferences_ReturnsFalse()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.False(doc.Components!.Schemas!["Animal"].HasNullBranchInOneOf());
+        Assert.False(doc.Components.Schemas["Pet"].HasNullBranchInOneOf());
+    }
+
+    [Fact]
+    public void HasNonReferenceBranchInOneOf_InlineStringBranch_ReturnsTrue()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.True(doc.Components!.Schemas!["PetOrName"].HasNonReferenceBranchInOneOf());
+    }
+
+    [Fact]
+    public void HasNonReferenceBranchInOneOf_ReferencesAndNullMarker_ReturnsFalse()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.False(doc.Components!.Schemas!["Animal"].HasNonReferenceBranchInOneOf());
+        Assert.False(doc.Components.Schemas["NullablePet"].HasNonReferenceBranchInOneOf());
+    }
+
+    [Fact]
+    public void GetOneOfReferenceIds_OneOf_ReturnsReferencedNamesInOrderWithoutTheNullBranch()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.Equal(["Cat", "Dog"], doc.Components!.Schemas!["Animal"].GetOneOfReferenceIds());
+        Assert.Equal(["Pet"], doc.Components.Schemas["NullablePet"].GetOneOfReferenceIds());
+    }
+
+    [Fact]
+    public void GetOneOfReferenceIds_AnyOfOnly_FallsBackToAnyOf()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.Equal(["Cat", "Dog"], doc.Components!.Schemas!["AnyAnimal"].GetOneOfReferenceIds());
+    }
+
+    [Fact]
+    public void GetOneOfReferenceIds_NoComposition_ReturnsEmpty()
+        => Assert.Empty(new OpenApiSchema { Type = JsonSchemaType.String }.GetOneOfReferenceIds());
+
+    // ========== Type array Tests ==========
+    [Fact]
+    public void GetAllNonNullTypeNames_StringOrIntegerOrNull_ListsBothWithoutNull()
+    {
+        var schema = new OpenApiSchema { Type = JsonSchemaType.String | JsonSchemaType.Integer | JsonSchemaType.Null };
+
+        Assert.Equal(["string", "integer"], schema.GetAllNonNullTypeNames());
+    }
+
+    [Fact]
+    public void GetAllNonNullTypeNames_NoType_ReturnsEmpty()
+        => Assert.Empty(new OpenApiSchema().GetAllNonNullTypeNames());
+
+    [Fact]
+    public void GetPrimaryNonNullType_IntegerOrNumber_PrefersInteger()
+    {
+        var schema = new OpenApiSchema { Type = JsonSchemaType.Number | JsonSchemaType.Integer | JsonSchemaType.Null };
+
+        Assert.Equal(JsonSchemaType.Integer, schema.GetPrimaryNonNullType());
+    }
+
+    [Fact]
+    public void GetPrimaryNonNullType_NoType_ReturnsNull()
+        => Assert.Null(new OpenApiSchema().GetPrimaryNonNullType());
+
+    // ========== GetSchemaSummary / HasRefSiblingProperties Tests ==========
+    [Fact]
+    public void GetSchemaSummary_Declared_ReturnsIt()
+    {
+        var doc = ParseYaml("""
+                            openapi: "3.2.0"
+                            info:
+                              title: T
+                              version: "1.0.0"
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  summary: A pet of the store
+                                  description: Longer text.
+                            """);
+        Assert.NotNull(doc);
+
+        Assert.Equal("A pet of the store", doc.Components!.Schemas!["Pet"].GetSchemaSummary());
+    }
+
+    [Fact]
+    public void GetSchemaSummary_NotDeclared_ReturnsNull()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.Null(doc.Components!.Schemas!["Pet"].GetSchemaSummary());
+        Assert.Null(doc.Components.Schemas["Animal"].OneOf![0].GetSchemaSummary());
+    }
+
+    [Fact]
+    public void HasRefSiblingProperties_ReferenceWithDescription_ReturnsTrue()
+    {
+        var doc = ParseYaml("""
+                            openapi: "3.1.0"
+                            info:
+                              title: T
+                              version: "1.0.0"
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                Owner:
+                                  type: object
+                                  properties:
+                                    favourite:
+                                      $ref: '#/components/schemas/Pet'
+                                      description: The owner's favourite pet
+                                    other:
+                                      $ref: '#/components/schemas/Pet'
+                            """);
+        Assert.NotNull(doc);
+
+        var owner = doc.Components!.Schemas!["Owner"];
+
+        Assert.True(owner.Properties!["favourite"].HasRefSiblingProperties());
+        Assert.False(owner.Properties["other"].HasRefSiblingProperties());
+    }
+
+    [Fact]
+    public void HasRefSiblingProperties_InlineSchema_ReturnsFalse()
+        => Assert.False(new OpenApiSchema { Description = "x", Deprecated = true }.HasRefSiblingProperties());
+
+    // ========== contentEncoding Tests ==========
+    [Theory]
+    [InlineData("base64", true)]
+    [InlineData("BASE64URL", true)]
+    [InlineData("quoted-printable", false)]
+    public void GetContentEncoding_And_IsBase64Encoded_ReadTheUnrecognizedKeyword(
+        string contentEncoding,
+        bool expectedBase64)
+    {
+        // The helper reads the keyword from UnrecognizedKeywords, where a reader that does not know
+        // contentEncoding parks it.
+        var schema = new OpenApiSchema
+        {
+            Type = JsonSchemaType.String,
+            UnrecognizedKeywords = new Dictionary<string, JsonNode>(StringComparer.Ordinal)
+            {
+                ["contentEncoding"] = JsonValue.Create(contentEncoding)!,
+            },
+        };
+
+        Assert.Equal(contentEncoding, schema.GetContentEncoding());
+        Assert.Equal(expectedBase64, schema.IsBase64Encoded());
+    }
+
+    [Fact]
+    public void GetContentEncoding_NotDeclared_ReturnsNullAndNotBase64()
+    {
+        var schema = new OpenApiSchema { Type = JsonSchemaType.String };
+
+        Assert.Null(schema.GetContentEncoding());
+        Assert.False(schema.IsBase64Encoded());
+    }
+
+    // ========== prefixItems Tests ==========
+    [Fact]
+    public void HasPrefixItems_And_IsStrictTuple_NoItemsKeyword_IsAClosedTuple()
+    {
+        var schema = ParseTupleSchema(string.Empty);
+
+        Assert.True(schema.HasPrefixItems());
+        Assert.True(schema.IsStrictTuple());
+    }
+
+    [Fact]
+    public void IsStrictTuple_OpenTuple_ReturnsFalse()
+    {
+        var schema = ParseTupleSchema("items:\n        type: string");
+
+        Assert.True(schema.HasPrefixItems());
+        Assert.False(schema.IsStrictTuple());
+    }
+
+    [Fact]
+    public void HasPrefixItems_PlainArray_ReturnsFalseAndNotStrict()
+    {
+        var schema = new OpenApiSchema { Type = JsonSchemaType.Array, Items = new OpenApiSchema { Type = JsonSchemaType.String } };
+
+        Assert.False(schema.HasPrefixItems());
+        Assert.False(schema.IsStrictTuple());
+    }
+
+    // ========== Discriminator Tests ==========
+    [Fact]
+    public void HasDiscriminatorBlock_DeclaredAndNot_AreToldApart()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.True(doc.Components!.Schemas!["Animal"].HasDiscriminatorBlock());
+        Assert.False(doc.Components.Schemas["AnyAnimal"].HasDiscriminatorBlock());
+    }
+
+    [Fact]
+    public void GetDiscriminatorMapping_Declared_ReturnsValueToSchemaName()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        var mapping = doc.Components!.Schemas!["Animal"].GetDiscriminatorMapping();
+
+        Assert.NotNull(mapping);
+        Assert.Equal("Cat", mapping["cat"]);
+        Assert.Equal("Dog", mapping["dog"]);
+        Assert.Equal(2, mapping.Count);
+    }
+
+    [Fact]
+    public void GetDiscriminatorMapping_NoMapping_ReturnsNull()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.Null(doc.Components!.Schemas!["AnyAnimal"].GetDiscriminatorMapping());
+    }
+
+    [Fact]
+    public void GetDiscriminatorDefaultMappingSchemaName_OpenApi32DefaultMapping_ReturnsSchemaName()
+    {
+        var doc = ParseYaml("""
+                            openapi: "3.2.0"
+                            info:
+                              title: T
+                              version: "1.0.0"
+                            paths: {}
+                            components:
+                              schemas:
+                                Order:
+                                  oneOf:
+                                    - $ref: '#/components/schemas/OnlineOrder'
+                                    - $ref: '#/components/schemas/InStoreOrder'
+                                  discriminator:
+                                    propertyName: orderType
+                                    mapping:
+                                      online: '#/components/schemas/OnlineOrder'
+                                      in_store: '#/components/schemas/InStoreOrder'
+                                    defaultMapping: '#/components/schemas/OnlineOrder'
+                                OnlineOrder:
+                                  type: object
+                                  properties:
+                                    orderType:
+                                      type: string
+                                InStoreOrder:
+                                  type: object
+                                  properties:
+                                    orderType:
+                                      type: string
+                            """);
+        Assert.NotNull(doc);
+
+        Assert.Equal("OnlineOrder", doc.Components!.Schemas!["Order"].GetDiscriminatorDefaultMappingSchemaName());
+    }
+
+    [Fact]
+    public void GetDiscriminatorDefaultMappingSchemaName_NoDefaultMapping_ReturnsNull()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.Null(doc.Components!.Schemas!["Animal"].GetDiscriminatorDefaultMappingSchemaName());
+    }
+
+    [Fact]
+    public void GetPolymorphicVariantSchemaNames_OneOfAndAnyOf_ReturnReferencedNames()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.Equal(["Cat", "Dog"], doc.Components!.Schemas!["Animal"].GetPolymorphicVariantSchemaNames());
+        Assert.Equal(["Cat", "Dog"], doc.Components.Schemas["AnyAnimal"].GetPolymorphicVariantSchemaNames());
+        Assert.Equal(["Pet"], doc.Components.Schemas["PetOrName"].GetPolymorphicVariantSchemaNames());
+        Assert.Empty(doc.Components.Schemas["Pet"].GetPolymorphicVariantSchemaNames());
+    }
+
+    [Fact]
+    public void DetectDiscriminatorProperty_CommonStringPropertyNamedType_ReturnsItWithDeclaredCasing()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.Equal("type", doc.Components!.Schemas!["AnyAnimal"].DetectDiscriminatorProperty(doc));
+    }
+
+    [Fact]
+    public void DetectDiscriminatorProperty_NoCommonProperty_ReturnsNull()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.Null(doc.Components!.Schemas!["Mixed"].DetectDiscriminatorProperty(doc));
+    }
+
+    [Fact]
+    public void DetectDiscriminatorProperty_NotPolymorphic_ReturnsNull()
+    {
+        var doc = ParsePolymorphismDocument();
+
+        Assert.Null(doc.Components!.Schemas!["Pet"].DetectDiscriminatorProperty(doc));
+    }
+
+    // ========== additionalProperties value type Tests ==========
+    [Fact]
+    public void IsAdditionalPropertiesAnyType_True_ReturnsTrue()
+    {
+        var doc = ParseDictionaryDocument();
+
+        Assert.True(doc.Components!.Schemas!["AnyBag"].IsAdditionalPropertiesAnyType());
+    }
+
+    [Fact]
+    public void IsAdditionalPropertiesAnyType_TypedOrAbsent_ReturnsFalse()
+    {
+        var doc = ParseDictionaryDocument();
+
+        Assert.False(doc.Components!.Schemas!["IntBag"].IsAdditionalPropertiesAnyType());
+        Assert.False(doc.Components.Schemas["PetBag"].IsAdditionalPropertiesAnyType());
+        Assert.False(doc.Components.Schemas["Pet"].IsAdditionalPropertiesAnyType());
+    }
+
+    [Theory]
+    [InlineData("AnyBag", "object")]
+    [InlineData("IntBag", "long")]
+    [InlineData("PetBag", "Pet")]
+    [InlineData("Pet", "object")]
+    public void GetAdditionalPropertiesValueType_ReturnsTheValueType(
+        string schemaName,
+        string expected)
+    {
+        var doc = ParseDictionaryDocument();
+
+        Assert.Equal(expected, doc.Components!.Schemas![schemaName].GetAdditionalPropertiesValueType());
+    }
+
+    [Fact]
+    public void GetAdditionalPropertiesValueType_ConflictingReference_IsFullyQualified()
+    {
+        var doc = ParseYaml("""
+                            openapi: "3.1.0"
+                            info:
+                              title: T
+                              version: "1.0.0"
+                            paths: {}
+                            components:
+                              schemas:
+                                Task:
+                                  type: object
+                                TaskBag:
+                                  type: object
+                                  additionalProperties:
+                                    $ref: '#/components/schemas/Task'
+                            """);
+        Assert.NotNull(doc);
+        var registry = TypeConflictRegistry.Build(doc, "MyApi");
+
+        Assert.Equal("MyApi.Generated.Models.Task", doc.Components!.Schemas!["TaskBag"].GetAdditionalPropertiesValueType(registry));
+    }
+
+    // ========== allOf generic pagination Tests ==========
+    [Fact]
+    public void GetAllOfArrayOverrideItemType_InlineArrayOverride_ReturnsItemType()
+    {
+        var doc = ParsePaginationDocument();
+
+        Assert.Equal("Account", GetResponseSchema(doc, "/accounts").GetAllOfArrayOverrideItemType(doc));
+    }
+
+    [Fact]
+    public void GetAllOfArrayOverrideItemType_OverrideOfArrayAlias_ReturnsTheAliasItem()
+    {
+        var doc = ParsePaginationDocument();
+
+        Assert.Equal("Account", GetResponseSchema(doc, "/aliased").GetAllOfArrayOverrideItemType(doc));
+    }
+
+    [Fact]
+    public void GetAllOfArrayOverrideItemType_ItemsOfArrayAlias_UnwrapToTheElement()
+    {
+        var doc = ParsePaginationDocument();
+
+        Assert.Equal("Account", GetResponseSchema(doc, "/nested").GetAllOfArrayOverrideItemType(doc));
+    }
+
+    [Fact]
+    public void GetAllOfArrayOverrideItemType_NoArrayOverride_ReturnsNull()
+    {
+        var doc = ParsePaginationDocument();
+
+        Assert.Null(GetResponseSchema(doc, "/plain").GetAllOfArrayOverrideItemType(doc));
+        Assert.Null(doc.Components!.Schemas!["Account"].GetAllOfArrayOverrideItemType(doc));
+    }
+
+    [Theory]
+    [InlineData("/accounts", true, "PaginatedResult<Account>")]
+    [InlineData("/accounts", false, "PaginatedResult<Account>?")]
+    [InlineData("/plain", true, "PaginatedResult")]
+    [InlineData("/plain", false, "PaginatedResult?")]
+    public void ToCSharpTypeWithGenericSupport_AllOfWithBase_ReturnsGenericWhenAnArrayIsOverridden(
+        string path,
+        bool isRequired,
+        string expected)
+    {
+        var doc = ParsePaginationDocument();
+
+        Assert.Equal(expected, GetResponseSchema(doc, path).ToCSharpTypeWithGenericSupport(doc, isRequired));
+    }
+
+    [Fact]
+    public void ToCSharpTypeWithGenericSupport_ReferenceToArrayAlias_ReturnsElementArray()
+    {
+        var doc = ParsePaginationDocument();
+        var accounts = doc.Components!.Schemas!["AccountList"].Properties!["all"];
+
+        Assert.Equal("Account[]", accounts.ToCSharpTypeWithGenericSupport(doc, isRequired: true));
+        Assert.Equal("Account[]?", accounts.ToCSharpTypeWithGenericSupport(doc, isRequired: false));
+    }
+
+    [Fact]
+    public void ToCSharpTypeWithGenericSupport_PlainReferenceAndPrimitive_FallBackToStandardTypes()
+    {
+        var doc = ParsePaginationDocument();
+        var accountList = doc.Components!.Schemas!["AccountList"];
+
+        Assert.Equal("Account", accountList.Properties!["first"].ToCSharpTypeWithGenericSupport(doc, isRequired: true));
+        Assert.Equal("int?", accountList.Properties["count"].ToCSharpTypeWithGenericSupport(doc, isRequired: false));
+    }
+
+    // ========== Array schema Tests ==========
+    [Fact]
+    public void GetArrayTypeName_ItemsReference_ReturnsBracketedName()
+    {
+        var doc = ParsePaginationDocument();
+
+        Assert.Equal("Account[]", ((OpenApiSchema)doc.Components!.Schemas!["Accounts"]).GetArrayTypeName());
+    }
+
+    [Fact]
+    public void GetArrayTypeName_PrimitiveItemsAndNoItems()
+    {
+        Assert.Equal("long[]", new OpenApiSchema { Type = JsonSchemaType.Array, Items = new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int64" } }.GetArrayTypeName());
+        Assert.Equal("object[]", new OpenApiSchema { Type = JsonSchemaType.Array }.GetArrayTypeName());
+    }
+
+    [Fact]
+    public void GetArrayItemType_ItemsReference_ResolvesThroughTheRegistry()
+    {
+        var doc = ParseYaml("""
+                            openapi: "3.1.0"
+                            info:
+                              title: T
+                              version: "1.0.0"
+                            paths: {}
+                            components:
+                              schemas:
+                                Task:
+                                  type: object
+                                Tasks:
+                                  type: array
+                                  items:
+                                    $ref: '#/components/schemas/Task'
+                            """);
+        Assert.NotNull(doc);
+        var tasks = (OpenApiSchema)doc.Components!.Schemas!["Tasks"];
+
+        Assert.Equal("Task", tasks.GetArrayItemType());
+        Assert.Equal("MyApi.Generated.Models.Task", tasks.GetArrayItemType(TypeConflictRegistry.Build(doc, "MyApi")));
+    }
+
+    [Fact]
+    public void GetArrayItemType_InlineItemsAndNoItems()
+    {
+        Assert.Equal("Guid", new OpenApiSchema { Type = JsonSchemaType.Array, Items = new OpenApiSchema { Type = JsonSchemaType.String, Format = "uuid" } }.GetArrayItemType());
+        Assert.Equal("object", new OpenApiSchema { Type = JsonSchemaType.Array }.GetArrayItemType());
+    }
+
+    private static void AssertNicknameIsNullable(string yaml)
+    {
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var person = (OpenApiSchema)document.Components!.Schemas!["Person"];
+        var nickname = person.Properties!["nickname"];
+
+        Assert.Equal("string?", nickname.ToCSharpTypeForModel(isRequired: true, registry: null));
+    }
+
+    private static OpenApiDocument ParsePolymorphismDocument()
+        => OpenApiDocumentHelper.ParseYaml("""
+            openapi: "3.1.0"
+            info:
+              title: T
+              version: "1.0.0"
+            paths: {}
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                Cat:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                    name:
+                      type: string
+                Dog:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                    bark:
+                      type: boolean
+                Animal:
+                  oneOf:
+                    - $ref: '#/components/schemas/Cat'
+                    - $ref: '#/components/schemas/Dog'
+                  discriminator:
+                    propertyName: type
+                    mapping:
+                      cat: '#/components/schemas/Cat'
+                      dog: '#/components/schemas/Dog'
+                AnyAnimal:
+                  anyOf:
+                    - $ref: '#/components/schemas/Cat'
+                    - $ref: '#/components/schemas/Dog'
+                Mixed:
+                  oneOf:
+                    - $ref: '#/components/schemas/Pet'
+                    - $ref: '#/components/schemas/Dog'
+                NullablePet:
+                  oneOf:
+                    - $ref: '#/components/schemas/Pet'
+                    - type: 'null'
+                PetOrName:
+                  oneOf:
+                    - $ref: '#/components/schemas/Pet'
+                    - type: string
+            """);
+
+    private static OpenApiDocument ParseDictionaryDocument()
+        => OpenApiDocumentHelper.ParseYaml("""
+            openapi: "3.1.0"
+            info:
+              title: T
+              version: "1.0.0"
+            paths: {}
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                AnyBag:
+                  type: object
+                  additionalProperties: {}
+                IntBag:
+                  type: object
+                  additionalProperties:
+                    type: integer
+                    format: int64
+                PetBag:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/Pet'
+            """);
+
+    private static OpenApiDocument ParsePaginationDocument()
+        => OpenApiDocumentHelper.ParseYaml("""
+            openapi: "3.0.0"
+            info:
+              title: T
+              version: "1.0.0"
+            paths:
+              /accounts:
+                get:
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            allOf:
+                              - $ref: '#/components/schemas/PaginatedResult'
+                              - type: object
+                                properties:
+                                  results:
+                                    type: array
+                                    items:
+                                      $ref: '#/components/schemas/Account'
+              /aliased:
+                get:
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            allOf:
+                              - $ref: '#/components/schemas/PaginatedResult'
+                              - type: object
+                                properties:
+                                  results:
+                                    $ref: '#/components/schemas/Accounts'
+              /nested:
+                get:
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            allOf:
+                              - $ref: '#/components/schemas/PaginatedResult'
+                              - type: object
+                                properties:
+                                  results:
+                                    type: array
+                                    items:
+                                      $ref: '#/components/schemas/Accounts'
+              /plain:
+                get:
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            allOf:
+                              - $ref: '#/components/schemas/PaginatedResult'
+                              - type: object
+                                properties:
+                                  note:
+                                    type: string
+            components:
+              schemas:
+                Account:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                Accounts:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Account'
+                AccountList:
+                  type: object
+                  properties:
+                    all:
+                      $ref: '#/components/schemas/Accounts'
+                    first:
+                      $ref: '#/components/schemas/Account'
+                    count:
+                      type: integer
+                PaginatedResult:
+                  type: object
+                  properties:
+                    continuationToken:
+                      type: string
+                    results:
+                      type: array
+                      items: {}
+            """);
+
+    private static IOpenApiSchema GetResponseSchema(
+        OpenApiDocument doc,
+        string path)
+        => doc.Paths[path].Operations!.Values.First().Responses!["200"].Content!["application/json"].Schema!;
+
+    private static OpenApiSchema ParseTupleSchema(string itemsYaml)
+    {
+        var doc = ParseYaml($$"""
+                              openapi: "3.1.0"
+                              info:
+                                title: T
+                                version: "1.0.0"
+                              paths: {}
+                              components:
+                                schemas:
+                                  Point:
+                                    type: array
+                                    prefixItems:
+                                      - type: number
+                                      - type: number
+                                    {{itemsYaml}}
+                              """);
+        Assert.NotNull(doc);
+
+        return (OpenApiSchema)doc.Components!.Schemas!["Point"];
     }
 
     private static OpenApiDocument? ParseYaml(string yaml)

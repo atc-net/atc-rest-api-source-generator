@@ -304,40 +304,6 @@ public static class PolymorphicTypeExtractor
     }
 
     /// <summary>
-    /// Whether a variant schema (or a base it extends through <c>allOf</c>) declares the property itself.
-    /// </summary>
-    private static bool VariantDeclaresProperty(
-        OpenApiDocument document,
-        string variantName,
-        string propertyName)
-    {
-        if (document.Components?.Schemas is null ||
-            !document.Components.Schemas.TryGetValue(variantName, out var variant))
-        {
-            return false;
-        }
-
-        return Declares(variant, depth: 0);
-
-        bool Declares(
-            IOpenApiSchema schema,
-            int depth)
-        {
-            if (depth > 8)
-            {
-                return false;
-            }
-
-            if (schema.Properties?.ContainsKey(propertyName) == true)
-            {
-                return true;
-            }
-
-            return schema.AllOf?.Any(part => Declares(part, depth + 1)) == true;
-        }
-    }
-
-    /// <summary>
     /// Gets all schema names that are variants of polymorphic types.
     /// </summary>
     /// <param name="configs">The polymorphic configurations.</param>
@@ -522,6 +488,40 @@ public static class PolymorphicTypeExtractor
         sb.AppendLine("}");
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Whether a variant schema (or a base it extends through <c>allOf</c>) declares the property itself.
+    /// </summary>
+    private static bool VariantDeclaresProperty(
+        OpenApiDocument document,
+        string variantName,
+        string propertyName)
+    {
+        if (document.Components?.Schemas is null ||
+            !document.Components.Schemas.TryGetValue(variantName, out var variant))
+        {
+            return false;
+        }
+
+        return Declares(variant, depth: 0);
+
+        bool Declares(
+            IOpenApiSchema schema,
+            int depth)
+        {
+            if (depth > 8)
+            {
+                return false;
+            }
+
+            if (schema.Properties?.ContainsKey(propertyName) == true)
+            {
+                return true;
+            }
+
+            return schema.AllOf?.Any(part => Declares(part, depth + 1)) == true;
+        }
     }
 
     /// <summary>

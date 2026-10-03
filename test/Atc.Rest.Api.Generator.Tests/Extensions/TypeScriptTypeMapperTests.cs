@@ -331,6 +331,148 @@ public class TypeScriptTypeMapperTests
         Assert.Equal(expected, schema.ToTypeScriptReturnType());
     }
 
+    // ========== TryGetGenericPagination Tests ==========
+    [Theory]
+    [InlineData("$ref: '#/components/schemas/Item'", "Item", "Item")]
+    [InlineData("type: string", "string", null)]
+    [InlineData("$ref: '#/components/schemas/Items'", "Item", "Item")]
+    public void TryGetGenericPagination_GenericBaseWithArrayOverride_ReturnsBaseAndItem(
+        string itemsYaml,
+        string expectedItemType,
+        string? expectedItemSchemaName)
+    {
+        // The item may be a model, a primitive, or an array alias (Items = Item[]) that is unwrapped to its element.
+        var doc = ParseYaml($$"""
+                              openapi: 3.0.0
+                              info:
+                                title: T
+                                version: 1.0.0
+                              paths:
+                                /items:
+                                  get:
+                                    responses:
+                                      '200':
+                                        description: OK
+                                        content:
+                                          application/json:
+                                            schema:
+                                              allOf:
+                                                - $ref: '#/components/schemas/PagedBase'
+                                                - type: object
+                                                  properties:
+                                                    items:
+                                                      type: array
+                                                      items:
+                                                        {{itemsYaml}}
+                              components:
+                                schemas:
+                                  Item:
+                                    type: object
+                                  Items:
+                                    type: array
+                                    items:
+                                      $ref: '#/components/schemas/Item'
+                                  PagedBase:
+                                    type: object
+                                    properties:
+                                      results:
+                                        type: array
+                                        items: {}
+                              """);
+        Assert.NotNull(doc);
+
+        var schema = doc.Paths["/items"].Operations![HttpMethod.Get].Responses!["200"].Content!["application/json"].Schema!;
+
+        var result = TypeScriptTypeMapper.TryGetGenericPagination(schema.AllOf!, out var baseName, out var itemType, out var itemSchemaName);
+
+        Assert.True(result);
+        Assert.Equal("PagedBase", baseName);
+        Assert.Equal(expectedItemType, itemType);
+        Assert.Equal(expectedItemSchemaName, itemSchemaName);
+    }
+
+    [Fact]
+    public void TryGetGenericPagination_BaseIsNotGeneric_ReturnsFalse()
+    {
+        var doc = ParseYaml("""
+                            openapi: 3.0.0
+                            info:
+                              title: T
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            allOf:
+                                              - $ref: '#/components/schemas/PlainBase'
+                                              - type: object
+                                                properties:
+                                                  items:
+                                                    type: array
+                                                    items:
+                                                      $ref: '#/components/schemas/Item'
+                            components:
+                              schemas:
+                                Item:
+                                  type: object
+                                PlainBase:
+                                  type: object
+                                  properties:
+                                    continuationToken:
+                                      type: string
+                            """);
+        Assert.NotNull(doc);
+
+        var schema = doc.Paths["/items"].Operations![HttpMethod.Get].Responses!["200"].Content!["application/json"].Schema!;
+
+        var result = TypeScriptTypeMapper.TryGetGenericPagination(schema.AllOf!, out var baseName, out var itemType, out var itemSchemaName);
+
+        Assert.False(result);
+        Assert.Equal(string.Empty, baseName);
+        Assert.Equal(string.Empty, itemType);
+        Assert.Null(itemSchemaName);
+    }
+
+    [Fact]
+    public void TryGetGenericPagination_NoInlineArrayMember_ReturnsFalse()
+    {
+        var doc = ParseYaml("""
+                            openapi: 3.0.0
+                            info:
+                              title: T
+                              version: 1.0.0
+                            paths:
+                              /items:
+                                get:
+                                  responses:
+                                    '200':
+                                      description: OK
+                                      content:
+                                        application/json:
+                                          schema:
+                                            allOf:
+                                              - $ref: '#/components/schemas/PagedBase'
+                            components:
+                              schemas:
+                                PagedBase:
+                                  type: object
+                                  properties:
+                                    results:
+                                      type: array
+                                      items: {}
+                            """);
+        Assert.NotNull(doc);
+
+        var schema = doc.Paths["/items"].Operations![HttpMethod.Get].Responses!["200"].Content!["application/json"].Schema!;
+
+        Assert.False(TypeScriptTypeMapper.TryGetGenericPagination(schema.AllOf!, out _, out _, out _));
+    }
+
     [Fact]
     public void ToTypeScriptTypeForModel_OneOfRefPlusNullBranch_IsNullableRefType()
     {

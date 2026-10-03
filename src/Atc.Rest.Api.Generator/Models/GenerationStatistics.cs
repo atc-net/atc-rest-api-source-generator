@@ -131,11 +131,6 @@ public record GenerationStatistics
     public IReadOnlyList<string> ProjectsCreated { get; init; } = [];
 
     /// <summary>
-    /// List of files created.
-    /// </summary>
-    public IReadOnlyList<string> FilesCreated { get; init; } = [];
-
-    /// <summary>
     /// Total number of types generated across all categories.
     /// </summary>
     public int TotalTypesGenerated =>

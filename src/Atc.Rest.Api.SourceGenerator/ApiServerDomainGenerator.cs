@@ -16,6 +16,10 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         RegexOptions.Singleline | RegexOptions.Compiled | RegexOptions.ExplicitCapture,
         TimeSpan.FromSeconds(1));
 
+    /// <summary>
+    /// Registers the pipeline: the <c>.atc-rest-api-server-handlers</c> marker file and the specifications as additional texts, the handler interfaces the compilation already implements, and the scaffolds of the missing handlers as the output.
+    /// </summary>
+    /// <param name="context">The initialization context.</param>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Extract a stable, equatable summary from the compilation.
@@ -164,6 +168,91 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
     }
 
     /// <summary>
+    /// Scans the compilation to find all handler implementations.
+    /// Returns a dictionary mapping handler class names to their actual namespaces (e.g., "CreatePetsHandler" -> "PetStoreSimple.Api.Domain.ApiHandlers").
+    /// Detection is done both by interface implementation AND by class naming convention to handle
+    /// cases where the interface isn't yet resolved during source generation.
+    /// </summary>
+    internal static List<(string HandlerName, string Namespace)> FindImplementedHandlers(
+        Compilation compilation)
+    {
+        // All discovered (name, namespace) pairs are returned WITHOUT collapsing to one
+        // namespace per name. When the same handler name exists in two namespaces — e.g. a
+        // previously scaffolded stub under "...ApiHandlers" AND a hand-written handler the
+        // user placed elsewhere — collapsing would let discovery order decide which one
+        // wins, silently registering the stub (HTTP 501). The caller, which knows the
+        // scaffold namespace per operation, picks the right one and can warn on shadowing.
+        var seen = new HashSet<(string, string)>();
+        var implementedHandlers = new List<(string HandlerName, string Namespace)>();
+
+        void Add(
+            string handlerName,
+            string ns)
+        {
+            if (seen.Add((handlerName, ns)))
+            {
+                implementedHandlers.Add((handlerName, ns));
+            }
+        }
+
+        // Get type symbols from the current assembly only (avoids scanning all referenced assemblies)
+        var allTypes = GetAllTypesFromAssembly(compilation.Assembly.GlobalNamespace);
+
+        foreach (var typeSymbol in allTypes)
+        {
+            // Skip interfaces and abstract classes
+            if (typeSymbol.TypeKind == TypeKind.Interface ||
+                typeSymbol.IsAbstract)
+            {
+                continue;
+            }
+
+            // Method 1: Check if this type implements any handler interfaces
+            foreach (var interfaceSymbol in typeSymbol.AllInterfaces)
+            {
+                var interfaceName = interfaceSymbol.Name;
+
+                // Check if it's a handler interface (e.g., ICreatePetsHandler)
+                if (interfaceName.StartsWith("I", StringComparison.Ordinal) &&
+                    interfaceName.EndsWith("Handler", StringComparison.Ordinal))
+                {
+                    // Extract handler name (e.g., CreatePetsHandler from ICreatePetsHandler)
+                    var handlerName = interfaceName.Substring(1); // Remove "I" prefix
+
+                    // Get the actual namespace of the implementation
+                    var actualNamespace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
+
+                    Add(handlerName, actualNamespace);
+                }
+            }
+
+            // Method 2: Check by class name convention (e.g., SetShutdownHandler)
+            // This catches handlers even when the interface isn't resolved yet during source generation
+            var className = typeSymbol.Name;
+            if (className.EndsWith("Handler", StringComparison.Ordinal))
+            {
+                // Verify it's a user-defined class (has source location in the current project)
+                var syntaxRef = typeSymbol.DeclaringSyntaxReferences.FirstOrDefault();
+                if (syntaxRef is not null)
+                {
+                    var filePath = syntaxRef.SyntaxTree.FilePath;
+
+                    // Skip generated files (obj/Generated folder or .g.cs extension)
+                    if (!filePath.Contains("obj" + Path.DirectorySeparatorChar + "Generated") &&
+                        !filePath.Contains("obj" + Path.AltDirectorySeparatorChar + "Generated") &&
+                        !filePath.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var actualNamespace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
+                        Add(className, actualNamespace);
+                    }
+                }
+            }
+        }
+
+        return implementedHandlers;
+    }
+
+    /// <summary>
     /// Extracts a stable, equatable summary from the compilation.
     /// Scans for implemented handlers, interface namespaces, and validators so that
     /// the pipeline can detect when these sets actually change.
@@ -214,31 +303,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         ServerDomainConfig config,
         string markerDirectory)
     {
-        // Parse the OpenAPI YAML content
-        var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
-
+        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportDomainParsingError);
         if (openApiDoc is null)
-        {
-            DiagnosticHelpers.ReportDomainParsingError(context, yamlPath);
-            return;
-        }
-
-        // Validate OpenAPI document according to configured strategy
-        var validationDiagnostics = OpenApiDocumentValidator.Validate(
-            config.ValidateSpecificationStrategy,
-            openApiDoc,
-            openApiDiagnostic?.Errors ?? Array.Empty<OpenApiError>(),
-            yamlPath,
-            yamlContent);
-
-        // Report all validation diagnostics (convert from platform-agnostic to Roslyn)
-        foreach (var diagnostic in validationDiagnostics)
-        {
-            context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
-        }
-
-        // Stop generation if there are validation errors (not warnings)
-        if (DiagnosticHelpers.HasErrors(validationDiagnostics))
         {
             return;
         }
@@ -530,91 +596,6 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         context.AddGeneratedSource(
             "ApiValidatorDependencyRegistration.g.cs",
             SourceText.From(generatedContent.NormalizeForSourceOutput(), Encoding.UTF8));
-    }
-
-    /// <summary>
-    /// Scans the compilation to find all handler implementations.
-    /// Returns a dictionary mapping handler class names to their actual namespaces (e.g., "CreatePetsHandler" -> "PetStoreSimple.Api.Domain.ApiHandlers").
-    /// Detection is done both by interface implementation AND by class naming convention to handle
-    /// cases where the interface isn't yet resolved during source generation.
-    /// </summary>
-    internal static List<(string HandlerName, string Namespace)> FindImplementedHandlers(
-        Compilation compilation)
-    {
-        // All discovered (name, namespace) pairs are returned WITHOUT collapsing to one
-        // namespace per name. When the same handler name exists in two namespaces — e.g. a
-        // previously scaffolded stub under "...ApiHandlers" AND a hand-written handler the
-        // user placed elsewhere — collapsing would let discovery order decide which one
-        // wins, silently registering the stub (HTTP 501). The caller, which knows the
-        // scaffold namespace per operation, picks the right one and can warn on shadowing.
-        var seen = new HashSet<(string, string)>();
-        var implementedHandlers = new List<(string HandlerName, string Namespace)>();
-
-        void Add(
-            string handlerName,
-            string ns)
-        {
-            if (seen.Add((handlerName, ns)))
-            {
-                implementedHandlers.Add((handlerName, ns));
-            }
-        }
-
-        // Get type symbols from the current assembly only (avoids scanning all referenced assemblies)
-        var allTypes = GetAllTypesFromAssembly(compilation.Assembly.GlobalNamespace);
-
-        foreach (var typeSymbol in allTypes)
-        {
-            // Skip interfaces and abstract classes
-            if (typeSymbol.TypeKind == TypeKind.Interface ||
-                typeSymbol.IsAbstract)
-            {
-                continue;
-            }
-
-            // Method 1: Check if this type implements any handler interfaces
-            foreach (var interfaceSymbol in typeSymbol.AllInterfaces)
-            {
-                var interfaceName = interfaceSymbol.Name;
-
-                // Check if it's a handler interface (e.g., ICreatePetsHandler)
-                if (interfaceName.StartsWith("I", StringComparison.Ordinal) &&
-                    interfaceName.EndsWith("Handler", StringComparison.Ordinal))
-                {
-                    // Extract handler name (e.g., CreatePetsHandler from ICreatePetsHandler)
-                    var handlerName = interfaceName.Substring(1); // Remove "I" prefix
-
-                    // Get the actual namespace of the implementation
-                    var actualNamespace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
-
-                    Add(handlerName, actualNamespace);
-                }
-            }
-
-            // Method 2: Check by class name convention (e.g., SetShutdownHandler)
-            // This catches handlers even when the interface isn't resolved yet during source generation
-            var className = typeSymbol.Name;
-            if (className.EndsWith("Handler", StringComparison.Ordinal))
-            {
-                // Verify it's a user-defined class (has source location in the current project)
-                var syntaxRef = typeSymbol.DeclaringSyntaxReferences.FirstOrDefault();
-                if (syntaxRef is not null)
-                {
-                    var filePath = syntaxRef.SyntaxTree.FilePath;
-
-                    // Skip generated files (obj/Generated folder or .g.cs extension)
-                    if (!filePath.Contains("obj" + Path.DirectorySeparatorChar + "Generated") &&
-                        !filePath.Contains("obj" + Path.AltDirectorySeparatorChar + "Generated") &&
-                        !filePath.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var actualNamespace = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
-                        Add(className, actualNamespace);
-                    }
-                }
-            }
-        }
-
-        return implementedHandlers;
     }
 
     /// <summary>

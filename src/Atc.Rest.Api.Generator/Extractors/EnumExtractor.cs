@@ -58,111 +58,15 @@ public static class EnumExtractor
     }
 
     /// <summary>
-    /// Core extraction logic for enum definitions.
+    /// Generates the content for a single enum using GenerateContentForEnum.
     /// </summary>
-    private static List<EnumParameters>? ExtractCore(
-        OpenApiDocument openApiDoc,
-        string projectName,
-        HashSet<string>? schemaFilter,
-        string? pathSegment)
+    public static string GenerateEnumContent(EnumParameters parameters)
     {
-        var enumParametersList = new List<EnumParameters>();
+        var generator = new GenerateContentForEnum(
+            new CodeDocumentationTagsGenerator(),
+            parameters);
 
-        // Use shared namespace if no pathSegment, otherwise segment-specific namespace
-        var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
-
-        foreach (var schema in openApiDoc.Components!.Schemas!)
-        {
-            var originalSchemaName = schema.Key;
-            var schemaValue = schema.Value;
-
-            // Apply schema filter if provided (uses original name from OpenAPI spec)
-            if (schemaFilter is not null && !schemaFilter.Contains(originalSchemaName))
-            {
-                continue;
-            }
-
-            // Skip schema references
-            if (schemaValue is OpenApiSchemaReference)
-            {
-                continue;
-            }
-
-            // Check if this is a string enum schema
-            if (schemaValue is OpenApiSchema actualSchema && IsEnumSchema(actualSchema))
-            {
-                // Sanitize schema name - replace dots with underscores for valid C# identifiers
-                var schemaName = OpenApiSchemaExtensions.SanitizeSchemaName(originalSchemaName);
-                var enumParams = ExtractEnumFromSchema(schemaName, actualSchema, ns);
-                if (enumParams is not null)
-                {
-                    enumParametersList.Add(enumParams);
-                }
-            }
-        }
-
-        return enumParametersList.Count > 0 ? enumParametersList : null;
-    }
-
-    /// <summary>
-    /// Checks if a schema represents an enum (string type with enum values).
-    /// </summary>
-    private static bool IsEnumSchema(OpenApiSchema schema)
-    {
-        if (schema.Enum is not { Count: > 0 })
-        {
-            return false;
-        }
-
-        // String and integer enums are both supported. For integers, ExtractEnumValues
-        // synthesises identifiers (`Value{n}`) and carries the explicit numeric value so
-        // the generated C# enum reads `Value1 = 1, Value5 = 5` instead of relying on
-        // positional ordering.
-        return schema.IsOfType(JsonSchemaType.String) || schema.IsOfType(JsonSchemaType.Integer);
-    }
-
-    /// <summary>
-    /// Extracts enum parameters from an OpenAPI schema.
-    /// </summary>
-    private static EnumParameters? ExtractEnumFromSchema(
-        string schemaName,
-        OpenApiSchema schema,
-        string ns)
-    {
-        var enumValues = ExtractEnumValues(schema.Enum);
-        if (enumValues is null)
-        {
-            return null;
-        }
-
-        // Check if any value needs EnumMember attribute
-        var hasEnumMemberValues = enumValues.Any(v => v.EnumMemberValue is not null);
-
-        // Build header content with appropriate usings
-        var headerContent = BuildEnumHeaderContent(hasEnumMemberValues);
-
-        // Get description from schema if available
-        CodeDocumentationTags? docTags = null;
-        if (!string.IsNullOrEmpty(schema.Description))
-        {
-            docTags = new CodeDocumentationTags(schema.Description!);
-        }
-
-        // Build attributes list - JsonConverter is added by GenerateContentForEnum when EnumMember values are present
-        var attributes = new List<AttributeParameters>
-        {
-            new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-        };
-
-        return new EnumParameters(
-            HeaderContent: headerContent,
-            Namespace: ns,
-            DocumentationTags: docTags,
-            Attributes: attributes,
-            DeclarationModifier: DeclarationModifiers.Public,
-            EnumTypeName: schemaName,
-            UseFlags: false,
-            Values: enumValues);
+        return generator.Generate();
     }
 
     /// <summary>
@@ -319,14 +223,110 @@ public static class EnumExtractor
     }
 
     /// <summary>
-    /// Generates the content for a single enum using GenerateContentForEnum.
+    /// Core extraction logic for enum definitions.
     /// </summary>
-    public static string GenerateEnumContent(EnumParameters parameters)
+    private static List<EnumParameters>? ExtractCore(
+        OpenApiDocument openApiDoc,
+        string projectName,
+        HashSet<string>? schemaFilter,
+        string? pathSegment)
     {
-        var generator = new GenerateContentForEnum(
-            new CodeDocumentationTagsGenerator(),
-            parameters);
+        var enumParametersList = new List<EnumParameters>();
 
-        return generator.Generate();
+        // Use shared namespace if no pathSegment, otherwise segment-specific namespace
+        var ns = NamespaceBuilder.ForModels(projectName, pathSegment);
+
+        foreach (var schema in openApiDoc.Components!.Schemas!)
+        {
+            var originalSchemaName = schema.Key;
+            var schemaValue = schema.Value;
+
+            // Apply schema filter if provided (uses original name from OpenAPI spec)
+            if (schemaFilter is not null && !schemaFilter.Contains(originalSchemaName))
+            {
+                continue;
+            }
+
+            // Skip schema references
+            if (schemaValue is OpenApiSchemaReference)
+            {
+                continue;
+            }
+
+            // Check if this is a string enum schema
+            if (schemaValue is OpenApiSchema actualSchema && IsEnumSchema(actualSchema))
+            {
+                // Sanitize schema name - replace dots with underscores for valid C# identifiers
+                var schemaName = OpenApiSchemaExtensions.SanitizeSchemaName(originalSchemaName);
+                var enumParams = ExtractEnumFromSchema(schemaName, actualSchema, ns);
+                if (enumParams is not null)
+                {
+                    enumParametersList.Add(enumParams);
+                }
+            }
+        }
+
+        return enumParametersList.Count > 0 ? enumParametersList : null;
+    }
+
+    /// <summary>
+    /// Checks if a schema represents an enum (string type with enum values).
+    /// </summary>
+    private static bool IsEnumSchema(OpenApiSchema schema)
+    {
+        if (schema.Enum is not { Count: > 0 })
+        {
+            return false;
+        }
+
+        // String and integer enums are both supported. For integers, ExtractEnumValues
+        // synthesises identifiers (`Value{n}`) and carries the explicit numeric value so
+        // the generated C# enum reads `Value1 = 1, Value5 = 5` instead of relying on
+        // positional ordering.
+        return schema.IsOfType(JsonSchemaType.String) || schema.IsOfType(JsonSchemaType.Integer);
+    }
+
+    /// <summary>
+    /// Extracts enum parameters from an OpenAPI schema.
+    /// </summary>
+    private static EnumParameters? ExtractEnumFromSchema(
+        string schemaName,
+        OpenApiSchema schema,
+        string ns)
+    {
+        var enumValues = ExtractEnumValues(schema.Enum);
+        if (enumValues is null)
+        {
+            return null;
+        }
+
+        // Check if any value needs EnumMember attribute
+        var hasEnumMemberValues = enumValues.Any(v => v.EnumMemberValue is not null);
+
+        // Build header content with appropriate usings
+        var headerContent = BuildEnumHeaderContent(hasEnumMemberValues);
+
+        // Get description from schema if available
+        CodeDocumentationTags? docTags = null;
+        if (!string.IsNullOrEmpty(schema.Description))
+        {
+            docTags = new CodeDocumentationTags(schema.Description!);
+        }
+
+        // Build attributes list - JsonConverter is added by GenerateContentForEnum when EnumMember values are present
+        var attributes = new List<AttributeParameters>
+        {
+            new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
+        };
+
+        return new EnumParameters(
+            HeaderContent: headerContent,
+            Namespace: ns,
+            DocumentationTags: docTags,
+            Attributes: attributes,
+            DeclarationModifier: DeclarationModifiers.Public,
+            EnumTypeName: schemaName,
+            UseFlags: false,
+            Values: enumValues);
     }
 }

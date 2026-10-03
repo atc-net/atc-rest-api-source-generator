@@ -116,4 +116,25 @@ public class TypeScriptFactoryTests
         Assert.Equal("IDog", result.TypeName);
         Assert.Equal("IAnimal", result.ExtendsTypeName);
     }
+
+    [Fact]
+    public void TypeAliasFactory_CreateStringUnion_QuotesAndEscapesEachValue()
+    {
+        // Arrange
+        var values = new List<string> { "active", "in-active", "it's" };
+
+        // Act
+        var result = TypeScriptTypeAliasParametersFactory.CreateStringUnion(
+            headerContent: null,
+            documentationTags: null,
+            typeName: "Status",
+            values: values);
+
+        // Assert
+        Assert.Equal("Status", result.TypeName);
+        Assert.Equal(TypeScriptModifiers.Export, result.Modifiers);
+        Assert.Equal("'active' | 'in-active' | 'it\\'s'", result.Definition);
+        Assert.Null(result.GenericTypeParameter);
+        Assert.Null(result.ImportStatements);
+    }
 }

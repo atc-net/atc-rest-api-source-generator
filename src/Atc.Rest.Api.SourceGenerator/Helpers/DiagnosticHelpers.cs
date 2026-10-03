@@ -648,134 +648,6 @@ internal static class DiagnosticHelpers
             Location.None));
     }
 
-    // ========== OpenAPI Validation Reporting Methods ==========
-
-    /// <summary>
-    /// Reports an OpenAPI core parsing error (ATCAPI_VAL001).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Error message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportOpenApiCoreError(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OpenApiCoreError,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports OpenAPI 2.0 not supported error (ATCAPI_VAL002).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Error message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportOpenApi20NotSupported(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OpenApi20NotSupported,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operationId must use camelCase warning (ATCAPI_NAM001).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportOperationIdMustBeCamelCase(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationIdMustBeCamelCase,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operationId invalid casing style warning (ATCAPI_OPR002).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportOperationIdInvalidCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationIdInvalidCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports model name must use PascalCase warning (ATCAPI_NAM002).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportModelNameMustBePascalCase(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ModelNameMustBePascalCase,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports property name must use camelCase warning (ATCAPI_NAM003).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportPropertyNameMustBeCamelCase(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PropertyNameMustBeCamelCase,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports parameter name must use camelCase warning (ATCAPI_NAM004).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportParameterNameMustBeCamelCase(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ParameterNameMustBeCamelCase,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports enum value casing warning (ATCAPI_NAM005).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportEnumValueCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            EnumValueCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports tag name must use kebab-case warning (ATCAPI_NAM006).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportTagNameMustBeKebabCase(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            TagNameMustBeKebabCase,
-            Location.None,
-            message);
-
     // ========== Schema Validation Diagnostics ==========
 
     /// <summary>
@@ -920,193 +792,6 @@ internal static class DiagnosticHelpers
         RuleIdentifiers.Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
-
-    // ========== Schema Validation Reporting Methods ==========
-
-    /// <summary>
-    /// Reports missing title on array type warning (ATCAPI_SCH001).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportArrayTitleMissing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ArrayTitleMissing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports array title not starting with uppercase warning (ATCAPI_SCH002).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportArrayTitleNotUppercase(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ArrayTitleNotUppercase,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports missing title on object type warning (ATCAPI_SCH003).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportObjectTitleMissing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ObjectTitleMissing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports object title not starting with uppercase warning (ATCAPI_SCH004).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportObjectTitleNotUppercase(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ObjectTitleNotUppercase,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports implicit object definition in array not supported error (ATCAPI_SCH005).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Error message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportImplicitArrayObjectNotSupported(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ImplicitArrayObjectNotSupported,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports object name casing warning (ATCAPI_SCH006).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportObjectNameCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ObjectNameCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports property name casing warning (ATCAPI_SCH007).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportPropertyNameCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PropertyNameCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports enum name casing warning (ATCAPI_SCH008).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Warning message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportEnumNameCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            EnumNameCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports array property missing data type error (ATCAPI_SCH009).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Error message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportArrayPropertyMissingType(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ArrayPropertyMissingType,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports implicit object definition not supported error (ATCAPI_SCH010).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Error message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportImplicitObjectNotSupported(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ImplicitObjectNotSupported,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports array property missing items specification error (ATCAPI_SCH011).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Error message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportArrayPropertyMissingItems(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            ArrayPropertyMissingItems,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports missing property key/name error (ATCAPI_SCH012).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="message">Error message.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportPropertyKeyMissing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PropertyKeyMissing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports invalid schema reference error (ATCAPI_SCH013).
-    /// </summary>
-    /// <param name="sourceFilePath">Path to the OpenAPI file.</param>
-    /// <param name="referenceId">The invalid schema reference ID.</param>
-    /// <param name="path">The path where the invalid reference was found.</param>
-    /// <returns>Diagnostic to report.</returns>
-    public static Diagnostic ReportInvalidSchemaReference(
-        string sourceFilePath,
-        string referenceId,
-        string path)
-        => Diagnostic.Create(
-            InvalidSchemaReference,
-            Location.None,
-            referenceId,
-            path);
 
     // ========== Operation Validation Diagnostics ==========
 
@@ -1466,307 +1151,6 @@ internal static class DiagnosticHelpers
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
-    // ========== Operation Validation Reporting Methods ==========
-
-    /// <summary>
-    /// Reports missing operationId error (ATCAPI_OPR001).
-    /// </summary>
-    public static Diagnostic ReportOperationIdMissing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationIdMissing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports GET operationId prefix warning (ATCAPI_OPR003).
-    /// </summary>
-    public static Diagnostic ReportGetOperationIdPrefix(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            GetOperationIdPrefix,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports POST operationId prefix warning (ATCAPI_OPR004).
-    /// </summary>
-    public static Diagnostic ReportPostOperationIdPrefix(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PostOperationIdPrefix,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports PUT operationId prefix warning (ATCAPI_OPR005).
-    /// </summary>
-    public static Diagnostic ReportPutOperationIdPrefix(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PutOperationIdPrefix,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports PATCH operationId prefix warning (ATCAPI_OPR006).
-    /// </summary>
-    public static Diagnostic ReportPatchOperationIdPrefix(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PatchOperationIdPrefix,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports DELETE operationId prefix warning (ATCAPI_OPR007).
-    /// </summary>
-    public static Diagnostic ReportDeleteOperationIdPrefix(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            DeleteOperationIdPrefix,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports pluralized operationId mismatch warning (ATCAPI_OPR008).
-    /// </summary>
-    public static Diagnostic ReportOperationIdPluralizationMismatch(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationIdPluralizationMismatch,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports singular operationId mismatch warning (ATCAPI_OPR009).
-    /// </summary>
-    public static Diagnostic ReportOperationIdSingularMismatch(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationIdSingularMismatch,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports BadRequest without parameters warning (ATCAPI_OPR010).
-    /// </summary>
-    public static Diagnostic ReportBadRequestWithoutParameters(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            BadRequestWithoutParameters,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports global path parameter not in route error (ATCAPI_OPR011).
-    /// </summary>
-    public static Diagnostic ReportGlobalPathParameterNotInRoute(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            GlobalPathParameterNotInRoute,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operation missing path parameter error (ATCAPI_OPR012).
-    /// </summary>
-    public static Diagnostic ReportOperationMissingPathParameter(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationMissingPathParameter,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operation path parameter not in route error (ATCAPI_OPR013).
-    /// </summary>
-    public static Diagnostic ReportOperationPathParameterNotInRoute(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationPathParameterNotInRoute,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports GET missing NotFound response warning (ATCAPI_OPR014).
-    /// </summary>
-    public static Diagnostic ReportGetMissingNotFoundResponse(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            GetMissingNotFoundResponse,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports path parameter not required warning (ATCAPI_OPR015).
-    /// </summary>
-    public static Diagnostic ReportPathParameterNotRequired(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PathParameterNotRequired,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports path parameter nullable warning (ATCAPI_OPR016).
-    /// </summary>
-    public static Diagnostic ReportPathParameterNullable(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PathParameterNullable,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports requestBody inline model error (ATCAPI_OPR017).
-    /// </summary>
-    public static Diagnostic ReportRequestBodyInlineModel(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            RequestBodyInlineModel,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports multiple 2xx status codes error (ATCAPI_OPR018).
-    /// </summary>
-    public static Diagnostic ReportMultiple2xxStatusCodes(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            Multiple2xxStatusCodes,
-            Location.None,
-            message);
-
-    // ========== Security Validation Reporting Methods ==========
-
-    /// <summary>
-    /// Reports path authorize role not defined error (ATCAPI_SEC001).
-    /// </summary>
-    public static Diagnostic ReportPathAuthorizeRoleNotDefined(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PathAuthorizeRoleNotDefined,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports path authentication scheme not defined error (ATCAPI_SEC002).
-    /// </summary>
-    public static Diagnostic ReportPathAuthenticationSchemeNotDefined(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PathAuthenticationSchemeNotDefined,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operation authorize role not defined error (ATCAPI_SEC003).
-    /// </summary>
-    public static Diagnostic ReportOperationAuthorizeRoleNotDefined(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationAuthorizeRoleNotDefined,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operation authentication scheme not defined error (ATCAPI_SEC004).
-    /// </summary>
-    public static Diagnostic ReportOperationAuthenticationSchemeNotDefined(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationAuthenticationSchemeNotDefined,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operation authentication conflict warning (ATCAPI_SEC005).
-    /// </summary>
-    public static Diagnostic ReportOperationAuthenticationConflict(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationAuthenticationConflict,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operation authorize role casing mismatch warning (ATCAPI_SEC006).
-    /// </summary>
-    public static Diagnostic ReportOperationAuthorizeRoleCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationAuthorizeRoleCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports operation authentication scheme casing mismatch warning (ATCAPI_SEC007).
-    /// </summary>
-    public static Diagnostic ReportOperationAuthenticationSchemeCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            OperationAuthenticationSchemeCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports path authorize role casing mismatch warning (ATCAPI_SEC008).
-    /// </summary>
-    public static Diagnostic ReportPathAuthorizeRoleCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PathAuthorizeRoleCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports path authentication scheme casing mismatch warning (ATCAPI_SEC009).
-    /// </summary>
-    public static Diagnostic ReportPathAuthenticationSchemeCasing(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PathAuthenticationSchemeCasing,
-            Location.None,
-            message);
-
-    /// <summary>
-    /// Reports path authentication conflict warning (ATCAPI_SEC010).
-    /// </summary>
-    public static Diagnostic ReportPathAuthenticationConflict(
-        string sourceFilePath,
-        string message)
-        => Diagnostic.Create(
-            PathAuthenticationConflict,
-            Location.None,
-            message);
-
     // ========== Unsupported Feature Diagnostics ==========
 
     /// <summary>
@@ -1847,6 +1231,49 @@ internal static class DiagnosticHelpers
         return diagnostics;
     }
 
+    // ========== DiagnosticMessage Conversion ==========
+
+    /// <summary>
+    /// Converts a platform-agnostic DiagnosticMessage from the Generator library
+    /// to a Roslyn Diagnostic for source generator reporting.
+    /// </summary>
+    /// <param name="message">The DiagnosticMessage to convert.</param>
+    /// <returns>A Roslyn Diagnostic that can be reported via SourceProductionContext.</returns>
+    public static Diagnostic ToRoslynDiagnostic(
+        GeneratorDiagnosticMessage message)
+    {
+        var severity = message.Severity switch
+        {
+            GeneratorDiagnosticSeverity.Error => DiagnosticSeverity.Error,
+            GeneratorDiagnosticSeverity.Warning => DiagnosticSeverity.Warning,
+            GeneratorDiagnosticSeverity.Info => DiagnosticSeverity.Info,
+            _ => DiagnosticSeverity.Hidden
+        };
+
+        // Build rich message text with context and suggestions
+        var messageText = BuildRichMessageText(message);
+
+        var descriptor = new DiagnosticDescriptor(
+            message.RuleId,
+            GetTitleFromRuleId(message.RuleId),
+            messageText,
+            RuleIdentifiers.Category,
+            severity,
+            isEnabledByDefault: true,
+            helpLinkUri: message.DocumentationUrl);
+
+        return Diagnostic.Create(descriptor, CreateLocation(message));
+    }
+
+    /// <summary>
+    /// Checks if any DiagnosticMessage in the collection has Error severity.
+    /// </summary>
+    /// <param name="messages">The DiagnosticMessages to check.</param>
+    /// <returns>True if any message is an error.</returns>
+    public static bool HasErrors(
+        IEnumerable<GeneratorDiagnosticMessage> messages)
+        => messages.Any(m => m.Severity == GeneratorDiagnosticSeverity.Error);
+
     private static bool HasReadOnlyOrWriteOnlyProperties(
         OpenApiDocument openApiDoc)
     {
@@ -1921,40 +1348,6 @@ internal static class DiagnosticHelpers
         }
 
         return false;
-    }
-
-    // ========== DiagnosticMessage Conversion ==========
-
-    /// <summary>
-    /// Converts a platform-agnostic DiagnosticMessage from the Generator library
-    /// to a Roslyn Diagnostic for source generator reporting.
-    /// </summary>
-    /// <param name="message">The DiagnosticMessage to convert.</param>
-    /// <returns>A Roslyn Diagnostic that can be reported via SourceProductionContext.</returns>
-    public static Diagnostic ToRoslynDiagnostic(
-        GeneratorDiagnosticMessage message)
-    {
-        var severity = message.Severity switch
-        {
-            GeneratorDiagnosticSeverity.Error => DiagnosticSeverity.Error,
-            GeneratorDiagnosticSeverity.Warning => DiagnosticSeverity.Warning,
-            GeneratorDiagnosticSeverity.Info => DiagnosticSeverity.Info,
-            _ => DiagnosticSeverity.Hidden
-        };
-
-        // Build rich message text with context and suggestions
-        var messageText = BuildRichMessageText(message);
-
-        var descriptor = new DiagnosticDescriptor(
-            message.RuleId,
-            GetTitleFromRuleId(message.RuleId),
-            messageText,
-            RuleIdentifiers.Category,
-            severity,
-            isEnabledByDefault: true,
-            helpLinkUri: message.DocumentationUrl);
-
-        return Diagnostic.Create(descriptor, CreateLocation(message));
     }
 
     /// <summary>
@@ -2035,24 +1428,4 @@ internal static class DiagnosticHelpers
 
         return ruleId;
     }
-
-    /// <summary>
-    /// Converts a list of platform-agnostic DiagnosticMessages to Roslyn Diagnostics.
-    /// </summary>
-    /// <param name="messages">The DiagnosticMessages to convert.</param>
-    /// <returns>A list of Roslyn Diagnostics.</returns>
-    public static List<Diagnostic> ToRoslynDiagnostics(
-        IEnumerable<GeneratorDiagnosticMessage> messages)
-        => messages
-            .Select(ToRoslynDiagnostic)
-            .ToList();
-
-    /// <summary>
-    /// Checks if any DiagnosticMessage in the collection has Error severity.
-    /// </summary>
-    /// <param name="messages">The DiagnosticMessages to check.</param>
-    /// <returns>True if any message is an error.</returns>
-    public static bool HasErrors(
-        IEnumerable<GeneratorDiagnosticMessage> messages)
-        => messages.Any(m => m.Severity == GeneratorDiagnosticSeverity.Error);
 }

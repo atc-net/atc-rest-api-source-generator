@@ -53,43 +53,6 @@ public static class SchemaExtractor
     }
 
     /// <summary>
-    /// Extracts model records from OpenAPI document components filtered by path segment.
-    /// Only includes schemas that are used by operations in the specified path segment.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing schema definitions.</param>
-    /// <param name="projectName">The name of the project (used for namespace).</param>
-    /// <param name="pathSegment">The path segment to filter by (e.g., "Pets").</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated schemas.</param>
-    /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
-    /// <returns>RecordsParameters containing filtered model record definitions, or null if no schemas exist.</returns>
-    public static RecordsParameters? Extract(
-        OpenApiDocument openApiDoc,
-        string projectName,
-        string pathSegment,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false,
-        bool generatePartialModels = false)
-    {
-        var recordParametersList = ExtractIndividual(openApiDoc, pathSegment, registry, includeDeprecated, generatePartialModels: generatePartialModels);
-
-        if (recordParametersList is null || recordParametersList.Count == 0)
-        {
-            return null;
-        }
-
-        var headerContent = BuildHeaderContent(recordParametersList);
-
-        return new RecordsParameters(
-            HeaderContent: headerContent,
-            Namespace: NamespaceBuilder.ForModels(projectName, pathSegment),
-            DocumentationTags: null,
-            Attributes: null,
-            DeclarationModifier: DeclarationModifiers.Public,
-            Parameters: recordParametersList);
-    }
-
-    /// <summary>
     /// Extracts model records from OpenAPI document components for specific schemas.
     /// Used for generating shared types (used by multiple segments) or segment-specific types.
     /// </summary>
@@ -230,33 +193,6 @@ public static class SchemaExtractor
         => ExtractIndividual(openApiDoc, schemaFilter: null, includeDeprecated: includeDeprecated, generatePartialModels: generatePartialModels);
 
     /// <summary>
-    /// Extracts individual record parameters from OpenAPI document components filtered by path segment.
-    /// Returns a list of individual records without combined header/namespace.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing schema definitions.</param>
-    /// <param name="pathSegment">The path segment to filter by (e.g., "Pets").</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated schemas.</param>
-    /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
-    /// <returns>List of RecordParameters for each model used by operations in the path segment, or null if no schemas exist.</returns>
-    public static List<RecordParameters>? ExtractIndividual(
-        OpenApiDocument openApiDoc,
-        string pathSegment,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false,
-        bool generatePartialModels = false)
-    {
-        if (string.IsNullOrEmpty(pathSegment))
-        {
-            return ExtractIndividual(openApiDoc, schemaFilter: null, registry: registry, includeDeprecated: includeDeprecated, generatePartialModels: generatePartialModels);
-        }
-
-        // Get schemas used by operations in this path segment
-        var usedSchemas = PathSegmentHelper.GetSchemasUsedBySegment(openApiDoc, pathSegment);
-        return ExtractIndividual(openApiDoc, usedSchemas, registry, includeDeprecated, generatePartialModels: generatePartialModels);
-    }
-
-    /// <summary>
     /// Extracts individual record parameters from OpenAPI document components with polymorphic support.
     /// Returns a list of individual records without combined header/namespace.
     /// Polymorphic base schemas are skipped; variant records include inheritance.
@@ -276,33 +212,47 @@ public static class SchemaExtractor
         => ExtractIndividual(openApiDoc, schemaFilter: null, registry, includeDeprecated, polymorphicConfigs, generatePartialModels);
 
     /// <summary>
-    /// Extracts individual record parameters from OpenAPI document components filtered by path segment with polymorphic support.
-    /// Returns a list of individual records without combined header/namespace.
-    /// Polymorphic base schemas are skipped; variant records include inheritance.
+    /// Checks if a schema represents a pagination base (has results/items/data/values/content: array with empty/untyped items).
     /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing schema definitions.</param>
-    /// <param name="pathSegment">The path segment to filter by (e.g., "Pets").</param>
-    /// <param name="polymorphicConfigs">Polymorphic configurations for inheritance tracking.</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated schemas.</param>
-    /// <param name="generatePartialModels">Whether to generate partial records for extensibility.</param>
-    /// <returns>List of RecordParameters for each model used by operations in the path segment, or null if no schemas exist.</returns>
-    public static List<RecordParameters>? ExtractIndividualWithPolymorphism(
-        OpenApiDocument openApiDoc,
-        string pathSegment,
-        Dictionary<string, PolymorphicConfig>? polymorphicConfigs,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false,
-        bool generatePartialModels = false)
+    internal static bool IsPaginationBaseSchema(OpenApiSchema schema)
     {
-        if (string.IsNullOrEmpty(pathSegment))
+        if (schema.Properties is null)
         {
-            return ExtractIndividual(openApiDoc, schemaFilter: null, registry: registry, includeDeprecated: includeDeprecated, polymorphicConfigs: polymorphicConfigs, generatePartialModels: generatePartialModels);
+            return false;
         }
 
-        // Get schemas used by operations in this path segment
-        var usedSchemas = PathSegmentHelper.GetSchemasUsedBySegment(openApiDoc, pathSegment);
-        return ExtractIndividual(openApiDoc, usedSchemas, registry, includeDeprecated, polymorphicConfigs, generatePartialModels);
+        // Look for common pagination array property names
+        IOpenApiSchema? resultsProp = null;
+        foreach (var propName in PaginationArrayPropertyNames)
+        {
+            if (schema.Properties.TryGetValue(propName, out var propValue))
+            {
+                resultsProp = propValue;
+                break;
+            }
+        }
+
+        if (resultsProp is not OpenApiSchema resultsSchema)
+        {
+            return false;
+        }
+
+        // Check if it's an array type
+        if (!resultsSchema.IsOfType(JsonSchemaType.Array))
+        {
+            return false;
+        }
+
+        return resultsSchema.Items switch
+        {
+            // Check if items are empty/untyped (items: {} or no items)
+            null => true,
+
+            // Check if items schema has no type defined (empty schema)
+            OpenApiSchema itemSchema => itemSchema.Type is null ||
+                                        itemSchema.Type == JsonSchemaType.Null,
+            _ => false,
+        };
     }
 
     /// <summary>
@@ -662,50 +612,6 @@ public static class SchemaExtractor
             BaseTypeName = $"{baseName}<{itemType}>",
             BaseConstructorArguments = forwarded.Select(p => p.Name).ToList(),
             Parameters = forwarded.Concat(own).ToList(),
-        };
-    }
-
-    /// <summary>
-    /// Checks if a schema represents a pagination base (has results/items/data/values/content: array with empty/untyped items).
-    /// </summary>
-    internal static bool IsPaginationBaseSchema(OpenApiSchema schema)
-    {
-        if (schema.Properties is null)
-        {
-            return false;
-        }
-
-        // Look for common pagination array property names
-        IOpenApiSchema? resultsProp = null;
-        foreach (var propName in PaginationArrayPropertyNames)
-        {
-            if (schema.Properties.TryGetValue(propName, out var propValue))
-            {
-                resultsProp = propValue;
-                break;
-            }
-        }
-
-        if (resultsProp is not OpenApiSchema resultsSchema)
-        {
-            return false;
-        }
-
-        // Check if it's an array type
-        if (!resultsSchema.IsOfType(JsonSchemaType.Array))
-        {
-            return false;
-        }
-
-        return resultsSchema.Items switch
-        {
-            // Check if items are empty/untyped (items: {} or no items)
-            null => true,
-
-            // Check if items schema has no type defined (empty schema)
-            OpenApiSchema itemSchema => itemSchema.Type is null ||
-                                        itemSchema.Type == JsonSchemaType.Null,
-            _ => false,
         };
     }
 

@@ -17,15 +17,34 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// </remarks>
 public partial class ErrorResponseBodyRuntimeTests
 {
+    internal static readonly (string Id, string Group, string Label, string Marker, bool Typed)[] GuardClients =
+    [
+        ("cs-epo-ProblemDetails", "C# EndpointPerOperation", "errorResponseFormat: ProblemDetails", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails" }""", false),
+        ("cs-epo-PlainText", "C# EndpointPerOperation", "errorResponseFormat: PlainText", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "PlainText" }""", false),
+        ("cs-epo-PlainTextOnly", "C# EndpointPerOperation", "errorResponseFormat: PlainTextOnly", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "PlainTextOnly" }""", false),
+        ("cs-epo-Custom", "C# EndpointPerOperation", "errorResponseFormat: Custom (Monta ErrorResponse)", MontaCustomMarker, false),
+        ("cs-typed-Throw", "C# TypedClient", "typedClientResultStyle: Throw", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Throw" }""", true),
+        ("cs-typed-Result", "C# TypedClient", "typedClientResultStyle: Result", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Result" }""", true),
+        ("ts-fetch", "TypeScript", "Fetch client", string.Empty, false),
+        ("ts-axios", "TypeScript", "Axios client", string.Empty, false),
+    ];
+
     // A bearer token spells out who the caller is: "sub=alice;scopes=things:read,admin;scope=things:read admin;roles=admin".
     // "scopes" become one scope claim each, "scope" one space-separated claim (as a JWT handler maps the claim).
     private const string GuardTokenAlice = "sub=alice";
+
     private const string GuardTokenReader = "sub=reader;scopes=things:read";
+
     private const string GuardTokenReaderOneClaim = "sub=reader-one;scope=things:read things:write";
+
     private const string GuardTokenWriter = "sub=writer;scopes=things:write";
+
     private const string GuardTokenWriterAdmin = "sub=writer-admin;scopes=things:write,admin";
+
     private const string GuardTokenAdmin = "sub=admin;roles=admin";
+
     private const string GuardTokenOwner = "sub=owner";
+
     private const string GuardApiKey = "key-contoso";
 
     private const string GuardYaml = """
@@ -265,6 +284,56 @@ public partial class ErrorResponseBodyRuntimeTests
         }
         """";
 
+    internal sealed record GuardCase(
+        string Name,
+        string Group,
+        string Operation,
+        int[] Statuses,
+        (string Name, string Value)[] Headers,
+        string? RetryAfter = null,
+        int? Attempts = null,
+        int? MinAttempts = null,
+        string? Detail = null,
+        bool Declared = false);
+
+    /// <summary>
+    /// Every generated client, called over HTTP against the generated server, gets the status the specification's
+    /// security and rate-limit declarations promise - call by call - and reads it through the accessor the contract
+    /// gives it; the server answers each 401 with a challenge, each 429 as the limiter's algorithm allows, and the
+    /// client's retry policy treats the 429 as documented (no <c>fail</c> verdict outside <see cref="KnownGuardFailures"/>).
+    /// </summary>
+    [Fact]
+    [Trait("Category", "TypeScriptToolchain")]
+    public async Task EndToEnd_EveryClientIsGuardedAsTheSpecificationSays()
+    {
+        if (!IsNodeAvailable(out var reason))
+        {
+            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Fail(reason + " (running under CI where the security and rate-limit matrix is required)");
+            }
+
+            Assert.Skip(reason);
+        }
+
+        var matrix = await CollectGuardMatrixAsync();
+        if (Environment.GetEnvironmentVariable("GUARD_E2E_JSON") is { Length: > 0 } dumpPath)
+        {
+            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), TestContext.Current.CancellationToken);
+        }
+
+        var failures = RequestBindingFailingCells(matrix);
+        var unexpected = failures.Where(f => !KnownGuardFailures.Contains(f.Key)).ToList();
+        var fixedCells = KnownGuardFailures.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
+
+        Assert.True(
+            unexpected.Count == 0,
+            $"{unexpected.Count} failing cells:\n" + string.Join("\n", unexpected.Take(120).Select(f => $"{f.Key}: {f.Why}")));
+        Assert.True(
+            fixedCells.Count == 0,
+            $"{fixedCells.Count} cells pass now. Remove them from {nameof(KnownGuardFailures)}:\n" + string.Join("\n", fixedCells));
+    }
+
     /// <summary>
     /// Calls every case through a generated C# client against the live host, as many times as the case says, with
     /// the case's credentials on every request; each call's outcome is the status, the accessor the client offers
@@ -435,53 +504,6 @@ public partial class ErrorResponseBodyRuntimeTests
         }
         """";
 
-    internal sealed record GuardCase(
-        string Name,
-        string Group,
-        string Operation,
-        int[] Statuses,
-        (string Name, string Value)[] Headers,
-        string? RetryAfter = null,
-        int? Attempts = null,
-        int? MinAttempts = null,
-        string? Detail = null,
-        bool Declared = false);
-
-    /// <summary>
-    /// The cases: the operation, the credentials every request carries, and the statuses the calls must get, in
-    /// order. <c>Attempts</c> is what the server must have logged for the cell (the retries included); a limited case
-    /// carries a distinct subject per client, so each cell has its own budget.
-    /// </summary>
-    internal static List<GuardCase> GuardCases()
-        =>
-        [
-            new("open: no credentials", "authentication", "GuardOpen", [200], []),
-            new("bearer: no token", "authentication", "GuardBearer", [401], []),
-            new("bearer: a token", "authentication", "GuardBearer", [200], [("Authorization", "Bearer " + GuardTokenAlice)]),
-            new("bearer: a token the handler rejects", "authentication", "GuardBearer", [401], [("Authorization", "Bearer bad")]),
-            new("api key: no key", "authentication", "GuardApiKey", [401], []),
-            new("api key: the key", "authentication", "GuardApiKey", [200], [("X-API-Key", GuardApiKey)]),
-            new("api key: a bearer token instead", "authentication", "GuardApiKey", [401], [("Authorization", "Bearer " + GuardTokenAlice)]),
-            new("scope: a token without the scope", "authorization", "GuardScope", [403], [("Authorization", "Bearer " + GuardTokenWriter)]),
-            new("scope: a token with the scope", "authorization", "GuardScope", [200], [("Authorization", "Bearer " + GuardTokenReader)]),
-            new("scope: the scopes in one space-separated claim", "authorization", "GuardScope", [200], [("Authorization", "Bearer " + GuardTokenReaderOneClaim)]),
-            new("two scopes: a token with one of them", "authorization", "GuardScopes", [403], [("Authorization", "Bearer " + GuardTokenWriter)]),
-            new("two scopes: a token with both", "authorization", "GuardScopes", [200], [("Authorization", "Bearer " + GuardTokenWriterAdmin)]),
-            new("key or scope: the key", "authorization", "GuardEither", [200], [("X-API-Key", GuardApiKey)]),
-            new("key or scope: a token with the scope", "authorization", "GuardEither", [200], [("Authorization", "Bearer " + GuardTokenReader)]),
-            new("key or scope: a token without the scope", "authorization", "GuardEither", [403], [("Authorization", "Bearer " + GuardTokenWriter)]),
-            new("key or scope: nothing", "authorization", "GuardEither", [401], []),
-            new("role: a token without the role", "authorization", "GuardRole", [403], [("Authorization", "Bearer " + GuardTokenAlice)]),
-            new("role: a token with the role", "authorization", "GuardRole", [200], [("Authorization", "Bearer " + GuardTokenAdmin)]),
-            new("handler: Forbidden(\"not yours\")", "authorization", "GuardMine", [403], [("Authorization", "Bearer " + GuardTokenAlice)], Detail: "not yours", Declared: true),
-            new("handler: the owner", "authorization", "GuardMine", [200], [("Authorization", "Bearer " + GuardTokenOwner)]),
-            new("fixed window: the third request is rejected, Retry-After past the cap", "rate limit", "LimitFixed", [200, 200, 429], [("Authorization", "Bearer sub={client}-fixed")], RetryAfter: "60", Attempts: 3),
-            new("fixed window: a second user has its own budget", "rate limit", "LimitFixed", [200, 200], [("Authorization", "Bearer sub={client}-fixed-other")], Attempts: 2),
-            new("sliding window: no Retry-After, retried with the back-off, then handed back", "rate limit", "LimitSliding", [200, 429], [("Authorization", "Bearer sub={client}-sliding")], Attempts: 5),
-            new("token bucket: Retry-After waited for, the retry succeeds", "rate limit", "LimitBucket", [200, 200], [("Authorization", "Bearer sub={client}-bucket")], RetryAfter: "1", MinAttempts: 3),
-            new("disabled on the operation", "rate limit", "LimitOff", [200, 200, 200], [("Authorization", "Bearer sub={client}-off")], Attempts: 3),
-        ];
-
     // Calls every case through the generated ApiService against the live host, with the case's credentials as the
     // service's default headers; each call's outcome is the arm, the status, the error body's status and Retry-After.
     private const string GuardHarness = """
@@ -518,61 +540,11 @@ public partial class ErrorResponseBodyRuntimeTests
         writeFileSync(`results-${which}.json`, JSON.stringify(results));
         """;
 
-    internal static readonly (string Id, string Group, string Label, string Marker, bool Typed)[] GuardClients =
-    [
-        ("cs-epo-ProblemDetails", "C# EndpointPerOperation", "errorResponseFormat: ProblemDetails", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails" }""", false),
-        ("cs-epo-PlainText", "C# EndpointPerOperation", "errorResponseFormat: PlainText", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "PlainText" }""", false),
-        ("cs-epo-PlainTextOnly", "C# EndpointPerOperation", "errorResponseFormat: PlainTextOnly", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "PlainTextOnly" }""", false),
-        ("cs-epo-Custom", "C# EndpointPerOperation", "errorResponseFormat: Custom (Monta ErrorResponse)", MontaCustomMarker, false),
-        ("cs-typed-Throw", "C# TypedClient", "typedClientResultStyle: Throw", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Throw" }""", true),
-        ("cs-typed-Result", "C# TypedClient", "typedClientResultStyle: Result", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Result" }""", true),
-        ("ts-fetch", "TypeScript", "Fetch client", string.Empty, false),
-        ("ts-axios", "TypeScript", "Axios client", string.Empty, false),
-    ];
-
     /// <summary>
     /// The cells that fail today, as <c>case [client]</c>: a cell not listed here must pass, and a listed cell that
     /// passes fails the test asking to be removed.
     /// </summary>
     private static readonly HashSet<string> KnownGuardFailures = new(StringComparer.Ordinal);
-
-    /// <summary>
-    /// Every generated client, called over HTTP against the generated server, gets the status the specification's
-    /// security and rate-limit declarations promise - call by call - and reads it through the accessor the contract
-    /// gives it; the server answers each 401 with a challenge, each 429 as the limiter's algorithm allows, and the
-    /// client's retry policy treats the 429 as documented (no <c>fail</c> verdict outside <see cref="KnownGuardFailures"/>).
-    /// </summary>
-    [Fact]
-    [Trait("Category", "TypeScriptToolchain")]
-    public async Task EndToEnd_EveryClientIsGuardedAsTheSpecificationSays()
-    {
-        if (!IsNodeAvailable(out var reason))
-        {
-            if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
-            {
-                Assert.Fail(reason + " (running under CI where the security and rate-limit matrix is required)");
-            }
-
-            Assert.Skip(reason);
-        }
-
-        var matrix = await CollectGuardMatrixAsync();
-        if (Environment.GetEnvironmentVariable("GUARD_E2E_JSON") is { Length: > 0 } dumpPath)
-        {
-            await File.WriteAllTextAsync(dumpPath, matrix.ToJsonString(new JsonSerializerOptions { WriteIndented = true }), TestContext.Current.CancellationToken);
-        }
-
-        var failures = RequestBindingFailingCells(matrix);
-        var unexpected = failures.Where(f => !KnownGuardFailures.Contains(f.Key)).ToList();
-        var fixedCells = KnownGuardFailures.Where(k => failures.All(f => f.Key != k)).Order(StringComparer.Ordinal).ToList();
-
-        Assert.True(
-            unexpected.Count == 0,
-            $"{unexpected.Count} failing cells:\n" + string.Join("\n", unexpected.Take(120).Select(f => $"{f.Key}: {f.Why}")));
-        Assert.True(
-            fixedCells.Count == 0,
-            $"{fixedCells.Count} cells pass now. Remove them from {nameof(KnownGuardFailures)}:\n" + string.Join("\n", fixedCells));
-    }
 
     /// <summary>
     /// The verdict is not blind: a wrong status, a missing accessor, a lost Retry-After, a 401 without a challenge and
@@ -630,6 +602,41 @@ public partial class ErrorResponseBodyRuntimeTests
         static JsonArray Calls(params JsonObject[] calls)
             => new([.. calls.Select(c => c.DeepClone())]);
     }
+
+    /// <summary>
+    /// The cases: the operation, the credentials every request carries, and the statuses the calls must get, in
+    /// order. <c>Attempts</c> is what the server must have logged for the cell (the retries included); a limited case
+    /// carries a distinct subject per client, so each cell has its own budget.
+    /// </summary>
+    internal static List<GuardCase> GuardCases()
+        =>
+        [
+            new("open: no credentials", "authentication", "GuardOpen", [200], []),
+            new("bearer: no token", "authentication", "GuardBearer", [401], []),
+            new("bearer: a token", "authentication", "GuardBearer", [200], [("Authorization", "Bearer " + GuardTokenAlice)]),
+            new("bearer: a token the handler rejects", "authentication", "GuardBearer", [401], [("Authorization", "Bearer bad")]),
+            new("api key: no key", "authentication", "GuardApiKey", [401], []),
+            new("api key: the key", "authentication", "GuardApiKey", [200], [("X-API-Key", GuardApiKey)]),
+            new("api key: a bearer token instead", "authentication", "GuardApiKey", [401], [("Authorization", "Bearer " + GuardTokenAlice)]),
+            new("scope: a token without the scope", "authorization", "GuardScope", [403], [("Authorization", "Bearer " + GuardTokenWriter)]),
+            new("scope: a token with the scope", "authorization", "GuardScope", [200], [("Authorization", "Bearer " + GuardTokenReader)]),
+            new("scope: the scopes in one space-separated claim", "authorization", "GuardScope", [200], [("Authorization", "Bearer " + GuardTokenReaderOneClaim)]),
+            new("two scopes: a token with one of them", "authorization", "GuardScopes", [403], [("Authorization", "Bearer " + GuardTokenWriter)]),
+            new("two scopes: a token with both", "authorization", "GuardScopes", [200], [("Authorization", "Bearer " + GuardTokenWriterAdmin)]),
+            new("key or scope: the key", "authorization", "GuardEither", [200], [("X-API-Key", GuardApiKey)]),
+            new("key or scope: a token with the scope", "authorization", "GuardEither", [200], [("Authorization", "Bearer " + GuardTokenReader)]),
+            new("key or scope: a token without the scope", "authorization", "GuardEither", [403], [("Authorization", "Bearer " + GuardTokenWriter)]),
+            new("key or scope: nothing", "authorization", "GuardEither", [401], []),
+            new("role: a token without the role", "authorization", "GuardRole", [403], [("Authorization", "Bearer " + GuardTokenAlice)]),
+            new("role: a token with the role", "authorization", "GuardRole", [200], [("Authorization", "Bearer " + GuardTokenAdmin)]),
+            new("handler: Forbidden(\"not yours\")", "authorization", "GuardMine", [403], [("Authorization", "Bearer " + GuardTokenAlice)], Detail: "not yours", Declared: true),
+            new("handler: the owner", "authorization", "GuardMine", [200], [("Authorization", "Bearer " + GuardTokenOwner)]),
+            new("fixed window: the third request is rejected, Retry-After past the cap", "rate limit", "LimitFixed", [200, 200, 429], [("Authorization", "Bearer sub={client}-fixed")], RetryAfter: "60", Attempts: 3),
+            new("fixed window: a second user has its own budget", "rate limit", "LimitFixed", [200, 200], [("Authorization", "Bearer sub={client}-fixed-other")], Attempts: 2),
+            new("sliding window: no Retry-After, retried with the back-off, then handed back", "rate limit", "LimitSliding", [200, 429], [("Authorization", "Bearer sub={client}-sliding")], Attempts: 5),
+            new("token bucket: Retry-After waited for, the retry succeeds", "rate limit", "LimitBucket", [200, 200], [("Authorization", "Bearer sub={client}-bucket")], RetryAfter: "1", MinAttempts: 3),
+            new("disabled on the operation", "rate limit", "LimitOff", [200, 200, 200], [("Authorization", "Bearer sub={client}-off")], Attempts: 3),
+        ];
 
     internal sealed record GuardLogEntry(
         string Path,

@@ -19,6 +19,25 @@ public class JsonSchemaTypeExtensionsTests
         Assert.Equal(expected, result);
     }
 
+    [Theory]
+    [InlineData(JsonSchemaType.Integer, "int64", false, "long")]
+    [InlineData(JsonSchemaType.String | JsonSchemaType.Null, "uuid", false, "Guid")]
+    [InlineData(JsonSchemaType.String, "binary", true, "IFormFile")]
+    [InlineData(JsonSchemaType.String, "binary", false, "string")]
+    [InlineData(JsonSchemaType.Boolean, null, false, "bool")]
+    [InlineData(JsonSchemaType.Object, null, false, "object")]
+    public void ToCSharpTypeName_NonNullableOverload_MatchesNullableOverload(
+        JsonSchemaType schemaType,
+        string? format,
+        bool includeIFormFile,
+        string expected)
+    {
+        var result = schemaType.ToCSharpTypeName(format, includeIFormFile);
+
+        Assert.Equal(expected, result);
+        Assert.Equal(((JsonSchemaType?)schemaType).ToCSharpTypeName(format, includeIFormFile), result);
+    }
+
     // ========== ToCSharpTypeName - Number Tests ==========
     [Theory]
     [InlineData(null, "double")]

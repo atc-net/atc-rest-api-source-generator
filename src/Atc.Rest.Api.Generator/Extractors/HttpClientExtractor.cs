@@ -87,6 +87,166 @@ public static class HttpClientExtractor
         return (clientClass, inlineSchemas);
     }
 
+    /// <summary>
+    /// Extracts client parameter classes from OpenAPI document operations filtered by path segment.
+    /// Uses OperationParameterExtractor with binding attributes disabled.
+    /// </summary>
+    /// <param name="openApiDoc">The OpenAPI document containing path and operation definitions.</param>
+    /// <param name="projectName">The name of the project (used for namespace).</param>
+    /// <param name="pathSegment">The path segment to filter by (e.g., "Pets"). If null, extracts all operations.</param>
+    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
+    /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
+    /// <returns>List of RecordParameters for parameter DTOs.</returns>
+    public static List<RecordParameters>? ExtractParameters(
+        OpenApiDocument openApiDoc,
+        string projectName,
+        string? pathSegment,
+        TypeConflictRegistry? registry = null,
+        bool includeDeprecated = false,
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
+        => OperationParameterExtractor.ExtractIndividual(
+            openApiDoc,
+            projectName,
+            pathSegment,
+            registry: registry,
+            includeBindingAttributes: false,
+            includeDeprecated: includeDeprecated,
+            validateStrategy: validateStrategy);
+
+    /// <summary>
+    /// Inline-enum-aware variant of <see cref="ExtractParameters"/>. Returns both the
+    /// parameter records and any inline enums discovered on parameter schemas, so the
+    /// Roslyn client generator can emit them as separate <c>.g.cs</c> files.
+    /// </summary>
+    public static (List<RecordParameters>? Records, List<InlineEnumInfo> InlineEnums) ExtractParametersWithInlineEnums(
+        OpenApiDocument openApiDoc,
+        string projectName,
+        string? pathSegment,
+        TypeConflictRegistry? registry = null,
+        bool includeDeprecated = false,
+        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
+        string? namespaceSegment = null)
+        => OperationParameterExtractor.ExtractIndividualWithInlineEnums(
+            openApiDoc,
+            projectName,
+            pathSegment,
+            registry,
+            includeBindingAttributes: false,
+            includeDeprecated: includeDeprecated,
+            validateStrategy: validateStrategy,
+            namespaceSegment: namespaceSegment);
+
+    /// <summary>
+    /// Builds a Uri.EscapeDataString expression for a parameter access expression.
+    /// String types use Uri.EscapeDataString directly.
+    /// Other types use .ToString() before encoding.
+    /// Returns the original expression if encoding is not needed.
+    /// </summary>
+    /// <param name="accessExpression">The expression that reads the parameter value.</param>
+    /// <param name="paramType">The parameter's C# type name.</param>
+    /// <returns>The expression that yields the URL-safe text.</returns>
+    public static string BuildEncodedExpression(
+        string accessExpression,
+        string paramType)
+    {
+        // Dates, times and decimal numbers: formatted for the wire, never with the machine's culture
+        if (WireValueHelper.TryBuildWireExpression(accessExpression, paramType) is { } wireValue)
+        {
+            return $"Uri.EscapeDataString({wireValue} ?? string.Empty)";
+        }
+
+        if (!NeedsUrlEncoding(paramType))
+        {
+            return accessExpression;
+        }
+
+        var baseType = paramType.TrimEnd('?');
+        if (baseType == "string")
+        {
+            return $"Uri.EscapeDataString({accessExpression})";
+        }
+
+        // Use string interpolation for non-string types to avoid nullable ToString() warnings
+        return $"Uri.EscapeDataString($\"{{{accessExpression}}}\")";
+    }
+
+    /// <summary>
+    /// Builds the string interpolation replacement for a path parameter.
+    /// String types use Uri.EscapeDataString directly.
+    /// Other types that need encoding use .ToString() + Uri.EscapeDataString.
+    /// Value types known to produce URL-safe output are used directly.
+    /// </summary>
+    public static string BuildPathParameterReplacement(
+        string propName,
+        string paramType)
+    {
+        // Dates, times and decimal numbers: formatted for the wire, never with the machine's culture
+        if (WireValueHelper.TryBuildWireExpression($"parameters.{propName}", paramType) is { } wireValue)
+        {
+            return $"{{Uri.EscapeDataString({wireValue} ?? string.Empty)}}";
+        }
+
+        if (!NeedsUrlEncoding(paramType))
+        {
+            return $"{{parameters.{propName}}}";
+        }
+
+        var baseType = paramType.TrimEnd('?');
+        if (baseType == "string")
+        {
+            return $"{{Uri.EscapeDataString(parameters.{propName})}}";
+        }
+
+        // Use string interpolation for non-string types to avoid nullable ToString() warnings
+        return $"{{Uri.EscapeDataString($\"{{parameters.{propName}}}\")}}";
+    }
+
+    /// <summary>
+    /// Whether a value of the C# type has to be percent-encoded when it is written into a URL: a string (or a string-like
+    /// value such as a Uri) can carry reserved characters; a number, a boolean, a GUID or a date cannot.
+    /// </summary>
+    /// <param name="csharpType">The C# type of the parameter, with or without <c>?</c>.</param>
+    /// <returns><see langword="true"/> when the value must go through <c>Uri.EscapeDataString</c>.</returns>
+    public static bool NeedsUrlEncoding(string csharpType)
+    {
+        // Remove nullable indicator for comparison
+        var baseType = csharpType.TrimEnd('?');
+
+        // Arrays need special handling (encode each element) - not supported yet
+        if (baseType.EndsWith("[]", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        // Types whose ToString() always produces URL-safe output (digits, hex, true/false)
+        return baseType switch
+        {
+            "int" => false,
+            "long" => false,
+            "short" => false,
+            "byte" => false,
+            "bool" => false,
+            "float" => false,
+            "double" => false,
+            "decimal" => false,
+            "Guid" => false,
+
+            // String and DateTimeOffset need encoding (DateTimeOffset contains '+' for timezone)
+            "string" => true,
+            "DateTimeOffset" => true,
+            "DateTime" => true,
+            "DateOnly" => true,
+            "TimeOnly" => true,
+
+            // Custom/enum types: encode defensively since ToString() may produce URL-unsafe characters
+            _ => true,
+        };
+    }
+
+    /// <summary>
+    /// Determines if a type name is a pagination base type.
+    /// Supports common naming conventions: PaginationResult, PaginatedResult, PagedResult.
+    /// </summary>
     private static ClassParameters? ExtractInternal(
         OpenApiDocument openApiDoc,
         string projectName,
@@ -375,57 +535,6 @@ public static class HttpClientExtractor
             GenerateToStringMethod: false,
             AdditionalFieldDeclarations: additionalFieldDeclarations);
     }
-
-    /// <summary>
-    /// Extracts client parameter classes from OpenAPI document operations filtered by path segment.
-    /// Uses OperationParameterExtractor with binding attributes disabled.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing path and operation definitions.</param>
-    /// <param name="projectName">The name of the project (used for namespace).</param>
-    /// <param name="pathSegment">The path segment to filter by (e.g., "Pets"). If null, extracts all operations.</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
-    /// <returns>List of RecordParameters for parameter DTOs.</returns>
-    public static List<RecordParameters>? ExtractParameters(
-        OpenApiDocument openApiDoc,
-        string projectName,
-        string? pathSegment,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false,
-        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict)
-        => OperationParameterExtractor.ExtractIndividual(
-            openApiDoc,
-            projectName,
-            pathSegment,
-            registry: registry,
-            includeBindingAttributes: false,
-            namespaceSubFolder: "Client",
-            includeDeprecated: includeDeprecated,
-            validateStrategy: validateStrategy);
-
-    /// <summary>
-    /// Inline-enum-aware variant of <see cref="ExtractParameters"/>. Returns both the
-    /// parameter records and any inline enums discovered on parameter schemas, so the
-    /// Roslyn client generator can emit them as separate <c>.g.cs</c> files.
-    /// </summary>
-    public static (List<RecordParameters>? Records, List<InlineEnumInfo> InlineEnums) ExtractParametersWithInlineEnums(
-        OpenApiDocument openApiDoc,
-        string projectName,
-        string? pathSegment,
-        TypeConflictRegistry? registry = null,
-        bool includeDeprecated = false,
-        ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
-        string? namespaceSegment = null)
-        => OperationParameterExtractor.ExtractIndividualWithInlineEnums(
-            openApiDoc,
-            projectName,
-            pathSegment,
-            registry,
-            includeBindingAttributes: false,
-            namespaceSubFolder: "Client",
-            includeDeprecated: includeDeprecated,
-            validateStrategy: validateStrategy,
-            namespaceSegment: namespaceSegment);
 
     private static MethodParameters? ExtractMethod(
         string path,
@@ -1649,7 +1758,7 @@ public static class HttpClientExtractor
             // Handle allOf composition - look for PaginatedResult pattern
             if (actualSchema.AllOf is { Count: > 0 })
             {
-                return GetAllOfSchemaTypeName(actualSchema.AllOf, openApiDoc, registry);
+                return PaginationTypeResolver.GetAllOfSchemaTypeName(actualSchema.AllOf, openApiDoc, registry, item => GetSchemaTypeName(item, openApiDoc, registry));
             }
 
             // Handle array type specially (GetPrimitiveCSharpTypeName returns null for arrays)
@@ -1657,7 +1766,7 @@ public static class HttpClientExtractor
             {
                 // Check if this is a resolved schema reference (e.g., Coordinate tuple)
                 // If it's a component schema with prefixItems, return the schema name instead of recursing
-                var schemaName = FindSchemaNameByReference(openApiDoc, actualSchema);
+                var schemaName = SchemaLookup.FindSchemaNameByReference(openApiDoc, actualSchema);
                 if (!string.IsNullOrEmpty(schemaName))
                 {
                     return OpenApiSchemaExtensions.ResolveTypeName(schemaName!, registry);
@@ -1685,109 +1794,6 @@ public static class HttpClientExtractor
 
             // Use centralized primitive type mapping
             return actualSchema.Type.ToPrimitiveCSharpTypeName(actualSchema.Format) ?? "object";
-        }
-
-        return "object";
-    }
-
-    private static string GetAllOfSchemaTypeName(
-        IList<IOpenApiSchema> allOfSchemas,
-        OpenApiDocument openApiDoc,
-        TypeConflictRegistry? registry = null)
-    {
-        // Look for pagination pattern: allOf with $ref to PaginationResult/PaginatedResult and items/results array
-        string? baseType = null;
-        string? itemType = null;
-
-        foreach (var schemaItem in allOfSchemas)
-        {
-            if (schemaItem is OpenApiSchemaReference refSchema)
-            {
-                var refId = refSchema.Reference.Id;
-                if (!string.IsNullOrEmpty(refId))
-                {
-                    baseType = OpenApiSchemaExtensions.ResolveTypeName(refId!, registry);
-                }
-            }
-            else if (schemaItem is OpenApiSchema { Properties: not null } objSchema)
-            {
-                // Look for "items" or "results" property which contains the array item type
-                foreach (var prop in objSchema.Properties)
-                {
-                    if (prop.Key.Equals("items", StringComparison.OrdinalIgnoreCase) ||
-                        prop.Key.Equals("results", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var propSchema = prop.Value;
-                        if (propSchema is OpenApiSchema arraySchema && arraySchema.IsOfType(JsonSchemaType.Array))
-                        {
-                            // Get the item type from the array
-                            itemType = GetArrayItemType(arraySchema, openApiDoc, registry);
-                        }
-                        else if (propSchema is OpenApiSchemaReference propRef)
-                        {
-                            // Resolve the reference
-                            var propRefId = propRef.Reference.Id;
-                            if (!string.IsNullOrEmpty(propRefId) &&
-                                openApiDoc.Components?.Schemas?.TryGetValue(propRefId!, out var resolvedSchema) == true &&
-                                resolvedSchema is OpenApiSchema resolvedArray && resolvedArray.IsOfType(JsonSchemaType.Array))
-                            {
-                                itemType = GetArrayItemType(resolvedArray, openApiDoc, registry);
-                            }
-                        }
-
-                        break;
-                    }
-                }
-            }
-        }
-
-        // If we found PaginationResult<T> or PaginatedResult<T> pattern, return it
-        if (baseType is not null && IsPaginationBaseType(baseType) && itemType is not null)
-        {
-            return $"{baseType}<{itemType}>";
-        }
-
-        // Return the base type if found
-        return baseType ?? "object";
-    }
-
-    /// <summary>
-    /// Determines if a type name is a pagination base type.
-    /// Supports common naming conventions: PaginationResult, PaginatedResult, PagedResult.
-    /// </summary>
-    internal static bool IsPaginationBaseType(string typeName)
-        => typeName.StartsWith("PaginationResult", StringComparison.Ordinal) ||
-           typeName.StartsWith("PaginatedResult", StringComparison.Ordinal) ||
-           typeName.StartsWith("PagedResult", StringComparison.Ordinal);
-
-    private static string GetArrayItemType(
-        OpenApiSchema arraySchema,
-        OpenApiDocument openApiDoc,
-        TypeConflictRegistry? registry = null)
-    {
-        if (arraySchema.Items is null)
-        {
-            return "object";
-        }
-
-        if (arraySchema.Items is OpenApiSchemaReference itemRef)
-        {
-            var itemRefId = itemRef.Reference.Id;
-            if (!string.IsNullOrEmpty(itemRefId))
-            {
-                // Check if this is an array type alias (like Accounts -> Account[])
-                if (openApiDoc.Components?.Schemas?.TryGetValue(itemRefId!, out var itemSchema) == true &&
-                    itemSchema is OpenApiSchema innerArray && innerArray.IsOfType(JsonSchemaType.Array))
-                {
-                    return GetArrayItemType(innerArray, openApiDoc, registry);
-                }
-
-                return OpenApiSchemaExtensions.ResolveTypeName(itemRefId!, registry);
-            }
-        }
-        else if (arraySchema.Items is OpenApiSchema itemSchema)
-        {
-            return GetSchemaTypeName(itemSchema, openApiDoc, registry);
         }
 
         return "object";
@@ -1845,73 +1851,6 @@ public static class HttpClientExtractor
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Determines if a C# type needs URL encoding.
-    /// String types need encoding, value types don't (their ToString() is URL-safe).
-    /// Arrays are excluded - they require special handling (encoding each element separately).
-    /// </summary>
-    /// <summary>
-    /// Builds a Uri.EscapeDataString expression for a parameter access expression.
-    /// String types use Uri.EscapeDataString directly.
-    /// Other types use .ToString() before encoding.
-    /// Returns the original expression if encoding is not needed.
-    /// </summary>
-    public static string BuildEncodedExpression(
-        string accessExpression,
-        string paramType)
-    {
-        // Dates, times and decimal numbers: formatted for the wire, never with the machine's culture
-        if (WireValueHelper.TryBuildWireExpression(accessExpression, paramType) is { } wireValue)
-        {
-            return $"Uri.EscapeDataString({wireValue} ?? string.Empty)";
-        }
-
-        if (!NeedsUrlEncoding(paramType))
-        {
-            return accessExpression;
-        }
-
-        var baseType = paramType.TrimEnd('?');
-        if (baseType == "string")
-        {
-            return $"Uri.EscapeDataString({accessExpression})";
-        }
-
-        // Use string interpolation for non-string types to avoid nullable ToString() warnings
-        return $"Uri.EscapeDataString($\"{{{accessExpression}}}\")";
-    }
-
-    /// <summary>
-    /// Builds the string interpolation replacement for a path parameter.
-    /// String types use Uri.EscapeDataString directly.
-    /// Other types that need encoding use .ToString() + Uri.EscapeDataString.
-    /// Value types known to produce URL-safe output are used directly.
-    /// </summary>
-    public static string BuildPathParameterReplacement(
-        string propName,
-        string paramType)
-    {
-        // Dates, times and decimal numbers: formatted for the wire, never with the machine's culture
-        if (WireValueHelper.TryBuildWireExpression($"parameters.{propName}", paramType) is { } wireValue)
-        {
-            return $"{{Uri.EscapeDataString({wireValue} ?? string.Empty)}}";
-        }
-
-        if (!NeedsUrlEncoding(paramType))
-        {
-            return $"{{parameters.{propName}}}";
-        }
-
-        var baseType = paramType.TrimEnd('?');
-        if (baseType == "string")
-        {
-            return $"{{Uri.EscapeDataString(parameters.{propName})}}";
-        }
-
-        // Use string interpolation for non-string types to avoid nullable ToString() warnings
-        return $"{{Uri.EscapeDataString($\"{{parameters.{propName}}}\")}}";
     }
 
     /// <summary>
@@ -2022,42 +1961,6 @@ public static class HttpClientExtractor
         return $"{paramAccess} is not null";
     }
 
-    public static bool NeedsUrlEncoding(string csharpType)
-    {
-        // Remove nullable indicator for comparison
-        var baseType = csharpType.TrimEnd('?');
-
-        // Arrays need special handling (encode each element) - not supported yet
-        if (baseType.EndsWith("[]", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        // Types whose ToString() always produces URL-safe output (digits, hex, true/false)
-        return baseType switch
-        {
-            "int" => false,
-            "long" => false,
-            "short" => false,
-            "byte" => false,
-            "bool" => false,
-            "float" => false,
-            "double" => false,
-            "decimal" => false,
-            "Guid" => false,
-
-            // String and DateTimeOffset need encoding (DateTimeOffset contains '+' for timezone)
-            "string" => true,
-            "DateTimeOffset" => true,
-            "DateTime" => true,
-            "DateOnly" => true,
-            "TimeOnly" => true,
-
-            // Custom/enum types: encode defensively since ToString() may produce URL-unsafe characters
-            _ => true,
-        };
-    }
-
     /// <summary>
     /// Checks if the operation is a multi-file upload (direct array of binary).
     /// Only returns true for direct arrays, not for schema references to objects.
@@ -2084,41 +1987,6 @@ public static class HttpClientExtractor
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Finds the schema name in Components.Schemas by comparing schema properties.
-    /// This is needed when Microsoft.OpenApi resolves $ref to the actual schema object.
-    /// </summary>
-    private static string? FindSchemaNameByReference(
-        OpenApiDocument openApiDoc,
-        OpenApiSchema itemSchema)
-    {
-        if (openApiDoc.Components?.Schemas is null)
-        {
-            return null;
-        }
-
-        foreach (var kvp in openApiDoc.Components.Schemas)
-        {
-            // First try: compare by reference (same object instance)
-            if (ReferenceEquals(kvp.Value, itemSchema))
-            {
-                return kvp.Key;
-            }
-
-            // Second try: match by Title property if set
-            // OpenAPI specs often have title matching the schema name
-            if (kvp.Value is OpenApiSchema componentSchema &&
-                !string.IsNullOrEmpty(componentSchema.Title) &&
-                !string.IsNullOrEmpty(itemSchema.Title) &&
-                string.Equals(componentSchema.Title, itemSchema.Title, StringComparison.Ordinal))
-            {
-                return kvp.Key;
-            }
-        }
-
-        return null;
     }
 
     /// <summary>
@@ -2208,85 +2076,24 @@ public static class HttpClientExtractor
         builder.AppendLine("using var content = new MultipartFormDataContent();");
         builder.AppendLine();
 
-        var properties = schema.Properties?.ToList() ?? [];
-        if (properties.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var prop in properties)
-        {
-            var propName = prop.Key;
-            var propSchema = prop.Value;
-            var pascalPropName = propName.ToPascalCaseForDotNet();
-            var isBinary = propSchema.Type?.HasFlag(JsonSchemaType.String) == true &&
-                           string.Equals(propSchema.Format, "binary", StringComparison.OrdinalIgnoreCase);
-            var isArray = propSchema.Type?.HasFlag(JsonSchemaType.Array) == true;
-            var isArrayOfBinary = isArray &&
-                                  propSchema.Items?.Type?.HasFlag(JsonSchemaType.String) == true &&
-                                  string.Equals(propSchema.Items?.Format, "binary", StringComparison.OrdinalIgnoreCase);
-
-            if (isBinary)
-            {
-                // Single file property - use StreamContent with IFileContent
-                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} is not null)");
-                builder.AppendLine("{");
-                builder.AppendLine(4, $"var fileContent = new StreamContent({requestAccess}.{pascalPropName}.OpenReadStream());");
-                builder.AppendLine();
-                builder.AppendLine(4, $"if ({requestAccess}.{pascalPropName}.ContentType is not null)");
-                builder.AppendLine(4, "{");
-                builder.AppendLine(8, $"fileContent.Headers.ContentType = new MediaTypeHeaderValue({requestAccess}.{pascalPropName}.ContentType);");
-                builder.AppendLine(4, "}");
-                builder.AppendLine();
-                builder.AppendLine(4, $"content.Add(fileContent, \"{propName}\", {requestAccess}.{pascalPropName}.FileName);");
-                builder.AppendLine("}");
-                builder.AppendLine();
-            }
-            else if (isArrayOfBinary)
-            {
-                // Array of files - use StreamContent with IFileContent for each
-                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} is not null)");
-                builder.AppendLine("{");
-                builder.AppendLine(4, $"for (var i = 0; i < {requestAccess}.{pascalPropName}.Count; i++)");
-                builder.AppendLine(4, "{");
-                builder.AppendLine(8, $"var fileItem = {requestAccess}.{pascalPropName}[i];");
-                builder.AppendLine(8, "var fileContent = new StreamContent(fileItem.OpenReadStream());");
-                builder.AppendLine();
-                builder.AppendLine(8, "if (fileItem.ContentType is not null)");
-                builder.AppendLine(8, "{");
-                builder.AppendLine(12, "fileContent.Headers.ContentType = new MediaTypeHeaderValue(fileItem.ContentType);");
-                builder.AppendLine(8, "}");
-                builder.AppendLine();
-                builder.AppendLine(8, $"content.Add(fileContent, \"{propName}\", fileItem.FileName);");
-                builder.AppendLine(4, "}");
-                builder.AppendLine("}");
-                builder.AppendLine();
-            }
-            else if (isArray)
-            {
-                // Array of non-binary values - one form field per item, as its wire text
-                var itemType = propSchema.Items?.ToCSharpType(isRequired: true, registry: null).TrimEnd('?') ?? "string";
-                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} is not null)");
-                builder.AppendLine("{");
-                builder.AppendLine(4, $"foreach (var item in {requestAccess}.{pascalPropName})");
-                builder.AppendLine(4, "{");
-                builder.AppendLine(8, $"content.Add(new StringContent({FormBodyHelper.WireText("item", itemType, WireValueHelper.IsStringEnum(propSchema))}), \"{propName}\");");
-                builder.AppendLine(4, "}");
-                builder.AppendLine("}");
-                builder.AppendLine();
-            }
-            else
-            {
-                // Simple value - its wire text (never ToString(), which is culture-dependent)
-                var variable = char.ToLowerInvariant(pascalPropName[0]) + pascalPropName.Substring(1);
-                var valueType = propSchema.ToCSharpType(isRequired: true, registry: null).TrimEnd('?');
-                builder.AppendLine($"if ({requestAccess}?.{pascalPropName} is {{ }} {variable})");
-                builder.AppendLine("{");
-                builder.AppendLine(4, $"content.Add(new StringContent({FormBodyHelper.WireText(variable, valueType, WireValueHelper.IsStringEnum(propSchema))}), \"{propName}\");");
-                builder.AppendLine("}");
-                builder.AppendLine();
-            }
-        }
+        // A file is a StreamContent with its own content type; a text field a StringContent
+        FormBodyHelper.AppendMultipartFields(
+            builder,
+            schema,
+            requestAccess,
+            new MultipartPartWriter(
+                File: (sb, indent, name, file) =>
+                {
+                    sb.AppendLine(indent, $"var fileContent = new StreamContent({file}.OpenReadStream());");
+                    sb.AppendLine();
+                    sb.AppendLine(indent, $"if ({file}.ContentType is not null)");
+                    sb.AppendLine(indent, "{");
+                    sb.AppendLine(indent + 4, $"fileContent.Headers.ContentType = new MediaTypeHeaderValue({file}.ContentType);");
+                    sb.AppendLine(indent, "}");
+                    sb.AppendLine();
+                    sb.AppendLine(indent, $"content.Add(fileContent, \"{name}\", {file}.FileName);");
+                },
+                Text: (sb, indent, name, text) => sb.AppendLine(indent, $"content.Add(new StringContent({text}), \"{name}\");")));
     }
 
     /// <summary>

@@ -6,6 +6,13 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
 public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSettings>
 {
+    /// <summary>
+    /// Analyzes the old-generated solution, prints the migration readiness report and optionally saves it as JSON.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when the solution can be migrated; otherwise 1.</returns>
     protected override int Execute(
         CommandContext context,
         MigrateValidateCommandSettings settings,

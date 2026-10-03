@@ -1,8 +1,16 @@
 namespace Atc.Rest.Api.Generator.Cli;
 
+/// <summary>
+/// Entry point of the atc-rest-api-gen tool.
+/// </summary>
 [ExcludeFromCodeCoverage]
 public static class Program
 {
+    /// <summary>
+    /// Checks NuGet for a newer tool version, then runs the Spectre.Console command app with the given arguments.
+    /// </summary>
+    /// <param name="args">The command-line arguments; no arguments shows the help.</param>
+    /// <returns>The exit code of the executed command.</returns>
     public static async Task<int> Main(string[] args)
     {
         ArgumentNullException.ThrowIfNull(args);

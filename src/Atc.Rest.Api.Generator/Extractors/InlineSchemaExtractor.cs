@@ -297,34 +297,4 @@ public static class InlineSchemaExtractor
         inlineEnumsByValuesKey[valuesKey] = new InlineEnumInfo(enumTypeName, pathSegment, enumParams, valuesKey);
         return enumTypeName;
     }
-
-    /// <summary>
-    /// Checks if an array schema has inline object items.
-    /// </summary>
-    /// <param name="schema">The array schema to check.</param>
-    /// <returns>True if the array items are inline objects with properties.</returns>
-    public static bool HasInlineArrayItems(OpenApiSchema schema)
-    {
-        if (schema.Type?.HasFlag(JsonSchemaType.Array) != true)
-        {
-            return false;
-        }
-
-        return IsInlineObjectSchema(schema.Items);
-    }
-
-    /// <summary>
-    /// Gets the inline schema from an array's items.
-    /// </summary>
-    /// <param name="schema">The array schema.</param>
-    /// <returns>The inline schema if present, null otherwise.</returns>
-    public static OpenApiSchema? GetInlineArrayItemSchema(OpenApiSchema schema)
-    {
-        if (!HasInlineArrayItems(schema))
-        {
-            return null;
-        }
-
-        return schema.Items as OpenApiSchema;
-    }
 }

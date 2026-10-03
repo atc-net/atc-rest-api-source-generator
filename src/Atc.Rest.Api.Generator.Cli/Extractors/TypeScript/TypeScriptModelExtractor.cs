@@ -144,60 +144,6 @@ public static class TypeScriptModelExtractor
     }
 
     /// <summary>
-    /// Filters a property against the active variant. The default
-    /// (<see cref="SchemaVariant.Combined"/>) keeps every property; Response drops
-    /// <c>writeOnly</c>; Request drops <c>readOnly</c>.
-    /// </summary>
-    /// <summary>
-    /// An object schema: <c>type: object</c>, or no <c>type</c> but <c>allOf</c> / <c>properties</c>
-    /// (composition usually leaves the type out). <c>oneOf</c> / <c>anyOf</c> schemas are unions,
-    /// emitted by <see cref="ExtractUnionTypeAliases"/>.
-    /// </summary>
-    internal static bool IsObjectSchema(OpenApiSchema schema)
-        => schema.IsOfType(JsonSchemaType.Object) ||
-           (schema.Type is null &&
-            (schema.AllOf is { Count: > 0 } || schema.Properties is { Count: > 0 }) &&
-            schema.OneOf is not { Count: > 0 } &&
-            schema.AnyOf is not { Count: > 0 });
-
-    private static bool ShouldIncludeProperty(
-        OpenApiSchema propSchema,
-        SchemaVariant variant)
-        => variant switch
-        {
-            SchemaVariant.Response => !propSchema.WriteOnly,
-            SchemaVariant.Request => !propSchema.ReadOnly,
-            _ => true,
-        };
-
-    /// <summary>
-    /// Returns <c>true</c> when any direct property of <paramref name="schema"/> carries
-    /// the OpenAPI marker selected by <paramref name="readOnly"/> — <c>true</c> checks for
-    /// <c>readOnly: true</c>, <c>false</c> for <c>writeOnly: true</c>. Only direct properties
-    /// are inspected; deeply nested or inherited markers are out of scope for the split.
-    /// </summary>
-    private static bool SchemaHasMarker(
-        OpenApiSchema schema,
-        bool readOnly)
-    {
-        if (schema.Properties is null)
-        {
-            return false;
-        }
-
-        foreach (var (_, propValue) in schema.Properties)
-        {
-            if (propValue is OpenApiSchema propSchema &&
-                (readOnly ? propSchema.ReadOnly : propSchema.WriteOnly))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
     /// Extracts top-level <c>oneOf</c> / <c>anyOf</c> schemas as TypeScript union type
     /// aliases (e.g. <c>export type PaymentMethod = CreditCard | BankTransfer | PayPal;</c>).
     /// Without this, every consumer would have to either cast the leaf type or hand-write
@@ -238,81 +184,6 @@ public static class TypeScriptModelExtractor
         }
 
         return results;
-    }
-
-    /// <summary>
-    /// The top-level <c>oneOf</c> / <c>anyOf</c> schemas emitted as union type aliases, with their
-    /// <c>$ref</c> members and the explicit <c>discriminator.propertyName</c> (<see langword="null"/> without a
-    /// discriminator block) - shared with the Zod schemas so every alias has a matching <c>z.union</c> /
-    /// <c>z.discriminatedUnion</c>. Schemas that combine the union with their own properties stay interfaces.
-    /// </summary>
-    internal static List<(string Name, List<string> Leaves, string? Discriminator)> CollectUnionAliases(
-        OpenApiDocument openApiDoc,
-        TypeScriptClientConfig config)
-    {
-        var aliases = new List<(string Name, List<string> Leaves, string? Discriminator)>();
-        if (openApiDoc.Components?.Schemas is null)
-        {
-            return aliases;
-        }
-
-        foreach (var schema in openApiDoc.Components.Schemas)
-        {
-            if (schema.Value is not OpenApiSchema actualSchema ||
-                (!config.IncludeDeprecated && actualSchema.Deprecated))
-            {
-                continue;
-            }
-
-            var hasOwnObject = actualSchema.Type?.HasFlag(JsonSchemaType.Object) == true ||
-                               (actualSchema.Properties is not null && actualSchema.Properties.Count > 0);
-            if (hasOwnObject)
-            {
-                continue;
-            }
-
-            var leafNames = CollectUnionLeafRefs(actualSchema);
-            if (leafNames.Count > 0)
-            {
-                var discriminator = actualSchema.GetDiscriminatorPropertyName();
-                aliases.Add((schema.Key, leafNames, string.IsNullOrEmpty(discriminator) ? null : discriminator));
-            }
-        }
-
-        return aliases;
-    }
-
-    private static List<string> CollectUnionLeafRefs(OpenApiSchema schema)
-    {
-        var result = new List<string>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-
-        void Visit(IList<IOpenApiSchema>? variants)
-        {
-            if (variants is null)
-            {
-                return;
-            }
-
-            foreach (var v in variants)
-            {
-                if (v is not OpenApiSchemaReference variantRef)
-                {
-                    continue;
-                }
-
-                var refName = variantRef.Reference.Id ?? variantRef.Id;
-                if (refName is not null && seen.Add(refName))
-                {
-                    result.Add(refName);
-                }
-            }
-        }
-
-        Visit(schema.OneOf);
-        Visit(schema.AnyOf);
-
-        return result;
     }
 
     /// <summary>
@@ -422,6 +293,60 @@ public static class TypeScriptModelExtractor
     }
 
     /// <summary>
+    /// An object schema: <c>type: object</c>, or no <c>type</c> but <c>allOf</c> / <c>properties</c>
+    /// (composition usually leaves the type out). <c>oneOf</c> / <c>anyOf</c> schemas are unions,
+    /// emitted by <see cref="ExtractUnionTypeAliases"/>.
+    /// </summary>
+    internal static bool IsObjectSchema(OpenApiSchema schema)
+        => schema.IsOfType(JsonSchemaType.Object) ||
+           (schema.Type is null &&
+            (schema.AllOf is { Count: > 0 } || schema.Properties is { Count: > 0 }) &&
+            schema.OneOf is not { Count: > 0 } &&
+            schema.AnyOf is not { Count: > 0 });
+
+    /// <summary>
+    /// The top-level <c>oneOf</c> / <c>anyOf</c> schemas emitted as union type aliases, with their
+    /// <c>$ref</c> members and the explicit <c>discriminator.propertyName</c> (<see langword="null"/> without a
+    /// discriminator block) - shared with the Zod schemas so every alias has a matching <c>z.union</c> /
+    /// <c>z.discriminatedUnion</c>. Schemas that combine the union with their own properties stay interfaces.
+    /// </summary>
+    internal static List<(string Name, List<string> Leaves, string? Discriminator)> CollectUnionAliases(
+        OpenApiDocument openApiDoc,
+        TypeScriptClientConfig config)
+    {
+        var aliases = new List<(string Name, List<string> Leaves, string? Discriminator)>();
+        if (openApiDoc.Components?.Schemas is null)
+        {
+            return aliases;
+        }
+
+        foreach (var schema in openApiDoc.Components.Schemas)
+        {
+            if (schema.Value is not OpenApiSchema actualSchema ||
+                (!config.IncludeDeprecated && actualSchema.Deprecated))
+            {
+                continue;
+            }
+
+            var hasOwnObject = actualSchema.Type?.HasFlag(JsonSchemaType.Object) == true ||
+                               (actualSchema.Properties is not null && actualSchema.Properties.Count > 0);
+            if (hasOwnObject)
+            {
+                continue;
+            }
+
+            var leafNames = CollectUnionLeafRefs(actualSchema);
+            if (leafNames.Count > 0)
+            {
+                var discriminator = actualSchema.GetDiscriminatorPropertyName();
+                aliases.Add((schema.Key, leafNames, string.IsNullOrEmpty(discriminator) ? null : discriminator));
+            }
+        }
+
+        return aliases;
+    }
+
+    /// <summary>
     /// A component schema that is only a primitive or a numeric enum: no object, no array, no
     /// composition. A string enum is not one - <see cref="TypeScriptEnumExtractor"/> emits it.
     /// </summary>
@@ -457,14 +382,6 @@ public static class TypeScriptModelExtractor
            (schema.Type is null || (schema.Type.Value & ~JsonSchemaType.Null) == JsonSchemaType.Object);
 
     /// <summary>
-    /// An inline <c>type: string</c> schema without an <c>enum</c> - the only property a discriminator
-    /// literal replaces.
-    /// </summary>
-    private static bool IsPlainString(IOpenApiSchema schema)
-        => schema is OpenApiSchema { Enum: null or { Count: 0 } } plain &&
-           plain.Type?.HasFlag(JsonSchemaType.String) == true;
-
-    /// <summary>
     /// The literal values of a numeric enum (<c>enum: [1, 2, 3]</c>), without a <c>null</c> entry.
     /// </summary>
     internal static List<string> GetNumericEnumLiterals(OpenApiSchema schema)
@@ -474,6 +391,89 @@ public static class TypeScriptModelExtractor
                 .Where(v => v is not null && !JsonNullSentinel.IsJsonNullSentinel(v) && v.GetValueKind() == System.Text.Json.JsonValueKind.Number)
                 .Select(v => v.ToJsonString())
                 .ToList();
+
+    /// <summary>
+    /// Filters a property against the active variant. The default
+    /// (<see cref="SchemaVariant.Combined"/>) keeps every property; Response drops
+    /// <c>writeOnly</c>; Request drops <c>readOnly</c>.
+    /// </summary>
+    private static bool ShouldIncludeProperty(
+        OpenApiSchema propSchema,
+        SchemaVariant variant)
+        => variant switch
+        {
+            SchemaVariant.Response => !propSchema.WriteOnly,
+            SchemaVariant.Request => !propSchema.ReadOnly,
+            _ => true,
+        };
+
+    /// <summary>
+    /// Returns <c>true</c> when any direct property of <paramref name="schema"/> carries
+    /// the OpenAPI marker selected by <paramref name="readOnly"/> — <c>true</c> checks for
+    /// <c>readOnly: true</c>, <c>false</c> for <c>writeOnly: true</c>. Only direct properties
+    /// are inspected; deeply nested or inherited markers are out of scope for the split.
+    /// </summary>
+    private static bool SchemaHasMarker(
+        OpenApiSchema schema,
+        bool readOnly)
+    {
+        if (schema.Properties is null)
+        {
+            return false;
+        }
+
+        foreach (var (_, propValue) in schema.Properties)
+        {
+            if (propValue is OpenApiSchema propSchema &&
+                (readOnly ? propSchema.ReadOnly : propSchema.WriteOnly))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static List<string> CollectUnionLeafRefs(OpenApiSchema schema)
+    {
+        var result = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        void Visit(IList<IOpenApiSchema>? variants)
+        {
+            if (variants is null)
+            {
+                return;
+            }
+
+            foreach (var v in variants)
+            {
+                if (v is not OpenApiSchemaReference variantRef)
+                {
+                    continue;
+                }
+
+                var refName = variantRef.Reference.Id ?? variantRef.Id;
+                if (refName is not null && seen.Add(refName))
+                {
+                    result.Add(refName);
+                }
+            }
+        }
+
+        Visit(schema.OneOf);
+        Visit(schema.AnyOf);
+
+        return result;
+    }
+
+    /// <summary>
+    /// An inline <c>type: string</c> schema without an <c>enum</c> - the only property a discriminator
+    /// literal replaces.
+    /// </summary>
+    private static bool IsPlainString(IOpenApiSchema schema)
+        => schema is OpenApiSchema { Enum: null or { Count: 0 } } plain &&
+           plain.Type?.HasFlag(JsonSchemaType.String) == true;
 
     private static string GetScalarAliasType(OpenApiSchema schema)
     {
@@ -824,9 +824,6 @@ public static class TypeScriptModelExtractor
     }
 
     /// <summary>
-    /// Builds import statements for referenced types.
-    /// </summary>
-    /// <summary>
     /// Returns a string representation of the schema's example for use in JSDoc @example.
     /// Fallback chain: Examples[0] → Example (scalar on media-type), both as JSON strings.
     /// </summary>
@@ -880,6 +877,9 @@ public static class TypeScriptModelExtractor
     private static bool IsIdentifierChar(char value)
         => char.IsLetterOrDigit(value) || value == '_' || value == '$';
 
+    /// <summary>
+    /// Builds import statements for referenced types.
+    /// </summary>
     private static List<string> BuildImportStatements(
         HashSet<string> importTypes,
         string currentTypeName,

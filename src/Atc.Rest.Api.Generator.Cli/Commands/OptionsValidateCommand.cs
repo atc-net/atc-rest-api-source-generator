@@ -5,6 +5,13 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 /// </summary>
 public sealed class OptionsValidateCommand : Command<OptionsCommandSettings>
 {
+    /// <summary>
+    /// Parses the ApiGeneratorOptions.json at the output path and prints its errors, warnings and effective values.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when the file is valid; otherwise 1.</returns>
     protected override int Execute(
         CommandContext context,
         OptionsCommandSettings settings,

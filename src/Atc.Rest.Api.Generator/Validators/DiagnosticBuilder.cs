@@ -102,27 +102,6 @@ public static class DiagnosticBuilder
             DocumentationUrl: GetDocUrl(RuleIdentifiers.OperationIdMustBeCamelCase));
 
     /// <summary>
-    /// Creates a response code warning diagnostic for missing security.
-    /// </summary>
-    public static DiagnosticMessage ResponseCodeSecurityWarning(
-        string ruleId,
-        string statusCode,
-        string message,
-        string operationId,
-        string httpMethod,
-        string path,
-        string filePath,
-        params string[] suggestions)
-        => new(
-            RuleId: ruleId,
-            Message: message,
-            Severity: DiagnosticSeverity.Warning,
-            FilePath: filePath,
-            Context: $"{httpMethod.ToUpperInvariant()} {path} ({operationId})",
-            Suggestions: suggestions,
-            DocumentationUrl: GetDocUrl(ruleId));
-
-    /// <summary>
     /// Creates an OpenAPI parsing error diagnostic.
     /// </summary>
     public static DiagnosticMessage ParsingError(

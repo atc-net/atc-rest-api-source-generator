@@ -9,11 +9,22 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
     private readonly ProjectScaffoldingService scaffoldingService = new();
     private readonly INugetPackageVersionService nugetService;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GenerateServerCommand"/> class.
+    /// </summary>
+    /// <param name="nugetService">Resolves the latest package versions written into the generated project files.</param>
     public GenerateServerCommand(INugetPackageVersionService nugetService)
     {
         this.nugetService = nugetService;
     }
 
+    /// <summary>
+    /// Validates the specification, scaffolds the server projects and generates contracts, handlers and host code into them.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when generation succeeded; otherwise 1.</returns>
     protected override int Execute(
         CommandContext context,
         GenerateServerCommandSettings settings,

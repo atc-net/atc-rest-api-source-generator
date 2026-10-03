@@ -212,75 +212,6 @@ public static class TypeScriptTypeMapper
     }
 
     /// <summary>
-    /// Gets the TypeScript type name for String JsonSchemaType with format.
-    /// </summary>
-    private static string GetStringTypeName(
-        string? format,
-        bool convertDates = false)
-        => format?.ToLowerInvariant() switch
-        {
-            "binary" => "Blob | File",
-            "byte" => "string",
-            "uuid" => "string",
-            "guid" => "string",
-            "date-time" => convertDates ? "Date" : "string",
-            "date" => convertDates ? "Date" : "string",
-            "uri" => "string",
-            _ => "string",
-        };
-
-    /// <summary>
-    /// Builds a TypeScript union from a schema's <c>oneOf</c> or <c>anyOf</c> branches, e.g.
-    /// <c>SystemNotification | UserActivityEvent</c>.
-    /// </summary>
-    /// <remarks>
-    /// Returns <c>null</c> — leaving the caller on its <c>unknown</c> path — unless there are at
-    /// least two branches and <b>every</b> one of them is a <c>$ref</c>. A partial union is worse
-    /// than none: TypeScript collapses <c>A | unknown</c> back to <c>unknown</c>, so naming some
-    /// branches would suggest a precision the type does not actually have. The Zod emitter can
-    /// afford a per-branch <c>z.unknown()</c> because Zod unions do not collapse.
-    /// </remarks>
-    /// <summary>
-    /// The TypeScript type of an inline <c>allOf</c>: <c>Base&lt;Item&gt;</c> when the referenced base is a
-    /// generic pagination base (an array property with untyped items - the TypeScript model is emitted as
-    /// <c>Base&lt;T&gt;</c>) and the inline member supplies the item type; otherwise the intersection of the
-    /// referenced types and the inline members (<c>(PaginationResult &amp; { items?: Item[] })</c>).
-    /// </summary>
-    private static string BuildAllOfTypeScriptType(IList<IOpenApiSchema> allOf)
-    {
-        var refs = allOf.OfType<OpenApiSchemaReference>().ToList();
-        var inlineMembers = allOf.OfType<OpenApiSchema>().Where(s => s.Properties is { Count: > 0 }).ToList();
-
-        if (TryGetGenericPagination(allOf, out var baseName, out var itemType, out _))
-        {
-            return $"{baseName}<{itemType}>";
-        }
-
-        var parts = refs
-            .Select(r => r.Reference.Id ?? r.Id)
-            .Where(name => !string.IsNullOrEmpty(name))
-            .Select(name => name!)
-            .ToList();
-
-        foreach (var member in inlineMembers)
-        {
-            var required = member.Required ?? new HashSet<string>(StringComparer.Ordinal);
-            var members = member.Properties!.Select(p =>
-                $"{(IsTypeScriptIdentifier(p.Key) ? p.Key : $"'{p.Key}'")}{(required.Contains(p.Key) ? string.Empty : "?")}: {p.Value.ToTypeScriptReturnType()}");
-            parts.Add("{ " + string.Join("; ", members) + " }");
-        }
-
-        return parts.Count switch
-        {
-            0 => "unknown",
-            1 => parts[0],
-
-            // Parenthesized so it stays one type where callers embed it (`readonly X[]`, `X | null`).
-            _ => "(" + string.Join(" & ", parts) + ")",
-        };
-    }
-
-    /// <summary>
     /// Recognizes the generic pagination form of an <c>allOf</c>: exactly one <c>$ref</c>, to a generic pagination
     /// base (emitted as <c>Base&lt;T&gt;</c>), and an inline member whose array property supplies the item type.
     /// </summary>
@@ -356,6 +287,88 @@ public static class TypeScriptTypeMapper
     }
 
     /// <summary>
+    /// Locates the <c>prefixItems</c> JSON array on a schema. OpenAPI 3.1 specs land it in
+    /// <see cref="Microsoft.OpenApi.OpenApiSchema.UnrecognizedKeywords"/>; older specs that
+    /// jam it through the extension layer land it in <see cref="Microsoft.OpenApi.OpenApiSchema.Extensions"/>.
+    /// </summary>
+    internal static JsonArray? GetPrefixItemsArray(OpenApiSchema schema)
+    {
+        if (schema.UnrecognizedKeywords is not null &&
+            schema.UnrecognizedKeywords.TryGetValue("prefixItems", out var unrecognizedNode) &&
+            unrecognizedNode is JsonArray unrecognizedArray)
+        {
+            return unrecognizedArray;
+        }
+
+        if (schema.Extensions is not null &&
+            schema.Extensions.TryGetValue("prefixItems", out var extension) &&
+            extension is JsonNodeExtension { Node: JsonArray extensionArray })
+        {
+            return extensionArray;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the TypeScript type name for String JsonSchemaType with format.
+    /// </summary>
+    private static string GetStringTypeName(
+        string? format,
+        bool convertDates = false)
+        => format?.ToLowerInvariant() switch
+        {
+            "binary" => "Blob | File",
+            "byte" => "string",
+            "uuid" => "string",
+            "guid" => "string",
+            "date-time" => convertDates ? "Date" : "string",
+            "date" => convertDates ? "Date" : "string",
+            "uri" => "string",
+            _ => "string",
+        };
+
+    /// <summary>
+    /// The TypeScript type of an inline <c>allOf</c>: <c>Base&lt;Item&gt;</c> when the referenced base is a
+    /// generic pagination base (an array property with untyped items - the TypeScript model is emitted as
+    /// <c>Base&lt;T&gt;</c>) and the inline member supplies the item type; otherwise the intersection of the
+    /// referenced types and the inline members (<c>(PaginationResult &amp; { items?: Item[] })</c>).
+    /// </summary>
+    private static string BuildAllOfTypeScriptType(IList<IOpenApiSchema> allOf)
+    {
+        var refs = allOf.OfType<OpenApiSchemaReference>().ToList();
+        var inlineMembers = allOf.OfType<OpenApiSchema>().Where(s => s.Properties is { Count: > 0 }).ToList();
+
+        if (TryGetGenericPagination(allOf, out var baseName, out var itemType, out _))
+        {
+            return $"{baseName}<{itemType}>";
+        }
+
+        var parts = refs
+            .Select(r => r.Reference.Id ?? r.Id)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .Select(name => name!)
+            .ToList();
+
+        foreach (var member in inlineMembers)
+        {
+            var required = member.Required ?? new HashSet<string>(StringComparer.Ordinal);
+            var members = member.Properties!.Select(p =>
+                $"{(IsTypeScriptIdentifier(p.Key) ? p.Key : $"'{p.Key}'")}{(required.Contains(p.Key) ? string.Empty : "?")}: {p.Value.ToTypeScriptReturnType()}");
+            parts.Add("{ " + string.Join("; ", members) + " }");
+        }
+
+        return parts.Count switch
+        {
+            0 => "unknown",
+            1 => parts[0],
+
+            // Parenthesized so it stays one type where callers embed it (`readonly X[]`, `X | null`).
+            _ => "(" + string.Join(" & ", parts) + ")",
+        };
+    }
+
+    /// <summary>
     /// A pagination base: an object with an array property whose items are untyped (<c>items: {}</c>) -
     /// the TypeScript model extractor emits it as <c>Name&lt;T&gt;</c>.
     /// </summary>
@@ -371,6 +384,17 @@ public static class TypeScriptTypeMapper
            (char.IsLetter(name[0]) || name[0] is '_' or '$') &&
            name.All(c => char.IsLetterOrDigit(c) || c is '_' or '$');
 
+    /// <summary>
+    /// Builds a TypeScript union from a schema's <c>oneOf</c> or <c>anyOf</c> branches, e.g.
+    /// <c>SystemNotification | UserActivityEvent</c>.
+    /// </summary>
+    /// <remarks>
+    /// Returns <c>null</c> — leaving the caller on its <c>unknown</c> path — unless there are at
+    /// least two branches and <b>every</b> one of them is a <c>$ref</c>. A partial union is worse
+    /// than none: TypeScript collapses <c>A | unknown</c> back to <c>unknown</c>, so naming some
+    /// branches would suggest a precision the type does not actually have. The Zod emitter can
+    /// afford a per-branch <c>z.unknown()</c> because Zod unions do not collapse.
+    /// </remarks>
     private static string? BuildRefUnionTypeForTypeScript(
         OpenApiSchema schema)
     {
@@ -514,30 +538,6 @@ public static class TypeScriptTypeMapper
             "array" => "unknown[]",
             _ => "unknown",
         };
-    }
-
-    /// <summary>
-    /// Locates the <c>prefixItems</c> JSON array on a schema. OpenAPI 3.1 specs land it in
-    /// <see cref="Microsoft.OpenApi.OpenApiSchema.UnrecognizedKeywords"/>; older specs that
-    /// jam it through the extension layer land it in <see cref="Microsoft.OpenApi.OpenApiSchema.Extensions"/>.
-    /// </summary>
-    internal static JsonArray? GetPrefixItemsArray(OpenApiSchema schema)
-    {
-        if (schema.UnrecognizedKeywords is not null &&
-            schema.UnrecognizedKeywords.TryGetValue("prefixItems", out var unrecognizedNode) &&
-            unrecognizedNode is JsonArray unrecognizedArray)
-        {
-            return unrecognizedArray;
-        }
-
-        if (schema.Extensions is not null &&
-            schema.Extensions.TryGetValue("prefixItems", out var extension) &&
-            extension is JsonNodeExtension { Node: JsonArray extensionArray })
-        {
-            return extensionArray;
-        }
-
-        return null;
     }
 
     private static string ExtractRefName(string refStr)

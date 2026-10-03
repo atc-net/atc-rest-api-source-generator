@@ -257,6 +257,90 @@ public static class OpenApiCacheExtensions
         => HasCachingOfType(document, CacheType.Hybrid);
 
     /// <summary>
+    /// Merges the <c>x-cache-tags</c> of the document, path and operation levels: tags are additive across
+    /// levels (not overridden), de-duplicated and returned in ordinal order.
+    /// </summary>
+    /// <param name="documentTags">The document-level tags, or null.</param>
+    /// <param name="pathTags">The path-level tags, or null.</param>
+    /// <param name="operationTags">The operation-level tags, or null.</param>
+    /// <returns>The distinct tags of all levels, sorted; empty when none are declared.</returns>
+    public static IReadOnlyList<string> MergeTags(
+        IReadOnlyList<string>? documentTags,
+        IReadOnlyList<string>? pathTags,
+        IReadOnlyList<string>? operationTags)
+    {
+        var merged = new HashSet<string>(StringComparer.Ordinal);
+
+        if (documentTags is not null)
+        {
+            foreach (var tag in documentTags)
+            {
+                merged.Add(tag);
+            }
+        }
+
+        if (pathTags is not null)
+        {
+            foreach (var tag in pathTags)
+            {
+                merged.Add(tag);
+            }
+        }
+
+        if (operationTags is not null)
+        {
+            foreach (var tag in operationTags)
+            {
+                merged.Add(tag);
+            }
+        }
+
+        return [.. merged.OrderBy(t => t, StringComparer.Ordinal)];
+    }
+
+    /// <summary>
+    /// Parses an <c>x-cache-type</c> value: <c>hybrid</c> / <c>hybridcache</c> (case-insensitive) is
+    /// <see cref="CacheType.Hybrid"/>; anything else, empty or null is <see cref="CacheType.Output"/>.
+    /// </summary>
+    /// <param name="typeString">The declared cache type, or null.</param>
+    /// <returns>The cache type.</returns>
+    public static CacheType ParseCacheType(string? typeString)
+    {
+        if (string.IsNullOrEmpty(typeString))
+        {
+            return CacheType.Output;
+        }
+
+        return typeString.ToLowerInvariant() switch
+        {
+            "hybrid" or "hybridcache" => CacheType.Hybrid,
+            _ => CacheType.Output,
+        };
+    }
+
+    /// <summary>
+    /// Parses an <c>x-cache-mode</c> value (HybridCache only): <c>in-memory</c> / <c>inmemory</c> / <c>memory</c> is
+    /// <see cref="CacheMode.InMemory"/>, <c>distributed</c> / <c>l2</c> is <see cref="CacheMode.Distributed"/>;
+    /// anything else, empty or null is <see cref="CacheMode.Hybrid"/>. Case-insensitive.
+    /// </summary>
+    /// <param name="modeString">The declared cache mode, or null.</param>
+    /// <returns>The cache mode.</returns>
+    public static CacheMode ParseCacheMode(string? modeString)
+    {
+        if (string.IsNullOrEmpty(modeString))
+        {
+            return CacheMode.Hybrid;
+        }
+
+        return modeString.ToLowerInvariant() switch
+        {
+            "in-memory" or "inmemory" or "memory" => CacheMode.InMemory,
+            "distributed" or "l2" => CacheMode.Distributed,
+            _ => CacheMode.Hybrid,
+        };
+    }
+
+    /// <summary>
     /// Checks if the document has caching of a specific type.
     /// </summary>
     private static bool HasCachingOfType(
@@ -325,78 +409,6 @@ public static class OpenApiCacheExtensions
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Merges tags from all levels (document, path, operation).
-    /// </summary>
-    private static IReadOnlyList<string> MergeTags(
-        IReadOnlyList<string>? documentTags,
-        IReadOnlyList<string>? pathTags,
-        IReadOnlyList<string>? operationTags)
-    {
-        var merged = new HashSet<string>(StringComparer.Ordinal);
-
-        if (documentTags is not null)
-        {
-            foreach (var tag in documentTags)
-            {
-                merged.Add(tag);
-            }
-        }
-
-        if (pathTags is not null)
-        {
-            foreach (var tag in pathTags)
-            {
-                merged.Add(tag);
-            }
-        }
-
-        if (operationTags is not null)
-        {
-            foreach (var tag in operationTags)
-            {
-                merged.Add(tag);
-            }
-        }
-
-        return [.. merged.OrderBy(t => t, StringComparer.Ordinal)];
-    }
-
-    /// <summary>
-    /// Parses a cache type string to the enum value.
-    /// </summary>
-    private static CacheType ParseCacheType(string? typeString)
-    {
-        if (string.IsNullOrEmpty(typeString))
-        {
-            return CacheType.Output;
-        }
-
-        return typeString.ToLowerInvariant() switch
-        {
-            "hybrid" or "hybridcache" => CacheType.Hybrid,
-            _ => CacheType.Output,
-        };
-    }
-
-    /// <summary>
-    /// Parses a cache mode string to the enum value.
-    /// </summary>
-    private static CacheMode ParseCacheMode(string? modeString)
-    {
-        if (string.IsNullOrEmpty(modeString))
-        {
-            return CacheMode.Hybrid;
-        }
-
-        return modeString.ToLowerInvariant() switch
-        {
-            "in-memory" or "inmemory" or "memory" => CacheMode.InMemory,
-            "distributed" or "l2" => CacheMode.Distributed,
-            _ => CacheMode.Hybrid,
-        };
     }
 
     /// <summary>

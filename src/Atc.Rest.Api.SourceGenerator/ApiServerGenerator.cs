@@ -2,10 +2,17 @@
 // ReSharper disable ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
 namespace Atc.Rest.Api.SourceGenerator;
 
+/// <summary>
+/// The source generator behind the <c>.atc-rest-api-server</c> marker file: the models, parameters, results, handler interfaces, endpoint definitions and dependency-injection extensions of every OpenAPI specification in the project.
+/// </summary>
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "OK.")]
 [Generator(LanguageNames.CSharp)]
 public class ApiServerGenerator : IIncrementalGenerator
 {
+    /// <summary>
+    /// Registers the pipeline: the marker file and the specifications as additional texts, the project's package references, and the server code and its diagnostics as the output.
+    /// </summary>
+    /// <param name="context">The initialization context.</param>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Find marker files - marker file presence IS the trigger for this generator
@@ -225,55 +232,19 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool useGlobalErrorHandler,
         ServerPackageReferences packages)
     {
-        // Convert to SpecificationFile objects
-        var baseName = Path.GetFileNameWithoutExtension(baseFile.Path);
-        var baseSpec = SpecificationService.ReadFromContent(baseFile.Content, baseFile.Path);
-        var partSpecs = partFiles
-            .Select(p => SpecificationService.ReadFromContent(p.Content, p.Path))
-            .ToList();
-
-        // Merge specifications using SpecificationService
-        var mergeConfig = config.MultiPartConfiguration ?? MultiPartConfiguration.Default;
-        var mergeResult = SpecificationService.MergeSpecifications(baseSpec, partSpecs, mergeConfig);
-
-        // Report merge diagnostics
-        foreach (var diagnostic in mergeResult.Diagnostics)
-        {
-            context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
-        }
-
-        // Stop if merge failed
-        if (!mergeResult.IsSuccess || mergeResult.Document is null)
-        {
-            return;
-        }
-
-        // Validate the merged document according to the configured strategy, like a single file
-        var validationDiagnostics = OpenApiDocumentValidator.Validate(
-            config.ValidateSpecificationStrategy,
-            mergeResult.Document,
-            Array.Empty<OpenApiError>(),
-            baseFile.Path);
-
-        foreach (var diagnostic in validationDiagnostics)
-        {
-            context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
-        }
-
-        // Stop generation if there are validation errors (not warnings)
-        if (DiagnosticHelpers.HasErrors(validationDiagnostics))
+        var openApiDoc = SpecificationLoader.MergeAndValidate(context, baseFile, partFiles, config.MultiPartConfiguration, config.ValidateSpecificationStrategy);
+        if (openApiDoc is null)
         {
             return;
         }
 
         // Extract project name from base file path (or use config namespace)
-        var projectName = config.Namespace ?? baseName;
+        var projectName = config.Namespace ?? Path.GetFileNameWithoutExtension(baseFile.Path);
 
-        // Continue with normal generation using merged document
         GenerateApiServerFromDocument(
             context,
             baseFile.Path,
-            mergeResult.Document,
+            openApiDoc,
             config,
             projectName,
             useMinimalApiPackage,
@@ -292,31 +263,8 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool useGlobalErrorHandler,
         ServerPackageReferences packages)
     {
-        // Parse the OpenAPI YAML content
-        var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
-
+        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportServerParsingError);
         if (openApiDoc is null)
-        {
-            DiagnosticHelpers.ReportServerParsingError(context, yamlPath);
-            return;
-        }
-
-        // Validate OpenAPI document according to configured strategy
-        var validationDiagnostics = OpenApiDocumentValidator.Validate(
-            config.ValidateSpecificationStrategy,
-            openApiDoc,
-            openApiDiagnostic?.Errors ?? Array.Empty<OpenApiError>(),
-            yamlPath,
-            yamlContent);
-
-        // Report all validation diagnostics (convert from platform-agnostic to Roslyn)
-        foreach (var diagnostic in validationDiagnostics)
-        {
-            context.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
-        }
-
-        // Stop generation if there are validation errors (not warnings)
-        if (DiagnosticHelpers.HasErrors(validationDiagnostics))
         {
             return;
         }
@@ -324,7 +272,6 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Extract project name from YAML file path (or use config namespace)
         var projectName = config.Namespace ?? GetProjectNameFromPath(yamlPath);
 
-        // Continue with generation from the parsed document
         GenerateApiServerFromDocument(
             context,
             yamlPath,

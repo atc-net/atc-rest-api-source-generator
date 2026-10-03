@@ -45,27 +45,6 @@ public static class HeaderBuilder
     }
 
     /// <summary>
-    /// Builds a header by analyzing content for required using statements.
-    /// Delegates to UsingStatementHelper.BuildHeader for content analysis.
-    /// </summary>
-    /// <param name="content">The generated code content to analyze.</param>
-    /// <param name="alwaysInclude">Namespaces to always include regardless of content.</param>
-    /// <returns>The complete header string.</returns>
-    public static string FromContent(
-        string content,
-        params string[] alwaysInclude)
-        => UsingStatementHelper.BuildHeader(content, alwaysInclude);
-
-    /// <summary>
-    /// Builds a header for DI extension methods.
-    /// </summary>
-    /// <returns>The complete header string.</returns>
-    public static string ForDependencyInjection()
-        => WithUsings(
-            NamespaceConstants.SystemCodeDomCompiler,
-            NamespaceConstants.MicrosoftExtensionsDependencyInjection);
-
-    /// <summary>
     /// Builds a header for FluentValidation DI extension methods.
     /// </summary>
     /// <returns>The complete header string.</returns>
@@ -74,32 +53,6 @@ public static class HeaderBuilder
             NamespaceConstants.SystemCodeDomCompiler,
             NamespaceConstants.FluentValidation,
             NamespaceConstants.MicrosoftExtensionsDependencyInjection);
-
-    /// <summary>
-    /// Builds a header for WebApplication extension methods.
-    /// </summary>
-    /// <returns>The complete header string.</returns>
-    public static string ForWebApplicationExtensions()
-        => WithUsings(
-            NamespaceConstants.SystemCodeDomCompiler,
-            NamespaceConstants.MicrosoftAspNetCoreBuilder);
-
-    /// <summary>
-    /// Builds a header for handler interfaces.
-    /// </summary>
-    /// <returns>The complete header string.</returns>
-    public static string ForHandlers()
-        => Simple;
-
-    /// <summary>
-    /// Builds a header for model records (with optional additional using).
-    /// </summary>
-    /// <param name="additionalUsing">Optional additional using namespace.</param>
-    /// <returns>The complete header string.</returns>
-    public static string ForModels(string? additionalUsing = null)
-        => string.IsNullOrEmpty(additionalUsing)
-            ? Simple
-            : WithUsings(additionalUsing!);
 
     /// <summary>
     /// Gets the sort order for a namespace to ensure consistent ordering.

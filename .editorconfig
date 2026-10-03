@@ -577,6 +577,9 @@ dotnet_diagnostic.S8970.severity = none             # Remove this null-forgiving
 dotnet_diagnostic.CA1002.severity = none            # Change 'List<T>' to Collection<T>' or read-only collection
 dotnet_diagnostic.CA2227.severity = none            # Change 'XXX' to be read-only by removing the property setter
 
+## Kept on purpose: the public surface of a type reads first, and every public member is documented (CS1591 for src/ is in src/Directory.Build.props)
+dotnet_diagnostic.SA1202.severity = warning         # Elements should be ordered by access (public before private)
+
 dotnet_diagnostic.MA0016.severity = none            # Prefer using collection abstraction instead of implementation
 
 dotnet_diagnostic.SA1611.severity = none            # The documentation for parameter '{0}' should have a <param> tag.

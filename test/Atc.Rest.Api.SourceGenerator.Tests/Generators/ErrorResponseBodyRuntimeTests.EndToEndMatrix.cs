@@ -18,18 +18,50 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// </remarks>
 public partial class ErrorResponseBodyRuntimeTests
 {
+    internal static readonly (string OperationId, string Label, string Spec)[] MatrixDeclarations =
+    [
+        ("setAllNone", "Nothing declared", "responses: '404': { description: Not Found }"),
+        ("setAllJsonProblem", "application/json - a model", "content: { application/json: { schema: { $ref: '#/components/schemas/ApiProblem' } } }"),
+        ("setAllJsonString", "application/json - a string", "content: { application/json: { schema: { type: string } } }"),
+        ("setAllTextPlain", "text/plain - a string", "content: { text/plain: { schema: { type: string } } }"),
+        ("setAllFrameworkProblem", "application/problem+json - ProblemDetails", "content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } }"),
+        ("setProblemJson", "application/problem+json - a model (400/404/409/422)", "content: { application/problem+json: { schema: { $ref: '#/components/schemas/ApiProblem' } } }"),
+        ("setRefResponse", "$ref to components/responses (404/422)", "'404': { $ref: '#/components/responses/NotFound' } - application/json RefOnlyError"),
+    ];
+
+    internal static readonly (string Id, string Group, string Label, string? Format)[] MatrixClients =
+    [
+        ("cs-epo-ProblemDetails", "C# EndpointPerOperation", "errorResponseFormat: ProblemDetails", "ProblemDetails"),
+        ("cs-epo-PlainText", "C# EndpointPerOperation", "errorResponseFormat: PlainText", "PlainText"),
+        ("cs-epo-PlainTextOnly", "C# EndpointPerOperation", "errorResponseFormat: PlainTextOnly", "PlainTextOnly"),
+        ("cs-epo-Custom", "C# EndpointPerOperation", "errorResponseFormat: Custom (Monta ErrorResponse)", "Custom"),
+        ("cs-typed-Throw", "C# TypedClient", "typedClientResultStyle: Throw", null),
+        ("cs-typed-Result", "C# TypedClient", "typedClientResultStyle: Result", null),
+        ("ts-fetch", "TypeScript", "Fetch client", null),
+        ("ts-axios", "TypeScript", "Axios client", null),
+    ];
+
     private const string VerdictPass = "pass";
+
     private const string VerdictLossy = "lossy";
+
     private const string VerdictFail = "fail";
+
     private const string VerdictPlatform = "platform";
+
     private const string VerdictNotApplicable = "na";
 
     // What a lossy cell lost, shown as a badge next to the verdict (the report's legend explains each kind).
     private const string LossFields = "fields";
+
     private const string LossNotJson = "not-json";
+
     private const string LossErrorsAsString = "errors-as-string";
+
     private const string LossErrorsUntyped = "errors-untyped";
+
     private const string CustomModel = "ErrorResponse (custom)";
+
     private const string DefaultModel = "ErrorResponse";
 
     /// <summary>
@@ -54,32 +86,36 @@ public partial class ErrorResponseBodyRuntimeTests
         }
         """;
 
-    internal static readonly (string OperationId, string Label, string Spec)[] MatrixDeclarations =
-    [
-        ("setAllNone", "Nothing declared", "responses: '404': { description: Not Found }"),
-        ("setAllJsonProblem", "application/json - a model", "content: { application/json: { schema: { $ref: '#/components/schemas/ApiProblem' } } }"),
-        ("setAllJsonString", "application/json - a string", "content: { application/json: { schema: { type: string } } }"),
-        ("setAllTextPlain", "text/plain - a string", "content: { text/plain: { schema: { type: string } } }"),
-        ("setAllFrameworkProblem", "application/problem+json - ProblemDetails", "content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemDetails' } } }"),
-        ("setProblemJson", "application/problem+json - a model (400/404/409/422)", "content: { application/problem+json: { schema: { $ref: '#/components/schemas/ApiProblem' } } }"),
-        ("setRefResponse", "$ref to components/responses (404/422)", "'404': { $ref: '#/components/responses/NotFound' } - application/json RefOnlyError"),
-    ];
+    private const string E2EPackageJson = """
+        {
+          "name": "atc-errorbody-e2e",
+          "version": "0.0.0",
+          "private": true,
+          "type": "module",
+          "dependencies": {
+            "axios": "^1.7.0"
+          },
+          "devDependencies": {
+            "tsx": "^4.19.0",
+            "typescript": "^5.6.0"
+          }
+        }
+        """;
 
-    private static readonly int[] NamedArmStatuses = [400, 401, 403, 404, 409, 422, 429];
-
-    private static readonly JsonObject SuccessItem = new() { ["name"] = "thing" };
-
-    internal static readonly (string Id, string Group, string Label, string? Format)[] MatrixClients =
-    [
-        ("cs-epo-ProblemDetails", "C# EndpointPerOperation", "errorResponseFormat: ProblemDetails", "ProblemDetails"),
-        ("cs-epo-PlainText", "C# EndpointPerOperation", "errorResponseFormat: PlainText", "PlainText"),
-        ("cs-epo-PlainTextOnly", "C# EndpointPerOperation", "errorResponseFormat: PlainTextOnly", "PlainTextOnly"),
-        ("cs-epo-Custom", "C# EndpointPerOperation", "errorResponseFormat: Custom (Monta ErrorResponse)", "Custom"),
-        ("cs-typed-Throw", "C# TypedClient", "typedClientResultStyle: Throw", null),
-        ("cs-typed-Result", "C# TypedClient", "typedClientResultStyle: Result", null),
-        ("ts-fetch", "TypeScript", "Fetch client", null),
-        ("ts-axios", "TypeScript", "Axios client", null),
-    ];
+    private const string E2ETsConfig = """
+        {
+          "compilerOptions": {
+            "target": "ES2022",
+            "lib": ["ES2022", "DOM"],
+            "module": "ESNext",
+            "moduleResolution": "bundler",
+            "strict": true,
+            "esModuleInterop": true,
+            "skipLibCheck": true,
+            "noEmit": true
+          }
+        }
+        """;
 
     /// <summary>
     /// Every generated client, called over HTTP against the generated server, reads every error the server writes
@@ -1916,37 +1952,6 @@ public partial class ErrorResponseBodyRuntimeTests
         }
     }
 
-    private const string E2EPackageJson = """
-        {
-          "name": "atc-errorbody-e2e",
-          "version": "0.0.0",
-          "private": true,
-          "type": "module",
-          "dependencies": {
-            "axios": "^1.7.0"
-          },
-          "devDependencies": {
-            "tsx": "^4.19.0",
-            "typescript": "^5.6.0"
-          }
-        }
-        """;
-
-    private const string E2ETsConfig = """
-        {
-          "compilerOptions": {
-            "target": "ES2022",
-            "lib": ["ES2022", "DOM"],
-            "module": "ESNext",
-            "moduleResolution": "bundler",
-            "strict": true,
-            "esModuleInterop": true,
-            "skipLibCheck": true,
-            "noEmit": true
-          }
-        }
-        """;
-
     // Calls every case through the generated ApiService against the live host and records what the client exposes.
     private const string E2EHarness = """
         import { readFileSync, writeFileSync } from 'node:fs';
@@ -1991,4 +1996,8 @@ public partial class ErrorResponseBodyRuntimeTests
 
         writeFileSync(`results-${which}.json`, JSON.stringify(results));
         """;
+
+    private static readonly int[] NamedArmStatuses = [400, 401, 403, 404, 409, 422, 429];
+
+    private static readonly JsonObject SuccessItem = new() { ["name"] = "thing" };
 }

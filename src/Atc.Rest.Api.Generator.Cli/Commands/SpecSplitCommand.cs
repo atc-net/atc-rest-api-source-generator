@@ -6,6 +6,13 @@ namespace Atc.Rest.Api.Generator.Cli.Commands;
 [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
 public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
 {
+    /// <summary>
+    /// Splits the specification into a base file and part files by the chosen strategy, previewing or writing them.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when the split succeeded; otherwise 1.</returns>
     protected override int Execute(
         CommandContext context,
         SpecSplitCommandSettings settings,

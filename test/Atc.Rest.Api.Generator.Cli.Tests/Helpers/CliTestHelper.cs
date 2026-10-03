@@ -5,9 +5,6 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Helpers;
 /// </summary>
 public static partial class CliTestHelper
 {
-    [GeneratedRegex(@"\x1B\[[0-9;]*m", RegexOptions.NonBacktracking)]
-    private static partial Regex AnsiCodeRegex();
-
     /// <summary>
     /// Gets the FileInfo for the CLI executable.
     /// </summary>
@@ -69,4 +66,7 @@ public static partial class CliTestHelper
     /// <returns>The text without ANSI codes.</returns>
     public static string StripAnsiCodes(string text)
         => AnsiCodeRegex().Replace(text, string.Empty);
+
+    [GeneratedRegex(@"\x1B\[[0-9;]*m", RegexOptions.NonBacktracking)]
+    private static partial Regex AnsiCodeRegex();
 }

@@ -256,17 +256,6 @@ public static class XmlBodyHelper
             : $"{CompanionOf(typeName, body)}.ToUtf8Bytes({valueExpression})";
 
     /// <summary>
-    /// The method that reads a body from an XML document string (<c>PetXml.FromXml</c>, <c>PetXml.ListFromXml</c>).
-    /// </summary>
-    /// <param name="typeName">The body's C# type.</param>
-    /// <param name="body">The XML body.</param>
-    /// <returns>The method group.</returns>
-    public static string FromXmlMethod(
-        string typeName,
-        XmlBody body)
-        => $"{CompanionOf(typeName, body)}.{(body.IsList ? "ListFromXml" : "FromXml")}";
-
-    /// <summary>
     /// The method that reads a body from its root element (<c>PetXml.Read</c>, <c>PetXml.ReadList</c>).
     /// </summary>
     /// <param name="typeName">The body's C# type.</param>

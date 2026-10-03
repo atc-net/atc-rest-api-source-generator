@@ -60,6 +60,26 @@ public static class OpenApiSchemaExtensions
     }
 
     /// <summary>
+    /// Resolves a type name, using full namespace qualification if it conflicts with a .NET system type.
+    /// Also sanitizes the type name to be a valid C# identifier.
+    /// </summary>
+    /// <param name="typeName">The original type name from the OpenAPI schema.</param>
+    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
+    /// <returns>The resolved type name (fully qualified if conflicting).</returns>
+    public static string ResolveTypeName(
+        string typeName,
+        TypeConflictRegistry? registry = null)
+    {
+        // First sanitize the name to be a valid C# identifier
+        var sanitized = SanitizeSchemaName(typeName);
+
+        // Then check for conflicts with system types
+        return registry?.IsConflicting(sanitized) == true
+            ? registry.GetFullyQualifiedName(sanitized)
+            : sanitized;
+    }
+
+    /// <summary>
     /// Determines whether a composition branch exists only to permit <c>null</c>, and so carries no
     /// shape the generated type would otherwise have to represent.
     /// </summary>
@@ -102,26 +122,6 @@ public static class OpenApiSchemaExtensions
                candidate.Items is null &&
                candidate.AdditionalProperties is null &&
                string.IsNullOrEmpty(candidate.Format);
-    }
-
-    /// <summary>
-    /// Resolves a type name, using full namespace qualification if it conflicts with a .NET system type.
-    /// Also sanitizes the type name to be a valid C# identifier.
-    /// </summary>
-    /// <param name="typeName">The original type name from the OpenAPI schema.</param>
-    /// <param name="registry">Optional conflict registry for detecting naming conflicts.</param>
-    /// <returns>The resolved type name (fully qualified if conflicting).</returns>
-    public static string ResolveTypeName(
-        string typeName,
-        TypeConflictRegistry? registry = null)
-    {
-        // First sanitize the name to be a valid C# identifier
-        var sanitized = SanitizeSchemaName(typeName);
-
-        // Then check for conflicts with system types
-        return registry?.IsConflicting(sanitized) == true
-            ? registry.GetFullyQualifiedName(sanitized)
-            : sanitized;
     }
 
     /// <param name="schema">The OpenAPI schema interface.</param>
@@ -417,20 +417,6 @@ public static class OpenApiSchemaExtensions
         }
 
         /// <summary>
-        /// Gets the count of non-null types in the schema.
-        /// </summary>
-        /// <returns>The count of non-null types, or 0 if no type is defined.</returns>
-        public int GetNonNullTypeCount()
-        {
-            if (schema is not OpenApiSchema openApiSchema)
-            {
-                return 0;
-            }
-
-            return openApiSchema.Type?.CountNonNullTypes() ?? 0;
-        }
-
-        /// <summary>
         /// Gets all non-null type names from the schema.
         /// </summary>
         /// <returns>A list of type names (e.g., ["string", "integer"]), or empty list.</returns>
@@ -462,37 +448,6 @@ public static class OpenApiSchemaExtensions
         // ========== OpenAPI 3.1 $ref with Sibling Properties ==========
 
         /// <summary>
-        /// Gets the effective description for a schema, considering OpenAPI 3.1 $ref with sibling support.
-        /// In OpenAPI 3.1, a description alongside a $ref overrides the referenced schema's description.
-        /// </summary>
-        /// <param name="document">The OpenAPI document for resolving references.</param>
-        /// <returns>The effective description, prioritizing sibling properties over target.</returns>
-        public string? GetEffectiveDescription(OpenApiDocument document)
-        {
-            // If schema has its own description (sibling property), use it
-            if (schema is OpenApiSchemaReference schemaRef)
-            {
-                // Check if the reference has a sibling description
-                if (!string.IsNullOrEmpty(schemaRef.Description))
-                {
-                    return schemaRef.Description;
-                }
-
-                // Fall back to target schema's description
-                var target = schema.ResolveSchema(document);
-                return target?.Description;
-            }
-
-            // For non-references, just return the schema's description
-            if (schema is OpenApiSchema actualSchema)
-            {
-                return actualSchema.Description;
-            }
-
-            return null;
-        }
-
-        /// <summary>
         /// Gets the <c>summary</c> value for a schema (OpenAPI 3.2 field).
         /// Microsoft.OpenApi 3.6.0 does not expose <c>summary</c> as a first-class property on
         /// <see cref="OpenApiSchema"/>, so the value is read from <see cref="OpenApiSchema.UnrecognizedKeywords"/>.
@@ -511,68 +466,6 @@ public static class OpenApiSchemaExtensions
             return actualSchema.UnrecognizedKeywords.TryGetValue("summary", out var value)
                 ? value?.ToString()
                 : null;
-        }
-
-        /// <summary>
-        /// Gets the effective deprecated status for a schema, considering OpenAPI 3.1 $ref with sibling support.
-        /// In OpenAPI 3.1, a deprecated flag alongside a $ref can override the referenced schema's status.
-        /// </summary>
-        /// <param name="document">The OpenAPI document for resolving references.</param>
-        /// <returns>True if the schema is effectively deprecated.</returns>
-        public bool IsEffectivelyDeprecated(OpenApiDocument document)
-        {
-            // If schema has its own deprecated flag (sibling property), use it
-            if (schema is OpenApiSchemaReference schemaRef)
-            {
-                // Check if the reference is marked deprecated
-                if (schemaRef.Deprecated)
-                {
-                    return true;
-                }
-
-                // Fall back to target schema's deprecated status
-                var target = schema.ResolveSchema(document);
-                return target?.Deprecated ?? false;
-            }
-
-            // For non-references, just return the schema's deprecated status
-            if (schema is OpenApiSchema actualSchema)
-            {
-                return actualSchema.Deprecated;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Gets the effective default value for a schema, considering OpenAPI 3.1 $ref with sibling support.
-        /// In OpenAPI 3.1, a default value alongside a $ref overrides the referenced schema's default.
-        /// </summary>
-        /// <param name="document">The OpenAPI document for resolving references.</param>
-        /// <returns>The effective default value, or null if none.</returns>
-        public JsonNode? GetEffectiveDefault(OpenApiDocument document)
-        {
-            // If schema has its own default (sibling property), use it
-            if (schema is OpenApiSchemaReference schemaRef)
-            {
-                // Check if the reference has a sibling default
-                if (schemaRef.Default is not null)
-                {
-                    return schemaRef.Default;
-                }
-
-                // Fall back to target schema's default
-                var target = schema.ResolveSchema(document);
-                return target?.Default;
-            }
-
-            // For non-references, just return the schema's default
-            if (schema is OpenApiSchema actualSchema)
-            {
-                return actualSchema.Default;
-            }
-
-            return null;
         }
 
         /// <summary>
@@ -673,28 +566,6 @@ public static class OpenApiSchemaExtensions
             // Check UnrecognizedKeywords for contentEncoding (not a first-class property in Microsoft.OpenApi)
             if (actualSchema.UnrecognizedKeywords is not null &&
                 actualSchema.UnrecognizedKeywords.TryGetValue("contentEncoding", out var value))
-            {
-                return value?.ToString();
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// Gets the contentMediaType value from the schema (JSON Schema 2020-12 / OpenAPI 3.1).
-        /// ContentMediaType specifies the media type of the encoded content (e.g., "application/json", "image/png").
-        /// </summary>
-        /// <returns>The content media type, or null if not specified.</returns>
-        public string? GetContentMediaType()
-        {
-            if (schema is not OpenApiSchema actualSchema)
-            {
-                return null;
-            }
-
-            // Check UnrecognizedKeywords for contentMediaType
-            if (actualSchema.UnrecognizedKeywords is not null &&
-                actualSchema.UnrecognizedKeywords.TryGetValue("contentMediaType", out var value))
             {
                 return value?.ToString();
             }

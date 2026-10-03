@@ -17,10 +17,6 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// </summary>
 internal static class GeneratorSnapshotHarness
 {
-    private const string GeneratedFileSuffix = ".g.cs";
-
-    private static readonly ConcurrentDictionary<string, IReadOnlyList<GeneratedSnapshot>> SnapshotCache = new(StringComparer.Ordinal);
-
     /// <summary>The master folder holding the <c>EndpointPerOperation</c> client marker.</summary>
     public const string ClientOperationMasterFolder = "Client-Operation";
 
@@ -35,6 +31,10 @@ internal static class GeneratorSnapshotHarness
 
     /// <summary>The client marker file name.</summary>
     public const string ClientMarkerFileName = ".atc-rest-api-client";
+
+    private const string GeneratedFileSuffix = ".g.cs";
+
+    private static readonly ConcurrentDictionary<string, IReadOnlyList<GeneratedSnapshot>> SnapshotCache = new(StringComparer.Ordinal);
 
     /// <summary>
     /// The master folders that map onto a Roslyn generator. <c>TS-Client-*</c> is deliberately
@@ -221,46 +221,6 @@ internal static class GeneratorSnapshotHarness
     }
 
     /// <summary>
-    /// Runs the server-domain generator against a throwaway project directory.
-    /// <para>
-    /// Handler scaffolds are written as physical, editable project files <i>and</i> emitted as
-    /// source so the current compilation can reference them - but the writer returns early when the
-    /// file already exists, before it emits. Pointed at a shared directory the generator therefore
-    /// stops emitting scaffolds as soon as a previous run has written them, and the snapshot set
-    /// silently shrinks to the dependency registration. A directory unique to each run keeps the
-    /// output deterministic; the scaffolds are then taken from the source output, which carries the
-    /// same content as the files on disk.
-    /// </para>
-    /// </summary>
-    private static List<(string HintName, string Source)> RunServerDomainWithScaffolds(
-        string scenarioName)
-    {
-        var projectDirectory = Path.Combine(
-            Path.GetTempPath(),
-            "atc-domain-scaffolds",
-            Guid.NewGuid().ToString("N"));
-
-        Directory.CreateDirectory(projectDirectory);
-
-        try
-        {
-            return CompilationVerificationHarness.RunGenerator(
-                new ApiServerDomainGenerator(),
-                scenarioName,
-                GetYamlFileName(scenarioName),
-                ".atc-rest-api-server-handlers",
-                ServerDomainMasterFolder,
-                useFullReferences: true,
-                assemblyName: scenarioName,
-                markerDirectoryOverride: projectDirectory).GeneratedSources;
-        }
-        finally
-        {
-            Directory.Delete(projectDirectory, recursive: true);
-        }
-    }
-
-    /// <summary>
     /// Maps a master folder onto the incremental generator that owns it and the marker file that
     /// triggers it.
     /// </summary>
@@ -336,6 +296,46 @@ internal static class GeneratorSnapshotHarness
         return fileName.EndsWith(GeneratedFileSuffix, StringComparison.Ordinal)
             ? fileName[..^GeneratedFileSuffix.Length]
             : fileName;
+    }
+
+    /// <summary>
+    /// Runs the server-domain generator against a throwaway project directory.
+    /// <para>
+    /// Handler scaffolds are written as physical, editable project files <i>and</i> emitted as
+    /// source so the current compilation can reference them - but the writer returns early when the
+    /// file already exists, before it emits. Pointed at a shared directory the generator therefore
+    /// stops emitting scaffolds as soon as a previous run has written them, and the snapshot set
+    /// silently shrinks to the dependency registration. A directory unique to each run keeps the
+    /// output deterministic; the scaffolds are then taken from the source output, which carries the
+    /// same content as the files on disk.
+    /// </para>
+    /// </summary>
+    private static List<(string HintName, string Source)> RunServerDomainWithScaffolds(
+        string scenarioName)
+    {
+        var projectDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "atc-domain-scaffolds",
+            Guid.NewGuid().ToString("N"));
+
+        Directory.CreateDirectory(projectDirectory);
+
+        try
+        {
+            return CompilationVerificationHarness.RunGenerator(
+                new ApiServerDomainGenerator(),
+                scenarioName,
+                GetYamlFileName(scenarioName),
+                ".atc-rest-api-server-handlers",
+                ServerDomainMasterFolder,
+                useFullReferences: true,
+                assemblyName: scenarioName,
+                markerDirectoryOverride: projectDirectory).GeneratedSources;
+        }
+        finally
+        {
+            Directory.Delete(projectDirectory, recursive: true);
+        }
     }
 
     private static string GetYamlFileName(string scenarioName)

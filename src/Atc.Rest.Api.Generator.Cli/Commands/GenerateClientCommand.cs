@@ -8,11 +8,22 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 {
     private readonly INugetPackageVersionService nugetService;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GenerateClientCommand"/> class.
+    /// </summary>
+    /// <param name="nugetService">Resolves the latest package versions written into the generated project file.</param>
     public GenerateClientCommand(INugetPackageVersionService nugetService)
     {
         this.nugetService = nugetService;
     }
 
+    /// <summary>
+    /// Validates the specification, scaffolds the client project and generates the client code into it.
+    /// </summary>
+    /// <param name="context">The Spectre.Console command context.</param>
+    /// <param name="settings">The parsed command-line settings.</param>
+    /// <param name="cancellationToken">Cancels the command.</param>
+    /// <returns>0 when generation succeeded; otherwise 1.</returns>
     protected override int Execute(
         CommandContext context,
         GenerateClientCommandSettings settings,

@@ -10,19 +10,6 @@ public static class ServerDependencyInjectionExtractor
     /// </summary>
     /// <param name="openApiDoc">The OpenAPI document containing path and operation definitions.</param>
     /// <param name="projectName">The name of the project (used for namespace).</param>
-    /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
-    /// <returns>ClassParameters for the server DI registration class, or null if no paths exist.</returns>
-    public static ClassParameters? Extract(
-        OpenApiDocument openApiDoc,
-        string projectName,
-        bool includeDeprecated = false)
-        => Extract(openApiDoc, projectName, pathSegments: null, includeDeprecated: includeDeprecated);
-
-    /// <summary>
-    /// Extracts server dependency injection class parameters from OpenAPI document.
-    /// </summary>
-    /// <param name="openApiDoc">The OpenAPI document containing path and operation definitions.</param>
-    /// <param name="projectName">The name of the project (used for namespace).</param>
     /// <param name="pathSegments">List of path segments used for generating usings.</param>
     /// <param name="includeDeprecated">Whether to include deprecated operations.</param>
     /// <returns>ClassParameters for the server DI registration class, or null if no paths exist.</returns>

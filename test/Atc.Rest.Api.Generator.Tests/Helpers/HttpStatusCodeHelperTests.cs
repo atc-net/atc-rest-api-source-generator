@@ -134,4 +134,36 @@ public class HttpStatusCodeHelperTests
         // Assert — must start with a letter and contain only letters/digits
         Assert.Matches(@"^[A-Za-z][A-Za-z0-9]*$", result);
     }
+
+    // ========== IsRedirect (RFC 9110 §15.4 redirects that carry a Location) ==========
+    [Theory]
+    [InlineData(301, true)]
+    [InlineData(302, true)]
+    [InlineData(303, true)]
+    [InlineData(307, true)]
+    [InlineData(308, true)]
+    [InlineData(300, false)] // Multiple Choices has no single Location
+    [InlineData(304, false)] // Not Modified is no redirect
+    [InlineData(200, false)]
+    [InlineData(404, false)]
+    public void IsRedirect_ReturnsExpectedResult(
+        int statusCode,
+        bool expected)
+    {
+        Assert.Equal(expected, HttpStatusCodeHelper.IsRedirect(statusCode));
+    }
+
+    // ========== ToHttpStatusCodeExpression (client-side System.Net.HttpStatusCode) ==========
+    [Theory]
+    [InlineData(200, "HttpStatusCode.OK")]
+    [InlineData(404, "HttpStatusCode.NotFound")]
+    [InlineData(500, "HttpStatusCode.InternalServerError")]
+    [InlineData(418, "(HttpStatusCode)418")] // not a member of HttpStatusCode
+    [InlineData(499, "(HttpStatusCode)499")]
+    public void ToHttpStatusCodeExpression_ReturnsMemberOrCast(
+        int statusCode,
+        string expected)
+    {
+        Assert.Equal(expected, HttpStatusCodeHelper.ToHttpStatusCodeExpression(statusCode));
+    }
 }
