@@ -529,4 +529,99 @@ public class EndpointDefinitionExtractorTests
         Assert.Contains(".RequireRateLimiting(RateLimitPolicies.OrdersStrict)", defineEndpoints.Content, StringComparison.Ordinal);
         Assert.DoesNotContain("\"orders-strict\"", defineEndpoints.Content, StringComparison.Ordinal);
     }
+
+    private const string ScopedSecurityYaml = """
+                                             openapi: 3.0.0
+                                             info:
+                                               title: Test
+                                               version: 1.0.0
+                                             paths:
+                                               /orders:
+                                                 get:
+                                                   operationId: listOrders
+                                                   security:
+                                                     - oauth2: ["orders:read"]
+                                                   responses:
+                                                     '200':
+                                                       description: OK
+                                               /orders/{orderId}:
+                                                 get:
+                                                   operationId: getOrderById
+                                                   parameters:
+                                                     - { name: orderId, in: path, required: true, schema: { type: string } }
+                                                   security:
+                                                     - api_key: []
+                                                     - oauth2: ["orders:read"]
+                                                   responses:
+                                                     '200':
+                                                       description: OK
+                                                 delete:
+                                                   operationId: deleteOrder
+                                                   parameters:
+                                                     - { name: orderId, in: path, required: true, schema: { type: string } }
+                                                   security:
+                                                     - api_key: []
+                                                   responses:
+                                                     '204':
+                                                       description: No Content
+                                             components:
+                                               securitySchemes:
+                                                 api_key:
+                                                   type: apiKey
+                                                   in: header
+                                                   name: X-API-Key
+                                                 oauth2:
+                                                   type: oauth2
+                                                   flows:
+                                                     clientCredentials:
+                                                       tokenUrl: https://auth.example.com/token
+                                                       scopes:
+                                                         "orders:read": Read orders
+                                             """;
+
+    /// <summary>
+    /// A requirement with scopes is enforced: next to the authentication policy, the endpoint requires the generated
+    /// scope policy (registered by AddApiSecurityPolicies). A requirement without scopes requires authentication only.
+    /// </summary>
+    [Fact]
+    public void Extract_WithScopedSecurity_RequiresTheScopePolicy()
+    {
+        // Arrange
+        var document = OpenApiDocumentHelper.ParseYaml(ScopedSecurityYaml);
+        var resolver = new SystemTypeConflictResolver([]);
+
+        // Act
+        var (_, classes) = EndpointDefinitionExtractor.Extract(
+            document,
+            "TestApi",
+            registry: null,
+            systemTypeResolver: resolver);
+
+        // Assert
+        var defineEndpoints = Assert.Single(classes!.SelectMany(c => c.Methods ?? []), m => m.Name == "DefineEndpoints");
+        var listOrders = Registration(defineEndpoints.Content, "ListOrders");
+        Assert.Contains(".AddAuthenticationSchemes(\"oauth2\")", listOrders, StringComparison.Ordinal);
+        Assert.Contains(".RequireAuthorization(SecurityPolicies.Oauth2OrdersRead)", listOrders, StringComparison.Ordinal);
+
+        // Alternatives: the key alone, or a token with the scope - one any-of policy
+        var getOrderById = Registration(defineEndpoints.Content, "GetOrderById");
+        Assert.Contains(".AddAuthenticationSchemes(\"api_key\", \"oauth2\")", getOrderById, StringComparison.Ordinal);
+        Assert.Contains(".RequireAuthorization(SecurityPolicies.ApiKeyOrOauth2OrdersRead)", getOrderById, StringComparison.Ordinal);
+
+        var deleteOrder = Registration(defineEndpoints.Content, "DeleteOrder");
+        Assert.DoesNotContain("SecurityPolicies.", deleteOrder, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The chained calls of one endpoint registration: from its MapX up to the next blank line.
+    /// </summary>
+    private static string Registration(
+        string content,
+        string methodName)
+    {
+        var start = content.IndexOf($", {methodName})", StringComparison.Ordinal);
+        Assert.True(start >= 0, $"no registration for {methodName}");
+        var end = content.IndexOf("\n\n", start, StringComparison.Ordinal);
+        return end < 0 ? content[start..] : content[start..end];
+    }
 }

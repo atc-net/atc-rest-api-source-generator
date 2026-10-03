@@ -23,7 +23,8 @@ internal sealed class XmlTestHost : IAsyncDisposable
         string yaml,
         string handlerSource,
         string registrationTypeName,
-        Action<WebApplication>? configure = null)
+        Action<WebApplication>? configure = null,
+        Action<IServiceCollection>? configureServices = null)
     {
         var sources = ErrorResponseBodyRuntimeTests.Generate(new ApiServerGenerator(), ".atc-rest-api-server", ErrorResponseBodyRuntimeTests.ServerMarker, includeMinimalApi: true, yaml);
 
@@ -39,6 +40,7 @@ internal sealed class XmlTestHost : IAsyncDisposable
         var builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
         builder.Services.AddEndpointsApiExplorer();
+        configureServices?.Invoke(builder.Services);
         assembly.GetType(registrationTypeName, throwOnError: true)!.GetMethod("Register")!.Invoke(null, [builder.Services]);
         assembly.GetType("ErrorBodies.Generated.Extensions.UnifiedServiceCollectionExtensions", throwOnError: true)!.GetMethod("AddErrorBodiesApi")!.Invoke(null, [builder.Services, null]);
         var webApp = builder.Build();
