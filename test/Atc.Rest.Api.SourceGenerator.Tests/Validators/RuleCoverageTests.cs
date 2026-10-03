@@ -13,43 +13,25 @@ public class RuleCoverageTests
     /// </summary>
     internal static readonly Dictionary<string, string> ExcludedRules = new(StringComparer.Ordinal)
     {
-        // ========== Generation Rules (GEN) - Runtime errors ==========
-        ["ATC_API_GEN001"] = "ServerGenerationError - Reported during code generation, requires integration test",
-        ["ATC_API_GEN002"] = "ServerParsingError - Reported during parsing, requires integration test",
-        ["ATC_API_GEN003"] = "ClientGenerationError - Reported during client generation, requires integration test",
-        ["ATC_API_GEN004"] = "ClientParsingError - Reported during parsing, requires integration test",
-        ["ATC_API_GEN005"] = "HandlerScaffoldGenerationError - Reported during scaffold generation, requires integration test",
-        ["ATC_API_GEN006"] = "DomainParsingError - Reported during parsing, requires integration test",
-        ["ATC_API_GEN007"] = "OutputDirectoryNotSpecified - Configuration warning, requires integration test",
-        ["ATC_API_GEN008"] = "EndpointInjectionGenerationError - Reported during injection, requires integration test",
-        ["ATC_API_GEN009"] = "NoEndpointsFoundForInjection - Runtime warning, requires integration test",
-        ["ATC_API_GEN010"] = "GenerationSummary - Info message, requires integration test",
+        // ========== Generation Rules (GEN) - the catch-all of a generator run ==========
+        // The other GEN ids (a document that does not parse, no output directory, no endpoints to inject, the
+        // summary) are produced by a real generator run in Generators.GeneratorDiagnosticsTests.
+        ["ATC_API_GEN001"] = "ServerGenerationError - the catch around server generation; no known input makes the generator throw",
+        ["ATC_API_GEN003"] = "ClientGenerationError - the catch around client generation; no known input makes the generator throw",
+        ["ATC_API_GEN005"] = "HandlerScaffoldGenerationError - the catch around scaffold generation; no known input makes the generator throw",
+        ["ATC_API_GEN008"] = "EndpointInjectionGenerationError - the catch around endpoint injection; no known input makes the generator throw",
 
-        // ========== Dependency Rules (DEP) - Package reference validation ==========
-        ["ATC_API_DEP001"] = "ServerRequiresAspNetCore - Requires project with missing package reference",
-        ["ATC_API_DEP002"] = "DomainRequiresAspNetCore - Requires project with missing package reference",
-        ["ATC_API_DEP003"] = "ClientRequiresAtcRestClient - Requires project with missing package reference",
-        ["ATC_API_DEP004"] = "RateLimitingRequiresPackage - Requires project with missing package reference",
-        ["ATC_API_DEP005"] = "ResilienceRequiresPackage - Requires project with missing package reference",
-        ["ATC_API_DEP006"] = "JwtBearerRequiresPackage - Requires project with missing package reference",
-        ["ATC_API_DEP007"] = "MinimalApiPackageRequired - Requires project with missing package reference",
-        ["ATC_API_DEP008"] = "LoggingRequiresPackage - Requires project with injectLogger but no logging reference",
-        ["ATC_API_DEP009"] = "HealthCheckPathConflict - Requires both healthChecks config and matching spec paths",
-        ["ATC_API_DEP010"] = "HealthChecksPackageRecommended - Info diagnostic when Atc.Rest.HealthChecks not referenced",
-
-        // ========== OpenAPI Validation Rules (VAL) - Parsing errors ==========
-        ["ATC_API_VAL001"] = "OpenApiCoreError - Reported by Microsoft.OpenApi parser, requires malformed YAML",
+        // ========== OpenAPI Validation Rules (VAL) ==========
         ["ATC_API_VAL002"] = "OpenApi20NotSupported - Tested in Atc.Rest.Api.SourceGenerator.Tests.OpenApiVersionValidationTests",
 
-        // ========== Multi-Part Rules (MPT) - Requires integration tests ==========
-        ["ATC_API_MPT001"] = "DuplicatePathInPart - Requires multi-file parsing, integration test needed",
-        ["ATC_API_MPT002"] = "DuplicateSchemaInPart - Requires multi-file parsing, integration test needed",
-        ["ATC_API_MPT003"] = "PartFileContainsProhibitedSection - Requires multi-file parsing, integration test needed",
-        ["ATC_API_MPT004"] = "MultiPartMergeSuccessful - Info message for multi-file merge, integration test needed",
-        ["ATC_API_MPT005"] = "PartFileNotFound - Requires file system access, integration test needed",
-        ["ATC_API_MPT006"] = "UnresolvedReferenceAfterMerge - Requires multi-file parsing, integration test needed",
-        ["ATC_API_MPT007"] = "PartFileMissingOpenApiVersion - Requires multi-file parsing, integration test needed",
-        ["ATC_API_MPT008"] = "BaseFileNotFound - Requires file system access, integration test needed",
+        // ========== Multi-Part Rules (MPT) ==========
+        ["ATC_API_MPT001"] = "DuplicatePathInPart - Tested in Atc.Rest.Api.Generator.Tests.Services.MultiPartDiagnosticsTests",
+        ["ATC_API_MPT002"] = "DuplicateSchemaInPart - Tested in Atc.Rest.Api.Generator.Tests.Services.MultiPartDiagnosticsTests",
+        ["ATC_API_MPT003"] = "PartFileContainsProhibitedSection - Tested in Atc.Rest.Api.Generator.Tests.Services.MultiPartDiagnosticsTests",
+        ["ATC_API_MPT004"] = "MultiPartMergeSuccessful - Tested in Atc.Rest.Api.Generator.Tests.Services.MultiPartDiagnosticsTests",
+        ["ATC_API_MPT006"] = "UnresolvedReferenceAfterMerge - Tested in Atc.Rest.Api.Generator.Tests.Services.MultiPartDiagnosticsTests",
+        ["ATC_API_MPT007"] = "PartFileInfoIgnored - Tested in Atc.Rest.Api.Generator.Tests.Services.MultiPartDiagnosticsTests",
+        ["ATC_API_MPT008"] = "BaseFileNotFound - Tested in Atc.Rest.Api.Generator.Tests.Services.MultiPartDiagnosticsTests",
         ["ATC_API_MPT009"] = "DuplicateParameterInPart - Tested in Atc.Rest.Api.Generator.Tests.SpecificationServiceTests",
         ["ATC_API_MPT010"] = "NonIdenticalMergeConflict - Tested in Atc.Rest.Api.Generator.Tests.SpecificationServiceTests",
         ["ATC_API_MPT011"] = "SplitPathSpansGroups - Tested in Atc.Rest.Api.Generator.Tests.SpecificationServiceTests",
@@ -72,7 +54,6 @@ public class RuleCoverageTests
 
         // ========== Client Rules (CLT) ==========
         ["ATC_API_CLT001"] = "SingleClientTypeNameCollision - Tested in Atc.Rest.Api.Generator.Tests.Validators.SingleClientCollisionValidatorTests",
-        ["ATC_API_CLT002"] = "ClientNameIgnoredForPerArea - Emitted by ApiClientGenerator, requires a Roslyn generator run with a clientName under PerArea",
 
         // ========== Spec Version Migration Rules (VER) ==========
         ["ATC_API_VER001"] = "NullableWithoutSiblingType - Tested in Atc.Rest.Api.Generator.Tests.Validators.SpecVersionMigrationValidationTests",
