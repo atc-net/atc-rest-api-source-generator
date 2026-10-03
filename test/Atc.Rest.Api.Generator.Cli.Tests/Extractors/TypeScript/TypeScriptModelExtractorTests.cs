@@ -655,6 +655,285 @@ public class TypeScriptModelExtractorTests
         }
     }
 
+    [Fact]
+    public void Extract_VariantOfAnExplicitDiscriminator_NarrowsThePropertyToItsLiteral()
+    {
+        // A discriminated union is only a discriminated union in TypeScript when each variant's
+        // discriminator is a literal: `payment.type === 'credit_card'` narrows to CreditCard. The
+        // value is the mapping key; a variant without a mapping entry takes its schema name (OpenAPI's
+        // implicit mapping) - the same values the C# converter dispatches on.
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                PaymentMethod:
+                  oneOf:
+                    - $ref: '#/components/schemas/CreditCard'
+                    - $ref: '#/components/schemas/BankTransfer'
+                  discriminator:
+                    propertyName: type
+                    mapping:
+                      credit_card: '#/components/schemas/CreditCard'
+                CreditCard:
+                  type: object
+                  required: [type]
+                  properties:
+                    type: { type: string }
+                    last4: { type: string }
+                BankTransfer:
+                  type: object
+                  properties:
+                    type: { type: string }
+            """);
+
+        var results = TypeScriptModelExtractor.Extract(document, new TypeScriptClientConfig());
+
+        var (_, creditCard) = Assert.Single(results, r => r.Name == "CreditCard");
+        var (_, bankTransfer) = Assert.Single(results, r => r.Name == "BankTransfer");
+        Assert.Equal("'credit_card'", creditCard.Properties!.Single(p => p.Name == "type").TypeAnnotation);
+        Assert.Equal("string", creditCard.Properties!.Single(p => p.Name == "last4").TypeAnnotation);
+        Assert.Equal("'BankTransfer'", bankTransfer.Properties!.Single(p => p.Name == "type").TypeAnnotation);
+    }
+
+    [Fact]
+    public void Extract_VariantOfAUnionWithoutADiscriminator_KeepsThePropertyAString()
+    {
+        // No discriminator block: nothing in the specification fixes the value, so a literal would be
+        // a guess the server need not honour. The union stays a plain `A | B`.
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Notification:
+                  anyOf:
+                    - $ref: '#/components/schemas/EmailNotification'
+                    - $ref: '#/components/schemas/SmsNotification'
+                EmailNotification:
+                  type: object
+                  properties:
+                    kind: { type: string }
+                SmsNotification:
+                  type: object
+                  properties:
+                    kind: { type: string }
+            """);
+
+        var results = TypeScriptModelExtractor.Extract(document, new TypeScriptClientConfig());
+
+        var (_, email) = Assert.Single(results, r => r.Name == "EmailNotification");
+        Assert.Equal("string", email.Properties!.Single(p => p.Name == "kind").TypeAnnotation);
+    }
+
+    [Fact]
+    public void Extract_VariantInTwoUnionsWithDifferentValues_TakesTheUnionOfTheLiterals()
+    {
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Shape:
+                  oneOf:
+                    - $ref: '#/components/schemas/Circle'
+                    - $ref: '#/components/schemas/Square'
+                  discriminator:
+                    propertyName: kind
+                    mapping:
+                      circle: '#/components/schemas/Circle'
+                      square: '#/components/schemas/Square'
+                Round:
+                  oneOf:
+                    - $ref: '#/components/schemas/Circle'
+                    - $ref: '#/components/schemas/Ellipse'
+                  discriminator:
+                    propertyName: kind
+                    mapping:
+                      round: '#/components/schemas/Circle'
+                      ellipse: '#/components/schemas/Ellipse'
+                Circle:
+                  type: object
+                  properties:
+                    kind: { type: string }
+                Square:
+                  type: object
+                  properties:
+                    kind: { type: string }
+                Ellipse:
+                  type: object
+                  properties:
+                    kind: { type: string }
+            """);
+
+        var results = TypeScriptModelExtractor.Extract(document, new TypeScriptClientConfig());
+
+        var (_, circle) = Assert.Single(results, r => r.Name == "Circle");
+        Assert.Equal("'circle' | 'round'", circle.Properties!.Single(p => p.Name == "kind").TypeAnnotation);
+    }
+
+    [Fact]
+    public void Extract_DiscriminatorPropertyThatIsAnEnum_IsLeftToTheEnum()
+    {
+        // `kind: $ref ShapeKind` is already typed; replacing an enum reference with a string literal
+        // would not be assignable under --enum-style Enum.
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                ShapeKind:
+                  type: string
+                  enum: [circle, square]
+                Shape:
+                  oneOf:
+                    - $ref: '#/components/schemas/Circle'
+                    - $ref: '#/components/schemas/Square'
+                  discriminator:
+                    propertyName: kind
+                Circle:
+                  type: object
+                  properties:
+                    kind: { $ref: '#/components/schemas/ShapeKind' }
+                Square:
+                  type: object
+                  properties:
+                    kind: { $ref: '#/components/schemas/ShapeKind' }
+            """);
+
+        var results = TypeScriptModelExtractor.Extract(document, new TypeScriptClientConfig(), ["ShapeKind"]);
+
+        var (_, circle) = Assert.Single(results, r => r.Name == "Circle");
+        Assert.Equal("ShapeKind", circle.Properties!.Single(p => p.Name == "kind").TypeAnnotation);
+    }
+
+    [Fact]
+    public void ExtractArrayTypeAliases_ComponentWithOnlyAdditionalProperties_IsARecordAlias()
+    {
+        // `Labels: { type: object, additionalProperties: { type: string } }` has no properties of its
+        // own: as an interface it was `export interface Labels {}` - every key lost.
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Labels:
+                  type: object
+                  additionalProperties:
+                    type: string
+                Attachments:
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/Attachment'
+                Attachment:
+                  type: object
+                  properties:
+                    name: { type: string }
+            """);
+        var config = new TypeScriptClientConfig();
+
+        var aliases = TypeScriptModelExtractor.ExtractArrayTypeAliases(document, config);
+        var models = TypeScriptModelExtractor.Extract(document, config);
+
+        var labels = Assert.Single(aliases, a => a.Name == "Labels");
+        Assert.Contains("export type Labels = Record<string, string>;", labels.Content, StringComparison.Ordinal);
+        var attachments = Assert.Single(aliases, a => a.Name == "Attachments");
+        Assert.Contains("import type { Attachment } from './Attachment';", attachments.Content, StringComparison.Ordinal);
+        Assert.Contains("export type Attachments = Record<string, Attachment>;", attachments.Content, StringComparison.Ordinal);
+        Assert.DoesNotContain(models, m => m.Name is "Labels" or "Attachments");
+    }
+
+    [Fact]
+    public void Extract_PropertiesAndUntypedAdditionalProperties_AddsAnOpenIndexSignature()
+    {
+        // `additionalProperties: {}` beside declared properties: the extra keys are allowed and untyped. (A bare
+        // `additionalProperties: true` is what the parser also reports for an absent keyword - JSON Schema's
+        // default - so only the schema form is a declaration the generator can see.)
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Event:
+                  type: object
+                  additionalProperties: {}
+                  properties:
+                    id: { type: string }
+                    count: { type: integer }
+            """);
+
+        var (_, model) = Assert.Single(TypeScriptModelExtractor.Extract(document, new TypeScriptClientConfig()));
+
+        var index = model.Properties!.Single(p => p.Name == "[key: string]");
+        Assert.Equal("unknown", index.TypeAnnotation);
+        Assert.True(index.IsReadonly);
+        Assert.False(index.IsOptional);
+        Assert.Equal("[key: string]", model.Properties![^1].Name);
+    }
+
+    [Fact]
+    public void Extract_PropertiesAndTypedAdditionalProperties_TypesTheIndexSignatureWhenEveryPropertyFits()
+    {
+        // An index signature's type must admit every declared property. `{ default: string; [key: string]: string }`
+        // (localized strings) can be typed; a `string` dictionary with an `integer` property cannot, and is `unknown`.
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Translations:
+                  type: object
+                  required: [default]
+                  additionalProperties:
+                    type: string
+                  properties:
+                    default: { type: string }
+                Counters:
+                  type: object
+                  additionalProperties:
+                    type: string
+                  properties:
+                    total: { type: integer }
+            """);
+
+        var results = TypeScriptModelExtractor.Extract(document, new TypeScriptClientConfig());
+
+        var (_, translations) = Assert.Single(results, r => r.Name == "Translations");
+        Assert.Equal("string", translations.Properties!.Single(p => p.Name == "[key: string]").TypeAnnotation);
+        var (_, counters) = Assert.Single(results, r => r.Name == "Counters");
+        Assert.Equal("unknown", counters.Properties!.Single(p => p.Name == "[key: string]").TypeAnnotation);
+    }
+
+    [Fact]
+    public void Extract_Int64_IsANumber()
+    {
+        // Decided: int64 maps to `number`. JSON carries it as a number and JSON.parse yields a number, so
+        // `bigint` or `string` would describe a value the client never receives; a value above 2^53 loses
+        // precision in every JavaScript client, which the TypeScript page documents.
+        var document = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.0.0
+            info: { title: T, version: 1.0.0 }
+            paths: {}
+            components:
+              schemas:
+                Counter:
+                  type: object
+                  properties:
+                    value: { type: integer, format: int64 }
+            """);
+
+        var (_, model) = Assert.Single(TypeScriptModelExtractor.Extract(document, new TypeScriptClientConfig()));
+
+        Assert.Equal("number", model.Properties!.Single(p => p.Name == "value").TypeAnnotation);
+    }
+
     /// <summary>
     /// The shape behind Showcase's <c>NotificationEvent.payload</c>: a property whose schema is an
     /// inline <c>oneOf</c> of two named component schemas.

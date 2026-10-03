@@ -168,6 +168,102 @@ public class TypeScriptZodExtractorTests
     }
 
     [Fact]
+    public void ZodUnion_OneOfWithAnExplicitDiscriminator_IsADiscriminatedUnionOfLiterals()
+    {
+        // z.discriminatedUnion picks the variant by the literal instead of trying each one, and reports a
+        // mismatch against the variant the value names rather than every variant's errors.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Card:
+                                  type: object
+                                  required: [type]
+                                  properties: { type: { type: string }, number: { type: string } }
+                                Wallet:
+                                  type: object
+                                  required: [type]
+                                  properties: { type: { type: string }, address: { type: string } }
+                                Payment:
+                                  oneOf:
+                                    - $ref: '#/components/schemas/Card'
+                                    - $ref: '#/components/schemas/Wallet'
+                                  discriminator:
+                                    propertyName: type
+                                    mapping:
+                                      card: '#/components/schemas/Card'
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+        var config = new TypeScriptClientConfig();
+
+        var (_, union) = Assert.Single(TypeScriptZodModelExtractor.ExtractUnionTypeAliases(doc, config));
+        var models = TypeScriptZodModelExtractor.Extract(doc, config);
+
+        Assert.Contains("export const PaymentSchema = z.discriminatedUnion('type', [CardSchema, WalletSchema]);", union, StringComparison.Ordinal);
+        Assert.Contains("  type: z.literal('card'),", models.Single(m => m.Name == "Card").Content, StringComparison.Ordinal);
+        Assert.Contains("  type: z.literal('Wallet'),", models.Single(m => m.Name == "Wallet").Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ZodModel_ComponentWithOnlyAdditionalProperties_IsARecord()
+    {
+        // `z.object({})` strips every key it does not know - a dictionary component validated at runtime came
+        // back empty.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Labels:
+                                  type: object
+                                  additionalProperties:
+                                    type: string
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+        var config = new TypeScriptClientConfig();
+
+        var (_, content) = Assert.Single(TypeScriptZodModelExtractor.ExtractArrayTypeAliases(doc, config));
+
+        Assert.Contains("export const LabelsSchema = z.record(z.string(), z.string());", content, StringComparison.Ordinal);
+        Assert.Empty(TypeScriptZodModelExtractor.Extract(doc, config));
+    }
+
+    [Fact]
+    public void ZodModel_PropertiesAndAdditionalProperties_KeepsTheExtraKeys()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Event:
+                                  type: object
+                                  additionalProperties: {}
+                                  properties:
+                                    id: { type: string }
+                                Translations:
+                                  type: object
+                                  additionalProperties:
+                                    type: string
+                                  properties:
+                                    default: { type: string }
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var models = TypeScriptZodModelExtractor.Extract(doc, new TypeScriptClientConfig());
+
+        Assert.Contains("}).passthrough();", models.Single(m => m.Name == "Event").Content, StringComparison.Ordinal);
+        Assert.Contains("}).catchall(z.string());", models.Single(m => m.Name == "Translations").Content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ZodModel_NullDocument_Throws()
     {
         Assert.Throws<ArgumentNullException>(
