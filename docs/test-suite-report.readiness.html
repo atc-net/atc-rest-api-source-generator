@@ -1,0 +1,133 @@
+<h2>Atc REST 3.0 readiness</h2>
+<p>State of <code>feature/error-body-3.0</code> (generator) and <code>feature/error-body-backlog</code> (minimalapi),
+30 September 2026. <code>Atc.Rest.Client</code> 2.1.0 is released on nuget.org and the generator now uses the package.
+Nothing else is released or pushed; the generator still uses minimalapi through a temporary project reference.</p>
+
+<div class="note">
+  <p><b>Generator:</b> 6,669 tests, 0 failed (30 September, on the <code>Atc.Rest.Client</code> 2.1.0 package), Release build with 0 warnings. That includes the end-to-end matrix on
+    the Overview tab, the negative control that proves its rules can fail, and every scenario snapshot.
+    <b>MinimalApi:</b> 168 tests + 9 Aspire/Playwright E2E, 0 failed (28 September).
+    <b>Showcase live:</b> 180 Playwright specs, 0 failed: 161 passed, 8 flaky and 11 skipped (30 September: Blazor, React Fetch and React Axios, on the <code>Atc.Rest.Client</code> 2.1.0 package; includes the declared-400 BadRequestValidationErrors panel). The 8 flaky specs passed on their retry; they were spread over Blazor and both React apps, and the browser reported <code>net::ERR_NETWORK_CHANGED</code> while loading assets, a machine network event rather than a client failure.</p>
+</div>
+
+<h3>Decisions</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>#</th><th>Decision</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><b>Release Atc.Rest.MinimalApi 3.0.0?</b> The agreed rule: only when the generator is done and all
+  three of us agree.</td><td><span class="v na">open</span> Waiting until everything works and the coworkers have approved
+  the changes; until then the work continues.</td></tr>
+<tr><td>2</td><td><b>The validation 400 against a declared 400 body.</b> The ValidationFilter always answers an invalid
+  request with a <code>ValidationProblemDetails</code>, even where the specification declares its own 400 body.</td>
+  <td><span class="v pass">done</span>
+    <ul class="tight">
+      <li>A declared <code>ProblemDetails</code> 400 is read as the <code>ValidationProblemDetails</code> subtype. The
+        generated <code>ValidationProblemDetails</code> now derives from <code>ProblemDetails</code>, so the field
+        errors stay typed. Those matrix cells flipped from lossy to pass.</li>
+      <li>A declared model or string 400 keeps its type, and the field errors are only in <code>Content</code>.
+        Documented.</li>
+    </ul>
+  </td></tr>
+<tr><td>3</td><td><b>Atc.Rest.Client drops non-text error bodies.</b> <code>MessageResponseBuilder</code> keeps a body as
+  bytes when the media type is neither JSON nor text, so <code>Content</code> is empty.</td>
+  <td><span class="v pass">released in 2.1.0</span> Fixed from
+    <code>atc-rest-client/issues/0001-error-body-kept-as-bytes-for-non-text-media-types.md</code> and released as
+    <code>Atc.Rest.Client</code> 2.1.0 on nuget.org: an error body of any media type is now read as text. The test
+    project, every sample client and the Showcase client apps now reference the 2.1.0 package (the temporary project
+    references are gone), and the guard test <code>AtcRestClient_ReadsAnErrorBodyOfAnyMediaTypeAsText</code> passes on
+    it. The matrix did not change when the fix arrived, because the generated 3.0 client already works around the bug
+    with every Atc.Rest.Client version. So the fix is a benefit for hand-written callers.
+    <br>2.1.0 also carries <code>atc-rest-client/issues/0002</code>: binary responses keep an error's content type and
+    headers, read <code>filename*</code>, and give a typed <code>ErrorContentObject</code>. The generated streamed download
+    (<code>x-return-stream</code>) registers its error types, so that object is the declared error.</td></tr>
+</tbody></table></div>
+
+<h3>Fixed in this round (all in 3.0, nothing deferred)</h3>
+<ul class="tight">
+  <li><b>Every status below 400</b> (found by extending the matrix to every <code>HttpStatusCode</code>). v2 answered
+    every status except 200/201/202/204 with a ProblemDetails of that status: a 301 without <code>Location</code>, a
+    304 with a body, a 205 that hung, a 206 that could not send its model. Now:
+    <ul class="tight">
+      <li>2xx and 300 write their declared body;</li>
+      <li>205 and 304 write none;</li>
+      <li>the redirects take the location and write <code>Location</code> (a generated <code>LocationHttpResult</code>
+        for 303, which ASP.NET Core has no result for);</li>
+      <li>a 1xx gets no factory and the new warning ATC_API_OPR030;</li>
+      <li>the C# client never reads a 3xx as an error;</li>
+      <li>TypeScript gains the arms <code>notModified</code> and <code>redirection</code>, and 205 is
+        <code>noContent</code>;</li>
+      <li>the TypedClient returns the body of a 202-only (or 203/206/…) operation;</li>
+      <li>status names use the RFC names (307 <code>TemporaryRedirect</code>, not <code>RedirectKeepVerb</code>).</li>
+    </ul></li>
+  <li><b>TypeScript naming.</b> A naming strategy that differs from the API's casing renames the wire too:
+    responses, request bodies, error bodies, stream items, SignalR payloads and MSW mocks
+    (<code>helpers/wireNames.ts</code>). v2 read <code>undefined</code> for every renamed property.</li>
+  <li><b>TypeScript, other former 3.1 items.</b>
+    <ul class="tight">
+      <li>Typed <code>default</code> arms.</li>
+      <li>An <code>options</code> parameter on React Query infinite hooks.</li>
+      <li>Unique query-key names.</li>
+      <li>A streamed operation sends its own method and body.</li>
+      <li><code>globalThis.Error</code> when a spec model is named <code>Error</code>.</li>
+      <li>Cookie and querystring names under every naming strategy.</li>
+    </ul></li>
+  <li><b>C# string error accessors.</b> A declared string or text, or <code>PlainText</code> /
+    <code>PlainTextOnly</code>, gives an <code>application/problem+json</code> body's message (detail, else title)
+    instead of the ProblemDetails' JSON text. The client splits by media type.</li>
+  <li><b>C# non-text error bodies.</b> <code>application/xml</code> and <code>application/octet-stream</code> error
+    bodies now reach <code>Content</code> and the typed accessors (decoded by the Content-Type charset). They used to be
+    lost; a body without a Content-Type was already read as text.</li>
+  <li><b>C# declared error models.</b> The accessor no longer throws for a body of another shape (a proxy's page,
+    another API's error). It fills the shared properties, as the custom model does.</li>
+  <li><b>C# TypedClient, Result style, downloads.</b> The error body is now in <code>Content</code>; it used to be
+    empty.</li>
+  <li><b>C# custom error model.</b>
+    <ul class="tight">
+      <li>It gets its own namespace when its name collides with a spec schema (the Monta <code>ErrorResponse</code>).</li>
+      <li>It reads a body leniently, for example a numeric <code>status</code> into a string property, instead of
+        throwing.</li>
+    </ul></li>
+  <li><b>TypeScript error bodies.</b> One rule for Fetch and Axios, and for success and error bodies:
+    <ul class="tight">
+      <li>JSON is parsed.</li>
+      <li>Text (<code>text/*</code>, <code>application/xml</code>, <code>+xml</code>) stays a string.</li>
+      <li>Anything else is <code>undefined</code>.</li>
+    </ul>
+    Before this, Axios kept binary bodies as strings and parsed a JSON-string error twice (<code>"42"</code> became the
+    number 42), and Fetch dropped XML.</li>
+  <li><b>Server.</b> Model properties are written under their exact spec names (<code>user_name</code>,
+    <code>UserId</code>, <code>HTTPStatus</code>).</li>
+</ul>
+
+<h3>Known limitations (documented)</h3>
+<ul class="tight">
+  <li>The C# EndpointPerOperation client has no result class for streamed item operations (SSE, JSON Lines) or for a
+    streamed download (<code>x-return-stream</code>, which returns <code>StreamBinaryEndpointResponse</code> with a typed
+    <code>ErrorContentObject</code>), so they get no <code>IsDefaultError</code>. A buffered file download does have a
+    result class, with typed errors.</li>
+  <li><code>HttpClient.Timeout</code> (100 s) caps long per-operation retry timeouts.</li>
+  <li>The build finds multi-part specs by the <code>{Base}_{Part}.yaml</code> convention only.</li>
+  <li>Node's fetch rejects every 407 response, so the Fetch client cannot be observed on 407 in Node. Browsers
+    behave differently; this is a platform limit, not a client one.</li>
+  <li>Not exercised by the matrix: the <i>How it was tested</i> tab lists everything the E2E run does not cover
+    (secured and rate-limited operations, the Development environment, browser runtime, …).</li>
+</ul>
+
+<h3>What 3.0 changes</h3>
+<p>The complete list, with a fix for each break, is the wiki page <i>Upgrading to v3</i>
+(<code>Upgrading-to-v3.md</code> in the local wiki repository until it is pushed).</p>
+
+<div class="note"><p><b>On hold - do not release.</b> The generator 3.0 is not released while it waits on
+  <code>Atc.Rest.MinimalApi</code> 3.0.0 (after the team approval). <code>Atc.Rest.Client</code> 2.1.0 is released and
+  already in use. Until minimalapi is released, work continues on this branch and its temporary project reference
+  stays.</p></div>
+<h3>Release sequence once we agree</h3>
+<ol class="tight">
+  <li>Commit this round, then push the generator and minimalapi branches.</li>
+  <li>Merge and release <code>Atc.Rest.MinimalApi</code> 3.0.0. (<code>Atc.Rest.Client</code> 2.1.0: done, released
+    30 September.)</li>
+  <li>Replace the temporary minimalapi project references with the released package (the test project,
+    Showcase.Api.Contracts and MultipartDemo.Api.Contracts), then rerun the full suite, this matrix and the Showcase
+    E2E. (Atc.Rest.Client: done, the 2.1.0 package everywhere.)</li>
+  <li>Push the wiki, merge the generator branch, and release 3.0.</li>
+</ol>

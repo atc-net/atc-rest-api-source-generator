@@ -283,7 +283,7 @@ public sealed class TypeScriptScenarioTscMatrixGateTests
     /// </summary>
     /// <summary>
     /// Leaves the matrix's result for the test-suite report (<c>Report_EndToEndErrorBodyMatrix</c> in the
-    /// source-generator tests reads <c>issues/report-data/tsc-matrix.json</c>); nothing when the repository root
+    /// source-generator tests reads <c>docs/test-suite-report.tsc-matrix.json</c>); nothing when the repository root
     /// is not above the test binaries (a packaged run).
     /// </summary>
     private static void WriteReportData(
@@ -301,7 +301,7 @@ public sealed class TypeScriptScenarioTscMatrixGateTests
             return;
         }
 
-        var folder = Path.Combine(directory.FullName, "issues", "report-data");
+        var folder = Path.Combine(directory.FullName, "docs");
         Directory.CreateDirectory(folder);
         var data = new System.Text.Json.Nodes.JsonObject
         {
@@ -309,7 +309,7 @@ public sealed class TypeScriptScenarioTscMatrixGateTests
             ["combinations"] = new System.Text.Json.Nodes.JsonArray([.. combinations.Select(c => (System.Text.Json.Nodes.JsonNode)c)]),
             ["failing"] = new System.Text.Json.Nodes.JsonArray([.. failing.Select(c => (System.Text.Json.Nodes.JsonNode)c)]),
         };
-        File.WriteAllText(Path.Combine(folder, "tsc-matrix.json"), data.ToJsonString());
+        File.WriteAllText(Path.Combine(folder, "test-suite-report.tsc-matrix.json"), data.ToJsonString());
     }
 
     private static IEnumerable<(string Scenario, string SpecPath)> DiscoverScenarioSpecs()

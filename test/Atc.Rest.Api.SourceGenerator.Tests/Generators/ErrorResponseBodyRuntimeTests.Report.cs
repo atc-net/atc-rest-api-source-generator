@@ -80,8 +80,6 @@ public partial class ErrorResponseBodyRuntimeTests
 
     private const string ReportFolderName = "docs";
 
-    private const string ReportDataFolderName = "report-data";
-
     /// <summary>
     /// Writes the report: <c>docs/test-suite-report.html</c> (rendered from <c>Generators/ErrorBodyReport.template.html</c>,
     /// the page the README links to), <c>docs/test-suite-report.json</c> (its data) and
@@ -109,7 +107,6 @@ public partial class ErrorResponseBodyRuntimeTests
         };
 
         var root = FindRepositoryRoot();
-        var issues = Path.Combine(root, "issues");
         var docs = Path.Combine(root, ReportFolderName);
         Directory.CreateDirectory(docs);
 
@@ -121,9 +118,9 @@ public partial class ErrorResponseBodyRuntimeTests
         matrix["summary"] = Summary(matrix);
 
         // Hand-written context shown next to the data: the 3.0 readiness notes, and the independent review's findings.
-        foreach (var (key, file) in ((string, string)[])[("readiness", "return-body-readiness.html"), ("review", "return-body-review.html")])
+        foreach (var (key, file) in ((string, string)[])[("readiness", "test-suite-report.readiness.html"), ("review", "test-suite-report.review.html")])
         {
-            var path = Path.Combine(issues, file);
+            var path = Path.Combine(docs, file);
             if (File.Exists(path))
             {
                 matrix[key] = await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken);
@@ -445,7 +442,7 @@ public partial class ErrorResponseBodyRuntimeTests
             });
         }
 
-        var tsc = ReadReportData(root, "tsc-matrix.json");
+        var tsc = ReadReportData(root, "test-suite-report.tsc-matrix.json");
         return new JsonObject
         {
             ["generators"] = new JsonArray([.. GeneratorSnapshotHarness.ConvertedMasterFolders.Order(StringComparer.Ordinal).Select(g => (JsonNode)g)]),
@@ -561,13 +558,13 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
-    /// A data file another test project left for the report (<c>issues/report-data/*.json</c>), or null.
+    /// A data file another test project left for the report (<c>docs/test-suite-report.*.json</c>), or null.
     /// </summary>
     private static JsonNode? ReadReportData(
         string root,
         string fileName)
     {
-        var path = Path.Combine(root, "issues", ReportDataFolderName, fileName);
+        var path = Path.Combine(root, ReportFolderName, fileName);
         return File.Exists(path) ? JsonNode.Parse(File.ReadAllText(path)) : null;
     }
 }
