@@ -1,5 +1,10 @@
 # 🚀 Atc.Rest.Api.SourceGenerator
 
+[![NuGet Version](https://img.shields.io/nuget/v/Atc.Rest.Api.SourceGenerator.svg?logo=nuget&style=for-the-badge)](https://www.nuget.org/packages/Atc.Rest.Api.SourceGenerator)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/Atc.Rest.Api.SourceGenerator.svg?logo=nuget&style=for-the-badge)](https://www.nuget.org/packages/Atc.Rest.Api.SourceGenerator)
+[![Build and test](https://img.shields.io/github/actions/workflow/status/atc-net/atc-rest-api-source-generator/build.yml?branch=main&label=build&logo=github&style=for-the-badge)](https://github.com/atc-net/atc-rest-api-source-generator/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](https://github.com/atc-net/atc-rest-api-source-generator/blob/main/LICENSE)
+
 A Roslyn Source Generator that automatically generates REST API server and client code from OpenAPI specifications. **No CLI commands, no manual code generation** - just build your project and get production-ready code.
 
 ## ✨ Key Features
@@ -139,16 +144,23 @@ app.MapEndpoints();
 app.Run();
 ```
 
+> 💡 With [Atc.Rest.MinimalApi](https://www.nuget.org/packages/Atc.Rest.MinimalApi) referenced, the generated `Add{Project}Api()` / `Map{Project}Api()` also wire up RFC 9457 ProblemDetails for every error (`AddProblemDetails()` + `UseStatusCodePages()`). Without it, add those two calls yourself - see [Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses).
+
 ## 📋 Requirements
 
 - **.NET 10** or later
 - **OpenAPI 3.0.x**, **3.1.x** or **3.2.x** specification
 
-### Optional Dependencies
+### Companion Packages
 
-For `EndpointPerOperation` client generation mode:
+| Package | When | Version |
+|---------|------|---------|
+| [`Atc.Rest.MinimalApi`](https://www.nuget.org/packages/Atc.Rest.MinimalApi) | Server: validation filter, global error handler, endpoint definitions | **3.x** with generator 3.x (they ship together - see [Upgrading to v3](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v3)) |
+| [`Atc.Rest.Client`](https://www.nuget.org/packages/Atc.Rest.Client) | C# client in `EndpointPerOperation` mode | 2.1 or later |
+| [`Atc`](https://www.nuget.org/packages/Atc) | C# client in `EndpointPerOperation` mode | 3.x |
 
 ```xml
+<PackageReference Include="Atc.Rest.MinimalApi" Version="3.*" />
 <PackageReference Include="Atc" Version="3.*" />
 <PackageReference Include="Atc.Rest.Client" Version="2.*" />
 ```
@@ -159,7 +171,7 @@ The project uses a **three-layer architecture**:
 
 | Layer          | Project                        | Description                                                                 |
 |----------------|--------------------------------|-----------------------------------------------------------------------------|
-| **Shared**     | `Atc.Rest.Api.Generator`       | All 12 extractors, services, configuration, validation (Roslyn-independent) |
+| **Shared**     | `Atc.Rest.Api.Generator`       | The extractors (55), services, configuration, validation (Roslyn-independent) |
 | **Generators** | `Atc.Rest.Api.SourceGenerator` | Roslyn source generators (thin wrappers calling shared services)            |
 | **CLI**        | `Atc.Rest.Api.Generator.Cli`    | Command-line tool for validation and generation                             |
 
@@ -167,7 +179,7 @@ The project uses a **three-layer architecture**:
 
 ## ✅ Quality - how we know it works
 
-Every release is proven, not promised. The **[test-suite report](https://html-preview.github.io/?url=https://github.com/atc-net/atc-rest-api-source-generator/blob/main/docs/test-suite-report.html)** ([`docs/test-suite-report.html`](docs/test-suite-report.html), regenerated from a real run) is the one page to read:
+Every release is proven, not promised. The **[test-suite report](https://html-preview.github.io/?url=https://github.com/atc-net/atc-rest-api-source-generator/blob/main/docs/test-suite-report.html)** ([`docs/test-suite-report.html`](https://github.com/atc-net/atc-rest-api-source-generator/blob/main/docs/test-suite-report.html), regenerated from a real run) is the one page to read:
 
 - **End-to-end runtime matrices** - the generated server on Kestrel with every generated client (C# typed, C# endpoint-per-operation, TypeScript Fetch and Axios, Zod, React Query, SWR) calling it over HTTP: error bodies for every HTTP status and every way a specification can declare one, body media types (files, uploads, XML), request binding (path, query, header, cookie, JSON, multipart and URL-encoded bodies, and the requests the server must refuse), security and rate limiting, streaming, pagination, polymorphism, dates and conditional requests. Thousands of recorded cells, each with a verdict and the reason.
 - **Compile gate** - every scenario specification under `test/Scenarios` through every generator, compiled as a strict consumer does (nullable, documentation, warnings as errors), plus the strict `tsc` matrix for TypeScript.
@@ -205,27 +217,39 @@ See [Working with the CLI](https://github.com/atc-net/atc-rest-api-source-genera
 
 Read the full documentation on the [WIKI](https://github.com/atc-net/atc-rest-api-source-generator/wiki)
 
-| Document                                                                                                                          | Description                                  |
-|-----------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------|
-| [🚀 Getting Started](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Getting-Started-with-Basic)                    | Detailed setup guide with examples           |
-| [🖥️ Getting Started with CLI](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Getting-Started-with-CLI)            | Quick start guide using CLI scaffolding      |
-| [🔄 Migration Guide](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Migration-Guide)                               | Migrate from old `atc-rest-api-generator`    |
-| [⬆️ Upgrading to v2](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v2)                               | What the v2 nullability change means for you |
-| [⚙️ Working with the CLI](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-CLI)                         | Full CLI command reference                   |
-| [📖 Working with OpenAPI](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-OpenAPI)                     | YAML patterns and generated output           |
-| [🕳️ Working with Nullability](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Nullability)             | `nullable` vs `type: [x, "null"]`, and why   |
-| [🔐 Working with Security](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Security)                   | JWT, OAuth2, API Key authentication          |
-| [✅ Working with Validations](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Validations)             | Request validation from OpenAPI constraints  |
-| [⏱️ Working with Rate Limiting](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Rate-Limiting)         | Server-side rate limiting configuration      |
-| [🔄 Working with Resilience](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Resilience)               | Client-side retry/circuit breaker patterns   |
-| [💾 Working with Caching](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Caching)                     | Output caching and HybridCache configuration |
-| [🔢 Working with Versioning](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Versioning)               | API versioning strategies                    |
-| [📋 Analyzer Rules](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Analyzer-Rules)                                 | OpenAPI validation rules reference           |
-| [🟦 Working with TypeScript Client](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-TypeScript-Client) | TypeScript/React client generation           |
-| [🎪 Showcase Demo](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Showcase-Demo)                                   | Full-featured demo with Blazor & React UI    |
-| [❓ FAQ & Troubleshooting](https://github.com/atc-net/atc-rest-api-source-generator/wiki/FAQ-and-Troubleshooting)                  | Common issues and solutions                  |
-| [🗺️ Roadmap](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Roadmap)                                              | Planned features and status                  |
-| [🔧 Development Notes](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Development-Notes)                           | For contributors                             |
+| Document | Description |
+|----------|-------------|
+| [🚀 Getting Started](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Getting-Started-with-Basic) | Detailed setup guide with examples |
+| [🖥️ Getting Started with CLI](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Getting-Started-with-CLI) | Quick start guide using CLI scaffolding |
+| [⬆️ Upgrading to v3](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v3) | What changes in 3.0 and how to upgrade |
+| [⬆️ Upgrading to v2](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Upgrading-to-v2) | What the v2 nullability change means for you |
+| [🔄 Migration Guide](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Migration-Guide) | Migrate from old `atc-rest-api-generator` |
+| [🏷️ Marker Files](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Marker-Files) | Every generator setting, per marker file |
+| [⚙️ Working with Configuration](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Configuration) | `ApiGeneratorOptions.json` for the CLI |
+| [🛠️ Working with the CLI](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-CLI) | Full CLI command reference |
+| [📖 Working with OpenAPI](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-OpenAPI) | YAML patterns and generated output |
+| [🧩 Working with Multi-Part Specs](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Multi-Part-Specs) | Split a large specification across files |
+| [🕳️ Working with Nullability](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Nullability) | `nullable` vs `type: [x, "null"]`, and why |
+| [🚨 Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses) | RFC 9457 ProblemDetails, declared error models |
+| [📁 Working with Files](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Files) | Uploads, downloads, model-or-file responses |
+| [🧾 Working with XML](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-XML) | XML bodies, content negotiation |
+| [🔐 Working with Security](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Security) | JWT, OAuth2, API Key authentication |
+| [✅ Working with Validations](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Validations) | Request validation from OpenAPI constraints |
+| [⏱️ Working with Rate Limiting](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Rate-Limiting) | Server-side rate limiting configuration |
+| [💾 Working with Caching](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Caching) | Output caching and HybridCache configuration |
+| [🔢 Working with Versioning](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Versioning) | API versioning strategies |
+| [🪝 Working with Webhooks](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Webhooks) | OpenAPI webhooks on server and client |
+| [🗺️ Working with Endpoint Definitions](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Endpoint-Definitions) | How endpoints are grouped and mapped |
+| [🔌 Working with the C# Client](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-CSharp-Client) | Typed client and endpoint-per-operation modes |
+| [🧪 Working with C# Client Testing](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-CSharp-Client-Testing) | Test doubles for generated clients |
+| [🔄 Working with Resilience](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Resilience) | Client-side retry/circuit breaker patterns |
+| [🟦 Working with TypeScript Client](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-TypeScript-Client) | TypeScript/React client generation |
+| [☁️ Working with Aspire](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Aspire) | .NET Aspire orchestration |
+| [📋 Analyzer Rules](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Analyzer-Rules) | OpenAPI validation rules reference |
+| [🎪 Showcase Demo](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Showcase-Demo) | Full-featured demo with Blazor & React UI |
+| [❓ FAQ & Troubleshooting](https://github.com/atc-net/atc-rest-api-source-generator/wiki/FAQ-and-Troubleshooting) | Common issues and solutions |
+| [🗺️ Roadmap](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Roadmap) | Planned features and status |
+| [🔧 Development Notes](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Development-Notes) | For contributors |
 
 ## 🎯 Generated from This YAML
 
@@ -254,43 +278,40 @@ paths:
 
 ```csharp
 // Generated model
-public record Pet(
+public sealed record Pet(
     [property: Required] long Id,
     [property: Required] string Name,
-    string? Tag);
+    string? Tag = null);
 
 // Generated parameters
-public class ListPetsParameters
-{
-    [FromQuery(Name = "limit")]
-    [Range(long.MinValue, 100)]
-    public int? Limit { get; set; }
-}
+public sealed record ListPetsParameters(
+    [property: FromQuery(Name = "limit"), Range(long.MinValue, 100)] int? Limit);
 
 // Generated handler interface
 public interface IListPetsHandler
 {
     Task<ListPetsResult> ExecuteAsync(
         ListPetsParameters parameters,
-        CancellationToken ct = default);
+        CancellationToken cancellationToken = default);
 }
 
 // Generated result - ONLY factory methods for responses in OpenAPI!
-public class ListPetsResult : IResult
+public sealed class ListPetsResult : IResult
 {
-    private ListPetsResult(IResult inner) { ... }  // Private!
+    private ListPetsResult(IResult innerResult) { ... }  // Private!
 
-    public static ListPetsResult Ok(Pet[] response) => ...
-    public static implicit operator ListPetsResult(Pet[] r) => Ok(r);
+    public static ListPetsResult Ok(List<Pet> response) => new(TypedResults.Ok(response));
+    public static implicit operator ListPetsResult(List<Pet> response) => Ok(response);
+    public static implicit operator ListPetsResult(Pet[] response) => Ok(response.ToList());
     // No InternalServerError(), Unauthorized(), etc. - they don't exist!
 }
 
-// Generated endpoint
-endpoints.MapGet("/pets", async (
-    [FromServices] IListPetsHandler handler,
-    [AsParameters] ListPetsParameters parameters,
-    CancellationToken ct)
-    => await handler.ExecuteAsync(parameters, ct));
+// Generated endpoint (in PetsEndpointDefinition)
+pets
+    .MapGet("/", ListPets)
+    .WithName("ListPets")
+    .Produces<List<Pet>>()
+    .ProducesValidationProblem();
 ```
 
 ## 🏷️ [Marker Files](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Marker-Files)
