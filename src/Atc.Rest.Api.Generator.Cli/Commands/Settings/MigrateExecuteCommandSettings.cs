@@ -29,7 +29,7 @@ public sealed class MigrateExecuteCommandSettings : CommandSettings
     /// <summary>
     /// Gets a value indicating whether the migration only reports what it would modify, create and delete.
     /// </summary>
-    [CommandOption("--dry-run")]
+    [CommandOption("--dry-run|--preview")]
     [Description("Preview changes without executing. Shows what would be modified, created, or deleted.")]
     [DefaultValue(false)]
     public bool DryRun { get; init; }
@@ -41,14 +41,6 @@ public sealed class MigrateExecuteCommandSettings : CommandSettings
     [Description("Skip confirmation prompts (git status check, upgrade confirmations).")]
     [DefaultValue(false)]
     public bool Force { get; init; }
-
-    /// <summary>
-    /// Gets a value indicating whether detailed output is shown during the migration.
-    /// </summary>
-    [CommandOption("--verbose")]
-    [Description("Show detailed output during migration.")]
-    [DefaultValue(false)]
-    public bool Verbose { get; init; }
 
     /// <summary>
     /// Gets the suffix of the renamed client project (default <c>ApiClient</c>; <c>Api.Client</c> for dotted naming).

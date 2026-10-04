@@ -49,7 +49,7 @@ public sealed class SpecSplitCommandTests : IDisposable
         Assert.Contains("--specification", cleanOutput, StringComparison.Ordinal);
         Assert.Contains("--output", cleanOutput, StringComparison.Ordinal);
         Assert.Contains("--strategy", cleanOutput, StringComparison.Ordinal);
-        Assert.Contains("--preview", cleanOutput, StringComparison.Ordinal);
+        Assert.Contains("--dry-run", cleanOutput, StringComparison.Ordinal);
     }
 
     [Fact]

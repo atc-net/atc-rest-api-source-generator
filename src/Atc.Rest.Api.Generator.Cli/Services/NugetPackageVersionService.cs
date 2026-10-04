@@ -50,9 +50,14 @@ public sealed class NugetPackageVersionService : INugetPackageVersionService
                 return null;
             }
 
-            var latestVersionString = versions[^1]?.GetValue<string>();
-            if (latestVersionString is not null &&
-                Version.TryParse(latestVersionString, out var version))
+            // The newest stable version: a prerelease ("3.0.0-preview.1") is never offered to a scaffold
+            var version = versions
+                .Select(node => node?.GetValue<string>())
+                .Where(text => text is not null && !text.Contains('-', StringComparison.Ordinal))
+                .Select(text => Version.TryParse(text, out var parsed) ? parsed : null)
+                .Where(parsed => parsed is not null)
+                .Max();
+            if (version is not null)
             {
                 VersionCache.TryAdd(packageId, version);
                 return version;

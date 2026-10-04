@@ -48,7 +48,7 @@ public sealed class SpecMergeCommandTests : IDisposable
         Assert.True(isSuccessful);
         Assert.Contains("--specification", cleanOutput, StringComparison.Ordinal);
         Assert.Contains("--output", cleanOutput, StringComparison.Ordinal);
-        Assert.Contains("--preview", cleanOutput, StringComparison.Ordinal);
+        Assert.Contains("--dry-run", cleanOutput, StringComparison.Ordinal);
         Assert.Contains("--validate", cleanOutput, StringComparison.Ordinal);
     }
 

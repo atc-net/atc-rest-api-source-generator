@@ -22,13 +22,6 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
     public string OutputPath { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets an explicit path to the ApiGeneratorOptions.json file or its directory; auto-discovered when not set.
-    /// </summary>
-    [CommandOption("--options <PATH>")]
-    [Description("Path to ApiGeneratorOptions.json file (optional, auto-discovered if not specified).")]
-    public string? OptionsPath { get; set; }
-
-    /// <summary>
     /// Gets a value indicating whether the specification is validated with the standard strategy instead of the strict one.
     /// </summary>
     [CommandOption("--no-strict")]
@@ -126,14 +119,6 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
     [Description("Watch the specification file for changes and re-generate automatically.")]
     [DefaultValue(false)]
     public bool Watch { get; init; }
-
-    /// <summary>
-    /// Gets a value indicating whether a <c>.generation-report.md</c> is written to the output directory.
-    /// </summary>
-    [CommandOption("--report")]
-    [Description("Generate a .generation-report.md file in the output directory.")]
-    [DefaultValue(false)]
-    public bool GenerateReport { get; init; }
 
     /// <summary>
     /// Gets a value indicating whether package.json and tsconfig.json are generated so the output is an npm package.
@@ -245,18 +230,6 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
             !Enum.TryParse<TypeScriptNamingStrategy>(NamingStrategy, ignoreCase: true, out _))
         {
             return ValidationResult.Error($"Invalid naming strategy: '{NamingStrategy}'. Valid values: CamelCase, Original, PascalCase.");
-        }
-
-        // Validate options file if explicitly provided
-        if (!string.IsNullOrWhiteSpace(OptionsPath))
-        {
-            OptionsPath = PathHelper.ResolveRelativePath(OptionsPath);
-
-            if (!File.Exists(OptionsPath) &&
-                !Directory.Exists(OptionsPath))
-            {
-                return ValidationResult.Error($"Options file or directory not found: {OptionsPath}");
-            }
         }
 
         return ValidationResult.Success();

@@ -5,7 +5,31 @@ namespace Atc.Rest.Api.Generator.Cli.Helpers;
 /// </summary>
 public static class CliVersionHelper
 {
+    /// <summary>
+    /// The environment variable that turns the start-up update check off (<c>1</c> or <c>true</c>).
+    /// </summary>
+    public const string NoUpdateCheckVariable = "ATC_REST_API_GEN_NO_UPDATE_CHECK";
+
     private const string PackageId = "atc-rest-api-gen";
+
+    /// <summary>
+    /// Tells whether the start-up update check is turned off.
+    /// </summary>
+    /// <param name="getEnvironmentVariable">Reads an environment variable by name.</param>
+    /// <returns>True when the check should be skipped.</returns>
+    public static bool IsUpdateCheckDisabled(
+        Func<string, string?> getEnvironmentVariable)
+    {
+        ArgumentNullException.ThrowIfNull(getEnvironmentVariable);
+
+        // The explicit switch, or a CI system (they set CI=true), where an update notice is noise
+        return IsSet(getEnvironmentVariable(NoUpdateCheckVariable)) ||
+               IsSet(getEnvironmentVariable("CI"));
+
+        static bool IsSet(string? value)
+            => value is not null &&
+               (value == "1" || value.Equals("true", StringComparison.OrdinalIgnoreCase));
+    }
 
     /// <summary>
     /// Gets the latest available version from NuGet.

@@ -361,7 +361,7 @@ public sealed class MigrateValidateCommand : Command<MigrateValidateCommandSetti
         if (report.CanMigrate)
         {
             AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine($"[dim]Run 'atc-rest-api-gen migrate execute -s <solution-path> -p <spec-path>' to perform migration.[/]");
+            AnsiConsole.MarkupLine($"[dim]Run 'atc-rest-api-gen migrate execute -s <spec-path> --solution <solution-path>' to perform migration.[/]");
         }
 
         AnsiConsole.Write(new Rule().RuleStyle(Style.Parse("dim")));

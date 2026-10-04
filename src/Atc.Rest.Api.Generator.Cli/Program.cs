@@ -23,8 +23,9 @@ public static class Program
         var serviceCollection = ServiceCollectionFactory.Create(consoleLoggerConfiguration);
         ConfigureServices(serviceCollection);
 
-        await using (var startupProvider = serviceCollection.BuildServiceProvider())
+        if (!CliVersionHelper.IsUpdateCheckDisabled(Environment.GetEnvironmentVariable))
         {
+            await using var startupProvider = serviceCollection.BuildServiceProvider();
             await CheckForUpdatesAsync(startupProvider.GetRequiredService<INugetPackageVersionService>());
         }
 

@@ -32,7 +32,7 @@ public sealed class SpecSplitCommandSettings : CommandSettings
     /// <summary>
     /// Gets a value indicating whether the resulting files are listed instead of written.
     /// </summary>
-    [CommandOption("--preview")]
+    [CommandOption("--dry-run|--preview")]
     [Description("Preview split without writing files.")]
     [DefaultValue(false)]
     public bool Preview { get; init; }

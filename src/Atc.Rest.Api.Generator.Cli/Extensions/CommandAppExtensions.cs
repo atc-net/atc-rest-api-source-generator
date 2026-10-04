@@ -21,6 +21,9 @@ public static class CommandAppExtensions
                 config.SetApplicationName("atc-rest-api-gen");
                 config.SetApplicationVersion(CliHelper.GetCurrentVersion().ToString());
 
+                // An option the command does not have is an error, not silently ignored (a typo would do nothing)
+                config.UseStrictParsing();
+
                 config.AddBranch("spec", ConfigureSpecCommands());
                 config.AddBranch("generate", ConfigureGenerateCommands());
                 config.AddBranch("options", ConfigureOptionsCommands());
@@ -48,7 +51,7 @@ public static class CommandAppExtensions
                 .WithExample("spec", "merge", "-s", "api.yaml", "-o", "merged.yaml")
                 .WithExample("spec", "merge", "-s", "api.yaml", "-o", "merged.yaml", "--validate")
                 .WithExample("spec", "merge", "--files", "api.yaml,api_Users.yaml,api_Orders.yaml", "-o", "merged.yaml")
-                .WithExample("spec", "merge", "-s", "api.yaml", "--preview");
+                .WithExample("spec", "merge", "-s", "api.yaml", "--dry-run");
 
             node
                 .AddCommand<SpecSplitCommand>("split")
@@ -56,7 +59,7 @@ public static class CommandAppExtensions
                 .WithExample("spec", "split", "-s", "api.yaml", "-o", "./parts")
                 .WithExample("spec", "split", "-s", "api.yaml", "-o", "./parts", "--strategy", "ByPathSegment")
                 .WithExample("spec", "split", "-s", "api.yaml", "-o", "./parts", "--extract-common")
-                .WithExample("spec", "split", "-s", "api.yaml", "--preview");
+                .WithExample("spec", "split", "-s", "api.yaml", "--dry-run");
         };
 
     private static Action<IConfigurator<CommandSettings>> ConfigureGenerateCommands()

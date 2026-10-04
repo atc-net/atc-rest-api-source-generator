@@ -38,6 +38,27 @@ public class CliVersionHelperTests
     public Task IsLatestVersionAsync_NullService_Throws()
         => Assert.ThrowsAsync<ArgumentNullException>(() => CliVersionHelper.IsLatestVersionAsync(nugetService: null!, TestContext.Current.CancellationToken));
 
+    [Theory]
+    [InlineData(null, null, false)]
+    [InlineData("1", null, true)]
+    [InlineData("true", null, true)]
+    [InlineData("0", null, false)]
+    [InlineData(null, "true", true)]
+    [InlineData(null, "false", false)]
+    public void IsUpdateCheckDisabled_FromTheEnvironment(
+        string? noUpdateCheck,
+        string? ci,
+        bool expected)
+    {
+        var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            [CliVersionHelper.NoUpdateCheckVariable] = noUpdateCheck,
+            ["CI"] = ci,
+        };
+
+        Assert.Equal(expected, CliVersionHelper.IsUpdateCheckDisabled(name => environment.GetValueOrDefault(name)));
+    }
+
     private sealed class StubNugetPackageVersionService(Version? latestVersion) : INugetPackageVersionService
     {
         public string? RequestedPackageId { get; private set; }

@@ -21,9 +21,10 @@ internal static class PackageVersionDefaults
     public const string ResiliencePackageId = "Microsoft.Extensions.Http.Resilience";
 
     /// <summary>
-    /// Fallback version for Atc.Rest.Api.SourceGenerator.
+    /// Fallback version for Atc.Rest.Api.SourceGenerator when NuGet cannot be reached: the CLI's own version, since the
+    /// CLI and the generator are released together.
     /// </summary>
-    public static readonly Version SourceGeneratorFallback = new(1, 0, 341);
+    public static readonly Version SourceGeneratorFallback = OwnVersion();
 
     /// <summary>
     /// Fallback minimum version for Atc.Rest.Client.
@@ -34,4 +35,10 @@ internal static class PackageVersionDefaults
     /// Fallback minimum version for Microsoft.Extensions.Http.Resilience.
     /// </summary>
     public static readonly Version ResilienceMinFallback = new(10, 7, 0);
+
+    private static Version OwnVersion()
+    {
+        var version = typeof(PackageVersionDefaults).Assembly.GetName().Version ?? new Version(1, 0, 0);
+        return new Version(version.Major, version.Minor, System.Math.Max(version.Build, 0));
+    }
 }

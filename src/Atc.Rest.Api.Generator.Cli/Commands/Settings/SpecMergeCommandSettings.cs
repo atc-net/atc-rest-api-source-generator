@@ -31,7 +31,7 @@ public sealed class SpecMergeCommandSettings : CommandSettings
     /// <summary>
     /// Gets a value indicating whether the merged document is printed instead of written.
     /// </summary>
-    [CommandOption("--preview")]
+    [CommandOption("--dry-run|--preview")]
     [Description("Preview merged output without writing file.")]
     [DefaultValue(false)]
     public bool Preview { get; init; }
