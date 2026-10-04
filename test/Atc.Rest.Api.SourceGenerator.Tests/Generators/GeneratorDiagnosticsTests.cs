@@ -186,6 +186,31 @@ public class GeneratorDiagnosticsTests
         Assert.DoesNotContain("ATC_API_GEN009", Run(new ApiEndpointInjectionGenerator(), [Spec(Yaml)], Full(), source));
     }
 
+    [Fact]
+    public void EndpointInjection_AnotherAttributeWithTheSameName_IsIgnored()
+    {
+        // Only the generator's own attribute (by its full name) triggers the injection, not a namesake
+        const string source = """
+            namespace Contoso.Other
+            {
+                [System.AttributeUsage(System.AttributeTargets.Class)]
+                public sealed class EndpointRegistrationAttribute(string name) : System.Attribute
+                {
+                    public string Name { get; } = name;
+                }
+            }
+
+            namespace Contoso.Host
+            {
+                [Contoso.Other.EndpointRegistration("Contoso.Api")]
+                public static partial class Endpoints
+                {
+                }
+            }
+            """;
+        Assert.DoesNotContain("ATC_API_GEN009", Run(new ApiEndpointInjectionGenerator(), [Spec(Yaml, "Other.yaml")], Full(), source));
+    }
+
     [Theory]
     [InlineData("server")]
     [InlineData("client")]

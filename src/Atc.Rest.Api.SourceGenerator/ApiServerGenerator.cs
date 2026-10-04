@@ -103,7 +103,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             config = JsonSerializer.Deserialize<ServerConfig>(marker.Content, JsonHelper.ConfigOptions) ?? new ServerConfig();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, marker.Path, ex);
             config = new ServerConfig();
@@ -212,7 +212,7 @@ public class ApiServerGenerator : IIncrementalGenerator
                     packages);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             DiagnosticHelpers.ReportServerGenerationError(productionContext, baseFile.Value.Path, ex);
         }
@@ -419,6 +419,9 @@ public class ApiServerGenerator : IIncrementalGenerator
         var endpointDefinitionsBySegment = new List<(string Segment, List<string> EndpointDefinitionClassNames)>();
         foreach (var pathSegment in pathSegments)
         {
+            // A superseded IDE run stops here instead of emitting the rest
+            context.CancellationToken.ThrowIfCancellationRequested();
+
             // Resolve the segment used for namespaces and file names. It collapses to an empty
             // string when the segment is redundant (single segment, or it duplicates the root
             // namespace tail), while the raw pathSegment is still used to filter operations.

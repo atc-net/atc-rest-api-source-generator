@@ -8,8 +8,7 @@ namespace Atc.Rest.Api.SourceGenerator;
 [Generator(LanguageNames.CSharp)]
 public class ApiEndpointInjectionGenerator : IIncrementalGenerator
 {
-    private const string AttributeName = "EndpointRegistrationAttribute";
-    private const string AttributeShortName = "EndpointRegistration";
+    private const string AttributeMetadataName = "Atc.Rest.Api.SourceGenerator.EndpointRegistrationAttribute";
 
     /// <summary>
     /// Registers the pipeline: the partial classes decorated with <c>[EndpointRegistration]</c>, and the endpoint fields and constructors as the output.
@@ -22,11 +21,13 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
         //    when multiple assemblies reference the same generated attribute.
         context.RegisterPostInitializationOutput(GenerateAttribute);
 
-        // 2. Create syntax provider to find partial classes with [EndpointRegistration] attribute
+        // 2. The partial classes carrying the generator's own [EndpointRegistration] attribute, found by its full
+        //    metadata name (Roslyn indexes attributed nodes, so no semantic model runs for any other class)
         var classDeclarations = context.SyntaxProvider
-            .CreateSyntaxProvider(
+            .ForAttributeWithMetadataName(
+                AttributeMetadataName,
                 predicate: static (node, _) => node.IsPartialClassWithAttribute(),
-                transform: GetClassInfo)
+                transform: static (attributeContext, _) => GetClassInfo(attributeContext))
             .Where(info => info is not null);
 
         // 3. Collect YAML files for OpenAPI specs
@@ -86,63 +87,32 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
     }
 
     /// <summary>
-    /// Transform to extract class information from the semantic model.
+    /// Transform to extract the class information and the project name from the matched attribute.
     /// </summary>
     private static ClassInfo? GetClassInfo(
-        GeneratorSyntaxContext context,
-        CancellationToken cancellationToken)
+        GeneratorAttributeSyntaxContext context)
     {
-        var classDecl = (ClassDeclarationSyntax)context.Node;
-        var semanticModel = context.SemanticModel;
-
-        // Get the symbol for this class
-        var classSymbol = semanticModel.GetDeclaredSymbol(classDecl, cancellationToken);
-        if (classSymbol is null)
+        if (context.TargetSymbol is not INamedTypeSymbol classSymbol ||
+            context.TargetNode is not ClassDeclarationSyntax classDecl)
         {
             return null;
         }
 
-        // Look for the EndpointRegistration attribute
-        foreach (var attributeData in classSymbol.GetAttributes())
+        foreach (var attributeData in context.Attributes)
         {
-            var attributeClass = attributeData.AttributeClass;
-            if (attributeClass is null)
-            {
-                continue;
-            }
-
-            // Check if this is our attribute (by name)
-            var attributeClassName = attributeClass.Name;
-            if (!attributeClassName.Equals(AttributeName, StringComparison.Ordinal) &&
-                !attributeClassName.Equals(AttributeShortName, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
             // Extract the project name from constructor argument
-            if (attributeData.ConstructorArguments.Length == 0)
+            if (attributeData.ConstructorArguments.Length == 0 ||
+                attributeData.ConstructorArguments[0].Value is not string projectName ||
+                string.IsNullOrEmpty(projectName))
             {
                 continue;
             }
-
-            var projectNameArg = attributeData.ConstructorArguments[0];
-            if (projectNameArg.Value is not string projectName || string.IsNullOrEmpty(projectName))
-            {
-                continue;
-            }
-
-            // Extract class information
-            var className = classSymbol.Name;
-            var classNamespace = classSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
-
-            // Determine modifiers
-            var modifiers = classDecl.GetModifiersString();
 
             return new ClassInfo(
-                ClassName: className,
-                ClassNamespace: classNamespace,
+                ClassName: classSymbol.Name,
+                ClassNamespace: classSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty,
                 ProjectName: projectName,
-                Modifiers: modifiers);
+                Modifiers: classDecl.GetModifiersString());
         }
 
         return null;
@@ -201,7 +171,7 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
             var fileName = $"{classInfo.ClassName}.EndpointInjection.g.cs";
             context.AddGeneratedSource(fileName, SourceText.From(generatedCode, Encoding.UTF8));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             DiagnosticHelpers.ReportEndpointInjectionGenerationError(context, classInfo.ClassName, ex);
         }

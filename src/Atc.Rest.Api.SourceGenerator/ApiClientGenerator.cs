@@ -84,7 +84,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         {
             config = JsonSerializer.Deserialize<ClientConfig>(marker.Content, JsonHelper.ConfigOptions) ?? new ClientConfig();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, marker.Path, ex);
             config = new ClientConfig();
@@ -129,7 +129,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                 GenerateApiClient(productionContext, baseFile.Value.Path, baseFile.Value.Content, config, packages);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             DiagnosticHelpers.ReportClientGenerationError(productionContext, baseFile.Value.Path, ex);
         }
@@ -343,6 +343,9 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Generate files per path segment (excluding shared schemas)
         foreach (var pathSegment in pathSegments)
         {
+            // A superseded IDE run stops here instead of emitting the rest
+            context.CancellationToken.ThrowIfCancellationRequested();
+
             // Resolve the segment used for namespaces/file names. Redundant segments (single-segment
             // documents, or segments that merely echo the root namespace tail) resolve away so
             // generated types land directly under "{projectName}.Generated.{Category}".

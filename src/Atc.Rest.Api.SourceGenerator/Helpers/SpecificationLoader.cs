@@ -23,6 +23,9 @@ internal static class SpecificationLoader
         ValidateSpecificationStrategy strategy,
         Action<SourceProductionContext, string> reportParsingError)
     {
+        // A superseded IDE run stops before the parse, the most expensive step
+        context.CancellationToken.ThrowIfCancellationRequested();
+
         var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
         if (openApiDoc is null)
         {
@@ -56,6 +59,9 @@ internal static class SpecificationLoader
         MultiPartConfiguration? mergeConfiguration,
         ValidateSpecificationStrategy strategy)
     {
+        // A superseded IDE run stops before the parse, the most expensive step
+        context.CancellationToken.ThrowIfCancellationRequested();
+
         var baseSpec = SpecificationService.ReadFromContent(baseFile.Content, baseFile.Path);
         var partSpecs = partFiles
             .Select(p => SpecificationService.ReadFromContent(p.Content, p.Path))

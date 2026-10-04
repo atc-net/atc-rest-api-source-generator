@@ -81,7 +81,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             {
                 config = JsonSerializer.Deserialize<ServerDomainConfig>(markerInfo.Content, JsonHelper.ConfigOptions) ?? new ServerDomainConfig();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, markerInfo.Path, ex);
                 config = new ServerDomainConfig();
@@ -160,7 +160,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                     GenerateHandlerScaffolds(productionContext, baseFile.Value.Path, baseFile.Value.Content, summary, config, markerDirectory);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 DiagnosticHelpers.ReportHandlerScaffoldGenerationError(productionContext, baseFile.Value.Path, ex);
             }
