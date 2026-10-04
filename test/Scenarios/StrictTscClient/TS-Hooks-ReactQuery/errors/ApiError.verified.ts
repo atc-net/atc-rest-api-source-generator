@@ -19,15 +19,19 @@ export class ApiError<TBody = unknown> extends Error {
   readonly detail?: string;
   readonly instance?: string;
 
-  constructor(status: number, statusText: string, message: string, response?: AxiosResponse, body?: TBody) {
+  /**
+   * @param body The error body; the declared error model under the models' property names.
+   * @param wireBody The body as it came over the wire (its ProblemDetails fields); defaults to `body`.
+   */
+  constructor(status: number, statusText: string, message: string, response?: AxiosResponse, body?: TBody, wireBody: unknown = body) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.statusText = statusText;
     this.response = response;
     this.body = body;
-    if (body !== null && typeof body === 'object') {
-      const problem = body as Record<string, unknown>;
+    if (wireBody !== null && typeof wireBody === 'object') {
+      const problem = wireBody as Record<string, unknown>;
       this.type = typeof problem.type === 'string' ? problem.type : undefined;
       this.title = typeof problem.title === 'string' ? problem.title : undefined;
       this.detail = typeof problem.detail === 'string' ? problem.detail : undefined;

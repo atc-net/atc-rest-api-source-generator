@@ -782,7 +782,7 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task ConvertDates_GeneratesDateReviver()
+    public async Task ConvertDates_ConvertsTheDeclaredDatesThroughTheWireShapes()
     {
         // Arrange
         var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
@@ -799,9 +799,13 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
         var cleanOutput = CliTestHelper.StripAnsiCodes(output);
         Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
 
+        // Only the declared dates are converted (helpers/wireNames.ts), not every ISO-looking string (no global reviver)
         var apiClientContent = await File.ReadAllTextAsync(
             Path.Combine(outputPath, "client", "ApiClient.ts"), TestContext.Current.CancellationToken);
-        Assert.Contains("dateReviver", apiClientContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("dateReviver", apiClientContent, StringComparison.Ordinal);
+        var wireNames = await File.ReadAllTextAsync(
+            Path.Combine(outputPath, "helpers", "wireNames.ts"), TestContext.Current.CancellationToken);
+        Assert.Contains("{ date: 'date-time' }", wireNames, StringComparison.Ordinal);
     }
 
     [Fact]

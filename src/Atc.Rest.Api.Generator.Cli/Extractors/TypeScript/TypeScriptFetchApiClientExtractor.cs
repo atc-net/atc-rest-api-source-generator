@@ -9,7 +9,6 @@ public static class TypeScriptFetchApiClientExtractor
     /// Generates the content for ApiClient.ts.
     /// </summary>
     /// <param name="headerContent">Optional auto-generated file header.</param>
-    /// <param name="convertDates">When true, emits dateReviver/dateReplacer for automatic Date conversion.</param>
     /// <param name="hasRetry">When true, the spec declares retry (x-retry-*): the client retries through helpers/retryInterceptor.ts.</param>
     /// <param name="zodRuntimeValidate">When true, responses are validated against their Zod schema.</param>
     /// <param name="hasWireNames">
@@ -19,7 +18,6 @@ public static class TypeScriptFetchApiClientExtractor
     /// <returns>The TypeScript file content.</returns>
     public static string Generate(
         string? headerContent,
-        bool convertDates = false,
         bool hasRetry = false,
         bool zodRuntimeValidate = false,
         bool hasWireNames = false)
@@ -33,15 +31,10 @@ public static class TypeScriptFetchApiClientExtractor
 
         AppendImports(sb, hasRetry, zodRuntimeValidate, hasWireNames);
 
-        if (convertDates)
-        {
-            AppendDateReviverReplacer(sb);
-        }
-
         AppendApiClientOptionsInterface(sb, hasRetry);
         AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames);
         TypeScriptOperationHelper.AppendParseEventStreamHelper(sb);
-        AppendApiClientClass(sb, convertDates, hasRetry, zodRuntimeValidate, hasWireNames);
+        AppendApiClientClass(sb, hasRetry, zodRuntimeValidate, hasWireNames);
 
         return sb.ToString();
     }
@@ -149,30 +142,8 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine();
     }
 
-    private static void AppendDateReviverReplacer(StringBuilder sb)
-    {
-        sb.AppendLine("const ISO_DATE_RE = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})?$/;");
-        sb.AppendLine();
-        sb.AppendLine("function dateReviver(_key: string, value: unknown): unknown {");
-        sb.AppendLine("  if (typeof value === 'string' && ISO_DATE_RE.test(value)) {");
-        sb.AppendLine("    const parsed = new Date(value);");
-        sb.AppendLine("    return Number.isNaN(parsed.getTime()) ? value : parsed;");
-        sb.AppendLine("  }");
-        sb.AppendLine("  return value;");
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("function dateReplacer(_key: string, value: unknown): unknown {");
-        sb.AppendLine("  if (value instanceof Date) {");
-        sb.AppendLine("    return value.toISOString();");
-        sb.AppendLine("  }");
-        sb.AppendLine("  return value;");
-        sb.AppendLine("}");
-        sb.AppendLine();
-    }
-
     private static void AppendApiClientClass(
         StringBuilder sb,
-        bool convertDates,
         bool hasRetry,
         bool zodRuntimeValidate,
         bool hasWireNames)
@@ -204,16 +175,16 @@ public static class TypeScriptFetchApiClientExtractor
             AppendSetStrictModeMethod(sb);
         }
 
-        AppendRequestMethod(sb, convertDates, hasRetry, zodRuntimeValidate, hasWireNames);
+        AppendRequestMethod(sb, hasRetry, zodRuntimeValidate, hasWireNames);
         if (hasWireNames)
         {
             TypeScriptOperationHelper.AppendRenamingRequestStream(sb);
         }
 
-        AppendRequestStreamMethod(sb, convertDates, hasWireNames);
+        AppendRequestStreamMethod(sb, hasWireNames);
         AppendBuildUrlMethod(sb);
         AppendGetHeadersMethod(sb);
-        AppendHandleResponseMethod(sb, convertDates, zodRuntimeValidate, hasWireNames);
+        AppendHandleResponseMethod(sb, zodRuntimeValidate, hasWireNames);
 
         sb.AppendLine("}");
     }
@@ -256,13 +227,12 @@ public static class TypeScriptFetchApiClientExtractor
 
     private static void AppendRequestMethod(
         StringBuilder sb,
-        bool convertDates,
         bool hasRetry,
         bool zodRuntimeValidate,
         bool hasWireNames)
     {
         var body = hasWireNames ? "toWire(options.body, options.wire?.body)" : "options.body";
-        var stringify = convertDates ? $"JSON.stringify({body}, dateReplacer)" : $"JSON.stringify({body})";
+        var stringify = $"JSON.stringify({body})";
 
         sb.AppendLine("  async request<T>(method: string, path: string, options?: RequestOptions): Promise<ApiResult<T>> {");
         sb.AppendLine("    const url = this.buildUrl(path, options?.query);");
@@ -338,18 +308,10 @@ public static class TypeScriptFetchApiClientExtractor
 
     private static void AppendRequestStreamMethod(
         StringBuilder sb,
-        bool convertDates,
         bool hasWireNames)
     {
-        var jsonParse = convertDates
-            ? "JSON.parse(buffer.substring(objStart, objEnd + 1), dateReviver)"
-            : "JSON.parse(buffer.substring(objStart, objEnd + 1))";
-
-        // multipart/mixed parses each part body with the same date-revival posture as the
-        // brace-scan path (parity — must not be strictly weaker than the sibling framings).
-        var multipartParse = convertDates
-            ? "JSON.parse(bodyText, dateReviver)"
-            : "JSON.parse(bodyText)";
+        const string jsonParse = "JSON.parse(buffer.substring(objStart, objEnd + 1))";
+        const string multipartParse = "JSON.parse(bodyText)";
 
         // With renaming, requestStream (above) renames each item this reader yields.
         sb.AppendLine(hasWireNames
@@ -358,7 +320,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("    const url = this.buildUrl(path, options?.query);");
         sb.AppendLine("    const headers = await this.getHeaders(options?.headers);");
         sb.AppendLine();
-        TypeScriptOperationHelper.AppendStreamRequestBody(sb, convertDates, hasWireNames);
+        TypeScriptOperationHelper.AppendStreamRequestBody(sb, hasWireNames);
         sb.AppendLine("    let init: RequestInit = {");
         sb.AppendLine("      method,");
         sb.AppendLine("      headers,");
@@ -389,7 +351,7 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("    let buffer = '';");
         sb.AppendLine();
         sb.AppendLine("    if (framing === 'sse') {");
-        sb.AppendLine(convertDates ? "      yield* parseEventStream<T>(reader, decoder, dateReviver);" : "      yield* parseEventStream<T>(reader, decoder);");
+        sb.AppendLine("      yield* parseEventStream<T>(reader, decoder);");
         sb.AppendLine("      return;");
         sb.AppendLine("    }");
         sb.AppendLine();
@@ -524,13 +486,10 @@ public static class TypeScriptFetchApiClientExtractor
 
     private static void AppendHandleResponseMethod(
         StringBuilder sb,
-        bool convertDates,
         bool zodRuntimeValidate,
         bool hasWireNames)
     {
-        var parseJson = convertDates
-            ? "JSON.parse(await response.text(), dateReviver)"
-            : "await response.json()";
+        const string parseJson = "await response.json()";
 
         var wireParameter = hasWireNames ? ", wire?: WireShapes" : string.Empty;
         var signature = zodRuntimeValidate

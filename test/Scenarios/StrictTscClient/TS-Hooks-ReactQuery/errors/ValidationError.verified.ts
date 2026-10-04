@@ -16,8 +16,9 @@ export class ValidationError<TBody = unknown> extends ApiError<TBody> {
     errors: Record<string, string[]>,
     response?: AxiosResponse,
     body?: TBody,
+    wireBody: unknown = body,
   ) {
-    super(status, statusText, message, response, body);
+    super(status, statusText, message, response, body, wireBody);
     this.name = 'ValidationError';
     this.errors = errors;
   }

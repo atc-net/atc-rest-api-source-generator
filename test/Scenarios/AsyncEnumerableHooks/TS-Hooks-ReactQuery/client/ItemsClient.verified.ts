@@ -52,6 +52,7 @@ export class ItemsClient {
         logLevel: query?.logLevel,
         from: query?.from?.toISOString(),
       },
+      wire: { response: { array: 'ItemLog' } },
       arms: ['ok', 'badRequest', 'notFound', 'clientError', 'serverError', 'parseError'],
     }) as Promise<GetItemLogsResult>;
   }

@@ -9,7 +9,6 @@ public static class TypeScriptAxiosApiClientExtractor
     /// Generates the content for ApiClient.ts using Axios.
     /// </summary>
     /// <param name="headerContent">Optional auto-generated file header.</param>
-    /// <param name="convertDates">When true, emits dateReviver/dateReplacer for automatic Date conversion.</param>
     /// <param name="hasRetry">When true, the spec declares retry (x-retry-*): the client retries through helpers/retryInterceptor.ts.</param>
     /// <param name="zodRuntimeValidate">When true, responses are validated against their Zod schema.</param>
     /// <param name="hasWireNames">
@@ -19,7 +18,6 @@ public static class TypeScriptAxiosApiClientExtractor
     /// <returns>The TypeScript file content.</returns>
     public static string Generate(
         string? headerContent,
-        bool convertDates = false,
         bool hasRetry = false,
         bool zodRuntimeValidate = false,
         bool hasWireNames = false)
@@ -33,16 +31,11 @@ public static class TypeScriptAxiosApiClientExtractor
 
         AppendImports(sb, hasRetry, zodRuntimeValidate, hasWireNames);
 
-        if (convertDates)
-        {
-            AppendDateReviverReplacer(sb);
-        }
-
         AppendUnparseableBodyClass(sb);
         AppendApiClientOptionsInterface(sb, hasRetry);
         AppendRequestOptionsInterface(sb, hasRetry, zodRuntimeValidate, hasWireNames);
         TypeScriptOperationHelper.AppendParseEventStreamHelper(sb);
-        AppendApiClientClass(sb, convertDates, hasRetry, zodRuntimeValidate, hasWireNames);
+        AppendApiClientClass(sb, hasRetry, zodRuntimeValidate, hasWireNames);
 
         return sb.ToString();
     }
@@ -158,30 +151,8 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine();
     }
 
-    private static void AppendDateReviverReplacer(StringBuilder sb)
-    {
-        sb.AppendLine("const ISO_DATE_RE = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})?$/;");
-        sb.AppendLine();
-        sb.AppendLine("function dateReviver(_key: string, value: unknown): unknown {");
-        sb.AppendLine("  if (typeof value === 'string' && ISO_DATE_RE.test(value)) {");
-        sb.AppendLine("    const parsed = new Date(value);");
-        sb.AppendLine("    return Number.isNaN(parsed.getTime()) ? value : parsed;");
-        sb.AppendLine("  }");
-        sb.AppendLine("  return value;");
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("function dateReplacer(_key: string, value: unknown): unknown {");
-        sb.AppendLine("  if (value instanceof Date) {");
-        sb.AppendLine("    return value.toISOString();");
-        sb.AppendLine("  }");
-        sb.AppendLine("  return value;");
-        sb.AppendLine("}");
-        sb.AppendLine();
-    }
-
     private static void AppendApiClientClass(
         StringBuilder sb,
-        bool convertDates,
         bool hasRetry,
         bool zodRuntimeValidate,
         bool hasWireNames)
@@ -204,22 +175,22 @@ public static class TypeScriptAxiosApiClientExtractor
 
         sb.AppendLine();
 
-        AppendConstructor(sb, convertDates, hasRetry);
+        AppendConstructor(sb, hasRetry);
 
         if (zodRuntimeValidate)
         {
             AppendSetStrictModeMethod(sb);
         }
 
-        AppendRequestMethod(sb, convertDates, hasRetry, zodRuntimeValidate, hasWireNames);
+        AppendRequestMethod(sb, hasRetry, zodRuntimeValidate, hasWireNames);
         if (hasWireNames)
         {
             TypeScriptOperationHelper.AppendRenamingRequestStream(sb);
         }
 
-        AppendRequestStreamMethod(sb, convertDates, hasWireNames);
+        AppendRequestStreamMethod(sb, hasWireNames);
         AppendBuildUrlMethod(sb);
-        AppendHandleResponseMethod(sb, convertDates, zodRuntimeValidate, hasWireNames);
+        AppendHandleResponseMethod(sb, zodRuntimeValidate, hasWireNames);
 
         sb.AppendLine("}");
     }
@@ -240,7 +211,6 @@ public static class TypeScriptAxiosApiClientExtractor
 
     private static void AppendConstructor(
         StringBuilder sb,
-        bool convertDates,
         bool hasRetry)
     {
         sb.AppendLine("  constructor(baseUrl: string, options?: ApiClientOptions) {");
@@ -260,7 +230,7 @@ public static class TypeScriptAxiosApiClientExtractor
         // so ASP.NET Core's default model binder can bind array query params correctly.
         sb.AppendLine("      paramsSerializer: { indexes: null },");
 
-        // transformResponse is always emitted (both convertDates modes): it is the single place
+        // transformResponse is always emitted: it is the single place
         // where a JSON parse failure is observable, so it must own the parse. It is a function (not
         // an arrow) so `this` is the request config and responseType: 'text' can be honoured — that
         // opt-out returns the body verbatim even for a JSON content-type. Otherwise parsing is gated
@@ -268,9 +238,7 @@ public static class TypeScriptAxiosApiClientExtractor
         // application/problem+json) are parsed, and only they can yield the UnparseableBody sentinel.
         // Text bodies (text/plain, application/xml, ...) are returned verbatim so they never regress
         // into a parse error.
-        var jsonParse = convertDates
-            ? "JSON.parse(data, dateReviver)"
-            : "JSON.parse(data)";
+        const string jsonParse = "JSON.parse(data)";
 
         sb.AppendLine("      transformResponse: [function (this: InternalAxiosRequestConfig, data: unknown, headers?: Record<string, string>) {");
         sb.AppendLine("        if (typeof data !== 'string' || data.length === 0) return data;");
@@ -279,16 +247,6 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("        if (!contentType.includes('application/json') && !contentType.includes('+json')) return data;");
         sb.Append("        try { return ").Append(jsonParse).AppendLine("; } catch { return new UnparseableBody(data); }");
         sb.AppendLine("      }],");
-
-        if (convertDates)
-        {
-            sb.AppendLine("      transformRequest: [(data: unknown, headers: Record<string, string>) => {");
-            sb.AppendLine("        if (data instanceof FormData || data instanceof Blob) return data;");
-            sb.AppendLine("        if (data instanceof URLSearchParams) return data.toString();");
-            sb.AppendLine("        if (data !== undefined && !headers['Content-Type']) headers['Content-Type'] = 'application/json';");
-            sb.AppendLine("        return data !== undefined ? JSON.stringify(data, dateReplacer) : data;");
-            sb.AppendLine("      }],");
-        }
 
         sb.AppendLine("    });");
         sb.AppendLine();
@@ -320,7 +278,6 @@ public static class TypeScriptAxiosApiClientExtractor
 
     private static void AppendRequestMethod(
         StringBuilder sb,
-        bool convertDates,
         bool hasRetry,
         bool zodRuntimeValidate,
         bool hasWireNames)
@@ -342,19 +299,9 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("        // Re-typed: an adapter may send the Blob's own type (Node's http adapter does)");
         sb.AppendLine("        data = options.body.type === fileType ? options.body : new Blob([options.body], { type: fileType });");
 
-        if (convertDates)
-        {
-            // transformRequest does JSON.stringify with dateReplacer; a +json media type is set here
-            sb.AppendLine("      } else {");
-            sb.AppendLine("        if (options.contentType) headers['Content-Type'] = options.contentType;");
-            sb.Append("        data = ").Append(jsonBody).AppendLine(";");
-        }
-        else
-        {
-            sb.AppendLine("      } else {");
-            sb.AppendLine("        headers['Content-Type'] = options.contentType ?? 'application/json';");
-            sb.Append("        data = ").Append(jsonBody).AppendLine(";");
-        }
+        sb.AppendLine("      } else {");
+        sb.AppendLine("        headers['Content-Type'] = options.contentType ?? 'application/json';");
+        sb.Append("        data = ").Append(jsonBody).AppendLine(";");
 
         sb.AppendLine("      }");
         sb.AppendLine("    }");
@@ -451,18 +398,10 @@ public static class TypeScriptAxiosApiClientExtractor
 
     private static void AppendRequestStreamMethod(
         StringBuilder sb,
-        bool convertDates,
         bool hasWireNames)
     {
-        var jsonParse = convertDates
-            ? "JSON.parse(buffer.substring(objStart, objEnd + 1), dateReviver)"
-            : "JSON.parse(buffer.substring(objStart, objEnd + 1))";
-
-        // multipart/mixed parses each part body with the same date-revival posture as the
-        // brace-scan path (parity — must not be strictly weaker than the sibling framings).
-        var multipartParse = convertDates
-            ? "JSON.parse(bodyText, dateReviver)"
-            : "JSON.parse(bodyText)";
+        const string jsonParse = "JSON.parse(buffer.substring(objStart, objEnd + 1))";
+        const string multipartParse = "JSON.parse(bodyText)";
 
         sb.AppendLine("  // Streaming uses native fetch — Axios doesn't natively support ReadableStream iteration.");
         sb.AppendLine("  // Auth and default headers are applied manually; Axios interceptors do not apply to streaming requests.");
@@ -487,7 +426,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      }");
         sb.AppendLine("    }");
         sb.AppendLine();
-        TypeScriptOperationHelper.AppendStreamRequestBody(sb, convertDates, hasWireNames);
+        TypeScriptOperationHelper.AppendStreamRequestBody(sb, hasWireNames);
         sb.AppendLine("    const response = await fetch(url, {");
         sb.AppendLine("      method,");
         sb.AppendLine("      headers,");
@@ -501,7 +440,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("      let errorBody: unknown = undefined;");
         sb.AppendLine("      try {");
         sb.AppendLine("        if (errorContentType.includes('application/json') || errorContentType.includes('+json')) {");
-        sb.AppendLine(convertDates ? "          errorBody = JSON.parse(await response.text(), dateReviver);" : "          errorBody = await response.json();");
+        sb.AppendLine("          errorBody = await response.json();");
         sb.AppendLine("        } else if (errorContentType.startsWith('text/') || errorContentType.includes('application/xml') || errorContentType.includes('+xml')) {");
         sb.AppendLine("          const text = await response.text();");
         sb.AppendLine("          errorBody = text.length > 0 ? text : undefined;");
@@ -522,7 +461,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("    let buffer = '';");
         sb.AppendLine();
         sb.AppendLine("    if (framing === 'sse') {");
-        sb.AppendLine(convertDates ? "      yield* parseEventStream<T>(reader, decoder, dateReviver);" : "      yield* parseEventStream<T>(reader, decoder);");
+        sb.AppendLine("      yield* parseEventStream<T>(reader, decoder);");
         sb.AppendLine("      return;");
         sb.AppendLine("    }");
         sb.AppendLine();
@@ -630,7 +569,6 @@ public static class TypeScriptAxiosApiClientExtractor
 
     private static void AppendHandleResponseMethod(
         StringBuilder sb,
-        bool convertDates,
         bool zodRuntimeValidate,
         bool hasWireNames)
     {
@@ -730,7 +668,7 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine("        // parsed value of a JSON-string body (\"42\" stays the string '42').");
         sb.AppendLine("        if (errorBodyIsRawText) {");
         sb.AppendLine("          try {");
-        sb.AppendLine(convertDates ? "            errorBody = JSON.parse(errorBody, dateReviver);" : "            errorBody = JSON.parse(errorBody);");
+        sb.AppendLine("            errorBody = JSON.parse(errorBody);");
         sb.AppendLine("          } catch {");
         sb.AppendLine("            errorBody = undefined;");
         sb.AppendLine("          }");

@@ -11,6 +11,6 @@ export class LogsClient {
 
   /** Stream log lines (pure async-enumerable) */
   async *streamLogs(signal?: AbortSignal): AsyncGenerator<LogLine> {
-    yield* this.api.requestStream<LogLine>('GET', '/logs', { signal });
+    yield* this.api.requestStream<LogLine>('GET', '/logs', { signal, wire: { response: 'LogLine' } });
   }
 }

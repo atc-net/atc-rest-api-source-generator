@@ -1323,6 +1323,8 @@ public class TypeScriptOperationHelperOtherMethodsTests
     [InlineData("/** List Device entries */ const x = 1;", "Device", false)]
     [InlineData("foo(Device)", "Device", true)]
     [InlineData("Device", "", false)]
+    [InlineData("wire: { response: { array: 'ItemLog' } }", "ItemLog", false)]
+    [InlineData("const x: ItemLog = { kind: 'ItemLog' };", "ItemLog", true)]
     public void ReferencesIdentifier_MatchesWholeIdentifiersOutsideBlockComments(
         string text,
         string identifier,

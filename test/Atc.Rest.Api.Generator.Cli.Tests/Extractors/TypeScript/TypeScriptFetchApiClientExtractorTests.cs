@@ -45,42 +45,6 @@ public class TypeScriptFetchApiClientExtractorTests
     }
 
     [Fact]
-    public void Generate_ConvertDates_AnchorsIsoDateRegexToWholeString()
-    {
-        // The reviver must only convert strings that are ENTIRELY an ISO datetime.
-        // An end-anchored regex prevents free-text fields like
-        // "2026-06-01T12:30:45Z [INFO] hello" (which merely start with a date) from
-        // being silently turned into Date objects.
-        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, convertDates: true);
-
-        Assert.Contains(
-            "const ISO_DATE_RE = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})?$/;",
-            result,
-            StringComparison.Ordinal);
-
-        // Regression guard for the buggy prefix-only regex.
-        Assert.DoesNotContain("/^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2})/;", result, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Generate_ConvertDates_GuardsAgainstInvalidDate()
-    {
-        // Even when the regex matches, new Date(value) can yield an Invalid Date.
-        // The reviver must return the original string in that case rather than a
-        // corrupt Date object.
-        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, convertDates: true);
-
-        Assert.Contains("const parsed = new Date(value);", result, StringComparison.Ordinal);
-        Assert.Contains(
-            "return Number.isNaN(parsed.getTime()) ? value : parsed;",
-            result,
-            StringComparison.Ordinal);
-
-        // Regression guard: the old reviver returned the Date unconditionally.
-        Assert.DoesNotContain("    return new Date(value);", result, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void Generate_SuccessPath_WrapsJsonParseInTryCatch()
     {
         // A 200 OK response with malformed JSON used to bubble a raw SyntaxError. Wrap
@@ -99,7 +63,7 @@ public class TypeScriptFetchApiClientExtractorTests
         // Retry path must hand fetch the per-attempt signal so policy.timeoutMs can
         // actually cancel an in-flight request. Spreading init then overriding signal
         // keeps caller-supplied init fields intact.
-        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, convertDates: false, hasRetry: true);
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, hasRetry: true);
 
         Assert.Contains(
             "(attemptSignal) => fetch(url, { ...init, signal: attemptSignal })",
@@ -112,7 +76,7 @@ public class TypeScriptFetchApiClientExtractorTests
     {
         // Regression guard: don't accidentally emit the retry path for clients that have
         // no retry policy declared.
-        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, convertDates: false, hasRetry: false);
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, hasRetry: false);
 
         Assert.DoesNotContain("retryWithBackoff", result, StringComparison.Ordinal);
     }
@@ -125,7 +89,6 @@ public class TypeScriptFetchApiClientExtractorTests
         // keeps the bundle clean for consumers that never narrow into schemaMismatch.
         var result = TypeScriptFetchApiClientExtractor.Generate(
             headerContent: null,
-            convertDates: false,
             hasRetry: false,
             zodRuntimeValidate: true);
 
@@ -142,7 +105,6 @@ public class TypeScriptFetchApiClientExtractorTests
         // diagnose spec drift without losing the payload.
         var result = TypeScriptFetchApiClientExtractor.Generate(
             headerContent: null,
-            convertDates: false,
             hasRetry: false,
             zodRuntimeValidate: true);
 
@@ -159,7 +121,6 @@ public class TypeScriptFetchApiClientExtractorTests
         // ApiResult contract of errors-as-values.
         var result = TypeScriptFetchApiClientExtractor.Generate(
             headerContent: null,
-            convertDates: false,
             hasRetry: false,
             zodRuntimeValidate: true);
 
@@ -175,7 +136,6 @@ public class TypeScriptFetchApiClientExtractorTests
         // existing 150+ client snapshots stay byte-identical.
         var result = TypeScriptFetchApiClientExtractor.Generate(
             headerContent: null,
-            convertDates: false,
             hasRetry: false,
             zodRuntimeValidate: false);
 

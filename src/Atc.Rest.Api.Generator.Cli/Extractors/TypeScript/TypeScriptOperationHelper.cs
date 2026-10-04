@@ -637,7 +637,11 @@ public static class TypeScriptOperationHelper
             var before = index == 0 || !IsIdentifierChar(text[index - 1]);
             var afterIndex = index + identifier.Length;
             var after = afterIndex >= text.Length || !IsIdentifierChar(text[afterIndex]);
-            if (before && after)
+
+            // A name in a string ('ItemLog' in a wire shape) is data, not a use of the type
+            var quoted = index > 0 && text[index - 1] == '\'' &&
+                         afterIndex < text.Length && text[afterIndex] == '\'';
+            if (before && after && !quoted)
             {
                 return true;
             }
@@ -1042,11 +1046,10 @@ public static class TypeScriptOperationHelper
     /// </summary>
     internal static void AppendStreamRequestBody(
         StringBuilder sb,
-        bool convertDates,
         bool hasWireNames)
     {
         var value = hasWireNames ? "toWire(options.body, options.wire?.body)" : "options.body";
-        var stringify = convertDates ? $"JSON.stringify({value}, dateReplacer)" : $"JSON.stringify({value})";
+        var stringify = $"JSON.stringify({value})";
         sb.Append("    const streamBody = options?.body !== undefined ? ").Append(stringify).AppendLine(" : undefined;");
         sb.AppendLine("    if (streamBody !== undefined) {");
         sb.AppendLine("      headers.set('Content-Type', 'application/json');");

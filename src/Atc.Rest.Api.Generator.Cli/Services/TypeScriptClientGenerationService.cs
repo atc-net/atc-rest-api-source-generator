@@ -39,8 +39,9 @@ public static class TypeScriptClientGenerationService
         var unionTypeAliases = TypeScriptModelExtractor.ExtractUnionTypeAliases(openApiDoc, config);
         var modelCount = WriteModels(models, arrayTypeAliases, unionTypeAliases, outputPath, headerContent, config.GenerateZodSchemas, dryRun);
 
-        // The keys the models rename (the naming strategy) - the client renames them on the way in and out.
-        var wireNames = new TypeScriptWireNames(openApiDoc, config.NamingStrategy);
+        // The keys the models rename (the naming strategy) and, with --convert-dates, the declared dates - the client
+        // converts them on the way in and out.
+        var wireNames = new TypeScriptWireNames(openApiDoc, config.NamingStrategy, config.ConvertDates);
 
         // Step 3: Generate error types
         var errorTypeCount = WriteErrorTypes(outputPath, headerContent, config.HttpClient, wireNames.HasRenames, dryRun);
@@ -510,8 +511,8 @@ public static class TypeScriptClientGenerationService
 
         // Write base ApiClient (fetch or axios)
         var apiClientContent = httpClient == TypeScriptHttpClient.Axios
-            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, convertDates, hasRetry, zodRuntimeValidate, wireNames.HasRenames)
-            : TypeScriptFetchApiClientExtractor.Generate(headerContent, convertDates, hasRetry, zodRuntimeValidate, wireNames.HasRenames);
+            ? TypeScriptAxiosApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames)
+            : TypeScriptFetchApiClientExtractor.Generate(headerContent, hasRetry, zodRuntimeValidate, wireNames.HasRenames);
 
         // A model or a file: the modelOrFile request option (before the XML edits, which read an XML model after it)
         if (TypeScriptModelOrFileExtractor.HasModelOrFile(openApiDoc))

@@ -147,7 +147,7 @@ public static class TypeScriptTypeMapper
             // Handle array types
             if (actualSchema.Type?.HasFlag(JsonSchemaType.Array) == true)
             {
-                var itemType = GetArrayItemTypeScript(actualSchema);
+                var itemType = GetArrayItemTypeScript(actualSchema, convertDates);
                 return isNullable ? $"{itemType}[] | null" : $"{itemType}[]";
             }
 
@@ -482,7 +482,7 @@ public static class TypeScriptTypeMapper
         }
 
         // Open tuple: the regular Items schema describes the rest element type.
-        var restType = GetArrayItemTypeScript(schema);
+        var restType = GetArrayItemTypeScript(schema, convertDates);
         return "[" + string.Join(", ", prefixTypes) + ", ..." + restType + "[]]";
     }
 
@@ -552,7 +552,9 @@ public static class TypeScriptTypeMapper
     /// <summary>
     /// Gets the TypeScript item type for an array schema.
     /// </summary>
-    private static string GetArrayItemTypeScript(OpenApiSchema arraySchema)
+    private static string GetArrayItemTypeScript(
+        OpenApiSchema arraySchema,
+        bool convertDates = false)
     {
         if (arraySchema.Items is null)
         {
@@ -566,7 +568,7 @@ public static class TypeScriptTypeMapper
 
         if (arraySchema.Items is OpenApiSchema itemSchema)
         {
-            return itemSchema.Type.ToTypeScriptTypeName(itemSchema.Format);
+            return itemSchema.Type.ToTypeScriptTypeName(itemSchema.Format, convertDates);
         }
 
         return "unknown";

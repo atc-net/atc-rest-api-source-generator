@@ -1,10 +1,12 @@
 namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 
 /// <summary>
-/// The renaming between the API's property names (the wire) and the TypeScript models' property names (the naming
-/// strategy): which component models have a property to rename - their own, an inherited one (<c>allOf</c>) or one
-/// in a model they hold - and the shape of any value, so the generated client renames keys both ways
-/// (<c>helpers/wireNames.ts</c>).
+/// The conversion between the API's values (the wire) and the TypeScript models: the property names (the naming
+/// strategy) and, with <c>--convert-dates</c>, the values declared <c>format: date</c> / <c>date-time</c> - which
+/// component models have a property to rename or a date to convert - their own, an inherited one (<c>allOf</c>) or
+/// one in a model they hold - and the shape of any value, so the generated client converts both ways
+/// (<c>helpers/wireNames.ts</c>). Only what the specification declares is converted: a plain string that looks like
+/// a date stays a string.
 /// </summary>
 /// <remarks>
 /// Only declared properties are renamed: dictionary keys (<c>additionalProperties</c>), keys of inline objects
@@ -17,6 +19,8 @@ public sealed class TypeScriptWireNames
     private readonly OpenApiDocument document;
     private readonly Dictionary<string, List<WireProperty>> models = new(StringComparer.Ordinal);
     private readonly HashSet<string> mapped = new(StringComparer.Ordinal);
+    private readonly bool convertDates;
+    private readonly bool hasTopLevelDate;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TypeScriptWireNames"/> class, collecting the properties every
@@ -24,14 +28,18 @@ public sealed class TypeScriptWireNames
     /// </summary>
     /// <param name="document">The parsed OpenAPI document.</param>
     /// <param name="namingStrategy">How the models case their property names; <c>Original</c> renames nothing.</param>
+    /// <param name="convertDates">When true, values declared <c>format: date</c> / <c>date-time</c> are <c>Date</c> in the models.</param>
     public TypeScriptWireNames(
         OpenApiDocument document,
-        TypeScriptNamingStrategy namingStrategy)
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates = false)
     {
         ArgumentNullException.ThrowIfNull(document);
         this.document = document;
+        this.convertDates = convertDates;
 
-        if (namingStrategy == TypeScriptNamingStrategy.Original || document.Components?.Schemas is not { } schemas)
+        if ((namingStrategy == TypeScriptNamingStrategy.Original && !convertDates) ||
+            document.Components?.Schemas is not { } schemas)
         {
             return;
         }
@@ -67,12 +75,22 @@ public sealed class TypeScriptWireNames
             }
         }
         while (changed);
+
+        // A bare date as a body or response (no model around it) needs the conversion helper as well
+        hasTopLevelDate = convertDates &&
+            (document.Paths?.Values ?? Enumerable.Empty<IOpenApiPathItem>())
+                .SelectMany(path => path.Operations?.Values ?? Enumerable.Empty<OpenApiOperation>())
+                .Any(operation =>
+                    ShapeOf(operation.GetResponseSchema("200")) is not null ||
+                    (operation.GetRequestBodySchemaWithContentType() is ({ } body, _) && ShapeOf(body) is not null));
     }
 
     /// <summary>
-    /// Gets a value indicating whether any key has to be renamed between the wire and the TypeScript models.
+    /// Gets a value indicating whether any key has to be renamed, or any date converted, between the wire and the
+    /// TypeScript models.
     /// </summary>
-    public bool HasRenames => mapped.Count > 0;
+    public bool HasRenames
+        => mapped.Count > 0 || hasTopLevelDate;
 
     /// <summary>
     /// The <c>wire</c> request option of an operation - how to rename its request body, its response (or stream
@@ -169,12 +187,13 @@ public sealed class TypeScriptWireNames
         }
 
         sb.AppendLine("/**");
-        sb.AppendLine(" * The shape of a value, for renaming its keys between the wire (the API's property names) and the");
-        sb.AppendLine(" * TypeScript models (the naming strategy): a model name, an array, a dictionary (its keys are data and stay");
-        sb.AppendLine(" * as they are) or a union of models.");
+        sb.AppendLine(" * The shape of a value, for converting it between the wire (the API's property names, dates as strings) and");
+        sb.AppendLine(" * the TypeScript models (the naming strategy, dates as Date): a model name, a date, an array, a dictionary");
+        sb.AppendLine(" * (its keys are data and stay as they are) or a union of models.");
         sb.AppendLine(" */");
         sb.AppendLine("export type WireShape =");
         sb.AppendLine("  | string");
+        sb.AppendLine("  | { readonly date: 'date' | 'date-time' }");
         sb.AppendLine("  | { readonly array: WireShape }");
         sb.AppendLine("  | { readonly record: WireShape }");
         sb.AppendLine("  | { readonly union: readonly WireShape[] };");
@@ -242,7 +261,29 @@ public sealed class TypeScriptWireNames
         sb.AppendLine("  return prototype === Object.prototype || prototype === null;");
         sb.AppendLine("}");
         sb.AppendLine();
+        sb.AppendLine("/** A declared date: a string from the wire becomes a Date; a Date is written as yyyy-MM-dd (format: date) or ISO 8601. */");
+        sb.AppendLine("function convertDate(value: unknown, kind: 'date' | 'date-time', toWire: boolean): unknown {");
+        sb.AppendLine("  if (toWire) {");
+        sb.AppendLine("    if (!(value instanceof Date)) {");
+        sb.AppendLine("      return value;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    return kind === 'date' ? value.toISOString().slice(0, 10) : value.toISOString();");
+        sb.AppendLine("  }");
+        sb.AppendLine();
+        sb.AppendLine("  if (typeof value !== 'string') {");
+        sb.AppendLine("    return value;");
+        sb.AppendLine("  }");
+        sb.AppendLine();
+        sb.AppendLine("  const parsed = new Date(value);");
+        sb.AppendLine("  return Number.isNaN(parsed.getTime()) ? value : parsed;");
+        sb.AppendLine("}");
+        sb.AppendLine();
         sb.AppendLine("function convert(value: unknown, shape: WireShape | undefined, toWire: boolean): unknown {");
+        sb.AppendLine("  if (shape !== undefined && typeof shape === 'object' && 'date' in shape) {");
+        sb.AppendLine("    return convertDate(value, shape.date, toWire);");
+        sb.AppendLine("  }");
+        sb.AppendLine();
         sb.AppendLine("  if (shape === undefined || value === null || typeof value !== 'object') {");
         sb.AppendLine("    return value;");
         sb.AppendLine("  }");
@@ -300,12 +341,12 @@ public sealed class TypeScriptWireNames
         sb.AppendLine("  return best === undefined ? value : convert(value, best, toWire);");
         sb.AppendLine("}");
         sb.AppendLine();
-        sb.AppendLine("/** Renames the keys of a value read from the wire to the TypeScript models' property names. */");
+        sb.AppendLine("/** Converts a value read from the wire to the TypeScript models (property names, dates). */");
         sb.AppendLine("export function fromWire<T = unknown>(value: unknown, shape: WireShape | undefined): T {");
         sb.AppendLine("  return convert(value, shape, false) as T;");
         sb.AppendLine("}");
         sb.AppendLine();
-        sb.AppendLine("/** Renames the keys of a TypeScript model value to the API's property names, for sending it. */");
+        sb.AppendLine("/** Converts a TypeScript model value to the API's form (property names, dates), for sending it. */");
         sb.AppendLine("export function toWire(value: unknown, shape: WireShape | undefined): unknown {");
         sb.AppendLine("  return convert(value, shape, true);");
         sb.AppendLine("}");
@@ -384,6 +425,14 @@ public sealed class TypeScriptWireNames
                    document.Components?.Schemas?.TryGetValue(name, out var target) == true
                 ? ShapeOf(target, visiting)
                 : null;
+        }
+
+        // A declared date (only with --convert-dates; a plain string that looks like a date is left alone)
+        if (convertDates &&
+            schema.Type?.HasFlag(JsonSchemaType.String) == true &&
+            schema.Format is "date" or "date-time")
+        {
+            return "{ date: '" + schema.Format + "' }";
         }
 
         // allOf on a property or an inline body is typed from its first $ref (and an intersection's inline members

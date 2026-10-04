@@ -27,7 +27,7 @@ public static class TypeScriptClientExtractor
     {
         ArgumentNullException.ThrowIfNull(openApiDoc);
 
-        wireNames ??= new TypeScriptWireNames(openApiDoc, namingStrategy);
+        wireNames ??= new TypeScriptWireNames(openApiDoc, namingStrategy, convertDates);
         var results = new List<(string ClassName, string Content)>();
         var segments = PathSegmentHelper.GetUniquePathSegments(openApiDoc);
         writableSchemas ??= new HashSet<string>(StringComparer.Ordinal);

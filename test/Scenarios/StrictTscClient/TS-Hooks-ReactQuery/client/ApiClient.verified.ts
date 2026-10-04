@@ -3,24 +3,8 @@ import axios from 'axios';
 import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { ApiError, errorMessage } from '../errors/ApiError';
 import { ValidationError } from '../errors/ValidationError';
+import { fromWire, toWire, type WireShapes } from '../helpers/wireNames';
 import type { ApiResult } from '../types/ApiResult';
-
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/;
-
-function dateReviver(_key: string, value: unknown): unknown {
-  if (typeof value === 'string' && ISO_DATE_RE.test(value)) {
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? value : parsed;
-  }
-  return value;
-}
-
-function dateReplacer(_key: string, value: unknown): unknown {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  return value;
-}
 
 class UnparseableBody {
   constructor(public readonly raw: string) {}
@@ -46,6 +30,8 @@ export interface RequestOptions {
   contentType?: string;
   /** The result arms of the operation's union (the generated client passes them): a status it does not declare is folded into one it does. */
   arms?: readonly string[];
+  /** How to rename the keys of the body, the response and the error bodies between the API's property names and the models' (the generated client passes it). */
+  wire?: WireShapes;
 }
 
 export type StreamFraming = 'json-array' | 'sse' | 'json-lines' | 'json-seq' | 'multipart';
@@ -120,13 +106,7 @@ export class ApiClient {
         if (this.responseType === 'text') return data;
         const contentType = String(headers?.['content-type'] ?? headers?.['Content-Type'] ?? '').toLowerCase();
         if (!contentType.includes('application/json') && !contentType.includes('+json')) return data;
-        try { return JSON.parse(data, dateReviver); } catch { return new UnparseableBody(data); }
-      }],
-      transformRequest: [(data: unknown, headers: Record<string, string>) => {
-        if (data instanceof FormData || data instanceof Blob) return data;
-        if (data instanceof URLSearchParams) return data.toString();
-        if (data !== undefined && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
-        return data !== undefined ? JSON.stringify(data, dateReplacer) : data;
+        try { return JSON.parse(data); } catch { return new UnparseableBody(data); }
       }],
     });
 
@@ -170,8 +150,8 @@ export class ApiClient {
         // Re-typed: an adapter may send the Blob's own type (Node's http adapter does)
         data = options.body.type === fileType ? options.body : new Blob([options.body], { type: fileType });
       } else {
-        if (options.contentType) headers['Content-Type'] = options.contentType;
-        data = options.body;
+        headers['Content-Type'] = options.contentType ?? 'application/json';
+        data = toWire(options.body, options.wire?.body);
       }
     }
 
@@ -201,12 +181,19 @@ export class ApiClient {
         : new TextDecoder().decode(bytes);
     }
 
-    return fitToArms(await this.handleResponse<T>(response), options?.arms);
+    return fitToArms(await this.handleResponse<T>(response, options?.wire), options?.arms);
+  }
+
+  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {
+    const shape = options?.wire?.response;
+    for await (const item of this.readStream<unknown>(method, path, options, framing)) {
+      yield fromWire<T>(item, shape);
+    }
   }
 
   // Streaming uses native fetch — Axios doesn't natively support ReadableStream iteration.
   // Auth and default headers are applied manually; Axios interceptors do not apply to streaming requests.
-  async *requestStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {
+  private async *readStream<T>(method: string, path: string, options?: RequestOptions, framing: StreamFraming = 'json-array'): AsyncGenerator<T> {
     const url = this.buildUrl(path, options?.query);
     const headers = new Headers(this.options.defaultHeaders);
 
@@ -223,7 +210,7 @@ export class ApiClient {
       }
     }
 
-    const streamBody = options?.body !== undefined ? JSON.stringify(options.body, dateReplacer) : undefined;
+    const streamBody = options?.body !== undefined ? JSON.stringify(toWire(options.body, options.wire?.body)) : undefined;
     if (streamBody !== undefined) {
       headers.set('Content-Type', 'application/json');
     }
@@ -241,7 +228,7 @@ export class ApiClient {
       let errorBody: unknown = undefined;
       try {
         if (errorContentType.includes('application/json') || errorContentType.includes('+json')) {
-          errorBody = JSON.parse(await response.text(), dateReviver);
+          errorBody = await response.json();
         } else if (errorContentType.startsWith('text/') || errorContentType.includes('application/xml') || errorContentType.includes('+xml')) {
           const text = await response.text();
           errorBody = text.length > 0 ? text : undefined;
@@ -262,7 +249,7 @@ export class ApiClient {
     let buffer = '';
 
     if (framing === 'sse') {
-      yield* parseEventStream<T>(reader, decoder, dateReviver);
+      yield* parseEventStream<T>(reader, decoder);
       return;
     }
 
@@ -292,7 +279,7 @@ export class ApiClient {
             const sep = trimmed.indexOf('\r\n\r\n');
             if (sep === -1) continue;
             const bodyText = trimmed.substring(sep + 4).trim();
-            if (bodyText.length > 0) yield JSON.parse(bodyText, dateReviver) as T;
+            if (bodyText.length > 0) yield JSON.parse(bodyText) as T;
           }
         }
       } finally {
@@ -330,7 +317,7 @@ export class ApiClient {
             break;
           }
 
-          yield JSON.parse(buffer.substring(objStart, objEnd + 1), dateReviver) as T;
+          yield JSON.parse(buffer.substring(objStart, objEnd + 1)) as T;
           buffer = buffer.substring(objEnd + 1);
         }
       }
@@ -362,7 +349,7 @@ export class ApiClient {
     return url.toString();
   }
 
-  private async handleResponse<T>(response: AxiosResponse<T>): Promise<ApiResult<T>> {
+  private async handleResponse<T>(response: AxiosResponse<T>, wire?: WireShapes): Promise<ApiResult<T>> {
     // 204 and 205 never carry a body; 304 neither (RFC 9110).
     if (response.status === 204 || response.status === 205) {
       return { status: 'noContent', response };
@@ -383,6 +370,10 @@ export class ApiClient {
           error: new Error('Response body could not be parsed as JSON'),
           response,
         };
+      }
+
+      if (wire?.response) {
+        response = { ...response, data: fromWire<T>(response.data, wire.response) };
       }
       const status = response.status === 201
         ? 'created' as const
@@ -415,7 +406,7 @@ export class ApiClient {
         // parsed value of a JSON-string body ("42" stays the string '42').
         if (errorBodyIsRawText) {
           try {
-            errorBody = JSON.parse(errorBody, dateReviver);
+            errorBody = JSON.parse(errorBody);
           } catch {
             errorBody = undefined;
           }
@@ -428,6 +419,9 @@ export class ApiClient {
 
     const message = errorMessage(response.status, response.statusText, errorBody);
 
+    const shape = wire?.errors?.[String(response.status)] ?? wire?.errors?.['default'];
+    const body = shape ? fromWire(errorBody, shape) : errorBody;
+
     if (response.status === 400) {
       // Always badRequest: a 400 without validation errors carries an empty errors map.
       const errors = errorBody !== null && typeof errorBody === 'object' && typeof (errorBody as { errors?: unknown }).errors === 'object' && (errorBody as { errors?: unknown }).errors !== null
@@ -435,12 +429,12 @@ export class ApiClient {
         : {};
       return {
         status: 'badRequest',
-        error: new ValidationError(response.status, response.statusText, message, errors, response, errorBody),
+        error: new ValidationError(response.status, response.statusText, message, errors, response, body, errorBody),
         response,
       };
     }
 
-    const apiError = new ApiError(response.status, response.statusText, message, response, errorBody);
+    const apiError = new ApiError(response.status, response.statusText, message, response, body, errorBody);
 
     switch (response.status) {
       case 401:

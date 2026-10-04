@@ -106,6 +106,51 @@ public class TypeScriptWireNamesTests
     }
 
     [Fact]
+    public void ConvertDates_DeclaredDates_GetADateShape_AndAPlainStringNone()
+    {
+        const string yaml = """
+            openapi: 3.0.1
+            info:
+              title: Dates
+              version: 1.0.0
+            paths: {}
+            components:
+              schemas:
+                Event:
+                  type: object
+                  properties:
+                    day:
+                      type: string
+                      format: date
+                    note:
+                      type: string
+                    history:
+                      type: array
+                      items:
+                        type: string
+                        format: date-time
+            """;
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var sut = new TypeScriptWireNames(document, TypeScriptNamingStrategy.Original, convertDates: true);
+
+        Assert.True(sut.HasRenames);
+        Assert.Equal("'Event'", sut.ShapeOfModel("Event"));
+        var file = sut.GenerateFile(headerContent: null)!;
+        Assert.Contains("day: ['day', { date: 'date' }],", file, StringComparison.Ordinal);
+        Assert.Contains("history: ['history', { array: { date: 'date-time' } }],", file, StringComparison.Ordinal);
+        Assert.DoesNotContain("note:", file, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ConvertDatesOff_OriginalStrategy_HasNoShapes()
+    {
+        var sut = new TypeScriptWireNames(OpenApiDocumentHelper.ParseYaml(SpecYaml), TypeScriptNamingStrategy.Original, convertDates: false);
+
+        Assert.False(sut.HasRenames);
+    }
+
+    [Fact]
     public void ShapeOfModel_ModelWithRenamedProperties_IsTheModelName()
     {
         var sut = new TypeScriptWireNames(OpenApiDocumentHelper.ParseYaml(SpecYaml), TypeScriptNamingStrategy.CamelCase);
