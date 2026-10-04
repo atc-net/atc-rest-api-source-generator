@@ -365,6 +365,8 @@ public static class PathSegmentHelper
             }
         }
 
+        AddUnreferencedComponents(openApiDoc, schemaSegmentMap, webhookSchemas, sharedSchemas);
+
         return sharedSchemas;
     }
 
@@ -847,6 +849,57 @@ public static class PathSegmentHelper
     /// Collects schema names from an OpenAPI schema recursively.
     /// Uses a visited set to prevent infinite recursion on circular inline schemas.
     /// </summary>
+    /// <summary>
+    /// Adds the component schemas no operation or webhook uses (the old CLI generated them, and consumers use such
+    /// types for events and messages), with every schema they refer to: a shared model cannot refer to a type that
+    /// lives in one segment's namespace.
+    /// </summary>
+    private static void AddUnreferencedComponents(
+        OpenApiDocument openApiDoc,
+        Dictionary<string, HashSet<string>> schemaSegmentMap,
+        HashSet<string> webhookSchemas,
+        HashSet<string> sharedSchemas)
+    {
+        if (openApiDoc.Components?.Schemas is not { Count: > 0 } componentSchemas)
+        {
+            return;
+        }
+
+        var pending = new Stack<string>(componentSchemas
+            .Where(c => !schemaSegmentMap.ContainsKey(c.Key) &&
+                        !webhookSchemas.Contains(c.Key) &&
+                        TypeConflictRegistry.IsGeneratedType(c.Value) &&
+                        !IsPaginationBase(c.Key, c.Value))
+            .Select(c => c.Key));
+
+        while (pending.Count > 0)
+        {
+            var name = pending.Pop();
+            if (!sharedSchemas.Add(name) ||
+                !componentSchemas.TryGetValue(name, out var schema))
+            {
+                continue;
+            }
+
+            var referenced = new HashSet<string>(StringComparer.Ordinal);
+            CollectSchemaNames(schema, referenced);
+            foreach (var reference in referenced.Where(r => !sharedSchemas.Contains(r)))
+            {
+                pending.Push(reference);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A pagination base (<c>PaginationResult</c>, or an object around an untyped results array) becomes the generic
+    /// paginated type wherever it is composed with <c>allOf</c>; it is never a model of its own.
+    /// </summary>
+    private static bool IsPaginationBase(
+        string name,
+        IOpenApiSchema schema)
+        => PaginationTypeResolver.IsPaginationBaseType(name) ||
+           (schema is OpenApiSchema actualSchema && SchemaExtractor.IsPaginationBaseSchema(actualSchema));
+
     private static void CollectSchemaNames(
         IOpenApiSchema? schema,
         HashSet<string> schemaNames)

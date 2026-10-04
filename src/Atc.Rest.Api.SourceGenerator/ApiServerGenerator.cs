@@ -1061,8 +1061,10 @@ public class ApiServerGenerator : IIncrementalGenerator
             sb.AppendLine("using Microsoft.AspNetCore.Http;");
             sb.AppendLine("using Microsoft.AspNetCore.Mvc;");
 
-            // Only include shared models using if there are shared schemas
-            if (includeSharedModelsUsing)
+            // Only include shared models using if there are shared schemas (and the segment usings below do not
+            // name the same namespace already: a segment that resolved away has its models in the shared one)
+            if (includeSharedModelsUsing &&
+                !(string.IsNullOrEmpty(effectiveSegment) && namespaces.HasModels))
             {
                 sb.AppendLine($"using {projectName}.Generated.Models;");
             }
@@ -1445,8 +1447,10 @@ public class ApiServerGenerator : IIncrementalGenerator
             allGeneratedCode.AppendLine($"using {projectName}.Generated.Models;");
         }
 
-        // Only include segment-specific models using if there are segment-specific models
-        if (includeSegmentModelsUsing)
+        // Only include segment-specific models using if there are segment-specific models (unless it is the
+        // shared namespace, already imported above: a segment that resolved away)
+        if (includeSegmentModelsUsing &&
+            !(includeSharedModelsUsing && modelsNamespace == $"{projectName}.Generated.Models"))
         {
             allGeneratedCode.AppendLine($"using {modelsNamespace};");
         }

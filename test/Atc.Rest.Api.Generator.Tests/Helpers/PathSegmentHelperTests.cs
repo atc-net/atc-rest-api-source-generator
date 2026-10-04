@@ -1117,6 +1117,104 @@ components:
     }
 
     [Fact]
+    public void GetSharedSchemas_ComponentNoOperationUses_IsShared()
+    {
+        // A component no operation or webhook uses still becomes a model (the old CLI generated it, and consumers
+        // use such types for events and messages); with no segment of its own it lands in the shared namespace
+        var doc = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.1.1
+            info:
+              title: Test API
+              version: 1.0.0
+            paths:
+              /pets:
+                get:
+                  operationId: listPets
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            $ref: '#/components/schemas/Pet'
+            components:
+              schemas:
+                Pet:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                PetAdopted:
+                  type: object
+                  properties:
+                    pet:
+                      $ref: '#/components/schemas/Pet'
+                    adoptedBy:
+                      $ref: '#/components/schemas/Owner'
+                Owner:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+            """);
+
+        var result = PathSegmentHelper.GetSharedSchemas(doc);
+
+        Assert.Contains("PetAdopted", result);
+        Assert.Contains("Owner", result);
+
+        // Pet is used by the Pets segment and by the shared PetAdopted, so it is shared too (a shared model
+        // cannot refer to a segment's type)
+        Assert.Contains("Pet", result);
+    }
+
+    [Fact]
+    public void GetSharedSchemas_PaginationBaseComposedWithAllOf_IsNoModel()
+    {
+        // PaginationResult becomes the generic paginated type where it is composed with allOf - never a model
+        var doc = OpenApiDocumentHelper.ParseYaml("""
+            openapi: 3.1.1
+            info:
+              title: Test API
+              version: 1.0.0
+            paths:
+              /items:
+                get:
+                  operationId: listItems
+                  responses:
+                    '200':
+                      description: OK
+                      content:
+                        application/json:
+                          schema:
+                            allOf:
+                              - $ref: '#/components/schemas/PaginationResult'
+                              - type: object
+                                properties:
+                                  items:
+                                    type: array
+                                    items:
+                                      $ref: '#/components/schemas/Item'
+            components:
+              schemas:
+                Item:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                PaginationResult:
+                  type: object
+                  properties:
+                    continuationToken:
+                      type: string
+            """);
+
+        var result = PathSegmentHelper.GetSharedSchemas(doc);
+
+        Assert.DoesNotContain("PaginationResult", result);
+    }
+
+    [Fact]
     public void GetSegmentSpecificSchemas_WithSharedSet_ExcludesSharedSchemas()
     {
         var doc = OpenApiDocumentHelper.ParseYaml(TwoSegmentYaml);
