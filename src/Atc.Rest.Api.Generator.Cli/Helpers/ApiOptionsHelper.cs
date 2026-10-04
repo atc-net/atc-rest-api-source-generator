@@ -114,7 +114,7 @@ public static class ApiOptionsHelper
         {
             var filePath = ResolveOutputPath(outputPath);
             var defaultOptions = new ApiGeneratorOptions();
-            var json = JsonSerializer.Serialize(defaultOptions, JsonOptions);
+            var json = ConfigurationFileJsonHelper.Serialize(defaultOptions, Constants.JsonSchema.ApiGeneratorOptions, JsonOptions);
 
             // Ensure directory exists
             var directory = Path.GetDirectoryName(filePath);
@@ -228,6 +228,11 @@ public static class ApiOptionsHelper
         foreach (var jsonProperty in element.EnumerateObject())
         {
             var propertyPath = path is null ? jsonProperty.Name : $"{path}.{jsonProperty.Name}";
+            if (path is null && string.Equals(jsonProperty.Name, MarkerConfigInspector.SchemaProperty, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
             var property = properties.FirstOrDefault(p => string.Equals(JsonNameOf(p), jsonProperty.Name, comparison));
             if (property is null)
             {

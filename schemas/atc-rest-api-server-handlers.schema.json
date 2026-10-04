@@ -1,0 +1,164 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/atc-net/atc-rest-api-source-generator/main/schemas/atc-rest-api-server-handlers.schema.json",
+  "title": "atc-rest-api-server-handlers marker file",
+  "description": "The settings of the .atc-rest-api-server-handlers marker file: the handler implementations the source generator scaffolds.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The JSON schema of this file, for completion and validation in the editor."
+    },
+    "generate": {
+      "type": "boolean",
+      "description": "Enable/disable code generation. Default: true.",
+      "default": true
+    },
+    "validateSpecificationStrategy": {
+      "enum": [
+        "none",
+        "None",
+        "standard",
+        "Standard",
+        "strict",
+        "Strict"
+      ],
+      "description": "OpenAPI specification validation strategy. Default: Strict. None = skip validation, Standard = Microsoft.OpenApi errors only, Strict = standard + custom ATC rules.",
+      "default": "strict"
+    },
+    "includeDeprecated": {
+      "type": "boolean",
+      "description": "Include deprecated operations and schemas in generated code. Default: false. When false, operations and schemas marked as deprecated in the OpenAPI spec are excluded.",
+      "default": false
+    },
+    "namespace": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Custom namespace prefix (null = auto-detect from project name). Default: null."
+    },
+    "useServersBasePath": {
+      "type": "boolean",
+      "description": "Whether to use the base path from OpenAPI servers[0].url for endpoint routing and client requests. Default: true. When enabled, extracts the path portion from the first server URL (e.g., \"/api/v1\").",
+      "default": true
+    },
+    "versioningStrategy": {
+      "enum": [
+        "None",
+        "QueryString",
+        "query-string",
+        "UrlSegment",
+        "url-segment",
+        "Header"
+      ],
+      "description": "API versioning strategy. Default: None. None = no versioning, QueryString = ?api-version=1.0, UrlSegment = /v1/path, Header = X-Api-Version header. When enabled, generates versioned endpoint groups and AddApiVersioning() DI registration.",
+      "default": "None"
+    },
+    "defaultApiVersion": {
+      "type": "string",
+      "description": "Default API version to use when versioning is enabled. Default: \"1.0\". Format: \"major.minor\" (e.g., \"1.0\", \"2.0\"). Used for AssumeDefaultVersionWhenUnspecified option.",
+      "default": "1.0"
+    },
+    "versionQueryParameterName": {
+      "type": "string",
+      "description": "Query string parameter name for version (when VersioningStrategy is QueryString). Default: \"api-version\".",
+      "default": "api-version"
+    },
+    "versionHeaderName": {
+      "type": "string",
+      "description": "HTTP header name for version (when VersioningStrategy is Header). Default: \"X-Api-Version\".",
+      "default": "X-Api-Version"
+    },
+    "versionRouteSegmentTemplate": {
+      "type": "string",
+      "description": "Route segment template for versioning (when VersioningStrategy is UrlSegment). Default: \"v{version:apiVersion}\". Used in route templates like \"/api/v{version:apiVersion}/pets\".",
+      "default": "v{version:apiVersion}"
+    },
+    "removeNamespaceGroupSeparatorInGlobalUsings": {
+      "type": "boolean",
+      "description": "Remove blank lines between namespace groups in GlobalUsings.cs. Default: false (blank lines are preserved between groups).",
+      "default": false
+    },
+    "includePaths": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Glob patterns for paths to include in generation. Default: null (include all). When specified, only operations matching at least one pattern are generated. Example: [\"/pets/**\", \"/users/**\"] generates only pets and users endpoints."
+    },
+    "excludePaths": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Glob patterns for paths to exclude from generation. Default: null (exclude none). Applied after includePaths. Operations matching any pattern are excluded. Example: [\"/internal/**\"] excludes all internal endpoints."
+    },
+    "excludeFromCodeCoverage": {
+      "type": "boolean",
+      "description": "Add [ExcludeFromCodeCoverage] alongside [GeneratedCode] on every generated type. Default: false.",
+      "default": false
+    },
+    "contractsNamespace": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Explicit namespace of the contracts project that contains generated handlers, parameters, and results. When specified, GlobalUsings will import from this namespace instead of auto-discovering. Example: \"Contoso.Data.Nexus.Api.Contracts\" generates \"global using Contoso.Data.Nexus.Api.Contracts.Generated.*.Handlers\". Default: null (auto-detect by matching the Domain project's directory name to its <Name>.Contracts sibling — e.g. Foo.Api.Domain pairs with Foo.Api.Contracts). In monorepos with multiple Api.Contracts siblings, set this explicitly when the directory-name convention isn't followed; otherwise the generator emits ATC_API_GEN011 and refuses to generate rather than silently picking the wrong sibling."
+    },
+    "generateHandlersOutput": {
+      "type": "string",
+      "description": "Output folder for generated handler files, relative to the marker file location. Example: \"ApiHandlers\" will output handlers to {MarkerFileDir}/ApiHandlers/. Default: \"ApiHandlers\".",
+      "default": "ApiHandlers"
+    },
+    "subFolderStrategy": {
+      "enum": [
+        "None",
+        "FirstPathSegment",
+        "first-path-segment",
+        "firstpathsegment",
+        "OpenApiTag",
+        "openapi-tag",
+        "openapitag"
+      ],
+      "description": "Strategy for sub-folder organization. Default: None. None = all handlers in root folder, FirstPathSegment = group by URL path, OpenApiTag = group by operation tag.",
+      "default": "None"
+    },
+    "handlerSuffix": {
+      "type": "string",
+      "description": "Suffix for handler class names. Default: \"Handler\".",
+      "default": "Handler"
+    },
+    "stubImplementation": {
+      "enum": [
+        "throw-not-implemented",
+        "error-501",
+        "default-value"
+      ],
+      "description": "Type of stub implementation to generate. Default: \"throw-not-implemented\". Options: \"throw-not-implemented\", \"error-501\", \"default-value\".",
+      "default": "throw-not-implemented"
+    },
+    "injectLogger": {
+      "type": "boolean",
+      "description": "Whether to inject ILogger<T> into generated handler scaffolds. When true, handlers get a constructor with an ILogger<T> parameter and a private readonly field for structured logging. Default: false.",
+      "default": false
+    },
+    "maxLineLength": {
+      "type": "integer",
+      "description": "Maximum line length for generated handler code formatting. Method signatures exceeding this length will break parameters onto separate lines. Should match dotnet_diagnostic.ATC201.max_line_length in your .editorconfig. Default: 80 (ATC201 default).",
+      "default": 80
+    },
+    "injectTracing": {
+      "type": "boolean",
+      "description": "Whether to inject ActivitySource for distributed tracing into generated handler scaffolds. When true, handlers get a static ActivitySource field and each ExecuteAsync call starts an Activity for OpenTelemetry-compatible tracing. Default: false.",
+      "default": false
+    }
+  },
+  "additionalProperties": false
+}

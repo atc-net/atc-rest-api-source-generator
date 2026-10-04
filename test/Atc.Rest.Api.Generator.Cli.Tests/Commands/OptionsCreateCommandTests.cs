@@ -154,4 +154,26 @@ public sealed class OptionsCreateCommandTests : IDisposable
         var cleanOutput = CliTestHelper.StripAnsiCodes(output);
         Assert.Contains("Options File Creator", cleanOutput, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task OptionsCreate_TheFile_ReferencesItsSchema_AndValidatesWithoutWarnings()
+    {
+        // Arrange
+        Directory.CreateDirectory(tempOutputDir);
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            $"options create -o \"{tempOutputDir}\"",
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(isSuccessful, CliTestHelper.StripAnsiCodes(output));
+        var optionsFilePath = Path.Combine(tempOutputDir, ApiGeneratorOptions.FileName);
+        using var document = JsonDocument.Parse(await File.ReadAllTextAsync(optionsFilePath, TestContext.Current.CancellationToken));
+
+        Assert.Equal("$schema", document.RootElement.EnumerateObject().First().Name);
+        Assert.Equal(Constants.JsonSchema.ApiGeneratorOptions, document.RootElement.GetProperty("$schema").GetString());
+        Assert.Empty(ApiOptionsHelper.ValidateOptionsFile(optionsFilePath).Warnings);
+    }
 }

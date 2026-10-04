@@ -555,4 +555,28 @@ public sealed class GenerateClientCommandTests : IDisposable
         Assert.Contains("Atc.Rest.Client", csprojContent, StringComparison.Ordinal);
         Assert.DoesNotContain("Microsoft.Extensions.Http.Resilience", csprojContent, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task GenerateClient_MarkerFile_ReferencesItsSchema_AndHasOnlyKnownSettings()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "SchemaRef", "Client");
+        var arguments = $"generate client -s \"{yamlPath}\" -o \"{outputPath}\" -n \"Demo.ClientApp\"";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(isSuccessful, CliTestHelper.StripAnsiCodes(output));
+        var content = await File.ReadAllTextAsync(Path.Combine(outputPath, ".atc-rest-api-client"), TestContext.Current.CancellationToken);
+        using var document = JsonDocument.Parse(content);
+
+        Assert.Equal("$schema", document.RootElement.EnumerateObject().First().Name);
+        Assert.Equal(Constants.JsonSchema.Client, document.RootElement.GetProperty("$schema").GetString());
+        Assert.Empty(MarkerConfigInspector.FindProblems(content, typeof(ClientConfig)));
+    }
 }

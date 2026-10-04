@@ -140,6 +140,19 @@ public sealed class ApiOptionsHelperTests : IDisposable
     }
 
     [Fact]
+    public void ValidateOptionsFile_TheSchemaReference_IsNoUnknownProperty()
+    {
+        File.WriteAllText(
+            Path.Combine(tempPath, ApiGeneratorOptions.FileName),
+            $$"""{ "$schema": "{{Constants.JsonSchema.ApiGeneratorOptions}}", "general": { "includeDeprecated": true } }""");
+
+        var result = ApiOptionsHelper.ValidateOptionsFile(tempPath);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Warnings);
+    }
+
+    [Fact]
     public void ValidateOptionsFile_MisspelledProperty_WarnsWithItsPath()
     {
         File.WriteAllText(

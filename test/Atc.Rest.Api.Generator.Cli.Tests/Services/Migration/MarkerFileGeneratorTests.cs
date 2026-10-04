@@ -36,6 +36,29 @@ public sealed class MarkerFileGeneratorTests : IDisposable
         }
     }
 
+    [Fact]
+    public void EveryMarker_ReferencesItsSchema_AndHasOnlyKnownSettings()
+    {
+        var options = new GeneratorOptionsResult { StrictMode = true };
+
+        (string Path, string Schema, Type Config)[] markers =
+        [
+            (MarkerFileGenerator.GenerateServerMarker(root, options, "Contoso"), Constants.JsonSchema.Server, typeof(ServerConfig)),
+            (MarkerFileGenerator.GenerateClientMarker(root, options, "Contoso", httpClientName: "Contoso-ApiClient"), Constants.JsonSchema.Client, typeof(ClientConfig)),
+            (MarkerFileGenerator.GenerateHandlerMarker(root, options, "Contoso"), Constants.JsonSchema.ServerHandlers, typeof(ServerDomainConfig)),
+        ];
+
+        foreach (var marker in markers)
+        {
+            var content = File.ReadAllText(marker.Path);
+            using var document = JsonDocument.Parse(content);
+
+            Assert.Equal("$schema", document.RootElement.EnumerateObject().First().Name);
+            Assert.Equal(marker.Schema, document.RootElement.GetProperty("$schema").GetString());
+            Assert.Empty(MarkerConfigInspector.FindProblems(content, marker.Config));
+        }
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(root))

@@ -390,7 +390,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         {
             var jsonOptions = JsonSerializerOptionsFactory.Create();
 
-            var json = JsonSerializer.Serialize(config, jsonOptions);
+            var json = ConfigurationFileJsonHelper.Serialize(config, Constants.JsonSchema.Client, jsonOptions);
 
             if (File.Exists(markerFilePath))
             {

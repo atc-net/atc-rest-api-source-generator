@@ -46,6 +46,39 @@ public static class Constants
     }
 
     /// <summary>
+    /// The JSON schemas of the marker files and the CLI options file, referenced with <c>$schema</c> from the files
+    /// the CLI writes (the <c>schemas</c> folder of the repository).
+    /// </summary>
+    [SuppressMessage("Major Code Smell", "S1075:URIs should not be hardcoded", Justification = "The published location of the schemas.")]
+    public static class JsonSchema
+    {
+        /// <summary>
+        /// Where the schemas are published.
+        /// </summary>
+        public const string BaseUrl = "https://raw.githubusercontent.com/atc-net/atc-rest-api-source-generator/main/schemas/";
+
+        /// <summary>
+        /// The schema of the server marker file.
+        /// </summary>
+        public const string Server = BaseUrl + "atc-rest-api-server.schema.json";
+
+        /// <summary>
+        /// The schema of the server handlers marker file.
+        /// </summary>
+        public const string ServerHandlers = BaseUrl + "atc-rest-api-server-handlers.schema.json";
+
+        /// <summary>
+        /// The schema of the client marker file.
+        /// </summary>
+        public const string Client = BaseUrl + "atc-rest-api-client.schema.json";
+
+        /// <summary>
+        /// The schema of the CLI options file (ApiGeneratorOptions.json).
+        /// </summary>
+        public const string ApiGeneratorOptions = BaseUrl + "atc-rest-api-gen-options.schema.json";
+    }
+
+    /// <summary>
     /// File extension constants for specification and configuration files.
     /// </summary>
     public static class FileExtensions

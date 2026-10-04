@@ -1,0 +1,316 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/atc-net/atc-rest-api-source-generator/main/schemas/atc-rest-api-gen-options.schema.json",
+  "title": "atc-rest-api-gen options file",
+  "description": "The settings of ApiGeneratorOptions.json, read by the atc-rest-api-gen CLI (the build reads the marker files).",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "The JSON schema of this file, for completion and validation in the editor."
+    },
+    "general": {
+      "type": "object",
+      "properties": {
+        "validateSpecificationStrategy": {
+          "enum": [
+            "None",
+            "Standard",
+            "Strict"
+          ],
+          "description": "OpenAPI specification validation strategy. Default: Strict.",
+          "default": "Strict"
+        },
+        "includeDeprecated": {
+          "type": "boolean",
+          "description": "Include deprecated operations and schemas in generated code. Default: false.",
+          "default": false
+        },
+        "removeNamespaceGroupSeparatorInGlobalUsings": {
+          "type": "boolean",
+          "description": "Remove blank lines between namespace groups in GlobalUsings.cs. Default: false (blank lines are preserved between groups).",
+          "default": false
+        }
+      },
+      "additionalProperties": false,
+      "description": "General settings shared across all generation modes."
+    },
+    "scaffolding": {
+      "type": "object",
+      "properties": {
+        "projectStructure": {
+          "enum": [
+            "SingleProject",
+            "TwoProjects",
+            "ThreeProjects"
+          ],
+          "description": "Project structure type for code generation. Default: ThreeProjects (3 separate projects).",
+          "default": "ThreeProjects"
+        },
+        "noCodingRules": {
+          "type": "boolean",
+          "description": "Skip adding ATC coding rules updater files. Default: false (coding rules are added by default).",
+          "default": false
+        },
+        "targetFramework": {
+          "type": "string",
+          "description": "Target framework for generated projects. Default: Uses TargetFrameworkResult.RequiredTargetFramework.",
+          "default": "net10.0"
+        },
+        "hostProjectName": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Override host project name (ThreeProjects mode only). Default: null (auto-derived from base name)."
+        },
+        "contractsProjectName": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Override contracts project name. Default: null (auto-derived from base name)."
+        },
+        "domainProjectName": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Override domain project name (TwoProjects/ThreeProjects mode only). Default: null (auto-derived from base name)."
+        },
+        "clientProjectName": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Override client project name. Default: null (auto-derived from base name)."
+        },
+        "hostNamespace": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Override host namespace (for generated code). Default: null (auto-derived from project name)."
+        },
+        "contractsNamespace": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Override contracts namespace (written to marker file). Default: null (auto-derived from project name)."
+        },
+        "domainNamespace": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Override domain namespace (written to marker file). Default: null (auto-derived from project name)."
+        },
+        "clientNamespace": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Override client namespace (written to marker file). Default: null (auto-derived from project name)."
+        },
+        "hostUi": {
+          "enum": [
+            "None",
+            "Swagger",
+            "Scalar"
+          ],
+          "description": "API documentation UI provider. Default: Scalar.",
+          "default": "Scalar"
+        },
+        "hostUiMode": {
+          "enum": [
+            "DevelopmentOnly",
+            "Always"
+          ],
+          "description": "Controls when the API documentation UI is enabled. Default: DevelopmentOnly.",
+          "default": "DevelopmentOnly"
+        },
+        "aspire": {
+          "type": "boolean",
+          "description": "Create an Aspire AppHost project for orchestration. Default: false.",
+          "default": false
+        }
+      },
+      "additionalProperties": false,
+      "description": "Repository scaffolding settings (init-repo, coding rules)."
+    },
+    "server": {
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Custom namespace prefix (null = auto-detect from project name). Default: null."
+        },
+        "subFolderStrategy": {
+          "enum": [
+            "None",
+            "FirstPathSegment",
+            "OpenApiTag"
+          ],
+          "description": "Sub-folder organization strategy for generated types. Default: FirstPathSegment.",
+          "default": "FirstPathSegment"
+        },
+        "useMinimalApiPackage": {
+          "enum": [
+            "Auto",
+            "Enabled",
+            "Disabled"
+          ],
+          "description": "Controls Atc.Rest.MinimalApi package integration. Default: Auto (auto-detect package reference).",
+          "default": "Auto"
+        },
+        "useValidationFilter": {
+          "enum": [
+            "Auto",
+            "Enabled",
+            "Disabled"
+          ],
+          "description": "Controls ValidationFilter generation for endpoints with parameters. Default: Auto.",
+          "default": "Auto"
+        },
+        "useGlobalErrorHandler": {
+          "enum": [
+            "Auto",
+            "Enabled",
+            "Disabled"
+          ],
+          "description": "Controls GlobalErrorHandlingMiddleware setup generation. Default: Auto.",
+          "default": "Auto"
+        },
+        "versioningStrategy": {
+          "enum": [
+            "None",
+            "QueryString",
+            "UrlSegment",
+            "Header"
+          ],
+          "description": "API versioning strategy. Default: None (no versioning).",
+          "default": "None"
+        },
+        "defaultApiVersion": {
+          "type": "string",
+          "description": "Default API version when versioning is enabled. Format: \"major.minor\" (e.g., \"1.0\", \"2.0\"). Default: \"1.0\".",
+          "default": "1.0"
+        },
+        "versionQueryParameterName": {
+          "type": "string",
+          "description": "Query parameter name for QueryString versioning strategy. Default: \"api-version\".",
+          "default": "api-version"
+        },
+        "versionHeaderName": {
+          "type": "string",
+          "description": "HTTP header name for Header versioning strategy. Default: \"X-Api-Version\".",
+          "default": "X-Api-Version"
+        },
+        "versionRouteSegmentTemplate": {
+          "type": "string",
+          "description": "Route segment template for UrlSegment versioning strategy. Default: \"v{version:apiVersion}\".",
+          "default": "v{version:apiVersion}"
+        },
+        "reportApiVersions": {
+          "type": "boolean",
+          "description": "Report supported API versions in response headers (api-supported-versions, api-deprecated-versions). Default: true.",
+          "default": true
+        },
+        "assumeDefaultVersionWhenUnspecified": {
+          "type": "boolean",
+          "description": "Assume default API version when client doesn't specify. Applies to QueryString and Header strategies only. Default: true.",
+          "default": true
+        },
+        "domain": {
+          "type": "object",
+          "properties": {
+            "generateHandlersOutput": {
+              "type": "string",
+              "description": "Output folder for generated handler files, relative to the project root. Default: \"ApiHandlers\".",
+              "default": "ApiHandlers"
+            },
+            "subFolderStrategy": {
+              "enum": [
+                "None",
+                "FirstPathSegment",
+                "OpenApiTag"
+              ],
+              "description": "Sub-folder organization strategy for handlers. Default: None.",
+              "default": "None"
+            },
+            "handlerSuffix": {
+              "type": "string",
+              "description": "Handler class name suffix. Default: \"Handler\".",
+              "default": "Handler"
+            },
+            "stubImplementation": {
+              "enum": [
+                "throw-not-implemented",
+                "error-501",
+                "default-value"
+              ],
+              "description": "Stub implementation type for generated handlers. Options: \"throw-not-implemented\", \"error-501\", \"default-value\". Default: \"throw-not-implemented\".",
+              "default": "throw-not-implemented"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Domain handler scaffolding configuration."
+        }
+      },
+      "additionalProperties": false,
+      "description": "Server-side code generation settings (contracts, endpoints, handlers)."
+    },
+    "client": {
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Custom namespace prefix (null = auto-detect from project name). Default: null."
+        },
+        "generationMode": {
+          "enum": [
+            "TypedClient",
+            "EndpointPerOperation"
+          ],
+          "description": "Client generation mode. Default: TypedClient.",
+          "default": "TypedClient"
+        },
+        "clientSuffix": {
+          "type": "string",
+          "description": "HTTP client class name suffix. Default: \"Client\".",
+          "default": "Client"
+        },
+        "clientGranularity": {
+          "enum": [
+            "PerArea",
+            "Single"
+          ],
+          "description": "Client granularity: one client per API area, or a single client covering all operations. Default: PerArea.",
+          "default": "PerArea"
+        },
+        "clientName": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Explicit client type name, used verbatim. Only meaningful when ClientGranularity is Single. Default: null (derived from the namespace)."
+        },
+        "generateOAuthTokenManagement": {
+          "type": "boolean",
+          "description": "Generate OAuth2 token provider, handler, and DI extensions when OAuth2 security is detected in OpenAPI spec. Default: true.",
+          "default": true
+        }
+      },
+      "additionalProperties": false,
+      "description": "Client-side code generation settings (HTTP client, models)."
+    }
+  },
+  "additionalProperties": false
+}

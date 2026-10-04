@@ -23,6 +23,7 @@ internal static class MarkerFileGenerator
 
         var markerContent = new Dictionary<string, object>(StringComparer.Ordinal)
         {
+            [MarkerConfigInspector.SchemaProperty] = Constants.JsonSchema.Server,
             ["namespace"] = $"{projectName}.Api.Contracts",
             ["validateSpecificationStrategy"] = options.StrictMode == true ? "Strict" : "Standard",
             ["includeDeprecated"] = false,
@@ -59,6 +60,7 @@ internal static class MarkerFileGenerator
         var suffix = string.IsNullOrEmpty(clientSuffix) ? "ApiClient" : clientSuffix;
         var markerContent = new Dictionary<string, object>(StringComparer.Ordinal)
         {
+            [MarkerConfigInspector.SchemaProperty] = Constants.JsonSchema.Client,
             ["namespace"] = $"{projectName}.{suffix}",
             ["validateSpecificationStrategy"] = options.StrictMode == true ? "Strict" : "Standard",
             ["includeDeprecated"] = false,
@@ -96,6 +98,7 @@ internal static class MarkerFileGenerator
 
         var markerContent = new Dictionary<string, object>(StringComparer.Ordinal)
         {
+            [MarkerConfigInspector.SchemaProperty] = Constants.JsonSchema.ServerHandlers,
             ["namespace"] = $"{projectName}.Api.Domain",
             ["validateSpecificationStrategy"] = options.StrictMode == true ? "Strict" : "Standard",
             ["includeDeprecated"] = false,

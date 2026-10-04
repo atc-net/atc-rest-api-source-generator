@@ -184,4 +184,36 @@ public sealed class GenerateServerCommandTests : IDisposable
         var domainMarkerContent = await File.ReadAllTextAsync(domainMarkerFilePath, TestContext.Current.CancellationToken);
         Assert.Contains("\"namespace\": \"PizzaPlanet\"", domainMarkerContent, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task GenerateServer_MarkerFiles_ReferenceTheirSchema_AndHaveOnlyKnownSettings()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var repoRoot = Path.Combine(tempOutputDir, "SchemaRef");
+        var arguments = $"generate server -s \"{yamlPath}\" -o \"{repoRoot}\" -n \"PizzaPlanet\"";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.True(isSuccessful, CliTestHelper.StripAnsiCodes(output));
+        (string Path, string Schema, Type Config)[] markers =
+        [
+            (Path.Combine(repoRoot, "src", "PizzaPlanet.Api.Contracts", ".atc-rest-api-server"), Constants.JsonSchema.Server, typeof(ServerConfig)),
+            (Path.Combine(repoRoot, "src", "PizzaPlanet.Domain", ".atc-rest-api-server-handlers"), Constants.JsonSchema.ServerHandlers, typeof(ServerDomainConfig)),
+        ];
+        foreach (var marker in markers)
+        {
+            var content = await File.ReadAllTextAsync(marker.Path, TestContext.Current.CancellationToken);
+            using var document = JsonDocument.Parse(content);
+
+            Assert.Equal("$schema", document.RootElement.EnumerateObject().First().Name);
+            Assert.Equal(marker.Schema, document.RootElement.GetProperty("$schema").GetString());
+            Assert.Empty(MarkerConfigInspector.FindProblems(content, marker.Config));
+        }
+    }
 }

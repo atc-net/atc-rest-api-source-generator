@@ -946,7 +946,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             var jsonOptions = JsonSerializerOptionsFactory.Create();
 
-            var json = JsonSerializer.Serialize(config, jsonOptions);
+            var json = ConfigurationFileJsonHelper.Serialize(config, Constants.JsonSchema.Server, jsonOptions);
 
             if (File.Exists(markerFilePath))
             {
@@ -985,7 +985,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         {
             var jsonOptions = JsonSerializerOptionsFactory.Create();
 
-            var json = JsonSerializer.Serialize(config, jsonOptions);
+            var json = ConfigurationFileJsonHelper.Serialize(config, Constants.JsonSchema.ServerHandlers, jsonOptions);
 
             if (File.Exists(markerFilePath))
             {
