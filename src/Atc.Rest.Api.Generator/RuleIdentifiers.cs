@@ -87,6 +87,11 @@ public static class RuleIdentifiers
     /// </summary>
     public const string MarkerConfigParseError = "ATC_API_GEN013";
 
+    /// <summary>
+    /// ATC_API_GEN014: A marker file has a setting the generator does not have, or a value a setting does not know.
+    /// </summary>
+    public const string MarkerConfigUnknownSetting = "ATC_API_GEN014";
+
     // ========== Dependency Rules (DEP) ==========
 
     /// <summary>

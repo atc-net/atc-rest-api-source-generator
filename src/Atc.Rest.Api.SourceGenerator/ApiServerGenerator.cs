@@ -102,6 +102,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         try
         {
             config = JsonSerializer.Deserialize<ServerConfig>(marker.Content, JsonHelper.ConfigOptions) ?? new ServerConfig();
+            DiagnosticHelpers.ReportUnknownMarkerSettings(productionContext, marker.Path, marker.Content, typeof(ServerConfig));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

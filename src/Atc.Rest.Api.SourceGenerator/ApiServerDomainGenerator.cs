@@ -80,6 +80,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             try
             {
                 config = JsonSerializer.Deserialize<ServerDomainConfig>(markerInfo.Content, JsonHelper.ConfigOptions) ?? new ServerDomainConfig();
+                DiagnosticHelpers.ReportUnknownMarkerSettings(productionContext, markerInfo.Path, markerInfo.Content, typeof(ServerDomainConfig));
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

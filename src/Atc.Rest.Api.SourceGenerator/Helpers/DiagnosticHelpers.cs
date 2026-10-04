@@ -173,6 +173,17 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
+    /// ATC_API_GEN014: A marker file has a setting the generator does not have, or a value a setting does not know.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MarkerConfigUnknownSetting = new(
+        RuleIdentifiers.MarkerConfigUnknownSetting,
+        "Unknown Marker File Setting",
+        "The marker file '{0}': {1}",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// ATCAPI012: Client EndpointPerOperation mode requires Atc.Rest.Client reference.
     /// </summary>
     public static readonly DiagnosticDescriptor ClientRequiresAtcRestClient = new(
@@ -552,6 +563,26 @@ internal static class DiagnosticHelpers
             handlerName,
             userNamespace,
             stubNamespace));
+    }
+
+    /// <summary>
+    /// Reports every setting of a marker file the generator does not have, and every value a setting does not know
+    /// (both are otherwise ignored without a word).
+    /// </summary>
+    public static void ReportUnknownMarkerSettings(
+        SourceProductionContext context,
+        string markerPath,
+        string markerContent,
+        Type configType)
+    {
+        foreach (var problem in MarkerConfigInspector.FindProblems(markerContent, configType))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                MarkerConfigUnknownSetting,
+                Location.None,
+                markerPath,
+                problem));
+        }
     }
 
     /// <summary>

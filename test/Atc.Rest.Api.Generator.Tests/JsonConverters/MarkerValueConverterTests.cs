@@ -58,7 +58,8 @@ public sealed class MarkerValueConverterTests
     [InlineData("null")]
     [InlineData("{ \"mode\": \"EndpointPerOperation\" }")]
     [InlineData("[\"EndpointPerOperation\"]")]
-    public void Read_AValueThatIsNotAString_IsTheFallback_AndKeepsTheOtherSettings(string json)
+    public void Read_AValueThatIsNotAString_IsTheFallback_AndKeepsTheOtherSettings(
+        string json)
     {
         var config = JsonSerializer.Deserialize<ClientConfig>(
             $$"""{ "generationMode": {{json}}, "clientSuffix": "Gateway" }""",

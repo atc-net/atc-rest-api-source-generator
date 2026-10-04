@@ -72,6 +72,48 @@ public class MarkerConfigDiagnosticTests
         Assert.Equal(DiagnosticSeverity.Warning, parseWarning.Severity);
     }
 
+    [Theory]
+    [InlineData(".atc-rest-api-client", """{ "generationMode": "EndpointPerOperation", "clientSufix": "Gateway" }""", "'clientSufix' is not a setting of this marker file and is ignored")]
+    [InlineData(".atc-rest-api-server", """{ "validateSpecificationStrategy": "Minimal" }""", "'validateSpecificationStrategy' has the unknown value \"Minimal\" (expected none, standard or strict), so standard is used")]
+    [InlineData(".atc-rest-api-server-handlers.json", """{ "healthChecks": { "enabled": true } }""", "'healthChecks' is not a setting of this marker file and is ignored")]
+    public void Generator_UnknownMarkerSetting_ReportsGEN014Warning(
+        string markerFileName,
+        string markerContent,
+        string expectedProblem)
+    {
+        // Arrange & Act
+        var diagnostics = RunGenerator(GeneratorFor(markerFileName), markerFileName, markerContent);
+
+        // Assert
+        var warning = Assert.Single(diagnostics, d =>
+            string.Equals(d.Id, Generator.RuleIdentifiers.MarkerConfigUnknownSetting, StringComparison.Ordinal));
+        Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+        Assert.Equal($"The marker file '{markerFileName}': {expectedProblem}", warning.GetMessage(CultureInfo.InvariantCulture));
+    }
+
+    [Theory]
+    [InlineData(".atc-rest-api-client", """{ "$schema": "https://example.com/atc-rest-api-client.schema.json", "generationMode": "endpoint-per-operation" }""")]
+    [InlineData(".atc-rest-api-server", "{ this is not valid json ")]
+    public void Generator_KnownSettingsOrMalformedJson_NoGEN014Warning(
+        string markerFileName,
+        string markerContent)
+    {
+        // Arrange & Act
+        var diagnostics = RunGenerator(GeneratorFor(markerFileName), markerFileName, markerContent);
+
+        // Assert
+        Assert.DoesNotContain(diagnostics, d =>
+            string.Equals(d.Id, Generator.RuleIdentifiers.MarkerConfigUnknownSetting, StringComparison.Ordinal));
+    }
+
+    private static IIncrementalGenerator GeneratorFor(string markerFileName)
+        => markerFileName switch
+        {
+            _ when markerFileName.StartsWith(".atc-rest-api-client", StringComparison.Ordinal) => new ApiClientGenerator(),
+            _ when markerFileName.StartsWith(".atc-rest-api-server-handlers", StringComparison.Ordinal) => new ApiServerDomainGenerator(),
+            _ => new ApiServerGenerator(),
+        };
+
     private static ImmutableArray<Diagnostic> RunGenerator(
         IIncrementalGenerator generator,
         string markerFileName,

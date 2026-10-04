@@ -16,6 +16,7 @@ public sealed record MultiPartConfiguration
     /// Auto: Discovers part files by naming convention ({BaseName}_{PartName}.yaml).
     /// Explicit: Uses the Parts list for specific ordering.
     /// </summary>
+    [MarkerValues("auto", "explicit")]
     public string Discovery { get; init; } = "auto";
 
     /// <summary>

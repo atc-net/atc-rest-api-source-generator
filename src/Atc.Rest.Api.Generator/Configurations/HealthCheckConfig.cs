@@ -37,6 +37,7 @@ public class HealthCheckConfig
     /// "apiKey" = require API key via query parameter or header.
     /// The API key value is read from IConfiguration["HealthChecks:ApiKey"] at runtime.
     /// </summary>
+    [MarkerValues("none", "apiKey")]
     public string Security { get; set; } = "none";
 
     /// <summary>
