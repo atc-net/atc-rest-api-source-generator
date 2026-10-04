@@ -1,4 +1,3 @@
-// ReSharper disable StringLiteralTypo
 namespace Atc.Rest.Api.Generator.JsonConverters;
 
 /// <summary>
@@ -9,37 +8,16 @@ namespace Atc.Rest.Api.Generator.JsonConverters;
 /// matching <see cref="GenerationModeTypeConverter"/>. PerArea is the historical behaviour, so an
 /// unparseable marker file can never silently switch a project into single-client mode.
 /// </remarks>
-public class ClientGranularityTypeConverter : JsonConverter<ClientGranularityType>
+public class ClientGranularityTypeConverter : MarkerValueConverter<ClientGranularityType>
 {
-    /// <inheritdoc />
-    public override ClientGranularityType Read(
-        ref Utf8JsonReader reader,
-        Type typeToConvert,
-        JsonSerializerOptions options)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ClientGranularityTypeConverter"/> class.
+    /// </summary>
+    public ClientGranularityTypeConverter()
+        : base(
+            ClientGranularityType.PerArea,
+            Value(ClientGranularityType.Single, "Single"),
+            Value(ClientGranularityType.PerArea, "PerArea", "per-area"))
     {
-        var value = reader.TokenType == JsonTokenType.String
-            ? reader.GetString()
-            : null;
-
-        return value?.ToLowerInvariant() switch
-        {
-            "single" => ClientGranularityType.Single,
-            "perarea" or "per-area" => ClientGranularityType.PerArea,
-            _ => ClientGranularityType.PerArea, // Default fallback
-        };
-    }
-
-    /// <inheritdoc />
-    public override void Write(
-        Utf8JsonWriter writer,
-        ClientGranularityType value,
-        JsonSerializerOptions options)
-    {
-        var stringValue = value switch
-        {
-            ClientGranularityType.Single => "Single",
-            _ => "PerArea",
-        };
-        writer.WriteStringValue(stringValue);
     }
 }

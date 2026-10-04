@@ -27,16 +27,19 @@ public sealed record MultiPartConfiguration
     /// <summary>
     /// Merge strategy for paths.
     /// </summary>
+    [JsonConverter(typeof(MergeStrategyConverter))]
     public MergeStrategy PathsMergeStrategy { get; init; } = MergeStrategy.ErrorOnDuplicate;
 
     /// <summary>
     /// Merge strategy for schemas.
     /// </summary>
+    [JsonConverter(typeof(MergeStrategyConverter))]
     public MergeStrategy SchemasMergeStrategy { get; init; } = MergeStrategy.ErrorOnDuplicate;
 
     /// <summary>
     /// Merge strategy for parameters.
     /// </summary>
+    [JsonConverter(typeof(MergeStrategyConverter))]
     public MergeStrategy ParametersMergeStrategy { get; init; } = MergeStrategy.MergeIfIdentical;
 
     /// <summary>

@@ -4,33 +4,16 @@ namespace Atc.Rest.Api.Generator.JsonConverters;
 /// JSON converter for <see cref="InlineParameterEnumMode"/> accepting "Enum" or "String"
 /// (case-insensitive). Unknown values fall back to <see cref="InlineParameterEnumMode.Enum"/>.
 /// </summary>
-public class InlineParameterEnumModeConverter : JsonConverter<InlineParameterEnumMode>
+public class InlineParameterEnumModeConverter : MarkerValueConverter<InlineParameterEnumMode>
 {
-    /// <inheritdoc />
-    public override InlineParameterEnumMode Read(
-        ref Utf8JsonReader reader,
-        Type typeToConvert,
-        JsonSerializerOptions options)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InlineParameterEnumModeConverter"/> class.
+    /// </summary>
+    public InlineParameterEnumModeConverter()
+        : base(
+            InlineParameterEnumMode.Enum,
+            Value(InlineParameterEnumMode.Enum, "Enum"),
+            Value(InlineParameterEnumMode.String, "String"))
     {
-        var value = reader.GetString();
-        return value?.ToLowerInvariant() switch
-        {
-            "string" => InlineParameterEnumMode.String,
-            _ => InlineParameterEnumMode.Enum,
-        };
-    }
-
-    /// <inheritdoc />
-    public override void Write(
-        Utf8JsonWriter writer,
-        InlineParameterEnumMode value,
-        JsonSerializerOptions options)
-    {
-        var stringValue = value switch
-        {
-            InlineParameterEnumMode.String => "String",
-            _ => "Enum",
-        };
-        writer.WriteStringValue(stringValue);
     }
 }

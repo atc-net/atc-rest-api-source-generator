@@ -38,6 +38,38 @@ public class ConfigurationTests
         Assert.Equal(expected, config.InlineParameterEnums);
     }
 
+    [Theory]
+    [InlineData("ErrorOnDuplicate", MergeStrategy.ErrorOnDuplicate)]
+    [InlineData("MergeIfIdentical", MergeStrategy.MergeIfIdentical)]
+    [InlineData("AppendUnique", MergeStrategy.AppendUnique)]
+    [InlineData("FirstWins", MergeStrategy.FirstWins)]
+    [InlineData("LastWins", MergeStrategy.LastWins)]
+    [InlineData("last-wins", MergeStrategy.LastWins)]
+    [InlineData("merge-if-identical", MergeStrategy.MergeIfIdentical)]
+    public void ServerConfig_MultiPartMergeStrategy_DeserializesFromItsName(
+        string markerValue,
+        MergeStrategy expected)
+    {
+        var json = $$"""
+            {
+                "namespace": "Contoso.Api",
+                "multiPartConfiguration": {
+                    "pathsMergeStrategy": "{{markerValue}}",
+                    "schemasMergeStrategy": "{{markerValue}}",
+                    "parametersMergeStrategy": "{{markerValue}}"
+                }
+            }
+            """;
+
+        var config = JsonSerializer.Deserialize<ServerConfig>(json, JsonHelper.ConfigOptions);
+
+        Assert.NotNull(config);
+        Assert.Equal("Contoso.Api", config.Namespace);
+        Assert.Equal(expected, config.MultiPartConfiguration!.PathsMergeStrategy);
+        Assert.Equal(expected, config.MultiPartConfiguration.SchemasMergeStrategy);
+        Assert.Equal(expected, config.MultiPartConfiguration.ParametersMergeStrategy);
+    }
+
     [Fact]
     public void ServerConfig_CanDeserializeFromJson()
     {
