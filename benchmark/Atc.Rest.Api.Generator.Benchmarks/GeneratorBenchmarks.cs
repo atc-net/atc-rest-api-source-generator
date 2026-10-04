@@ -16,6 +16,8 @@ public class GeneratorBenchmarks
     private GeneratorDriver warmDriver = null!;
     private CSharpCompilation editedCompilation = null!;
     private string scaffoldFolder = null!;
+    private string specificationText = null!;
+    private int edits;
 
     /// <summary>The specification (a sample under <c>sample/</c>).</summary>
     [Params("Showcase", "PetStoreFull")]
@@ -30,6 +32,7 @@ public class GeneratorBenchmarks
     public void Setup()
     {
         var specPath = Path.Combine(AppContext.BaseDirectory, "Specs", $"{Specification}.yaml");
+        specificationText = File.ReadAllText(specPath);
 
         // The domain generator writes its handler scaffolds next to the marker: keep them in a temp folder
         scaffoldFolder = Path.Combine(Path.GetTempPath(), "atc-rest-api-benchmarks", Guid.NewGuid().ToString("N"));
@@ -44,7 +47,7 @@ public class GeneratorBenchmarks
 
         additionalTexts =
         [
-            new InMemoryAdditionalText(Path.Combine(scaffoldFolder, $"{Specification}.yaml"), File.ReadAllText(specPath)),
+            new InMemoryAdditionalText(Path.Combine(scaffoldFolder, $"{Specification}.yaml"), specificationText),
             new InMemoryAdditionalText(Path.Combine(scaffoldFolder, markerName), markerContent),
         ];
 
@@ -88,6 +91,17 @@ public class GeneratorBenchmarks
     [Benchmark]
     public GeneratorDriver IncrementalUnrelatedEdit()
         => warmDriver.RunGenerators(editedCompilation);
+
+    /// <summary>An edit in the specification: the warm driver runs again on a text it has not parsed before.</summary>
+    [Benchmark]
+    public GeneratorDriver IncrementalSpecificationEdit()
+    {
+        // A new comment each time, so the parse cache (keyed by the content) cannot answer
+        var edited = new InMemoryAdditionalText(additionalTexts[0].Path, specificationText + Environment.NewLine + "# edit " + (++edits) + Environment.NewLine);
+        return warmDriver
+            .ReplaceAdditionalText(additionalTexts[0], edited)
+            .RunGenerators(compilation);
+    }
 
     private GeneratorDriver CreateDriver()
     {
