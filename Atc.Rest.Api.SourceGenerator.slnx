@@ -75,6 +75,9 @@
     <Project Path="sample/ThirdParty-Typed-Clients/Eloverblik.ThirdPartyApi.Client.Tests/Eloverblik.ThirdPartyApi.Client.Tests.csproj" />
     <Project Path="sample/ThirdParty-Typed-Clients/Eloverblik.ThirdPartyApi.Client/Eloverblik.ThirdPartyApi.Client.csproj" />
   </Folder>
+  <Folder Name="/benchmark/">
+    <Project Path="benchmark/Atc.Rest.Api.Generator.Benchmarks/Atc.Rest.Api.Generator.Benchmarks.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Atc.Rest.Api.Generator.Cli/Atc.Rest.Api.Generator.Cli.csproj" />
     <Project Path="src/Atc.Rest.Api.SourceGenerator/Atc.Rest.Api.SourceGenerator.csproj" Id="65b7bf64-9143-4e50-8303-2d3cd8b9a601" />
