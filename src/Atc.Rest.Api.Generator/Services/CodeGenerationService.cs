@@ -928,8 +928,7 @@ public static class CodeGenerationService
             DeclarationModifier: DeclarationModifiers.Public,
             Parameters: [recordParams]);
 
-        var contentGenerator = new GenerateContentForRecords(codeDocGenerator, recordsContainer);
-        var fullContent = contentGenerator.Generate();
+        var fullContent = RecordContentGenerator.Generate(codeDocGenerator, recordsContainer);
 
         return ExtractContentAfterNamespace(fullContent);
     }

@@ -12,8 +12,6 @@ namespace ModelsAndProperties.Generated.Persons.Models;
 /// <summary>
 /// Person entity with all property types.
 /// </summary>
-/// <param name="Gender">Gender type enumeration.</param>
-/// <param name="Address">Postal address with validation constraints.</param>
 /// <param name="Id">The id property.</param>
 /// <param name="FirstName">The firstName property.</param>
 /// <param name="LastName">The lastName property.</param>
@@ -21,6 +19,8 @@ namespace ModelsAndProperties.Generated.Persons.Models;
 /// <param name="Phone">The phone property.</param>
 /// <param name="Website">The website property.</param>
 /// <param name="DateOfBirth">The dateOfBirth property.</param>
+/// <param name="Gender">Gender type enumeration.</param>
+/// <param name="Address">Postal address with validation constraints.</param>
 /// <param name="IsActive">The isActive property.</param>
 /// <param name="CreatedAt">The createdAt property.</param>
 /// <param name="UpdatedAt">The updatedAt property.</param>

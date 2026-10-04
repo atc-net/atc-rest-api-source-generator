@@ -11,17 +11,17 @@ namespace Demo.Generated.Users.Models;
 /// <summary>
 /// Represents a CreateUserRequest.
 /// </summary>
-/// <param name="Role">User's role in the system.</param>
 /// <param name="FirstName">The firstName property.</param>
 /// <param name="LastName">The lastName property.</param>
 /// <param name="Email">The email property.</param>
+/// <param name="DateOfBirth">The dateOfBirth property.</param>
+/// <param name="Role">User's role in the system.</param>
+/// <param name="Address">The address property.</param>
 /// <param name="Phone">The phone property.</param>
 /// <param name="Website">The website property.</param>
-/// <param name="DateOfBirth">The dateOfBirth property.</param>
 /// <param name="Bio">The bio property.</param>
 /// <param name="AvatarUrl">The avatarUrl property.</param>
 /// <param name="IsActive">The isActive property.</param>
-/// <param name="Address">The address property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateUserRequest(
     [property: Required, MinLength(2), MaxLength(50)] string FirstName,

@@ -521,6 +521,13 @@ public static class OperationParameterExtractor
                 // Build attributes list
                 var attributes = new List<AttributeParameters>();
 
+                // A deprecated parameter warns the client's caller that sets or reads it. Not on the server: it still
+                // has to bind the parameter, and the handler that reads it would be warned for doing its job.
+                if (!includeBindingAttributes && parameter.Deprecated)
+                {
+                    attributes.Add(ObsoleteAttributeHelper.Attribute);
+                }
+
                 // Add binding attributes only for server-side parameters
                 if (includeBindingAttributes)
                 {

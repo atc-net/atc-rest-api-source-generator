@@ -11,11 +11,11 @@ namespace PetStoreFull.Generated.Store.Models;
 /// <summary>
 /// Represents a model.
 /// </summary>
-/// <param name="Status">Order Status.</param>
 /// <param name="Id">The id property.</param>
 /// <param name="PetId">The petId property.</param>
 /// <param name="Quantity">The quantity property.</param>
 /// <param name="ShipDate">The shipDate property.</param>
+/// <param name="Status">Order Status.</param>
 /// <param name="Complete">The complete property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Order(

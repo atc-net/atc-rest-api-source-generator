@@ -238,7 +238,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         // Proxy over `context` that adds [ExcludeFromCodeCoverage] alongside [GeneratedCode] when
         // configured. Used by every sub-generation method below that only ever calls AddSource.
-        var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage);
+        var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage, DeprecationDetector.HasDeprecatedMembers(openApiDoc));
 
         // The custom error model's type name as the generated code refers to it (fully qualified when it collides).
         var customErrorTypeName = config.CustomErrorResponseModel?.Name;
@@ -651,11 +651,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                 DeclarationModifier: recordsParameters.DeclarationModifier,
                 Parameters: [record]);
 
-            var contentGenerator = new GenerateContentForRecords(
-                codeDocGenerator,
-                singleRecordParams);
-
-            var generatedContent = contentGenerator.Generate();
+            var generatedContent = RecordContentGenerator.Generate(codeDocGenerator, singleRecordParams);
 
             // Sanitize record name for file system (generic types have <> which are invalid)
             var sanitizedName = record.Name.SanitizeForFileName();
@@ -1994,7 +1990,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                 DeclarationModifier: DeclarationModifiers.Public,
                 Parameters: [paramRecord]);
 
-            var generatedParamContent = new GenerateContentForRecords(codeDocGenerator, recordsContainer).Generate();
+            var generatedParamContent = RecordContentGenerator.Generate(codeDocGenerator, recordsContainer);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(clientNamespace, paramRecord.Name),
                 SourceText.From(generatedParamContent.NormalizeForSourceOutput(), Encoding.UTF8));

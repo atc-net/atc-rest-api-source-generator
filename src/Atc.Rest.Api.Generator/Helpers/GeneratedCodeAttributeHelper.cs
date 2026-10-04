@@ -11,6 +11,8 @@ public static class GeneratedCodeAttributeHelper
 {
     private const string MissingXmlCommentPragma = "#pragma warning disable CS1591";
 
+    private const string ObsoletePragma = "#pragma warning disable CS0618";
+
     // [ExcludeFromCodeCoverage] is only valid on assembly/module/class/struct/constructor/method/
     // property/event — NOT interface, enum, or delegate. Skip attaching it to those declarations.
     private static readonly string[] UnsupportedDeclarationTokens = ["interface", "enum", "delegate"];
@@ -77,9 +79,24 @@ public static class GeneratedCodeAttributeHelper
     /// the <c>auto-generated</c> header, else first.
     /// </summary>
     public static string SuppressMissingXmlComment(string content)
+        => InsertPragma(content, MissingXmlCommentPragma);
+
+    /// <summary>
+    /// Adds <c>#pragma warning disable CS0618</c> to a generated file of a specification with deprecated members:
+    /// the generated code itself uses the members it marks <c>[Obsolete]</c>, and a consumer that builds with warnings
+    /// as errors would be stopped by code it cannot edit. Only for such specifications, so the warning still shows
+    /// when generated code calls an API the framework has made obsolete. Placed like
+    /// <see cref="SuppressMissingXmlComment"/>.
+    /// </summary>
+    public static string SuppressObsolete(string content)
+        => InsertPragma(content, ObsoletePragma);
+
+    private static string InsertPragma(
+        string content,
+        string pragma)
     {
         if (string.IsNullOrEmpty(content) ||
-            content.IndexOf(MissingXmlCommentPragma, StringComparison.Ordinal) >= 0)
+            content.IndexOf(pragma, StringComparison.Ordinal) >= 0)
         {
             return content;
         }
@@ -94,10 +111,10 @@ public static class GeneratedCodeAttributeHelper
         // The file's own line ending, so the directive does not introduce a mixed one.
         var eol = lines.Find(l => l.Eol.Length > 0).Eol ?? "\n";
 
-        var result = new StringBuilder(content.Length + MissingXmlCommentPragma.Length + eol.Length);
+        var result = new StringBuilder(content.Length + pragma.Length + eol.Length);
         if (insertAfter < 0)
         {
-            result.Append(MissingXmlCommentPragma).Append(eol);
+            result.Append(pragma).Append(eol);
         }
 
         for (var i = 0; i < lines.Count; i++)
@@ -110,7 +127,7 @@ public static class GeneratedCodeAttributeHelper
                     result.Append(eol);
                 }
 
-                result.Append(MissingXmlCommentPragma).Append(eol);
+                result.Append(pragma).Append(eol);
             }
         }
 

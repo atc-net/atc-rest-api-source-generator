@@ -416,7 +416,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // Proxy over `context` that adds [ExcludeFromCodeCoverage] alongside [GeneratedCode] when
         // configured. Handler scaffolds are excluded by design (they carry no [GeneratedCode]),
         // so only the DI registration methods below (which take this proxy) are affected.
-        var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage);
+        var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage, DeprecationDetector.HasDeprecatedMembers(openApiDoc));
         generatedContext.AddGeneratedSource("DomainGlobalUsings.g.cs", SourceText.From(globalUsingsContent, Encoding.UTF8));
 
         // Collect all handler info for DI registration

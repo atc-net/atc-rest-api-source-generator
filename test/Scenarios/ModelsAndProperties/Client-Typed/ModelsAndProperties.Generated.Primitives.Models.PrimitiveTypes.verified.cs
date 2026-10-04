@@ -13,12 +13,12 @@ namespace ModelsAndProperties.Generated.Primitives.Models;
 /// </summary>
 /// <param name="StringValue">Basic string type.</param>
 /// <param name="IntegerValue">Default integer (int32).</param>
+/// <param name="NumberValue">Default number (double).</param>
+/// <param name="BooleanValue">Boolean value.</param>
 /// <param name="IntegerInt32">Explicit int32.</param>
 /// <param name="IntegerInt64">Long integer (int64).</param>
-/// <param name="NumberValue">Default number (double).</param>
 /// <param name="NumberFloat">Float number.</param>
 /// <param name="NumberDouble">Double number.</param>
-/// <param name="BooleanValue">Boolean value.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record PrimitiveTypes(
     [property: Required] string StringValue,

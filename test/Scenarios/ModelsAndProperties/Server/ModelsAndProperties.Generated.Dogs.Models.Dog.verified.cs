@@ -12,8 +12,8 @@ namespace ModelsAndProperties.Generated.Dogs.Models;
 /// Represents a model.
 /// </summary>
 /// <param name="Name">Animal name.</param>
-/// <param name="Age">Animal age in years.</param>
 /// <param name="Breed">Dog breed.</param>
+/// <param name="Age">Animal age in years.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Dog(
     string Name,

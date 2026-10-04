@@ -11,12 +11,12 @@ namespace ReadOnlyWriteOnly.Generated.Models;
 /// <summary>
 /// Represents a User.
 /// </summary>
+/// <param name="Email">The email property.</param>
 /// <param name="Id">Auto-generated unique identifier.</param>
 /// <param name="Password">Only accepted on create/update, never returned.</param>
 /// <param name="CreatedAt">Server-assigned creation timestamp.</param>
 /// <param name="Secret">Internal secret, never exposed in responses.</param>
 /// <param name="DisplayName">Regular read-write property.</param>
-/// <param name="Email">The email property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record User(
     [property: Required, EmailAddress] string Email,

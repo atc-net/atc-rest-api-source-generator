@@ -636,10 +636,6 @@ public static class SchemaExtractor
 
         var parametersList = new List<ParameterBaseParameters>();
 
-        // A property's description becomes the record's <param> doc for it (what IntelliSense shows for the property)
-        var propertyDocs = new Dictionary<string, string>(StringComparer.Ordinal);
-        var undocumentedProperties = new Dictionary<string, string>(StringComparer.Ordinal);
-
         foreach (var prop in properties)
         {
             var propName = prop.Key.ToPascalCaseForDotNet();
@@ -691,16 +687,7 @@ public static class SchemaExtractor
             // deprecated: true warns every consumer that reads or sets the property
             if (prop.Value.Deprecated)
             {
-                attributesList.Add(ObsoleteAttribute);
-            }
-
-            if (!string.IsNullOrWhiteSpace(prop.Value.Description))
-            {
-                propertyDocs[propName] = WellFormedDocText(prop.Value.Description!.Trim());
-            }
-            else
-            {
-                undocumentedProperties[propName] = $"The {prop.Key} property.";
+                attributesList.Add(ObsoleteAttributeHelper.Attribute);
             }
 
             IList<AttributeParameters>? attributes = attributesList.Count > 0
@@ -838,7 +825,7 @@ public static class SchemaExtractor
             // deprecated: true warns every consumer that reads or sets the property
             if (prop.Value.Deprecated)
             {
-                attributesList.Add(ObsoleteAttribute);
+                attributesList.Add(ObsoleteAttributeHelper.Attribute);
             }
 
             if (!string.IsNullOrWhiteSpace(prop.Value.Description))
@@ -905,7 +892,7 @@ public static class SchemaExtractor
                 : DeclarationModifiers.PublicSealedRecord);
 
         // Build documentation tags from schema description and examples
-        var docTags = BuildDocumentationTags(schema, CompletePropertyDocs(propertyDocs, undocumentedProperties));
+        var docTags = BuildDocumentationTags(schema, CompletePropertyDocs(propertyDocs, undocumentedProperties, sortedParameters));
 
         return new RecordParameters(
             DocumentationTags: docTags,
@@ -914,11 +901,6 @@ public static class SchemaExtractor
             Parameters: sortedParameters,
             Attributes: RecordAttributes(schema));
     }
-
-    /// <summary>
-    /// Builds CodeDocumentationTags from an OpenAPI schema's description and example values.
-    /// </summary>
-    private static readonly AttributeParameters ObsoleteAttribute = new("Obsolete", "\"Deprecated in the OpenAPI specification.\"");
 
     private static readonly System.Text.RegularExpressions.Regex UnclosedLineBreak = new(
         @"</?br\s*/?>",
@@ -946,31 +928,42 @@ public static class SchemaExtractor
 
         if (schema.Deprecated)
         {
-            attributes.Add(ObsoleteAttribute);
+            attributes.Add(ObsoleteAttributeHelper.Attribute);
         }
 
         return attributes;
     }
 
     /// <summary>
-    /// Once one property of a record is documented every one must be (CS1573): the undocumented ones get a plain line.
-    /// No property documented, no parameter docs at all.
+    /// Once one property of a record is documented every one must be (CS1573): the undocumented ones get a plain line,
+    /// and the docs follow the record's parameter order. No property documented, no parameter docs at all.
     /// </summary>
     private static Dictionary<string, string> CompletePropertyDocs(
         Dictionary<string, string> propertyDocs,
-        Dictionary<string, string> undocumentedProperties)
+        Dictionary<string, string> undocumentedProperties,
+        IEnumerable<ParameterBaseParameters> parameters)
     {
-        if (propertyDocs.Count > 0)
+        var docs = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (propertyDocs.Count == 0)
         {
-            foreach (var undocumented in undocumentedProperties)
+            return docs;
+        }
+
+        foreach (var parameter in parameters)
+        {
+            if (propertyDocs.TryGetValue(parameter.Name, out var doc) ||
+                undocumentedProperties.TryGetValue(parameter.Name, out doc))
             {
-                propertyDocs[undocumented.Key] = undocumented.Value;
+                docs[parameter.Name] = doc;
             }
         }
 
-        return propertyDocs;
+        return docs;
     }
 
+    /// <summary>
+    /// Builds CodeDocumentationTags from an OpenAPI schema's description and example values.
+    /// </summary>
     private static CodeDocumentationTags? BuildDocumentationTags(
         OpenApiSchema schema,
         IReadOnlyDictionary<string, string> propertyDocs)
@@ -1148,7 +1141,7 @@ public static class SchemaExtractor
             // deprecated: true warns every consumer that reads or sets the property
             if (prop.Value.Deprecated)
             {
-                attributesList.Add(ObsoleteAttribute);
+                attributesList.Add(ObsoleteAttributeHelper.Attribute);
             }
 
             if (!string.IsNullOrWhiteSpace(prop.Value.Description))
@@ -1206,7 +1199,7 @@ public static class SchemaExtractor
                 ? DeclarationModifiers.PublicPartialRecord
                 : DeclarationModifiers.PublicSealedRecord);
 
-        var docTags = BuildDocumentationTags(schema, CompletePropertyDocs(propertyDocs, undocumentedProperties));
+        var docTags = BuildDocumentationTags(schema, CompletePropertyDocs(propertyDocs, undocumentedProperties, sortedParameters));
 
         return new RecordParameters(
             DocumentationTags: docTags,

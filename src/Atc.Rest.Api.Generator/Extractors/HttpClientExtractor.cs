@@ -735,7 +735,7 @@ public static class HttpClientExtractor
         {
             return new MethodParameters(
                 DocumentationTags: null,
-                Attributes: null,
+                Attributes: ObsoleteAttributeHelper.For(operation.Deprecated),
                 DeclarationModifier: DeclarationModifiers.PublicAsync,
                 ReturnGenericTypeName: "IAsyncEnumerable",
                 ReturnTypeName: streamingItemType,
@@ -774,7 +774,7 @@ public static class HttpClientExtractor
 
         return new MethodParameters(
             DocumentationTags: null,
-            Attributes: null,
+            Attributes: ObsoleteAttributeHelper.For(operation.Deprecated),
             DeclarationModifier: DeclarationModifiers.PublicAsync,
             ReturnGenericTypeName: returnGenericTypeName,
             ReturnTypeName: returnTypeName,

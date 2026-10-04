@@ -13,9 +13,9 @@ namespace Demo.Generated.Users.Models;
 /// </summary>
 /// <param name="Street">Street address.</param>
 /// <param name="City">City name.</param>
-/// <param name="State">State or region.</param>
 /// <param name="PostalCode">Postal/ZIP code.</param>
 /// <param name="Country">Country name.</param>
+/// <param name="State">State or region.</param>
 /// <param name="CountryCode">ISO 3166-1 country code.</param>
 /// <param name="Latitude">Geographic latitude.</param>
 /// <param name="Longitude">Geographic longitude.</param>

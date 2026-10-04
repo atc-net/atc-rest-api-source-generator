@@ -334,7 +334,7 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         // Proxy over `context` that adds [ExcludeFromCodeCoverage] alongside [GeneratedCode] when
         // configured. Used by every sub-generation method below that only ever calls AddSource.
-        var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage);
+        var generatedContext = new GeneratedSourceContext(context, config.ExcludeFromCodeCoverage, DeprecationDetector.HasDeprecatedMembers(openApiDoc));
 
         // Detect shared schemas (used by multiple path segments) for deduplication
         var sharedSchemas = PathSegmentHelper.GetSharedSchemas(openApiDoc);
@@ -771,11 +771,7 @@ public class ApiServerGenerator : IIncrementalGenerator
             // Create a single-record container with the same header and namespace
             var singleRecordParams = recordsParameters with { Parameters = [record] };
 
-            var contentGenerator = new GenerateContentForRecords(
-                codeDocGenerator,
-                singleRecordParams);
-
-            var generatedContent = contentGenerator.Generate();
+            var generatedContent = RecordContentGenerator.Generate(codeDocGenerator, singleRecordParams);
 
             // Sanitize record name for file system (generic types have <> which are invalid)
             var sanitizedName = record.Name.SanitizeForFileName();

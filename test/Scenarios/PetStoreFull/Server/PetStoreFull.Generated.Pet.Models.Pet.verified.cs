@@ -11,12 +11,12 @@ namespace PetStoreFull.Generated.Pet.Models;
 /// <summary>
 /// Represents a model.
 /// </summary>
-/// <param name="Status">pet status in the store.</param>
-/// <param name="Id">The id property.</param>
 /// <param name="Name">The name property.</param>
-/// <param name="Category">The category property.</param>
 /// <param name="PhotoUrls">The photoUrls property.</param>
+/// <param name="Id">The id property.</param>
+/// <param name="Category">The category property.</param>
 /// <param name="Tags">The tags property.</param>
+/// <param name="Status">pet status in the store.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed partial record Pet(
     [property: Required] string Name,

@@ -15,10 +15,10 @@ namespace ModelsAndProperties.Generated.Models.Models;
 /// </summary>
 /// <param name="Id">Unique identifier (UUID).</param>
 /// <param name="Name">Display name with length constraints.</param>
-/// <param name="Description">Optional description.</param>
 /// <param name="Email">Email address with format validation.</param>
-/// <param name="Website">Website URL.</param>
 /// <param name="CreatedAt">Creation timestamp.</param>
+/// <param name="Description">Optional description.</param>
+/// <param name="Website">Website URL.</param>
 /// <param name="UpdatedAt">Last update timestamp.</param>
 /// <param name="BirthDate">Date of birth (date only).</param>
 /// <param name="PreferredTime">Preferred contact time (HH:mm:ss).</param>

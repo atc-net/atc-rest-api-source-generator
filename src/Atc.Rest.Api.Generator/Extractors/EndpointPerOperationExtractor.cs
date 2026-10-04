@@ -377,7 +377,8 @@ public static class EndpointPerOperationExtractor
             isAsyncEnumerable,
             streamingItemType,
             hasSegmentModels,
-            hasSharedModels);
+            hasSharedModels,
+            operation.Deprecated);
 
         // Generate endpoint class
         var endpointClassContent = GenerateEndpointClass(
@@ -633,7 +634,8 @@ public static class EndpointPerOperationExtractor
         bool isAsyncEnumerable,
         string? streamingItemType,
         bool hasSegmentModels,
-        bool hasSharedModels)
+        bool hasSharedModels,
+        bool isDeprecated)
     {
         var namespaceValue = NamespaceBuilder.ForEndpointInterfaces(projectName, pathSegment);
         var sharedModelsNamespace = NamespaceBuilder.ForModels(projectName);
@@ -725,10 +727,7 @@ public static class EndpointPerOperationExtractor
             HeaderContent: headerBuilder.ToString(),
             Namespace: namespaceValue,
             DocumentationTags: docTags,
-            Attributes: new List<AttributeParameters>
-            {
-                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-            },
+            Attributes: EndpointTypeAttributes(isDeprecated),
             DeclarationModifier: DeclarationModifiers.PublicInterface,
             InterfaceTypeName: $"I{operationName}Endpoint",
             InheritedInterfaceTypeName: null,
@@ -967,10 +966,7 @@ public static class EndpointPerOperationExtractor
             HeaderContent: headerBuilder.ToString(),
             Namespace: namespaceValue,
             DocumentationTags: docTags,
-            Attributes: new List<AttributeParameters>
-            {
-                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-            },
+            Attributes: EndpointTypeAttributes(operation.Deprecated),
             DeclarationModifier: DeclarationModifiers.PublicSealedClass,
             ClassTypeName: $"{operationName}Endpoint",
             GenericTypeName: null,
@@ -996,6 +992,26 @@ public static class EndpointPerOperationExtractor
     /// Whether the endpoint serializes its JSON body itself: a body under a JSON media type other than
     /// <c>application/json</c>, sent with that media type.
     /// </summary>
+    /// <summary>
+    /// The attributes of an endpoint interface and class: [GeneratedCode], and [Obsolete] for a deprecated operation, so
+    /// the code that injects or calls the endpoint is warned.
+    /// </summary>
+    private static List<AttributeParameters> EndpointTypeAttributes(
+        bool isDeprecated)
+    {
+        var attributes = new List<AttributeParameters>
+        {
+            new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
+        };
+
+        if (isDeprecated)
+        {
+            attributes.Add(ObsoleteAttributeHelper.Attribute);
+        }
+
+        return attributes;
+    }
+
     private static bool UsesSerializedJsonBody(OpenApiOperation operation)
         => operation.GetJsonRequestBodyMediaType() is { } mediaType &&
            !string.Equals(mediaType, "application/json", StringComparison.OrdinalIgnoreCase) &&
