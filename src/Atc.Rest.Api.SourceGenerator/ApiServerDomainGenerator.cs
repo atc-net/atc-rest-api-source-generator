@@ -79,8 +79,8 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             ServerDomainConfig config;
             try
             {
-                config = JsonSerializer.Deserialize<ServerDomainConfig>(markerInfo.Content, JsonHelper.ConfigOptions) ?? new ServerDomainConfig();
-                DiagnosticHelpers.ReportUnknownMarkerSettings(productionContext, markerInfo.Path, markerInfo.Content, typeof(ServerDomainConfig));
+                config = MarkerConfigInspector.Read<ServerDomainConfig>(markerInfo.Content, out var markerProblems);
+                DiagnosticHelpers.ReportUnknownMarkerSettings(productionContext, markerInfo.Path, markerProblems);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

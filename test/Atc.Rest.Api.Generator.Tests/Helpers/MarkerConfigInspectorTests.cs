@@ -1,7 +1,7 @@
 namespace Atc.Rest.Api.Generator.Tests.Helpers;
 
 /// <summary>
-/// A marker file is read leniently - a misspelled setting is ignored, an unknown value is read as a fallback - so the
+/// A marker file is read leniently - a misspelled setting is ignored, an unknown value is read as the setting's default - so the
 /// inspector names both, for a diagnostic.
 /// </summary>
 public sealed class MarkerConfigInspectorTests
@@ -63,10 +63,11 @@ public sealed class MarkerConfigInspectorTests
     }
 
     [Theory]
-    [InlineData("""{ "validateSpecificationStrategy": "Minimal" }""", "'validateSpecificationStrategy' has the unknown value \"Minimal\" (expected none, standard or strict), so standard is used")]
+    [InlineData("""{ "validateSpecificationStrategy": "Minimal" }""", "'validateSpecificationStrategy' has the unknown value \"Minimal\" (expected none, standard or strict), so strict is used")]
     [InlineData("""{ "useMinimalApiPackage": "yes" }""", "'useMinimalApiPackage' has the unknown value \"yes\" (expected auto, enabled, disabled, true or false), so auto is used")]
-    [InlineData("""{ "subFolderStrategy": 1 }""", "'subFolderStrategy' has the unknown value 1 (expected None, FirstPathSegment or OpenApiTag), so None is used")]
+    [InlineData("""{ "subFolderStrategy": 1 }""", "'subFolderStrategy' has the unknown value 1 (expected None, FirstPathSegment or OpenApiTag), so FirstPathSegment is used")]
     [InlineData("""{ "multiPartConfiguration": { "pathsMergeStrategy": "Merge" } }""", "'multiPartConfiguration.pathsMergeStrategy' has the unknown value \"Merge\" (expected ErrorOnDuplicate, MergeIfIdentical, AppendUnique, FirstWins or LastWins), so ErrorOnDuplicate is used")]
+    [InlineData("""{ "multiPartConfiguration": { "parametersMergeStrategy": "Merge" } }""", "'multiPartConfiguration.parametersMergeStrategy' has the unknown value \"Merge\" (expected ErrorOnDuplicate, MergeIfIdentical, AppendUnique, FirstWins or LastWins), so MergeIfIdentical is used")]
     [InlineData("""{ "healthChecks": { "security": "bearer" } }""", "'healthChecks.security' has the unknown value \"bearer\" (expected none or apiKey), so none is used")]
     public void FindProblems_AnUnknownValue_IsNamedWithWhatIsUsed(
         string json,
@@ -107,6 +108,62 @@ public sealed class MarkerConfigInspectorTests
         var problems = MarkerConfigInspector.FindProblems(json, typeof(ClientConfig));
 
         Assert.Equal(["'customErrorResponseModel.schema.code.descriptionn' is not a setting of this marker file and is ignored"], problems);
+    }
+
+    [Fact]
+    public void Read_AnUnknownValue_IsTheDefaultOfTheSetting()
+    {
+        const string json = """
+            {
+              "namespace": "Contoso.Api.Contracts",
+              "validateSpecificationStrategy": "Minimal",
+              "subFolderStrategy": "by-tag",
+              "useMinimalApiPackage": "yes",
+              "healthChecks": { "enabled": true, "security": "bearer" },
+              "multiPartConfiguration": { "pathsMergeStrategy": "Merge", "parametersMergeStrategy": "Merge" }
+            }
+            """;
+
+        var config = MarkerConfigInspector.Read<ServerConfig>(json, out var problems);
+
+        Assert.Equal("Contoso.Api.Contracts", config.Namespace);
+        Assert.Equal(ValidateSpecificationStrategy.Strict, config.ValidateSpecificationStrategy);
+        Assert.Equal(SubFolderStrategyType.FirstPathSegment, config.SubFolderStrategy);
+        Assert.Equal(MinimalApiPackageMode.Auto, config.UseMinimalApiPackage);
+        Assert.True(config.HealthChecks!.Enabled);
+        Assert.Equal("none", config.HealthChecks.Security);
+        Assert.Equal(MergeStrategy.ErrorOnDuplicate, config.MultiPartConfiguration!.PathsMergeStrategy);
+        Assert.Equal(MergeStrategy.MergeIfIdentical, config.MultiPartConfiguration.ParametersMergeStrategy);
+        Assert.Equal(6, problems.Count);
+    }
+
+    [Fact]
+    public void Read_AKnownValue_IsKept()
+    {
+        const string json = """
+            {
+              "validateSpecificationStrategy": "none",
+              "subFolderStrategy": "None",
+              "healthChecks": { "security": "apiKey" },
+              "multiPartConfiguration": { "parametersMergeStrategy": "LastWins" }
+            }
+            """;
+
+        var config = MarkerConfigInspector.Read<ServerConfig>(json, out var problems);
+
+        Assert.Empty(problems);
+        Assert.Equal(ValidateSpecificationStrategy.None, config.ValidateSpecificationStrategy);
+        Assert.Equal(SubFolderStrategyType.None, config.SubFolderStrategy);
+        Assert.Equal("apiKey", config.HealthChecks!.Security);
+        Assert.Equal(MergeStrategy.LastWins, config.MultiPartConfiguration!.ParametersMergeStrategy);
+    }
+
+    [Fact]
+    public void Read_AnUnknownStubImplementation_IsTheDefault()
+    {
+        var config = MarkerConfigInspector.Read<ServerDomainConfig>("""{ "stubImplementation": "error-500" }""", out _);
+
+        Assert.Equal("throw-not-implemented", config.StubImplementation);
     }
 
     [Theory]

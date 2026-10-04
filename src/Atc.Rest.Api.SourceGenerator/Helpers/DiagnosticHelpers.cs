@@ -567,15 +567,14 @@ internal static class DiagnosticHelpers
 
     /// <summary>
     /// Reports every setting of a marker file the generator does not have, and every value a setting does not know
-    /// (both are otherwise ignored without a word).
+    /// (the setting is ignored, the value gives the setting its default).
     /// </summary>
     public static void ReportUnknownMarkerSettings(
         SourceProductionContext context,
         string markerPath,
-        string markerContent,
-        Type configType)
+        IReadOnlyList<string> problems)
     {
-        foreach (var problem in MarkerConfigInspector.FindProblems(markerContent, configType))
+        foreach (var problem in problems)
         {
             context.ReportDiagnostic(Diagnostic.Create(
                 MarkerConfigUnknownSetting,

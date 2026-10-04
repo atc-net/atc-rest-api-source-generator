@@ -82,8 +82,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         ClientConfig config;
         try
         {
-            config = JsonSerializer.Deserialize<ClientConfig>(marker.Content, JsonHelper.ConfigOptions) ?? new ClientConfig();
-            DiagnosticHelpers.ReportUnknownMarkerSettings(productionContext, marker.Path, marker.Content, typeof(ClientConfig));
+            config = MarkerConfigInspector.Read<ClientConfig>(marker.Content, out var markerProblems);
+            DiagnosticHelpers.ReportUnknownMarkerSettings(productionContext, marker.Path, markerProblems);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

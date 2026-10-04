@@ -3,7 +3,8 @@ namespace Atc.Rest.Api.Generator.JsonConverters;
 /// <summary>
 /// Reads an enum setting of a marker file from any of its spellings, ignoring case, and writes it with its name. A
 /// value it does not know (or a JSON value that is not a string) is read as the fallback, never an exception: an
-/// exception would throw away every other setting of the marker file. The unknown value is reported as a diagnostic.
+/// exception would throw away every other setting of the marker file. <see cref="MarkerConfigInspector.Read{T}"/>
+/// then gives the setting its default and reports the unknown value as a diagnostic.
 /// </summary>
 /// <typeparam name="TEnum">The enum type.</typeparam>
 public abstract class MarkerValueConverter<TEnum> : JsonConverter<TEnum>, IMarkerSettingValues
@@ -62,7 +63,10 @@ public abstract class MarkerValueConverter<TEnum> : JsonConverter<TEnum>, IMarke
     public virtual bool AcceptsBooleans => false;
 
     /// <inheritdoc />
-    public string FallbackName => nameByValue[fallback];
+    public string NameOf(object? value)
+        => value is TEnum known && nameByValue.TryGetValue(known, out var name)
+            ? name
+            : nameByValue[fallback];
 
     /// <inheritdoc />
     public bool Accepts(JsonElement value)
@@ -107,7 +111,7 @@ public abstract class MarkerValueConverter<TEnum> : JsonConverter<TEnum>, IMarke
             throw new ArgumentNullException(nameof(writer));
         }
 
-        writer.WriteStringValue(nameByValue.TryGetValue(value, out var name) ? name : FallbackName);
+        writer.WriteStringValue(nameByValue.TryGetValue(value, out var name) ? name : nameByValue[fallback]);
     }
 
     /// <summary>

@@ -29,7 +29,8 @@ public sealed class MarkerValuesAttribute : Attribute, IMarkerSettingValues
     public bool AcceptsBooleans => false;
 
     /// <inheritdoc />
-    public string FallbackName => Names[0];
+    public string NameOf(object? value)
+        => value as string ?? Names[0];
 
     /// <inheritdoc />
     public bool Accepts(JsonElement value)

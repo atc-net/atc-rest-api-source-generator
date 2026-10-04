@@ -74,7 +74,7 @@ public class MarkerConfigDiagnosticTests
 
     [Theory]
     [InlineData(".atc-rest-api-client", """{ "generationMode": "EndpointPerOperation", "clientSufix": "Gateway" }""", "'clientSufix' is not a setting of this marker file and is ignored")]
-    [InlineData(".atc-rest-api-server", """{ "validateSpecificationStrategy": "Minimal" }""", "'validateSpecificationStrategy' has the unknown value \"Minimal\" (expected none, standard or strict), so standard is used")]
+    [InlineData(".atc-rest-api-server", """{ "validateSpecificationStrategy": "Minimal" }""", "'validateSpecificationStrategy' has the unknown value \"Minimal\" (expected none, standard or strict), so strict is used")]
     [InlineData(".atc-rest-api-server-handlers.json", """{ "healthChecks": { "enabled": true } }""", "'healthChecks' is not a setting of this marker file and is ignored")]
     public void Generator_UnknownMarkerSetting_ReportsGEN014Warning(
         string markerFileName,

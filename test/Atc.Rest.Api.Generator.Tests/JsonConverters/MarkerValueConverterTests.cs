@@ -12,7 +12,7 @@ public sealed class MarkerValueConverterTests
         var values = new SubFolderStrategyTypeConverter();
 
         Assert.Equal(["None", "FirstPathSegment", "OpenApiTag"], values.Names);
-        Assert.Equal("None", values.FallbackName);
+        Assert.Equal("FirstPathSegment", values.NameOf(SubFolderStrategyType.FirstPathSegment));
     }
 
     [Fact]

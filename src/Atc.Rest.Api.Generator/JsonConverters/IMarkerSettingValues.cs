@@ -23,9 +23,11 @@ public interface IMarkerSettingValues
     bool AcceptsBooleans { get; }
 
     /// <summary>
-    /// Gets the name of the value an unknown value is read as.
+    /// The name a value of the setting is written with.
     /// </summary>
-    string FallbackName { get; }
+    /// <param name="value">The value.</param>
+    /// <returns>The name.</returns>
+    string NameOf(object? value);
 
     /// <summary>
     /// Whether the JSON value is one the setting knows.

@@ -2,7 +2,7 @@ namespace Atc.Rest.Api.Generator.Helpers;
 
 /// <summary>
 /// Finds what a marker file sets that the generator does not use. A marker file is read leniently - a property the
-/// configuration class does not have is ignored, a value a setting does not know is read as its fallback - so a typo
+/// configuration class does not have is ignored, a value a setting does not know gives the setting its default - so a typo
 /// would otherwise change the generated code without a word.
 /// </summary>
 public static class MarkerConfigInspector
@@ -28,26 +28,27 @@ public static class MarkerConfigInspector
             throw new ArgumentNullException(nameof(configType));
         }
 
-        JsonDocument document;
-        try
-        {
-            document = JsonDocument.Parse(json ?? string.Empty);
-        }
-        catch (JsonException)
-        {
-            return [];
-        }
+        return Inspect(json, configType, config: null);
+    }
 
-        using (document)
-        {
-            var problems = new List<string>();
-            if (document.RootElement.ValueKind == JsonValueKind.Object)
-            {
-                Inspect(document.RootElement, configType, path: null, problems);
-            }
+    /// <summary>
+    /// Reads a marker file leniently: a setting the configuration class does not have is ignored, and a value a
+    /// setting does not know gives the setting its default.
+    /// </summary>
+    /// <typeparam name="T">The configuration class the marker file is read into.</typeparam>
+    /// <param name="json">The content of the marker file.</param>
+    /// <param name="problems">One sentence per ignored setting or unknown value.</param>
+    /// <returns>The configuration.</returns>
+    /// <exception cref="JsonException">The content is not JSON, or a setting has a value of the wrong type.</exception>
+    public static T Read<T>(
+        string json,
+        out IReadOnlyList<string> problems)
+        where T : class, new()
+    {
+        var config = JsonSerializer.Deserialize<T>(json, JsonHelper.ConfigOptions) ?? new T();
+        problems = Inspect(json, typeof(T), config);
 
-            return problems;
-        }
+        return config;
     }
 
     /// <summary>
@@ -146,13 +147,48 @@ public static class MarkerConfigInspector
             : string.Join(", ", names.Take(names.Count - 1)) + " or " + names[names.Count - 1];
     }
 
+    private static IReadOnlyList<string> Inspect(
+        string json,
+        Type configType,
+        object? config)
+    {
+        JsonDocument document;
+        try
+        {
+            document = JsonDocument.Parse(json ?? string.Empty);
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+
+        using (document)
+        {
+            var problems = new List<string>();
+            if (document.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                Inspect(document.RootElement, configType, config, path: null, problems);
+            }
+
+            return problems;
+        }
+    }
+
+    /// <param name="element">The JSON object of the section.</param>
+    /// <param name="configType">The configuration class of the section.</param>
+    /// <param name="config">The section as read, whose unknown values are set to their default; or
+    /// <see langword="null"/> to only find the problems.</param>
+    /// <param name="path">The path of the section.</param>
+    /// <param name="problems">The problems found.</param>
     private static void Inspect(
         JsonElement element,
         Type configType,
+        object? config,
         string? path,
         List<string> problems)
     {
         var settings = SettingsOf(configType);
+        var defaults = Activator.CreateInstance(configType);
         foreach (var jsonProperty in element.EnumerateObject())
         {
             var settingPath = path is null ? jsonProperty.Name : $"{path}.{jsonProperty.Name}";
@@ -173,7 +209,13 @@ public static class MarkerConfigInspector
             {
                 if (!values.Accepts(value))
                 {
-                    problems.Add($"'{settingPath}' has the unknown value {value.GetRawText()} (expected {DescribeValues(values)}), so {values.FallbackName} is used");
+                    var defaultValue = setting.GetValue(defaults);
+                    if (config is not null)
+                    {
+                        setting.SetValue(config, defaultValue);
+                    }
+
+                    problems.Add($"'{settingPath}' has the unknown value {value.GetRawText()} (expected {DescribeValues(values)}), so {values.NameOf(defaultValue)} is used");
                 }
 
                 continue;
@@ -185,15 +227,18 @@ public static class MarkerConfigInspector
                 continue;
             }
 
+            var section = config is null ? null : setting.GetValue(config);
             if (!isDictionary)
             {
-                Inspect(value, sectionType, settingPath, problems);
+                Inspect(value, sectionType, section, settingPath, problems);
                 continue;
             }
 
+            var entries = section as IDictionary;
             foreach (var entry in value.EnumerateObject().Where(e => e.Value.ValueKind == JsonValueKind.Object))
             {
-                Inspect(entry.Value, sectionType, $"{settingPath}.{entry.Name}", problems);
+                var entrySection = entries is not null && entries.Contains(entry.Name) ? entries[entry.Name] : null;
+                Inspect(entry.Value, sectionType, entrySection, $"{settingPath}.{entry.Name}", problems);
             }
         }
     }
