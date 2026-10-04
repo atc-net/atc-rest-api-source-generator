@@ -107,6 +107,137 @@ public static class HttpResponseMessageFactory
     }
 
     /// <summary>
+    /// Creates an <c>application/problem+json</c> validation problem (RFC 9457 with an <c>errors</c> member), as
+    /// Atc.Rest.MinimalApi's validation filter answers a request that fails validation.
+    /// </summary>
+    /// <param name="errors">The messages per field, keyed by the field's wire name.</param>
+    /// <param name="statusCode">The status code to return. Defaults to <c>400 Bad Request</c>.</param>
+    /// <param name="title">The problem title.</param>
+    /// <returns>A validation-problem response.</returns>
+    public static HttpResponseMessage ValidationProblem(
+        IDictionary<string, string[]> errors,
+        HttpStatusCode statusCode = HttpStatusCode.BadRequest,
+        string title = "One or more validation errors occurred.")
+    {
+        ArgumentNullException.ThrowIfNull(errors);
+
+        var payload = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["title"] = title,
+            ["status"] = (int)statusCode,
+            ["errors"] = errors,
+        };
+
+        return new HttpResponseMessage(statusCode)
+        {
+            Content = new StringContent(
+                JsonSerializer.Serialize(payload),
+                Encoding.UTF8,
+                "application/problem+json"),
+        };
+    }
+
+    /// <summary>
+    /// Creates an <c>application/xml</c> response from raw XML.
+    /// </summary>
+    /// <param name="xml">The XML body.</param>
+    /// <param name="statusCode">The status code to return.</param>
+    /// <returns>An XML response.</returns>
+    public static HttpResponseMessage Xml(
+        string xml,
+        HttpStatusCode statusCode = HttpStatusCode.OK)
+        => new(statusCode)
+        {
+            Content = new StringContent(xml, Encoding.UTF8, "application/xml"),
+        };
+
+    /// <summary>
+    /// Creates an <c>application/problem+xml</c> response as described by RFC 9457 (the
+    /// <c>urn:ietf:rfc:7807</c> namespace).
+    /// </summary>
+    /// <param name="statusCode">The status code to return.</param>
+    /// <param name="title">The problem title. Defaults to the status code reason phrase.</param>
+    /// <param name="detail">An optional human-readable explanation.</param>
+    /// <returns>An XML problem-details response.</returns>
+    public static HttpResponseMessage ProblemXml(
+        HttpStatusCode statusCode,
+        string? title = null,
+        string? detail = null)
+    {
+        var problem = new System.Xml.Linq.XElement(
+            System.Xml.Linq.XName.Get("problem", "urn:ietf:rfc:7807"),
+            new System.Xml.Linq.XElement(System.Xml.Linq.XName.Get("title", "urn:ietf:rfc:7807"), title ?? statusCode.ToString()),
+            new System.Xml.Linq.XElement(System.Xml.Linq.XName.Get("status", "urn:ietf:rfc:7807"), (int)statusCode));
+
+        if (detail is not null)
+        {
+            problem.Add(new System.Xml.Linq.XElement(System.Xml.Linq.XName.Get("detail", "urn:ietf:rfc:7807"), detail));
+        }
+
+        return new HttpResponseMessage(statusCode)
+        {
+            Content = new StringContent(
+                problem.ToString(System.Xml.Linq.SaveOptions.DisableFormatting),
+                Encoding.UTF8,
+                "application/problem+xml"),
+        };
+    }
+
+    /// <summary>
+    /// Creates a file response: the bytes with their media type and, optionally, a file name
+    /// (<c>Content-Disposition: attachment</c>).
+    /// </summary>
+    /// <param name="content">The file's bytes.</param>
+    /// <param name="contentType">The file's media type, for example <c>application/pdf</c>.</param>
+    /// <param name="fileName">The file name the response names, or <see langword="null"/> for none.</param>
+    /// <param name="statusCode">The status code to return.</param>
+    /// <returns>A file response.</returns>
+    public static HttpResponseMessage File(
+        byte[] content,
+        string contentType,
+        string? fileName = null,
+        HttpStatusCode statusCode = HttpStatusCode.OK)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
+
+        var body = new ByteArrayContent(content);
+        body.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        if (fileName is not null)
+        {
+            body.Headers.ContentDisposition = new ContentDispositionHeaderValue("attachment") { FileName = fileName };
+        }
+
+        return new HttpResponseMessage(statusCode) { Content = body };
+    }
+
+    /// <summary>
+    /// Creates a <c>text/event-stream</c> response with one <c>data:</c> event per item, each serialized as JSON - a
+    /// streamed (<c>IAsyncEnumerable</c>) response the generated clients read item by item.
+    /// </summary>
+    /// <typeparam name="T">The item type.</typeparam>
+    /// <param name="items">The items to stream.</param>
+    /// <param name="jsonSerializerOptions">Optional serializer options.</param>
+    /// <returns>A server-sent-events response.</returns>
+    public static HttpResponseMessage ServerSentEvents<T>(
+        IEnumerable<T> items,
+        JsonSerializerOptions? jsonSerializerOptions = null)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+
+        var events = new StringBuilder();
+        foreach (var item in items)
+        {
+            events.Append("data: ").Append(JsonSerializer.Serialize(item, jsonSerializerOptions)).Append("\n\n");
+        }
+
+        return new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(events.ToString(), Encoding.UTF8, "text/event-stream"),
+        };
+    }
+
+    /// <summary>
     /// Creates a response with no body at all.
     /// </summary>
     /// <param name="statusCode">The status code to return. Defaults to <c>204 No Content</c>.</param>

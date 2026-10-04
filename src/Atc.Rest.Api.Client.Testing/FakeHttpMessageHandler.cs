@@ -26,7 +26,9 @@ namespace Atc.Rest.Api.Client.Testing;
 public sealed class FakeHttpMessageHandler : HttpMessageHandler
 {
     private readonly Func<HttpRequestMessage, HttpResponseMessage>[] responses;
-    private readonly Dictionary<string, Func<HttpRequestMessage, HttpResponseMessage>> keyedResponses = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<KeyedResponse> keyedResponses = [];
+    private readonly List<HttpRequestMessage> requests = [];
+    private readonly Lock gate = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FakeHttpMessageHandler"/> class
@@ -62,9 +64,20 @@ public sealed class FakeHttpMessageHandler : HttpMessageHandler
     }
 
     /// <summary>
-    /// Gets every request that passed through this handler, in order.
+    /// Gets every request that passed through this handler, in order (a snapshot; requests sent concurrently are all
+    /// recorded). A request's body can be read with <see cref="HttpRequestMessageExtensions.ReadBodyAsync"/> even after
+    /// the client disposed the request, as generated clients do.
     /// </summary>
-    public List<HttpRequestMessage> Requests { get; } = [];
+    public IReadOnlyList<HttpRequestMessage> Requests
+    {
+        get
+        {
+            lock (gate)
+            {
+                return [.. requests];
+            }
+        }
+    }
 
     /// <summary>
     /// Gets or sets a task that is awaited before a response is produced.
@@ -81,11 +94,16 @@ public sealed class FakeHttpMessageHandler : HttpMessageHandler
     /// <param name="index">The zero-based index of the request.</param>
     /// <returns>The recorded request.</returns>
     public HttpRequestMessage Request(int index)
-        => Requests[index];
+    {
+        lock (gate)
+        {
+            return requests[index];
+        }
+    }
 
     /// <summary>
     /// Registers a response for every request whose absolute path ends with
-    /// <paramref name="pathSuffix"/>, regardless of call order.
+    /// <paramref name="pathSuffix"/>, whatever its method, regardless of call order.
     /// </summary>
     /// <param name="pathSuffix">The path suffix to match, for example <c>/api/items</c>.</param>
     /// <param name="response">The response factory to invoke on a match.</param>
@@ -93,12 +111,24 @@ public sealed class FakeHttpMessageHandler : HttpMessageHandler
     public FakeHttpMessageHandler RespondTo(
         string pathSuffix,
         Func<HttpResponseMessage> response)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(pathSuffix);
-        ArgumentNullException.ThrowIfNull(response);
+        => Register(method: null, pathSuffix, response);
 
-        keyedResponses[pathSuffix] = _ => response();
-        return this;
+    /// <summary>
+    /// Registers a response for every request with <paramref name="method"/> whose absolute path ends with
+    /// <paramref name="pathSuffix"/>, regardless of call order. A method-specific registration wins over one for
+    /// every method.
+    /// </summary>
+    /// <param name="method">The HTTP method to match, for example <see cref="HttpMethod.Post"/>.</param>
+    /// <param name="pathSuffix">The path suffix to match, for example <c>/api/items</c>.</param>
+    /// <param name="response">The response factory to invoke on a match.</param>
+    /// <returns>The same handler, so calls can be chained.</returns>
+    public FakeHttpMessageHandler RespondTo(
+        HttpMethod method,
+        string pathSuffix,
+        Func<HttpResponseMessage> response)
+    {
+        ArgumentNullException.ThrowIfNull(method);
+        return Register(method, pathSuffix, response);
     }
 
     /// <summary>
@@ -120,24 +150,28 @@ public sealed class FakeHttpMessageHandler : HttpMessageHandler
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        Requests.Add(request);
+        // The body is kept apart from the request: generated clients dispose the request (and its content) after sending
+        if (request.Content is not null)
+        {
+            RecordedBodies.Record(request, await request.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false));
+        }
+
+        int position;
+        KeyedResponse? keyed;
+        lock (gate)
+        {
+            requests.Add(request);
+            position = requests.Count - 1;
+            keyed = FindKeyedResponse(request);
+        }
 
         await ResponseGate.WaitAsync(cancellationToken).ConfigureAwait(false);
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (keyedResponses.Count > 0 &&
-            request.RequestUri is not null)
+        if (keyed is not null)
         {
-            var path = request.RequestUri.AbsolutePath;
-
-            foreach (var keyedResponse in keyedResponses)
-            {
-                if (path.EndsWith(keyedResponse.Key, StringComparison.OrdinalIgnoreCase))
-                {
-                    return keyedResponse.Value(request);
-                }
-            }
+            return keyed.Response(request);
         }
 
         if (responses.Length == 0)
@@ -146,6 +180,47 @@ public sealed class FakeHttpMessageHandler : HttpMessageHandler
                 $"{nameof(FakeHttpMessageHandler)} received a request for '{request.RequestUri}' but no response was configured.");
         }
 
-        return responses[Math.Min(Requests.Count - 1, responses.Length - 1)](request);
+        return responses[Math.Min(position, responses.Length - 1)](request);
     }
+
+    private FakeHttpMessageHandler Register(
+        HttpMethod? method,
+        string pathSuffix,
+        Func<HttpResponseMessage> response)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pathSuffix);
+        ArgumentNullException.ThrowIfNull(response);
+
+        lock (gate)
+        {
+            keyedResponses.RemoveAll(k => k.Method == method && string.Equals(k.PathSuffix, pathSuffix, StringComparison.OrdinalIgnoreCase));
+            keyedResponses.Add(new KeyedResponse(method, pathSuffix, _ => response()));
+        }
+
+        return this;
+    }
+
+    private KeyedResponse? FindKeyedResponse(HttpRequestMessage request)
+    {
+        if (keyedResponses.Count == 0 ||
+            request.RequestUri is null)
+        {
+            return null;
+        }
+
+        var path = request.RequestUri.IsAbsoluteUri
+            ? request.RequestUri.AbsolutePath
+            : request.RequestUri.OriginalString;
+        var matches = keyedResponses
+            .Where(k => (k.Method is null || k.Method == request.Method) &&
+                        path.EndsWith(k.PathSuffix, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        return matches.Find(k => k.Method is not null) ?? matches.FirstOrDefault();
+    }
+
+    private sealed record KeyedResponse(
+        HttpMethod? Method,
+        string PathSuffix,
+        Func<HttpRequestMessage, HttpResponseMessage> Response);
 }

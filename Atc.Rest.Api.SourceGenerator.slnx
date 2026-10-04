@@ -91,6 +91,7 @@
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Atc.CodeGeneration.CSharp.Tests/Atc.CodeGeneration.CSharp.Tests.csproj" />
+    <Project Path="test/Atc.Rest.Api.Client.Testing.Tests/Atc.Rest.Api.Client.Testing.Tests.csproj" />
     <Project Path="test/Atc.CodeGeneration.TypeScript.Tests/Atc.CodeGeneration.TypeScript.Tests.csproj" />
     <Project Path="test/Atc.Rest.Api.Generator.Cli.Tests/Atc.Rest.Api.Generator.Cli.Tests.csproj" />
     <Project Path="test/Atc.Rest.Api.Generator.IntegrationTests/Atc.Rest.Api.Generator.IntegrationTests.csproj" />
