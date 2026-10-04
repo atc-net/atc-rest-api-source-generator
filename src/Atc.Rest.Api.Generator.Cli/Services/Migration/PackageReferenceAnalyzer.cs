@@ -6,7 +6,7 @@ namespace Atc.Rest.Api.Generator.Cli.Services.Migration;
 internal static class PackageReferenceAnalyzer
 {
     private static readonly Regex PackageReferencePattern = new(
-        @"<PackageReference\s+Include=""(?<package>[^""]+)""\s+Version=""(?<version>[^""]+)""",
+        @"<PackageReference\s+Include=""(?<package>[^""]+)""(?:\s+Version=""(?<version>[^""]+)"")?",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture,
         TimeSpan.FromSeconds(1));
 
@@ -76,10 +76,16 @@ internal static class PackageReferenceAnalyzer
             var content = File.ReadAllText(projectFile);
             var matches = PackageReferencePattern.Matches(content);
 
+            // A versionless reference takes its version from Directory.Packages.props (Central Package Management)
+            var centralFile = CentralPackageVersions.FindFile(projectFile);
+            var centralContent = centralFile is null ? null : File.ReadAllText(centralFile);
+
             foreach (Match match in matches)
             {
                 var packageName = match.Groups["package"].Value;
-                var packageVersion = match.Groups["version"].Value;
+                var packageVersion = match.Groups["version"].Success
+                    ? match.Groups["version"].Value
+                    : CentralVersion(centralContent, packageName) ?? string.Empty;
 
                 if (IsAtcPackage(packageName))
                 {
@@ -103,11 +109,11 @@ internal static class PackageReferenceAnalyzer
 
     private static void IdentifyPackagesToRemove(PackageReferenceResult result)
     {
-        // These packages will be replaced by the source generator
-        // Note: Atc.Rest.Client is NOT removed - it's required by generated client code
+        // The old generator's runtime that the source generator replaces. Atc.Rest.MinimalApi (the server code builds
+        // on it) and Atc.Rest.Client (the client code) are upgraded, not obsolete.
         string[] packagesToRemove =
         [
-            "Atc.Rest.MinimalApi",
+            "Atc.Rest.Extended",
             "Atc.Rest.Extended.Options",
         ];
 
@@ -118,5 +124,22 @@ internal static class PackageReferenceAnalyzer
                 result.PackagesToRemove.Add(package);
             }
         }
+    }
+
+    private static string? CentralVersion(
+        string? centralContent,
+        string packageName)
+    {
+        if (centralContent is null)
+        {
+            return null;
+        }
+
+        var match = Regex.Match(
+            centralContent,
+            $@"<PackageVersion\s+Include=""{Regex.Escape(packageName)}""\s+Version=""(?<version>[^""]+)""",
+            RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture,
+            TimeSpan.FromSeconds(1));
+        return match.Success ? match.Groups["version"].Value : null;
     }
 }

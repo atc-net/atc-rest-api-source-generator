@@ -46,6 +46,28 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
     /// the source generator's namespaces in every C# file of the solution - every project that used the contracts, not
     /// only the domain - outside build output, laid out from the specification.
     /// </summary>
+    /// <summary>
+    /// Describes the packages the source generator makes obsolete, each with its direct dependencies (from its .nuspec
+    /// in <paramref name="packagesFolder"/>): removing a package drops what it brought in transitively, which the host
+    /// may still use.
+    /// </summary>
+    internal static List<string> DescribeObsoletePackages(
+        PackageReferenceResult references,
+        string packagesFolder)
+        => references.PackagesToRemove
+            .Select(package =>
+            {
+                var version = references.AtcPackages.GetValueOrDefault(package, string.Empty);
+                var dependencies = version.Length == 0 ? null : NuGetPackageDependencies.Read(package, version, packagesFolder);
+                return dependencies switch
+                {
+                    null => $"{package} {version} - its dependencies are unknown (the package is not in the NuGet cache)",
+                    { Count: 0 } => $"{package} {version} - it brings no other package",
+                    _ => $"{package} {version} - add these as direct references if the build needs them: {string.Join(", ", dependencies)}",
+                };
+            })
+            .ToList();
+
     internal static void UpdateContractsReferences(
         MigrationValidationReport report,
         string projectName,
@@ -337,6 +359,9 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
                 // Step 15: Update Host project (Program.cs and GlobalUsings)
                 ctx.Status(dryRun ? "Analyzing Host project..." : "Updating Host project...");
                 UpdateHostProject(report, projectName, dryRun, summary);
+
+                // The packages the source generator makes obsolete, with what removing them would drop
+                summary.ObsoletePackages.AddRange(DescribeObsoletePackages(report.PackageReferences, NuGetPackageDependencies.DefaultPackagesFolder));
 
                 // Display summary
                 DisplayMigrationSummary(summary, dryRun);
@@ -832,6 +857,17 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             foreach (var file in summary.DeletedFiles)
             {
                 AnsiConsole.MarkupLine($"  [red]-[/] {Markup.Escape(file)}");
+            }
+
+            AnsiConsole.WriteLine();
+        }
+
+        if (summary.ObsoletePackages.Count > 0)
+        {
+            AnsiConsole.MarkupLine("[blue]Packages the source generator makes obsolete (remove them when nothing else uses them)[/]");
+            foreach (var package in summary.ObsoletePackages)
+            {
+                AnsiConsole.MarkupLine($"  [yellow]![/] {Markup.Escape(package)}");
             }
 
             AnsiConsole.WriteLine();

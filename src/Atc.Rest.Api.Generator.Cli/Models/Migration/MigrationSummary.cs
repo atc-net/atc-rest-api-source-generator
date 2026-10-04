@@ -31,6 +31,11 @@ public sealed class MigrationSummary
     public List<string> PreservedFiles { get; } = [];
 
     /// <summary>
+    /// Gets the packages the source generator makes obsolete, each with the dependencies removing it would drop.
+    /// </summary>
+    public List<string> ObsoletePackages { get; } = [];
+
+    /// <summary>
     /// Gets the existing files the migration changed, such as project and solution files.
     /// </summary>
     public List<string> ModifiedFiles { get; } = [];
