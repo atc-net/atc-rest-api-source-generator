@@ -31,6 +31,34 @@ public class FileHelperTests
     }
 
     [Fact]
+    public void WriteTsFile_SameContent_LeavesTheFileUntouched()
+    {
+        // A watcher or bundler that sees every file written would rebuild everything on each regeneration
+        var root = Path.Combine(Path.GetTempPath(), "atc-ts-" + Guid.NewGuid().ToString("N", System.Globalization.CultureInfo.InvariantCulture));
+        var filePath = Path.Combine(root, "pet.ts");
+
+        try
+        {
+            FileHelper.WriteTsFile(filePath, "export interface Pet { name: string; }\n");
+            var past = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            File.SetLastWriteTimeUtc(filePath, past);
+
+            Assert.False(FileHelper.WriteTsFile(filePath, "export interface Pet { name: string; }\n"));
+            Assert.Equal(past, File.GetLastWriteTimeUtc(filePath));
+
+            Assert.True(FileHelper.WriteTsFile(filePath, "export interface Pet { name: string; tag?: string; }\n"));
+            Assert.NotEqual(past, File.GetLastWriteTimeUtc(filePath));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void WriteTsFile_EmptyPath_Throws()
         => Assert.Throws<ArgumentNullException>(() => FileHelper.WriteTsFile(string.Empty, "x"));
 }

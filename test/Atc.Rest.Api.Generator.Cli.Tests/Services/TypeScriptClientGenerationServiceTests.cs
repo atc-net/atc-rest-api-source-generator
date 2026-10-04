@@ -3,6 +3,87 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Services;
 public class TypeScriptClientGenerationServiceTests
 {
     [Fact]
+    public void Generate_Again_RemovesTheFilesOfRemovedSchemas_AndKeepsHandWrittenFiles()
+    {
+        const string withOwner = """
+                                 openapi: 3.0.0
+                                 info:
+                                   title: Test API
+                                   version: 1.0.0
+                                 paths:
+                                   /pets:
+                                     get:
+                                       operationId: listPets
+                                       responses:
+                                         '200':
+                                           description: OK
+                                           content:
+                                             application/json:
+                                               schema:
+                                                 $ref: '#/components/schemas/Pet'
+                                 components:
+                                   schemas:
+                                     Pet:
+                                       type: object
+                                       properties:
+                                         owner:
+                                           $ref: '#/components/schemas/Owner'
+                                     Owner:
+                                       type: object
+                                       properties:
+                                         name:
+                                           type: string
+                                 """;
+        const string withoutOwner = """
+                                    openapi: 3.0.0
+                                    info:
+                                      title: Test API
+                                      version: 1.0.0
+                                    paths:
+                                      /pets:
+                                        get:
+                                          operationId: listPets
+                                          responses:
+                                            '200':
+                                              description: OK
+                                              content:
+                                                application/json:
+                                                  schema:
+                                                    $ref: '#/components/schemas/Pet'
+                                    components:
+                                      schemas:
+                                        Pet:
+                                          type: object
+                                          properties:
+                                            name:
+                                              type: string
+                                    """;
+        var output = Path.Combine(Path.GetTempPath(), "atc-ts-prune", Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            var config = new TypeScriptClientConfig { GenerateFileHeaders = true, Scaffold = false };
+            TypeScriptClientGenerationService.Generate(ParseYaml(withOwner)!, output, config);
+            Assert.True(File.Exists(Path.Combine(output, "models", "Owner.ts")));
+            var handWritten = Path.Combine(output, "models", "extensions.ts");
+            File.WriteAllText(handWritten, "export const answer = 42;\n");
+
+            TypeScriptClientGenerationService.Generate(ParseYaml(withoutOwner)!, output, config);
+
+            Assert.False(File.Exists(Path.Combine(output, "models", "Owner.ts")), "the file of a schema that is gone is removed");
+            Assert.True(File.Exists(Path.Combine(output, "models", "Pet.ts")));
+            Assert.True(File.Exists(handWritten), "a file without the generated header is never removed");
+        }
+        finally
+        {
+            if (Directory.Exists(output))
+            {
+                Directory.Delete(output, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void Generate_OperationWithCookieParameter_EmitsWarningNamingParamAndOperation()
     {
         const string yaml = """

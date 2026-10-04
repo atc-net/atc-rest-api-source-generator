@@ -208,7 +208,9 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         watcher.EnableRaisingEvents = true;
 
         using var exitEvent = new ManualResetEventSlim(false);
-        using var debounceTimer = new System.Threading.Timer(_ =>
+
+        // One regeneration at a time: a change saved during a run regenerates once more after it, never concurrently
+        var regeneration = new SerialRunner(() =>
         {
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine($"[yellow]Change detected at {DateTime.Now:HH:mm:ss}[/]");
@@ -226,6 +228,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine("[blue]Watching for changes...[/] Press Ctrl+C to stop.");
         });
+        using var debounceTimer = new System.Threading.Timer(_ => regeneration.Trigger());
 
         watcher.Changed += (_, _) => debounceTimer.Change(300, Timeout.Infinite);
         watcher.Created += (_, _) => debounceTimer.Change(300, Timeout.Infinite);
