@@ -76,6 +76,7 @@ For a typical three-layer architecture, use different marker files per project:
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/atc-net/atc-rest-api-source-generator/main/schemas/atc-rest-api-server.schema.json",
   "generate": true,
   "validateSpecificationStrategy": "Standard"
 }
@@ -85,12 +86,14 @@ For a typical three-layer architecture, use different marker files per project:
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/atc-net/atc-rest-api-source-generator/main/schemas/atc-rest-api-server-handlers.schema.json",
   "generate": true,
   "generateHandlersOutput": "Handlers"
 }
 ```
 
-> 💡 See [Marker Files Reference](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Marker-Files) for all configuration options.
+> 💡 See [Marker Files Reference](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Marker-Files) for all configuration options. `$schema` gives completion and validation in the editor
+> ([editor support](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Marker-Files#-editor-support-and-checks)); a misspelled setting is reported by the build as `ATC_API_GEN014`.
 
 ### 4. Build and Use
 
