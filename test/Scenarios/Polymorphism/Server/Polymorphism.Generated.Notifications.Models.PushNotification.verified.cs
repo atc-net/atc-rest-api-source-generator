@@ -7,6 +7,15 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Polymorphism.Generated.Notifications.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="Kind">Notification type identifier.</param>
+/// <param name="DeviceToken">Device push token.</param>
+/// <param name="Title">Push notification title.</param>
+/// <param name="Body">Push notification body.</param>
+/// <param name="Badge">Badge count for app icon.</param>
+/// <param name="Sound">Sound file name.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record PushNotification(
     [property: Required] string Kind,

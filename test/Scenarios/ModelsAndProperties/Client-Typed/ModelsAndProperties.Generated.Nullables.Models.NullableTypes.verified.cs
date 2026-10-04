@@ -13,6 +13,23 @@ namespace ModelsAndProperties.Generated.Nullables.Models;
 /// <summary>
 /// Demonstrates nullable versions of all types.
 /// </summary>
+/// <param name="RequiredString">Required non-nullable string.</param>
+/// <param name="NullableString">Nullable string.</param>
+/// <param name="NullableInteger">Nullable integer.</param>
+/// <param name="NullableLong">Nullable long.</param>
+/// <param name="NullableNumber">Nullable number.</param>
+/// <param name="NullableFloat">Nullable float.</param>
+/// <param name="NullableBoolean">Nullable boolean.</param>
+/// <param name="NullableUuid">Nullable UUID.</param>
+/// <param name="NullableDateTime">Nullable date-time.</param>
+/// <param name="NullableDate">Nullable date.</param>
+/// <param name="NullableUri">Nullable URI.</param>
+/// <param name="NullableEmail">Nullable email.</param>
+/// <param name="NullableIntegerWithRange">Nullable integer with range.</param>
+/// <param name="NullableStringWithLength">Nullable string with length.</param>
+/// <param name="NullableWithDefault">Nullable string with default.</param>
+/// <param name="NullableArray">Nullable array of strings.</param>
+/// <param name="NullableAddress">Nullable address reference.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record NullableTypes(
     [property: Required] string RequiredString,

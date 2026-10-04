@@ -11,6 +11,21 @@ namespace HostileSpec.Generated.Models;
 /// <summary>
 /// A note */ with &lt;tags> &amp; "quotes" and a backslash \ in its description.
 /// </summary>
+/// <param name="Id">The id */ &lt;id> &amp; "id" \ id.</param>
+/// <param name="Title">The title.
+/// On a second line with */ and &lt;b>.</param>
+/// <param name="Path">A Windows path.</param>
+/// <param name="Kind">The kind */ of &lt;note> &amp; "more".</param>
+/// <param name="Id2">A property whose name starts with a dollar sign.</param>
+/// <param name="_2fa">A property whose name starts with a digit.</param>
+/// <param name="UserName">Collides with userName after PascalCasing.</param>
+/// <param name="UserName2">Collides with user_name after PascalCasing.</param>
+/// <param name="Rating">An integer whose bounds are written as decimals.</param>
+/// <param name="Price">A decimal with a default.</param>
+/// <param name="Ratio">A float with a default.</param>
+/// <param name="Size">A schema whose name holds a hyphen.</param>
+/// <param name="Model">A schema whose name starts with a digit.</param>
+/// <param name="Quota">An enum whose values need 64 bits.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Note(
     [property: Required] string Id,

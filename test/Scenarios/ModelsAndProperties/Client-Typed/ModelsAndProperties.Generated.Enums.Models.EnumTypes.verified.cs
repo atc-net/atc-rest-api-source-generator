@@ -11,6 +11,12 @@ namespace ModelsAndProperties.Generated.Enums.Models;
 /// <summary>
 /// Demonstrates enum type usage.
 /// </summary>
+/// <param name="GenderType">Gender type enumeration.</param>
+/// <param name="StatusType">Status enumeration.</param>
+/// <param name="ColorType">Color enumeration with kebab-case values.</param>
+/// <param name="PriorityType">Priority enumeration with snake_case values.</param>
+/// <param name="InlineEnum">Inline enum definition.</param>
+/// <param name="RoleType">User role enumeration.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record EnumTypes(
     GenderType? GenderType = null,

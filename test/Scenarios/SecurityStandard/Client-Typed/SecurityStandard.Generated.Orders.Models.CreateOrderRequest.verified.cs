@@ -9,6 +9,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SecurityStandard.Generated.Orders.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="CustomerId">Customer ID.</param>
+/// <param name="Items">List of item IDs.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateOrderRequest(
     [property: Required] string CustomerId,

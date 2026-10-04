@@ -11,6 +11,16 @@ namespace ModelsAndProperties.Generated.Defaults.Models;
 /// <summary>
 /// Demonstrates default values for all types.
 /// </summary>
+/// <param name="StringDefault">String with default value.</param>
+/// <param name="EmailDefault">Email with default value.</param>
+/// <param name="IntegerDefault">Integer with default value.</param>
+/// <param name="Int64Default">Long with default value.</param>
+/// <param name="NumberDefault">Number with default value.</param>
+/// <param name="FloatDefault">Float with default value.</param>
+/// <param name="BooleanTrueDefault">Boolean defaulting to true.</param>
+/// <param name="BooleanFalseDefault">Boolean defaulting to false.</param>
+/// <param name="IntegerWithRangeAndDefault">Integer with range and default.</param>
+/// <param name="StringWithLengthAndDefault">String with length constraints and default.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DefaultValues(
     string StringDefault = "default-value",

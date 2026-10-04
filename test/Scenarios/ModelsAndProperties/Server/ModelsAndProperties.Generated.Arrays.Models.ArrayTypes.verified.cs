@@ -13,6 +13,17 @@ namespace ModelsAndProperties.Generated.Arrays.Models;
 /// <summary>
 /// Demonstrates all array type variations.
 /// </summary>
+/// <param name="StringArray">Array of strings.</param>
+/// <param name="IntegerArray">Array of integers.</param>
+/// <param name="NumberArray">Array of numbers.</param>
+/// <param name="BooleanArray">Array of booleans.</param>
+/// <param name="UuidArray">Array of UUIDs.</param>
+/// <param name="DateTimeArray">Array of date-times.</param>
+/// <param name="LimitedArray">Array with min/max items.</param>
+/// <param name="UniqueArray">Array with unique items.</param>
+/// <param name="AddressArray">Array of Address objects.</param>
+/// <param name="StatusArray">Array of status enum values.</param>
+/// <param name="NestedStringArray">Two-dimensional array of strings.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ArrayTypes(
     List<string>? StringArray = null,

@@ -8,6 +8,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SecurityOpenIdConnect.Generated.Health.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="Status">Health status.</param>
+/// <param name="Timestamp">Timestamp of health check.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record HealthStatus(
     [property: Required] string Status,

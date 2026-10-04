@@ -636,6 +636,10 @@ public static class SchemaExtractor
 
         var parametersList = new List<ParameterBaseParameters>();
 
+        // A property's description becomes the record's <param> doc for it (what IntelliSense shows for the property)
+        var propertyDocs = new Dictionary<string, string>(StringComparer.Ordinal);
+        var undocumentedProperties = new Dictionary<string, string>(StringComparer.Ordinal);
+
         foreach (var prop in properties)
         {
             var propName = prop.Key.ToPascalCaseForDotNet();
@@ -682,6 +686,21 @@ public static class SchemaExtractor
             if (validationAttributes.Count > 0)
             {
                 attributesList.AddRange(validationAttributes.Select(attr => new AttributeParameters(attr, null)));
+            }
+
+            // deprecated: true warns every consumer that reads or sets the property
+            if (prop.Value.Deprecated)
+            {
+                attributesList.Add(ObsoleteAttribute);
+            }
+
+            if (!string.IsNullOrWhiteSpace(prop.Value.Description))
+            {
+                propertyDocs[propName] = WellFormedDocText(prop.Value.Description!.Trim());
+            }
+            else
+            {
+                undocumentedProperties[propName] = $"The {prop.Key} property.";
             }
 
             IList<AttributeParameters>? attributes = attributesList.Count > 0
@@ -745,6 +764,10 @@ public static class SchemaExtractor
         // Generate empty records for schemas with no properties (e.g., Unit type for 204 No Content responses)
         // These are valid types in OpenAPI that need to be generated
         var parametersList = new List<ParameterBaseParameters>();
+
+        // A property's description becomes the record's <param> doc for it (what IntelliSense shows for the property)
+        var propertyDocs = new Dictionary<string, string>(StringComparer.Ordinal);
+        var undocumentedProperties = new Dictionary<string, string>(StringComparer.Ordinal);
         var propertyNames = new PropertyNameRegistry();
 
         foreach (var prop in properties)
@@ -812,6 +835,21 @@ public static class SchemaExtractor
                 attributesList.AddRange(validationAttributes.Select(attr => new AttributeParameters(attr, null)));
             }
 
+            // deprecated: true warns every consumer that reads or sets the property
+            if (prop.Value.Deprecated)
+            {
+                attributesList.Add(ObsoleteAttribute);
+            }
+
+            if (!string.IsNullOrWhiteSpace(prop.Value.Description))
+            {
+                propertyDocs[propName] = WellFormedDocText(prop.Value.Description!.Trim());
+            }
+            else
+            {
+                undocumentedProperties[propName] = $"The {prop.Key} property.";
+            }
+
             IList<AttributeParameters>? attributes = attributesList.Count > 0
                 ? attributesList
                 : null;
@@ -867,30 +905,81 @@ public static class SchemaExtractor
                 : DeclarationModifiers.PublicSealedRecord);
 
         // Build documentation tags from schema description and examples
-        var docTags = BuildDocumentationTags(schema);
+        var docTags = BuildDocumentationTags(schema, CompletePropertyDocs(propertyDocs, undocumentedProperties));
 
         return new RecordParameters(
             DocumentationTags: docTags,
             DeclarationModifier: declarationModifier,
             Name: recordName,
             Parameters: sortedParameters,
-            Attributes: new List<AttributeParameters>
-            {
-                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-            });
+            Attributes: RecordAttributes(schema));
     }
 
     /// <summary>
     /// Builds CodeDocumentationTags from an OpenAPI schema's description and example values.
     /// </summary>
-    private static CodeDocumentationTags? BuildDocumentationTags(
+    private static readonly AttributeParameters ObsoleteAttribute = new("Obsolete", "\"Deprecated in the OpenAPI specification.\"");
+
+    private static readonly System.Text.RegularExpressions.Regex UnclosedLineBreak = new(
+        @"</?br\s*/?>",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
+    /// <summary>
+    /// Makes a specification description fit for an XML doc comment: an HTML line break written the HTML way
+    /// (<c>&lt;br&gt;</c> or <c>&lt;/br&gt;</c>, which real specifications use) is closed, or the comment is malformed XML (CS1570).
+    /// </summary>
+    private static string WellFormedDocText(string text)
+        => UnclosedLineBreak.Replace(text, "<br/>");
+
+    /// <summary>
+    /// The attributes of a generated record: [GeneratedCode], and [Obsolete] for a deprecated schema (generated with
+    /// includeDeprecated), so every consumer that uses the type is warned.
+    /// </summary>
+    private static List<AttributeParameters> RecordAttributes(
         OpenApiSchema schema)
+    {
+        var attributes = new List<AttributeParameters>
+        {
+            new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
+        };
+
+        if (schema.Deprecated)
+        {
+            attributes.Add(ObsoleteAttribute);
+        }
+
+        return attributes;
+    }
+
+    /// <summary>
+    /// Once one property of a record is documented every one must be (CS1573): the undocumented ones get a plain line.
+    /// No property documented, no parameter docs at all.
+    /// </summary>
+    private static Dictionary<string, string> CompletePropertyDocs(
+        Dictionary<string, string> propertyDocs,
+        Dictionary<string, string> undocumentedProperties)
+    {
+        if (propertyDocs.Count > 0)
+        {
+            foreach (var undocumented in undocumentedProperties)
+            {
+                propertyDocs[undocumented.Key] = undocumented.Value;
+            }
+        }
+
+        return propertyDocs;
+    }
+
+    private static CodeDocumentationTags? BuildDocumentationTags(
+        OpenApiSchema schema,
+        IReadOnlyDictionary<string, string> propertyDocs)
     {
         var schemaSummary = schema.GetSchemaSummary();
         var hasDescription = schemaSummary is not null || !string.IsNullOrWhiteSpace(schema.Description);
         var example = ExtractExampleString(schema);
 
-        if (!hasDescription && example is null)
+        if (!hasDescription && example is null && propertyDocs.Count == 0)
         {
             return null;
         }
@@ -899,10 +988,11 @@ public static class SchemaExtractor
             ?? (string.IsNullOrWhiteSpace(schema.Description)
                 ? $"Represents a {schema.Title ?? "model"}."
                 : schema.Description!.Trim());
+        summary = WellFormedDocText(summary);
 
         return new CodeDocumentationTags(
             summary: summary,
-            parameters: null,
+            parameters: propertyDocs.Count > 0 ? propertyDocs : null,
             remark: null,
             code: null,
             example: example,
@@ -959,6 +1049,10 @@ public static class SchemaExtractor
 
         // Generate empty records for schemas with no properties (e.g., Unit type for 204 No Content responses)
         var parametersList = new List<ParameterBaseParameters>();
+
+        // A property's description becomes the record's <param> doc for it (what IntelliSense shows for the property)
+        var propertyDocs = new Dictionary<string, string>(StringComparer.Ordinal);
+        var undocumentedProperties = new Dictionary<string, string>(StringComparer.Ordinal);
         var propertyNames = new PropertyNameRegistry();
 
         foreach (var prop in properties)
@@ -1051,6 +1145,21 @@ public static class SchemaExtractor
                 attributesList.AddRange(validationAttributes.Select(attr => new AttributeParameters(attr, null)));
             }
 
+            // deprecated: true warns every consumer that reads or sets the property
+            if (prop.Value.Deprecated)
+            {
+                attributesList.Add(ObsoleteAttribute);
+            }
+
+            if (!string.IsNullOrWhiteSpace(prop.Value.Description))
+            {
+                propertyDocs[propName] = WellFormedDocText(prop.Value.Description!.Trim());
+            }
+            else
+            {
+                undocumentedProperties[propName] = $"The {prop.Key} property.";
+            }
+
             IList<AttributeParameters>? attributes = attributesList.Count > 0
                 ? attributesList
                 : null;
@@ -1097,17 +1206,14 @@ public static class SchemaExtractor
                 ? DeclarationModifiers.PublicPartialRecord
                 : DeclarationModifiers.PublicSealedRecord);
 
-        var docTags = BuildDocumentationTags(schema);
+        var docTags = BuildDocumentationTags(schema, CompletePropertyDocs(propertyDocs, undocumentedProperties));
 
         return new RecordParameters(
             DocumentationTags: docTags,
             DeclarationModifier: declarationModifier,
             Name: recordName,
             Parameters: sortedParameters,
-            Attributes: new List<AttributeParameters>
-            {
-                new("GeneratedCode", $"\"{GeneratorInfo.Name}\", \"{GeneratorInfo.Version}\""),
-            });
+            Attributes: RecordAttributes(schema));
     }
 
     /// <summary>

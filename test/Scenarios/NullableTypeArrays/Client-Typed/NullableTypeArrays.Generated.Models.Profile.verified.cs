@@ -12,6 +12,15 @@ namespace NullableTypeArrays.Generated.Models;
 /// <summary>
 /// A profile whose members reference nullable component schemas.
 /// </summary>
+/// <param name="Id">The profile id.</param>
+/// <param name="Name">The display name.</param>
+/// <param name="Nickname">An optional nickname.</param>
+/// <param name="Age">The age in years.</param>
+/// <param name="Address">A postal address, or null when unknown.</param>
+/// <param name="Status">The profile status, or null when not set.</param>
+/// <param name="Priority">The priority, or null when not set.</param>
+/// <param name="Tags">A list of tags, or null.</param>
+/// <param name="ExternalId">An id in another system, or null.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Profile(
     [property: Required] string Id,

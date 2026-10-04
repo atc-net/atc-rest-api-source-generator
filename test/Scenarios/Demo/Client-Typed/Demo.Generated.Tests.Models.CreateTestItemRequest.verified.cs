@@ -11,6 +11,8 @@ namespace Demo.Generated.Tests.Models;
 /// <summary>
 /// Request model for creating a test item.
 /// </summary>
+/// <param name="Name">Name of the test item.</param>
+/// <param name="Description">Optional description.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateTestItemRequest(
     [property: Required, MinLength(1), MaxLength(100)] string Name,

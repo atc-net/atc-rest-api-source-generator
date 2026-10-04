@@ -11,6 +11,10 @@ namespace Demo.Generated.Tests.Models;
 /// <summary>
 /// A test item used to demonstrate different 201 response patterns.
 /// </summary>
+/// <param name="Id">Unique identifier for the test item.</param>
+/// <param name="Name">Name of the test item.</param>
+/// <param name="Description">Optional description.</param>
+/// <param name="CreatedAt">When the item was created.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record TestItem(
     [property: Required] Guid Id,

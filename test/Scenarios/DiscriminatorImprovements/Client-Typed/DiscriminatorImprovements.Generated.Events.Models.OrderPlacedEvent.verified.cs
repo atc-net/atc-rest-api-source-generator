@@ -8,6 +8,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DiscriminatorImprovements.Generated.Events.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="EventType">Discriminator value.</param>
+/// <param name="OrderId">Placed order identifier.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record OrderPlacedEvent(
     [property: Required] string EventType,

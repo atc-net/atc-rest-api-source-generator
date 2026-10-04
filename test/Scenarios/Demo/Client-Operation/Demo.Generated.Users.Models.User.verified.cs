@@ -8,6 +8,24 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Demo.Generated.Users.Models;
 
+/// <summary>
+/// Represents a User.
+/// </summary>
+/// <param name="Id">Unique identifier for the user.</param>
+/// <param name="FirstName">User's first name.</param>
+/// <param name="LastName">User's last name.</param>
+/// <param name="Email">User's email address.</param>
+/// <param name="Phone">Phone number in E.164 format.</param>
+/// <param name="Website">User's personal website.</param>
+/// <param name="DateOfBirth">User's date of birth.</param>
+/// <param name="Age">Calculated age based on date of birth.</param>
+/// <param name="Bio">Short biography.</param>
+/// <param name="AvatarUrl">URL to user's avatar image.</param>
+/// <param name="IsActive">Whether the user account is active.</param>
+/// <param name="Role">User's role in the system.</param>
+/// <param name="CreatedAt">When the user was created.</param>
+/// <param name="UpdatedAt">When the user was last updated.</param>
+/// <param name="Address">The address property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record User(
     [property: Required] Guid Id,

@@ -8,6 +8,14 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SecurityOpenIdConnect.Generated.Me.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="Id">User ID from identity provider.</param>
+/// <param name="Email">User email.</param>
+/// <param name="DisplayName">Display name.</param>
+/// <param name="Picture">Profile picture URL.</param>
+/// <param name="EmailVerified">Whether email is verified.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UserProfile(
     [property: Required] Guid Id,

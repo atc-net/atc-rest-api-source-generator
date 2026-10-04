@@ -7,6 +7,14 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Polymorphism.Generated.Payments.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="Type">Discriminator value.</param>
+/// <param name="CardNumber">Credit card number.</param>
+/// <param name="ExpiryDate">Expiry date in MM/YY format.</param>
+/// <param name="Cvv">Card verification value.</param>
+/// <param name="CardholderName">Name on the card.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreditCard(
     [property: Required] string Type,

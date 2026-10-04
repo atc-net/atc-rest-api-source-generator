@@ -8,6 +8,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SecurityOpenIdConnect.Generated.Resources.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="Id">Resource ID.</param>
+/// <param name="Name">Resource name.</param>
+/// <param name="OwnerId">Owner user ID.</param>
+/// <param name="CreatedAt">Creation timestamp.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Resource(
     [property: Required] Guid Id,

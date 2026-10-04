@@ -8,6 +8,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SecurityOpenIdConnect.Generated.Resources.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="Name">Resource name.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record CreateResourceRequest(
     [property: Required, MinLength(1), MaxLength(100)] string Name);

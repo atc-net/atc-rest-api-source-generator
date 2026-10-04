@@ -9,6 +9,14 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SecurityStandard.Generated.Orders.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="Id">Unique order identifier.</param>
+/// <param name="CustomerId">Customer ID.</param>
+/// <param name="Status">Order status.</param>
+/// <param name="TotalAmount">Total order amount.</param>
+/// <param name="CreatedAt">Order creation timestamp.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Order(
     [property: Required] Guid Id,

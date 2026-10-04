@@ -12,6 +12,8 @@ namespace NullableTypeArrays.Generated.Models;
 /// <summary>
 /// A postal address, or null when unknown.
 /// </summary>
+/// <param name="Street">The street.</param>
+/// <param name="City">The city.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Address(
     string? Street = null,

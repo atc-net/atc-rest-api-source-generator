@@ -7,6 +7,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Polymorphism.Generated.Payments.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="Type">Discriminator value.</param>
+/// <param name="Email">PayPal email address.</param>
+/// <param name="PayerId">PayPal payer ID.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record PayPal(
     [property: Required] string Type,

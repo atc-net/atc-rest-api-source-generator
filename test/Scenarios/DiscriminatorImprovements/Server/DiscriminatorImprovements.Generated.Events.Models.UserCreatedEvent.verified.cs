@@ -8,6 +8,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DiscriminatorImprovements.Generated.Events.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="EventType">Discriminator value.</param>
+/// <param name="UserId">Created user identifier.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record UserCreatedEvent(
     [property: Required] string EventType,

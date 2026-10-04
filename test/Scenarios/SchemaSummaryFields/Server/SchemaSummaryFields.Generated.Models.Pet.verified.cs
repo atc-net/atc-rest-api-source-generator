@@ -10,6 +10,9 @@ namespace SchemaSummaryFields.Generated.Models;
 /// <summary>
 /// A pet in the store.
 /// </summary>
+/// <param name="Id">The auto-assigned pet ID.</param>
+/// <param name="Name">The pet's given name.</param>
+/// <param name="Status">Current adoption status of the pet.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Pet(
     [property: Required] int Id,

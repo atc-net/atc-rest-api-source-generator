@@ -8,6 +8,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SecurityStandard.Generated.Admin.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="MaintenanceMode">Maintenance mode flag.</param>
+/// <param name="MaxUsersPerTenant">Maximum users per tenant.</param>
+/// <param name="Features">Feature flags.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record AdminSettings(
     bool? MaintenanceMode = null,

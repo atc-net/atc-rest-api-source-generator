@@ -7,6 +7,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Polymorphism.Generated.Notifications.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="Kind">Notification type identifier.</param>
+/// <param name="PhoneNumber">Phone number in E.164 format.</param>
+/// <param name="Message">SMS message content.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record SmsNotification(
     [property: Required] string Kind,

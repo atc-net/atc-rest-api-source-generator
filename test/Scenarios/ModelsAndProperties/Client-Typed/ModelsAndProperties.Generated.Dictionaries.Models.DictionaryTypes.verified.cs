@@ -12,6 +12,12 @@ namespace ModelsAndProperties.Generated.Dictionaries.Models;
 /// <summary>
 /// Demonstrates dictionary/map types using additionalProperties.
 /// </summary>
+/// <param name="StringDictionary">Dictionary&lt;string, string>.</param>
+/// <param name="IntegerDictionary">Dictionary&lt;string, int>.</param>
+/// <param name="NumberDictionary">Dictionary&lt;string, double>.</param>
+/// <param name="BooleanDictionary">Dictionary&lt;string, bool>.</param>
+/// <param name="AddressDictionary">Dictionary&lt;string, Address>.</param>
+/// <param name="StringArrayDictionary">Dictionary&lt;string, string[]>.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record DictionaryTypes(
     Dictionary<string, string>? StringDictionary = null,

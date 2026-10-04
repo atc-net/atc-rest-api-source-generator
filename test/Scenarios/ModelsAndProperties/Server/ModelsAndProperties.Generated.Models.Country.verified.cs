@@ -10,6 +10,11 @@ namespace ModelsAndProperties.Generated.Models;
 /// <summary>
 /// Country with ISO code validation.
 /// </summary>
+/// <param name="Name">Country name.</param>
+/// <param name="Alpha2Code">ISO 3166-1 alpha-2 code (e.g., US, GB).</param>
+/// <param name="Alpha3Code">ISO 3166-1 alpha-3 code (e.g., USA, GBR).</param>
+/// <param name="NumericCode">ISO 3166-1 numeric code.</param>
+/// <param name="PhonePrefix">International phone prefix (e.g., +1, +44).</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Country(
     [property: Required, MaxLength(100)] string Name,

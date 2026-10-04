@@ -7,6 +7,14 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Polymorphism.Generated.Notifications.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="Kind">Notification type identifier.</param>
+/// <param name="To">Recipient email address.</param>
+/// <param name="Subject">Email subject line.</param>
+/// <param name="Body">Email body content.</param>
+/// <param name="IsHtml">Whether body is HTML formatted.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record EmailNotification(
     [property: Required] string Kind,

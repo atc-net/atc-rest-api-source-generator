@@ -7,6 +7,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace OpenApi31Features.Generated.Models;
 
+/// <summary>
+/// Represents a BinaryData.
+/// </summary>
+/// <param name="Data">Base64-encoded binary data.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record BinaryData(
     byte[]? Data = null);

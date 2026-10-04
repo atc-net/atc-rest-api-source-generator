@@ -10,6 +10,12 @@ namespace ModelsAndProperties.Generated.Models;
 /// <summary>
 /// Postal address with validation constraints.
 /// </summary>
+/// <param name="StreetName">Street name.</param>
+/// <param name="StreetNumber">Street/house number.</param>
+/// <param name="PostalCode">Postal/ZIP code.</param>
+/// <param name="CityName">City name.</param>
+/// <param name="State">State or region.</param>
+/// <param name="Country">Country with ISO code validation.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Address(
     [property: Required, MaxLength(255)] string StreetName,

@@ -12,6 +12,18 @@ namespace ModelsAndProperties.Generated.Persons.Models;
 /// <summary>
 /// Person entity with all property types.
 /// </summary>
+/// <param name="Gender">Gender type enumeration.</param>
+/// <param name="Address">Postal address with validation constraints.</param>
+/// <param name="Id">The id property.</param>
+/// <param name="FirstName">The firstName property.</param>
+/// <param name="LastName">The lastName property.</param>
+/// <param name="Email">The email property.</param>
+/// <param name="Phone">The phone property.</param>
+/// <param name="Website">The website property.</param>
+/// <param name="DateOfBirth">The dateOfBirth property.</param>
+/// <param name="IsActive">The isActive property.</param>
+/// <param name="CreatedAt">The createdAt property.</param>
+/// <param name="UpdatedAt">The updatedAt property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Person(
     [property: Required] Guid Id,

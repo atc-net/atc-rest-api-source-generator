@@ -11,6 +11,22 @@ namespace ModelsAndProperties.Generated.Validations.Models;
 /// <summary>
 /// Demonstrates all validation constraint types.
 /// </summary>
+/// <param name="RequiredString">Required string property.</param>
+/// <param name="RequiredInteger">Required integer property.</param>
+/// <param name="MinLengthString">String with minimum length 5.</param>
+/// <param name="MaxLengthString">String with maximum length 100.</param>
+/// <param name="LengthRangeString">String with length range 2-50.</param>
+/// <param name="PatternString">String matching pattern (2-3 uppercase letters).</param>
+/// <param name="PhonePattern">Phone number pattern (E.164).</param>
+/// <param name="AlphanumericPattern">Alphanumeric with underscore and hyphen.</param>
+/// <param name="MinInteger">Integer with minimum 0.</param>
+/// <param name="MaxInteger">Integer with maximum 100.</param>
+/// <param name="RangeInteger">Integer with range 1-1000.</param>
+/// <param name="MinNumber">Number with minimum 0.0.</param>
+/// <param name="MaxNumber">Number with maximum 99.99.</param>
+/// <param name="RangeNumber">Number with range -180 to 180 (longitude).</param>
+/// <param name="PriceValue">Price value with typical constraints.</param>
+/// <param name="LargeLong">Large long integer with range.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ValidationConstraints(
     [property: Required] string RequiredString,

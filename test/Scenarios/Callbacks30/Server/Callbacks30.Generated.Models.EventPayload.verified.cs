@@ -8,6 +8,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Callbacks30.Generated.Models;
 
+/// <summary>
+/// Represents a EventPayload.
+/// </summary>
+/// <param name="Data">JSON-encoded event data.</param>
+/// <param name="EventType">The eventType property.</param>
+/// <param name="Timestamp">The timestamp property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record EventPayload(
     string? EventType = null,

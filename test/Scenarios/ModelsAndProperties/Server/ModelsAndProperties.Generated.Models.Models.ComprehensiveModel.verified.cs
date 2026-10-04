@@ -13,6 +13,28 @@ namespace ModelsAndProperties.Generated.Models.Models;
 /// <summary>
 /// A comprehensive model demonstrating all OpenAPI features.
 /// </summary>
+/// <param name="Id">Unique identifier (UUID).</param>
+/// <param name="Name">Display name with length constraints.</param>
+/// <param name="Description">Optional description.</param>
+/// <param name="Email">Email address with format validation.</param>
+/// <param name="Website">Website URL.</param>
+/// <param name="CreatedAt">Creation timestamp.</param>
+/// <param name="UpdatedAt">Last update timestamp.</param>
+/// <param name="BirthDate">Date of birth (date only).</param>
+/// <param name="PreferredTime">Preferred contact time (HH:mm:ss).</param>
+/// <param name="Age">Age in years.</param>
+/// <param name="Score">Score as floating point.</param>
+/// <param name="Rating">Rating (1-5 stars).</param>
+/// <param name="ViewCount">View count as long integer.</param>
+/// <param name="IsActive">Whether the model is active.</param>
+/// <param name="IsVerified">Whether the model is verified.</param>
+/// <param name="PhoneNumber">Phone number in E.164 format.</param>
+/// <param name="Address">Postal address with validation constraints.</param>
+/// <param name="Gender">Gender type enumeration.</param>
+/// <param name="Status">Status enumeration.</param>
+/// <param name="Tags">List of tags.</param>
+/// <param name="Roles">List of assigned roles.</param>
+/// <param name="Metadata">Key-value metadata.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record ComprehensiveModel(
     [property: Required] Guid Id,

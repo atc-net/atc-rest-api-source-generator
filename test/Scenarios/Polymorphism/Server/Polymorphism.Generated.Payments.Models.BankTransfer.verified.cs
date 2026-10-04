@@ -7,6 +7,14 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Polymorphism.Generated.Payments.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="Type">Discriminator value.</param>
+/// <param name="AccountNumber">Bank account number.</param>
+/// <param name="RoutingNumber">Bank routing number.</param>
+/// <param name="BankName">Name of the bank.</param>
+/// <param name="AccountHolderName">Name of the account holder.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record BankTransfer(
     [property: Required] string Type,

@@ -8,6 +8,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SecurityStandard.Generated.Users.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="Id">User ID.</param>
+/// <param name="Username">Username.</param>
+/// <param name="Email">Email address.</param>
+/// <param name="Role">User role.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record User(
     [property: Required] Guid Id,

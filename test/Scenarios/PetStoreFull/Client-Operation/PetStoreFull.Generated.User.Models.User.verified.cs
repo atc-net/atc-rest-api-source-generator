@@ -7,6 +7,17 @@ using System.ComponentModel.DataAnnotations;
 
 namespace PetStoreFull.Generated.User.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="UserStatus">User Status.</param>
+/// <param name="Id">The id property.</param>
+/// <param name="Username">The username property.</param>
+/// <param name="FirstName">The firstName property.</param>
+/// <param name="LastName">The lastName property.</param>
+/// <param name="Email">The email property.</param>
+/// <param name="Password">The password property.</param>
+/// <param name="Phone">The phone property.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record User(
     long? Id = null,

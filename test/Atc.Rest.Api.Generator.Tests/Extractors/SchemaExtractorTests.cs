@@ -842,6 +842,140 @@ public class SchemaExtractorTests
     }
 
     [Fact]
+    public void ExtractForSchemas_PropertyDescriptions_BecomeParameterDocs()
+    {
+        // IntelliSense shows a record property's description through the record's <param> doc
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                      description: The pet's name.
+                                    tag:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
+
+        var result = SchemaExtractor.ExtractForSchemas(document, "TestProject", schemaNames, pathSegment: null);
+
+        Assert.NotNull(result);
+        var docs = result.Parameters[0].DocumentationTags;
+        Assert.NotNull(docs);
+        Assert.NotNull(docs.Parameters);
+        Assert.Equal("The pet's name.", docs.Parameters["Name"]);
+
+        // Once one property is documented every one must be (CS1573), so an undocumented one gets a plain line
+        Assert.Equal("The tag property.", docs.Parameters["Tag"]);
+    }
+
+    [Theory]
+    [InlineData("Line one<br>Line two", "Line one<br/>Line two")]
+    [InlineData("Line one<BR >Line two", "Line one<br/>Line two")]
+    [InlineData("Line one<br/>Line two", "Line one<br/>Line two")]
+    [InlineData("Line one</br>Line two", "Line one<br/>Line two")]
+    public void ExtractForSchemas_HtmlLineBreakInDescription_IsWellFormedXml(
+        string description,
+        string expected)
+    {
+        // Real specifications write HTML line breaks; an unclosed <br> would be malformed XML in the doc comment (CS1570)
+        var yaml = $$"""
+                     openapi: 3.0.0
+                     info:
+                       title: Test API
+                       version: 1.0.0
+                     paths: {}
+                     components:
+                       schemas:
+                         Pet:
+                           type: object
+                           description: "{{description}}"
+                           properties:
+                             name:
+                               type: string
+                               description: "{{description}}"
+                     """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
+
+        var result = SchemaExtractor.ExtractForSchemas(document, "TestProject", schemaNames, pathSegment: null);
+
+        Assert.NotNull(result);
+        var docs = result.Parameters[0].DocumentationTags!;
+        Assert.Equal(expected, docs.Summary);
+        Assert.Equal(expected, docs.Parameters!["Name"]);
+    }
+
+    [Fact]
+    public void ExtractForSchemas_DeprecatedProperty_IsObsolete()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                Pet:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                    nickname:
+                                      type: string
+                                      deprecated: true
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+        var schemaNames = new HashSet<string>(StringComparer.Ordinal) { "Pet" };
+
+        var result = SchemaExtractor.ExtractForSchemas(document, "TestProject", schemaNames, pathSegment: null);
+
+        Assert.NotNull(result);
+        var parameters = result.Parameters[0].Parameters!;
+        Assert.Contains(parameters.Single(p => p.Name == "Nickname").Attributes!, a => a.Name == "Obsolete");
+        Assert.DoesNotContain(parameters.Single(p => p.Name == "Name").Attributes ?? [], a => a.Name == "Obsolete");
+    }
+
+    [Fact]
+    public void ExtractIndividual_DeprecatedSchemaIncluded_IsObsolete()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths: {}
+                            components:
+                              schemas:
+                                LegacyPet:
+                                  type: object
+                                  deprecated: true
+                                  properties:
+                                    name:
+                                      type: string
+                            """;
+
+        var document = OpenApiDocumentHelper.ParseYaml(yaml);
+
+        var result = SchemaExtractor.ExtractIndividual(document, includeDeprecated: true);
+
+        Assert.NotNull(result);
+        Assert.Contains(Assert.Single(result).Attributes!, a => a.Name == "Obsolete");
+    }
+
+    [Fact]
     public void ExtractForSchemas_WithSchemaExample_GeneratesExampleTag()
     {
         const string yaml = """

@@ -12,6 +12,18 @@ namespace ModelsAndProperties.Generated.StringFormats.Models;
 /// <summary>
 /// Demonstrates all string format types.
 /// </summary>
+/// <param name="PlainString">Plain string without format.</param>
+/// <param name="UuidValue">UUID format (maps to Guid).</param>
+/// <param name="DateTimeValue">ISO 8601 date-time (maps to DateTimeOffset).</param>
+/// <param name="DateValue">ISO 8601 date (maps to DateTimeOffset).</param>
+/// <param name="TimeValue">ISO 8601 time (stays as string).</param>
+/// <param name="UriValue">URI format (maps to Uri).</param>
+/// <param name="EmailValue">Email format (string + EmailAddress attribute).</param>
+/// <param name="ByteValue">Base64 encoded string.</param>
+/// <param name="PasswordValue">Password (UI masking hint).</param>
+/// <param name="HostnameValue">Hostname format.</param>
+/// <param name="Ipv4Value">IPv4 address format.</param>
+/// <param name="Ipv6Value">IPv6 address format.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record StringFormats(
     [property: Required] string PlainString,

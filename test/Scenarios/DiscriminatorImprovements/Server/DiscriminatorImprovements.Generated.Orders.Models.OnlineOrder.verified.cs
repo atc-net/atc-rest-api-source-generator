@@ -8,6 +8,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DiscriminatorImprovements.Generated.Orders.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="OrderType">Discriminator value.</param>
+/// <param name="Url">Online storefront URL.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record OnlineOrder(
     [property: Required] string OrderType,

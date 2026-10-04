@@ -8,6 +8,17 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Demo.Generated.Users.Models;
 
+/// <summary>
+/// Represents a Address.
+/// </summary>
+/// <param name="Street">Street address.</param>
+/// <param name="City">City name.</param>
+/// <param name="State">State or region.</param>
+/// <param name="PostalCode">Postal/ZIP code.</param>
+/// <param name="Country">Country name.</param>
+/// <param name="CountryCode">ISO 3166-1 country code.</param>
+/// <param name="Latitude">Geographic latitude.</param>
+/// <param name="Longitude">Geographic longitude.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Address(
     [property: Required, MinLength(1), MaxLength(200)] string Street,

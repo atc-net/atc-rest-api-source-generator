@@ -7,6 +7,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace EnumNamingConflicts.Generated.Models;
 
+/// <summary>
+/// Represents a Settings.
+/// </summary>
+/// <param name="BooleanLike">Enum with values matching C# boolean keywords.</param>
+/// <param name="Visibility">Enum with a value matching Object method names.</param>
+/// <param name="Priority">Enum with a value matching C# keyword.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Settings(
     BooleanLike? BooleanLike = null,

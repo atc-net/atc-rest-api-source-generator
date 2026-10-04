@@ -8,6 +8,12 @@ using ModelsAndProperties.Generated.Models;
 
 namespace ModelsAndProperties.Generated.Cats.Models;
 
+/// <summary>
+/// Represents a model.
+/// </summary>
+/// <param name="Name">Animal name.</param>
+/// <param name="Age">Animal age in years.</param>
+/// <param name="Indoor">Whether the cat is indoor-only.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public sealed record Cat(
     string Name,

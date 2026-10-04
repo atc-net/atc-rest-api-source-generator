@@ -10,6 +10,8 @@ namespace ModelsAndProperties.Generated.Models;
 /// <summary>
 /// Base animal type for allOf inheritance.
 /// </summary>
+/// <param name="Name">Animal name.</param>
+/// <param name="Age">Animal age in years.</param>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public record Animal(
     [property: Required] string Name,
