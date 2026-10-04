@@ -29,14 +29,77 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         if (!string.IsNullOrEmpty(report.ProjectStructure.DomainProject))
         {
             var domainDir = Path.GetDirectoryName(report.ProjectStructure.DomainProject)!;
-            ProcessGlobalUsingsForProject(report, domainDir, contractsNamespace, dryRun, summary);
+            ProcessGlobalUsingsForProject(report, domainDir, contractsNamespace, addGeneratedUsings: true, dryRun, summary);
         }
 
-        // Process Domain.Tests project
+        // Process Domain.Tests project: only what its code used (its references were rewritten); every segment's
+        // namespaces would make a type ambiguous with another project's type of the same name
         if (!string.IsNullOrEmpty(report.ProjectStructure.DomainTestProject))
         {
             var testDir = Path.GetDirectoryName(report.ProjectStructure.DomainTestProject)!;
-            ProcessGlobalUsingsForProject(report, testDir, contractsNamespace, dryRun, summary);
+            ProcessGlobalUsingsForProject(report, testDir, contractsNamespace, addGeneratedUsings: false, dryRun, summary);
+        }
+    }
+
+    /// <summary>
+    /// Rewrites the references to the old generator's contracts (<c>{Project}.Api.Generated.Contracts[.{Segment}]</c>) to
+    /// the source generator's namespaces in every C# file of the solution - every project that used the contracts, not
+    /// only the domain - outside build output, laid out from the specification.
+    /// </summary>
+    internal static void UpdateContractsReferences(
+        MigrationValidationReport report,
+        string projectName,
+        string solutionRoot,
+        bool dryRun,
+        MigrationSummary summary)
+    {
+        if (string.IsNullOrEmpty(report.SpecificationPath) ||
+            !File.Exists(report.SpecificationPath) ||
+            !Directory.Exists(solutionRoot))
+        {
+            return;
+        }
+
+        var (_, merged) = SpecificationService.ReadAndMergeResolved(report.SpecificationPath);
+        if (merged?.Document is null)
+        {
+            AnsiConsole.MarkupLine("[yellow]Warning:[/] the specification could not be read; the contracts namespaces were not rewritten.");
+            return;
+        }
+
+        var map = ContractsNamespaceMap.Build(merged.Document, projectName);
+        foreach (var filePath in Directory.EnumerateFiles(solutionRoot, "*.cs", SearchOption.AllDirectories))
+        {
+            if (IsBuildOutput(solutionRoot, filePath))
+            {
+                continue;
+            }
+
+            var content = File.ReadAllText(filePath);
+            if (!content.Contains("Api.Generated.Contracts", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var (updated, replacements) = ContractsNamespaceRewriter.Rewrite(content, map);
+            if (replacements.Count == 0)
+            {
+                continue;
+            }
+
+            if (!dryRun)
+            {
+                File.WriteAllText(filePath, updated);
+            }
+
+            var fileUpdate = new DomainFileUpdate { FilePath = filePath };
+            fileUpdate.Replacements.AddRange(replacements);
+            summary.DomainCodeUpdates.Add(fileUpdate);
+            summary.DomainCodeTotalReplacements += replacements.Count;
+            if (!summary.ModifiedFiles.Contains(filePath, StringComparer.Ordinal))
+            {
+                summary.ModifiedFiles.Add(filePath);
+            }
         }
     }
 
@@ -259,13 +322,13 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
                 ctx.Status(dryRun ? "Analyzing solution updates..." : "Updating solution and references...");
                 UpdateSolutionAndReferences(report, projectName, settings.ClientProjectSuffix, dryRun, summary);
 
-                // Step 12: Update GlobalUsings.cs in Domain project
+                // Step 12: Rewrite the old contracts namespaces in every project of the solution
+                ctx.Status(dryRun ? "Analyzing contracts namespaces..." : "Updating contracts namespaces...");
+                UpdateContractsReferences(report, projectName, rootDirectory, dryRun, summary);
+
+                // Step 13: Update GlobalUsings.cs in the Domain project (and its tests)
                 ctx.Status(dryRun ? "Analyzing GlobalUsings.cs..." : "Updating GlobalUsings.cs...");
                 UpdateGlobalUsings(report, projectName, dryRun, summary);
-
-                // Step 13: Update namespace references in Domain code files
-                ctx.Status(dryRun ? "Analyzing domain code namespaces..." : "Updating domain code namespaces...");
-                UpdateDomainCodeNamespaces(report, projectName, dryRun, summary);
 
                 // Step 14: Migrate parameter property names in handler code
                 ctx.Status(dryRun ? "Analyzing parameter names..." : "Migrating parameter names...");
@@ -574,6 +637,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         MigrationValidationReport report,
         string projectDir,
         string contractsNamespace,
+        bool addGeneratedUsings,
         bool dryRun,
         MigrationSummary summary)
     {
@@ -599,8 +663,8 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             summary.UpdatedGlobalUsings.AddRange(removeResult.RemovedUsings.Select(ns => $"- {ns}"));
         }
 
-        // Step 3: Add new generated namespace usings based on the OpenAPI spec
-        if (!string.IsNullOrEmpty(report.SpecificationPath))
+        // Step 3: Add new generated namespace usings based on the OpenAPI spec (the domain's handlers need them all)
+        if (addGeneratedUsings && !string.IsNullOrEmpty(report.SpecificationPath))
         {
             var addResult = GlobalUsingsModifier.AddGeneratedNamespaceUsings(
                 projectDir,
@@ -628,53 +692,16 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         GlobalUsingsModifier.SortGlobalUsings(projectDir, dryRun: dryRun);
     }
 
-    private static void UpdateDomainCodeNamespaces(
-        MigrationValidationReport report,
-        string projectName,
-        bool dryRun,
-        MigrationSummary summary)
+    private static readonly char[] PathSeparators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+
+    private static bool IsBuildOutput(
+        string solutionRoot,
+        string filePath)
     {
-        // Process Domain project
-        if (!string.IsNullOrEmpty(report.ProjectStructure.DomainProject))
-        {
-            var domainDir = Path.GetDirectoryName(report.ProjectStructure.DomainProject)!;
-            ProcessCodeNamespacesForProject(domainDir, projectName, dryRun, summary);
-        }
-
-        // Process Domain.Tests project
-        if (!string.IsNullOrEmpty(report.ProjectStructure.DomainTestProject))
-        {
-            var testDir = Path.GetDirectoryName(report.ProjectStructure.DomainTestProject)!;
-            ProcessCodeNamespacesForProject(testDir, projectName, dryRun, summary);
-        }
-    }
-
-    private static void ProcessCodeNamespacesForProject(
-        string projectDir,
-        string projectName,
-        bool dryRun,
-        MigrationSummary summary)
-    {
-        var result = DomainCodeNamespaceUpdater.UpdateNamespaceReferences(projectDir, projectName, dryRun);
-
-        if (result.UpdatedFiles.Count > 0)
-        {
-            summary.DomainCodeUpdates.AddRange(result.UpdatedFiles);
-            summary.DomainCodeTotalReplacements += result.TotalReplacements;
-
-            foreach (var file in result.UpdatedFiles)
-            {
-                if (!summary.ModifiedFiles.Contains(file.FilePath, StringComparer.Ordinal))
-                {
-                    summary.ModifiedFiles.Add(file.FilePath);
-                }
-            }
-        }
-
-        if (!string.IsNullOrEmpty(result.Error))
-        {
-            AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(result.Error)}");
-        }
+        var relative = Path.GetRelativePath(solutionRoot, filePath);
+        return relative
+            .Split(PathSeparators)
+            .Any(part => part is "bin" or "obj" or "node_modules" or ".git");
     }
 
     private static void MigrateParameterNames(

@@ -6,7 +6,10 @@ namespace Atc.Rest.Api.Generator.Cli.Services.Migration;
 internal static class GlobalUsingsModifier
 {
     /// <summary>
-    /// Updates namespace references in GlobalUsings.cs from old Api.Generated to new Api.Contracts.Generated.
+    /// Updates the old generator's own namespaces in GlobalUsings.cs to the source generator's: the old root
+    /// (<c>{Project}.Api.Generated</c>) is removed and <c>.Endpoints</c> becomes <c>{Project}.Api.Contracts.Generated.Endpoints</c>.
+    /// The contracts are rewritten by <see cref="ContractsNamespaceRewriter"/>; any other namespace of the old project
+    /// (a hand-written <c>…Api.Generated.Extensions</c>) is the user's and is left alone.
     /// </summary>
     /// <param name="domainProjectDirectory">The directory containing the Domain project.</param>
     /// <param name="projectName">The base project name (e.g., "MyProject").</param>
@@ -32,11 +35,11 @@ internal static class GlobalUsingsModifier
             var modified = false;
             var newLines = new List<string>();
 
-            // Pattern for transformation: {projectName}.Api.Generated.* -> {projectName}.Api.Contracts.Generated.*
-            // But the BASE namespace {projectName}.Api.Generated (without suffix) should be REMOVED
+            // The BASE namespace {projectName}.Api.Generated (without suffix) is REMOVED; only the old generator's
+            // Endpoints namespace maps to a namespace of the source generator
             var oldNamespaceBase = $"{projectName}.Api.Generated";
-            var oldNamespaceWithDot = $"{projectName}.Api.Generated.";
-            var newNamespaceWithDot = $"{projectName}.Api.Contracts.Generated.";
+            var oldNamespaceWithDot = $"{projectName}.Api.Generated.Endpoints";
+            var newNamespaceWithDot = $"{projectName}.Api.Contracts.Generated.Endpoints";
 
             foreach (var line in lines)
             {
@@ -51,8 +54,9 @@ internal static class GlobalUsingsModifier
                     continue;
                 }
 
-                // Transform sub-namespaces: Api.Generated.Something -> Api.Contracts.Generated.Something
-                if (line.Contains(oldNamespaceWithDot, StringComparison.Ordinal))
+                // Transform the old Endpoints namespace (and anything below it)
+                if (line.Contains(oldNamespaceWithDot + ";", StringComparison.Ordinal) ||
+                    line.Contains(oldNamespaceWithDot + ".", StringComparison.Ordinal))
                 {
                     var newLine = line.Replace(oldNamespaceWithDot, newNamespaceWithDot, StringComparison.Ordinal);
                     newLines.Add(newLine);
