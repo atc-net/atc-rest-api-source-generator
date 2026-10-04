@@ -62,14 +62,15 @@ export class DocumentsClient {
   }
 
   /** List the uploaded documents */
-  async listDocuments(): Promise<ListDocumentsResult> {
+  async listDocuments(signal?: AbortSignal): Promise<ListDocumentsResult> {
     return this.api.request<Document[]>('GET', '/documents', {
       arms: ['ok', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListDocumentsResult>;
   }
 
   /** Upload a document - a PDF, an Excel workbook, a PNG or a JPEG - as the raw request body */
-  async uploadDocument(file: Blob | File, query: { fileName: string }): Promise<UploadDocumentResult> {
+  async uploadDocument(file: Blob | File, query: { fileName: string }, signal?: AbortSignal): Promise<UploadDocumentResult> {
     return this.api.request<Document>('POST', '/documents', {
       body: file,
       contentType: file.type && ['application/pdf', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'image/png', 'image/jpeg'].some((t) => t === '*/*' || t === file.type || (t.endsWith('/*') && file.type.startsWith(t.slice(0, -1)))) ? file.type : 'application/pdf',
@@ -77,19 +78,21 @@ export class DocumentsClient {
         fileName: query?.fileName,
       },
       arms: ['created', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<UploadDocumentResult>;
   }
 
   /** Download a document - with its own media type and file name */
-  async getDocument(documentId: string): Promise<GetDocumentResult> {
+  async getDocument(documentId: string, signal?: AbortSignal): Promise<GetDocumentResult> {
     return this.api.request<Blob>('GET', `/documents/${encodeURIComponent(documentId)}`, {
       responseType: 'blob',
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetDocumentResult>;
   }
 
   /** A document's summary - as JSON, or as a printable PDF */
-  async getDocumentSummary(documentId: string, query?: { printable?: boolean /* default: false */ }, headers?: { 'If-None-Match'?: string }): Promise<GetDocumentSummaryResult> {
+  async getDocumentSummary(documentId: string, query?: { printable?: boolean /* default: false */ }, headers?: { 'If-None-Match'?: string }, signal?: AbortSignal): Promise<GetDocumentSummaryResult> {
     return this.api.request<DocumentSummary | Blob>('GET', `/documents/${encodeURIComponent(documentId)}/summary`, {
       query: {
         printable: query?.printable,
@@ -100,13 +103,15 @@ export class DocumentsClient {
       },
       modelOrFile: true,
       arms: ['ok', 'notModified', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetDocumentSummaryResult>;
   }
 
   /** Copy a document - answered with 303 See Other to the copy's summary */
-  async copyDocument(documentId: string): Promise<CopyDocumentResult> {
+  async copyDocument(documentId: string, signal?: AbortSignal): Promise<CopyDocumentResult> {
     return this.api.request<void>('POST', `/documents/${encodeURIComponent(documentId)}/copy`, {
       arms: ['ok', 'redirection', 'notFound', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CopyDocumentResult>;
   }
 }

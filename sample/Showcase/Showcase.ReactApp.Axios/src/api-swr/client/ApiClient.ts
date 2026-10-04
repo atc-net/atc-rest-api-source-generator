@@ -152,6 +152,9 @@ export class ApiClient {
     if (options?.body !== undefined) {
       if (options.body instanceof FormData) {
         data = options.body;
+      } else if (options.body instanceof URLSearchParams) {
+        headers['Content-Type'] = 'application/x-www-form-urlencoded';
+        data = options.body;
       } else if (options.xml?.write) {
         headers['Content-Type'] = options.xml.contentType ?? 'application/xml; charset=utf-8';
         data = options.xml.write(options.body as never);

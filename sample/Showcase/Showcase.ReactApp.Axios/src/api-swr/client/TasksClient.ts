@@ -62,42 +62,47 @@ export class TasksClient {
   }
 
   /** List all tasks */
-  async listTasks(query?: { limit?: number }): Promise<ListTasksResult> {
+  async listTasks(query?: { limit?: number }, signal?: AbortSignal): Promise<ListTasksResult> {
     return this.api.request<Tasks>('GET', '/tasks', {
       query: {
         limit: query?.limit,
       },
       arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListTasksResult>;
   }
 
   /** Create task */
-  async createTask(body: Task): Promise<CreateTaskResult> {
+  async createTask(body: Task, signal?: AbortSignal): Promise<CreateTaskResult> {
     return this.api.request<Task>('POST', '/tasks', {
       body,
       arms: ['created', 'conflict', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CreateTaskResult>;
   }
 
   /** Get a specific task */
-  async getTaskById(taskId: string): Promise<GetTaskByIdResult> {
+  async getTaskById(taskId: string, signal?: AbortSignal): Promise<GetTaskByIdResult> {
     return this.api.request<Task>('GET', `/tasks/${encodeURIComponent(taskId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetTaskByIdResult>;
   }
 
   /** Delete a specific task */
-  async deleteTaskById(taskId: string): Promise<DeleteTaskByIdResult> {
+  async deleteTaskById(taskId: string, signal?: AbortSignal): Promise<DeleteTaskByIdResult> {
     return this.api.request<void>('DELETE', `/tasks/${encodeURIComponent(taskId)}`, {
       arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<DeleteTaskByIdResult>;
   }
 
   /** Update a specific task */
-  async updateTaskById(taskId: string, body: Task): Promise<UpdateTaskByIdResult> {
+  async updateTaskById(taskId: string, body: Task, signal?: AbortSignal): Promise<UpdateTaskByIdResult> {
     return this.api.request<Task>('PUT', `/tasks/${encodeURIComponent(taskId)}`, {
       body,
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<UpdateTaskByIdResult>;
   }
 }

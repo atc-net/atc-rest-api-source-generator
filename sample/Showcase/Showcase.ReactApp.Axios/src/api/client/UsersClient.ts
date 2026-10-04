@@ -86,7 +86,7 @@ export class UsersClient {
   }
 
   /** List all users */
-  async listUsers(query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number /* default: 25 */ }): Promise<ListUsersResult> {
+  async listUsers(query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number /* default: 25 */ }, signal?: AbortSignal): Promise<ListUsersResult> {
     return this.api.request<Users>('GET', '/users', {
       query: {
         search: query?.search,
@@ -97,58 +97,65 @@ export class UsersClient {
       },
       retry: { policy: retryPolicies.users },
       arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListUsersResult>;
   }
 
   /** Query users by a set of ids */
-  async queryUsers(body: UserQuery): Promise<QueryUsersResult> {
+  async queryUsers(body: UserQuery, signal?: AbortSignal): Promise<QueryUsersResult> {
     return this.api.request<Users>('QUERY', '/users', {
       body,
       retry: { policy: retryPolicies.users },
       arms: ['ok', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<QueryUsersResult>;
   }
 
   /** Create user */
-  async createUser(body: CreateUserRequest): Promise<CreateUserResult> {
+  async createUser(body: CreateUserRequest, signal?: AbortSignal): Promise<CreateUserResult> {
     return this.api.request<User>('POST', '/users', {
       body,
       retry: { policy: retryPolicies.users, enabled: false },
       arms: ['created', 'badRequest', 'conflict', 'unauthorized', 'forbidden', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CreateUserResult>;
   }
 
   /** Import users - a list as JSON or XML */
-  async importUsers(body: CreateUserRequest[]): Promise<ImportUsersResult> {
+  async importUsers(body: CreateUserRequest[], signal?: AbortSignal): Promise<ImportUsersResult> {
     return this.api.request<Users>('POST', '/users/import', {
       body,
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ImportUsersResult>;
   }
 
   /** Get a specific user */
-  async getUserById(userId: string): Promise<GetUserByIdResult> {
+  async getUserById(userId: string, signal?: AbortSignal): Promise<GetUserByIdResult> {
     return this.api.request<User>('GET', `/users/${encodeURIComponent(userId)}`, {
       retry: { policy: retryPolicies.users },
       xml: { read: readUser, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetUserByIdResult>;
   }
 
   /** Update a specific user */
-  async updateUserById(userId: string, body: UpdateUserRequest): Promise<UpdateUserByIdResult> {
+  async updateUserById(userId: string, body: UpdateUserRequest, signal?: AbortSignal): Promise<UpdateUserByIdResult> {
     return this.api.request<User>('PUT', `/users/${encodeURIComponent(userId)}`, {
       body,
       retry: { policy: retryPolicies.users },
       arms: ['ok', 'badRequest', 'notFound', 'conflict', 'unauthorized', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<UpdateUserByIdResult>;
   }
 
   /** Delete a specific user */
-  async deleteUserById(userId: string): Promise<DeleteUserByIdResult> {
+  async deleteUserById(userId: string, signal?: AbortSignal): Promise<DeleteUserByIdResult> {
     return this.api.request<void>('DELETE', `/users/${encodeURIComponent(userId)}`, {
       retry: { policy: retryPolicies.users },
       arms: ['noContent', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<DeleteUserByIdResult>;
   }
 }

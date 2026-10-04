@@ -41,25 +41,28 @@ export class TestingClient {
   }
 
   /** Test exception handling */
-  async getExceptionTest(code: number): Promise<GetExceptionTestResult> {
+  async getExceptionTest(code: number, signal?: AbortSignal): Promise<GetExceptionTestResult> {
     return this.api.request<ExceptionTestResponse>('GET', `/testing/exception/${encodeURIComponent(code)}`, {
       retry: { enabled: false },
       arms: ['ok', 'notFound', 'badRequest', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetExceptionTestResult>;
   }
 
   /** Test error responses */
-  async getErrorResponseTest(status: number): Promise<GetErrorResponseTestResult> {
+  async getErrorResponseTest(status: number, signal?: AbortSignal): Promise<GetErrorResponseTestResult> {
     return this.api.request<void>('POST', `/testing/error-responses/${encodeURIComponent(status)}`, {
       arms: ['noContent', 'badRequest', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetErrorResponseTestResult>;
   }
 
   /** Test a declared 400 model */
-  async postDeclaredBadRequestTest(body: DeclaredBadRequestTestRequest): Promise<PostDeclaredBadRequestTestResult> {
+  async postDeclaredBadRequestTest(body: DeclaredBadRequestTestRequest, signal?: AbortSignal): Promise<PostDeclaredBadRequestTestResult> {
     return this.api.request<void>('POST', '/testing/declared-bad-request', {
       body,
       arms: ['noContent', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<PostDeclaredBadRequestTestResult>;
   }
 }

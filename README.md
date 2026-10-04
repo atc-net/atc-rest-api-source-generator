@@ -31,7 +31,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | 🌊 **Streaming**                 | `IAsyncEnumerable<T>` support for efficient data streaming                       |
 | **CLI**    | 🖥️ **Project Scaffolding**       | `generate server` / `generate client` creates complete project structure         |
 |            | 🟦 **TypeScript Client**         | `generate client-typescript` — Fetch/Axios, interceptors, retry, MSW handlers    |
-|            | ⚛️ **React Hooks**               | React Query (`useQuery`/`useMutation`/`useInfiniteQuery`/`useSuspenseQuery`) + SWR (`useSWR`/`useSWRMutation`/`useSWRInfinite`) — streaming hooks for `IAsyncEnumerable` |
+|            | ⚛️ **React Hooks**               | React Query (`useQuery`/`useMutation`/`useInfiniteQuery`/`useSuspenseQuery`) + SWR (`useSWR`/`useSWRMutation`/`useSWRInfinite`) — `queryOptions` factories for loaders and prefetching, cancellation through `AbortSignal`, streaming hooks for `IAsyncEnumerable` |
 |            | 🪪 **Branded ID types**          | `--branded-ids` emits nominal types — `getUser(petId)` becomes a compile error  |
 |            | 🔍 **Runtime Zod validation**    | `--zod-runtime-validate` wires Zod into response parsing — spec-drift detection  |
 |            | 🔌 **SignalR Hub Hooks**         | `x-signalr-hubs` extension → typed `use<Hub>Hub()` with auto-reconnect          |
@@ -190,7 +190,7 @@ The project uses a **three-layer architecture**:
 
 Every release is proven, not promised. The **[test-suite report](https://html-preview.github.io/?url=https://github.com/atc-net/atc-rest-api-source-generator/blob/main/docs/test-suite-report.html)** ([`docs/test-suite-report.html`](https://github.com/atc-net/atc-rest-api-source-generator/blob/main/docs/test-suite-report.html), regenerated from a real run) is the one page to read:
 
-- **End-to-end runtime matrices** - the generated server on Kestrel with every generated client (C# typed, C# endpoint-per-operation, TypeScript Fetch and Axios, Zod, React Query, SWR) calling it over HTTP: error bodies for every HTTP status and every way a specification can declare one, body media types (files, uploads, XML), request binding (path, query, header, cookie, JSON, multipart and URL-encoded bodies, and the requests the server must refuse), security and rate limiting, streaming, pagination, polymorphism, dates and conditional requests. Thousands of recorded cells, each with a verdict and the reason.
+- **End-to-end runtime matrices** - the generated server on Kestrel with every generated client (C# typed, C# endpoint-per-operation, TypeScript Fetch and Axios, Zod, React Query, SWR) calling it over HTTP: error bodies for every HTTP status and every way a specification can declare one, body media types (files, uploads, XML), request binding (path, query, header, cookie, JSON, multipart and URL-encoded bodies, and the requests the server must refuse), security and rate limiting, streaming, pagination, polymorphism, dates, conditional requests and cancellation. Thousands of recorded cells, each with a verdict and the reason.
 - **Compile gate** - every scenario specification under `test/Scenarios` through every generator, compiled as a strict consumer does (nullable, documentation, warnings as errors), plus the strict `tsc` matrix for TypeScript.
 - **Diagnostics coverage** - every `ATC_API_*` build diagnostic and the test that triggers it.
 - **What is not covered** - each matrix lists what it deliberately leaves out, and the cells it still expects to fail, with the reason.
