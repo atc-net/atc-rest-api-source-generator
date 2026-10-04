@@ -45,6 +45,8 @@ public sealed class MigrateExecuteNamespaceTests : IDisposable
               properties:
                 name:
                   type: string
+                isActive:
+                  type: boolean
         """;
 
     private readonly string root = Path.Combine(Path.GetTempPath(), "atc-migrate-ns-" + Guid.NewGuid().ToString("N"));
@@ -62,6 +64,19 @@ public sealed class MigrateExecuteNamespaceTests : IDisposable
         Assert.Contains("Contoso.Api.Contracts.Generated.Pets.Models.Pet Pet", File.ReadAllText(common), StringComparison.Ordinal);
         Assert.Contains("global using Contoso.Api.Contracts.Generated.Owners.Handlers;", File.ReadAllText(functions), StringComparison.Ordinal);
         Assert.Equal("Contoso.Api.Generated.Contracts.Pets.Pet x;\n", File.ReadAllText(buildOutput));
+    }
+
+    [Fact]
+    public void UpdateContractsReferences_ListsTheCallShapesTheNewCodeDoesNotFit()
+    {
+        Write("Contoso.Domain/OwnerMapper.cs", "namespace Contoso.Domain;\npublic static class OwnerMapper { public static bool Map(dynamic o) => o.isActive; }\n");
+        var summary = new MigrationSummary();
+
+        MigrateExecuteCommand.UpdateContractsReferences(Report(), "Contoso", root, dryRun: true, summary);
+
+        var finding = Assert.Single(summary.CallShapeFindings);
+        Assert.Contains("OwnerMapper.cs:2", finding, StringComparison.Ordinal);
+        Assert.Contains("isActive → IsActive", finding, StringComparison.Ordinal);
     }
 
     [Fact]

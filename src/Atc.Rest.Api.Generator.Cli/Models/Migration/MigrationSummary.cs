@@ -36,6 +36,11 @@ public sealed class MigrationSummary
     public List<string> ObsoletePackages { get; } = [];
 
     /// <summary>
+    /// Gets the best-effort findings of code written against the old generator's call shapes (<c>{path}:{line}: …</c>).
+    /// </summary>
+    public List<string> CallShapeFindings { get; } = [];
+
+    /// <summary>
     /// Gets the existing files the migration changed, such as project and solution files.
     /// </summary>
     public List<string> ModifiedFiles { get; } = [];

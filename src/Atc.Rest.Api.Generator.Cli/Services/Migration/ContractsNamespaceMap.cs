@@ -92,6 +92,22 @@ internal sealed class ContractsNamespaceMap
     public IReadOnlyList<string>? GetSegmentNamespaces(string oldSegment)
         => segmentNamespaces.TryGetValue(oldSegment, out var namespaces) ? namespaces : null;
 
+    /// <summary>
+    /// The generator's operation name (as <c>HandlerExtractor</c> derives it): the operationId, or the upper-case method
+    /// and the path when there is none.
+    /// </summary>
+    internal static string OperationName(
+        string path,
+        string method,
+        OpenApiOperation operation)
+    {
+        var normalizedPath = path
+            .Replace("/", "_", StringComparison.Ordinal)
+            .Replace("{", string.Empty, StringComparison.Ordinal)
+            .Replace("}", string.Empty, StringComparison.Ordinal);
+        return (operation.OperationId ?? $"{method.ToUpperInvariant()}{normalizedPath}").ToPascalCaseForDotNet();
+    }
+
     private static void AddIf(
         List<string> namespaces,
         bool exists,
@@ -101,18 +117,5 @@ internal sealed class ContractsNamespaceMap
         {
             namespaces.Add(namespaceName);
         }
-    }
-
-    // The generator's operation name: the operationId, or the method and the path when there is none
-    private static string OperationName(
-        string path,
-        string method,
-        OpenApiOperation operation)
-    {
-        var normalizedPath = path
-            .Replace("/", "_", StringComparison.Ordinal)
-            .Replace("{", string.Empty, StringComparison.Ordinal)
-            .Replace("}", string.Empty, StringComparison.Ordinal);
-        return (operation.OperationId ?? $"{method}{normalizedPath}").ToPascalCaseForDotNet();
     }
 }

@@ -90,6 +90,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         }
 
         var map = ContractsNamespaceMap.Build(merged.Document, projectName);
+        var sources = new List<(string Path, string Content)>();
         foreach (var filePath in Directory.EnumerateFiles(solutionRoot, "*.cs", SearchOption.AllDirectories))
         {
             if (IsBuildOutput(solutionRoot, filePath))
@@ -98,12 +99,10 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             }
 
             var content = File.ReadAllText(filePath);
-            if (!content.Contains("Api.Generated.Contracts", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var (updated, replacements) = ContractsNamespaceRewriter.Rewrite(content, map);
+            var (updated, replacements) = content.Contains("Api.Generated.Contracts", StringComparison.Ordinal)
+                ? ContractsNamespaceRewriter.Rewrite(content, map)
+                : (content, Array.Empty<string>());
+            sources.Add((Path.GetRelativePath(solutionRoot, filePath), updated));
             if (replacements.Count == 0)
             {
                 continue;
@@ -123,6 +122,9 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
                 summary.ModifiedFiles.Add(filePath);
             }
         }
+
+        // The old call shapes the generated code no longer fits - reported for the user to review
+        summary.CallShapeFindings.AddRange(CallShapeDetector.Detect(merged.Document, sources));
     }
 
     internal static void UpdateHostProject(
@@ -857,6 +859,22 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             foreach (var file in summary.DeletedFiles)
             {
                 AnsiConsole.MarkupLine($"  [red]-[/] {Markup.Escape(file)}");
+            }
+
+            AnsiConsole.WriteLine();
+        }
+
+        if (summary.CallShapeFindings.Count > 0)
+        {
+            AnsiConsole.MarkupLine($"[blue]Code written for the old generator's shapes ({summary.CallShapeFindings.Count}, best-effort - review each)[/]");
+            foreach (var finding in summary.CallShapeFindings.Take(100))
+            {
+                AnsiConsole.MarkupLine($"  [yellow]![/] {Markup.Escape(finding)}");
+            }
+
+            if (summary.CallShapeFindings.Count > 100)
+            {
+                AnsiConsole.MarkupLine($"  [dim]... and {summary.CallShapeFindings.Count - 100} more[/]");
             }
 
             AnsiConsole.WriteLine();
