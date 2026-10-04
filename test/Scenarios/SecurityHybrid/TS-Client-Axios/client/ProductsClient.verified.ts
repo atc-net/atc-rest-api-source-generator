@@ -29,16 +29,18 @@ export class ProductsClient {
   }
 
   /** List products */
-  async listProducts(): Promise<ListProductsResult> {
+  async listProducts(signal?: AbortSignal): Promise<ListProductsResult> {
     return this.api.request<Product[]>('GET', '/products', {
       arms: ['ok', 'unauthorized', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListProductsResult>;
   }
 
   /** Get product by ID */
-  async getProductById(productId: string): Promise<GetProductByIdResult> {
+  async getProductById(productId: string, signal?: AbortSignal): Promise<GetProductByIdResult> {
     return this.api.request<Product>('GET', `/products/${encodeURIComponent(productId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetProductByIdResult>;
   }
 }

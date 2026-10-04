@@ -20,10 +20,11 @@ export class WebhooksClient {
   }
 
   /** Receive webhook (rate limiting disabled) */
-  async receiveWebhook(body: WebhookPayload): Promise<ReceiveWebhookResult> {
+  async receiveWebhook(body: WebhookPayload, signal?: AbortSignal): Promise<ReceiveWebhookResult> {
     return this.api.request<void>('POST', '/webhooks', {
       body,
       arms: ['ok', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ReceiveWebhookResult>;
   }
 }

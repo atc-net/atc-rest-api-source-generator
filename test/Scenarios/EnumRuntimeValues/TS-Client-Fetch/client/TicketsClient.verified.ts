@@ -19,12 +19,13 @@ export class TicketsClient {
   }
 
   /** List tickets */
-  async getTickets(query?: { status?: TicketStatus }): Promise<GetTicketsResult> {
+  async getTickets(query?: { status?: TicketStatus }, signal?: AbortSignal): Promise<GetTicketsResult> {
     return this.api.request<Ticket[]>('GET', '/tickets', {
       query: {
         status: query?.status,
       },
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetTicketsResult>;
   }
 }

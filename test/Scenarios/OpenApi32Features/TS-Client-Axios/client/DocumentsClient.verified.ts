@@ -20,10 +20,11 @@ export class DocumentsClient {
   }
 
   /** Create a document with base64 content */
-  async createDocument(body: DocumentRequest): Promise<CreateDocumentResult> {
+  async createDocument(body: DocumentRequest, signal?: AbortSignal): Promise<CreateDocumentResult> {
     return this.api.request<DocumentResponse>('POST', '/documents', {
       body,
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CreateDocumentResult>;
   }
 }

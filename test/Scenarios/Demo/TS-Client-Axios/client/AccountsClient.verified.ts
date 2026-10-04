@@ -59,47 +59,52 @@ export class AccountsClient {
   }
 
   /** List all accounts */
-  async listAccounts(query?: { limit?: number }): Promise<ListAccountsResult> {
+  async listAccounts(query?: { limit?: number }, signal?: AbortSignal): Promise<ListAccountsResult> {
     return this.api.request<Accounts>('GET', '/accounts', {
       query: {
         limit: query?.limit,
       },
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListAccountsResult>;
   }
 
   /** Create account */
-  async createAccount(body: Account): Promise<CreateAccountResult> {
+  async createAccount(body: Account, signal?: AbortSignal): Promise<CreateAccountResult> {
     return this.api.request<Account>('POST', '/accounts', {
       body,
       arms: ['created', 'conflict', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CreateAccountResult>;
   }
 
   /** Get a specific account */
-  async getAccountById(accountId: string): Promise<GetAccountByIdResult> {
+  async getAccountById(accountId: string, signal?: AbortSignal): Promise<GetAccountByIdResult> {
     return this.api.request<Account>('GET', `/accounts/${encodeURIComponent(accountId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetAccountByIdResult>;
   }
 
   /** Delete a specific account */
-  async deleteAccountById(accountId: string): Promise<DeleteAccountByIdResult> {
+  async deleteAccountById(accountId: string, signal?: AbortSignal): Promise<DeleteAccountByIdResult> {
     return this.api.request<void>('DELETE', `/accounts/${encodeURIComponent(accountId)}`, {
       arms: ['noContent', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<DeleteAccountByIdResult>;
   }
 
   /** Update a specific account */
-  async updateAccountById(accountId: string, body: Account): Promise<UpdateAccountByIdResult> {
+  async updateAccountById(accountId: string, body: Account, signal?: AbortSignal): Promise<UpdateAccountByIdResult> {
     return this.api.request<Account>('PUT', `/accounts/${encodeURIComponent(accountId)}`, {
       body,
       arms: ['ok', 'notFound', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<UpdateAccountByIdResult>;
   }
 
   /** List all accounts paginated */
-  async listPaginatedAccounts(query?: { pageSize?: number /* default: 10 */; pageIndex?: number /* default: 0 */; queryString?: string; continuation?: string }): Promise<ListPaginatedAccountsResult> {
+  async listPaginatedAccounts(query?: { pageSize?: number /* default: 10 */; pageIndex?: number /* default: 0 */; queryString?: string; continuation?: string }, signal?: AbortSignal): Promise<ListPaginatedAccountsResult> {
     return this.api.request<PaginatedResult<Account>>('GET', '/accounts/paginated', {
       query: {
         pageSize: query?.pageSize,
@@ -108,6 +113,7 @@ export class AccountsClient {
         continuation: query?.continuation,
       },
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListPaginatedAccountsResult>;
   }
 

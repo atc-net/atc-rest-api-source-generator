@@ -17,9 +17,10 @@ export class ValidationsClient {
   }
 
   /** Get validation constraints model */
-  async getValidations(): Promise<GetValidationsResult> {
+  async getValidations(signal?: AbortSignal): Promise<GetValidationsResult> {
     return this.api.request<ValidationConstraints>('GET', '/validations', {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetValidationsResult>;
   }
 }

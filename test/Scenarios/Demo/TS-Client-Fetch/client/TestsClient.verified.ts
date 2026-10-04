@@ -43,34 +43,38 @@ export class TestsClient {
   }
 
   /** Create and return the created model */
-  async createTestItemWithModel(body: CreateTestItemRequest): Promise<CreateTestItemWithModelResult> {
+  async createTestItemWithModel(body: CreateTestItemRequest, signal?: AbortSignal): Promise<CreateTestItemWithModelResult> {
     return this.api.request<TestItem>('POST', '/tests/create/create-model', {
       body,
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CreateTestItemWithModelResult>;
   }
 
   /** Create and return location header */
-  async createTestItemWithLocationHeader(body: CreateTestItemRequest): Promise<CreateTestItemWithLocationHeaderResult> {
+  async createTestItemWithLocationHeader(body: CreateTestItemRequest, signal?: AbortSignal): Promise<CreateTestItemWithLocationHeaderResult> {
     return this.api.request<void>('POST', '/tests/create/create-location-header', {
       body,
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CreateTestItemWithLocationHeaderResult>;
   }
 
   /** Create and return location in body */
-  async createTestItemWithLocationInBody(body: CreateTestItemRequest): Promise<CreateTestItemWithLocationInBodyResult> {
+  async createTestItemWithLocationInBody(body: CreateTestItemRequest, signal?: AbortSignal): Promise<CreateTestItemWithLocationInBodyResult> {
     return this.api.request<string>('POST', '/tests/create/create-location-body', {
       body,
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CreateTestItemWithLocationInBodyResult>;
   }
 
   /** Create with empty response */
-  async createTestItemEmpty(body: CreateTestItemRequest): Promise<CreateTestItemEmptyResult> {
+  async createTestItemEmpty(body: CreateTestItemRequest, signal?: AbortSignal): Promise<CreateTestItemEmptyResult> {
     return this.api.request<void>('POST', '/tests/create/create-empty', {
       body,
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CreateTestItemEmptyResult>;
   }
 }

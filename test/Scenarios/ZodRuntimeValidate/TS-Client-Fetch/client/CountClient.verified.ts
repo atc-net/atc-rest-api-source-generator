@@ -16,10 +16,11 @@ export class CountClient {
     this.api = api;
   }
 
-  async getCount(): Promise<GetCountResult> {
+  async getCount(signal?: AbortSignal): Promise<GetCountResult> {
     return this.api.request<number>('GET', '/count', {
       parseSchema: z.number(),
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetCountResult>;
   }
 }

@@ -51,7 +51,7 @@ export class UsersClient {
   }
 
   /** List all users */
-  async listUsers(query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number /* default: 25 */ }): Promise<ListUsersResult> {
+  async listUsers(query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number /* default: 25 */ }, signal?: AbortSignal): Promise<ListUsersResult> {
     return this.api.request<Users>('GET', '/users', {
       query: {
         search: query?.search,
@@ -61,36 +61,41 @@ export class UsersClient {
         limit: query?.limit,
       },
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListUsersResult>;
   }
 
   /** Create user */
-  async createUser(body: CreateUserRequest): Promise<CreateUserResult> {
+  async createUser(body: CreateUserRequest, signal?: AbortSignal): Promise<CreateUserResult> {
     return this.api.request<User>('POST', '/users', {
       body,
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CreateUserResult>;
   }
 
   /** Get a specific user */
-  async getUserById(userId: string): Promise<GetUserByIdResult> {
+  async getUserById(userId: string, signal?: AbortSignal): Promise<GetUserByIdResult> {
     return this.api.request<User>('GET', `/users/${encodeURIComponent(userId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetUserByIdResult>;
   }
 
   /** Update a specific user */
-  async updateUserById(userId: string, body: UpdateUserRequest): Promise<UpdateUserByIdResult> {
+  async updateUserById(userId: string, body: UpdateUserRequest, signal?: AbortSignal): Promise<UpdateUserByIdResult> {
     return this.api.request<User>('PUT', `/users/${encodeURIComponent(userId)}`, {
       body,
       arms: ['ok', 'badRequest', 'notFound', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<UpdateUserByIdResult>;
   }
 
   /** Delete a specific user */
-  async deleteUserById(userId: string): Promise<DeleteUserByIdResult> {
+  async deleteUserById(userId: string, signal?: AbortSignal): Promise<DeleteUserByIdResult> {
     return this.api.request<void>('DELETE', `/users/${encodeURIComponent(userId)}`, {
       arms: ['noContent', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<DeleteUserByIdResult>;
   }
 }

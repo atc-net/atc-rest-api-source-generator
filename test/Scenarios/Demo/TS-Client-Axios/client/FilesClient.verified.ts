@@ -51,15 +51,16 @@ export class FilesClient {
   }
 
   /** Get File By Id */
-  async getFileById(id: string): Promise<GetFileByIdResult> {
+  async getFileById(id: string, signal?: AbortSignal): Promise<GetFileByIdResult> {
     return this.api.request<Blob>('GET', `/files/${encodeURIComponent(id)}`, {
       responseType: 'blob',
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetFileByIdResult>;
   }
 
   /** Upload a file as FormData */
-  async uploadFormDataFile(data: { itemName?: string; file?: Blob | File; items?: string[] }): Promise<UploadFormDataFileResult> {
+  async uploadFormDataFile(data: { itemName?: string; file?: Blob | File; items?: string[] }, signal?: AbortSignal): Promise<UploadFormDataFileResult> {
     return this.api.request<void>('POST', '/files/form-data/singleObject', {
       body: (() => {
         const formData = new FormData();
@@ -69,11 +70,12 @@ export class FilesClient {
         return formData;
       })(),
       arms: ['ok', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<UploadFormDataFileResult>;
   }
 
   /** Upload files as FormData */
-  async uploadFormDataFiles(data: { files?: (Blob | File)[] }): Promise<UploadFormDataFilesResult> {
+  async uploadFormDataFiles(data: { files?: (Blob | File)[] }, signal?: AbortSignal): Promise<UploadFormDataFilesResult> {
     return this.api.request<void>('POST', '/files/form-data/singleObjectMultiFile', {
       body: (() => {
         const formData = new FormData();
@@ -81,20 +83,22 @@ export class FilesClient {
         return formData;
       })(),
       arms: ['ok', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<UploadFormDataFilesResult>;
   }
 
   /** Upload a file as OctetStream */
-  async uploadSingleFileAsFormData(file: Blob | File): Promise<UploadSingleFileAsFormDataResult> {
+  async uploadSingleFileAsFormData(file: Blob | File, signal?: AbortSignal): Promise<UploadSingleFileAsFormDataResult> {
     return this.api.request<void>('POST', '/files/form-data/singleFile', {
       body: file,
       contentType: 'application/octet-stream',
       arms: ['ok', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<UploadSingleFileAsFormDataResult>;
   }
 
   /** Upload multi files as form data */
-  async uploadMultiFilesAsFormData(files: (Blob | File)[]): Promise<UploadMultiFilesAsFormDataResult> {
+  async uploadMultiFilesAsFormData(files: (Blob | File)[], signal?: AbortSignal): Promise<UploadMultiFilesAsFormDataResult> {
     return this.api.request<void>('POST', '/files/form-data/multiFile', {
       body: (() => {
         const formData = new FormData();
@@ -104,6 +108,7 @@ export class FilesClient {
         return formData;
       })(),
       arms: ['ok', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<UploadMultiFilesAsFormDataResult>;
   }
 }

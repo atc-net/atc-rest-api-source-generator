@@ -26,16 +26,18 @@ export class ReportsClient {
   }
 
   /** List all reports */
-  async listReports(): Promise<ListReportsResult> {
+  async listReports(signal?: AbortSignal): Promise<ListReportsResult> {
     return this.api.request<unknown[]>('GET', '/reports', {
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListReportsResult>;
   }
 
   /** Get a report by ID */
-  async getReport(reportId: string): Promise<GetReportResult> {
+  async getReport(reportId: string, signal?: AbortSignal): Promise<GetReportResult> {
     return this.api.request<unknown>('GET', `/reports/${encodeURIComponent(reportId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetReportResult>;
   }
 }

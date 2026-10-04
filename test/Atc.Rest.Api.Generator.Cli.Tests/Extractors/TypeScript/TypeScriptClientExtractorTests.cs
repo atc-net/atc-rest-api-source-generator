@@ -3,6 +3,51 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Extractors.TypeScript;
 public class TypeScriptClientExtractorTests
 {
     [Fact]
+    public void Extract_EveryMethod_TakesAnAbortSignalLast_AndSendsItWithTheRequest()
+    {
+        // A caller (or React Query) cancels a request through its signal; a method without one leaves the
+        // request running after nobody wants the answer.
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets/ping:
+                                get:
+                                  operationId: ping
+                                  responses:
+                                    '204': { description: Alive }
+                              /pets/{petId}:
+                                get:
+                                  operationId: showPet
+                                  parameters:
+                                    - { name: petId, in: path, required: true, schema: { type: string } }
+                                    - { name: fields, in: query, schema: { type: string } }
+                                  responses:
+                                    '200': { description: OK, content: { application/json: { schema: { type: string } } } }
+                              /pets:
+                                post:
+                                  operationId: createPet
+                                  requestBody:
+                                    required: true
+                                    content:
+                                      application/json:
+                                        schema: { type: string }
+                                  responses:
+                                    '201': { description: Created }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+        var normalized = content.Replace("\r\n", "\n", StringComparison.Ordinal);
+
+        Assert.Contains("async ping(signal?: AbortSignal): Promise<PingResult> {", normalized, StringComparison.Ordinal);
+        Assert.Contains("async showPet(petId: string, query?: { fields?: string }, signal?: AbortSignal): Promise<ShowPetResult> {", normalized, StringComparison.Ordinal);
+        Assert.Contains("async createPet(body: string, signal?: AbortSignal): Promise<CreatePetResult> {", normalized, StringComparison.Ordinal);
+        Assert.Equal(3, normalized.Split("\n      signal,\n").Length - 1);
+    }
+
+    [Fact]
     public void Extract_TextPlainOperation_PassesResponseTypeText()
     {
         const string yaml = """
@@ -641,7 +686,7 @@ public class TypeScriptClientExtractorTests
         Assert.Contains("{ status: 'parseError'; error: Error; response: Response }", content, StringComparison.Ordinal);
 
         // Method declares the per-op type and casts the request<T> call to it.
-        Assert.Contains("async getPet(petId: string): Promise<GetPetResult>", content, StringComparison.Ordinal);
+        Assert.Contains("async getPet(petId: string, signal?: AbortSignal): Promise<GetPetResult>", content, StringComparison.Ordinal);
         Assert.Contains("as Promise<GetPetResult>", content, StringComparison.Ordinal);
 
         // Errors barrel is imported because notFound arm needs ApiError.
@@ -1065,11 +1110,11 @@ public class TypeScriptClientExtractorTests
         var contentByClass = results.ToDictionary(r => r.ClassName, r => r.Content, StringComparer.Ordinal);
 
         // PetsClient: param-name path → PetId.
-        Assert.Contains("getPet(petId: PetId)", contentByClass["PetsClient"], StringComparison.Ordinal);
+        Assert.Contains("getPet(petId: PetId, signal?: AbortSignal)", contentByClass["PetsClient"], StringComparison.Ordinal);
         Assert.Contains("import type { PetId } from '../types/BrandedIds';", contentByClass["PetsClient"], StringComparison.Ordinal);
 
         // UsersClient: bare `{id}` falls back to parent segment `users` → `UserId`.
-        Assert.Contains("getUser(id: UserId)", contentByClass["UsersClient"], StringComparison.Ordinal);
+        Assert.Contains("getUser(id: UserId, signal?: AbortSignal)", contentByClass["UsersClient"], StringComparison.Ordinal);
         Assert.Contains("import type { UserId } from '../types/BrandedIds';", contentByClass["UsersClient"], StringComparison.Ordinal);
     }
 
@@ -1095,7 +1140,7 @@ public class TypeScriptClientExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(doc, headerContent: null, brandedIds: false));
 
-        Assert.Contains("getPet(petId: string)", content, StringComparison.Ordinal);
+        Assert.Contains("getPet(petId: string, signal?: AbortSignal)", content, StringComparison.Ordinal);
         Assert.DoesNotContain("BrandedIds", content, StringComparison.Ordinal);
     }
 
@@ -1586,7 +1631,7 @@ public class TypeScriptClientExtractorTests
 
         var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
 
-        Assert.Contains("async login(body: Credentials)", content, StringComparison.Ordinal);
+        Assert.Contains("async login(body: Credentials, signal?: AbortSignal)", content, StringComparison.Ordinal);
         Assert.Contains("const form = new URLSearchParams();", content, StringComparison.Ordinal);
         Assert.Contains("if (body.user != null) form.append('user', String(body.user));", content, StringComparison.Ordinal);
         Assert.Contains("if (body.remember != null) form.append('remember', String(body.remember));", content, StringComparison.Ordinal);

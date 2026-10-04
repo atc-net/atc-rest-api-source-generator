@@ -26,17 +26,19 @@ export class NotificationsClient {
   }
 
   /** Send a notification */
-  async sendNotification(body: Notification): Promise<SendNotificationResult> {
+  async sendNotification(body: Notification, signal?: AbortSignal): Promise<SendNotificationResult> {
     return this.api.request<void>('POST', '/notifications', {
       body,
       arms: ['accepted', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<SendNotificationResult>;
   }
 
   /** List all notifications */
-  async listNotifications(): Promise<ListNotificationsResult> {
+  async listNotifications(signal?: AbortSignal): Promise<ListNotificationsResult> {
     return this.api.request<Notification[]>('GET', '/notifications', {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListNotificationsResult>;
   }
 }

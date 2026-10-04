@@ -50,26 +50,29 @@ export class PetsClient {
   }
 
   /** List all pets */
-  async listPets(query?: { limit?: number }): Promise<ListPetsResult> {
+  async listPets(query?: { limit?: number }, signal?: AbortSignal): Promise<ListPetsResult> {
     return this.api.request<Pets>('GET', '/pets', {
       query: {
         limit: query?.limit,
       },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListPetsResult>;
   }
 
   /** Create a pet */
-  async createPets(): Promise<CreatePetsResult> {
+  async createPets(signal?: AbortSignal): Promise<CreatePetsResult> {
     return this.api.request<void>('POST', '/pets', {
       arms: ['created', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CreatePetsResult>;
   }
 
   /** Info for a specific pet */
-  async showPetById(petId: string): Promise<ShowPetByIdResult> {
+  async showPetById(petId: string, signal?: AbortSignal): Promise<ShowPetByIdResult> {
     return this.api.request<Pet>('GET', `/pets/${encodeURIComponent(petId)}`, {
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ShowPetByIdResult>;
   }
 }

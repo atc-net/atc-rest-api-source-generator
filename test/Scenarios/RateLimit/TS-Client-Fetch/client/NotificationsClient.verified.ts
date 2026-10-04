@@ -20,10 +20,11 @@ export class NotificationsClient {
   }
 
   /** Send notification (token bucket with queue) */
-  async sendNotification(body: Notification): Promise<SendNotificationResult> {
+  async sendNotification(body: Notification, signal?: AbortSignal): Promise<SendNotificationResult> {
     return this.api.request<void>('POST', '/notifications', {
       body,
       arms: ['accepted', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<SendNotificationResult>;
   }
 }

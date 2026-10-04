@@ -25,18 +25,20 @@ export class ItemsClient {
   }
 
   /** List items as JSON */
-  async listItems(): Promise<ListItemsResult> {
+  async listItems(signal?: AbortSignal): Promise<ListItemsResult> {
     return this.api.request<Item[]>('GET', '/items', {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListItemsResult>;
   }
 
   /** Get an item as JSON, or its PDF sheet */
-  async getItemSheet(itemId: string): Promise<GetItemSheetResult> {
+  async getItemSheet(itemId: string, signal?: AbortSignal): Promise<GetItemSheetResult> {
     return this.api.request<Item | Blob>('GET', `/items/${encodeURIComponent(itemId)}/sheet`, {
       headers: { Accept: 'application/json, application/pdf, application/problem+json' },
       modelOrFile: true,
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetItemSheetResult>;
   }
 }

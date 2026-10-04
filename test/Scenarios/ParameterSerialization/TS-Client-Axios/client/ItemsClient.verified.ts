@@ -19,7 +19,7 @@ export class ItemsClient {
   }
 
   /** List items */
-  async listItems(rawFilter?: string, query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList }, cookies?: { session?: string }): Promise<ListItemsResult> {
+  async listItems(rawFilter?: string, query?: { tags?: string[]; q?: string; legacy?: string[]; ids?: IdList }, cookies?: { session?: string }, signal?: AbortSignal): Promise<ListItemsResult> {
     const _basePath = '/items';
     const _url = rawFilter ? `${_basePath}?${rawFilter}` : _basePath;
     return this.api.request<Item[]>('GET', _url, {
@@ -34,6 +34,7 @@ export class ItemsClient {
         'Cookie': cookies?.session != null ? `session=${cookies?.session}` : undefined,
       },
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListItemsResult>;
   }
 }

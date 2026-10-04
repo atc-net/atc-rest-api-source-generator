@@ -65,32 +65,36 @@ export class StoreClient {
   }
 
   /** Returns pet inventories by status. */
-  async getInventory(): Promise<GetInventoryResult> {
+  async getInventory(signal?: AbortSignal): Promise<GetInventoryResult> {
     return this.api.request<unknown>('GET', '/store/inventory', {
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetInventoryResult>;
   }
 
   /** Place an order for a pet. */
-  async placeOrder(body: Order): Promise<PlaceOrderResult> {
+  async placeOrder(body: Order, signal?: AbortSignal): Promise<PlaceOrderResult> {
     return this.api.request<Order>('POST', '/store/order', {
       body,
       arms: ['ok', 'badRequest', 'unprocessableEntity', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<PlaceOrderResult>;
   }
 
   /** Find purchase order by ID. */
-  async getOrderById(orderId: number): Promise<GetOrderByIdResult> {
+  async getOrderById(orderId: number, signal?: AbortSignal): Promise<GetOrderByIdResult> {
     return this.api.request<Order>('GET', `/store/order/${encodeURIComponent(orderId)}`, {
       xml: { read: readOrder, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetOrderByIdResult>;
   }
 
   /** Delete purchase order by identifier. */
-  async deleteOrder(orderId: number): Promise<DeleteOrderResult> {
+  async deleteOrder(orderId: number, signal?: AbortSignal): Promise<DeleteOrderResult> {
     return this.api.request<void>('DELETE', `/store/order/${encodeURIComponent(orderId)}`, {
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<DeleteOrderResult>;
   }
 }

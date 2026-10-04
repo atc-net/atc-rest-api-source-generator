@@ -20,10 +20,11 @@ export class ExportsClient {
   }
 
   /** Create export (concurrency limited) */
-  async createExport(body: ExportRequest): Promise<CreateExportResult> {
+  async createExport(body: ExportRequest, signal?: AbortSignal): Promise<CreateExportResult> {
     return this.api.request<void>('POST', '/exports', {
       body,
       arms: ['accepted', 'badRequest', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CreateExportResult>;
   }
 }

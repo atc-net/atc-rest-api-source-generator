@@ -46,7 +46,7 @@ export class ItemsClient {
   }
 
   /** Get logs for an item with filters (path + query, no streaming) */
-  async getItemLogs(itemId: string, query?: { logLevel?: 'debug' | 'info' | 'warn' | 'error'; from?: Date }): Promise<GetItemLogsResult> {
+  async getItemLogs(itemId: string, query?: { logLevel?: 'debug' | 'info' | 'warn' | 'error'; from?: Date }, signal?: AbortSignal): Promise<GetItemLogsResult> {
     return this.api.request<ItemLogs>('GET', `/items/${encodeURIComponent(itemId)}/logs`, {
       query: {
         logLevel: query?.logLevel,
@@ -54,17 +54,19 @@ export class ItemsClient {
       },
       wire: { response: { array: 'ItemLog' } },
       arms: ['ok', 'badRequest', 'notFound', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetItemLogsResult>;
   }
 
   /** Search items by date-time range (date-time query params) */
-  async searchItems(query: { createdAfter?: Date; createdBefore: Date }): Promise<SearchItemsResult> {
+  async searchItems(query: { createdAfter?: Date; createdBefore: Date }, signal?: AbortSignal): Promise<SearchItemsResult> {
     return this.api.request<Items>('GET', '/items/search', {
       query: {
         createdAfter: query?.createdAfter?.toISOString(),
         createdBefore: query?.createdBefore?.toISOString(),
       },
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<SearchItemsResult>;
   }
 

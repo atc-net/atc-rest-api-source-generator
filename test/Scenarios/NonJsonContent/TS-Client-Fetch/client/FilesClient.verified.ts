@@ -18,10 +18,11 @@ export class FilesClient {
   }
 
   /** Download a binary file */
-  async downloadFile(fileId: string): Promise<DownloadFileResult> {
+  async downloadFile(fileId: string, signal?: AbortSignal): Promise<DownloadFileResult> {
     return this.api.request<Blob>('GET', `/files/${encodeURIComponent(fileId)}`, {
       responseType: 'blob',
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<DownloadFileResult>;
   }
 }

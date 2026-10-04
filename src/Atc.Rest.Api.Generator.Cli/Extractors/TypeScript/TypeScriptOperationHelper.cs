@@ -984,6 +984,16 @@ public static class TypeScriptOperationHelper
     }
 
     /// <summary>
+    /// The name of the trailing <c>AbortSignal</c> parameter of a client method: <c>signal</c>, or
+    /// <c>abortSignal</c> when a parameter of the operation is called <c>signal</c> already.
+    /// </summary>
+    /// <param name="parameters">The other parameters, as declarations (<c>name?: type</c>) or names.</param>
+    public static string SignalParameterName(IEnumerable<string> parameters)
+        => parameters.Any(p => string.Equals(p.Split(':')[0].Trim().TrimEnd('?'), "signal", StringComparison.Ordinal))
+            ? "abortSignal"
+            : "signal";
+
+    /// <summary>
     /// Builds a path string with template literal interpolation for path parameters.
     /// When <paramref name="convertDates"/> is true and a path parameter has
     /// <c>format: date</c> or <c>format: date-time</c>, the interpolation includes

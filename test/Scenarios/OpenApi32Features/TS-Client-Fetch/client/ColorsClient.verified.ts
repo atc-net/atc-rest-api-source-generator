@@ -17,9 +17,10 @@ export class ColorsClient {
   }
 
   /** Get RGB colors */
-  async getColors(): Promise<GetColorsResult> {
+  async getColors(signal?: AbortSignal): Promise<GetColorsResult> {
     return this.api.request<RgbColor>('GET', '/colors', {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetColorsResult>;
   }
 }

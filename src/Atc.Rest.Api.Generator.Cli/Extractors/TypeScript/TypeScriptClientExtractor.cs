@@ -699,7 +699,7 @@ public static class TypeScriptClientExtractor
         IReadOnlyList<string>? rawUploadMediaTypes = null)
     {
         // Build parameter list
-        var paramList = BuildParameterList(pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path);
+        var (paramList, signalName) = BuildParameterList(pathParams, queryParams, headerParams, cookieParams, querystringParams, bodySchema, bodyContentType, isFileUpload, namingStrategy, convertDates, writableSchemas, brandedIds, path);
 
         // perOpResultTypeName is supplied for every non-streaming op when called from
         // GenerateClientClass. The generic ApiResult fallback is a safety net for any unit
@@ -756,85 +756,80 @@ public static class TypeScriptClientExtractor
 
         var urlArg = hasQuerystring ? "_url" : interpolatedPath;
 
-        if (hasQuery || hasHeaders || hasBody || isFileUpload || isFileDownload || isTextDownload || emitParseSchema || retryOption is not null || armsOption is not null || wireOption is not null || xmlOption is not null || modelOrFileAccept is not null)
+        // Every request carries the caller's signal, so the options bag is always there
+        sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(urlArg).AppendLine(", {");
+
+        if (hasBody && isFileUpload)
         {
-            sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(urlArg).AppendLine(", {");
-
-            if (hasBody && isFileUpload)
-            {
-                AppendFormDataBody(sb, bodySchema!, bodyContentType, namingStrategy, rawUploadMediaTypes);
-            }
-            else if (hasBody && isUrlEncodedForm)
-            {
-                AppendUrlEncodedBody(sb, bodySchema!, namingStrategy, convertDates);
-            }
-            else if (hasBody)
-            {
-                sb.AppendLine("      body,");
-                AppendJsonContentType(sb, bodyContentType);
-            }
-
-            if (hasQuery)
-            {
-                AppendQueryObject(sb, queryParams, namingStrategy, convertDates);
-            }
-
-            if (hasHeaders)
-            {
-                AppendHeadersObject(sb, headerParams, cookieParams, convertDates, namingStrategy, modelOrFileAccept);
-            }
-            else if (modelOrFileAccept is not null)
-            {
-                sb.Append("      headers: { Accept: '").Append(modelOrFileAccept).AppendLine("' },");
-            }
-
-            if (isFileDownload)
-            {
-                sb.AppendLine("      responseType: 'blob',");
-            }
-            else if (modelOrFileAccept is not null)
-            {
-                // A model or a file: the file is a Blob, the model is read as the model
-                sb.AppendLine("      modelOrFile: true,");
-            }
-            else if (isTextDownload)
-            {
-                sb.AppendLine("      responseType: 'text',");
-            }
-
-            if (emitParseSchema)
-            {
-                sb.Append("      parseSchema: ").Append(zodSpec!.Expression).AppendLine(",");
-            }
-
-            if (retryOption is not null)
-            {
-                sb.Append("      retry: ").Append(retryOption).AppendLine(",");
-            }
-
-            if (wireOption is not null)
-            {
-                sb.Append("      wire: ").Append(wireOption).AppendLine(",");
-            }
-
-            // An XML body (helpers/xml.ts): how to read the response and write the request
-            if (xmlOption is not null)
-            {
-                sb.Append("      xml: ").Append(xmlOption).AppendLine(",");
-            }
-
-            // The result arms of the per-op union: a status it does not declare is folded into one it does.
-            if (armsOption is not null)
-            {
-                sb.Append("      arms: ").Append(armsOption).AppendLine(",");
-            }
-
-            sb.Append("    })").Append(castSuffix).AppendLine(";");
+            AppendFormDataBody(sb, bodySchema!, bodyContentType, namingStrategy, rawUploadMediaTypes);
         }
-        else
+        else if (hasBody && isUrlEncodedForm)
         {
-            sb.Append("    return this.api.request<").Append(returnType).Append(">('").Append(httpMethod).Append("', ").Append(urlArg).Append(')').Append(castSuffix).AppendLine(";");
+            AppendUrlEncodedBody(sb, bodySchema!, namingStrategy, convertDates);
         }
+        else if (hasBody)
+        {
+            sb.AppendLine("      body,");
+            AppendJsonContentType(sb, bodyContentType);
+        }
+
+        if (hasQuery)
+        {
+            AppendQueryObject(sb, queryParams, namingStrategy, convertDates);
+        }
+
+        if (hasHeaders)
+        {
+            AppendHeadersObject(sb, headerParams, cookieParams, convertDates, namingStrategy, modelOrFileAccept);
+        }
+        else if (modelOrFileAccept is not null)
+        {
+            sb.Append("      headers: { Accept: '").Append(modelOrFileAccept).AppendLine("' },");
+        }
+
+        if (isFileDownload)
+        {
+            sb.AppendLine("      responseType: 'blob',");
+        }
+        else if (modelOrFileAccept is not null)
+        {
+            // A model or a file: the file is a Blob, the model is read as the model
+            sb.AppendLine("      modelOrFile: true,");
+        }
+        else if (isTextDownload)
+        {
+            sb.AppendLine("      responseType: 'text',");
+        }
+
+        if (emitParseSchema)
+        {
+            sb.Append("      parseSchema: ").Append(zodSpec!.Expression).AppendLine(",");
+        }
+
+        if (retryOption is not null)
+        {
+            sb.Append("      retry: ").Append(retryOption).AppendLine(",");
+        }
+
+        if (wireOption is not null)
+        {
+            sb.Append("      wire: ").Append(wireOption).AppendLine(",");
+        }
+
+        // An XML body (helpers/xml.ts): how to read the response and write the request
+        if (xmlOption is not null)
+        {
+            sb.Append("      xml: ").Append(xmlOption).AppendLine(",");
+        }
+
+        // The result arms of the per-op union: a status it does not declare is folded into one it does.
+        if (armsOption is not null)
+        {
+            sb.Append("      arms: ").Append(armsOption).AppendLine(",");
+        }
+
+        sb.AppendLine(signalName == "signal" ? "      signal," : "      signal: " + signalName + ",");
+        sb.Append("    })").Append(castSuffix).AppendLine(";");
 
         sb.AppendLine("  }");
     }
@@ -882,7 +877,9 @@ public static class TypeScriptClientExtractor
             paramParts.Add(TypeScriptOperationHelper.BuildHeaderParameter(headerParams, convertDates));
         }
 
-        paramParts.Add("signal?: AbortSignal");
+        var signalName = TypeScriptOperationHelper.SignalParameterName(paramParts);
+        var signalOption = signalName == "signal" ? "signal" : "signal: " + signalName;
+        paramParts.Add(signalName + "?: AbortSignal");
 
         var paramList = TypeScriptOperationHelper.JoinParameters(paramParts);
 
@@ -913,7 +910,7 @@ public static class TypeScriptClientExtractor
                 AppendHeadersObject(sb, headerParams, cookieParams: null, convertDates, namingStrategy);
             }
 
-            sb.AppendLine("      signal,");
+            sb.Append("      ").Append(signalOption).AppendLine(",");
             if (wireOption is not null)
             {
                 sb.Append("      wire: ").Append(wireOption).AppendLine(",");
@@ -925,7 +922,7 @@ public static class TypeScriptClientExtractor
         }
         else
         {
-            var options = wireOption is null ? "{ signal }" : "{ signal, wire: " + wireOption + " }";
+            var options = wireOption is null ? "{ " + signalOption + " }" : "{ " + signalOption + ", wire: " + wireOption + " }";
             sb.Append("    yield* this.api.requestStream<").Append(itemType).Append(">(").Append(method).Append(", ").Append(interpolatedPath);
             sb.AppendLine(streamFramingArg is null
                 ? $", {options});"
@@ -935,7 +932,7 @@ public static class TypeScriptClientExtractor
         sb.AppendLine("  }");
     }
 
-    private static string BuildParameterList(
+    private static (string ParameterList, string SignalName) BuildParameterList(
         List<OpenApiParameter> pathParams,
         List<OpenApiParameter> queryParams,
         List<OpenApiParameter> headerParams,
@@ -1000,7 +997,11 @@ public static class TypeScriptClientExtractor
             parts.Add("cookies?: " + cookieType);
         }
 
-        return TypeScriptOperationHelper.JoinParameters(parts);
+        // The caller's cancellation (React Query hands its own): last, so every argument before it keeps its place
+        var signalName = TypeScriptOperationHelper.SignalParameterName(parts);
+        parts.Add(signalName + "?: AbortSignal");
+
+        return (TypeScriptOperationHelper.JoinParameters(parts), signalName);
     }
 
     /// <summary>

@@ -16,10 +16,11 @@ export class ExportsClient {
   }
 
   /** Export data as CSV */
-  async exportCsv(): Promise<ExportCsvResult> {
+  async exportCsv(signal?: AbortSignal): Promise<ExportCsvResult> {
     return this.api.request<string>('GET', '/exports/csv', {
       responseType: 'text',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ExportCsvResult>;
   }
 }

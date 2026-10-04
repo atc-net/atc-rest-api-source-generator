@@ -25,16 +25,18 @@ export class ItemsClient {
   }
 
   /** List items */
-  async listItems(): Promise<ListItemsResult> {
+  async listItems(signal?: AbortSignal): Promise<ListItemsResult> {
     return this.api.request<Item[]>('GET', '/items', {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListItemsResult>;
   }
 
   /** Get item by ID */
-  async getItemById(id: string): Promise<GetItemByIdResult> {
+  async getItemById(id: string, signal?: AbortSignal): Promise<GetItemByIdResult> {
     return this.api.request<Item>('GET', `/items/${encodeURIComponent(id)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetItemByIdResult>;
   }
 }

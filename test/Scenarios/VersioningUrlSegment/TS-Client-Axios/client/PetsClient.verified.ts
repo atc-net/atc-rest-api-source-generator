@@ -52,42 +52,47 @@ export class PetsClient {
   }
 
   /** List all pets */
-  async listPets(query?: { limit?: number }): Promise<ListPetsResult> {
+  async listPets(query?: { limit?: number }, signal?: AbortSignal): Promise<ListPetsResult> {
     return this.api.request<Pet[]>('GET', '/pets', {
       query: {
         limit: query?.limit,
       },
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListPetsResult>;
   }
 
   /** Create a new pet */
-  async createPet(body: CreatePetRequest): Promise<CreatePetResult> {
+  async createPet(body: CreatePetRequest, signal?: AbortSignal): Promise<CreatePetResult> {
     return this.api.request<Pet>('POST', '/pets', {
       body,
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CreatePetResult>;
   }
 
   /** Get a pet by ID */
-  async getPetById(petId: string): Promise<GetPetByIdResult> {
+  async getPetById(petId: string, signal?: AbortSignal): Promise<GetPetByIdResult> {
     return this.api.request<Pet>('GET', `/pets/${encodeURIComponent(petId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetPetByIdResult>;
   }
 
   /** Update a pet */
-  async updatePet(petId: string, body: UpdatePetRequest): Promise<UpdatePetResult> {
+  async updatePet(petId: string, body: UpdatePetRequest, signal?: AbortSignal): Promise<UpdatePetResult> {
     return this.api.request<Pet>('PUT', `/pets/${encodeURIComponent(petId)}`, {
       body,
       arms: ['ok', 'notFound', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<UpdatePetResult>;
   }
 
   /** Delete a pet */
-  async deletePet(petId: string): Promise<DeletePetResult> {
+  async deletePet(petId: string, signal?: AbortSignal): Promise<DeletePetResult> {
     return this.api.request<void>('DELETE', `/pets/${encodeURIComponent(petId)}`, {
       arms: ['noContent', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<DeletePetResult>;
   }
 }

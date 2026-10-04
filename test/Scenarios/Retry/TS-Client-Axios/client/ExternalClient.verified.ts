@@ -21,11 +21,12 @@ export class ExternalClient {
   }
 
   /** Process payment (circuit breaker enabled) */
-  async processPayment(body: PaymentRequest): Promise<ProcessPaymentResult> {
+  async processPayment(body: PaymentRequest, signal?: AbortSignal): Promise<ProcessPaymentResult> {
     return this.api.request<PaymentResult>('POST', '/external/payment', {
       body,
       retry: { policy: retryPolicies.externalService, enabled: false },
       arms: ['ok', 'serverError', 'badRequest', 'conflict', 'clientError', 'parseError'],
+      signal,
     }) as Promise<ProcessPaymentResult>;
   }
 }

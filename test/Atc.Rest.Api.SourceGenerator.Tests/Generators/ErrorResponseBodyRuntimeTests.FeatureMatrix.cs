@@ -9,12 +9,13 @@ namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 /// as <c>IAsyncEnumerable</c>, each to the end, with the handler failing mid-stream, and cancelled by the client
 /// (the server must see the cancellation); a paginated read walked by its continuation; a <c>oneOf</c> with a
 /// discriminator and a three-level <c>allOf</c> round-tripped through the client; an enum by its value and an
-/// unknown value from the server; a date and a date-time round-tripped; and a conditional 304.
+/// unknown value from the server; a date and a date-time round-tripped; a conditional 304; and a read the client
+/// cancels (the server must see the cancellation).
 /// </summary>
 /// <remarks>
 /// Not exercised: JSON Text Sequence and <c>multipart/mixed</c> framings; a browser runtime (the hooks render with
 /// React on jsdom in Node); the React Query and SWR hooks on a 304 (a browser cache sends the condition, not a
-/// hook); webhooks and output caching.
+/// hook); a cancelled SWR read (SWR hands its fetcher no signal); webhooks and output caching.
 /// </remarks>
 public partial class ErrorResponseBodyRuntimeTests
 {
@@ -116,6 +117,11 @@ public partial class ErrorResponseBodyRuntimeTests
               responses:
                 '200': { description: The current version, content: { application/json: { schema: { $ref: '#/components/schemas/Thing' } } } }
                 '304': { description: Not Modified }
+          /feature/slow:
+            get:
+              operationId: featureSlow
+              responses:
+                '200': { description: A thing after three seconds, content: { application/json: { schema: { $ref: '#/components/schemas/Thing' } } } }
         components:
           schemas:
             Thing:
@@ -295,10 +301,31 @@ public partial class ErrorResponseBodyRuntimeTests
             }
         }
 
+        // A read the server holds for three seconds: a client that cancels it shows up as a cancelled probe
+        public sealed class FeatureSlowHandlerImpl(IHttpContextAccessor accessor) : IFeatureSlowHandler
+        {
+            public async System.Threading.Tasks.Task<FeatureSlowResult> ExecuteAsync(System.Threading.CancellationToken cancellationToken = default)
+            {
+                var probe = FeatureLog.Probe(accessor);
+                try
+                {
+                    await System.Threading.Tasks.Task.Delay(3_000, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    FeatureLog.Cancelled[probe] = true;
+                    throw;
+                }
+
+                return FeatureSlowResult.Ok(new Thing("slow"));
+            }
+        }
+
         public static class FeatureRegistration
         {
             public static void Register(IServiceCollection services)
             {
+                services.AddScoped<IFeatureSlowHandler, FeatureSlowHandlerImpl>();
                 services.AddHttpContextAccessor();
                 services.AddScoped<IFeatureSseHandler, FeatureSseHandlerImpl>();
                 services.AddScoped<IFeatureLinesHandler, FeatureLinesHandlerImpl>();
@@ -407,6 +434,21 @@ public partial class ErrorResponseBodyRuntimeTests
                 }
 
                 return new JsonObject { ["kind"] = "items", ["items"] = new JsonArray([.. names.Select(n => (JsonNode)n)]), ["error"] = error };
+            }
+
+            // Starts the slow read, cancels it once the server holds it, and records how the call ended.
+            private static async System.Threading.Tasks.Task<JsonObject> CancelAsync(Func<System.Threading.CancellationToken, System.Threading.Tasks.Task> call, int cancelAfterMs)
+            {
+                using var cts = new System.Threading.CancellationTokenSource(cancelAfterMs);
+                try
+                {
+                    await call(cts.Token);
+                    return new JsonObject { ["kind"] = "completed" };
+                }
+                catch (OperationCanceledException)
+                {
+                    return new JsonObject { ["kind"] = "cancelled" };
+                }
             }
 
             private static JsonObject Value(object? value)
@@ -539,6 +581,9 @@ public partial class ErrorResponseBodyRuntimeTests
                         return result;
                     }
 
+                    case "slow":
+                        return await CancelAsync(ct => provider.GetRequiredService<IFeatureSlowEndpoint>().ExecuteAsync(httpClientName, ct), (int)c["cancelAfterMs"]!);
+
                     default:
                         throw new InvalidOperationException("unknown case kind " + kind);
                 }
@@ -641,6 +686,9 @@ public partial class ErrorResponseBodyRuntimeTests
                         return result;
                     }
 
+                    case "slow":
+                        return await CancelAsync(ct => client.FeatureSlowAsync(ct), (int)c["cancelAfterMs"]!);
+
                     default:
                         throw new InvalidOperationException("unknown case kind " + kind);
                 }
@@ -676,9 +724,10 @@ public partial class ErrorResponseBodyRuntimeTests
 
         function wrapperFor(headers: Record<string, string>) {
           const { ApiProvider } = hookModule;
+          const queryClient = hooks === 'reactquery' ? new QueryClient({ defaultOptions: { queries: { retry: false } } }) : null;
           return ({ children }: any) => {
             const inner = React.createElement(ApiProvider, { baseUrl, options: { defaultHeaders: headers } }, children);
-            if (hooks === 'reactquery') return React.createElement(QueryClientProvider, { client: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }, inner);
+            if (hooks === 'reactquery') return React.createElement(QueryClientProvider, { client: queryClient }, inner);
             return React.createElement(SWRConfig, { value: { provider: () => new Map(), dedupingInterval: 0 } }, inner);
           };
         }
@@ -716,6 +765,18 @@ public partial class ErrorResponseBodyRuntimeTests
               const response = r.response ?? r.error?.response;
               const h = response?.headers;
               return { ...(r.status === 'ok' ? valueOf(r) : { kind: 'status', arm: r.status }), status: response?.status ?? (r.status === 'ok' ? 200 : 0), notModified: r.status === 'notModified', etag: h?.get ? h.get('etag') : h?.etag ?? null };
+            }
+            case 'slow': {
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), c.cancelAfterMs);
+              try {
+                const r = await f.featureSlow(controller.signal);
+                return { kind: 'completed', arm: r.status };
+              } catch (e: any) {
+                return e?.name === 'AbortError' || e?.name === 'CanceledError' ? { kind: 'cancelled' } : { kind: 'threw', error: `${e?.name ?? 'Error'}: ${String(e?.message ?? e).slice(0, 300)}` };
+              } finally {
+                clearTimeout(timer);
+              }
             }
           }
           throw new Error('unknown kind ' + c.kind);
@@ -772,6 +833,18 @@ public partial class ErrorResponseBodyRuntimeTests
               const { result } = renderHook(() => H.useFeatureEtag(), { wrapper });
               await waitFor(() => { if (result.current.data === undefined && !result.current.error) throw new Error('waiting'); }, WAIT);
               return { kind: 'value', value: result.current.data, status: 200, notModified: false, etag: null };
+            }
+            case 'slow': {
+              // React Query cancels a query nobody observes any more, when its queryFn took the signal
+              if (hooks === 'swr') return { kind: 'na', why: 'SWR hands its fetcher no AbortSignal' };
+              const { result, unmount } = renderHook(() => H.useFeatureSlow(), { wrapper });
+              await new Promise((resolve) => setTimeout(resolve, c.cancelAfterMs));
+              const completed = result.current.data !== undefined;
+              unmount();
+              // Stay until a request that was not cancelled has ended, so the harness exiting (which closes the
+              // connection) is not mistaken for the hook cancelling it
+              await new Promise((resolve) => setTimeout(resolve, 3500));
+              return { kind: completed ? 'completed' : 'cancelled' };
             }
           }
           throw new Error('unknown kind ' + c.kind);
@@ -856,6 +929,7 @@ public partial class ErrorResponseBodyRuntimeTests
         cases.Add(new("dates: a date and a date-time round-trip", "values", "FeatureDates", "dates", new JsonObject { ["body"] = new JsonObject { ["day"] = "2026-03-04", ["at"] = "2026-03-04T05:06:07+02:00" } }));
         cases.Add(new("conditional: If-None-Match matches, 304", "conditional", "FeatureEtag", "etag", new JsonObject { ["ifNoneMatch"] = "\"v1\"" }));
         cases.Add(new("conditional: no condition, 200 with an ETag", "conditional", "FeatureEtag", "etag", new JsonObject()));
+        cases.Add(new("cancellation: a read the client cancels stops on the server", "cancellation", "FeatureSlow", "slow", new JsonObject { ["cancelAfterMs"] = 500 }));
         return cases;
     }
 
@@ -992,6 +1066,12 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(VerdictPass, (string?)FeatureVerdict(current, client, ok, cancelled: false)["verdict"]);
         ok["etag"] = null;
         Assert.Equal(VerdictFail, (string?)FeatureVerdict(current, client, ok, cancelled: false)["verdict"]);
+
+        var slow = cases.Single(c => c.Kind == "slow");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "cancelled" }, cancelled: true)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "cancelled" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "completed" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictNotApplicable, (string?)FeatureVerdict(slow, FeatureClients[6], new JsonObject { ["kind"] = "na", ["why"] = "SWR" }, cancelled: false)["verdict"]);
     }
 
     /// <summary>
@@ -1169,6 +1249,23 @@ public partial class ErrorResponseBodyRuntimeTests
                 return Cell(VerdictPass, isHooks ? "the current version" : "the current version with its ETag", $"{status} ETag {(string?)observed["etag"]}");
             }
 
+            case "slow":
+            {
+                if (kind == "completed")
+                {
+                    return Cell(VerdictFail, "the call ran to completion: the cancellation was not passed on", "completed");
+                }
+
+                if (kind != "cancelled")
+                {
+                    return Cell(VerdictFail, $"{kind}: {(string?)observed["error"]}", "-");
+                }
+
+                return cancelled
+                    ? Cell(VerdictPass, "the client cancelled and the server saw the cancellation", "cancelled")
+                    : Cell(VerdictFail, "the server never saw the cancellation: the request kept running", "cancelled");
+            }
+
             default:
                 return Cell(VerdictFail, "unknown case kind " + featureCase.Kind, "-");
         }
@@ -1222,10 +1319,13 @@ public partial class ErrorResponseBodyRuntimeTests
 
         var typeScript = RunFeatureTypeScriptClients(host.BaseAddress, casesJson);
 
-        // The server's record of the streams the clients stopped: the abort reaches the handler a moment later
+        // The server's record of the streams and the reads the clients stopped: the abort reaches the handler a moment later
         var cancelledType = host.Assembly.GetType("ErrorBodies.RuntimeTest.FeatureLog", throwOnError: true)!;
         var cancelled = (System.Collections.Concurrent.ConcurrentDictionary<string, bool>)cancelledType.GetProperty("Cancelled")!.GetValue(null)!;
-        var cancelProbes = cases.Where(c => c.Arguments["cancelAfter"] is not null).SelectMany(c => FeatureClients.Select(cl => cl.Id + "|" + c.Name)).ToList();
+        var cancelProbes = cases
+            .Where(c => c.Arguments["cancelAfter"] is not null || c.Kind == "slow")
+            .SelectMany(c => FeatureClients.Where(cl => c.Kind != "slow" || cl.Id != "ts-fetch-swr").Select(cl => cl.Id + "|" + c.Name))
+            .ToList();
         for (var waited = 0; waited < 100 && cancelProbes.Any(p => !cancelled.ContainsKey(p)); waited++)
         {
             await Task.Delay(100, TestContext.Current.CancellationToken);

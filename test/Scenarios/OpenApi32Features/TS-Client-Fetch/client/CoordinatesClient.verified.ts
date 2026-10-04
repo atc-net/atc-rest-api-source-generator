@@ -23,16 +23,18 @@ export class CoordinatesClient {
   }
 
   /** Get coordinates */
-  async getCoordinates(): Promise<GetCoordinatesResult> {
+  async getCoordinates(signal?: AbortSignal): Promise<GetCoordinatesResult> {
     return this.api.request<Coordinate>('GET', '/coordinates', {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetCoordinatesResult>;
   }
 
   /** List all coordinates */
-  async listCoordinates(): Promise<ListCoordinatesResult> {
+  async listCoordinates(signal?: AbortSignal): Promise<ListCoordinatesResult> {
     return this.api.request<Coordinate[]>('GET', '/coordinates/list', {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListCoordinatesResult>;
   }
 }

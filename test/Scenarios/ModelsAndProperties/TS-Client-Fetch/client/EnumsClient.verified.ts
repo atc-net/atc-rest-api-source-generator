@@ -17,9 +17,10 @@ export class EnumsClient {
   }
 
   /** Get enum types model */
-  async getEnumTypes(): Promise<GetEnumTypesResult> {
+  async getEnumTypes(signal?: AbortSignal): Promise<GetEnumTypesResult> {
     return this.api.request<EnumTypes>('GET', '/enums', {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetEnumTypesResult>;
   }
 }

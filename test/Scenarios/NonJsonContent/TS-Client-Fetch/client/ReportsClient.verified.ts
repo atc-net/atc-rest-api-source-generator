@@ -16,10 +16,11 @@ export class ReportsClient {
   }
 
   /** Get a plain text report */
-  async getTextReport(): Promise<GetTextReportResult> {
+  async getTextReport(signal?: AbortSignal): Promise<GetTextReportResult> {
     return this.api.request<string>('GET', '/reports/text', {
       responseType: 'text',
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetTextReportResult>;
   }
 }

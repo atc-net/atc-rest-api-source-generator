@@ -18,9 +18,10 @@ export class ShapesClient {
   }
 
   /** List all shapes */
-  async listShapes(): Promise<ListShapesResult> {
+  async listShapes(signal?: AbortSignal): Promise<ListShapesResult> {
     return this.api.request<Shape[]>('GET', '/shapes', {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListShapesResult>;
   }
 }

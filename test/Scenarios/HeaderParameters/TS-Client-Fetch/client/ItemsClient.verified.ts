@@ -37,7 +37,7 @@ export class ItemsClient {
   }
 
   /** List items with pagination via header */
-  async listItems(query: { limit?: number } | undefined, headers: { 'x-continuation'?: string; 'x-correlation-id': string }): Promise<ListItemsResult> {
+  async listItems(query: { limit?: number } | undefined, headers: { 'x-continuation'?: string; 'x-correlation-id': string }, signal?: AbortSignal): Promise<ListItemsResult> {
     return this.api.request<Items>('GET', '/items', {
       query: {
         limit: query?.limit,
@@ -47,16 +47,18 @@ export class ItemsClient {
         'x-correlation-id': headers?.['x-correlation-id'],
       },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListItemsResult>;
   }
 
   /** Get a specific item */
-  async getItemById(itemId: string, headers?: { 'X-Request-Id'?: string }): Promise<GetItemByIdResult> {
+  async getItemById(itemId: string, headers?: { 'X-Request-Id'?: string }, signal?: AbortSignal): Promise<GetItemByIdResult> {
     return this.api.request<Item>('GET', `/items/${encodeURIComponent(itemId)}`, {
       headers: {
         'X-Request-Id': headers?.['X-Request-Id'],
       },
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetItemByIdResult>;
   }
 }

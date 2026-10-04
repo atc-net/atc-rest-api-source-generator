@@ -104,25 +104,27 @@ export class UserClient {
   }
 
   /** Create user. */
-  async createUser(body: User): Promise<CreateUserResult> {
+  async createUser(body: User, signal?: AbortSignal): Promise<CreateUserResult> {
     return this.api.request<User>('POST', '/user', {
       body,
       xml: { read: readUser, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CreateUserResult>;
   }
 
   /** Creates list of users with given input array. */
-  async createUsersWithListInput(body: User[]): Promise<CreateUsersWithListInputResult> {
+  async createUsersWithListInput(body: User[], signal?: AbortSignal): Promise<CreateUsersWithListInputResult> {
     return this.api.request<User>('POST', '/user/createWithList', {
       body,
       xml: { read: readUser, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CreateUsersWithListInputResult>;
   }
 
   /** Logs user into the system. */
-  async loginUser(query?: { username?: string; password?: string }): Promise<LoginUserResult> {
+  async loginUser(query?: { username?: string; password?: string }, signal?: AbortSignal): Promise<LoginUserResult> {
     return this.api.request<string>('GET', '/user/login', {
       query: {
         username: query?.username,
@@ -130,36 +132,41 @@ export class UserClient {
       },
       responseType: 'text',
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<LoginUserResult>;
   }
 
   /** Logs out current logged in user session. */
-  async logoutUser(): Promise<LogoutUserResult> {
+  async logoutUser(signal?: AbortSignal): Promise<LogoutUserResult> {
     return this.api.request<void>('GET', '/user/logout', {
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<LogoutUserResult>;
   }
 
   /** Get user by user name. */
-  async getUserByName(username: string): Promise<GetUserByNameResult> {
+  async getUserByName(username: string, signal?: AbortSignal): Promise<GetUserByNameResult> {
     return this.api.request<User>('GET', `/user/${encodeURIComponent(username)}`, {
       xml: { read: readUser, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetUserByNameResult>;
   }
 
   /** Update user resource. */
-  async updateUser(username: string, body: User): Promise<UpdateUserResult> {
+  async updateUser(username: string, body: User, signal?: AbortSignal): Promise<UpdateUserResult> {
     return this.api.request<void>('PUT', `/user/${encodeURIComponent(username)}`, {
       body,
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<UpdateUserResult>;
   }
 
   /** Delete user resource. */
-  async deleteUser(username: string): Promise<DeleteUserResult> {
+  async deleteUser(username: string, signal?: AbortSignal): Promise<DeleteUserResult> {
     return this.api.request<void>('DELETE', `/user/${encodeURIComponent(username)}`, {
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<DeleteUserResult>;
   }
 }

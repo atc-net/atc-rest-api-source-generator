@@ -17,9 +17,10 @@ export class AnimalsClient {
   }
 
   /** List animals */
-  async listAnimals(): Promise<ListAnimalsResult> {
+  async listAnimals(signal?: AbortSignal): Promise<ListAnimalsResult> {
     return this.api.request<Animal[]>('GET', '/animals', {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListAnimalsResult>;
   }
 }

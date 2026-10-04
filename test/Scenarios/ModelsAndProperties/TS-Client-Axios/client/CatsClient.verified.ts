@@ -18,9 +18,10 @@ export class CatsClient {
   }
 
   /** List cats */
-  async listCats(): Promise<ListCatsResult> {
+  async listCats(signal?: AbortSignal): Promise<ListCatsResult> {
     return this.api.request<Cat[]>('GET', '/cats', {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListCatsResult>;
   }
 }

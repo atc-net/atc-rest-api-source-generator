@@ -19,11 +19,12 @@ export class ReportsClient {
   }
 
   /** Generate report (no retry, long timeout) */
-  async generateReport(body: ReportRequest): Promise<GenerateReportResult> {
+  async generateReport(body: ReportRequest, signal?: AbortSignal): Promise<GenerateReportResult> {
     return this.api.request<void>('POST', '/reports/generate', {
       body,
       retry: { enabled: false, timeoutMs: 600000 },
       arms: ['accepted', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GenerateReportResult>;
   }
 }

@@ -19,9 +19,10 @@ export class DataClient {
   }
 
   /** Get data */
-  async getData(): Promise<GetDataResult> {
+  async getData(signal?: AbortSignal): Promise<GetDataResult> {
     return this.api.request<unknown>('GET', '/data', {
       arms: ['ok', 'unauthorized', 'forbidden', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetDataResult>;
   }
 }

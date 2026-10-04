@@ -27,16 +27,18 @@ export class UsersClient {
   }
 
   /** List all users */
-  async listUsers(): Promise<ListUsersResult> {
+  async listUsers(signal?: AbortSignal): Promise<ListUsersResult> {
     return this.api.request<User[]>('GET', '/users', {
       arms: ['ok', 'unauthorized', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListUsersResult>;
   }
 
   /** Get user by ID */
-  async getUserById(userId: string): Promise<GetUserByIdResult> {
+  async getUserById(userId: string, signal?: AbortSignal): Promise<GetUserByIdResult> {
     return this.api.request<User>('GET', `/users/${encodeURIComponent(userId)}`, {
       arms: ['ok', 'notFound', 'badRequest', 'unauthorized', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetUserByIdResult>;
   }
 }

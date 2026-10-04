@@ -31,24 +31,27 @@ export class ResourcesClient {
   }
 
   /** List resources */
-  async listResources(): Promise<ListResourcesResult> {
+  async listResources(signal?: AbortSignal): Promise<ListResourcesResult> {
     return this.api.request<Resource[]>('GET', '/resources', {
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListResourcesResult>;
   }
 
   /** Query resources with a body */
-  async queryResources(body: ResourceQuery): Promise<QueryResourcesResult> {
+  async queryResources(body: ResourceQuery, signal?: AbortSignal): Promise<QueryResourcesResult> {
     return this.api.request<Resource[]>('QUERY', '/resources', {
       body,
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<QueryResourcesResult>;
   }
 
   /** Link a resource (custom verb) */
-  async linkResource(): Promise<LinkResourceResult> {
+  async linkResource(signal?: AbortSignal): Promise<LinkResourceResult> {
     return this.api.request<void>('LINK', '/resources', {
       arms: ['noContent', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<LinkResourceResult>;
   }
 }

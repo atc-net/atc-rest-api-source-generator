@@ -42,35 +42,39 @@ export class OrdersClient {
   }
 
   /** List orders (fast retry policy) */
-  async listOrders(): Promise<ListOrdersResult> {
+  async listOrders(signal?: AbortSignal): Promise<ListOrdersResult> {
     return this.api.request<Order[]>('GET', '/orders', {
       retry: { policy: retryPolicies.ordersFast },
       arms: ['ok', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListOrdersResult>;
   }
 
   /** Create order (retry disabled for non-idempotent) */
-  async createOrder(body: CreateOrderRequest): Promise<CreateOrderResult> {
+  async createOrder(body: CreateOrderRequest, signal?: AbortSignal): Promise<CreateOrderResult> {
     return this.api.request<Order>('POST', '/orders', {
       body,
       retry: { policy: retryPolicies.ordersFast, enabled: false },
       arms: ['created', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<CreateOrderResult>;
   }
 
   /** Get order (inherits orders-fast) */
-  async getOrderById(orderId: string): Promise<GetOrderByIdResult> {
+  async getOrderById(orderId: string, signal?: AbortSignal): Promise<GetOrderByIdResult> {
     return this.api.request<Order>('GET', `/orders/${encodeURIComponent(orderId)}`, {
       retry: { policy: retryPolicies.ordersFast },
       arms: ['ok', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetOrderByIdResult>;
   }
 
   /** Delete order (idempotent - can retry) */
-  async deleteOrder(orderId: string): Promise<DeleteOrderResult> {
+  async deleteOrder(orderId: string, signal?: AbortSignal): Promise<DeleteOrderResult> {
     return this.api.request<void>('DELETE', `/orders/${encodeURIComponent(orderId)}`, {
       retry: { policy: retryPolicies.ordersDelete },
       arms: ['noContent', 'notFound', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<DeleteOrderResult>;
   }
 }

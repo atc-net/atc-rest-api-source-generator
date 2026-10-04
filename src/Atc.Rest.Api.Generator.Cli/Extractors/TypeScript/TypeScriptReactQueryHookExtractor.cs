@@ -164,6 +164,7 @@ public static class TypeScriptReactQueryHookExtractor
         var segmentCamel = segment.ToCamelCase();
         hookInfos = AssignKeyNames(hookInfos, segmentCamel);
         AppendQueryKeyFactory(bodySb, segmentCamel, hookInfos, namingStrategy, convertDates, brandedIds);
+        AppendQueryOptionsFactory(bodySb, segmentCamel, hookInfos, namingStrategy, convertDates, brandedIds);
 
         // Write hook functions
         foreach (var info in hookInfos)
@@ -223,6 +224,7 @@ public static class TypeScriptReactQueryHookExtractor
             needsReactHooks,
             needsApiError,
             needsUseInfiniteQuery,
+            hookInfos.Any(h => !h.IsStreaming && h.IsQuery),
             brandImports,
             bodyText);
 
@@ -242,6 +244,7 @@ public static class TypeScriptReactQueryHookExtractor
         bool needsReactHooks,
         bool needsApiError,
         bool needsUseInfiniteQuery,
+        bool needsQueryOptions,
         SortedSet<string> brandImports,
         string bodyText)
     {
@@ -251,8 +254,18 @@ public static class TypeScriptReactQueryHookExtractor
             sb.AppendLine("import { useCallback, useEffect, useRef, useState } from 'react';");
         }
 
-        // TanStack Query imports
+        // TanStack Query imports: the <segment>Queries factory first, then the hooks
         var queryImports = new List<string>();
+        if (needsQueryOptions)
+        {
+            queryImports.Add("queryOptions");
+        }
+
+        if (needsUseInfiniteQuery)
+        {
+            queryImports.Add("infiniteQueryOptions");
+        }
+
         if (needsUseQuery)
         {
             queryImports.Add("useQuery");
@@ -315,6 +328,11 @@ public static class TypeScriptReactQueryHookExtractor
         }
 
         sb.AppendLine("import { useApiService } from './useApiService';");
+        if (needsQueryOptions)
+        {
+            // The factory takes the service, so a loader or server code can use it without the provider
+            sb.AppendLine("import type { ApiService } from '../client/ApiService';");
+        }
 
         // ApiError is only used by the result-unwrap path of useQuery/useMutation hooks.
         // Stream hooks surface errors as plain Error instances, so omit the import when
@@ -365,6 +383,160 @@ public static class TypeScriptReactQueryHookExtractor
         sb.AppendLine();
     }
 
+    /// <summary>
+    /// Emits the <c>&lt;segment&gt;Queries</c> factory: the TanStack <c>queryOptions</c> (and, for a paginated read,
+    /// <c>infiniteQueryOptions</c>) of every read, shared by the hooks and by <c>queryClient.prefetchQuery</c> /
+    /// <c>ensureQueryData</c> in a route loader or on the server. The queryFn hands React Query's signal to the
+    /// client, so a query React Query cancels (unused, superseded, <c>cancelQueries</c>) stops its request.
+    /// </summary>
+    private static void AppendQueryOptionsFactory(
+        StringBuilder sb,
+        string segmentCamel,
+        List<HookInfo> hookInfos,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates,
+        bool brandedIds)
+    {
+        var queries = hookInfos.Where(h => !h.IsStreaming && h.IsQuery).ToList();
+        if (queries.Count == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("/**");
+        sb.AppendLine(" * The query options of each read: spread into useQuery or useSuspenseQuery, or pass to");
+        sb.AppendLine(" * queryClient.prefetchQuery / ensureQueryData (a route loader, server rendering). The query hands");
+        sb.AppendLine(" * React Query's signal to the client, so a cancelled or unused query stops its request.");
+        sb.AppendLine(" */");
+        sb.Append("const ").Append(segmentCamel).AppendLine("Queries = {");
+
+        foreach (var info in queries)
+        {
+            AppendQueryOptionsEntry(sb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
+            if (info.Pagination is not null)
+            {
+                AppendInfiniteQueryOptionsEntry(sb, info, segmentCamel, namingStrategy, convertDates, brandedIds);
+            }
+        }
+
+        sb.AppendLine("};");
+        sb.AppendLine();
+        sb.Append("export { ").Append(segmentCamel).AppendLine("Queries };");
+    }
+
+    private static void AppendQueryOptionsEntry(
+        StringBuilder sb,
+        HookInfo info,
+        string segmentCamel,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates,
+        bool brandedIds)
+    {
+        var (declarations, names) = QueryInputs(info, info.QueryParams, info.HeaderParams, namingStrategy, convertDates, brandedIds);
+
+        // The key: headers and cookies are left out so the cache does not fragment on per-request headers
+        // (correlation ids), unless a header is part of what the read returns (KeyHeaders).
+        var keyArgs = new List<string>();
+        foreach (var p in info.PathParams)
+        {
+            keyArgs.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+        }
+
+        if (info.HasBody)
+        {
+            keyArgs.Add("body");
+        }
+
+        foreach (var p in info.QuerystringParams)
+        {
+            keyArgs.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+        }
+
+        if (info.QueryParams.Count > 0)
+        {
+            keyArgs.Add("query");
+        }
+
+        if (KeyHeaders(info, info.HeaderParams).Count > 0)
+        {
+            keyArgs.Add("headers");
+        }
+
+        var signalName = TypeScriptOperationHelper.SignalParameterName(names);
+        var clientCallArgs = WithSignal(BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, info.CookieParams, info.QuerystringParams, hasBody: info.HasBody, namingStrategy: namingStrategy), signalName);
+        var dataType = info.ReturnType == "void" ? "void" : info.ReturnType;
+
+        sb.Append("  ").Append(info.MethodName).Append(": (").Append(TypeScriptOperationHelper.JoinParameters(["api: ApiService", .. declarations]))
+            .Append(") => queryOptions<").Append(dataType).AppendLine(", ApiError>({");
+        sb.Append("    queryKey: ").Append(segmentCamel).Append("Keys.").Append(KeyNameOf(info, segmentCamel)).Append('(').Append(string.Join(", ", keyArgs)).AppendLine("),");
+        sb.Append("    queryFn: async ({ ").Append(SignalBinding(signalName)).AppendLine(" }) => {");
+        sb.Append("      const result = await api.").Append(segmentCamel).Append('.').Append(info.MethodName).Append('(').Append(clientCallArgs).AppendLine(");");
+        AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
+        sb.AppendLine("    },");
+
+        // The ApiClient already retries per operation as the spec says (x-retry-*); React Query's own
+        // retry would multiply those attempts and re-send operations marked x-retry-enabled: false.
+        sb.AppendLine("    retry: false,");
+        sb.AppendLine("  }),");
+    }
+
+    private static void AppendInfiniteQueryOptionsEntry(
+        StringBuilder sb,
+        HookInfo info,
+        string segmentCamel,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates,
+        bool brandedIds)
+    {
+        var pagination = info.Pagination!;
+        var (queryParams, headerParams) = InfiniteHookParameters(info);
+        var (declarations, names) = QueryInputs(info, queryParams, headerParams, namingStrategy, convertDates, brandedIds);
+
+        var keyArgs = new List<string>();
+        foreach (var p in info.PathParams)
+        {
+            keyArgs.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+        }
+
+        if (info.HasBody)
+        {
+            keyArgs.Add("body");
+        }
+
+        foreach (var p in info.QuerystringParams)
+        {
+            keyArgs.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
+        }
+
+        if (queryParams.Count > 0)
+        {
+            keyArgs.Add("query");
+        }
+
+        if (KeyHeaders(info, headerParams).Count > 0)
+        {
+            keyArgs.Add("headers");
+        }
+
+        var signalName = TypeScriptOperationHelper.SignalParameterName(names);
+        var pageType = info.ReturnType;
+        sb.Append("  ").Append(info.MethodName).Append("Infinite: (").Append(TypeScriptOperationHelper.JoinParameters(["api: ApiService", .. declarations]))
+            .Append(") => infiniteQueryOptions<").Append(pageType).Append(", ApiError, InfiniteData<").Append(pageType)
+            .AppendLine(", string | undefined>, readonly unknown[], string | undefined>({");
+        sb.Append("    queryKey: ").Append(segmentCamel).Append("Keys.").Append(KeyNameOf(info, segmentCamel)).Append("Infinite(").Append(string.Join(", ", keyArgs)).AppendLine("),");
+        sb.Append("    queryFn: async ({ pageParam, ").Append(SignalBinding(signalName)).AppendLine(" }: { pageParam: string | undefined; signal: AbortSignal }) => {");
+        sb.Append("      const result = await api.").Append(segmentCamel).Append('.').Append(info.MethodName).Append('(').Append(WithSignal(BuildInfiniteClientCallArgs(info, "pageParam", namingStrategy), signalName)).AppendLine(");");
+        AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
+        sb.AppendLine("    },");
+        sb.AppendLine("    initialPageParam: undefined as string | undefined,");
+        sb.Append("    getNextPageParam: (lastPage) => ").Append(TokenAccess("lastPage", pagination, namingStrategy)).AppendLine(" || undefined,");
+
+        // The ApiClient owns retry (x-retry-*); React Query's own retry would multiply the attempts.
+        sb.AppendLine("    retry: false,");
+        sb.AppendLine("  }),");
+    }
+
     private static void AppendQueryHook(
         StringBuilder sb,
         HookInfo info,
@@ -383,45 +555,9 @@ public static class TypeScriptReactQueryHookExtractor
         var hookName = useSuspenseSuffix ? baseHookName + "Suspense" : baseHookName;
         var queryFn = isSuspense ? "useSuspenseQuery" : "useQuery";
         var optionsType = isSuspense ? "UseSuspenseQueryOptions" : "UseQueryOptions";
-        var keyName = KeyNameOf(info, segmentCamel);
-        var segmentProperty = segmentCamel;
 
-        // Build hook parameter list
-        var hookParams = new List<string>();
-        foreach (var param in info.PathParams)
-        {
-            var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            var paramType = TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path);
-            hookParams.Add(paramName + ": " + paramType);
-        }
-
-        // Mirrors the client method's parameter order: pathParams..., body, querystring..., query.
-        if (info.HasBody)
-        {
-            hookParams.Add("body: " + info.BodyType);
-        }
-
-        foreach (var param in info.QuerystringParams)
-        {
-            var paramName = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            hookParams.Add(paramName + "?: string");
-        }
-
-        if (info.QueryParams.Count > 0)
-        {
-            hookParams.Add(TypeScriptOperationHelper.BuildQueryParameter(info.QueryParams, namingStrategy, convertDates));
-        }
-
-        if (info.HeaderParams.Count > 0)
-        {
-            hookParams.Add(TypeScriptOperationHelper.BuildHeaderParameter(info.HeaderParams, convertDates));
-        }
-
-        if (info.CookieParams.Count > 0)
-        {
-            var cookieType = BuildCookieTypeInline(info.CookieParams, namingStrategy);
-            hookParams.Add("cookies?: " + cookieType);
-        }
+        // Mirrors the client method's parameter order: pathParams..., body, querystring..., query, headers, cookies.
+        var (hookParams, names) = QueryInputs(info, info.QueryParams, info.HeaderParams, namingStrategy, convertDates, brandedIds);
 
         // Pass-through options: every generated hook accepts a final options? arg whose
         // type omits the keys the hook body already populates. Consumers can override
@@ -432,53 +568,11 @@ public static class TypeScriptReactQueryHookExtractor
         var queryDataType = info.ReturnType == "void" ? "void" : info.ReturnType;
         hookParams.Add("options?: Omit<" + optionsType + "<" + queryDataType + ", ApiError>, 'queryKey' | 'queryFn'>");
 
-        var hookParamStr = TypeScriptOperationHelper.JoinParameters(hookParams);
-
-        // Build key args — headers and cookies are intentionally excluded so the React Query
-        // cache does NOT fragment on per-request headers/cookies (correlation IDs, etc).
-        // Query params and querystring params ARE included alongside path params.
-        var keyArgsParts = new List<string>();
-        foreach (var p in info.PathParams)
-        {
-            keyArgsParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
-        }
-
-        if (info.HasBody)
-        {
-            keyArgsParts.Add("body");
-        }
-
-        foreach (var p in info.QuerystringParams)
-        {
-            keyArgsParts.Add((p.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
-        }
-
-        if (info.QueryParams.Count > 0)
-        {
-            keyArgsParts.Add("query");
-        }
-
-        if (KeyHeaders(info, info.HeaderParams).Count > 0)
-        {
-            keyArgsParts.Add("headers");
-        }
-
-        var keyCallArgs = string.Join(", ", keyArgsParts);
-
-        // Build client call args (headers and cookies ARE forwarded to the client method)
-        var clientCallArgs = BuildClientCallArgs(info.PathParams, info.QueryParams, info.HeaderParams, info.CookieParams, info.QuerystringParams, hasBody: info.HasBody, namingStrategy: namingStrategy);
-
         AppendHookJsDoc(sb, info);
-        sb.Append("export function ").Append(hookName).Append('(').Append(hookParamStr).AppendLine(") {");
+        sb.Append("export function ").Append(hookName).Append('(').Append(TypeScriptOperationHelper.JoinParameters(hookParams)).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
         sb.Append("  return ").Append(queryFn).AppendLine("({");
-        sb.Append("    queryKey: ").Append(segmentCamel).Append("Keys.").Append(keyName).Append('(').Append(keyCallArgs).AppendLine("),");
-        sb.AppendLine("    queryFn: async () => {");
-        sb.Append("      const result = await api.").Append(segmentProperty).Append('.').Append(info.MethodName).Append('(').Append(clientCallArgs).AppendLine(");");
-
-        AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
-
-        sb.AppendLine("    },");
+        sb.Append("    ...").Append(segmentCamel).Append("Queries.").Append(info.MethodName).Append("(api").Append(string.Concat(names.Select(n => ", " + n))).AppendLine("),");
 
         // Add enabled guard for detail queries with path params — but only for the
         // standard variant. useSuspenseQuery doesn't support conditional execution
@@ -490,30 +584,11 @@ public static class TypeScriptReactQueryHookExtractor
         // either one being absent makes the request meaningless.
         if (!isSuspense)
         {
-            var guards = new List<string>();
-            if (info.PathParams.Count > 0)
-            {
-                guards.Add("!!" + (info.PathParams[0].Name ?? string.Empty).ApplyNamingStrategy(namingStrategy));
-            }
-
-            if (info.HasBody)
-            {
-                guards.Add("!!body");
-            }
-
-            if (guards.Count > 0)
-            {
-                sb.Append("    enabled: ").Append(string.Join(" && ", guards)).AppendLine(",");
-            }
+            AppendEnabledGuard(sb, info, namingStrategy);
         }
 
-        // The ApiClient already retries per operation as the spec says (x-retry-*); React Query's own
-        // retry would multiply those attempts and re-send operations marked x-retry-enabled: false.
-        sb.AppendLine("    retry: false,");
-
-        // Spread caller options LAST so they override the generated defaults (enabled, retry,
-        // queryKey, queryFn). The Omit on the options type still blocks queryKey/queryFn,
-        // so only the safe defaults are overridable.
+        // Spread caller options LAST so they override the generated defaults (enabled, retry).
+        // The Omit on the options type still blocks queryKey/queryFn.
         sb.AppendLine("    ...options,");
 
         sb.AppendLine("  });");
@@ -533,53 +608,9 @@ public static class TypeScriptReactQueryHookExtractor
         bool convertDates,
         bool brandedIds)
     {
-        var pagination = info.Pagination!;
         var hookName = "use" + info.MethodName.ToPascalCaseForDotNet() + "Infinite";
-        var keyName = KeyNameOf(info, segmentCamel) + "Infinite";
         var (queryParams, headerParams) = InfiniteHookParameters(info);
-
-        var hookParams = new List<string>();
-        var keyArgs = new List<string>();
-        foreach (var param in info.PathParams)
-        {
-            var name = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            hookParams.Add(name + ": " + TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path));
-            keyArgs.Add(name);
-        }
-
-        if (info.HasBody)
-        {
-            hookParams.Add("body: " + info.BodyType);
-            keyArgs.Add("body");
-        }
-
-        foreach (var param in info.QuerystringParams)
-        {
-            var name = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
-            hookParams.Add(name + "?: string");
-            keyArgs.Add(name);
-        }
-
-        if (queryParams.Count > 0)
-        {
-            hookParams.Add(TypeScriptOperationHelper.BuildQueryParameter(queryParams, namingStrategy, convertDates));
-            keyArgs.Add("query");
-        }
-
-        if (KeyHeaders(info, headerParams).Count > 0)
-        {
-            keyArgs.Add("headers");
-        }
-
-        if (headerParams.Count > 0)
-        {
-            hookParams.Add(TypeScriptOperationHelper.BuildHeaderParameter(headerParams, convertDates));
-        }
-
-        if (info.CookieParams.Count > 0)
-        {
-            hookParams.Add("cookies?: " + BuildCookieTypeInline(info.CookieParams, namingStrategy));
-        }
+        var (hookParams, names) = QueryInputs(info, queryParams, headerParams, namingStrategy, convertDates, brandedIds);
 
         // The same override point as the query hooks: everything but what the hook computes itself.
         var pageType = info.ReturnType;
@@ -591,15 +622,78 @@ public static class TypeScriptReactQueryHookExtractor
         sb.Append("export function ").Append(hookName).Append('(').Append(TypeScriptOperationHelper.JoinParameters(hookParams)).AppendLine(") {");
         sb.AppendLine("  const api = useApiService();");
         sb.AppendLine("  return useInfiniteQuery({");
-        sb.Append("    queryKey: ").Append(segmentCamel).Append("Keys.").Append(keyName).Append('(').Append(string.Join(", ", keyArgs)).AppendLine("),");
-        sb.AppendLine("    queryFn: async ({ pageParam }: { pageParam: string | undefined }) => {");
-        sb.Append("      const result = await api.").Append(segmentCamel).Append('.').Append(info.MethodName).Append('(').Append(BuildInfiniteClientCallArgs(info, "pageParam", namingStrategy)).AppendLine(");");
-        AppendResultUnwrap(sb, info.ReturnType, info.HttpMethod, info.Success2xxDiscriminators);
-        sb.AppendLine("    },");
-        sb.AppendLine("    initialPageParam: undefined as string | undefined,");
-        sb.Append("    getNextPageParam: (lastPage) => ").Append(TokenAccess("lastPage", pagination, namingStrategy)).AppendLine(" || undefined,");
+        sb.Append("    ...").Append(segmentCamel).Append("Queries.").Append(info.MethodName).Append("Infinite(api").Append(string.Concat(names.Select(n => ", " + n))).AppendLine("),");
 
         // No request while a path parameter or the body of a QUERY read is missing (as the query hook).
+        AppendEnabledGuard(sb, info, namingStrategy);
+        sb.AppendLine("    ...options,");
+        sb.AppendLine("  });");
+        sb.AppendLine("}");
+    }
+
+    /// <summary>
+    /// The inputs of a read, in the client method's order (path parameters, body, querystring parameters,
+    /// query, headers, cookies): their declarations for a signature and their names for a call.
+    /// </summary>
+    private static (List<string> Declarations, List<string> Names) QueryInputs(
+        HookInfo info,
+        List<OpenApiParameter> queryParams,
+        List<OpenApiParameter> headerParams,
+        TypeScriptNamingStrategy namingStrategy,
+        bool convertDates,
+        bool brandedIds)
+    {
+        var declarations = new List<string>();
+        var names = new List<string>();
+        foreach (var param in info.PathParams)
+        {
+            var name = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            declarations.Add(name + ": " + TypeScriptOperationHelper.GetParameterType(param, convertDates, brandedIds, info.Path));
+            names.Add(name);
+        }
+
+        if (info.HasBody)
+        {
+            declarations.Add("body: " + info.BodyType);
+            names.Add("body");
+        }
+
+        foreach (var param in info.QuerystringParams)
+        {
+            var name = (param.Name ?? string.Empty).ApplyNamingStrategy(namingStrategy);
+            declarations.Add(name + "?: string");
+            names.Add(name);
+        }
+
+        if (queryParams.Count > 0)
+        {
+            declarations.Add(TypeScriptOperationHelper.BuildQueryParameter(queryParams, namingStrategy, convertDates));
+            names.Add("query");
+        }
+
+        if (headerParams.Count > 0)
+        {
+            declarations.Add(TypeScriptOperationHelper.BuildHeaderParameter(headerParams, convertDates));
+            names.Add("headers");
+        }
+
+        if (info.CookieParams.Count > 0)
+        {
+            declarations.Add("cookies?: " + BuildCookieTypeInline(info.CookieParams, namingStrategy));
+            names.Add("cookies");
+        }
+
+        return (declarations, names);
+    }
+
+    /// <summary>
+    /// <c>enabled</c> for a read that has nothing to send yet: a missing path parameter or the body of a QUERY.
+    /// </summary>
+    private static void AppendEnabledGuard(
+        StringBuilder sb,
+        HookInfo info,
+        TypeScriptNamingStrategy namingStrategy)
+    {
         var guards = new List<string>();
         if (info.PathParams.Count > 0)
         {
@@ -615,13 +709,15 @@ public static class TypeScriptReactQueryHookExtractor
         {
             sb.Append("    enabled: ").Append(string.Join(" && ", guards)).AppendLine(",");
         }
-
-        // The ApiClient owns retry (x-retry-*); React Query's own retry would multiply the attempts.
-        sb.AppendLine("    retry: false,");
-        sb.AppendLine("    ...options,");
-        sb.AppendLine("  });");
-        sb.AppendLine("}");
     }
+
+    private static string WithSignal(
+        string arguments,
+        string signalName)
+        => arguments.Length == 0 ? signalName : arguments + ", " + signalName;
+
+    private static string SignalBinding(string signalName)
+        => signalName == "signal" ? "signal" : "signal: " + signalName;
 
     private static void AppendMutationHook(
         StringBuilder sb,

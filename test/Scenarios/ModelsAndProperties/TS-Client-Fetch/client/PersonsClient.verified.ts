@@ -19,12 +19,13 @@ export class PersonsClient {
   }
 
   /** List persons */
-  async listPersons(query?: { gender?: GenderType }): Promise<ListPersonsResult> {
+  async listPersons(query?: { gender?: GenderType }, signal?: AbortSignal): Promise<ListPersonsResult> {
     return this.api.request<Person[]>('GET', '/persons', {
       query: {
         gender: query?.gender,
       },
       arms: ['ok', 'badRequest', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<ListPersonsResult>;
   }
 }

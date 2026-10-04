@@ -116,55 +116,60 @@ export class PetClient {
   }
 
   /** Update an existing pet. */
-  async updatePet(body: Pet): Promise<UpdatePetResult> {
+  async updatePet(body: Pet, signal?: AbortSignal): Promise<UpdatePetResult> {
     return this.api.request<Pet>('PUT', '/pet', {
       body,
       xml: { read: readPet, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'notFound', 'unprocessableEntity', 'unauthorized', 'forbidden', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<UpdatePetResult>;
   }
 
   /** Add a new pet to the store. */
-  async addPet(body: Pet): Promise<AddPetResult> {
+  async addPet(body: Pet, signal?: AbortSignal): Promise<AddPetResult> {
     return this.api.request<Pet>('POST', '/pet', {
       body,
       xml: { read: readPet, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unprocessableEntity', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<AddPetResult>;
   }
 
   /** Finds Pets by status. */
-  async findPetsByStatus(query?: { status?: 'available' | 'pending' | 'sold' /* default: 'available' */ }): Promise<FindPetsByStatusResult> {
+  async findPetsByStatus(query?: { status?: 'available' | 'pending' | 'sold' /* default: 'available' */ }, signal?: AbortSignal): Promise<FindPetsByStatusResult> {
     return this.api.request<Pet[]>('GET', '/pet/findByStatus', {
       query: {
         status: query?.status,
       },
       xml: { read: readPetList, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<FindPetsByStatusResult>;
   }
 
   /** Finds Pets by tags. */
-  async findPetsByTags(query: { tags: string[] }): Promise<FindPetsByTagsResult> {
+  async findPetsByTags(query: { tags: string[] }, signal?: AbortSignal): Promise<FindPetsByTagsResult> {
     return this.api.request<Pet[]>('GET', '/pet/findByTags', {
       query: {
         tags: query?.tags,
       },
       xml: { read: readPetList, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<FindPetsByTagsResult>;
   }
 
   /** Find pet by ID. */
-  async getPetById(petId: number): Promise<GetPetByIdResult> {
+  async getPetById(petId: number, signal?: AbortSignal): Promise<GetPetByIdResult> {
     return this.api.request<Pet>('GET', `/pet/${encodeURIComponent(petId)}`, {
       xml: { read: readPet, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<GetPetByIdResult>;
   }
 
   /** Updates a pet in the store with form data. */
-  async updatePetWithForm(petId: number, query?: { name?: string; status?: string }): Promise<UpdatePetWithFormResult> {
+  async updatePetWithForm(petId: number, query?: { name?: string; status?: string }, signal?: AbortSignal): Promise<UpdatePetWithFormResult> {
     return this.api.request<Pet>('POST', `/pet/${encodeURIComponent(petId)}`, {
       query: {
         name: query?.name,
@@ -172,21 +177,23 @@ export class PetClient {
       },
       xml: { read: readPet, accept: 'application/json, application/problem+json' },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<UpdatePetWithFormResult>;
   }
 
   /** Deletes a pet. */
-  async deletePet(petId: number, headers?: { 'api_key'?: string }): Promise<DeletePetResult> {
+  async deletePet(petId: number, headers?: { 'api_key'?: string }, signal?: AbortSignal): Promise<DeletePetResult> {
     return this.api.request<void>('DELETE', `/pet/${encodeURIComponent(petId)}`, {
       headers: {
         'api_key': headers?.['api_key'],
       },
       arms: ['ok', 'badRequest', 'unauthorized', 'forbidden', 'notFound', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<DeletePetResult>;
   }
 
   /** Uploads an image. */
-  async uploadFile(petId: number, file: Blob | File, query?: { additionalMetadata?: string }): Promise<UploadFileResult> {
+  async uploadFile(petId: number, file: Blob | File, query?: { additionalMetadata?: string }, signal?: AbortSignal): Promise<UploadFileResult> {
     return this.api.request<ApiResponse>('POST', `/pet/${encodeURIComponent(petId)}/uploadImage`, {
       body: file,
       contentType: 'application/octet-stream',
@@ -194,6 +201,7 @@ export class PetClient {
         additionalMetadata: query?.additionalMetadata,
       },
       arms: ['ok', 'badRequest', 'notFound', 'unauthorized', 'forbidden', 'conflict', 'unprocessableEntity', 'tooManyRequests', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<UploadFileResult>;
   }
 }

@@ -21,11 +21,12 @@ export class NotificationsClient {
   }
 
   /** Send notification (constant backoff) */
-  async sendNotification(body: Notification): Promise<SendNotificationResult> {
+  async sendNotification(body: Notification, signal?: AbortSignal): Promise<SendNotificationResult> {
     return this.api.request<void>('POST', '/notifications', {
       body,
       retry: { policy: retryPolicies.notificationsConstant, enabled: false },
       arms: ['accepted', 'badRequest', 'conflict', 'clientError', 'serverError', 'parseError'],
+      signal,
     }) as Promise<SendNotificationResult>;
   }
 }
