@@ -8,7 +8,7 @@ import type { CreateUserRequest, UpdateUserRequest, User, UserQuery, Users } fro
 
 const usersKeys = {
   all: ['users'] as const,
-  list: (query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number /* default: 25 */ }) => [...usersKeys.all, 'list', query] as const,
+  list: (query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest' | (string & {}); isActive?: boolean; limit?: number /* default: 25 */ }) => [...usersKeys.all, 'list', query] as const,
   query: (body: UserQuery) => [...usersKeys.all, 'query', body] as const,
   userById: (userId: string) => [...usersKeys.all, 'userById', userId] as const,
 };
@@ -21,7 +21,7 @@ export { usersKeys };
  * React Query's signal to the client, so a cancelled or unused query stops its request.
  */
 const usersQueries = {
-  listUsers: (api: ApiService, query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number /* default: 25 */ }) => queryOptions<Users, ApiError>({
+  listUsers: (api: ApiService, query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest' | (string & {}); isActive?: boolean; limit?: number /* default: 25 */ }) => queryOptions<Users, ApiError>({
     queryKey: usersKeys.list(query),
     queryFn: async ({ signal }) => {
       const result = await api.users.listUsers(query, signal);
@@ -83,7 +83,7 @@ const usersQueries = {
 export { usersQueries };
 
 /** List all users */
-export function useListUsers(query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number /* default: 25 */ }, options?: Omit<UseQueryOptions<Users, ApiError>, 'queryKey' | 'queryFn'>) {
+export function useListUsers(query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest' | (string & {}); isActive?: boolean; limit?: number /* default: 25 */ }, options?: Omit<UseQueryOptions<Users, ApiError>, 'queryKey' | 'queryFn'>) {
   const api = useApiService();
   return useQuery({
     ...usersQueries.listUsers(api, query),

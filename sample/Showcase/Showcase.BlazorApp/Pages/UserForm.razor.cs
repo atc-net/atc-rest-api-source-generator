@@ -151,12 +151,12 @@ public partial class UserForm
     }
 
     private static Color GetRoleColor(UserRole role)
-        => role switch
+        => role.Value switch
         {
-            UserRole.Admin => Color.Error,
-            UserRole.Manager => Color.Warning,
-            UserRole.Employee => Color.Info,
-            UserRole.Guest => Color.Default,
+            UserRole.Names.Admin => Color.Error,
+            UserRole.Names.Manager => Color.Warning,
+            UserRole.Names.Employee => Color.Info,
+            UserRole.Names.Guest => Color.Default,
             _ => Color.Default,
         };
 }

@@ -11,7 +11,7 @@
     <MudStack Row="true" Spacing="3" AlignItems="AlignItems.End">
         <MudTextField @bind-Value="newSubscriptionName" Label="Name" Variant="Variant.Outlined" />
         <MudSelect T="NotificationType" @bind-SelectedValues="selectedTopics" Label="Topics" MultiSelection="true" Variant="Variant.Outlined">
-            @foreach (var topic in Enum.GetValues<NotificationType>())
+            @foreach (var topic in NotificationType.KnownValues)
             {
                 <MudSelectItem T="NotificationType" Value="topic">@topic</MudSelectItem>
             }
@@ -164,13 +164,13 @@ else
         }
     }
 
-    private static Color GetTopicColor(NotificationType topic) => topic switch
+    private static Color GetTopicColor(NotificationType topic) => topic.Value switch
     {
-        NotificationType.System => Color.Primary,
-        NotificationType.User => Color.Secondary,
-        NotificationType.Data => Color.Tertiary,
-        NotificationType.Alert => Color.Warning,
-        NotificationType.Metric => Color.Info,
+        NotificationType.Names.System => Color.Primary,
+        NotificationType.Names.User => Color.Secondary,
+        NotificationType.Names.Data => Color.Tertiary,
+        NotificationType.Names.Alert => Color.Warning,
+        NotificationType.Names.Metric => Color.Info,
         _ => Color.Default
     };
 }

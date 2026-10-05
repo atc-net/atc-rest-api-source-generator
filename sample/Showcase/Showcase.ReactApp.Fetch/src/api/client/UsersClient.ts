@@ -85,7 +85,7 @@ export class UsersClient {
   }
 
   /** List all users */
-  async listUsers(query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number /* default: 25 */ }, signal?: AbortSignal): Promise<ListUsersResult> {
+  async listUsers(query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest' | (string & {}); isActive?: boolean; limit?: number /* default: 25 */ }, signal?: AbortSignal): Promise<ListUsersResult> {
     return this.api.request<Users>('GET', '/users', {
       query: {
         search: query?.search,

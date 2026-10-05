@@ -7,7 +7,7 @@ import type { CreateUserRequest, UpdateUserRequest, User, UserQuery, Users } fro
 
 const usersKeys = {
   all: ['users'] as const,
-  list: (query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number /* default: 25 */ }) => [...usersKeys.all, 'list', query] as const,
+  list: (query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest' | (string & {}); isActive?: boolean; limit?: number /* default: 25 */ }) => [...usersKeys.all, 'list', query] as const,
   query: (body: UserQuery) => [...usersKeys.all, 'query', body] as const,
   userById: (userId: string) => [...usersKeys.all, 'userById', userId] as const,
 };
@@ -15,7 +15,7 @@ const usersKeys = {
 export { usersKeys };
 
 /** List all users */
-export function useListUsers(query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest'; isActive?: boolean; limit?: number /* default: 25 */ }, config?: SWRConfiguration<Users, ApiError>) {
+export function useListUsers(query?: { search?: string; country?: string; role?: 'Admin' | 'Manager' | 'Employee' | 'Guest' | (string & {}); isActive?: boolean; limit?: number /* default: 25 */ }, config?: SWRConfiguration<Users, ApiError>) {
   const api = useApiService();
   return useSWR<Users, ApiError>(
     usersKeys.list(query),

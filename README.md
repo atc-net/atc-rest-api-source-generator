@@ -24,7 +24,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 | **Client** | 🔌 **Type-Safe Client**          | Strongly-typed HTTP client with full IntelliSense                                |
 |            | 🔄 **Resilience**                | Per-operation retry/circuit breaker from `x-retry-*`; POST/PATCH never resent unasked |
 |            | 🔗 **URL Encoding**              | Automatic RFC 3986 compliant encoding - no more broken URLs                      |
-| **Models** | 🎯 **Enum Support**              | Generates C# enums from OpenAPI string enums                                     |
+| **Models** | 🎯 **Enum Support**              | Strict C# enums on the server; **extensible enums** in the clients, so a value the server adds later is read instead of failing the response |
 |            | 📊 **Pagination**                | Generic `PaginatedResult<T>` from `allOf` composition                            |
 | **Data**   | 📁 **Files**                     | Upload and download any file type (PDF, Excel, images) with its media type and file name; a response can be a model **or** a file |
 |            | 🧾 **XML**                       | XML bodies mapped by the `xml` keyword, negotiated by `Accept`; `application/problem+xml` on request |
@@ -239,6 +239,7 @@ Read the full documentation on the [WIKI](https://github.com/atc-net/atc-rest-ap
 | [📖 Working with OpenAPI](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-OpenAPI) | YAML patterns and generated output |
 | [🧩 Working with Multi-Part Specs](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Multi-Part-Specs) | Split a large specification across files |
 | [🕳️ Working with Nullability](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Nullability) | `nullable` vs `type: [x, "null"]`, and why |
+| [🧩 Working with Extensible Enums](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Extensible-Enums) | Why client enums keep a value the server adds later, and how to use them |
 | [🚨 Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses) | RFC 9457 ProblemDetails, declared error models |
 | [📁 Working with Files](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Files) | Uploads, downloads, model-or-file responses |
 | [🧾 Working with XML](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-XML) | XML bodies, content negotiation |
