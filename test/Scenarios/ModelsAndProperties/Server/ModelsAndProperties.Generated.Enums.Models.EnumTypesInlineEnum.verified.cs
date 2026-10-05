@@ -3,6 +3,7 @@
 #pragma warning disable CS1591
 
 using System.CodeDom.Compiler;
+using System.Text.Json.Serialization;
 
 namespace ModelsAndProperties.Generated.Enums.Models;
 
@@ -10,6 +11,7 @@ namespace ModelsAndProperties.Generated.Enums.Models;
 /// Inline enum definition.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum EnumTypesInlineEnum
 {
     Option1,

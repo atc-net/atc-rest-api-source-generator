@@ -3,6 +3,7 @@
 #pragma warning disable CS1591
 
 using System.CodeDom.Compiler;
+using System.Text.Json.Serialization;
 
 namespace EnumNamingConflicts.Generated.Models;
 
@@ -10,6 +11,7 @@ namespace EnumNamingConflicts.Generated.Models;
 /// Enum with values matching C# boolean keywords.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum BooleanLike
 {
     True,
