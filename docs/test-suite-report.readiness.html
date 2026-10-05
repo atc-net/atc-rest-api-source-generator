@@ -1,13 +1,13 @@
 <h2>Atc REST 3.0 readiness</h2>
 <p>State of <code>feature/error-body-3.0</code> (generator) and <code>feature/error-body-backlog</code> (minimalapi),
-30 September 2026. <code>Atc.Rest.Client</code> 2.1.0 is released on nuget.org and the generator now uses the package.
+5 October 2026. <code>Atc.Rest.Client</code> 2.1.0 is released on nuget.org and the generator now uses the package.
 Nothing else is released or pushed; the generator still uses minimalapi through a temporary project reference.</p>
 
 <div class="note">
-  <p><b>Generator:</b> 6,669 tests, 0 failed (30 September, on the <code>Atc.Rest.Client</code> 2.1.0 package), Release build with 0 warnings. That includes the end-to-end matrix on
-    the Overview tab, the negative control that proves its rules can fail, and every scenario snapshot.
-    <b>MinimalApi:</b> 168 tests + 9 Aspire/Playwright E2E, 0 failed (28 September).
-    <b>Showcase live:</b> 180 Playwright specs, 0 failed: 161 passed, 8 flaky and 11 skipped (30 September: Blazor, React Fetch and React Axios, on the <code>Atc.Rest.Client</code> 2.1.0 package; includes the declared-400 BadRequestValidationErrors panel). The 8 flaky specs passed on their retry; they were spread over Blazor and both React apps, and the browser reported <code>net::ERR_NETWORK_CHANGED</code> while loading assets, a machine network event rather than a client failure.</p>
+  <p>The numbers on this page come from the run that wrote it: the verdicts per matrix on the Overview tab, the
+    compile gate and the diagnostics on <i>Feature support</i>, and the Showcase apps under <i>Playwright</i>. The
+    commit the run was made from is in the page header. These notes are written by hand, so they carry no counts.
+    <b>MinimalApi</b> is tested in its own repository, unit tests and Aspire/Playwright E2E, 0 failed on 28 September.</p>
 </div>
 
 <h3>Decisions</h3>
@@ -97,6 +97,15 @@ Nothing else is released or pushed; the generator still uses minimalapi through 
     number 42), and Fetch dropped XML.</li>
   <li><b>Server.</b> Model properties are written under their exact spec names (<code>user_name</code>,
     <code>UserId</code>, <code>HTTPStatus</code>).</li>
+  <li><b>Server string enums.</b> A string enum is a string on the wire in every host: the generated enum carries its
+    own <code>JsonStringEnumConverter</code>. Before, a host without a registered converter wrote numbers.</li>
+  <li><b>Extensible client enums.</b> The C# and TypeScript clients read a value the specification does not list
+    instead of failing: a C# <code>readonly record struct</code> with the known values, a TypeScript open union. The
+    two feature-matrix cells that failed on an unknown value pass; <code>extensibleEnums: false</code> keeps the
+    classic enum (the matrix runs that too, and it still fails on an unknown value, as designed).</li>
+  <li><b>OpenAPI Overlays.</b> A marker lists overlay files (Overlay 1.0 to 1.2, RFC 9535 JSONPath) that the build
+    applies to the specification before it validates and generates; the CLI applies them too
+    (<code>spec overlay apply</code>, <code>--overlay</code>).</li>
 </ul>
 
 <h3>Known limitations (documented)</h3>

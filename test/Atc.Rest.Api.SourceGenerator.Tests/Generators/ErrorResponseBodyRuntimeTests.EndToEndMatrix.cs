@@ -1989,7 +1989,9 @@ public partial class ErrorResponseBodyRuntimeTests
               record.errors = e.errors ?? null;
             }
           } catch (err: any) {
-            record.threw = String(err?.stack ?? err);
+            // Node's fetch says only "fetch failed"; what failed is in the cause (a reset socket, a refused connection)
+            const cause = err?.cause ? ` (cause: ${[err.cause.code, err.cause.message ?? String(err.cause)].filter(Boolean).join(' ')})` : '';
+            record.threw = `${err?.name ?? 'Error'}: ${err?.message ?? err}${cause}\n${err?.stack ?? ''}`;
           }
           results.push(record);
         }

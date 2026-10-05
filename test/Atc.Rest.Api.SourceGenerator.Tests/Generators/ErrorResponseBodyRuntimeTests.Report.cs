@@ -69,7 +69,6 @@ public partial class ErrorResponseBodyRuntimeTests
         "A browser runtime: the React Query and SWR hooks render with React on jsdom in Node.",
         "The hooks on a 304: a browser cache sends the condition, not a hook.",
         "Webhooks and output caching.",
-        "A value the C# clients' enum does not know: the two ratcheted cells (System.Text.Json throws; a tolerant enum is a roadmap item).",
     ];
 
     private const string ReportJsonFileName = "test-suite-report.json";
@@ -163,6 +162,62 @@ public partial class ErrorResponseBodyRuntimeTests
         }
 
         Assert.All(GuardCases(), c => Assert.DoesNotContain(GuardNotExercised, s => s.Contains(c.Operation, StringComparison.Ordinal)));
+    }
+
+    /// <summary>
+    /// A not-exercised sentence that points at ratcheted cells is only true while the matrix has a ratchet (the
+    /// feature list still named the unknown-enum cells after extensible enums made them pass).
+    /// </summary>
+    [Fact]
+    public void NotExercised_NamesRatchetedCellsOnlyWhileTheMatrixHasThem()
+    {
+        var ratchets = Ratchets();
+        foreach (var (key, sentences) in ((string, string[])[])[
+            ("errorBodies", EndToEndNotExercised),
+            ("bodyMedia", BodyMediaNotExercised),
+            ("requestBinding", RequestBindingNotExercised),
+            ("guard", GuardNotExercised),
+            ("feature", FeatureNotExercised)])
+        {
+            if (ratchets[key]!.AsArray().Count == 0)
+            {
+                Assert.DoesNotContain(sentences, s => s.Contains("ratchet", StringComparison.OrdinalIgnoreCase));
+            }
+        }
+    }
+
+    /// <summary>
+    /// The Feature support tab names the overlay a scenario's markers list: its row is the specification as the
+    /// overlay changes it, which the raw file alone does not show.
+    /// </summary>
+    [Fact]
+    public void ScenarioOverlay_NamesTheOverlayOfAScenarioThatHasOne()
+    {
+        Assert.Equal("Overlays.overlay.yaml", ScenarioOverlay("Overlays"));
+        Assert.Equal("OverlaysMultiPart.overlay.yaml", ScenarioOverlay("OverlaysMultiPart"));
+        Assert.Null(ScenarioOverlay("Demo"));
+    }
+
+    /// <summary>
+    /// The hand-written notes shown next to the data carry no test counts: a count typed by hand is stale after the
+    /// next commit (the readiness notes said 6,669 tests long after the suite had grown), the page's own numbers
+    /// come from the run.
+    /// </summary>
+    [Fact]
+    public void HandWrittenNotes_CarryNoTestCounts()
+    {
+        var docs = Path.Combine(FindRepositoryRoot(), ReportFolderName);
+        foreach (var file in (string[])["test-suite-report.readiness.html", "test-suite-report.review.html"])
+        {
+            var path = Path.Combine(docs, file);
+            if (!File.Exists(path))
+            {
+                continue;
+            }
+
+            var counts = Regex.Matches(File.ReadAllText(path), @"\b\d[\d,]*\s+(?:tests|specs)\b", RegexOptions.None, TimeSpan.FromSeconds(1));
+            Assert.True(counts.Count == 0, $"{file}: {string.Join(", ", counts.Select(m => m.Value))}");
+        }
     }
 
     /// <summary>
@@ -438,6 +493,7 @@ public partial class ErrorResponseBodyRuntimeTests
             {
                 ["name"] = group.Key,
                 ["openApi"] = ScenarioOpenApiVersion(group.Key),
+                ["overlay"] = ScenarioOverlay(group.Key),
                 ["generators"] = generators,
             });
         }
@@ -449,6 +505,12 @@ public partial class ErrorResponseBodyRuntimeTests
             ["scenarios"] = scenarios,
             ["tsc"] = tsc,
         };
+    }
+
+    private static string? ScenarioOverlay(string scenario)
+    {
+        var fileName = scenario + ".overlay.yaml";
+        return File.Exists(Path.Combine(GeneratorSnapshotHarness.GetScenariosRoot(), scenario, fileName)) ? fileName : null;
     }
 
     private static string ScenarioOpenApiVersion(string scenario)

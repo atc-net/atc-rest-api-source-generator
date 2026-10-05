@@ -109,8 +109,7 @@ public sealed class TypeScriptScenarioTscMatrixGateTests
 
             foreach (var (scenario, specPath) in DiscoverScenarioSpecs())
             {
-                // Loaded like `generate client-typescript` does: multi-part specs merge their part files.
-                var doc = Atc.Rest.Api.Generator.Services.SpecificationService.ReadAndMergeResolved(specPath).Specification?.Document;
+                var doc = LoadScenarioDocument(specPath);
 
                 foreach (var httpClient in HttpClients)
                 {
@@ -208,6 +207,28 @@ public sealed class TypeScriptScenarioTscMatrixGateTests
     /// hooks, Zod schemas with runtime validation, MSW handlers, branded ids, Date conversion, mutable
     /// models and TypeScript enums with runtime values.
     /// </summary>
+    /// <summary>
+    /// A scenario with an overlay ({scenario}.overlay.yaml, listed by its markers) is type-checked as the build
+    /// generates it: the gate used to compile the raw specification, a client no build produces. A multi-part
+    /// scenario gets the overlay after the merge.
+    /// </summary>
+    [Theory]
+    [InlineData("Overlays", "listDevices")]
+    [InlineData("OverlaysMultiPart", "listOrders")]
+    public void LoadScenarioDocument_AppliesTheScenariosOverlay(
+        string scenario,
+        string operationId)
+    {
+        var specPath = Path.Combine(AppContext.BaseDirectory, "Scenarios", scenario, scenario + ".yaml");
+
+        var document = LoadScenarioDocument(specPath);
+
+        Assert.NotNull(document);
+        Assert.Contains(
+            document.Paths.Values.SelectMany(p => p.Operations?.Values.AsEnumerable() ?? []),
+            o => string.Equals(o.OperationId, operationId, StringComparison.Ordinal));
+    }
+
     private static TypeScriptClientConfig CreateConfig(
         TypeScriptHttpClient httpClient,
         TypeScriptHooksStyle hooks,
@@ -278,9 +299,26 @@ public sealed class TypeScriptScenarioTscMatrixGateTests
     }
 
     /// <summary>
-    /// Every "{scenario}/{scenario}.yaml" copied next to the test assembly (the base spec of a
-    /// multi-part scenario; its part files are merged from there).
+    /// A scenario's specification, loaded like <c>generate client-typescript --overlay</c> does: multi-part specs
+    /// merge their part files, then the scenario's overlay ({scenario}.overlay.yaml) applies to the whole.
     /// </summary>
+    private static OpenApiDocument? LoadScenarioDocument(string specPath)
+    {
+        var merged = Atc.Rest.Api.Generator.Services.SpecificationService.ReadAndMergeResolved(specPath).Specification;
+        var overlayPath = Path.ChangeExtension(specPath, ".overlay.yaml");
+        if (merged?.Document is null || !File.Exists(overlayPath))
+        {
+            return merged?.Document;
+        }
+
+        var (effective, problems) = Atc.Rest.Api.Generator.Overlays.SpecificationOverlays.Apply(
+            merged.Content,
+            [new Atc.Rest.Api.Generator.Overlays.OverlayFile(overlayPath, File.ReadAllText(overlayPath))]);
+        Assert.True(effective is not null, $"The overlay {overlayPath} cannot be applied: {string.Join("; ", problems.Select(p => p.Problem.Message))}");
+
+        return OpenApiDocumentHelper.TryParseYamlWithDiagnostic(effective, specPath).Document;
+    }
+
     /// <summary>
     /// Leaves the matrix's result for the test-suite report (<c>Report_EndToEndErrorBodyMatrix</c> in the
     /// source-generator tests reads <c>docs/test-suite-report.tsc-matrix.json</c>); nothing when the repository root
@@ -325,6 +363,10 @@ public sealed class TypeScriptScenarioTscMatrixGateTests
         File.WriteAllText(path, data.ToJsonString());
     }
 
+    /// <summary>
+    /// Every "{scenario}/{scenario}.yaml" copied next to the test assembly (the base spec of a
+    /// multi-part scenario; its part files are merged from there).
+    /// </summary>
     private static IEnumerable<(string Scenario, string SpecPath)> DiscoverScenarioSpecs()
     {
         var root = Path.Combine(AppContext.BaseDirectory, "Scenarios");

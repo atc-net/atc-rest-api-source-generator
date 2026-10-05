@@ -936,6 +936,7 @@ public partial class ErrorResponseBodyRuntimeTests
     internal static readonly (string Id, string Group, string Label, string Marker, bool Typed, string? TsFlavour)[] FeatureClients =
     [
         ("cs-epo", "C# EndpointPerOperation", "errorResponseFormat: ProblemDetails", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails" }""", false, null),
+        ("cs-epo-classic-enums", "C# EndpointPerOperation", "extensibleEnums: false (the classic enum)", """{ "generationMode": "EndpointPerOperation", "errorResponseFormat": "ProblemDetails", "extensibleEnums": false }""", false, null),
         ("cs-typed", "C# TypedClient", "typedClientResultStyle: Result", """{ "generationMode": "TypedClient", "typedClientResultStyle": "Result" }""", true, null),
         ("ts-fetch", "TypeScript", "Fetch client", string.Empty, false, "fetch"),
         ("ts-axios", "TypeScript", "Axios client", string.Empty, false, "axios"),
@@ -1048,10 +1049,20 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(VerdictFail, (string?)FeatureVerdict(dates, client, Value("Moment", """{"day":"2026-03-04","at":"2026-03-04T05:06:07+00:00"}"""), cancelled: false)["verdict"]);
 
         var unknown = cases.Single(c => c.Name.StartsWith("enum: a value the client does not know", StringComparison.Ordinal));
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, FeatureClients[2], Value(null, """{"color":"purple"}"""), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, FeatureClients[4], Value(null, """{"color":"purple"}"""), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictFail, (string?)FeatureVerdict(unknown, FeatureClients[4], new JsonObject { ["kind"] = "schemaMismatch", ["error"] = "issues" }, cancelled: false)["verdict"]);
+        var tsFetch = FeatureClients.Single(c => c.Id == "ts-fetch");
+        var tsZod = FeatureClients.Single(c => c.Id == "ts-fetch-zod");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, tsFetch, Value(null, """{"color":"purple"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, tsZod, Value(null, """{"color":"purple"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(unknown, tsZod, new JsonObject { ["kind"] = "schemaMismatch", ["error"] = "issues" }, cancelled: false)["verdict"]);
         Assert.Equal(VerdictFail, (string?)FeatureVerdict(unknown, client, new JsonObject { ["kind"] = "threw", ["error"] = "JsonException: purple" }, cancelled: false)["verdict"]);
+
+        // Opted out (extensibleEnums: false): the classic enum refuses the value, as the option documents; the value
+        // getting through would mean the option did nothing
+        var classic = FeatureClients.Single(c => c.Id == "cs-epo-classic-enums");
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, classic, new JsonObject { ["kind"] = "threw", ["error"] = "JsonException: purple" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, classic, new JsonObject { ["kind"] = "threw", ["error"] = "RestClientDeserializationException: Failed to deserialize response content to Painted for status code 200 (OK)" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(unknown, classic, Value("Painted", """{"color":"purple"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(unknown, classic, new JsonObject { ["kind"] = "threw", ["error"] = "HttpRequestException: refused" }, cancelled: false)["verdict"]);
 
         var notModified = cases.Single(c => c.Name.StartsWith("conditional: If-None-Match", StringComparison.Ordinal));
         Assert.Equal(VerdictPass, (string?)FeatureVerdict(notModified, client, new JsonObject { ["kind"] = "status", ["status"] = 304, ["notModified"] = true }, cancelled: false)["verdict"]);
@@ -1068,7 +1079,7 @@ public partial class ErrorResponseBodyRuntimeTests
         Assert.Equal(VerdictPass, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "cancelled" }, cancelled: true)["verdict"]);
         Assert.Equal(VerdictFail, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "cancelled" }, cancelled: false)["verdict"]);
         Assert.Equal(VerdictFail, (string?)FeatureVerdict(slow, client, new JsonObject { ["kind"] = "completed" }, cancelled: false)["verdict"]);
-        Assert.Equal(VerdictNotApplicable, (string?)FeatureVerdict(slow, FeatureClients[6], new JsonObject { ["kind"] = "na", ["why"] = "SWR" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictNotApplicable, (string?)FeatureVerdict(slow, FeatureClients.Single(c => c.Id == "ts-fetch-swr"), new JsonObject { ["kind"] = "na", ["why"] = "SWR" }, cancelled: false)["verdict"]);
     }
 
     /// <summary>
@@ -1201,6 +1212,17 @@ public partial class ErrorResponseBodyRuntimeTests
             case "color":
             {
                 var unknown = arguments["unknown"] is not null;
+                if (unknown && client.Marker.Contains("\"extensibleEnums\": false", StringComparison.Ordinal))
+                {
+                    // Opted out: the classic enum refuses a value it does not know, as the option documents - a
+                    // JsonException, which the EndpointPerOperation client passes on as Atc.Rest.Client's
+                    // RestClientDeserializationException
+                    var error = (string?)observed["error"] ?? string.Empty;
+                    return kind == "threw" && (error.StartsWith("JsonException", StringComparison.Ordinal) || error.StartsWith("RestClientDeserializationException", StringComparison.Ordinal))
+                        ? Cell(VerdictPass, "the classic enum refuses the unknown value (extensibleEnums: false), as documented", "JsonException")
+                        : Cell(VerdictFail, $"{kind}: expected the classic enum to refuse the unknown value, got {observed["value"]?.ToJsonString() ?? error}", "-");
+                }
+
                 if (unknown)
                 {
                     // A value the client's enum does not have: every client hands it to the caller as it was sent (an
