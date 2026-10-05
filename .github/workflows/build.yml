@@ -101,6 +101,14 @@ jobs:
         if: always() && matrix.os == 'ubuntu-latest'
         run: dotnet test --project test/Atc.Rest.Api.SourceGenerator.Tests -c Release --no-build -- --filter-method "*Report_EndToEndErrorBodyMatrix" --explicit only
 
+      # The committed report is the page the README links to: a warning when this run's verdicts or summary differ
+      - name: 🔎 Compare with the committed test-suite report
+        if: always() && matrix.os == 'ubuntu-latest' && hashFiles('docs/test-suite-report.json') != ''
+        shell: bash
+        run: |
+          git show HEAD:docs/test-suite-report.json > "$RUNNER_TEMP/committed-test-suite-report.json"
+          node .github/scripts/compare-test-suite-report.mjs "$RUNNER_TEMP/committed-test-suite-report.json" docs/test-suite-report.json
+
       - name: 📤 Upload the test-suite report
         if: always() && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
