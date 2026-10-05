@@ -102,10 +102,26 @@ Nothing else is released or pushed; the generator still uses minimalapi through 
   <li><b>Extensible client enums.</b> The C# and TypeScript clients read a value the specification does not list
     instead of failing: a C# <code>readonly record struct</code> with the known values, a TypeScript open union. The
     two feature-matrix cells that failed on an unknown value pass; <code>extensibleEnums: false</code> keeps the
-    classic enum (the matrix runs that too, and it still fails on an unknown value, as designed).</li>
+    classic enum. The matrix runs that client too: its cell passes when the classic enum refuses the unknown value,
+    which is what the option documents.</li>
   <li><b>OpenAPI Overlays.</b> A marker lists overlay files (Overlay 1.0 to 1.2, RFC 9535 JSONPath) that the build
     applies to the specification before it validates and generates; the CLI applies them too
     (<code>spec overlay apply</code>, <code>--overlay</code>).</li>
+  <li><b>Axios uploads.</b> The Axios client names a <code>FormData</code> body <code>multipart/form-data</code>
+    itself: on its fetch adapter in Node, axios labelled it form-urlencoded and the server answered 415 (the last
+    known failure of the matrices). A Showcase spec proves the browser still sends it with its boundary.</li>
+  <li><b>Hints for the lossy cells.</b> <code>ATC_API_SRV002</code> (information) notes a 400 declared as a string
+    while the ValidationFilter is on, and an error factory whose status declares a model says in its remarks what a
+    call without the model writes. Both kinds of cell stay lossy; the remaining options are design decisions (see the
+    design review).</li>
+  <li><b>A broken specification is reported, never a crash.</b> A fuzz test (every scenario, mutated from a fixed
+    seed, through the server, handler and client generators) found crashes that are now diagnostics: JSON text with an
+    escaped emoji (SharpYaml; it is read as JSON now), an unknown <code>openapi</code> version and an empty
+    <code>$ref</code> (the parser's reason is reported), a value of another kind where an object belongs
+    (<code>ATC_API_VAL001</code> naming the place), a <code>prefixItems</code> keyword that is no string, and a
+    handler scaffold that cannot be written (<code>ATC_API_GEN019</code>).</li>
+  <li><b>Showcase.</b> Since the generated endpoints enforce scopes, the demo user had none and the scoped operations
+    answered 403; with Playwright in this report it showed at once. The demo user now holds the oauth2 scopes.</li>
 </ul>
 
 <h3>Known limitations (documented)</h3>

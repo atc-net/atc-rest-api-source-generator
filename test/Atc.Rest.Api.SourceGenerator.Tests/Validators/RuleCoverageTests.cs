@@ -16,9 +16,9 @@ public class RuleCoverageTests
         // ========== Generation Rules (GEN) - the catch-all of a generator run ==========
         // The other GEN ids (a document that does not parse, no output directory, no endpoints to inject, the
         // summary) are produced by a real generator run in Generators.GeneratorDiagnosticsTests.
-        ["ATC_API_GEN001"] = "ServerGenerationError - the catch around server generation; no known input makes the generator throw",
-        ["ATC_API_GEN003"] = "ClientGenerationError - the catch around client generation; no known input makes the generator throw",
-        ["ATC_API_GEN005"] = "HandlerScaffoldGenerationError - the catch around scaffold generation; no known input makes the generator throw",
+        ["ATC_API_GEN001"] = "ServerGenerationError - the catch around server generation; no known input makes the generator throw - GeneratorRobustnessFuzzTests asserts it never appears for a broken specification",
+        ["ATC_API_GEN003"] = "ClientGenerationError - the catch around client generation; no known input makes the generator throw - GeneratorRobustnessFuzzTests asserts it never appears for a broken specification",
+        ["ATC_API_GEN005"] = "HandlerScaffoldGenerationError - the catch around scaffold generation; no known input makes the generator throw - GeneratorRobustnessFuzzTests asserts it never appears for a broken specification",
         ["ATC_API_GEN008"] = "EndpointInjectionGenerationError - the catch around endpoint injection; no known input makes the generator throw",
 
         // ========== OpenAPI Validation Rules (VAL) ==========
