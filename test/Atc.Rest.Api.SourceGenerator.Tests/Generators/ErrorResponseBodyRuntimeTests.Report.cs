@@ -186,6 +186,24 @@ public partial class ErrorResponseBodyRuntimeTests
     }
 
     /// <summary>
+    /// Playwright's statuses per test are expected, unexpected, flaky (failed, then passed on a retry) and skipped:
+    /// only unexpected is a failure - CI retries, so a flaky test must not read as a failed one.
+    /// </summary>
+    [Fact]
+    public void Summary_CountsOnlyUnexpectedPlaywrightTestsAsFailed()
+    {
+        JsonObject Matrix(JsonObject apps)
+            => new() { ["cases"] = new JsonArray(), ["ratchet"] = new JsonObject(), ["playwright"] = new JsonObject { ["apps"] = apps } };
+
+        var flaky = Summary(Matrix(new JsonObject { ["blazor"] = new JsonObject { ["expected"] = 3, ["flaky"] = 1, ["skipped"] = 2 } }));
+        var failing = Summary(Matrix(new JsonObject { ["blazor"] = new JsonObject { ["expected"] = 3, ["unexpected"] = 1 }, ["react-axios"] = new JsonObject { ["unexpected"] = 2 } }));
+
+        Assert.Equal(0, (int?)flaky["playwright"]!["failed"]);
+        Assert.Equal(1, (int?)flaky["playwright"]!["flaky"]);
+        Assert.Equal(3, (int?)failing["playwright"]!["failed"]);
+    }
+
+    /// <summary>
     /// The Feature support tab names the overlay a scenario's markers list: its row is the specification as the
     /// overlay changes it, which the raw file alone does not show.
     /// </summary>
@@ -264,7 +282,8 @@ public partial class ErrorResponseBodyRuntimeTests
 
     /// <summary>
     /// The machine-readable summary of the run: per matrix the verdict counts and the known failures; the compile
-    /// gate, the diagnostics coverage and Playwright in one number each; and the overall state - <c>green</c> (no
+    /// gate, the diagnostics coverage and Playwright in one number each (a flaky Playwright test - failed, then passed
+    /// on a retry - is counted apart, not as a failure); and the overall state - <c>green</c> (no
     /// fail), <c>known-failures</c> (every fail is in a ratchet) or <c>regressions</c> (a fail no ratchet lists).
     /// </summary>
     private static JsonObject Summary(JsonObject matrix)
@@ -342,7 +361,8 @@ public partial class ErrorResponseBodyRuntimeTests
             ["playwright"] = playwright is null ? null : new JsonObject
             {
                 ["apps"] = playwright.Count,
-                ["failed"] = playwright.Sum(a => a.Value!.AsObject().Where(s => s.Key is not ("expected" or "passed" or "skipped")).Sum(s => (int)s.Value!)),
+                ["failed"] = playwright.Sum(a => a.Value!.AsObject().Where(s => s.Key is not ("expected" or "passed" or "skipped" or "flaky")).Sum(s => (int)s.Value!)),
+                ["flaky"] = playwright.Sum(a => (int?)a.Value!["flaky"] ?? 0),
             },
         };
     }

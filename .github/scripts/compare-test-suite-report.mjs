@@ -24,15 +24,20 @@ const changed = changes.changed ?? [];
 const added = changes.added ?? [];
 const removed = changes.removed ?? [];
 
-// Playwright runs in its own job; the committed report may have it and this run does not
-const comparable = (report) => JSON.stringify({ ...(report.summary ?? {}), playwright: undefined });
+// Playwright: its apps and failures (a flaky test passes on a retry, so its count changes from run to run)
+// - compared only when both reports have a Playwright run (a missing one is warned about on its own)
+const bothHavePlaywright = Boolean(committed.summary?.playwright && current.summary?.playwright);
+const playwright = (report) => bothHavePlaywright ? { apps: report.summary.playwright.apps, failed: report.summary.playwright.failed } : undefined;
+const comparable = (report) => JSON.stringify({ ...(report.summary ?? {}), playwright: playwright(report) });
 const summaryDiffers = comparable(committed) !== comparable(current);
 
 const reasons = [];
 if (changed.length) reasons.push(`${changed.length} cell(s) changed verdict (${changed.slice(0, 5).map((c) => `${c.cell}: ${c.from} -> ${c.to}`).join('; ')}${changed.length > 5 ? '; ...' : ''})`);
 if (added.length) reasons.push(`${added.length} cell(s) are new`);
 if (removed.length) reasons.push(`${removed.length} cell(s) are gone`);
-if (summaryDiffers) reasons.push('the summary differs (compile gate, diagnostics coverage or overall state)');
+if (summaryDiffers) reasons.push('the summary differs (compile gate, diagnostics coverage, Playwright or overall state)');
+if (!committed.summary?.playwright) reasons.push('the committed report has no Playwright run (run npx playwright test in test/Showcase.E2ETests before regenerating)');
+if (!current.summary?.playwright) console.log('::warning title=No Playwright results::This run\'s report has no Playwright results; see the playwright job.');
 
 const commit = committed.provenance?.commit ?? '?';
 if (reasons.length === 0) {
