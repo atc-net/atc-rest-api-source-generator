@@ -289,6 +289,9 @@ public static class TypeScriptAxiosApiClientExtractor
         sb.AppendLine();
         sb.AppendLine("    if (options?.body !== undefined) {");
         sb.AppendLine("      if (options.body instanceof FormData) {");
+        sb.AppendLine("        // Named, not left to the adapter: axios's fetch adapter in Node labels a FormData form-urlencoded.");
+        sb.AppendLine("        // Axios adds the boundary; in a browser it drops the header and the browser sets it.");
+        sb.AppendLine("        headers['Content-Type'] = 'multipart/form-data';");
         sb.AppendLine("        data = options.body;");
         sb.AppendLine("      } else if (options.body instanceof URLSearchParams) {");
         sb.AppendLine("        headers['Content-Type'] = 'application/x-www-form-urlencoded';");

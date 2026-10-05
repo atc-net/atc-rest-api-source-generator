@@ -46,7 +46,6 @@ public partial class ErrorResponseBodyRuntimeTests
     internal static readonly string[] RequestBindingNotExercised =
     [
         "Cookies from a browser: a page cannot set the Cookie header; the TypeScript cells run on Node.",
-        "Axios on its fetch adapter sending multipart from Node (the one cell in the ratchet: axios sends the FormData as form-urlencoded; its http adapter and a browser send multipart).",
     ];
 
     /// <summary>

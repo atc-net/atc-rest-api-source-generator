@@ -1219,12 +1219,11 @@ public partial class ErrorResponseBodyRuntimeTests
     /// <summary>
     /// The cells that fail today, as <c>case [client]</c>: a cell not listed here must pass, and a listed cell that passes
     /// fails the test asking to be removed. The matrix started with 46 (enum wire names in parameters, cookies, a +json
-    /// body's media type, an array item with a comma, a 400 that did not name the parameter, a file's content type);
-    /// all are fixed but one, which is not in generated code: Axios on its fetch adapter sends a FormData body from
-    /// Node as <c>application/x-www-form-urlencoded</c> (its http adapter and a browser send multipart).
+    /// body's media type, an array item with a comma, a 400 that did not name the parameter, a file's content type,
+    /// and Axios on its fetch adapter labelling a FormData body from Node <c>application/x-www-form-urlencoded</c>,
+    /// which the generated client now names multipart itself) - all fixed.
     /// </summary>
     private static readonly HashSet<string> KnownRequestBindingFailures = new(StringComparer.Ordinal)
     {
-        "body: multipart/form-data (fields and a file) [ts-axios-fetch]",
     };
 }

@@ -137,6 +137,9 @@ export class ApiClient {
 
     if (options?.body !== undefined) {
       if (options.body instanceof FormData) {
+        // Named, not left to the adapter: axios's fetch adapter in Node labels a FormData form-urlencoded.
+        // Axios adds the boundary; in a browser it drops the header and the browser sets it.
+        headers['Content-Type'] = 'multipart/form-data';
         data = options.body;
       } else if (options.body instanceof URLSearchParams) {
         headers['Content-Type'] = 'application/x-www-form-urlencoded';
