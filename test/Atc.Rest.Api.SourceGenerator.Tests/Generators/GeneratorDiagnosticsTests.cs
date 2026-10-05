@@ -127,6 +127,62 @@ public class GeneratorDiagnosticsTests
         Assert.DoesNotContain("ATC_API_DEP007", Run(new ApiServerGenerator(), [Spec(Yaml), marker], Full(includeMinimalApi: true)));
     }
 
+    /// <summary>
+    /// The ValidationFilter answers an invalid request with a ValidationProblemDetails (application/problem+json); an
+    /// operation that declares its 400 as a string cannot carry its field errors, so the client reads only the title
+    /// as the string. A note, not a warning: the specification is valid, and a hand-written 400 may be the string.
+    /// </summary>
+    [Theory]
+    [InlineData("text/plain", "type: string", true)]
+    [InlineData("application/json", "type: string", true)]
+    [InlineData("application/json", "$ref: '#/components/schemas/Thing'", false)]
+    [InlineData("application/problem+json", "type: object", false)]
+    public void Server_DeclaredStringBadRequestWhileValidating_ReportsSRV002(
+        string mediaType,
+        string schema,
+        bool reported)
+    {
+        var withPost = Yaml.Replace(
+            "components:",
+            $$"""
+                post:
+                  operationId: createThing
+                  requestBody:
+                    required: true
+                    content:
+                      application/json:
+                        schema:
+                          $ref: '#/components/schemas/Thing'
+                  responses:
+                    '201':
+                      description: Created
+                    '400':
+                      description: Bad Request
+                      content:
+                        {{mediaType}}:
+                          schema:
+                            {{schema}}
+            components:
+            """,
+            StringComparison.Ordinal);
+
+        var validating = RunDiagnostics(new ApiServerGenerator(), [Spec(withPost), Marker(".atc-rest-api-server", "{}")], Full(includeMinimalApi: true));
+        var notValidating = RunDiagnostics(new ApiServerGenerator(), [Spec(withPost), Marker(".atc-rest-api-server", "{}")], Full());
+
+        if (reported)
+        {
+            var info = Assert.Single(validating, d => d.Id == "ATC_API_SRV002");
+            Assert.Equal(DiagnosticSeverity.Info, info.Severity);
+            Assert.Contains("createThing", info.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.DoesNotContain(validating, d => d.Id == "ATC_API_SRV002");
+        }
+
+        Assert.DoesNotContain(notValidating, d => d.Id == "ATC_API_SRV002");
+    }
+
     [Fact]
     public void Domain_InjectLoggerWithoutLoggingAbstractions_ReportsDEP008()
     {

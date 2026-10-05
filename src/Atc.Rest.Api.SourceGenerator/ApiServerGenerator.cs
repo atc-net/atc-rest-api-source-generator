@@ -329,6 +329,16 @@ public class ApiServerGenerator : IIncrementalGenerator
             DiagnosticHelpers.ReportJwtBearerRequiresPackage(context);
         }
 
+        // The ValidationFilter writes a ValidationProblemDetails: a 400 declared as a string cannot carry its field
+        // errors (information only - the specification is valid, and a handler may answer with the string)
+        if (useValidationFilter)
+        {
+            foreach (var operation in ErrorResponseShapeResolver.GetOperationsWithStringBadRequest(openApiDoc))
+            {
+                DiagnosticHelpers.ReportValidationBadRequestDeclaredAsString(context, operation);
+            }
+        }
+
         // Filter paths based on include/exclude patterns before segmentation
         // (on a copy: the parsed document is cached and shared)
         openApiDoc = PathFilterHelper.WithFilteredPaths(openApiDoc, config.IncludePaths, config.ExcludePaths);

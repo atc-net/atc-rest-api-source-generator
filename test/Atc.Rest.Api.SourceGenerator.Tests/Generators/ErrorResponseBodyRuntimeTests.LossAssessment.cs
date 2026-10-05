@@ -52,13 +52,13 @@ public partial class ErrorResponseBodyRuntimeTests
             AssessLevelImprove,
             "A declared string 400, but validation writes problem+json",
             "The specification declares 400 as a string (application/json or text/plain), while the generated ValidationFilter writes application/problem+json - a media type the operation does not declare. The client reads its title as the string; the field errors are only in Content.",
-            "Decide: validation honours the declared 400 (writes the message as the declared string), or the generator warns that the declared 400 does not fit validation."),
+            "Done: the server generator notes it (ATC_API_SRV002, information) - declare the 400 as ValidationProblemDetails to keep the field errors typed. Still open: validation could honour the declared 400 and write the message as the declared string (Atc.Rest.MinimalApi's ValidationFilter)."),
         new(
             AssessEmptyCallDeclaredModel,
             AssessLevelImprove,
             "An empty factory call on a status with a declared model",
             "NotFound() / UnprocessableEntity() without a value on a status whose specification declares a model: the host writes its ProblemDetails, which is not the declared model, so the declared fields stay null and the ProblemDetails fields are only in Content.",
-            "Decide: keep the empty factories (v2 compatible, the host's ProblemDetails), or offer them only where the declared model can hold a ProblemDetails."),
+            "Done: the factory's remarks say what a call without the model writes, and to pass the model for the declared body. Still open (a breaking change): offer the call without the model only where the declared model can hold a ProblemDetails."),
         new(
             AssessCustomFormat,
             AssessLevelDesign,
@@ -78,6 +78,34 @@ public partial class ErrorResponseBodyRuntimeTests
             "The body does not come from the generated server - an HTML error page, XML, a JSON string, invalid JSON or another vendor's JSON. No generated type can hold it: the typed fields stay null and the text is kept in Content (for every media type with the Atc.Rest.Client error-body fix).",
             "None: this is the best a client can do with that body."),
     ];
+
+    /// <summary>
+    /// The report lists the ratings that rate a cell of this run: a rating whose loss is fixed stays a rule (a
+    /// regression is rated again), but the page does not show a "fix" nothing needs any more.
+    /// </summary>
+    [Fact]
+    public void AssessLossyCells_ListsOnlyTheRatingsOfThisRunsCells()
+    {
+        var cases = new JsonArray(
+            new JsonObject
+            {
+                ["group"] = "handler",
+                ["operation"] = "setAllNone",
+                ["clients"] = new JsonObject
+                {
+                    ["cs-epo-Custom"] = new JsonObject
+                    {
+                        ["verdict"] = VerdictLossy,
+                        ["loss"] = new JsonObject { ["kind"] = LossFields, ["into"] = CustomModel, ["fields"] = new JsonArray("title") },
+                    },
+                },
+            });
+
+        var listed = AssessLossyCells(cases);
+
+        Assert.Equal([AssessCustomFormat], listed.Select(a => (string)a!["id"]!).ToList(), StringComparer.Ordinal);
+        Assert.Equal(AssessCustomFormat, (string?)cases[0]!["clients"]!["cs-epo-Custom"]!["assessment"]);
+    }
 
     /// <summary>
     /// The assessment id for a lossy cell, from its case (group, operation, mode) and what it lost; <see langword="null"/>
@@ -132,10 +160,11 @@ public partial class ErrorResponseBodyRuntimeTests
 
     /// <summary>
     /// Adds the assessment id to every lossy client cell (cells no rule rates are left without one - FailingCells
-    /// reports them), and returns the ratings for the report.
+    /// reports them), and returns the ratings that rate at least one cell, for the report.
     /// </summary>
     private static JsonArray AssessLossyCells(JsonArray cases)
     {
+        var used = new HashSet<string>(StringComparer.Ordinal);
         foreach (var node in cases)
         {
             var item = node!.AsObject();
@@ -146,12 +175,13 @@ public partial class ErrorResponseBodyRuntimeTests
                     AssessLoss(item, loss) is { } assessment)
                 {
                     cell.Value["assessment"] = assessment;
+                    used.Add(assessment);
                 }
             }
         }
 
         return new JsonArray([
-            .. LossAssessments.Select(a => (JsonNode)new JsonObject
+            .. LossAssessments.Where(a => used.Contains(a.Id)).Select(a => (JsonNode)new JsonObject
             {
                 ["id"] = a.Id,
                 ["level"] = a.Level,

@@ -87,6 +87,38 @@ public static class ErrorResponseShapeResolver
             : "DefaultError";
 
     /// <summary>
+    /// The operations that take input (parameters or a body) and declare their 400 as a string (JSON or text): the
+    /// generated ValidationFilter answers an invalid request with a ValidationProblemDetails, whose field errors a
+    /// string cannot carry.
+    /// </summary>
+    /// <param name="document">The specification.</param>
+    /// <returns>Each operation's id, or its method and path when it has none.</returns>
+    public static IEnumerable<string> GetOperationsWithStringBadRequest(
+        OpenApiDocument document)
+    {
+        if (document?.Paths is null)
+        {
+            yield break;
+        }
+
+        foreach (var path in document.Paths)
+        {
+            foreach (var operation in path.Value?.Operations ?? [])
+            {
+                var takesInput = operation.Value.RequestBody is not null ||
+                                 operation.Value.Parameters is { Count: > 0 } ||
+                                 path.Value!.Parameters is { Count: > 0 };
+                if (takesInput &&
+                    operation.Value.Responses?.TryGetValue("400", out var badRequest) == true &&
+                    Resolve(badRequest).Kind is ErrorResponseKind.JsonString or ErrorResponseKind.Text)
+                {
+                    yield return operation.Value.OperationId ?? $"{operation.Key.Method} {path.Key}";
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Resolves the wire shape of an error response.
     /// </summary>
     /// <param name="response">The response (inline or a <c>$ref</c> to <c>components/responses</c>).</param>

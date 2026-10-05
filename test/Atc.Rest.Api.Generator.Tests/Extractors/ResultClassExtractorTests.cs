@@ -246,6 +246,65 @@ public class ResultClassExtractorTests
         Assert.Contains("TypedResults.Problem(detail: message, statusCode: 404)", notFoundMethod.Content, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A status with a declared model takes the model optionally: called without it, the response has no body of its
+    /// own and the host writes its ProblemDetails - not the declared model, so a client reading that model sees its
+    /// fields empty. The factory says so where a handler author reads it.
+    /// </summary>
+    [Fact]
+    public void Extract_With404DeclaringAModel_DocumentsWhatTheEmptyCallWrites()
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info:
+                              title: Test API
+                              version: 1.0.0
+                            paths:
+                              /users/{id}:
+                                get:
+                                  operationId: getUserById
+                                  parameters:
+                                    - name: id
+                                      in: path
+                                      required: true
+                                      schema:
+                                        type: string
+                                  responses:
+                                    '200':
+                                      description: OK
+                                    '404':
+                                      description: Not Found
+                                      content:
+                                        application/json:
+                                          schema:
+                                            $ref: '#/components/schemas/Missing'
+                                    '409':
+                                      description: Conflict
+                            components:
+                              schemas:
+                                Missing:
+                                  type: object
+                                  properties:
+                                    code:
+                                      type: string
+                            """;
+
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        var resultClass = ResultClassExtractor.Extract(document, "TestApi", registry: null, systemTypeResolver: new SystemTypeConflictResolver([]), includeDeprecated: false)![0];
+
+        var notFound = resultClass.Methods!.Single(m => m.Name == "NotFound");
+        Assert.Equal("Missing", notFound.Parameters![0].TypeName);
+        var remark = notFound.DocumentationTags?.Remark;
+        Assert.NotNull(remark);
+        Assert.Contains("ProblemDetails", remark, StringComparison.Ordinal);
+        Assert.Contains("Missing", remark, StringComparison.Ordinal);
+
+        // No declared body: the message becomes the ProblemDetails' detail, nothing to point out
+        Assert.Null(resultClass.Methods!.Single(m => m.Name == "Conflict").DocumentationTags?.Remark);
+    }
+
     // ========== 409 Conflict Tests ==========
 
     [Fact]

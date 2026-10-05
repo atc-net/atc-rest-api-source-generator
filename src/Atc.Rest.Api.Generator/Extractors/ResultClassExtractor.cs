@@ -772,12 +772,16 @@ public static class ResultClassExtractor
             valueParameters.Insert(0, CreateParameter("int", "retryAfterSeconds", nullable: true, isReference: false, defaultValue: "null"));
         }
 
+        // Called without the value, the response has no body of its own: say what the client then reads
         methods.Add(CreateErrorFactory(
             className,
             doc,
             name,
             valueParameters,
-            Wrap($"{valueName} is null ? TypedResults.StatusCode({status}) : {written}")));
+            Wrap($"{valueName} is null ? TypedResults.StatusCode({status}) : {written}"),
+            remark: shape.Kind is ErrorResponseKind.JsonObject or ErrorResponseKind.XmlObject
+                ? $"Without {valueName}, the response has no body of its own: the host writes its ProblemDetails (when it adds one to an empty error response), not the declared {valueType}, so a client reading {valueType} finds it empty. Pass a {valueType} to send the declared body."
+                : null));
 
         return methods;
     }
@@ -821,9 +825,10 @@ public static class ResultClassExtractor
         string name,
         List<ParameterBaseParameters> parameters,
         string content,
-        IList<AttributeParameters>? attributes = null)
+        IList<AttributeParameters>? attributes = null,
+        string? remark = null)
         => new(
-            DocumentationTags: new CodeDocumentationTags(documentation),
+            DocumentationTags: new CodeDocumentationTags(documentation) { Remark = remark },
             Attributes: attributes,
             DeclarationModifier: DeclarationModifiers.PublicStatic,
             ReturnGenericTypeName: null,

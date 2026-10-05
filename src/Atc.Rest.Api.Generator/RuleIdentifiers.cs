@@ -338,6 +338,12 @@ public static class RuleIdentifiers
     /// </summary>
     public const string InvalidServerUrl = "ATC_API_SRV001";
 
+    /// <summary>
+    /// ATC_API_SRV002: An operation declares its 400 as a string while the ValidationFilter is on: an invalid
+    /// request is answered with a ValidationProblemDetails, whose field errors the string cannot carry.
+    /// </summary>
+    public const string ValidationBadRequestDeclaredAsString = "ATC_API_SRV002";
+
     // ========== Schema Rules (SCH) ==========
 
     /// <summary>

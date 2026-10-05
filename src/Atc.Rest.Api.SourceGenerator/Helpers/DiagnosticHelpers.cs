@@ -217,6 +217,17 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
+    /// ATC_API_SRV002: An operation declares its 400 as a string while the ValidationFilter is on.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ValidationBadRequestDeclaredAsString = new(
+        RuleIdentifiers.ValidationBadRequestDeclaredAsString,
+        "Validation 400 Declared As String",
+        "'{0}' declares its 400 as a string, but the ValidationFilter answers an invalid request with a ValidationProblemDetails (application/problem+json): the client reads its title as the string, and the field errors are only in the response content. Declare the 400 as ValidationProblemDetails to keep them typed.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// ATC_API_GEN018: An overlay file is an AdditionalFiles item, but the marker file does not list it.
     /// </summary>
     public static readonly DiagnosticDescriptor OverlayNotListed = new(
@@ -674,6 +685,21 @@ internal static class DiagnosticHelpers
         context.ReportDiagnostic(Diagnostic.Create(
             JwtBearerRequiresPackage,
             Location.None));
+    }
+
+    /// <summary>
+    /// Reports ATC_API_SRV002: an operation declares its 400 as a string while the ValidationFilter is on.
+    /// </summary>
+    /// <param name="context">The source production context.</param>
+    /// <param name="operation">The operation id, or its method and path.</param>
+    public static void ReportValidationBadRequestDeclaredAsString(
+        SourceProductionContext context,
+        string operation)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            ValidationBadRequestDeclaredAsString,
+            Location.None,
+            operation));
     }
 
     /// <summary>
