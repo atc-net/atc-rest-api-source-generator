@@ -228,6 +228,17 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
+    /// ATC_API_GEN019: A handler scaffold cannot be written to disk.
+    /// </summary>
+    public static readonly DiagnosticDescriptor HandlerScaffoldNotWritten = new(
+        RuleIdentifiers.HandlerScaffoldNotWritten,
+        "Handler Scaffold Not Written",
+        "The handler scaffold '{0}' cannot be written to '{1}': {2}. It is part of this build, but no file is created; check \"generateHandlersOutput\" and the folder.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// ATC_API_GEN018: An overlay file is an AdditionalFiles item, but the marker file does not list it.
     /// </summary>
     public static readonly DiagnosticDescriptor OverlayNotListed = new(
@@ -685,6 +696,27 @@ internal static class DiagnosticHelpers
         context.ReportDiagnostic(Diagnostic.Create(
             JwtBearerRequiresPackage,
             Location.None));
+    }
+
+    /// <summary>
+    /// Reports ATC_API_GEN019: a handler scaffold cannot be written to disk.
+    /// </summary>
+    /// <param name="context">The source production context.</param>
+    /// <param name="handlerName">The handler.</param>
+    /// <param name="filePath">Where the scaffold was to be written.</param>
+    /// <param name="exception">Why it could not be.</param>
+    public static void ReportHandlerScaffoldNotWritten(
+        SourceProductionContext context,
+        string handlerName,
+        string filePath,
+        Exception exception)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            HandlerScaffoldNotWritten,
+            Location.None,
+            handlerName,
+            filePath,
+            exception.Message));
     }
 
     /// <summary>

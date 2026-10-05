@@ -24,6 +24,44 @@ public class OpenApiDocumentHelperTests
                   description: A list of pets
         """;
 
+    // ========== A specification the parser cannot read is a diagnostic, never an exception ==========
+
+    /// <summary>
+    /// JSON is YAML, and a specification with overlays reaches the parser as JSON text - whose writer escapes
+    /// characters outside ASCII, an emoji as an escaped surrogate pair. SharpYaml throws reading such a pair, so JSON
+    /// text is read as JSON: the document parses, wherever the escape falls.
+    /// </summary>
+    [Fact]
+    public void TryParseYamlWithDiagnostic_JsonText_ParsesAnEscapedEmojiWhereverItFalls()
+    {
+        // The pizza emoji as JSON writes it: two escaped UTF-16 halves
+        var escapedPizza = string.Concat(@"\", "u", "D83C", @"\", "u", "DF55");
+        var pizza = char.ConvertFromUtf32(0x1F355);
+        for (var padding = 0; padding < 1100; padding += 1)
+        {
+            var json = $$$"""{"openapi":"3.0.3","info":{"title":"{{{new string('x', padding)}}}{{{escapedPizza}}} API","version":"1.0.0"},"paths":{}}""";
+
+            var (document, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(json, $"escape-{padding}.yaml");
+
+            Assert.True(document is not null, $"padding {padding}");
+            Assert.Equal(new string('x', padding) + pizza + " API", document.Info?.Title);
+        }
+    }
+
+    [Theory]
+    [InlineData("openapi: '#/not/a/version'\ninfo: { title: T, version: 1.0.0 }\npaths: {}\n", "version")]
+    [InlineData("openapi: 3.0.3\ninfo: { title: T, version: 1.0.0 }\npaths: {}\ncomponents:\n  schemas:\n    A:\n      anyOf:\n        - $ref: ''\n", "")]
+    public void TryParseYamlWithDiagnostic_WhatTheParserThrowsOn_IsAnError(
+        string yaml,
+        string messagePart)
+    {
+        var (document, diagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yaml, $"throws-{messagePart.Length}.yaml");
+
+        Assert.Null(document);
+        var error = Assert.Single(diagnostic!.Errors);
+        Assert.Contains(messagePart, error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     // ========== ParseYaml Tests ==========
     [Fact]
     public void ParseYaml_ValidYaml_ReturnsDocument()

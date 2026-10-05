@@ -520,14 +520,14 @@ public static class TypeScriptTypeMapper
         JsonObject schemaObj,
         bool convertDates)
     {
-        var refStr = schemaObj["$ref"]?.GetValue<string>();
+        var refStr = JsonKeywordReader.StringOrNull(schemaObj["$ref"]);
         if (refStr is not null)
         {
             return ExtractRefName(refStr);
         }
 
-        var typeStr = schemaObj["type"]?.GetValue<string>();
-        var format = schemaObj["format"]?.GetValue<string>();
+        var typeStr = JsonKeywordReader.StringOrNull(schemaObj["type"]);
+        var format = JsonKeywordReader.StringOrNull(schemaObj["format"]);
 
         return typeStr switch
         {

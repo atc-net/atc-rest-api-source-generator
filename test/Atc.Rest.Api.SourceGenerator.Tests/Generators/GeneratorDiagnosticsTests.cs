@@ -216,6 +216,22 @@ public class GeneratorDiagnosticsTests
     public void Client_DocumentThatDoesNotParse_ReportsGEN004()
         => Assert.Contains("ATC_API_GEN004", Run(new ApiClientGenerator(), [Spec(MalformedYaml), Marker(".atc-rest-api-client", "{}")], Full()));
 
+    /// <summary>
+    /// A document the parser cannot read says why, not only that: the parser's error (here an openapi version it
+    /// does not know) is reported with the parse error.
+    /// </summary>
+    [Fact]
+    public void Server_DocumentThatDoesNotParse_SaysWhy_ReportsGEN002AndVAL001()
+    {
+        var unknownVersion = Yaml.Replace("openapi: 3.0.3", "openapi: '#/not/a/version'", StringComparison.Ordinal);
+
+        var diagnostics = RunDiagnostics(new ApiServerGenerator(), [Spec(unknownVersion), Marker(".atc-rest-api-server", "{}")], Full());
+
+        Assert.Contains(diagnostics, d => d.Id == "ATC_API_GEN002");
+        var why = Assert.Single(diagnostics, d => d.Id == "ATC_API_VAL001");
+        Assert.Contains("#/not/a/version", why.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Domain_DocumentThatDoesNotParse_ReportsGEN006()
         => Assert.Contains("ATC_API_GEN006", Run(new ApiServerDomainGenerator(), [Spec(MalformedYaml), Marker(".atc-rest-api-server-handlers", "{}")], Full()));
@@ -225,6 +241,34 @@ public class GeneratorDiagnosticsTests
     {
         var ids = Run(new ApiServerDomainGenerator(), [Spec(Yaml), Marker(".atc-rest-api-server-handlers", """{ "generateHandlersOutput": "" }""")], Full());
         Assert.Contains("ATC_API_GEN007", ids);
+    }
+
+    /// <summary>
+    /// A handler scaffold the generator cannot write (the output folder is a file, a path too long, no access) is a
+    /// warning naming the file - the scaffold is still in this build's compilation - not a failed generation.
+    /// </summary>
+    [Fact]
+    public void Domain_ScaffoldThatCannotBeWritten_ReportsGEN019()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "atc-gen019-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            // The output folder is taken by a file: no scaffold can be written there
+            File.WriteAllText(Path.Combine(folder, "Handlers"), "a file, not a folder");
+            var marker = Marker(Path.Combine(folder, ".atc-rest-api-server-handlers"), """{ "generateHandlersOutput": "Handlers" }""");
+
+            var diagnostics = RunDiagnostics(new ApiServerDomainGenerator(), [Spec(Yaml, Path.Combine(folder, ProjectName + ".yaml")), marker], Full());
+
+            var warning = Assert.Single(diagnostics, d => d.Id == "ATC_API_GEN019");
+            Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+            Assert.Contains("ListThingsHandler", warning.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+            Assert.DoesNotContain(diagnostics, d => d.Id == "ATC_API_GEN005");
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
     }
 
     [Fact]

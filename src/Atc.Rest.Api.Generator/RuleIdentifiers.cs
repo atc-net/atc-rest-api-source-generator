@@ -112,6 +112,12 @@ public static class RuleIdentifiers
     /// </summary>
     public const string OverlayNotListed = "ATC_API_GEN018";
 
+    /// <summary>
+    /// ATC_API_GEN019: A handler scaffold cannot be written to disk (the folder is a file, the path is too long, no
+    /// access); it is still part of the build's compilation.
+    /// </summary>
+    public const string HandlerScaffoldNotWritten = "ATC_API_GEN019";
+
     // ========== Dependency Rules (DEP) ==========
 
     /// <summary>

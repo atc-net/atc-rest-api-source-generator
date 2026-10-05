@@ -44,7 +44,11 @@ internal static class SpecificationLoader
         var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
         if (openApiDoc is null)
         {
+            // That it failed, and why: the parser's own errors
             reportParsingError(context, yamlPath);
+            ReportAndContinue(
+                context,
+                [.. (openApiDiagnostic?.Errors ?? []).Select(e => new GeneratorDiagnosticMessage(RuleIdentifiers.OpenApiCoreError, e.Message, GeneratorDiagnosticSeverity.Error, yamlPath))]);
             return null;
         }
 

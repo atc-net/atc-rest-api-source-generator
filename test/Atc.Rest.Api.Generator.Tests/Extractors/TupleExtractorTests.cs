@@ -53,6 +53,43 @@ public class TupleExtractorTests
         Assert.Equal("object", result.PrefixItems[0].CSharpType);
     }
 
+    /// <summary>
+    /// A keyword of a prefixItems entry with a value that is no string (a number as its type, format, description or
+    /// $ref) is ignored, not thrown on: the generators read these entries as raw JSON.
+    /// </summary>
+    [Theory]
+    [InlineData("type")]
+    [InlineData("format")]
+    [InlineData("description")]
+    [InlineData("$ref")]
+    public void GetTupleInfo_PrefixItemKeywordThatIsNoString_IsIgnored(
+        string keyword)
+    {
+        var item = new JsonObject { ["type"] = "number", [keyword] = 42 };
+        var schema = new OpenApiSchema
+        {
+            Type = JsonSchemaType.Array,
+            Extensions = new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
+            {
+                ["prefixItems"] = new JsonNodeExtension(new JsonArray(item)),
+            },
+        };
+
+        var result = schema.GetTupleInfo();
+
+        Assert.NotNull(result);
+        Assert.False(string.IsNullOrWhiteSpace(Assert.Single(result.PrefixItems).CSharpType));
+        IOpenApiSchema typeScriptSchema = new OpenApiSchema
+        {
+            Type = JsonSchemaType.Array,
+            Extensions = new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
+            {
+                ["prefixItems"] = new JsonNodeExtension(new JsonArray(item.DeepClone())),
+            },
+        };
+        Assert.False(string.IsNullOrWhiteSpace(typeScriptSchema.ToTypeScriptTypeForModel(isRequired: true)));
+    }
+
     [Fact]
     public void Extract_NoPrefixItems_ReturnsNull()
     {

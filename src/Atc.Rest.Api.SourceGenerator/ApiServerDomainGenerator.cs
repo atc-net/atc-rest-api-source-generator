@@ -792,9 +792,6 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             outputDirectory = Path.Combine(outputDirectory, subFolderPath);
         }
 
-        // Ensure directory exists
-        Directory.CreateDirectory(outputDirectory);
-
         // Generate file path
         var fileName = $"{handlerName}.cs";
         var filePath = Path.Combine(outputDirectory, fileName);
@@ -827,8 +824,17 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
 
         var content = contentGenerator.Generate();
 
-        // Write physical file
-        FileHelper.WriteCsFile(filePath, content);
+        // Write physical file. A folder that is a file, a path too long or a folder without access is the
+        // project's, not a failed generation: say which scaffold, and keep it in this build
+        try
+        {
+            Directory.CreateDirectory(outputDirectory);
+            FileHelper.WriteCsFile(filePath, content);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            DiagnosticHelpers.ReportHandlerScaffoldNotWritten(context, handlerName, filePath, ex);
+        }
 
         // Also emit as in-memory source so the current compilation can reference this type
         context.AddSource($"{handlerName}.scaffold.g.cs", SourceText.From(content, Encoding.UTF8));

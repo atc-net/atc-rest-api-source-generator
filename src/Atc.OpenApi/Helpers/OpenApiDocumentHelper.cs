@@ -115,7 +115,6 @@ public static class OpenApiDocumentHelper
             return (cached.Document, cached.Diagnostic);
         }
 
-        var reader = new OpenApiYamlReader();
         var settings = new OpenApiReaderSettings();
         using var memoryStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(yamlContent));
 
@@ -124,13 +123,45 @@ public static class OpenApiDocumentHelper
         var selfUri = ExtractSelfUri(yamlContent);
         var baseUri = selfUri ?? new Uri("file://" + yamlPath.Replace("\\", "/"));
 
-        var readResult = reader.Read(memoryStream, baseUri, settings);
+        OpenApiDocument? document;
+        OpenApiDiagnostic? diagnostic;
+        try
+        {
+            // JSON text (a specification after its overlays, or written as JSON) is read as JSON: SharpYaml, under
+            // the YAML reader, throws on an escaped surrogate pair - an emoji as JSON writes it
+            var readResult = IsJsonText(yamlContent)
+                ? new OpenApiJsonReader().Read(memoryStream, baseUri, settings)
+                : new OpenApiYamlReader().Read(memoryStream, baseUri, settings);
+            document = readResult.Document;
+            diagnostic = readResult.Diagnostic;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
+        {
+            // The parser throws on some documents (an unsupported openapi version, an empty $ref): an error to
+            // report, as for any document it cannot read
+            document = null;
+            diagnostic = new OpenApiDiagnostic();
+            diagnostic.Errors.Add(new OpenApiError(string.Empty, "The specification cannot be read: " + ex.Message));
+        }
 
-        StashSpecVersion(readResult.Document, readResult.Diagnostic);
+        StashSpecVersion(document, diagnostic);
 
-        ParseCache[yamlPath] = (contentHash, contentLength, readResult.Document, readResult.Diagnostic);
+        ParseCache[yamlPath] = (contentHash, contentLength, document, diagnostic);
 
-        return (readResult.Document, readResult.Diagnostic);
+        return (document, diagnostic);
+    }
+
+    private static bool IsJsonText(string content)
+    {
+        foreach (var c in content)
+        {
+            if (!char.IsWhiteSpace(c) && c != (char)0xFEFF)
+            {
+                return c == '{';
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

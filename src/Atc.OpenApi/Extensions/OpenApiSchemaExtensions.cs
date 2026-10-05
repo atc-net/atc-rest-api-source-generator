@@ -757,13 +757,13 @@ public static class OpenApiSchemaExtensions
             TypeConflictRegistry? registry)
         {
             // Extract type info
-            var typeStr = schemaObj["type"]?.GetValue<string>() ?? "object";
-            var format = schemaObj["format"]?.GetValue<string>();
-            var description = schemaObj["description"]?.GetValue<string>();
+            var typeStr = JsonKeywordReader.StringOrNull(schemaObj["type"]) ?? "object";
+            var format = JsonKeywordReader.StringOrNull(schemaObj["format"]);
+            var description = JsonKeywordReader.StringOrNull(schemaObj["description"]);
             var nullable = schemaObj["nullable"]?.GetValue<bool>() ?? false;
 
             // Handle $ref
-            var refStr = schemaObj["$ref"]?.GetValue<string>();
+            var refStr = JsonKeywordReader.StringOrNull(schemaObj["$ref"]);
             string csharpType;
             var refName = !string.IsNullOrEmpty(refStr)
                 ? refStr!.Split('/').LastOrDefault()

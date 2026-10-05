@@ -57,6 +57,14 @@ public static class OpenApiDocumentValidator
         string sourceFilePath,
         string? sourceText = null)
     {
+        // A value of another kind where an object belongs (the reader leaves a null there, without an error): an
+        // error under every strategy, and nothing else is checked - every later step would trip over the null
+        var structure = OpenApiStructureValidator.Validate(document, sourceFilePath);
+        if (structure.Count > 0)
+        {
+            return structure;
+        }
+
         var diagnostics = new List<DiagnosticMessage>();
 
         if (strategy == ValidateSpecificationStrategy.None)
