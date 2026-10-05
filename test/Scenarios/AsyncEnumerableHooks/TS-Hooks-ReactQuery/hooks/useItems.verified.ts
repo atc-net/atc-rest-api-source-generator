@@ -9,7 +9,7 @@ import type { Item, ItemLogs, Items, PaginationResult } from '../models';
 
 const itemsKeys = {
   all: ['items'] as const,
-  getItemLogs: (itemId: string, query?: { logLevel?: 'debug' | 'info' | 'warn' | 'error'; from?: Date }) => [...itemsKeys.all, 'getItemLogs', itemId, query] as const,
+  getItemLogs: (itemId: string, query?: { logLevel?: 'debug' | 'info' | 'warn' | 'error' | (string & {}); from?: Date }) => [...itemsKeys.all, 'getItemLogs', itemId, query] as const,
   search: (query: { createdAfter?: Date; createdBefore: Date }) => [...itemsKeys.all, 'search', query] as const,
 };
 
@@ -21,7 +21,7 @@ export { itemsKeys };
  * React Query's signal to the client, so a cancelled or unused query stops its request.
  */
 const itemsQueries = {
-  getItemLogs: (api: ApiService, itemId: string, query?: { logLevel?: 'debug' | 'info' | 'warn' | 'error'; from?: Date }) => queryOptions<ItemLogs, ApiError>({
+  getItemLogs: (api: ApiService, itemId: string, query?: { logLevel?: 'debug' | 'info' | 'warn' | 'error' | (string & {}); from?: Date }) => queryOptions<ItemLogs, ApiError>({
     queryKey: itemsKeys.getItemLogs(itemId, query),
     queryFn: async ({ signal }) => {
       const result = await api.items.getItemLogs(itemId, query, signal);
@@ -192,7 +192,7 @@ export function useListItemPagesStream(query?: { pageSize?: number }, options?: 
 }
 
 /** Get logs for an item with filters (path + query, no streaming) */
-export function useGetItemLogs(itemId: string, query?: { logLevel?: 'debug' | 'info' | 'warn' | 'error'; from?: Date }, options?: Omit<UseQueryOptions<ItemLogs, ApiError>, 'queryKey' | 'queryFn'>) {
+export function useGetItemLogs(itemId: string, query?: { logLevel?: 'debug' | 'info' | 'warn' | 'error' | (string & {}); from?: Date }, options?: Omit<UseQueryOptions<ItemLogs, ApiError>, 'queryKey' | 'queryFn'>) {
   const api = useApiService();
   return useQuery({
     ...itemsQueries.getItemLogs(api, itemId, query),

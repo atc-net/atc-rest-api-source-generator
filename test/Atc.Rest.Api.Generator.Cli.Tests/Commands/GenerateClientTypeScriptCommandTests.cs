@@ -902,6 +902,40 @@ public sealed class GenerateClientTypeScriptCommandTests : IDisposable
         Assert.True(anyHasExportEnum, "At least one enum file should contain 'export enum'");
     }
 
+    [Theory]
+    [InlineData("", true)]
+    [InlineData(" --no-extensible-enums", false)]
+    public async Task UnionEnums_AreOpenByDefault_AndClosedWithNoExtensibleEnums(
+        string option,
+        bool open)
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, open ? "DemoTsOpenEnums" : "DemoTsClosedEnums");
+        var arguments = $"generate client-typescript -s \"{yamlPath}\" -o \"{outputPath}\"{option}";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var enumFiles = Directory.GetFiles(Path.Combine(outputPath, "enums"), "*.ts")
+            .Where(f => !f.EndsWith("index.ts", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        Assert.NotEmpty(enumFiles);
+
+        foreach (var enumFile in enumFiles)
+        {
+            var content = await File.ReadAllTextAsync(enumFile, TestContext.Current.CancellationToken);
+            Assert.Equal(open, content.Contains("| (string & {});", StringComparison.Ordinal));
+        }
+    }
+
     private static async Task<bool> IsNodeAvailable(
         CancellationToken cancellationToken)
     {

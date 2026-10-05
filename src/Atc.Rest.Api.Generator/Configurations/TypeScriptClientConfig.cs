@@ -21,6 +21,14 @@ public class TypeScriptClientConfig
     public TypeScriptEnumStyle EnumStyle { get; set; } = TypeScriptEnumStyle.Union;
 
     /// <summary>
+    /// Keep string enums open to values the specification does not list. Default: true.
+    /// When true, a Union-style enum is <c>'a' | 'b' | (string &amp; {})</c> - the listed values still autocomplete, and a value
+    /// a server adds later type-checks - and a Zod enum schema accepts any string. The same setting as
+    /// <c>extensibleEnums</c> in the C# client marker. An Enum-style enum (<see cref="EnumStyle"/>) cannot be opened.
+    /// </summary>
+    public bool ExtensibleEnums { get; set; } = true;
+
+    /// <summary>
     /// Whether to generate auto-generated file headers. Default: true.
     /// </summary>
     public bool GenerateFileHeaders { get; set; } = true;

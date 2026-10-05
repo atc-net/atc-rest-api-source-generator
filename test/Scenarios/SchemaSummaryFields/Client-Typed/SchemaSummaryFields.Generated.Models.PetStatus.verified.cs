@@ -2,8 +2,11 @@
 #nullable enable
 #pragma warning disable CS1591
 
+using System;
 using System.CodeDom.Compiler;
-using System.Runtime.Serialization;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace SchemaSummaryFields.Generated.Models;
@@ -11,38 +14,176 @@ namespace SchemaSummaryFields.Generated.Models;
 /// <summary>
 /// Allowed values for a pet's adoption status.
 /// </summary>
+/// <remarks>
+/// An extensible enum: a value the specification does not list is kept in <see cref="Value"/>, with
+/// <see cref="IsKnown"/> <see langword="false"/>, instead of failing the response it arrives in.
+/// </remarks>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum PetStatus
+[JsonConverter(typeof(PetStatusJsonConverter))]
+public readonly record struct PetStatus : IParsable<PetStatus>
 {
-    [EnumMember(Value = "available")]
-    [JsonStringEnumMemberName("available")]
-    Available,
+    /// <summary>
+    /// The values the specification lists, as constants - for a <c>switch</c> on <see cref="Value"/>.
+    /// </summary>
+    public static class Names
+    {
+        public const string Available = "available";
 
-    [EnumMember(Value = "pending")]
-    [JsonStringEnumMemberName("pending")]
-    Pending,
+        public const string Pending = "pending";
 
-    [EnumMember(Value = "adopted")]
-    [JsonStringEnumMemberName("adopted")]
-    Adopted,
+        public const string Adopted = "adopted";
+    }
+
+    public static PetStatus Available { get; } = new(Names.Available);
+
+    public static PetStatus Pending { get; } = new(Names.Pending);
+
+    public static PetStatus Adopted { get; } = new(Names.Adopted);
+
+    /// <summary>
+    /// The values the specification lists, in its order.
+    /// </summary>
+    public static IReadOnlyList<PetStatus> KnownValues { get; } = new[]
+    {
+        Available,
+        Pending,
+        Adopted,
+    };
+
+    /// <summary>
+    /// Initializes a new instance with a value as it is sent on the wire. A listed value in another casing is
+    /// taken as the listed one.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public PetStatus(string value)
+        => Value = Recognize(value ?? throw new ArgumentNullException(nameof(value)));
+
+    /// <summary>
+    /// The value as it is sent on the wire; <see langword="null"/> only for <see langword="default"/>.
+    /// </summary>
+    public string Value { get; }
+
+    /// <summary>
+    /// Whether the value is one the specification lists.
+    /// </summary>
+    public bool IsKnown => Value is Names.Available or Names.Pending or Names.Adopted;
+
+    public static implicit operator PetStatus(string value)
+        => new(value);
+
+    /// <summary>
+    /// The value as it is sent on the wire, for a path, a query string, a header or a cookie.
+    /// </summary>
+    /// <returns>The value; empty for <see langword="default"/>.</returns>
+    public string ToWireValue()
+        => Value ?? string.Empty;
+
+    public override string ToString()
+        => Value ?? string.Empty;
+
+    /// <summary>
+    /// Takes any value: whether it is one the specification lists is <see cref="IsKnown"/>.
+    /// </summary>
+    public static PetStatus Parse(string s)
+        => new(s);
+
+    public static PetStatus Parse(string s, IFormatProvider? provider)
+        => new(s);
+
+    /// <summary>
+    /// Succeeds for any value but <see langword="null"/>: whether it is one the specification lists is
+    /// <see cref="IsKnown"/>.
+    /// </summary>
+    public static bool TryParse([NotNullWhen(true)] string? s, out PetStatus result)
+        => TryParse(s, provider: null, out result);
+
+    public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, out PetStatus result)
+    {
+        if (s is null)
+        {
+            result = default;
+            return false;
+        }
+
+        result = new(s);
+        return true;
+    }
+
+    private static string Recognize(string value)
+    {
+        if (value is Names.Available or Names.Pending or Names.Adopted)
+        {
+            return value;
+        }
+
+        if (string.Equals(value, Names.Available, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Available;
+        }
+
+        if (string.Equals(value, Names.Pending, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Pending;
+        }
+
+        if (string.Equals(value, Names.Adopted, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Adopted;
+        }
+
+        return value;
+    }
 }
 
 /// <summary>
-/// The values of <see cref="PetStatus"/> as the specification writes them.
+/// Reads and writes <see cref="PetStatus"/> as the JSON string it is on the wire, also as a property name.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class PetStatusJsonConverter : JsonConverter<PetStatus>
+{
+    public override bool HandleNull => true;
+
+    public override PetStatus Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => reader.TokenType switch
+        {
+            JsonTokenType.String => new PetStatus(reader.GetString()!),
+            JsonTokenType.Number => FromNumber(ref reader),
+            JsonTokenType.Null => default,
+            _ => throw new JsonException($"A PetStatus is a JSON string, not {reader.TokenType}."),
+        };
+
+    public override void Write(Utf8JsonWriter writer, PetStatus value, JsonSerializerOptions options)
+    {
+        if (value.Value is null)
+        {
+            writer.WriteNullValue();
+        }
+        else
+        {
+            writer.WriteStringValue(value.Value);
+        }
+    }
+
+    public override PetStatus ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => new(reader.GetString()!);
+
+    public override void WriteAsPropertyName(Utf8JsonWriter writer, PetStatus value, JsonSerializerOptions options)
+        => writer.WritePropertyName(value.ToWireValue());
+
+    // A server without a string converter writes a C# enum as its position in the list: read it as that value,
+    // and keep any other number as an unknown value
+    private static PetStatus FromNumber(ref Utf8JsonReader reader)
+        => reader.TryGetInt32(out var position) && position >= 0 && position < PetStatus.KnownValues.Count
+            ? PetStatus.KnownValues[position]
+            : new PetStatus(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+}
+
+/// <summary>
+/// The value of a <see cref="PetStatus"/> that may be absent, as the specification writes it.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class PetStatusExtensions
 {
-    public static string ToWireValue(this PetStatus value)
-        => value switch
-        {
-            PetStatus.Available => "available",
-            PetStatus.Pending => "pending",
-            PetStatus.Adopted => "adopted",
-            _ => value.ToString(),
-        };
-
     public static string? ToWireValue(this PetStatus? value)
-        => value is { } known ? known.ToWireValue() : null;
+        => value is { } present ? present.ToWireValue() : null;
 }

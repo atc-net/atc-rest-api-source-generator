@@ -87,13 +87,15 @@ public static class XmlModelMapperExtractor
     /// <param name="ns">The records' namespace.</param>
     /// <param name="projectName">The project name (the support class lives in <c>{projectName}.Generated</c>).</param>
     /// <param name="xmlModels">The schemas that get an XML mapping (a property of another model type is not mapped).</param>
+    /// <param name="extensibleEnums">Whether the string enums are extensible enums (a generated client).</param>
     /// <returns>The source of the class.</returns>
     public static string GenerateCompanion(
         XmlModelSource source,
         string? headerContent,
         string ns,
         string projectName,
-        ISet<string> xmlModels)
+        ISet<string> xmlModels,
+        bool extensibleEnums = false)
     {
         if (source is null)
         {
@@ -166,7 +168,7 @@ public static class XmlModelMapperExtractor
                      .Select(g => g.First()))
         {
             sb.AppendLine();
-            AppendEnumHelpers(sb, enumValue);
+            AppendEnumHelpers(sb, enumValue, extensibleEnums);
         }
 
         sb.AppendLine("}");
@@ -1339,9 +1341,23 @@ public static class XmlModelMapperExtractor
 
     private static void AppendEnumHelpers(
         StringBuilder sb,
-        XmlValue value)
+        XmlValue value,
+        bool extensible)
     {
         var suffix = HelperSuffix(value.TypeName);
+
+        // An extensible enum is its value on the wire: written as it is, and any value read (a listed one in another
+        // casing becomes the listed one)
+        if (extensible && value.EnumValues!.All(v => v.Value is null))
+        {
+            sb.AppendLine($"    private static string Format{suffix}({value.TypeName} value)");
+            sb.AppendLine("        => value.ToWireValue();");
+            sb.AppendLine();
+            sb.AppendLine($"    private static {value.TypeName} Parse{suffix}(string raw)");
+            sb.AppendLine($"        => new {value.TypeName}(raw.Trim());");
+            return;
+        }
+
         var members = value.EnumValues!
             .Select(v => (Member: $"{value.TypeName}.{v.Name}", Wire: v.EnumMemberValue ?? (v.Value is { } number ? number.ToString(CultureInfo.InvariantCulture) : v.Name)))
             .ToList();

@@ -948,15 +948,11 @@ public partial class ErrorResponseBodyRuntimeTests
     /// The cells that fail today, as <c>case [client]</c>: a cell not listed here must pass, and a listed cell that
     /// passes fails the test asking to be removed. The matrix started with 124 red (a discriminated union whose
     /// variants declare the discriminator could not start the server; a three-level allOf lost its base; the typed
-    /// client wrote PascalCase; Zod refused a date-time with an offset) - all fixed but the two below: a C# enum has
-    /// no member for a value the server adds later, so System.Text.Json throws inside both C# clients. Making the
-    /// generated enums tolerant (an extensible enum, or an Unknown member the converter maps to) is a design decision
-    /// for the enum shape, recorded as a roadmap item rather than taken here.
+    /// client wrote PascalCase; Zod refused a date-time with an offset; a C# client threw on an enum value the server
+    /// added later, fixed by the extensible enums) - all fixed.
     /// </summary>
     private static readonly HashSet<string> KnownFeatureFailures = new(StringComparer.Ordinal)
     {
-        "enum: a value the client does not know, from the server [cs-epo]",
-        "enum: a value the client does not know, from the server [cs-typed]",
     };
 
     /// <summary>
@@ -1053,7 +1049,8 @@ public partial class ErrorResponseBodyRuntimeTests
 
         var unknown = cases.Single(c => c.Name.StartsWith("enum: a value the client does not know", StringComparison.Ordinal));
         Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, FeatureClients[2], Value(null, """{"color":"purple"}"""), cancelled: false)["verdict"]);
-        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, FeatureClients[4], new JsonObject { ["kind"] = "schemaMismatch", ["error"] = "issues" }, cancelled: false)["verdict"]);
+        Assert.Equal(VerdictPass, (string?)FeatureVerdict(unknown, FeatureClients[4], Value(null, """{"color":"purple"}"""), cancelled: false)["verdict"]);
+        Assert.Equal(VerdictFail, (string?)FeatureVerdict(unknown, FeatureClients[4], new JsonObject { ["kind"] = "schemaMismatch", ["error"] = "issues" }, cancelled: false)["verdict"]);
         Assert.Equal(VerdictFail, (string?)FeatureVerdict(unknown, client, new JsonObject { ["kind"] = "threw", ["error"] = "JsonException: purple" }, cancelled: false)["verdict"]);
 
         var notModified = cases.Single(c => c.Name.StartsWith("conditional: If-None-Match", StringComparison.Ordinal));
@@ -1206,16 +1203,11 @@ public partial class ErrorResponseBodyRuntimeTests
                 var unknown = arguments["unknown"] is not null;
                 if (unknown)
                 {
-                    // A value the client's enum does not have: the client must not throw. Handing the caller the raw
-                    // value (TypeScript) or a typed schema mismatch (Zod) is fine; an exception out of the client is not.
+                    // A value the client's enum does not have: every client hands it to the caller as it was sent (an
+                    // extensible enum) - neither an exception out of the client nor a schema mismatch.
                     if (kind == "value" && (string?)observed["value"]?["color"] == "purple")
                     {
                         return Cell(VerdictPass, "the unknown value reaches the caller as it was sent", "purple");
-                    }
-
-                    if (kind == "schemaMismatch")
-                    {
-                        return Cell(VerdictPass, "a typed schema mismatch names the unknown value", "schemaMismatch");
                     }
 
                     return Cell(VerdictFail, $"{kind}: {(string?)observed["error"]}", "-");

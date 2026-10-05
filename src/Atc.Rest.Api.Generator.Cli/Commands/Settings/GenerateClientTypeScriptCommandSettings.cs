@@ -167,6 +167,14 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
     public bool EnumRuntimeValues { get; init; }
 
     /// <summary>
+    /// Gets a value indicating whether string enums are closed to values the specification does not list.
+    /// </summary>
+    [CommandOption("--no-extensible-enums")]
+    [Description("Close the string enums: a Union-style enum lists only the specification's values, and a Zod enum schema refuses any other value. By default they stay open, so a value the server adds later still type-checks and parses. The same as \"extensibleEnums\": false in the C# client marker.")]
+    [DefaultValue(false)]
+    public bool NoExtensibleEnums { get; init; }
+
+    /// <summary>
     /// Checks the specification and output paths, every enum-valued option and the options file, resolving the paths to absolute ones.
     /// </summary>
     /// <returns>A success result, or an error naming the first option that is missing or invalid.</returns>

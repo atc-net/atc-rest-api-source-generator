@@ -157,32 +157,8 @@ public static class PetXml
     }
 
     private static string FormatPetStatus(PetStatus value)
-        => value switch
-        {
-            PetStatus.Available => "available",
-            PetStatus.Pending => "pending",
-            PetStatus.Sold => "sold",
-            _ => global::System.Convert.ToString(value, global::System.Globalization.CultureInfo.InvariantCulture)!,
-        };
+        => value.ToWireValue();
 
     private static PetStatus ParsePetStatus(string raw)
-    {
-        var text = raw.Trim();
-        if (string.Equals(text, "available", global::System.StringComparison.OrdinalIgnoreCase))
-        {
-            return PetStatus.Available;
-        }
-
-        if (string.Equals(text, "pending", global::System.StringComparison.OrdinalIgnoreCase))
-        {
-            return PetStatus.Pending;
-        }
-
-        if (string.Equals(text, "sold", global::System.StringComparison.OrdinalIgnoreCase))
-        {
-            return PetStatus.Sold;
-        }
-
-        throw new global::System.FormatException($"'{raw}' is not a value of PetStatus.");
-    }
+        => new PetStatus(raw.Trim());
 }

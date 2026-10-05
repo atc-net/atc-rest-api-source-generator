@@ -25,6 +25,8 @@ public static class TypeScriptClientGenerationService
         ArgumentNullException.ThrowIfNull(openApiDoc);
         ArgumentNullException.ThrowIfNull(config);
 
+        using var enumsScope = TypeScriptOperationHelper.EnumsScope(config.ExtensibleEnums);
+
         // Types, files and imports are named after the component schemas: names that are no identifier
         // (Note-Size, 3DModel, Company.Api.Thing) are renamed in the document first.
         openApiDoc = SchemaNameNormalizer.WithIdentifierSchemaNames(openApiDoc);

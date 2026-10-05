@@ -2,8 +2,11 @@
 #nullable enable
 #pragma warning disable CS1591
 
+using System;
 using System.CodeDom.Compiler;
-using System.Runtime.Serialization;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace HostileSpec.Generated.Models;
@@ -11,43 +14,186 @@ namespace HostileSpec.Generated.Models;
 /// <summary>
 /// The kind */ of &lt;note> &amp; "more".
 /// </summary>
+/// <remarks>
+/// An extensible enum: a value the specification does not list is kept in <see cref="Value"/>, with
+/// <see cref="IsKnown"/> <see langword="false"/>, instead of failing the response it arrives in.
+/// </remarks>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum NoteKind
+[JsonConverter(typeof(NoteKindJsonConverter))]
+public readonly record struct NoteKind : IParsable<NoteKind>
 {
-    [EnumMember(Value = "plain")]
-    [JsonStringEnumMemberName("plain")]
-    Plain,
+    /// <summary>
+    /// The values the specification lists, as constants - for a <c>switch</c> on <see cref="Value"/>.
+    /// </summary>
+    public static class Names
+    {
+        public const string Plain = "plain";
 
-    [EnumMember(Value = "it's")]
-    [JsonStringEnumMemberName("it's")]
-    Its,
+        public const string Its = "it's";
 
-    [EnumMember(Value = "say \"hi\"")]
-    [JsonStringEnumMemberName("say \"hi\"")]
-    SayHi,
+        public const string SayHi = "say \"hi\"";
 
-    [EnumMember(Value = "back\\slash")]
-    [JsonStringEnumMemberName("back\\slash")]
-    BackSlash,
+        public const string BackSlash = "back\\slash";
+    }
+
+    public static NoteKind Plain { get; } = new(Names.Plain);
+
+    public static NoteKind Its { get; } = new(Names.Its);
+
+    public static NoteKind SayHi { get; } = new(Names.SayHi);
+
+    public static NoteKind BackSlash { get; } = new(Names.BackSlash);
+
+    /// <summary>
+    /// The values the specification lists, in its order.
+    /// </summary>
+    public static IReadOnlyList<NoteKind> KnownValues { get; } = new[]
+    {
+        Plain,
+        Its,
+        SayHi,
+        BackSlash,
+    };
+
+    /// <summary>
+    /// Initializes a new instance with a value as it is sent on the wire. A listed value in another casing is
+    /// taken as the listed one.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public NoteKind(string value)
+        => Value = Recognize(value ?? throw new ArgumentNullException(nameof(value)));
+
+    /// <summary>
+    /// The value as it is sent on the wire; <see langword="null"/> only for <see langword="default"/>.
+    /// </summary>
+    public string Value { get; }
+
+    /// <summary>
+    /// Whether the value is one the specification lists.
+    /// </summary>
+    public bool IsKnown => Value is Names.Plain or Names.Its or Names.SayHi or Names.BackSlash;
+
+    public static implicit operator NoteKind(string value)
+        => new(value);
+
+    /// <summary>
+    /// The value as it is sent on the wire, for a path, a query string, a header or a cookie.
+    /// </summary>
+    /// <returns>The value; empty for <see langword="default"/>.</returns>
+    public string ToWireValue()
+        => Value ?? string.Empty;
+
+    public override string ToString()
+        => Value ?? string.Empty;
+
+    /// <summary>
+    /// Takes any value: whether it is one the specification lists is <see cref="IsKnown"/>.
+    /// </summary>
+    public static NoteKind Parse(string s)
+        => new(s);
+
+    public static NoteKind Parse(string s, IFormatProvider? provider)
+        => new(s);
+
+    /// <summary>
+    /// Succeeds for any value but <see langword="null"/>: whether it is one the specification lists is
+    /// <see cref="IsKnown"/>.
+    /// </summary>
+    public static bool TryParse([NotNullWhen(true)] string? s, out NoteKind result)
+        => TryParse(s, provider: null, out result);
+
+    public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, out NoteKind result)
+    {
+        if (s is null)
+        {
+            result = default;
+            return false;
+        }
+
+        result = new(s);
+        return true;
+    }
+
+    private static string Recognize(string value)
+    {
+        if (value is Names.Plain or Names.Its or Names.SayHi or Names.BackSlash)
+        {
+            return value;
+        }
+
+        if (string.Equals(value, Names.Plain, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Plain;
+        }
+
+        if (string.Equals(value, Names.Its, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Its;
+        }
+
+        if (string.Equals(value, Names.SayHi, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.SayHi;
+        }
+
+        if (string.Equals(value, Names.BackSlash, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.BackSlash;
+        }
+
+        return value;
+    }
 }
 
 /// <summary>
-/// The values of <see cref="NoteKind"/> as the specification writes them.
+/// Reads and writes <see cref="NoteKind"/> as the JSON string it is on the wire, also as a property name.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class NoteKindJsonConverter : JsonConverter<NoteKind>
+{
+    public override bool HandleNull => true;
+
+    public override NoteKind Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => reader.TokenType switch
+        {
+            JsonTokenType.String => new NoteKind(reader.GetString()!),
+            JsonTokenType.Number => FromNumber(ref reader),
+            JsonTokenType.Null => default,
+            _ => throw new JsonException($"A NoteKind is a JSON string, not {reader.TokenType}."),
+        };
+
+    public override void Write(Utf8JsonWriter writer, NoteKind value, JsonSerializerOptions options)
+    {
+        if (value.Value is null)
+        {
+            writer.WriteNullValue();
+        }
+        else
+        {
+            writer.WriteStringValue(value.Value);
+        }
+    }
+
+    public override NoteKind ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => new(reader.GetString()!);
+
+    public override void WriteAsPropertyName(Utf8JsonWriter writer, NoteKind value, JsonSerializerOptions options)
+        => writer.WritePropertyName(value.ToWireValue());
+
+    // A server without a string converter writes a C# enum as its position in the list: read it as that value,
+    // and keep any other number as an unknown value
+    private static NoteKind FromNumber(ref Utf8JsonReader reader)
+        => reader.TryGetInt32(out var position) && position >= 0 && position < NoteKind.KnownValues.Count
+            ? NoteKind.KnownValues[position]
+            : new NoteKind(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+}
+
+/// <summary>
+/// The value of a <see cref="NoteKind"/> that may be absent, as the specification writes it.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class NoteKindExtensions
 {
-    public static string ToWireValue(this NoteKind value)
-        => value switch
-        {
-            NoteKind.Plain => "plain",
-            NoteKind.Its => "it's",
-            NoteKind.SayHi => "say \"hi\"",
-            NoteKind.BackSlash => "back\\slash",
-            _ => value.ToString(),
-        };
-
     public static string? ToWireValue(this NoteKind? value)
-        => value is { } known ? known.ToWireValue() : null;
+        => value is { } present ? present.ToWireValue() : null;
 }

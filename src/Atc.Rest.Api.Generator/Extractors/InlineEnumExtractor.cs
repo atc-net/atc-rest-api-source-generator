@@ -151,6 +151,12 @@ public static class InlineEnumExtractor
     /// Generates the content for a single inline enum using GenerateContentForEnum.
     /// Delegates to <see cref="EnumExtractor.GenerateEnumContent"/>.
     /// </summary>
-    public static string GenerateEnumContent(EnumParameters parameters)
-        => EnumExtractor.GenerateEnumContent(parameters);
+    /// <param name="parameters">The enum.</param>
+    /// <param name="extensible">Whether a string enum is written as an extensible enum (a generated client).</param>
+    /// <param name="stringOnTheWire">Whether a string enum always carries its string converter (the server).</param>
+    public static string GenerateEnumContent(
+        EnumParameters parameters,
+        bool extensible = false,
+        bool stringOnTheWire = false)
+        => EnumExtractor.GenerateEnumContent(parameters, extensible, stringOnTheWire);
 }

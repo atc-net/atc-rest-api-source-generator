@@ -78,7 +78,7 @@ public static class TypeScriptEnumExtractor
             string content;
             if (config.EnumStyle == TypeScriptEnumStyle.Union)
             {
-                content = GenerateUnionType(headerContent, docTags, schemaName, enumValues, config.EnumRuntimeValues);
+                content = GenerateUnionType(headerContent, docTags, schemaName, enumValues, config.EnumRuntimeValues, config.ExtensibleEnums);
             }
             else
             {
@@ -96,19 +96,27 @@ public static class TypeScriptEnumExtractor
     /// true, a runtime <c>{typeName}Values = [...] as const</c> array is appended beside the
     /// type so consumers can iterate the values (e.g. to populate a dropdown) without a TS
     /// enum or Zod.
+    /// When <paramref name="open"/> is true, the union also takes any string (an extensible enum).
     /// </summary>
     private static string GenerateUnionType(
         string? headerContent,
         JsDocComment? docTags,
         string typeName,
         List<string> values,
-        bool includeRuntimeValues)
+        bool includeRuntimeValues,
+        bool open)
     {
         var parameters = TypeScriptTypeAliasParametersFactory.CreateStringUnion(
             headerContent,
             docTags,
             typeName,
             values);
+
+        // Open (an extensible enum): the listed values still autocomplete, and a value a server adds later type-checks
+        if (open)
+        {
+            parameters = parameters with { Definition = parameters.Definition + " | (string & {})" };
+        }
 
         var generator = new GenerateContentForTypeAlias(
             new JsDocCommentGenerator(),

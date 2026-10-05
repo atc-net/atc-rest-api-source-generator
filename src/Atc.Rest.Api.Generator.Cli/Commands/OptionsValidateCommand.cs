@@ -114,6 +114,7 @@ public sealed class OptionsValidateCommand : Command<OptionsCommandSettings>
         table.AddRow("client", "clientGranularity", options.Client.ClientGranularity.ToString());
         table.AddRow("client", "clientName", options.Client.ClientName ?? "(derived)");
         table.AddRow("client", "generateOAuthTokenManagement", options.Client.GenerateOAuthTokenManagement.ToString());
+        table.AddRow("client", "extensibleEnums", options.Client.ExtensibleEnums.ToString());
 
         AnsiConsole.MarkupLine("[blue]Configuration summary:[/]");
         AnsiConsole.Write(table);

@@ -249,7 +249,7 @@ public sealed class XmlModelMappingTests
 
                 rows.Add(Failure(() => PetXml.FromXml("<pet><id>1</id></pet>")));
                 rows.Add(Failure(() => SampleXml.FromXml("<Sample><flag>yes</flag><count>1</count></Sample>")));
-                rows.Add(Failure(() => SampleXml.FromXml("<Sample><flag>true</flag><count>1</count><level>extreme</level></Sample>")));
+                rows.Add(Outcome(() => SampleXml.ToXml(SampleXml.FromXml("<Sample><flag>true</flag><count>1</count><level>extreme</level></Sample>"))));
                 rows.Add(Failure(() => PetXml.FromXml("<!DOCTYPE pet [<!ENTITY x SYSTEM \"file:///c:/windows/win.ini\">]><pet><name>&x;</name><photoUrls /></pet>")));
                 rows.Add(Failure(() => PetXml.FromXml("<pet><name>unclosed</pet>")));
                 return rows;
@@ -280,6 +280,19 @@ public sealed class XmlModelMappingTests
             private static string Same(string expected, string actual)
                 => expected == actual ? "ok" : $"DIFF[{actual}]";
 
+            // What a read gives: its result, or the exception
+            private static string Outcome(Func<string> read)
+            {
+                try
+                {
+                    return read();
+                }
+                catch (Exception ex)
+                {
+                    return $"{ex.GetType().Name}: {ex.Message.Split('\n')[0].Trim()}";
+                }
+            }
+
             private static string Failure(Func<object> read)
             {
                 try
@@ -294,6 +307,9 @@ public sealed class XmlModelMappingTests
             }
         }
         """";
+
+    // An enum value the specification does not list: the server refuses it, a client (an extensible enum) keeps it
+    private const string UnknownLevel = "{unknown level}";
 
     private static readonly string[] Expected =
     [
@@ -319,7 +335,7 @@ public sealed class XmlModelMappingTests
         "<Doc xmlns=\"http://example.com/doc\"><title>no namespace</title></Doc>",
         "FormatException: The XML element 'name' of 'pet' is required but missing.",
         "FormatException: The XML element 'flag' of 'Sample' has an invalid value: 'yes'.",
-        "FormatException: The XML element 'level' of 'Sample' has an invalid value: 'extreme'.",
+        UnknownLevel,
         "XmlException: For security reasons DTD is prohibited in this XML document. To enable DTD processing set the DtdProcessing property on XmlReaderSettings to Parse and pass the settings into XmlReader.Create method.",
         "XmlException: The 'name' start tag on line 1 position 7 does not match the end tag of 'pet'. Line 1, position 22.",
     ];
@@ -335,7 +351,10 @@ public sealed class XmlModelMappingTests
         var assembly = CompilationVerificationHarness.EmitAndLoad(sources, includeMinimalApi: side == "server");
         var rows = (List<string>)assembly.GetType("ErrorBodies.RuntimeTest.XmlProbe", throwOnError: true)!.GetMethod("Run")!.Invoke(null, [])!;
 
-        Assert.Equal(Expected, rows, StringComparer.Ordinal);
+        var unknownLevel = side == "server"
+            ? "FormatException: The XML element 'level' of 'Sample' has an invalid value: 'extreme'."
+            : "<Sample><flag>true</flag><count>1</count><level>extreme</level></Sample>";
+        Assert.Equal(Expected.Select(e => e == UnknownLevel ? unknownLevel : e), rows, StringComparer.Ordinal);
     }
 
     [Theory]

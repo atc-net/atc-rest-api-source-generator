@@ -303,6 +303,11 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             config.GenerateOAuthTokenManagement = false;
         }
 
+        if (settings.NoExtensibleEnums)
+        {
+            config.ExtensibleEnums = false;
+        }
+
         return config;
     }
 

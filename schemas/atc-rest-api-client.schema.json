@@ -171,6 +171,11 @@
       "description": "Ask for XML first for an operation that offers its response as JSON and XML. Default: false. By default the generated clients send Accept: application/json, application/problem+json for such an operation; when true they send the XML media types first (and application/problem+xml before application/problem+json), for third-party APIs that answer XML better. Either way the client reads whatever Content-Type comes back.",
       "default": false
     },
+    "extensibleEnums": {
+      "type": "boolean",
+      "description": "Generate string enums as extensible enums. Default: true. When true, a string enum is a readonly record struct over the value on the wire, with the specification's values as named members (DeviceStatus.Online), their constants in Names for a switch, and KnownValues; a value the specification does not list is kept with IsKnown false instead of failing the response, so a server can add a value without breaking clients built before it. When false, string enums are C# enums, and an unknown value fails the response with a JsonException. Integer enums are C# enums either way (they already hold any number), and servers always keep strict C# enums.",
+      "default": true
+    },
     "errorResponseFormat": {
       "enum": [
         "ProblemDetails",

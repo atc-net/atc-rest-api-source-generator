@@ -137,7 +137,7 @@ export class PetClient {
   }
 
   /** Finds Pets by status. */
-  async findPetsByStatus(query?: { status?: 'available' | 'pending' | 'sold' /* default: 'available' */ }, signal?: AbortSignal): Promise<FindPetsByStatusResult> {
+  async findPetsByStatus(query?: { status?: 'available' | 'pending' | 'sold' | (string & {}) /* default: 'available' */ }, signal?: AbortSignal): Promise<FindPetsByStatusResult> {
     return this.api.request<Pet[]>('GET', '/pet/findByStatus', {
       query: {
         status: query?.status,

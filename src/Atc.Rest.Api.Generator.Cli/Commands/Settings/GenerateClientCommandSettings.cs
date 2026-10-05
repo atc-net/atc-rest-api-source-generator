@@ -42,6 +42,14 @@ public sealed class GenerateClientCommandSettings : BaseGenerateCommandSettings
     public bool DisableOAuth { get; init; }
 
     /// <summary>
+    /// Gets a value indicating whether string enums are generated as C# enums instead of extensible enums.
+    /// </summary>
+    [CommandOption("--no-extensible-enums")]
+    [Description("Generate string enums as C# enums instead of extensible enums (a value the specification does not list then fails the response). Writes \"extensibleEnums\": false to the marker.")]
+    [DefaultValue(false)]
+    public bool NoExtensibleEnums { get; init; }
+
+    /// <summary>
     /// Gets the client project name override; derived from the base project name when not set.
     /// </summary>
     [CommandOption("--client-project <NAME>")]

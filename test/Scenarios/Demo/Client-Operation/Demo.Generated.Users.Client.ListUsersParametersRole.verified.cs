@@ -2,35 +2,195 @@
 #nullable enable
 #pragma warning disable CS1591
 
+using System;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Demo.Generated.Users.Models;
 
+/// <remarks>
+/// An extensible enum: a value the specification does not list is kept in <see cref="Value"/>, with
+/// <see cref="IsKnown"/> <see langword="false"/>, instead of failing the response it arrives in.
+/// </remarks>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public enum ListUsersParametersRole
+[JsonConverter(typeof(ListUsersParametersRoleJsonConverter))]
+public readonly record struct ListUsersParametersRole : IParsable<ListUsersParametersRole>
 {
-    Admin,
-    Manager,
-    Employee,
-    Guest,
+    /// <summary>
+    /// The values the specification lists, as constants - for a <c>switch</c> on <see cref="Value"/>.
+    /// </summary>
+    public static class Names
+    {
+        public const string Admin = "Admin";
+
+        public const string Manager = "Manager";
+
+        public const string Employee = "Employee";
+
+        public const string Guest = "Guest";
+    }
+
+    public static ListUsersParametersRole Admin { get; } = new(Names.Admin);
+
+    public static ListUsersParametersRole Manager { get; } = new(Names.Manager);
+
+    public static ListUsersParametersRole Employee { get; } = new(Names.Employee);
+
+    public static ListUsersParametersRole Guest { get; } = new(Names.Guest);
+
+    /// <summary>
+    /// The values the specification lists, in its order.
+    /// </summary>
+    public static IReadOnlyList<ListUsersParametersRole> KnownValues { get; } = new[]
+    {
+        Admin,
+        Manager,
+        Employee,
+        Guest,
+    };
+
+    /// <summary>
+    /// Initializes a new instance with a value as it is sent on the wire. A listed value in another casing is
+    /// taken as the listed one.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public ListUsersParametersRole(string value)
+        => Value = Recognize(value ?? throw new ArgumentNullException(nameof(value)));
+
+    /// <summary>
+    /// The value as it is sent on the wire; <see langword="null"/> only for <see langword="default"/>.
+    /// </summary>
+    public string Value { get; }
+
+    /// <summary>
+    /// Whether the value is one the specification lists.
+    /// </summary>
+    public bool IsKnown => Value is Names.Admin or Names.Manager or Names.Employee or Names.Guest;
+
+    public static implicit operator ListUsersParametersRole(string value)
+        => new(value);
+
+    /// <summary>
+    /// The value as it is sent on the wire, for a path, a query string, a header or a cookie.
+    /// </summary>
+    /// <returns>The value; empty for <see langword="default"/>.</returns>
+    public string ToWireValue()
+        => Value ?? string.Empty;
+
+    public override string ToString()
+        => Value ?? string.Empty;
+
+    /// <summary>
+    /// Takes any value: whether it is one the specification lists is <see cref="IsKnown"/>.
+    /// </summary>
+    public static ListUsersParametersRole Parse(string s)
+        => new(s);
+
+    public static ListUsersParametersRole Parse(string s, IFormatProvider? provider)
+        => new(s);
+
+    /// <summary>
+    /// Succeeds for any value but <see langword="null"/>: whether it is one the specification lists is
+    /// <see cref="IsKnown"/>.
+    /// </summary>
+    public static bool TryParse([NotNullWhen(true)] string? s, out ListUsersParametersRole result)
+        => TryParse(s, provider: null, out result);
+
+    public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, out ListUsersParametersRole result)
+    {
+        if (s is null)
+        {
+            result = default;
+            return false;
+        }
+
+        result = new(s);
+        return true;
+    }
+
+    private static string Recognize(string value)
+    {
+        if (value is Names.Admin or Names.Manager or Names.Employee or Names.Guest)
+        {
+            return value;
+        }
+
+        if (string.Equals(value, Names.Admin, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Admin;
+        }
+
+        if (string.Equals(value, Names.Manager, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Manager;
+        }
+
+        if (string.Equals(value, Names.Employee, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Employee;
+        }
+
+        if (string.Equals(value, Names.Guest, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Guest;
+        }
+
+        return value;
+    }
 }
 
 /// <summary>
-/// The values of <see cref="ListUsersParametersRole"/> as the specification writes them.
+/// Reads and writes <see cref="ListUsersParametersRole"/> as the JSON string it is on the wire, also as a property name.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class ListUsersParametersRoleJsonConverter : JsonConverter<ListUsersParametersRole>
+{
+    public override bool HandleNull => true;
+
+    public override ListUsersParametersRole Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => reader.TokenType switch
+        {
+            JsonTokenType.String => new ListUsersParametersRole(reader.GetString()!),
+            JsonTokenType.Number => FromNumber(ref reader),
+            JsonTokenType.Null => default,
+            _ => throw new JsonException($"A ListUsersParametersRole is a JSON string, not {reader.TokenType}."),
+        };
+
+    public override void Write(Utf8JsonWriter writer, ListUsersParametersRole value, JsonSerializerOptions options)
+    {
+        if (value.Value is null)
+        {
+            writer.WriteNullValue();
+        }
+        else
+        {
+            writer.WriteStringValue(value.Value);
+        }
+    }
+
+    public override ListUsersParametersRole ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => new(reader.GetString()!);
+
+    public override void WriteAsPropertyName(Utf8JsonWriter writer, ListUsersParametersRole value, JsonSerializerOptions options)
+        => writer.WritePropertyName(value.ToWireValue());
+
+    // A server without a string converter writes a C# enum as its position in the list: read it as that value,
+    // and keep any other number as an unknown value
+    private static ListUsersParametersRole FromNumber(ref Utf8JsonReader reader)
+        => reader.TryGetInt32(out var position) && position >= 0 && position < ListUsersParametersRole.KnownValues.Count
+            ? ListUsersParametersRole.KnownValues[position]
+            : new ListUsersParametersRole(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+}
+
+/// <summary>
+/// The value of a <see cref="ListUsersParametersRole"/> that may be absent, as the specification writes it.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class ListUsersParametersRoleExtensions
 {
-    public static string ToWireValue(this ListUsersParametersRole value)
-        => value switch
-        {
-            ListUsersParametersRole.Admin => "Admin",
-            ListUsersParametersRole.Manager => "Manager",
-            ListUsersParametersRole.Employee => "Employee",
-            ListUsersParametersRole.Guest => "Guest",
-            _ => value.ToString(),
-        };
-
     public static string? ToWireValue(this ListUsersParametersRole? value)
-        => value is { } known ? known.ToWireValue() : null;
+        => value is { } present ? present.ToWireValue() : null;
 }

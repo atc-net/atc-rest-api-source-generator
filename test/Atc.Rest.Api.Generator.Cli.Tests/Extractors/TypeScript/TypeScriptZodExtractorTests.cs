@@ -61,6 +61,31 @@ public class TypeScriptZodExtractorTests
         Assert.Contains("'inactive'", content, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(true, "export const StatusSchema = z.union([z.enum(['active', 'inactive']), z.string()]);")]
+    [InlineData(false, "export const StatusSchema = z.enum(['active', 'inactive']);")]
+    public void ZodEnum_AcceptsAValueTheServerAddsLater_UnlessExtensibleEnumsIsOff(
+        bool extensibleEnums,
+        string expected)
+    {
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths: {}
+                            components:
+                              schemas:
+                                Status:
+                                  type: string
+                                  enum: [active, inactive]
+                            """;
+        var doc = ParseYaml(yaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptZodEnumExtractor.Extract(doc, new TypeScriptClientConfig { ExtensibleEnums = extensibleEnums }));
+
+        Assert.Contains(expected, content, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ZodEnum_NonStringEnum_Skipped()
     {

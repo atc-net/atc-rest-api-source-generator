@@ -2,6 +2,35 @@ namespace Atc.Rest.Api.Generator.Cli.Tests.Extractors.TypeScript;
 
 public class TypeScriptClientExtractorTests
 {
+    [Theory]
+    [InlineData(true, "sortOrder?: 'ascending' | 'descending' | (string & {})")]
+    [InlineData(false, "sortOrder?: 'ascending' | 'descending' }")]
+    public void Extract_InlineEnumParameter_IsOpenLikeTheEnumTypes_UnlessExtensibleEnumsIsOff(
+        bool extensibleEnums,
+        string expected)
+    {
+        // A value read from a response (an open enum type) can be passed back as a filter
+        const string yaml = """
+                            openapi: 3.0.0
+                            info: { title: T, version: 1.0.0 }
+                            paths:
+                              /pets:
+                                get:
+                                  operationId: listPets
+                                  parameters:
+                                    - { name: sortOrder, in: query, schema: { type: string, enum: [ascending, descending] } }
+                                  responses:
+                                    '204': { description: OK }
+                            """;
+        var document = ParseYaml(yaml);
+        Assert.NotNull(document);
+
+        using var scope = TypeScriptOperationHelper.EnumsScope(extensibleEnums);
+        var (_, content) = Assert.Single(TypeScriptClientExtractor.Extract(document, headerContent: null));
+
+        Assert.Contains(expected, content, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Extract_EveryMethod_TakesAnAbortSignalLast_AndSendsItWithTheRequest()
     {

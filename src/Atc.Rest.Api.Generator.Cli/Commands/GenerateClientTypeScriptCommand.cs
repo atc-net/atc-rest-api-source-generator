@@ -46,6 +46,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         AnsiConsole.MarkupLine($"[blue]Scaffold:[/] {config.Scaffold}");
         AnsiConsole.MarkupLine($"[blue]Branded IDs:[/] {config.BrandedIds}");
         AnsiConsole.MarkupLine($"[blue]Enum runtime values:[/] {config.EnumRuntimeValues}");
+        AnsiConsole.MarkupLine($"[blue]Extensible enums:[/] {config.ExtensibleEnums}");
         if (config.DryRun)
         {
             AnsiConsole.MarkupLine("[blue]Dry run:[/] True");
@@ -344,6 +345,11 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         if (settings.EnumRuntimeValues)
         {
             config.EnumRuntimeValues = true;
+        }
+
+        if (settings.NoExtensibleEnums)
+        {
+            config.ExtensibleEnums = false;
         }
 
         if (settings.DryRun)

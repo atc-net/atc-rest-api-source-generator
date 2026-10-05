@@ -428,6 +428,28 @@ public sealed class GenerateClientCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task GenerateClient_WithNoExtensibleEnums_WritesItToTheMarkerFile()
+    {
+        // Arrange
+        var yamlPath = CliTestHelper.GetScenarioYamlPath("Demo");
+        var outputPath = Path.Combine(tempOutputDir, "ClosedEnumsClient");
+        var arguments = $"generate client -s \"{yamlPath}\" -o \"{outputPath}\" -n \"ClosedEnums\" --no-extensible-enums";
+
+        // Act
+        var (isSuccessful, output) = await ProcessHelper.Execute(
+            CliExeFile,
+            arguments,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        var cleanOutput = CliTestHelper.StripAnsiCodes(output);
+        Assert.True(isSuccessful, $"Expected success but got failure. Output: {cleanOutput}");
+
+        var markerContent = await File.ReadAllTextAsync(Path.Combine(outputPath, ".atc-rest-api-client"), TestContext.Current.CancellationToken);
+        Assert.Contains("\"extensibleEnums\": false", markerContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task GenerateClient_WithExplicitNamespace_WritesExplicitNamespaceToMarkerFile()
     {
         // Arrange - Explicit --namespace should take precedence over project name fallback

@@ -16,17 +16,19 @@ internal static class XmlModelEmitter
     /// <param name="modelsNamespace">The models' namespace.</param>
     /// <param name="projectName">The root namespace.</param>
     /// <param name="xmlModels">The schemas that get an XML mapping.</param>
+    /// <param name="extensibleEnums">Whether the string enums are extensible enums (a generated client).</param>
     public static void EmitCompanions(
         GeneratedSourceContext context,
         IReadOnlyList<XmlModelSource> sources,
         string? headerContent,
         string modelsNamespace,
         string projectName,
-        ISet<string> xmlModels)
+        ISet<string> xmlModels,
+        bool extensibleEnums = false)
     {
         foreach (var source in sources)
         {
-            var content = XmlModelMapperExtractor.GenerateCompanion(source, headerContent, modelsNamespace, projectName, xmlModels);
+            var content = XmlModelMapperExtractor.GenerateCompanion(source, headerContent, modelsNamespace, projectName, xmlModels, extensibleEnums);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, source.TypeName + "Xml"),
                 SourceText.From(content.NormalizeForSourceOutput(), Encoding.UTF8));

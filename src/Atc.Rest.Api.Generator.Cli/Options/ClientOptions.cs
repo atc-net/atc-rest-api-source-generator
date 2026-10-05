@@ -41,4 +41,11 @@ public sealed class ClientOptions
     /// Default: true.
     /// </summary>
     public bool GenerateOAuthTokenManagement { get; set; } = true;
+
+    /// <summary>
+    /// Generate string enums as extensible enums: a value the specification does not list is kept instead of failing
+    /// the response. False gives C# enums.
+    /// Default: true.
+    /// </summary>
+    public bool ExtensibleEnums { get; set; } = true;
 }

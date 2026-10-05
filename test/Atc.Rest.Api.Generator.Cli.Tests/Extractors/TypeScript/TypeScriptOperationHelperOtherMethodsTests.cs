@@ -36,7 +36,7 @@ public class TypeScriptOperationHelperOtherMethodsTests
 
         var result = TypeScriptOperationHelper.GetParameterType(param);
 
-        Assert.Equal("'Admin' | 'Manager' | 'Guest'", result);
+        Assert.Equal("'Admin' | 'Manager' | 'Guest' | (string & {})", result);
     }
 
     [Fact]

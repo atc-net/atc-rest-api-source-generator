@@ -332,8 +332,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             // Create conflict registry for shared types (no segment)
             var sharedRegistry = TypeConflictRegistry.ForSegment(conflicts, projectName);
 
-            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, sharedRegistry, config.IncludeDeprecated, config.GeneratePartialModels, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels);
-            GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
+            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, sharedRegistry, config.IncludeDeprecated, config.GeneratePartialModels, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels, extensibleEnums: config.ExtensibleEnums);
+            GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null, config.ExtensibleEnums);
             GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
             PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, sharedSchemas, pathSegment: null);
         }
@@ -371,8 +371,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             // Include shared models using directive so segment types can reference shared types
             if (segmentSchemas.Count > 0)
             {
-                GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, includeSharedModelsUsing: sharedSchemas.Count > 0, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels);
-                GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
+                GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, includeSharedModelsUsing: sharedSchemas.Count > 0, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels, extensibleEnums: config.ExtensibleEnums);
+                GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment, config.ExtensibleEnums);
                 GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
                 PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, segmentSchemas, effectiveSegment);
             }
@@ -394,7 +394,7 @@ public class ApiClientGenerator : IIncrementalGenerator
                     ? ErrorResponseFormatType.Custom
                     : config.ErrorResponseFormat;
 
-                var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, customErrorTypeName, config.ValidateSpecificationStrategy, config.StrictRequiredProperties, config.PreferXml);
+                var hasEndpoints = GenerateEndpointPerOperation(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, config.IncludeDeprecated, hasSegmentModels, hasSharedModels, config.UseServersBasePath, config.HttpClientName, effectiveErrorFormat, customErrorTypeName, config.ValidateSpecificationStrategy, config.StrictRequiredProperties, config.PreferXml, config.ExtensibleEnums);
                 if (hasEndpoints)
                 {
                     generatedPathSegments.Add(effectiveSegment);
@@ -404,7 +404,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             {
                 var hasSegmentModelsTyped = segmentSchemas.Count > 0;
                 var hasSharedModelsTyped = sharedSchemas.Count > 0;
-                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy, config.ClientSuffix, clientName: null, packages.HasHttpClientFactory, config.TypedClientResultStyle, config.StrictRequiredProperties, config.PreferXml);
+                GenerateTypedClient(generatedContext, openApiDoc, projectName, pathSegment, effectiveSegment, registry, systemTypeResolver, config.IncludeDeprecated, hasSegmentModelsTyped, hasSharedModelsTyped, config.UseServersBasePath, config.ValidateSpecificationStrategy, config.ClientSuffix, clientName: null, packages.HasHttpClientFactory, config.TypedClientResultStyle, config.StrictRequiredProperties, config.PreferXml, config.ExtensibleEnums);
             }
         }
 
@@ -596,7 +596,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool generatePartialModels,
         bool includeSharedModelsUsing = false,
         bool strictRequiredProperties = false,
-        ISet<string>? xmlModels = null)
+        ISet<string>? xmlModels = null,
+        bool extensibleEnums = false)
     {
         // Use SchemaExtractor to extract specific schemas with inline enum support
         var xmlSources = new List<XmlModelSource>();
@@ -618,7 +619,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Generate inline enum files first (before records that use them)
         foreach (var inlineEnum in inlineEnums)
         {
-            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, extensibleEnums);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(modelsNamespace, inlineEnum.TypeName),
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));
@@ -667,7 +668,7 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         if (xmlModels is not null)
         {
-            XmlModelEmitter.EmitCompanions(context, xmlSources, recordsParameters.HeaderContent, modelsNamespace, projectName, xmlModels);
+            XmlModelEmitter.EmitCompanions(context, xmlSources, recordsParameters.HeaderContent, modelsNamespace, projectName, xmlModels, extensibleEnums);
         }
     }
 
@@ -679,7 +680,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         OpenApiDocument openApiDoc,
         string projectName,
         HashSet<string> schemaNames,
-        string? pathSegment)
+        string? pathSegment,
+        bool extensibleEnums)
     {
         // Use EnumExtractor to extract specific enum schemas
         var enumParametersList = EnumExtractor.ExtractForSchemas(
@@ -698,7 +700,7 @@ public class ApiClientGenerator : IIncrementalGenerator
         // Generate each enum as a separate file
         foreach (var enumParams in enumParametersList)
         {
-            var generatedContent = EnumExtractor.GenerateEnumContent(enumParams);
+            var generatedContent = EnumExtractor.GenerateEnumContent(enumParams, extensibleEnums);
 
             // File name mirrors the namespace the enum is emitted into
             var fileName = NamespaceBuilder.ToFileName(enumsNamespace, enumParams.EnumTypeName);
@@ -905,8 +907,8 @@ public class ApiClientGenerator : IIncrementalGenerator
 
         if (allSchemas.Count > 0)
         {
-            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels);
-            GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
+            GenerateModelsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment, registry, config.IncludeDeprecated, config.GeneratePartialModels, strictRequiredProperties: config.StrictRequiredProperties, xmlModels: xmlModels, extensibleEnums: config.ExtensibleEnums);
+            GenerateEnumsForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment, config.ExtensibleEnums);
             GenerateTuplesForSchemas(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
             PolymorphicTypeEmitter.Emit(generatedContext, openApiDoc, projectName, allSchemas, NoSegment);
         }
@@ -929,7 +931,8 @@ public class ApiClientGenerator : IIncrementalGenerator
             generateDiExtension,
             config.TypedClientResultStyle,
             config.StrictRequiredProperties,
-            config.PreferXml);
+            config.PreferXml,
+            config.ExtensibleEnums);
 
         if (StreamReadersExtractor.DocumentRequiresStreamReaders(openApiDoc))
         {
@@ -958,7 +961,8 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool generateDiExtension = false,
         TypedClientResultStyleType typedClientResultStyle = TypedClientResultStyleType.Throw,
         bool strictRequiredProperties = false,
-        bool preferXml = false)
+        bool preferXml = false,
+        bool extensibleEnums = false)
     {
         // An empty namespace segment means Single granularity: the client and its parameter
         // records are flattened into "{projectName}.Generated" rather than the per-area
@@ -968,7 +972,7 @@ public class ApiClientGenerator : IIncrementalGenerator
             : NamespaceBuilder.ForClient(projectName, namespaceSegment);
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, namespaceSegment);
 
-        GenerateClientParameters(context, openApiDoc, projectName, pathSegment, namespaceSegment, clientNamespace, registry, includeDeprecated, validateStrategy, hasSegmentModels, hasSharedModels);
+        GenerateClientParameters(context, openApiDoc, projectName, pathSegment, namespaceSegment, clientNamespace, registry, includeDeprecated, validateStrategy, hasSegmentModels, hasSharedModels, extensibleEnums);
 
         // Use HttpClientExtractor to extract HTTP client class parameters filtered by path segment
         // This also extracts inline schemas for type generation
@@ -1131,12 +1135,13 @@ public class ApiClientGenerator : IIncrementalGenerator
         string? customErrorTypeName,
         ValidateSpecificationStrategy validateStrategy = ValidateSpecificationStrategy.Strict,
         bool strictRequiredProperties = false,
-        bool preferXml = false)
+        bool preferXml = false,
+        bool extensibleEnums = false)
     {
         var clientNamespace = NamespaceBuilder.ForClient(projectName, namespaceSegment);
         var modelsNamespace = NamespaceBuilder.ForModels(projectName, namespaceSegment);
 
-        GenerateClientParameters(context, openApiDoc, projectName, pathSegment, namespaceSegment, clientNamespace, registry, includeDeprecated, validateStrategy, hasSegmentModels, hasSharedModels);
+        GenerateClientParameters(context, openApiDoc, projectName, pathSegment, namespaceSegment, clientNamespace, registry, includeDeprecated, validateStrategy, hasSegmentModels, hasSharedModels, extensibleEnums);
 
         // Generate endpoint files using EndpointPerOperationExtractor (with inline schema support)
         var (operationFiles, inlineSchemas) = EndpointPerOperationExtractor.ExtractWithInlineSchemas(
@@ -1961,14 +1966,15 @@ public class ApiClientGenerator : IIncrementalGenerator
         bool includeDeprecated,
         ValidateSpecificationStrategy validateStrategy,
         bool hasSegmentModels,
-        bool hasSharedModels)
+        bool hasSharedModels,
+        bool extensibleEnums)
     {
         var (parameterRecords, parameterInlineEnums) = HttpClientExtractor.ExtractParametersWithInlineEnums(openApiDoc, projectName, pathSegment, registry, includeDeprecated, validateStrategy, namespaceSegment);
 
         // The inline enums first: the parameter records reference them
         foreach (var inlineEnum in parameterInlineEnums)
         {
-            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters);
+            var enumContent = InlineEnumExtractor.GenerateEnumContent(inlineEnum.EnumParameters, extensibleEnums);
             context.AddGeneratedSource(
                 NamespaceBuilder.ToFileName(clientNamespace, inlineEnum.TypeName),
                 SourceText.From(enumContent.NormalizeForSourceOutput(), Encoding.UTF8));

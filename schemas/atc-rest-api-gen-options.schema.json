@@ -306,6 +306,11 @@
           "type": "boolean",
           "description": "Generate OAuth2 token provider, handler, and DI extensions when OAuth2 security is detected in OpenAPI spec. Default: true.",
           "default": true
+        },
+        "extensibleEnums": {
+          "type": "boolean",
+          "description": "Generate string enums as extensible enums: a value the specification does not list is kept instead of failing the response. False gives C# enums. Default: true.",
+          "default": true
         }
       },
       "additionalProperties": false,

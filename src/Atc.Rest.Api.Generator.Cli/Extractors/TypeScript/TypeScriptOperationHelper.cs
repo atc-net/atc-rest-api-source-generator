@@ -8,6 +8,24 @@ namespace Atc.Rest.Api.Generator.Cli.Extractors.TypeScript;
 /// </summary>
 public static class TypeScriptOperationHelper
 {
+    // Whether string enums are closed (extensibleEnums off) for the generation running on this flow. The parameter
+    // types are built deep inside every client and hook extractor, so the setting travels with the run, not the calls.
+    private static readonly AsyncLocal<bool> EnumsAreClosed = new();
+
+    /// <summary>
+    /// Sets whether an inline string enum parameter is an open union (<c>'a' | 'b' | (string &amp; {})</c>, the
+    /// default) for the code generated until the scope is disposed - like the enum types, so a value read from a
+    /// response can be passed back.
+    /// </summary>
+    /// <param name="extensibleEnums">The run's <c>ExtensibleEnums</c> setting.</param>
+    /// <returns>A scope that restores the previous setting.</returns>
+    public static IDisposable EnumsScope(bool extensibleEnums)
+    {
+        var previous = EnumsAreClosed.Value;
+        EnumsAreClosed.Value = !extensibleEnums;
+        return new EnumsScopeRestore(previous);
+    }
+
     /// <summary>
     /// Merges path-level and operation-level parameters by location.
     /// Resolves parameter references ($ref) to actual parameters.
@@ -1311,7 +1329,21 @@ public static class TypeScriptOperationHelper
             }
         }
 
-        return parts.Count == 0 ? null : string.Join(" | ", parts);
+        if (parts.Count == 0)
+        {
+            return null;
+        }
+
+        // Open, like the enum types: a value the server adds later, or one read from a response, can be passed
+        return isStringEnum && !EnumsAreClosed.Value
+            ? string.Join(" | ", parts) + " | (string & {})"
+            : string.Join(" | ", parts);
+    }
+
+    private sealed class EnumsScopeRestore(bool previous) : IDisposable
+    {
+        public void Dispose()
+            => EnumsAreClosed.Value = previous;
     }
 
     private static bool IsIdentifierChar(char c)

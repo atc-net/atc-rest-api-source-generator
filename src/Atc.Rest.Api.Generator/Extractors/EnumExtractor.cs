@@ -58,10 +58,37 @@ public static class EnumExtractor
     }
 
     /// <summary>
-    /// Generates the content for a single enum using GenerateContentForEnum.
+    /// Generates the content for a single enum using GenerateContentForEnum - or, for a string enum of a generated
+    /// client, as an extensible enum (<see cref="ExtensibleEnumContentGenerator"/>).
     /// </summary>
-    public static string GenerateEnumContent(EnumParameters parameters)
+    /// <param name="parameters">The enum.</param>
+    /// <param name="extensible">Whether a string enum is written as an extensible enum (a generated client).</param>
+    /// <param name="stringOnTheWire">Whether a string enum carries its string converter even when no value needs
+    /// <c>[EnumMember]</c> (the server: a host without a <c>JsonStringEnumConverter</c> would write the member's
+    /// number; a converter the host registers still decides).</param>
+    public static string GenerateEnumContent(
+        EnumParameters parameters,
+        bool extensible = false,
+        bool stringOnTheWire = false)
     {
+        if (extensible && ExtensibleEnumContentGenerator.AppliesTo(parameters))
+        {
+            return ExtensibleEnumContentGenerator.Generate(parameters);
+        }
+
+        if (stringOnTheWire &&
+            ExtensibleEnumContentGenerator.AppliesTo(parameters) &&
+            parameters.Values.All(v => v.EnumMemberValue is null))
+        {
+            parameters = parameters with
+            {
+                HeaderContent = HeaderBuilder.WithUsings(
+                    NamespaceConstants.SystemCodeDomCompiler,
+                    NamespaceConstants.SystemTextJsonSerialization),
+                Attributes = [.. parameters.Attributes ?? [], new AttributeParameters("JsonConverter", "typeof(JsonStringEnumConverter)")],
+            };
+        }
+
         var generator = new GenerateContentForEnum(
             new CodeDocumentationTagsGenerator(),
             parameters);

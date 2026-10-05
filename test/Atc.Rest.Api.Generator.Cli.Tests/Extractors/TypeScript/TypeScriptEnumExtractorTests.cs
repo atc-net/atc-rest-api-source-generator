@@ -55,6 +55,28 @@ public class TypeScriptEnumExtractorTests
     }
 
     [Fact]
+    public void Extract_StringEnum_UnionStyle_IsOpen_SoAValueTheServerAddsLaterStillTypeChecks()
+    {
+        var doc = ParseYaml(StatusYaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig()));
+
+        Assert.Contains("export type Status = 'active' | 'inactive' | (string & {});", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Extract_StringEnum_UnionStyle_ExtensibleEnumsFalse_IsClosed()
+    {
+        var doc = ParseYaml(StatusYaml);
+        Assert.NotNull(doc);
+
+        var (_, content) = Assert.Single(TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig { ExtensibleEnums = false }));
+
+        Assert.Contains("export type Status = 'active' | 'inactive';", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Extract_StringEnum_EnumStyle_GeneratesEnumDeclaration()
     {
         const string yaml = """
@@ -113,7 +135,7 @@ public class TypeScriptEnumExtractorTests
         Assert.Equal("Status", name);
 
         // The type alias is still emitted unchanged ...
-        Assert.Contains("export type Status = 'active' | 'inactive' | 'pending';", content, StringComparison.Ordinal);
+        Assert.Contains("export type Status = 'active' | 'inactive' | 'pending' | (string & {});", content, StringComparison.Ordinal);
 
         // ... plus the runtime const array beside it.
         Assert.Contains("export const StatusValues = ['active', 'inactive', 'pending'] as const;", content, StringComparison.Ordinal);
@@ -234,6 +256,17 @@ public class TypeScriptEnumExtractorTests
         var includedResult = TypeScriptEnumExtractor.Extract(doc, new TypeScriptClientConfig { IncludeDeprecated = true });
         Assert.Single(includedResult);
     }
+
+    private const string StatusYaml = """
+                                      openapi: 3.0.0
+                                      info: { title: T, version: 1.0.0 }
+                                      paths: {}
+                                      components:
+                                        schemas:
+                                          Status:
+                                            type: string
+                                            enum: [active, inactive]
+                                      """;
 
     private static OpenApiDocument? ParseYaml(string yaml)
         => OpenApiDocumentHelper.TryParseYaml(yaml, "test.yaml", out var document)

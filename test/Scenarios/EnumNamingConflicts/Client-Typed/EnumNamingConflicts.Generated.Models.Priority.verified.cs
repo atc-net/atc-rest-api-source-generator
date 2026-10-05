@@ -2,40 +2,208 @@
 #nullable enable
 #pragma warning disable CS1591
 
+using System;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace EnumNamingConflicts.Generated.Models;
 
 /// <summary>
 /// Enum with a value matching C# keyword.
 /// </summary>
+/// <remarks>
+/// An extensible enum: a value the specification does not list is kept in <see cref="Value"/>, with
+/// <see cref="IsKnown"/> <see langword="false"/>, instead of failing the response it arrives in.
+/// </remarks>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public enum Priority
+[JsonConverter(typeof(PriorityJsonConverter))]
+public readonly record struct Priority : IParsable<Priority>
 {
-    Default,
-    Low,
-    Medium,
-    High,
-    Critical,
+    /// <summary>
+    /// The values the specification lists, as constants - for a <c>switch</c> on <see cref="Value"/>.
+    /// </summary>
+    public static class Names
+    {
+        public const string Default = "Default";
+
+        public const string Low = "Low";
+
+        public const string Medium = "Medium";
+
+        public const string High = "High";
+
+        public const string Critical = "Critical";
+    }
+
+    public static Priority Default { get; } = new(Names.Default);
+
+    public static Priority Low { get; } = new(Names.Low);
+
+    public static Priority Medium { get; } = new(Names.Medium);
+
+    public static Priority High { get; } = new(Names.High);
+
+    public static Priority Critical { get; } = new(Names.Critical);
+
+    /// <summary>
+    /// The values the specification lists, in its order.
+    /// </summary>
+    public static IReadOnlyList<Priority> KnownValues { get; } = new[]
+    {
+        Default,
+        Low,
+        Medium,
+        High,
+        Critical,
+    };
+
+    /// <summary>
+    /// Initializes a new instance with a value as it is sent on the wire. A listed value in another casing is
+    /// taken as the listed one.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public Priority(string value)
+        => Value = Recognize(value ?? throw new ArgumentNullException(nameof(value)));
+
+    /// <summary>
+    /// The value as it is sent on the wire; <see langword="null"/> only for <see langword="default"/>.
+    /// </summary>
+    public string Value { get; }
+
+    /// <summary>
+    /// Whether the value is one the specification lists.
+    /// </summary>
+    public bool IsKnown => Value is Names.Default or Names.Low or Names.Medium or Names.High or Names.Critical;
+
+    public static implicit operator Priority(string value)
+        => new(value);
+
+    /// <summary>
+    /// The value as it is sent on the wire, for a path, a query string, a header or a cookie.
+    /// </summary>
+    /// <returns>The value; empty for <see langword="default"/>.</returns>
+    public string ToWireValue()
+        => Value ?? string.Empty;
+
+    public override string ToString()
+        => Value ?? string.Empty;
+
+    /// <summary>
+    /// Takes any value: whether it is one the specification lists is <see cref="IsKnown"/>.
+    /// </summary>
+    public static Priority Parse(string s)
+        => new(s);
+
+    public static Priority Parse(string s, IFormatProvider? provider)
+        => new(s);
+
+    /// <summary>
+    /// Succeeds for any value but <see langword="null"/>: whether it is one the specification lists is
+    /// <see cref="IsKnown"/>.
+    /// </summary>
+    public static bool TryParse([NotNullWhen(true)] string? s, out Priority result)
+        => TryParse(s, provider: null, out result);
+
+    public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, out Priority result)
+    {
+        if (s is null)
+        {
+            result = default;
+            return false;
+        }
+
+        result = new(s);
+        return true;
+    }
+
+    private static string Recognize(string value)
+    {
+        if (value is Names.Default or Names.Low or Names.Medium or Names.High or Names.Critical)
+        {
+            return value;
+        }
+
+        if (string.Equals(value, Names.Default, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Default;
+        }
+
+        if (string.Equals(value, Names.Low, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Low;
+        }
+
+        if (string.Equals(value, Names.Medium, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Medium;
+        }
+
+        if (string.Equals(value, Names.High, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.High;
+        }
+
+        if (string.Equals(value, Names.Critical, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Critical;
+        }
+
+        return value;
+    }
 }
 
 /// <summary>
-/// The values of <see cref="Priority"/> as the specification writes them.
+/// Reads and writes <see cref="Priority"/> as the JSON string it is on the wire, also as a property name.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class PriorityJsonConverter : JsonConverter<Priority>
+{
+    public override bool HandleNull => true;
+
+    public override Priority Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => reader.TokenType switch
+        {
+            JsonTokenType.String => new Priority(reader.GetString()!),
+            JsonTokenType.Number => FromNumber(ref reader),
+            JsonTokenType.Null => default,
+            _ => throw new JsonException($"A Priority is a JSON string, not {reader.TokenType}."),
+        };
+
+    public override void Write(Utf8JsonWriter writer, Priority value, JsonSerializerOptions options)
+    {
+        if (value.Value is null)
+        {
+            writer.WriteNullValue();
+        }
+        else
+        {
+            writer.WriteStringValue(value.Value);
+        }
+    }
+
+    public override Priority ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => new(reader.GetString()!);
+
+    public override void WriteAsPropertyName(Utf8JsonWriter writer, Priority value, JsonSerializerOptions options)
+        => writer.WritePropertyName(value.ToWireValue());
+
+    // A server without a string converter writes a C# enum as its position in the list: read it as that value,
+    // and keep any other number as an unknown value
+    private static Priority FromNumber(ref Utf8JsonReader reader)
+        => reader.TryGetInt32(out var position) && position >= 0 && position < Priority.KnownValues.Count
+            ? Priority.KnownValues[position]
+            : new Priority(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+}
+
+/// <summary>
+/// The value of a <see cref="Priority"/> that may be absent, as the specification writes it.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class PriorityExtensions
 {
-    public static string ToWireValue(this Priority value)
-        => value switch
-        {
-            Priority.Default => "Default",
-            Priority.Low => "Low",
-            Priority.Medium => "Medium",
-            Priority.High => "High",
-            Priority.Critical => "Critical",
-            _ => value.ToString(),
-        };
-
     public static string? ToWireValue(this Priority? value)
-        => value is { } known ? known.ToWireValue() : null;
+        => value is { } present ? present.ToWireValue() : null;
 }

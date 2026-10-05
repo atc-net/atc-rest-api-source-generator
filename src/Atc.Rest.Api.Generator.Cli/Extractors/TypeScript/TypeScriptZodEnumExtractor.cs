@@ -61,7 +61,7 @@ public static class TypeScriptZodEnumExtractor
                 continue;
             }
 
-            var content = GenerateZodEnum(headerContent, schemaName, enumValues);
+            var content = GenerateZodEnum(headerContent, schemaName, enumValues, config.ExtensibleEnums);
             results.Add((schemaName, content));
         }
 
@@ -71,7 +71,8 @@ public static class TypeScriptZodEnumExtractor
     private static string GenerateZodEnum(
         string? headerContent,
         string schemaName,
-        List<string> values)
+        List<string> values,
+        bool open)
     {
         var sb = new StringBuilder();
 
@@ -83,7 +84,8 @@ public static class TypeScriptZodEnumExtractor
         sb.AppendLine("import { z } from 'zod';");
         sb.AppendLine();
 
-        sb.Append("export const ").Append(schemaName).Append("Schema = z.enum([");
+        // Open (an extensible enum): a value a server adds later parses too
+        sb.Append("export const ").Append(schemaName).Append(open ? "Schema = z.union([z.enum([" : "Schema = z.enum([");
 
         for (var i = 0; i < values.Count; i++)
         {
@@ -95,7 +97,7 @@ public static class TypeScriptZodEnumExtractor
             sb.Append(TypeScriptLiteralHelper.ToStringLiteral(values[i]));
         }
 
-        sb.AppendLine("]);");
+        sb.AppendLine(open ? "]), z.string()]);" : "]);");
 
         return sb.ToString();
     }

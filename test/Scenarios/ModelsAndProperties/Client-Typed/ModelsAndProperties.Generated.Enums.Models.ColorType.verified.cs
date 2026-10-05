@@ -2,8 +2,11 @@
 #nullable enable
 #pragma warning disable CS1591
 
+using System;
 using System.CodeDom.Compiler;
-using System.Runtime.Serialization;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace ModelsAndProperties.Generated.Enums.Models;
@@ -11,48 +14,196 @@ namespace ModelsAndProperties.Generated.Enums.Models;
 /// <summary>
 /// Color enumeration with kebab-case values.
 /// </summary>
+/// <remarks>
+/// An extensible enum: a value the specification does not list is kept in <see cref="Value"/>, with
+/// <see cref="IsKnown"/> <see langword="false"/>, instead of failing the response it arrives in.
+/// </remarks>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum ColorType
+[JsonConverter(typeof(ColorTypeJsonConverter))]
+public readonly record struct ColorType : IParsable<ColorType>
 {
-    [EnumMember(Value = "primary-blue")]
-    [JsonStringEnumMemberName("primary-blue")]
-    PrimaryBlue,
+    /// <summary>
+    /// The values the specification lists, as constants - for a <c>switch</c> on <see cref="Value"/>.
+    /// </summary>
+    public static class Names
+    {
+        public const string PrimaryBlue = "primary-blue";
 
-    [EnumMember(Value = "secondary-green")]
-    [JsonStringEnumMemberName("secondary-green")]
-    SecondaryGreen,
+        public const string SecondaryGreen = "secondary-green";
 
-    [EnumMember(Value = "accent-red")]
-    [JsonStringEnumMemberName("accent-red")]
-    AccentRed,
+        public const string AccentRed = "accent-red";
 
-    [EnumMember(Value = "neutral-gray")]
-    [JsonStringEnumMemberName("neutral-gray")]
-    NeutralGray,
+        public const string NeutralGray = "neutral-gray";
 
-    [EnumMember(Value = "warning-yellow")]
-    [JsonStringEnumMemberName("warning-yellow")]
-    WarningYellow,
+        public const string WarningYellow = "warning-yellow";
+    }
+
+    public static ColorType PrimaryBlue { get; } = new(Names.PrimaryBlue);
+
+    public static ColorType SecondaryGreen { get; } = new(Names.SecondaryGreen);
+
+    public static ColorType AccentRed { get; } = new(Names.AccentRed);
+
+    public static ColorType NeutralGray { get; } = new(Names.NeutralGray);
+
+    public static ColorType WarningYellow { get; } = new(Names.WarningYellow);
+
+    /// <summary>
+    /// The values the specification lists, in its order.
+    /// </summary>
+    public static IReadOnlyList<ColorType> KnownValues { get; } = new[]
+    {
+        PrimaryBlue,
+        SecondaryGreen,
+        AccentRed,
+        NeutralGray,
+        WarningYellow,
+    };
+
+    /// <summary>
+    /// Initializes a new instance with a value as it is sent on the wire. A listed value in another casing is
+    /// taken as the listed one.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public ColorType(string value)
+        => Value = Recognize(value ?? throw new ArgumentNullException(nameof(value)));
+
+    /// <summary>
+    /// The value as it is sent on the wire; <see langword="null"/> only for <see langword="default"/>.
+    /// </summary>
+    public string Value { get; }
+
+    /// <summary>
+    /// Whether the value is one the specification lists.
+    /// </summary>
+    public bool IsKnown => Value is Names.PrimaryBlue or Names.SecondaryGreen or Names.AccentRed or Names.NeutralGray or Names.WarningYellow;
+
+    public static implicit operator ColorType(string value)
+        => new(value);
+
+    /// <summary>
+    /// The value as it is sent on the wire, for a path, a query string, a header or a cookie.
+    /// </summary>
+    /// <returns>The value; empty for <see langword="default"/>.</returns>
+    public string ToWireValue()
+        => Value ?? string.Empty;
+
+    public override string ToString()
+        => Value ?? string.Empty;
+
+    /// <summary>
+    /// Takes any value: whether it is one the specification lists is <see cref="IsKnown"/>.
+    /// </summary>
+    public static ColorType Parse(string s)
+        => new(s);
+
+    public static ColorType Parse(string s, IFormatProvider? provider)
+        => new(s);
+
+    /// <summary>
+    /// Succeeds for any value but <see langword="null"/>: whether it is one the specification lists is
+    /// <see cref="IsKnown"/>.
+    /// </summary>
+    public static bool TryParse([NotNullWhen(true)] string? s, out ColorType result)
+        => TryParse(s, provider: null, out result);
+
+    public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, out ColorType result)
+    {
+        if (s is null)
+        {
+            result = default;
+            return false;
+        }
+
+        result = new(s);
+        return true;
+    }
+
+    private static string Recognize(string value)
+    {
+        if (value is Names.PrimaryBlue or Names.SecondaryGreen or Names.AccentRed or Names.NeutralGray or Names.WarningYellow)
+        {
+            return value;
+        }
+
+        if (string.Equals(value, Names.PrimaryBlue, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.PrimaryBlue;
+        }
+
+        if (string.Equals(value, Names.SecondaryGreen, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.SecondaryGreen;
+        }
+
+        if (string.Equals(value, Names.AccentRed, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.AccentRed;
+        }
+
+        if (string.Equals(value, Names.NeutralGray, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.NeutralGray;
+        }
+
+        if (string.Equals(value, Names.WarningYellow, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.WarningYellow;
+        }
+
+        return value;
+    }
 }
 
 /// <summary>
-/// The values of <see cref="ColorType"/> as the specification writes them.
+/// Reads and writes <see cref="ColorType"/> as the JSON string it is on the wire, also as a property name.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class ColorTypeJsonConverter : JsonConverter<ColorType>
+{
+    public override bool HandleNull => true;
+
+    public override ColorType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => reader.TokenType switch
+        {
+            JsonTokenType.String => new ColorType(reader.GetString()!),
+            JsonTokenType.Number => FromNumber(ref reader),
+            JsonTokenType.Null => default,
+            _ => throw new JsonException($"A ColorType is a JSON string, not {reader.TokenType}."),
+        };
+
+    public override void Write(Utf8JsonWriter writer, ColorType value, JsonSerializerOptions options)
+    {
+        if (value.Value is null)
+        {
+            writer.WriteNullValue();
+        }
+        else
+        {
+            writer.WriteStringValue(value.Value);
+        }
+    }
+
+    public override ColorType ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => new(reader.GetString()!);
+
+    public override void WriteAsPropertyName(Utf8JsonWriter writer, ColorType value, JsonSerializerOptions options)
+        => writer.WritePropertyName(value.ToWireValue());
+
+    // A server without a string converter writes a C# enum as its position in the list: read it as that value,
+    // and keep any other number as an unknown value
+    private static ColorType FromNumber(ref Utf8JsonReader reader)
+        => reader.TryGetInt32(out var position) && position >= 0 && position < ColorType.KnownValues.Count
+            ? ColorType.KnownValues[position]
+            : new ColorType(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+}
+
+/// <summary>
+/// The value of a <see cref="ColorType"/> that may be absent, as the specification writes it.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class ColorTypeExtensions
 {
-    public static string ToWireValue(this ColorType value)
-        => value switch
-        {
-            ColorType.PrimaryBlue => "primary-blue",
-            ColorType.SecondaryGreen => "secondary-green",
-            ColorType.AccentRed => "accent-red",
-            ColorType.NeutralGray => "neutral-gray",
-            ColorType.WarningYellow => "warning-yellow",
-            _ => value.ToString(),
-        };
-
     public static string? ToWireValue(this ColorType? value)
-        => value is { } known ? known.ToWireValue() : null;
+        => value is { } present ? present.ToWireValue() : null;
 }

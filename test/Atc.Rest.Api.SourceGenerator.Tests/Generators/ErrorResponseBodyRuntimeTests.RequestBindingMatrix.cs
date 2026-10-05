@@ -452,6 +452,12 @@ public partial class ErrorResponseBodyRuntimeTests
                     return field is not null ? field.GetValue(null) : Enum.Parse(target, wire, ignoreCase: true);
                 }
 
+                // A client's extensible enum: built from its value on the wire
+                if (target.IsValueType && target.GetProperty("IsKnown") is not null && target.GetConstructor([typeof(string)]) is { } fromWire)
+                {
+                    return fromWire.Invoke([(string)node!]);
+                }
+
                 if (target == typeof(string))
                 {
                     return (string)node!;

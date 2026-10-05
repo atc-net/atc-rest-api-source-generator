@@ -82,6 +82,17 @@ public class ClientConfig : BaseConfig
     public bool PreferXml { get; set; }
 
     /// <summary>
+    /// Generate string enums as extensible enums. Default: true.
+    /// When true, a string enum is a <c>readonly record struct</c> over the value on the wire, with the specification's
+    /// values as named members (<c>DeviceStatus.Online</c>), their constants in <c>Names</c> for a <c>switch</c>, and
+    /// <c>KnownValues</c>; a value the specification does not list is kept with <c>IsKnown</c> false instead of failing
+    /// the response, so a server can add a value without breaking clients built before it. When false, string enums
+    /// are C# enums, and an unknown value fails the response with a <c>JsonException</c>. Integer enums are C# enums
+    /// either way (they already hold any number), and servers always keep strict C# enums.
+    /// </summary>
+    public bool ExtensibleEnums { get; set; } = true;
+
+    /// <summary>
     /// Error response format expected from the API. Default: ProblemDetails.
     /// Only applies to EndpointPerOperation generation mode.
     /// </summary>

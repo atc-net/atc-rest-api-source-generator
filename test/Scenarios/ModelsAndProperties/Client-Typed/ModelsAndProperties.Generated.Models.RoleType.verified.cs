@@ -2,40 +2,208 @@
 #nullable enable
 #pragma warning disable CS1591
 
+using System;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ModelsAndProperties.Generated.Models;
 
 /// <summary>
 /// User role enumeration.
 /// </summary>
+/// <remarks>
+/// An extensible enum: a value the specification does not list is kept in <see cref="Value"/>, with
+/// <see cref="IsKnown"/> <see langword="false"/>, instead of failing the response it arrives in.
+/// </remarks>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
-public enum RoleType
+[JsonConverter(typeof(RoleTypeJsonConverter))]
+public readonly record struct RoleType : IParsable<RoleType>
 {
-    Admin,
-    Manager,
-    Editor,
-    Viewer,
-    Guest,
+    /// <summary>
+    /// The values the specification lists, as constants - for a <c>switch</c> on <see cref="Value"/>.
+    /// </summary>
+    public static class Names
+    {
+        public const string Admin = "Admin";
+
+        public const string Manager = "Manager";
+
+        public const string Editor = "Editor";
+
+        public const string Viewer = "Viewer";
+
+        public const string Guest = "Guest";
+    }
+
+    public static RoleType Admin { get; } = new(Names.Admin);
+
+    public static RoleType Manager { get; } = new(Names.Manager);
+
+    public static RoleType Editor { get; } = new(Names.Editor);
+
+    public static RoleType Viewer { get; } = new(Names.Viewer);
+
+    public static RoleType Guest { get; } = new(Names.Guest);
+
+    /// <summary>
+    /// The values the specification lists, in its order.
+    /// </summary>
+    public static IReadOnlyList<RoleType> KnownValues { get; } = new[]
+    {
+        Admin,
+        Manager,
+        Editor,
+        Viewer,
+        Guest,
+    };
+
+    /// <summary>
+    /// Initializes a new instance with a value as it is sent on the wire. A listed value in another casing is
+    /// taken as the listed one.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public RoleType(string value)
+        => Value = Recognize(value ?? throw new ArgumentNullException(nameof(value)));
+
+    /// <summary>
+    /// The value as it is sent on the wire; <see langword="null"/> only for <see langword="default"/>.
+    /// </summary>
+    public string Value { get; }
+
+    /// <summary>
+    /// Whether the value is one the specification lists.
+    /// </summary>
+    public bool IsKnown => Value is Names.Admin or Names.Manager or Names.Editor or Names.Viewer or Names.Guest;
+
+    public static implicit operator RoleType(string value)
+        => new(value);
+
+    /// <summary>
+    /// The value as it is sent on the wire, for a path, a query string, a header or a cookie.
+    /// </summary>
+    /// <returns>The value; empty for <see langword="default"/>.</returns>
+    public string ToWireValue()
+        => Value ?? string.Empty;
+
+    public override string ToString()
+        => Value ?? string.Empty;
+
+    /// <summary>
+    /// Takes any value: whether it is one the specification lists is <see cref="IsKnown"/>.
+    /// </summary>
+    public static RoleType Parse(string s)
+        => new(s);
+
+    public static RoleType Parse(string s, IFormatProvider? provider)
+        => new(s);
+
+    /// <summary>
+    /// Succeeds for any value but <see langword="null"/>: whether it is one the specification lists is
+    /// <see cref="IsKnown"/>.
+    /// </summary>
+    public static bool TryParse([NotNullWhen(true)] string? s, out RoleType result)
+        => TryParse(s, provider: null, out result);
+
+    public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, out RoleType result)
+    {
+        if (s is null)
+        {
+            result = default;
+            return false;
+        }
+
+        result = new(s);
+        return true;
+    }
+
+    private static string Recognize(string value)
+    {
+        if (value is Names.Admin or Names.Manager or Names.Editor or Names.Viewer or Names.Guest)
+        {
+            return value;
+        }
+
+        if (string.Equals(value, Names.Admin, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Admin;
+        }
+
+        if (string.Equals(value, Names.Manager, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Manager;
+        }
+
+        if (string.Equals(value, Names.Editor, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Editor;
+        }
+
+        if (string.Equals(value, Names.Viewer, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Viewer;
+        }
+
+        if (string.Equals(value, Names.Guest, StringComparison.OrdinalIgnoreCase))
+        {
+            return Names.Guest;
+        }
+
+        return value;
+    }
 }
 
 /// <summary>
-/// The values of <see cref="RoleType"/> as the specification writes them.
+/// Reads and writes <see cref="RoleType"/> as the JSON string it is on the wire, also as a property name.
+/// </summary>
+[GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
+public sealed class RoleTypeJsonConverter : JsonConverter<RoleType>
+{
+    public override bool HandleNull => true;
+
+    public override RoleType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => reader.TokenType switch
+        {
+            JsonTokenType.String => new RoleType(reader.GetString()!),
+            JsonTokenType.Number => FromNumber(ref reader),
+            JsonTokenType.Null => default,
+            _ => throw new JsonException($"A RoleType is a JSON string, not {reader.TokenType}."),
+        };
+
+    public override void Write(Utf8JsonWriter writer, RoleType value, JsonSerializerOptions options)
+    {
+        if (value.Value is null)
+        {
+            writer.WriteNullValue();
+        }
+        else
+        {
+            writer.WriteStringValue(value.Value);
+        }
+    }
+
+    public override RoleType ReadAsPropertyName(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => new(reader.GetString()!);
+
+    public override void WriteAsPropertyName(Utf8JsonWriter writer, RoleType value, JsonSerializerOptions options)
+        => writer.WritePropertyName(value.ToWireValue());
+
+    // A server without a string converter writes a C# enum as its position in the list: read it as that value,
+    // and keep any other number as an unknown value
+    private static RoleType FromNumber(ref Utf8JsonReader reader)
+        => reader.TryGetInt32(out var position) && position >= 0 && position < RoleType.KnownValues.Count
+            ? RoleType.KnownValues[position]
+            : new RoleType(System.Text.Encoding.UTF8.GetString(reader.HasValueSequence ? System.Buffers.BuffersExtensions.ToArray(reader.ValueSequence) : reader.ValueSpan.ToArray()));
+}
+
+/// <summary>
+/// The value of a <see cref="RoleType"/> that may be absent, as the specification writes it.
 /// </summary>
 [GeneratedCode("Atc.Rest.Api.SourceGenerator", "1.0.0")]
 public static class RoleTypeExtensions
 {
-    public static string ToWireValue(this RoleType value)
-        => value switch
-        {
-            RoleType.Admin => "Admin",
-            RoleType.Manager => "Manager",
-            RoleType.Editor => "Editor",
-            RoleType.Viewer => "Viewer",
-            RoleType.Guest => "Guest",
-            _ => value.ToString(),
-        };
-
     public static string? ToWireValue(this RoleType? value)
-        => value is { } known ? known.ToWireValue() : null;
+        => value is { } present ? present.ToWireValue() : null;
 }

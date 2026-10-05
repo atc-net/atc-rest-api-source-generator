@@ -16,6 +16,7 @@ public class ApiGeneratorOptionsTests
                 ClientGranularity = ClientGranularityType.Single,
                 ClientName = "DemoGateway",
                 GenerateOAuthTokenManagement = false,
+                ExtensibleEnums = false,
             },
         };
 
@@ -30,6 +31,7 @@ public class ApiGeneratorOptionsTests
         Assert.Equal(ClientGranularityType.Single, config.ClientGranularity);
         Assert.Equal("DemoGateway", config.ClientName);
         Assert.False(config.GenerateOAuthTokenManagement);
+        Assert.False(config.ExtensibleEnums);
     }
 
     [Fact]

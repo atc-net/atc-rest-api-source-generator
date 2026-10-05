@@ -147,32 +147,8 @@ public static class OrderXml
     }
 
     private static string FormatOrderStatus(OrderStatus value)
-        => value switch
-        {
-            OrderStatus.Placed => "placed",
-            OrderStatus.Approved => "approved",
-            OrderStatus.Delivered => "delivered",
-            _ => global::System.Convert.ToString(value, global::System.Globalization.CultureInfo.InvariantCulture)!,
-        };
+        => value.ToWireValue();
 
     private static OrderStatus ParseOrderStatus(string raw)
-    {
-        var text = raw.Trim();
-        if (string.Equals(text, "placed", global::System.StringComparison.OrdinalIgnoreCase))
-        {
-            return OrderStatus.Placed;
-        }
-
-        if (string.Equals(text, "approved", global::System.StringComparison.OrdinalIgnoreCase))
-        {
-            return OrderStatus.Approved;
-        }
-
-        if (string.Equals(text, "delivered", global::System.StringComparison.OrdinalIgnoreCase))
-        {
-            return OrderStatus.Delivered;
-        }
-
-        throw new global::System.FormatException($"'{raw}' is not a value of OrderStatus.");
-    }
+        => new OrderStatus(raw.Trim());
 }
