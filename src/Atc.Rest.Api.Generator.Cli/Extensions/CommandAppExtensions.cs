@@ -60,6 +60,16 @@ public static class CommandAppExtensions
                 .WithExample("spec", "split", "-s", "api.yaml", "-o", "./parts", "--strategy", "ByPathSegment")
                 .WithExample("spec", "split", "-s", "api.yaml", "-o", "./parts", "--extract-common")
                 .WithExample("spec", "split", "-s", "api.yaml", "--dry-run");
+
+            node.AddBranch("overlay", overlay =>
+            {
+                overlay.SetDescription("Commands for OpenAPI Overlays (Overlay Specification 1.0 to 1.2).");
+                overlay
+                    .AddCommand<SpecOverlayApplyCommand>("apply")
+                    .WithDescription("Apply OpenAPI Overlays to a specification and write the result - the specification the build generates from.")
+                    .WithExample("spec", "overlay", "apply", "-s", "vendor.yaml", "--overlay", "vendor.overlay.yaml", "-o", "effective.yaml")
+                    .WithExample("spec", "overlay", "apply", "-s", "vendor.yaml", "--overlay", "fixes.yaml", "--overlay", "extensions.yaml", "-o", "effective.json");
+            });
         };
 
     private static Action<IConfigurator<CommandSettings>> ConfigureGenerateCommands()

@@ -1,0 +1,5 @@
+{
+    "validateSpecificationStrategy": "Strict",
+    "useServersBasePath": false,
+    "overlays": ["OverlaysMultiPart.overlay.yaml"]
+}

@@ -13,6 +13,13 @@ public sealed class SpecValidateCommandSettings : CommandSettings
     public string SpecificationPath { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets the OpenAPI Overlay files applied to the specification first, in the order given.
+    /// </summary>
+    [CommandOption("--overlay <PATH>")]
+    [Description("An OpenAPI Overlay file (1.0 to 1.2) applied to the specification first. Repeat the option to apply several, in order.")]
+    public string[] Overlays { get; init; } = [];
+
+    /// <summary>
     /// Gets a value indicating whether the standard strategy is used instead of the strict one; see <see cref="StrictMode"/>.
     /// </summary>
     [CommandOption("--no-strict")]
@@ -47,6 +54,11 @@ public sealed class SpecValidateCommandSettings : CommandSettings
     /// <returns>A success result, or an error naming the first option that is missing or invalid.</returns>
     public override ValidationResult Validate()
     {
+        if (OverlayCliHelper.FindMissing(Overlays) is { } missingOverlay)
+        {
+            return ValidationResult.Error(missingOverlay);
+        }
+
         if (string.IsNullOrWhiteSpace(SpecificationPath) && string.IsNullOrWhiteSpace(ExplicitFiles))
         {
             return ValidationResult.Error("Specification path is required. Use -s or --specification, or --files for explicit list.");

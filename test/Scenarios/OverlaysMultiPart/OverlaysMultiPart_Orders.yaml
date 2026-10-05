@@ -1,0 +1,59 @@
+openapi: 3.1.0
+info:
+  title: Contoso Orders - orders
+  version: 1.0.0
+paths:
+  /orders:
+    get:
+      tags:
+        - orders
+      summary: List orders
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+  /orders/{orderId}:
+    get:
+      tags:
+        - orders
+      summary: Get an order
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: Not Found
+  /orders/{orderId}/legacy-export:
+    get:
+      tags:
+        - orders
+      summary: A deprecated export nobody should call
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            text/csv:
+              schema:
+                type: string

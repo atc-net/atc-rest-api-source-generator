@@ -29,6 +29,11 @@ public class TypeScriptClientConfig
     public bool ExtensibleEnums { get; set; } = true;
 
     /// <summary>
+    /// OpenAPI Overlay files applied to the specification before the client is generated, in order (<c>--overlay</c>).
+    /// </summary>
+    public IReadOnlyList<string> Overlays { get; set; } = [];
+
+    /// <summary>
     /// Whether to generate auto-generated file headers. Default: true.
     /// </summary>
     public bool GenerateFileHeaders { get; set; } = true;

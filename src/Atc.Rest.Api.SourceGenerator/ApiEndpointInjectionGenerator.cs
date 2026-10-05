@@ -33,15 +33,24 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
         // 3. Collect YAML files for OpenAPI specs
         var yamlFiles = context.AdditionalTextsProvider
             .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
-                                 file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+                                 file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) ||
+                                 file.Path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
             .Select(static (file, cancellationToken) =>
                 new YamlFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
-            .Where(static file => !string.IsNullOrEmpty(file.Content))
+            .Where(static file => OverlayFileHelper.IsCandidate(file))
             .Collect()
             .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
 
-        // 4. Combine class declarations with YAML files
-        var combined = classDeclarations.Combine(yamlFiles);
+        // The project's marker files: the overlays they list are applied to the specification here too
+        var markerFiles = context.AdditionalTextsProvider
+            .Where(static file => Path.GetFileName(file.Path).StartsWith(".atc-rest-api-", StringComparison.OrdinalIgnoreCase))
+            .Select(static (file, cancellationToken) =>
+                new MarkerFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? "{}"))
+            .Collect()
+            .Select(static (array, _) => new EquatableArray<MarkerFileInfo>(array));
+
+        // 4. Combine class declarations with YAML files and markers
+        var combined = classDeclarations.Combine(yamlFiles.Combine(markerFiles));
 
         // 5. Register source output for generating partial class code
         context.RegisterSourceOutput(combined, GeneratePartialClass!);
@@ -123,14 +132,15 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
     /// </summary>
     private static void GeneratePartialClass(
         SourceProductionContext context,
-        (ClassInfo ClassInfo, EquatableArray<YamlFileInfo> YamlFiles) input)
+        (ClassInfo ClassInfo, (EquatableArray<YamlFileInfo> YamlFiles, EquatableArray<MarkerFileInfo> Markers) Files) input)
     {
-        var (classInfo, yamlFiles) = input;
+        var (classInfo, (allFiles, markers)) = input;
+        var (yamlFiles, overlayFiles) = OverlayFileHelper.Split(allFiles.Values);
 
         try
         {
             // Find YAML file matching the project name
-            var matchingYaml = yamlFiles.Values.FirstOrDefault(y =>
+            var matchingYaml = yamlFiles.FirstOrDefault(y =>
                 Path.GetFileNameWithoutExtension(y.Path).Equals(classInfo.ProjectName, StringComparison.OrdinalIgnoreCase));
 
             if (string.IsNullOrEmpty(matchingYaml.Content))
@@ -139,8 +149,23 @@ public class ApiEndpointInjectionGenerator : IIncrementalGenerator
                 return;
             }
 
+            // The specification as the project's generator reads it: with the overlays its marker lists (the generator
+            // reports their problems)
+            var content = matchingYaml.Content;
+            var overlays = OverlayFileHelper.ResolveListed(markers, overlayFiles);
+            if (overlays.Count > 0)
+            {
+                var (effective, _) = SpecificationOverlays.Apply(content, overlays);
+                if (effective is null)
+                {
+                    return;
+                }
+
+                content = effective;
+            }
+
             // Parse the OpenAPI spec
-            var (openApiDoc, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(matchingYaml.Content, matchingYaml.Path);
+            var (openApiDoc, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(content, matchingYaml.Path);
 
             if (openApiDoc is null)
             {

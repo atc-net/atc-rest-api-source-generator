@@ -47,7 +47,9 @@ internal static class CompilationVerificationHarness
         bool useFullReferences = false,
         string assemblyName = "TestAssembly",
         string? markerDirectoryOverride = null,
-        string? defaultMarkerContent = null)
+        string? defaultMarkerContent = null,
+        Func<string, string>? markerTransform = null,
+        IReadOnlyList<(string Path, string Content)>? extraFiles = null)
     {
         var yamlPath = GetScenarioPath(scenarioName, yamlFileName);
         var yamlContent = File.ReadAllText(yamlPath);
@@ -57,6 +59,10 @@ internal static class CompilationVerificationHarness
             masterFolder,
             markerFileName);
         var markerContent = File.Exists(markerPath) ? File.ReadAllText(markerPath) : defaultMarkerContent ?? "{}";
+        if (markerTransform is not null)
+        {
+            markerContent = markerTransform(markerContent);
+        }
 
         // The server-domain generator writes handler scaffolds as physical files next to the marker
         // file rather than emitting them as source. Giving the marker an absolute path lets a caller
@@ -71,10 +77,21 @@ internal static class CompilationVerificationHarness
             .OrderBy(f => f.Name, StringComparer.Ordinal)
             .Select(f => (AdditionalText)new InMemoryAdditionalText(f.Name, File.ReadAllText(f.FullName)));
 
+        // A scenario's overlays (*.overlay.yaml next to the specification) are AdditionalFiles like in a project, next to
+        // the marker that lists them
+        var overlayFiles = new DirectoryInfo(Path.GetDirectoryName(yamlPath))
+            .EnumerateFiles("*.overlay.yaml")
+            .OrderBy(f => f.Name, StringComparer.Ordinal)
+            .Select(f => (AdditionalText)new InMemoryAdditionalText(
+                markerDirectoryOverride is null ? f.Name : Path.Combine(markerDirectoryOverride, f.Name),
+                File.ReadAllText(f.FullName)));
+
         var additionalTexts = ImmutableArray.Create<AdditionalText>(
                 new InMemoryAdditionalText(yamlFileName, yamlContent),
                 new InMemoryAdditionalText(markerAdditionalTextPath, markerContent))
-            .AddRange(partFiles);
+            .AddRange(partFiles)
+            .AddRange(overlayFiles)
+            .AddRange((extraFiles ?? []).Select(f => (AdditionalText)new InMemoryAdditionalText(f.Path, f.Content)));
 
         // The server generator gates on ASP.NET Core references being present; supply the
         // full reference set when the caller needs the generator to actually emit output.

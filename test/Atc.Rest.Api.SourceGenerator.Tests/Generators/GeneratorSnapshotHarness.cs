@@ -298,6 +298,31 @@ internal static class GeneratorSnapshotHarness
             : fileName;
     }
 
+    public static string GetYamlFileName(string scenarioName)
+    {
+        var scenarioDirectory = Path.Combine(GetScenariosRoot(), scenarioName);
+
+        var yamlFiles = new DirectoryInfo(scenarioDirectory)
+            .EnumerateFiles("*.yaml")
+            .Concat(new DirectoryInfo(scenarioDirectory).EnumerateFiles("*.yml"))
+            .Select(f => f.Name)
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToList();
+
+        return yamlFiles.Count switch
+        {
+            1 => yamlFiles[0],
+            0 => throw new FileNotFoundException(
+                $"Scenario '{scenarioName}' has no .yaml/.yml specification."),
+            _ => yamlFiles.FirstOrDefault(n =>
+                     string.Equals(
+                         Path.GetFileNameWithoutExtension(n),
+                         scenarioName,
+                         StringComparison.OrdinalIgnoreCase))
+                 ?? yamlFiles[0],
+        };
+    }
+
     /// <summary>
     /// Runs the server-domain generator against a throwaway project directory.
     /// <para>
@@ -336,30 +361,5 @@ internal static class GeneratorSnapshotHarness
         {
             Directory.Delete(projectDirectory, recursive: true);
         }
-    }
-
-    private static string GetYamlFileName(string scenarioName)
-    {
-        var scenarioDirectory = Path.Combine(GetScenariosRoot(), scenarioName);
-
-        var yamlFiles = new DirectoryInfo(scenarioDirectory)
-            .EnumerateFiles("*.yaml")
-            .Concat(new DirectoryInfo(scenarioDirectory).EnumerateFiles("*.yml"))
-            .Select(f => f.Name)
-            .OrderBy(n => n, StringComparer.Ordinal)
-            .ToList();
-
-        return yamlFiles.Count switch
-        {
-            1 => yamlFiles[0],
-            0 => throw new FileNotFoundException(
-                $"Scenario '{scenarioName}' has no .yaml/.yml specification."),
-            _ => yamlFiles.FirstOrDefault(n =>
-                     string.Equals(
-                         Path.GetFileNameWithoutExtension(n),
-                         scenarioName,
-                         StringComparison.OrdinalIgnoreCase))
-                 ?? yamlFiles[0],
-        };
     }
 }

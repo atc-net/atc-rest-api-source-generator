@@ -27,10 +27,11 @@ public class ApiServerGenerator : IIncrementalGenerator
         // Register a pipeline to collect ALL OpenAPI YAML files (for multi-parts support)
         var yamlFiles = context.AdditionalTextsProvider
             .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
-                                 file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+                                 file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) ||
+                                 file.Path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
             .Select(static (file, cancellationToken) =>
                 new YamlFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
-            .Where(static file => !string.IsNullOrEmpty(file.Content))
+            .Where(static file => OverlayFileHelper.IsCandidate(file))
             .Collect()
             .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
 
@@ -172,7 +173,15 @@ public class ApiServerGenerator : IIncrementalGenerator
 
         // Identify the base file (non-part file or the first file that is not a part file)
         // Part files follow the naming convention: {BaseName}_{PartName}.yaml
-        var baseFile = YamlFileHelper.IdentifyBaseFile(yamlFiles.Values);
+        // Overlay files are no specifications: the ones the marker lists are applied to it
+        var (specificationFiles, overlayFiles) = OverlayFileHelper.Split(yamlFiles.Values);
+        var overlays = OverlayFileHelper.Resolve(productionContext, marker.Path, config.Overlays, overlayFiles);
+        if (overlays is null)
+        {
+            return;
+        }
+
+        var baseFile = YamlFileHelper.IdentifyBaseFile(specificationFiles);
         if (baseFile is null)
         {
             return;
@@ -182,7 +191,7 @@ public class ApiServerGenerator : IIncrementalGenerator
         {
             // Check if multi-parts specification
             var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);
-            var partFiles = yamlFiles.Values
+            var partFiles = specificationFiles
                 .Where(f => YamlFileHelper.IsPartFile(f.Path, baseName))
                 .ToList();
 
@@ -197,7 +206,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                     useMinimalApiPackage,
                     useValidationFilter,
                     useGlobalErrorHandler,
-                    packages);
+                    packages,
+                    overlays);
             }
             else
             {
@@ -210,7 +220,8 @@ public class ApiServerGenerator : IIncrementalGenerator
                     useMinimalApiPackage,
                     useValidationFilter,
                     useGlobalErrorHandler,
-                    packages);
+                    packages,
+                    overlays);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -231,9 +242,10 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool useMinimalApiPackage,
         bool useValidationFilter,
         bool useGlobalErrorHandler,
-        ServerPackageReferences packages)
+        ServerPackageReferences packages,
+        IReadOnlyList<OverlayFile> overlays)
     {
-        var openApiDoc = SpecificationLoader.MergeAndValidate(context, baseFile, partFiles, config.MultiPartConfiguration, config.ValidateSpecificationStrategy);
+        var openApiDoc = SpecificationLoader.MergeAndValidate(context, baseFile, partFiles, config.MultiPartConfiguration, config.ValidateSpecificationStrategy, overlays);
         if (openApiDoc is null)
         {
             return;
@@ -262,9 +274,10 @@ public class ApiServerGenerator : IIncrementalGenerator
         bool useMinimalApiPackage,
         bool useValidationFilter,
         bool useGlobalErrorHandler,
-        ServerPackageReferences packages)
+        ServerPackageReferences packages,
+        IReadOnlyList<OverlayFile> overlays)
     {
-        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportServerParsingError);
+        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportServerParsingError, overlays);
         if (openApiDoc is null)
         {
             return;

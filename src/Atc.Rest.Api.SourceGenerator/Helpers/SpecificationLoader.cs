@@ -1,9 +1,10 @@
 namespace Atc.Rest.Api.SourceGenerator.Helpers;
 
 /// <summary>
-/// The first step every generator takes: a specification file is parsed (or a multi-part set is merged), validated
-/// by the configured strategy, and its diagnostics reported - generation goes on only when no error was found. The
-/// server, client and domain generators share it, so a specification is read the same way by all three.
+/// The first step every generator takes: a specification file is parsed (or a multi-part set is merged), its overlays
+/// are applied, it is validated by the configured strategy, and its diagnostics reported - generation goes on only
+/// when no error was found. The server, client and domain generators share it, so a specification is read the same
+/// way by all three.
 /// </summary>
 internal static class SpecificationLoader
 {
@@ -15,16 +16,30 @@ internal static class SpecificationLoader
     /// <param name="yamlContent">The file's content.</param>
     /// <param name="strategy">The validation strategy.</param>
     /// <param name="reportParsingError">Reports the generator's own parsing-error diagnostic.</param>
+    /// <param name="overlays">The overlays applied to the file before it is parsed, in order.</param>
     /// <returns>The document, or <see langword="null"/> when it could not be parsed or has a validation error.</returns>
     public static OpenApiDocument? ParseAndValidate(
         SourceProductionContext context,
         string yamlPath,
         string yamlContent,
         ValidateSpecificationStrategy strategy,
-        Action<SourceProductionContext, string> reportParsingError)
+        Action<SourceProductionContext, string> reportParsingError,
+        IReadOnlyList<OverlayFile>? overlays = null)
     {
         // A superseded IDE run stops before the parse, the most expensive step
         context.CancellationToken.ThrowIfCancellationRequested();
+
+        if (overlays is { Count: > 0 })
+        {
+            var (effective, problems) = SpecificationOverlays.Apply(yamlContent, overlays);
+            OverlayFileHelper.Report(context, problems);
+            if (effective is null)
+            {
+                return null;
+            }
+
+            yamlContent = effective;
+        }
 
         var (openApiDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
         if (openApiDoc is null)
@@ -44,24 +59,58 @@ internal static class SpecificationLoader
     }
 
     /// <summary>
-    /// Merges a base specification with its parts and validates the result like a single file.
+    /// Merges a base specification with its parts, applies the overlays to the result and validates it like a single
+    /// file.
     /// </summary>
     /// <param name="context">The source-production context the diagnostics are reported to.</param>
     /// <param name="baseFile">The base file.</param>
     /// <param name="partFiles">The part files.</param>
     /// <param name="mergeConfiguration">The merge configuration, or <see langword="null"/> for the default.</param>
     /// <param name="strategy">The validation strategy.</param>
+    /// <param name="overlays">The overlays applied to the merged document, in order.</param>
     /// <returns>The merged document, or <see langword="null"/> when the merge failed or the result has a validation error.</returns>
     public static OpenApiDocument? MergeAndValidate(
         SourceProductionContext context,
         YamlFileInfo baseFile,
         IReadOnlyList<YamlFileInfo> partFiles,
         MultiPartConfiguration? mergeConfiguration,
-        ValidateSpecificationStrategy strategy)
+        ValidateSpecificationStrategy strategy,
+        IReadOnlyList<OverlayFile>? overlays = null)
     {
         // A superseded IDE run stops before the parse, the most expensive step
         context.CancellationToken.ThrowIfCancellationRequested();
 
+        var document = Merge(context, baseFile, partFiles, mergeConfiguration, overlays);
+        if (document is null)
+        {
+            return null;
+        }
+
+        var validationDiagnostics = OpenApiDocumentValidator.Validate(
+            strategy,
+            document,
+            Array.Empty<OpenApiError>(),
+            baseFile.Path);
+
+        return ReportAndContinue(context, validationDiagnostics) ? document : null;
+    }
+
+    /// <summary>
+    /// Merges a base specification with its parts and applies the overlays to the result, without validating it.
+    /// </summary>
+    /// <param name="context">The source-production context the diagnostics are reported to.</param>
+    /// <param name="baseFile">The base file.</param>
+    /// <param name="partFiles">The part files.</param>
+    /// <param name="mergeConfiguration">The merge configuration, or <see langword="null"/> for the default.</param>
+    /// <param name="overlays">The overlays applied to the merged document, in order.</param>
+    /// <returns>The merged document, or <see langword="null"/> when the merge or an overlay failed.</returns>
+    public static OpenApiDocument? Merge(
+        SourceProductionContext context,
+        YamlFileInfo baseFile,
+        IReadOnlyList<YamlFileInfo> partFiles,
+        MultiPartConfiguration? mergeConfiguration,
+        IReadOnlyList<OverlayFile>? overlays)
+    {
         var baseSpec = SpecificationService.ReadFromContent(baseFile.Content, baseFile.Path);
         var partSpecs = partFiles
             .Select(p => SpecificationService.ReadFromContent(p.Content, p.Path))
@@ -78,13 +127,21 @@ internal static class SpecificationLoader
             return null;
         }
 
-        var validationDiagnostics = OpenApiDocumentValidator.Validate(
-            strategy,
-            mergeResult.Document,
-            Array.Empty<OpenApiError>(),
-            baseFile.Path);
+        if (overlays is not { Count: > 0 })
+        {
+            return mergeResult.Document;
+        }
 
-        return ReportAndContinue(context, validationDiagnostics) ? mergeResult.Document : null;
+        // The overlays see the whole merged document, so they can change what any part contributed
+        var (effective, problems) = SpecificationOverlays.Apply(mergeResult.Document, overlays);
+        OverlayFileHelper.Report(context, problems);
+        if (effective is null)
+        {
+            return null;
+        }
+
+        var (document, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(effective, baseFile.Path);
+        return document;
     }
 
     /// <summary>

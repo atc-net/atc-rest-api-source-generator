@@ -17,6 +17,11 @@
     <ProjectReference Include="..\..\src\Atc.Rest.Api.Generator\Atc.Rest.Api.Generator.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The JSONPath compliance test suite (BSD-2, see jsonpath-cts.LICENSE) -->
+    <None Update="Overlays\TestData\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- Include runtime assemblies so they are properly registered in deps.json -->
   <Target Name="IncludeRuntimeAssemblies" BeforeTargets="ResolveAssemblyReferences">
     <ItemGroup>

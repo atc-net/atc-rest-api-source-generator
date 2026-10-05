@@ -10,11 +10,13 @@ internal static class SpecificationValidationHelper
     /// </summary>
     /// <param name="specPath">The path to the specification file.</param>
     /// <param name="strategy">The validation strategy to apply.</param>
+    /// <param name="overlays">The <c>--overlay</c> files applied to the specification first.</param>
     /// <returns>A tuple indicating success, the parsed document, and any diagnostics.</returns>
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "CLI needs graceful error handling.")]
     public static (bool Success, OpenApiDocument? Document, IReadOnlyList<DiagnosticMessage> Diagnostics) ValidateSpecificationWithStats(
         string specPath,
-        ValidateSpecificationStrategy strategy)
+        ValidateSpecificationStrategy strategy,
+        IReadOnlyList<string>? overlays = null)
     {
         string yamlContent;
         try
@@ -25,6 +27,16 @@ internal static class SpecificationValidationHelper
         {
             AnsiConsole.MarkupLine($"[red]✗[/] Error reading file: {ex.Message}");
             return (false, null, []);
+        }
+
+        if (overlays is { Count: > 0 })
+        {
+            if (OverlayCliHelper.Apply(yamlContent, overlays) is not { } effective)
+            {
+                return (false, null, []);
+            }
+
+            yamlContent = effective;
         }
 
         try

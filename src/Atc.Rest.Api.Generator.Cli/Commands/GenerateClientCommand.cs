@@ -96,7 +96,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");
-                var validationResult = SpecificationValidationHelper.ValidateSpecificationWithStats(specPath, clientConfig.ValidateSpecificationStrategy);
+                var validationResult = SpecificationValidationHelper.ValidateSpecificationWithStats(specPath, clientConfig.ValidateSpecificationStrategy, settings.Overlays);
                 if (!validationResult.Success)
                 {
                     return 1;
@@ -175,6 +175,17 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                     }
 
                     partFileNames.Add(partFileName);
+                }
+
+                // The overlays go along, listed in the marker: the build applies them to the specification
+                if (!CopyOverlays(settings.Overlays, outputPath, partFileNames, out var overlayFileNames))
+                {
+                    return 1;
+                }
+
+                if (overlayFileNames.Count > 0)
+                {
+                    clientConfig.Overlays = overlayFileNames;
                 }
 
                 // Step 5: Create or update marker file with client config
@@ -340,6 +351,31 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 AnsiConsole.MarkupLine("  [yellow]Please use a different output directory or project name.[/]");
                 return false;
             }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Copies the <c>--overlay</c> files next to the marker and adds them to the project's AdditionalFiles.
+    /// </summary>
+    private static bool CopyOverlays(
+        IReadOnlyList<string> overlays,
+        string outputPath,
+        List<string> additionalFileNames,
+        out List<string> overlayFileNames)
+    {
+        overlayFileNames = [];
+        foreach (var overlay in overlays.Select(OverlayCliHelper.FullPath))
+        {
+            var overlayFileName = Path.GetFileName(overlay);
+            if (!CopySpecificationFile(overlay, outputPath, overlayFileName))
+            {
+                return false;
+            }
+
+            overlayFileNames.Add(overlayFileName);
+            additionalFileNames.Add(overlayFileName);
         }
 
         return true;

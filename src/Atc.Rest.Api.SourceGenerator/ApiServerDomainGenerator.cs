@@ -42,10 +42,11 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         // Find OpenAPI YAML files - collect ALL files for multi-part spec support
         var yamlFiles = context.AdditionalTextsProvider
             .Where(static file => file.Path.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase) ||
-                                 file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase))
+                                 file.Path.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) ||
+                                 file.Path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
             .Select(static (file, cancellationToken) =>
                 new YamlFileInfo(file.Path, file.GetText(cancellationToken)?.ToString() ?? string.Empty))
-            .Where(static file => !string.IsNullOrEmpty(file.Content))
+            .Where(static file => OverlayFileHelper.IsCandidate(file))
             .Collect()
             .Select(static (array, _) => new EquatableArray<YamlFileInfo>(array));
 
@@ -102,7 +103,15 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             }
 
             // Identify base file and part files for multi-part spec support
-            var baseFile = YamlFileHelper.IdentifyBaseFile(yamlFiles.Values);
+            // Overlay files are no specifications: the ones the marker lists are applied to it
+            var (specificationFiles, overlayFiles) = OverlayFileHelper.Split(yamlFiles.Values);
+            var overlays = OverlayFileHelper.Resolve(productionContext, markerInfo.Path, config.Overlays, overlayFiles);
+            if (overlays is null)
+            {
+                return;
+            }
+
+            var baseFile = YamlFileHelper.IdentifyBaseFile(specificationFiles);
             if (baseFile is null)
             {
                 return;
@@ -111,27 +120,15 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             try
             {
                 var baseName = Path.GetFileNameWithoutExtension(baseFile.Value.Path);
-                var partFiles = yamlFiles.Values
+                var partFiles = specificationFiles
                     .Where(f => YamlFileHelper.IsPartFile(f.Path, baseName))
                     .ToList();
 
                 if (partFiles.Count > 0)
                 {
-                    // Multi-part mode: merge all files before generating scaffolds
-                    var baseSpec = SpecificationService.ReadFromContent(baseFile.Value.Content, baseFile.Value.Path);
-                    var partSpecs = partFiles
-                        .Select(p => SpecificationService.ReadFromContent(p.Content, p.Path))
-                        .ToList();
-
-                    var mergeConfig = MultiPartConfiguration.Default;
-                    var mergeResult = SpecificationService.MergeSpecifications(baseSpec, partSpecs, mergeConfig);
-
-                    foreach (var diagnostic in mergeResult.Diagnostics)
-                    {
-                        productionContext.ReportDiagnostic(DiagnosticHelpers.ToRoslynDiagnostic(diagnostic));
-                    }
-
-                    if (!mergeResult.IsSuccess || mergeResult.Document is null)
+                    // Multi-part mode: merge all files (and apply the overlays) before generating scaffolds
+                    var merged = SpecificationLoader.Merge(productionContext, baseFile.Value, partFiles, MultiPartConfiguration.Default, overlays);
+                    if (merged is null)
                     {
                         return;
                     }
@@ -139,7 +136,7 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                     // Validate the merged document according to the configured strategy, like a single file
                     var validationDiagnostics = OpenApiDocumentValidator.Validate(
                         config.ValidateSpecificationStrategy,
-                        mergeResult.Document,
+                        merged,
                         Array.Empty<OpenApiError>(),
                         baseFile.Value.Path);
 
@@ -153,12 +150,12 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                         return;
                     }
 
-                    GenerateHandlerScaffoldsFromDocument(productionContext, baseFile.Value.Path, mergeResult.Document, summary, config, markerDirectory);
+                    GenerateHandlerScaffoldsFromDocument(productionContext, baseFile.Value.Path, merged, summary, config, markerDirectory);
                 }
                 else
                 {
                     // Single file mode
-                    GenerateHandlerScaffolds(productionContext, baseFile.Value.Path, baseFile.Value.Content, summary, config, markerDirectory);
+                    GenerateHandlerScaffolds(productionContext, baseFile.Value.Path, baseFile.Value.Content, summary, config, markerDirectory, overlays);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -302,9 +299,10 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
         string yamlContent,
         DomainCompilationSummary summary,
         ServerDomainConfig config,
-        string markerDirectory)
+        string markerDirectory,
+        IReadOnlyList<OverlayFile> overlays)
     {
-        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportDomainParsingError);
+        var openApiDoc = SpecificationLoader.ParseAndValidate(context, yamlPath, yamlContent, config.ValidateSpecificationStrategy, DiagnosticHelpers.ReportDomainParsingError, overlays);
         if (openApiDoc is null)
         {
             return;

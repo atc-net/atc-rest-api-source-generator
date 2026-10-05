@@ -15,6 +15,13 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
     public string SpecificationPath { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets the OpenAPI Overlay files applied to the specification first, in the order given.
+    /// </summary>
+    [CommandOption("--overlay <PATH>")]
+    [Description("An OpenAPI Overlay file (1.0 to 1.2) applied to the specification first. Repeat the option to apply several, in order.")]
+    public string[] Overlays { get; init; } = [];
+
+    /// <summary>
     /// Gets or sets the output directory for the generated TypeScript files; resolved to an absolute path by <see cref="Validate"/>.
     /// </summary>
     [CommandOption("-o|--output <PATH>")]
@@ -180,6 +187,11 @@ public sealed class GenerateClientTypeScriptCommandSettings : CommandSettings
     /// <returns>A success result, or an error naming the first option that is missing or invalid.</returns>
     public override ValidationResult Validate()
     {
+        if (OverlayCliHelper.FindMissing(Overlays) is { } missingOverlay)
+        {
+            return ValidationResult.Error(missingOverlay);
+        }
+
         if (string.IsNullOrWhiteSpace(SpecificationPath))
         {
             return ValidationResult.Error("Specification path is required. Use -s or --specification.");

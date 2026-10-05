@@ -184,6 +184,50 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
+    /// ATC_API_GEN015: An overlay the marker file lists is not an AdditionalFiles item of the project.
+    /// </summary>
+    public static readonly DiagnosticDescriptor OverlayNotFound = new(
+        RuleIdentifiers.OverlayNotFound,
+        "Overlay Not Found",
+        "The marker file '{0}' lists the overlay '{1}', which is not an AdditionalFiles item of the project (add <AdditionalFiles Include=\"{1}\" /> next to the specification's); nothing is generated",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// ATC_API_GEN016: An overlay is invalid or one of its actions cannot be applied.
+    /// </summary>
+    public static readonly DiagnosticDescriptor OverlayInvalid = new(
+        RuleIdentifiers.OverlayInvalid,
+        "Overlay Cannot Be Applied",
+        "The overlay '{0}'{1} cannot be applied, so nothing is generated: {2}",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// ATC_API_GEN017: An overlay action's target selects nothing.
+    /// </summary>
+    public static readonly DiagnosticDescriptor OverlayTargetSelectsNothing = new(
+        RuleIdentifiers.OverlayTargetSelectsNothing,
+        "Overlay Target Selects Nothing",
+        "The overlay '{0}'{1} changes nothing - has the specification changed (a renamed path or schema)? {2}",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// ATC_API_GEN018: An overlay file is an AdditionalFiles item, but the marker file does not list it.
+    /// </summary>
+    public static readonly DiagnosticDescriptor OverlayNotListed = new(
+        RuleIdentifiers.OverlayNotListed,
+        "Overlay Not Listed",
+        "'{0}' is an overlay, but the marker file '{1}' does not list it in \"overlays\", so it is not applied",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    /// <summary>
     /// ATCAPI012: Client EndpointPerOperation mode requires Atc.Rest.Client reference.
     /// </summary>
     public static readonly DiagnosticDescriptor ClientRequiresAtcRestClient = new(

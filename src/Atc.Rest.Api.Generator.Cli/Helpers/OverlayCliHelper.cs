@@ -1,0 +1,75 @@
+namespace Atc.Rest.Api.Generator.Cli.Helpers;
+
+/// <summary>
+/// Applies the <c>--overlay</c> files of a command to a specification, the way the build applies the overlays a
+/// marker file lists, and prints what they report.
+/// </summary>
+public static class OverlayCliHelper
+{
+    /// <summary>
+    /// The full path of an <c>--overlay</c> (relative to the current directory).
+    /// </summary>
+    /// <param name="path">The path as given.</param>
+    /// <returns>The full path.</returns>
+    public static string FullPath(string path)
+        => Path.GetFullPath(PathHelper.ResolveRelativePath(path));
+
+    /// <summary>
+    /// Checks that every overlay file exists.
+    /// </summary>
+    /// <param name="overlays">The <c>--overlay</c> paths.</param>
+    /// <returns>An error naming the first missing file, or <see langword="null"/>.</returns>
+    public static string? FindMissing(IReadOnlyList<string> overlays)
+    {
+        ArgumentNullException.ThrowIfNull(overlays);
+
+        return overlays
+            .Where(o => !File.Exists(FullPath(o)))
+            .Select(o => $"Overlay file not found: {o}")
+            .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Applies overlays to a specification's text and prints what they report: an error per problem that stops, a
+    /// warning per action that changed nothing.
+    /// </summary>
+    /// <param name="specificationContent">The specification (YAML or JSON).</param>
+    /// <param name="overlays">The <c>--overlay</c> paths, in the order they are applied.</param>
+    /// <returns>The effective specification (JSON text), the content as it was without overlays, or <see langword="null"/> after an error.</returns>
+    public static string? Apply(
+        string specificationContent,
+        IReadOnlyList<string> overlays)
+    {
+        ArgumentNullException.ThrowIfNull(overlays);
+        if (overlays.Count == 0)
+        {
+            return specificationContent;
+        }
+
+        var files = overlays
+            .Select(FullPath)
+            .Select(path => new OverlayFile(path, File.ReadAllText(path)))
+            .ToList();
+
+        var (effective, problems) = SpecificationOverlays.Apply(specificationContent, files);
+        foreach (var problem in problems)
+        {
+            var where = Path.GetFileName(problem.OverlayPath) + problem.Where;
+            if (problem.Problem.IsError)
+            {
+                AnsiConsole.MarkupLine($"[red]✗[/] [[{RuleIdentifiers.OverlayInvalid}]] {Markup.Escape(where)}: {Markup.Escape(problem.Problem.Message)}");
+            }
+            else
+            {
+                AnsiConsole.MarkupLine($"[yellow]![/] [[{RuleIdentifiers.OverlayTargetSelectsNothing}]] {Markup.Escape(where)}: {Markup.Escape(problem.Problem.Message)}");
+            }
+        }
+
+        if (effective is not null)
+        {
+            AnsiConsole.MarkupLine($"[green]✓[/] Applied {files.Count} overlay(s): {Markup.Escape(string.Join(", ", files.Select(f => Path.GetFileName(f.FilePath))))}");
+        }
+
+        return effective;
+    }
+}

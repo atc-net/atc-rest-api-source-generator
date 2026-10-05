@@ -85,7 +85,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
             {
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");
-                var validationResult = ValidateSpecification(specPath, config.ValidateSpecificationStrategy);
+                var validationResult = ValidateSpecification(specPath, config.ValidateSpecificationStrategy, config.Overlays);
                 if (!validationResult.Success)
                 {
                     return 1;
@@ -352,6 +352,8 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
             config.ExtensibleEnums = false;
         }
 
+        config.Overlays = settings.Overlays;
+
         if (settings.DryRun)
         {
             config.DryRun = true;
@@ -369,7 +371,8 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
 
     private static (bool Success, OpenApiDocument? Document) ValidateSpecification(
         string specPath,
-        ValidateSpecificationStrategy strategy)
+        ValidateSpecificationStrategy strategy,
+        IReadOnlyList<string> overlays)
     {
         string yamlContent;
         try
@@ -421,6 +424,25 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
                 parsedDoc = merged.Document;
                 yamlContent = merged.Content;
                 AnsiConsole.MarkupLine($"[green]✓[/] Merged {merge.PartFiles.Count} part file(s) into the specification");
+            }
+
+            // The overlays apply to the whole (merged) specification, as in the C# build
+            if (overlays.Count > 0)
+            {
+                var effective = OverlayCliHelper.Apply(yamlContent, overlays);
+                if (effective is null)
+                {
+                    return (false, null);
+                }
+
+                (parsedDoc, openApiDiagnostic) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(effective, specPath);
+                if (parsedDoc is null)
+                {
+                    AnsiConsole.MarkupLine("[red]✗[/] The overlays make a document that is no OpenAPI specification");
+                    return (false, null);
+                }
+
+                yamlContent = effective;
             }
 
             var diagnostics = OpenApiDocumentValidator.Validate(

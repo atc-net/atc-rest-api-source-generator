@@ -23,6 +23,17 @@ public static class GeneratorTestHelper
     public static OpenApiDocument LoadOpenApiDocument(string yamlPath)
     {
         var yamlContent = File.ReadAllText(yamlPath);
+
+        // A scenario's overlay ({Name}.overlay.yaml next to it, listed by its markers) is applied as the build does
+        var overlayPath = Path.ChangeExtension(yamlPath, ".overlay.yaml");
+        if (File.Exists(overlayPath))
+        {
+            var (effective, problems) = Atc.Rest.Api.Generator.Overlays.SpecificationOverlays.Apply(
+                yamlContent,
+                [new Atc.Rest.Api.Generator.Overlays.OverlayFile(overlayPath, File.ReadAllText(overlayPath))]);
+            yamlContent = effective ?? throw new InvalidOperationException($"The overlay {overlayPath} cannot be applied: {string.Join("; ", problems.Select(p => p.Problem.Message))}");
+        }
+
         var (document, _) = OpenApiDocumentHelper.TryParseYamlWithDiagnostic(yamlContent, yamlPath);
         return document ?? throw new InvalidOperationException($"Failed to parse OpenAPI document at {yamlPath}");
     }

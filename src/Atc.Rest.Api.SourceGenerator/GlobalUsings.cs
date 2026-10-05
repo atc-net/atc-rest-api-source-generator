@@ -2,6 +2,7 @@ global using System.Collections.Immutable;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Text;
 global using System.Text.Json;
+global using System.Text.Json.Nodes;
 global using System.Text.RegularExpressions;
 
 global using Atc.CodeGeneration.CSharp.CodeDocumentation.CodeComment;
@@ -16,6 +17,7 @@ global using Atc.Rest.Api.Generator.Configurations;
 global using Atc.Rest.Api.Generator.Extensions;
 global using Atc.Rest.Api.Generator.Extractors;
 global using Atc.Rest.Api.Generator.Helpers;
+global using Atc.Rest.Api.Generator.Overlays;
 global using Atc.Rest.Api.Generator.Services;
 global using Atc.Rest.Api.Generator.Validators;
 global using Atc.Rest.Api.SourceGenerator.Extensions;

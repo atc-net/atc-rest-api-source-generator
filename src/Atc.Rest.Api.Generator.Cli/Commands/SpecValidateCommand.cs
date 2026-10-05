@@ -78,6 +78,16 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
             return 1;
         }
 
+        // The overlays apply before the parse, as in the build
+        if (settings.Overlays.Length > 0 && OverlayCliHelper.Apply(yamlContent, settings.Overlays) is { } effective)
+        {
+            yamlContent = effective;
+        }
+        else if (settings.Overlays.Length > 0)
+        {
+            return 1;
+        }
+
         // Parse the OpenAPI document
         ctx.Status("Parsing OpenAPI document...");
 
@@ -146,7 +156,7 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
         }
 
         // If only one file, validate it directly
-        if (filesToValidate.Count == 1)
+        if (filesToValidate.Count == 1 && settings.Overlays.Length == 0)
         {
             ctx.Status("Running validation rules...");
             var singleDiagnostics = SpecificationService.Validate(
@@ -206,10 +216,23 @@ public sealed class SpecValidateCommand : Command<SpecValidateCommandSettings>
         AnsiConsole.MarkupLine($"[blue]Merged:[/] {mergeResult.AllFiles.Count.ToString(CultureInfo.InvariantCulture)} files, {mergeResult.TotalPaths.ToString(CultureInfo.InvariantCulture)} paths, {mergeResult.TotalSchemas.ToString(CultureInfo.InvariantCulture)} schemas");
         AnsiConsole.WriteLine();
 
+        // The overlays see the whole merged document, as in the build
+        var document = mergeResult.Document;
+        if (settings.Overlays.Length > 0)
+        {
+            var effective = OverlayCliHelper.Apply(SpecificationService.SerializeToJson(document), settings.Overlays);
+            if (effective is null || OpenApiDocumentHelper.TryParseYamlWithDiagnostic(effective, baseFile).Document is not { } overlaid)
+            {
+                return 1;
+            }
+
+            document = overlaid;
+        }
+
         // Validate the merged document
         ctx.Status("Running validation rules on merged specification...");
         var diagnostics = SpecificationService.Validate(
-            mergeResult.Document,
+            document,
             baseFile,
             strategy);
 

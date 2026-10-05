@@ -90,4 +90,15 @@ public abstract class BaseConfig
     /// Add [ExcludeFromCodeCoverage] alongside [GeneratedCode] on every generated type. Default: false.
     /// </summary>
     public bool ExcludeFromCodeCoverage { get; set; }
+
+    /// <summary>
+    /// OpenAPI Overlay files (Overlay Specification 1.0 to 1.2) applied to the specification before it is validated
+    /// and generated, in this order. Default: null (none).
+    /// Paths are relative to the marker file, and each overlay must be an AdditionalFiles item of the project, like the
+    /// specification. An overlay patches a specification you do not own (a third-party API) without editing it: add an
+    /// operationId, fix a format, remove a path, add an x- extension - and the fixes are applied again to every new
+    /// version of the file.
+    /// Example: ["Vendor.overlay.yaml"].
+    /// </summary>
+    public List<string>? Overlays { get; set; }
 }

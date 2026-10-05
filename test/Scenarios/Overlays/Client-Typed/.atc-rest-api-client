@@ -1,0 +1,6 @@
+{
+    "generationMode": "TypedClient",
+    "validateSpecificationStrategy": "Strict",
+    "useServersBasePath": false,
+    "overlays": ["Overlays.overlay.yaml"]
+}

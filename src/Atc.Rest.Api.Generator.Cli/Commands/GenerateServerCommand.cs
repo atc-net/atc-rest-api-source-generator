@@ -159,7 +159,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
 
                 // Step 1: Validate the OpenAPI specification
                 ctx.Status("Validating OpenAPI specification...");
-                var validationResult = SpecificationValidationHelper.ValidateSpecificationWithStats(specPath, serverConfig.ValidateSpecificationStrategy);
+                var validationResult = SpecificationValidationHelper.ValidateSpecificationWithStats(specPath, serverConfig.ValidateSpecificationStrategy, settings.Overlays);
                 if (!validationResult.Success)
                 {
                     return 1;
@@ -462,6 +462,9 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         // Start with config from options file
         var config = options.ToServerConfig();
 
+        // The --overlay files (placed next to the specification and listed relative to the marker later)
+        config.Overlays = settings.Overlays.Length > 0 ? [.. settings.Overlays.Select(OverlayCliHelper.FullPath)] : null;
+
         // Override validation strategy if --no-strict is specified
         if (settings.DisableStrictMode)
         {
@@ -518,6 +521,9 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
     {
         // Start with config from options file
         var config = options.ToServerDomainConfig();
+
+        // The --overlay files (placed next to the specification and listed relative to the marker later)
+        config.Overlays = settings.Overlays.Length > 0 ? [.. settings.Overlays.Select(OverlayCliHelper.FullPath)] : null;
 
         // Override validation strategy if --no-strict is specified
         if (settings.DisableStrictMode)
@@ -626,6 +632,15 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             .Select(f => GetRelativeSpecPath(specBasePath, outputPath, Path.GetFileName(f)))
             .ToList();
 
+        // The overlays go next to the specification and are listed in the marker, relative to it: the build applies them
+        if (PlaceOverlays(config.Overlays, specBasePath, outputPath) is not { } relativeOverlayPaths)
+        {
+            return false;
+        }
+
+        relativeSpecPaths.AddRange(relativeOverlayPaths);
+        config.Overlays = relativeOverlayPaths.Count > 0 ? relativeOverlayPaths : null;
+
         // Create or update marker file with server config
         ctx.Status("Creating contracts marker file...");
         if (!CreateOrUpdateContractsMarkerFile(outputPath, config))
@@ -698,6 +713,15 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         var relativeSpecPaths = specFiles
             .Select(f => GetRelativeSpecPath(specBasePath, outputPath, Path.GetFileName(f)))
             .ToList();
+
+        // The overlays go next to the specification and are listed in the marker, relative to it: the build applies them
+        if (PlaceOverlays(config.Overlays, specBasePath, outputPath) is not { } relativeOverlayPaths)
+        {
+            return false;
+        }
+
+        relativeSpecPaths.AddRange(relativeOverlayPaths);
+        config.Overlays = relativeOverlayPaths.Count > 0 ? relativeOverlayPaths : null;
 
         // Create or update marker file with domain config
         ctx.Status("Creating domain marker file...");
@@ -774,6 +798,15 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         var relativeSpecPaths = specFiles
             .Select(f => GetRelativeSpecPath(specBasePath, outputPath, Path.GetFileName(f)))
             .ToList();
+
+        // The overlays go next to the specification and are listed in the marker, relative to it: the build applies them
+        if (PlaceOverlays(config.Overlays, specBasePath, outputPath) is not { } relativeOverlayPaths)
+        {
+            return false;
+        }
+
+        relativeSpecPaths.AddRange(relativeOverlayPaths);
+        config.Overlays = relativeOverlayPaths.Count > 0 ? relativeOverlayPaths : null;
 
         // Create or update marker file with server config
         ctx.Status("Creating contracts marker file...");
@@ -921,6 +954,42 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
     /// <summary>
     /// Gets the relative path from a project directory to the spec files base directory.
     /// </summary>
+    /// <summary>
+    /// Copies the <c>--overlay</c> files next to the specification (where they are not already) and returns their paths
+    /// relative to the project, for the marker and the AdditionalFiles.
+    /// </summary>
+    private static List<string>? PlaceOverlays(
+        IReadOnlyList<string>? overlays,
+        string specBasePath,
+        string projectDirectory)
+    {
+        var relativePaths = new List<string>();
+        foreach (var overlay in overlays ?? [])
+        {
+            var source = Path.GetFullPath(overlay);
+            var fileName = Path.GetFileName(source);
+            var destination = Path.Combine(specBasePath, fileName);
+            try
+            {
+                if (!string.Equals(source, Path.GetFullPath(destination), StringComparison.OrdinalIgnoreCase))
+                {
+                    Directory.CreateDirectory(specBasePath);
+                    File.Copy(source, destination, overwrite: true);
+                    AnsiConsole.MarkupLine($"[green]✓[/] Copied overlay next to the specification: {fileName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]✗[/] Error copying overlay {fileName}: {ex.Message}");
+                return null;
+            }
+
+            relativePaths.Add(GetRelativeSpecPath(specBasePath, projectDirectory, fileName));
+        }
+
+        return relativePaths;
+    }
+
     private static string GetRelativeSpecPath(
         string specBasePath,
         string projectDirectory,

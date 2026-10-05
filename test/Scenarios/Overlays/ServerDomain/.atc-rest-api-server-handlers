@@ -1,0 +1,4 @@
+{
+    "validateSpecificationStrategy": "Strict",
+    "overlays": ["Overlays.overlay.yaml"]
+}

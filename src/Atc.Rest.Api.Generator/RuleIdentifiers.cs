@@ -92,6 +92,26 @@ public static class RuleIdentifiers
     /// </summary>
     public const string MarkerConfigUnknownSetting = "ATC_API_GEN014";
 
+    /// <summary>
+    /// ATC_API_GEN015: An overlay the marker file lists is not an AdditionalFiles item of the project.
+    /// </summary>
+    public const string OverlayNotFound = "ATC_API_GEN015";
+
+    /// <summary>
+    /// ATC_API_GEN016: An overlay is invalid or one of its actions cannot be applied; nothing is generated.
+    /// </summary>
+    public const string OverlayInvalid = "ATC_API_GEN016";
+
+    /// <summary>
+    /// ATC_API_GEN017: An overlay action's target selects nothing, so the action changes nothing.
+    /// </summary>
+    public const string OverlayTargetSelectsNothing = "ATC_API_GEN017";
+
+    /// <summary>
+    /// ATC_API_GEN018: An overlay file is an AdditionalFiles item, but the marker file does not list it.
+    /// </summary>
+    public const string OverlayNotListed = "ATC_API_GEN018";
+
     // ========== Dependency Rules (DEP) ==========
 
     /// <summary>

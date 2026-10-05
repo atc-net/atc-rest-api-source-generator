@@ -114,6 +114,33 @@ public class IncrementalCachingTests
     }
 
     /// <summary>
+    /// An edit to an overlay the marker lists - and to nothing else - generates again, with the overlay's change.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Generators))]
+    public void OverlayEdit_RunsTheOutputAgain(
+        string generator,
+        string markerFileName)
+    {
+        const string overlay = """
+            overlay: 1.2.0
+            info: { title: t, version: 1.0.0 }
+            actions:
+              - target: $.info
+                update: { description: first }
+            """;
+        var run = new TrackedRun(Create(generator), [Spec(Yaml), (markerFileName, """{ "overlays": ["Contoso.overlay.yaml"] }"""), ("Contoso.overlay.yaml", overlay)]);
+        run.Run();
+
+        run.Replace("Contoso.overlay.yaml", overlay.Replace("description: first", "description: second", StringComparison.Ordinal));
+        run.Run();
+
+        var reasons = run.OutputStepReasons();
+        Assert.NotEmpty(reasons);
+        Assert.All(reasons, r => Assert.Equal(IncrementalStepRunReason.Modified, r.Reason));
+    }
+
+    /// <summary>
     /// The second run of the same inputs generates the same sources: nothing in the pipeline depends on the run.
     /// </summary>
     [Theory]

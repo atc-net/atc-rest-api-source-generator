@@ -47,6 +47,7 @@ global using Atc.Rest.Api.Generator.Configurations;
 global using Atc.Rest.Api.Generator.Helpers;
 global using Atc.Rest.Api.Generator.JsonConverters;
 global using Atc.Rest.Api.Generator.Models;
+global using Atc.Rest.Api.Generator.Overlays;
 global using Atc.Rest.Api.Generator.Services;
 global using Atc.Rest.Api.Generator.Validators;
 global using Atc.Serialization;
