@@ -10,12 +10,12 @@ public sealed class MeteringPointReportServiceTests
     public async Task BuildReportAsync_SkipsMeteringPointCall_WhenTokenEndpointFails()
     {
         // Arrange
-        var tokenEndpoint = Substitute.For<IGetThirdpartyapiApiTokenEndpoint>();
-        var meteringPointsEndpoint = Substitute.For<IGetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierEndpoint>();
+        var tokenEndpoint = Substitute.For<IGetTokenEndpoint>();
+        var meteringPointsEndpoint = Substitute.For<IGetAuthorizedMeteringPointsEndpoint>();
 
         tokenEndpoint
-            .ExecuteAsync(Arg.Any<GetThirdpartyapiApiTokenParameters>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(GetThirdpartyapiApiTokenEndpointResult.Unauthorized(
+            .ExecuteAsync(Arg.Any<GetTokenParameters>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(GetTokenEndpointResult.Unauthorized(
                 ModelBuilder.ProblemDetails(HttpStatusCode.Unauthorized)));
 
         var sut = new MeteringPointReportService(tokenEndpoint, meteringPointsEndpoint);
@@ -32,16 +32,16 @@ public sealed class MeteringPointReportServiceTests
     public async Task BuildReportAsync_ProjectsMeteringPoints_WhenBothCallsSucceed()
     {
         // Arrange
-        var tokenEndpoint = Substitute.For<IGetThirdpartyapiApiTokenEndpoint>();
-        var meteringPointsEndpoint = Substitute.For<IGetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierEndpoint>();
+        var tokenEndpoint = Substitute.For<IGetTokenEndpoint>();
+        var meteringPointsEndpoint = Substitute.For<IGetAuthorizedMeteringPointsEndpoint>();
 
         tokenEndpoint
-            .ExecuteAsync(Arg.Any<GetThirdpartyapiApiTokenParameters>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(GetThirdpartyapiApiTokenEndpointResult.Ok(new StringApiResponse("access-token")));
+            .ExecuteAsync(Arg.Any<GetTokenParameters>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(GetTokenEndpointResult.Ok(new StringApiResponse("access-token")));
 
         meteringPointsEndpoint
-            .ExecuteAsync(Arg.Any<GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierParameters>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierEndpointResult.Ok(
+            .ExecuteAsync(Arg.Any<GetAuthorizedMeteringPointsParameters>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(GetAuthorizedMeteringPointsEndpointResult.Ok(
                 new MeteringPointThirdPartyDtoListApiResponse(
                 [
                     ModelBuilder.MeteringPoint("571313000000000001", "Hovedgaden", "1"),
@@ -63,16 +63,16 @@ public sealed class MeteringPointReportServiceTests
     public async Task BuildReportAsync_PassesScopeAndIdentifier_ToTheMeteringPointEndpoint()
     {
         // Arrange
-        var tokenEndpoint = Substitute.For<IGetThirdpartyapiApiTokenEndpoint>();
-        var meteringPointsEndpoint = Substitute.For<IGetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierEndpoint>();
+        var tokenEndpoint = Substitute.For<IGetTokenEndpoint>();
+        var meteringPointsEndpoint = Substitute.For<IGetAuthorizedMeteringPointsEndpoint>();
 
         tokenEndpoint
-            .ExecuteAsync(Arg.Any<GetThirdpartyapiApiTokenParameters>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(GetThirdpartyapiApiTokenEndpointResult.Ok(new StringApiResponse("access-token")));
+            .ExecuteAsync(Arg.Any<GetTokenParameters>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(GetTokenEndpointResult.Ok(new StringApiResponse("access-token")));
 
         meteringPointsEndpoint
-            .ExecuteAsync(Arg.Any<GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierParameters>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierEndpointResult.Ok(new MeteringPointThirdPartyDtoListApiResponse([])));
+            .ExecuteAsync(Arg.Any<GetAuthorizedMeteringPointsParameters>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(GetAuthorizedMeteringPointsEndpointResult.Ok(new MeteringPointThirdPartyDtoListApiResponse([])));
 
         var sut = new MeteringPointReportService(tokenEndpoint, meteringPointsEndpoint);
 
@@ -83,7 +83,7 @@ public sealed class MeteringPointReportServiceTests
         await meteringPointsEndpoint
             .Received(1)
             .ExecuteAsync(
-                Arg.Is<GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierParameters>(
+                Arg.Is<GetAuthorizedMeteringPointsParameters>(
                     x => x.Scope == "customer" && x.Identifier == "12345678"),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>());

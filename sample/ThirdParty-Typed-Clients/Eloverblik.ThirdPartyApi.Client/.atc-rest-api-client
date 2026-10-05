@@ -7,5 +7,6 @@
     "clientGranularity": "Single",
     "clientName": "ElOverblikThirdPartyApiClient",
     "clientSuffix": "Client",
-    "httpClientName": "Eloverblik-ApiClient"
+    "httpClientName": "Eloverblik-ApiClient",
+    "overlays": ["api-1.overlay.yaml"]
 }

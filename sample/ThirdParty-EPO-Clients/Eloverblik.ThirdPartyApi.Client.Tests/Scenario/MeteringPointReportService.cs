@@ -5,8 +5,8 @@ namespace Eloverblik.ThirdPartyApi.Client.Tests.Scenario;
 /// interfaces, which is what makes it unit-testable without any HTTP plumbing.
 /// </summary>
 public sealed class MeteringPointReportService(
-    IGetThirdpartyapiApiTokenEndpoint tokenEndpoint,
-    IGetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierEndpoint meteringPointsEndpoint)
+    IGetTokenEndpoint tokenEndpoint,
+    IGetAuthorizedMeteringPointsEndpoint meteringPointsEndpoint)
 {
     public async Task<IReadOnlyList<string>> BuildReportAsync(
         string scope,
@@ -14,7 +14,7 @@ public sealed class MeteringPointReportService(
         CancellationToken cancellationToken = default)
     {
         var tokenResult = await tokenEndpoint
-            .ExecuteAsync(new GetThirdpartyapiApiTokenParameters(), cancellationToken: cancellationToken)
+            .ExecuteAsync(new GetTokenParameters(), cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
         // Never assume success - the result wrapper forces the failure branch to be handled.
@@ -25,7 +25,7 @@ public sealed class MeteringPointReportService(
 
         var meteringPointsResult = await meteringPointsEndpoint
             .ExecuteAsync(
-                new GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierParameters(
+                new GetAuthorizedMeteringPointsParameters(
                     Scope: scope,
                     Identifier: identifier),
                 cancellationToken: cancellationToken)

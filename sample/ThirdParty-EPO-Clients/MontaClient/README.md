@@ -46,3 +46,15 @@ The `.atc-rest-api-client` marker configures generation:
   "customErrorResponseModel": { ... }
 }
 ```
+
+## Overlay: fixes to the vendor's specification
+
+`Monta.yaml` is used exactly as Monta publishes it. `Monta.overlay.yaml` - an
+[OpenAPI Overlay](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Overlays) the marker
+lists in `"overlays"` - adds `id` to the `required` lists of `Charge` and `Site`, so their generated `Id` is a `long`
+instead of a `long?`. Replace `Monta.yaml` with a new version and the fix is applied again.
+
+```bash
+# See the specification the build generates from
+atc-rest-api-gen spec overlay apply -s Monta.yaml --overlay Monta.overlay.yaml -o effective.yaml
+```

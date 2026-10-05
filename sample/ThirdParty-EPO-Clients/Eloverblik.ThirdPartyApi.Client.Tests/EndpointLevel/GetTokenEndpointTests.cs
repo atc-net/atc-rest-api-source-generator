@@ -20,7 +20,7 @@ public sealed class GetTokenEndpointTests
 
         // Act
         var result = await sut.ExecuteAsync(
-            new GetThirdpartyapiApiTokenParameters(),
+            new GetTokenParameters(),
             cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
@@ -41,7 +41,7 @@ public sealed class GetTokenEndpointTests
 
         // Act
         var result = await sut.ExecuteAsync(
-            new GetThirdpartyapiApiTokenParameters(),
+            new GetTokenParameters(),
             cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - EndpointPerOperation surfaces failures as data, not exceptions.
@@ -61,18 +61,18 @@ public sealed class GetTokenEndpointTests
             });
 
         var factory = new StubHttpClientFactory(handler.CreateClient());
-        var sut = new GetThirdpartyapiApiTokenEndpoint(factory, CreateHttpMessageFactory());
+        var sut = new GetTokenEndpoint(factory, CreateHttpMessageFactory());
 
         // Act
         await sut.ExecuteAsync(
-            new GetThirdpartyapiApiTokenParameters(),
+            new GetTokenParameters(),
             cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - the default argument comes from the generated Constants class.
         factory.RequestedNames.Should().ContainSingle().Which.Should().Be(Constants.HttpClientName);
     }
 
-    private static GetThirdpartyapiApiTokenEndpoint CreateEndpoint(
+    private static GetTokenEndpoint CreateEndpoint(
         FakeHttpMessageHandler handler)
         => new(
             new StubHttpClientFactory(handler.CreateClient()),

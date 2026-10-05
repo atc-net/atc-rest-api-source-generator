@@ -9,6 +9,7 @@
   <ItemGroup>
     <!-- OpenAPI Specification -->
     <AdditionalFiles Include="api-1.yaml" />
+    <AdditionalFiles Include="api-1.overlay.yaml" />
     <AdditionalFiles Include=".atc-rest-api-client" />
   </ItemGroup>
 

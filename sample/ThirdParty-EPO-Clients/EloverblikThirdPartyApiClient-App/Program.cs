@@ -2,7 +2,7 @@
 //   "generationMode": "EndpointPerOperation"
 //
 // In this mode the generator emits one endpoint class per OpenAPI operation
-// (for example GetThirdpartyapiApiIsaliveEndpoint) behind a matching interface.
+// (for example IsAliveEndpoint) behind a matching interface.
 // Every endpoint is resolved from dependency injection and talks to a *named*
 // HttpClient created by IHttpClientFactory. The generated Constants.HttpClientName
 // carries the name configured via "httpClientName" in the .atc-rest-api-client
@@ -57,10 +57,10 @@ using var host = builder.Build();
 // ---------------------------------------------------------------------------
 // 2. Resolve the generated endpoints
 // ---------------------------------------------------------------------------
-var isAliveEndpoint = host.Services.GetRequiredService<IGetThirdpartyapiApiIsaliveEndpoint>();
-var tokenEndpoint = host.Services.GetRequiredService<IGetThirdpartyapiApiTokenEndpoint>();
-var meteringPointsEndpoint = host.Services.GetRequiredService<IGetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierEndpoint>();
-var detailsEndpoint = host.Services.GetRequiredService<IPostThirdpartyapiApiMeteringpointGetdetailsEndpoint>();
+var isAliveEndpoint = host.Services.GetRequiredService<IIsAliveEndpoint>();
+var tokenEndpoint = host.Services.GetRequiredService<IGetTokenEndpoint>();
+var meteringPointsEndpoint = host.Services.GetRequiredService<IGetAuthorizedMeteringPointsEndpoint>();
+var detailsEndpoint = host.Services.GetRequiredService<IGetMeteringPointDetailsEndpoint>();
 var tokenProvider = host.Services.GetRequiredService<BearerTokenProvider>();
 
 try
@@ -74,7 +74,7 @@ try
     Console.WriteLine("1. GET /thirdpartyapi/api/isalive");
 
     var isAliveResult = await isAliveEndpoint
-        .ExecuteAsync(new GetThirdpartyapiApiIsaliveParameters())
+        .ExecuteAsync(new IsAliveParameters())
         .ConfigureAwait(false);
 
     if (isAliveResult.IsOk)
@@ -104,7 +104,7 @@ try
     tokenProvider.Token = refreshToken;
 
     var tokenResult = await tokenEndpoint
-        .ExecuteAsync(new GetThirdpartyapiApiTokenParameters())
+        .ExecuteAsync(new GetTokenParameters())
         .ConfigureAwait(false);
 
     if (!tokenResult.IsOk)
@@ -128,7 +128,7 @@ try
     var identifier = Environment.GetEnvironmentVariable("ELOVERBLIK_IDENTIFIER") ?? "12345678";
 
     var meteringPointsResult = await meteringPointsEndpoint
-        .ExecuteAsync(new GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierParameters(
+        .ExecuteAsync(new GetAuthorizedMeteringPointsParameters(
             Scope: scope,
             Identifier: identifier))
         .ConfigureAwait(false);
@@ -169,7 +169,7 @@ try
     Console.WriteLine("4. POST /thirdpartyapi/api/meteringpoint/meteringpoint/getdetails");
 
     var detailsResult = await detailsEndpoint
-        .ExecuteAsync(new PostThirdpartyapiApiMeteringpointGetdetailsParameters(
+        .ExecuteAsync(new GetMeteringPointDetailsParameters(
             Request: new MeteringPointsRequest(
                 new MeteringPoints(meteringPointIds))))
         .ConfigureAwait(false);

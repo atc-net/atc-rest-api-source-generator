@@ -14,8 +14,8 @@ public sealed class MeteringPointReportService(
         CancellationToken cancellationToken = default)
     {
         var response = await client
-            .GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierAsync(
-                new GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierParameters(
+            .GetAuthorizedMeteringPointsAsync(
+                new GetAuthorizedMeteringPointsParameters(
                     Scope: scope,
                     Identifier: identifier),
                 cancellationToken)

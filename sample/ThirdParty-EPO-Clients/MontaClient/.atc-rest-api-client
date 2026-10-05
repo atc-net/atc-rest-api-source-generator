@@ -9,6 +9,7 @@
   "httpClientName": "Monta-ApiClient",
   "generateOAuthTokenManagement": true,
   "generatePartialModels": true,
+  "overlays": ["Monta.overlay.yaml"],
   "customErrorResponseModel": {
     "name": "ErrorResponse",
     "description": "Represents an error response from the Monta API.",

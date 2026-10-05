@@ -6,5 +6,6 @@
     "generationMode": "EndpointPerOperation",
     "namespace": "Eloverblik.Api.ThirdPartyApi",
     "clientSuffix": "Client",
-    "httpClientName": "Eloverblik-ApiClient"
+    "httpClientName": "Eloverblik-ApiClient",
+    "overlays": ["api-1.overlay.yaml"]
 }

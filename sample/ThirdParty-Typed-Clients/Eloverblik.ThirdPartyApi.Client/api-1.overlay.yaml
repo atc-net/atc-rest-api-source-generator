@@ -1,0 +1,39 @@
+overlay: 1.2.0
+info:
+  title: Eloverblik third-party API - our fixes
+  version: 1.0.0
+  description: >-
+    The Eloverblik specification (api-1.yaml) is published by Energinet and is used here exactly as downloaded.
+    It has no operationIds, so the generated names would be built from the paths
+    (GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierEndpoint) and Strict validation
+    would fail (ATC_API_OPR001). This overlay gives every operation a name; download a new version of the
+    specification and the names stay.
+extends: api-1.yaml
+actions:
+  - target: $.paths['/thirdpartyapi/api/authorization/authorization/meteringpoints/{scope}/{identifier}'].get
+    update:
+      operationId: getAuthorizedMeteringPoints
+  - target: $.paths['/thirdpartyapi/api/authorization/authorization/meteringpointids/{scope}/{identifier}'].get
+    update:
+      operationId: getAuthorizedMeteringPointIds
+  - target: $.paths['/thirdpartyapi/api/authorization/authorizations'].get
+    update:
+      operationId: getAuthorizations
+  - target: $.paths['/thirdpartyapi/api/isalive'].get
+    update:
+      operationId: isAlive
+  - target: $.paths['/thirdpartyapi/api/meterdata/gettimeseries/{dateFrom}/{dateTo}/{aggregation}'].post
+    update:
+      operationId: getTimeSeries
+  - target: $.paths['/thirdpartyapi/api/meteringpoint/getdetails'].post
+    update:
+      operationId: getMeteringPointDetails
+  - target: $.paths['/thirdpartyapi/api/meteringpoint/getcharges'].post
+    update:
+      operationId: getCharges
+  - target: $.paths['/thirdpartyapi/api/meteringpoint/getchargelinkswithcharges'].post
+    update:
+      operationId: getChargeLinksWithCharges
+  - target: $.paths['/thirdpartyapi/api/token'].get
+    update:
+      operationId: getToken

@@ -17,6 +17,7 @@ A Roslyn Source Generator that automatically generates REST API server and clien
 |            | ✅ **Validation**                | Automatic `[Required]`, `[Range]`, `[StringLength]` from OpenAPI constraints     |
 |            | 🚨 **ProblemDetails Errors**     | Every error is RFC 9457 `application/problem+json` - server, C# and TS clients agree |
 |            | 🔎 **HTTP `QUERY` (OAS 3.2)**    | `query:` operations - a read with a request body, for criteria too big for a URL |
+|            | 🩹 **OpenAPI Overlays**          | Patch a specification you do not own - names, `required`, formats, removed paths - with an [OpenAPI Overlay](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Overlays) (1.0 to 1.2, full RFC 9535 JSONPath), applied by the build and the CLI |
 | **Server** | 📝 **Handler Scaffolds**         | Auto-generates handler stubs for unimplemented operations                        |
 |            | 🔐 **Security**                  | JWT, OAuth2 scopes, API Key, role-based auth - all from OpenAPI                  |
 |            | ⏱️ **Rate Limiting**             | Server-side rate limiting from `x-ratelimit-*` extensions                        |
@@ -240,6 +241,7 @@ Read the full documentation on the [WIKI](https://github.com/atc-net/atc-rest-ap
 | [🧩 Working with Multi-Part Specs](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Multi-Part-Specs) | Split a large specification across files |
 | [🕳️ Working with Nullability](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Nullability) | `nullable` vs `type: [x, "null"]`, and why |
 | [🧩 Working with Extensible Enums](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Extensible-Enums) | Why client enums keep a value the server adds later, and how to use them |
+| [🩹 Working with Overlays](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Overlays) | Patch a third-party specification without editing it (OpenAPI Overlay) |
 | [🚨 Working with Error Responses](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Error-Responses) | RFC 9457 ProblemDetails, declared error models |
 | [📁 Working with Files](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-Files) | Uploads, downloads, model-or-file responses |
 | [🧾 Working with XML](https://github.com/atc-net/atc-rest-api-source-generator/wiki/Working-with-XML) | XML bodies, content negotiation |

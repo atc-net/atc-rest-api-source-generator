@@ -76,7 +76,7 @@ try
     Console.WriteLine("1. GET /thirdpartyapi/api/isalive");
 
     var isAlive = await client
-        .GetThirdpartyapiApiIsaliveAsync(new GetThirdpartyapiApiIsaliveParameters())
+        .IsAliveAsync(new IsAliveParameters())
         .ConfigureAwait(false);
 
     Console.WriteLine($"   API is alive: {isAlive}");
@@ -97,7 +97,7 @@ try
     tokenProvider.Token = refreshToken;
 
     var tokenResponse = await client
-        .GetThirdpartyapiApiTokenAsync(new GetThirdpartyapiApiTokenParameters())
+        .GetTokenAsync(new GetTokenParameters())
         .ConfigureAwait(false);
 
     Console.WriteLine("   Access token acquired.");
@@ -115,8 +115,8 @@ try
     var identifier = Environment.GetEnvironmentVariable("ELOVERBLIK_IDENTIFIER") ?? "12345678";
 
     var meteringPointsResponse = await client
-        .GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierAsync(
-            new GetThirdpartyapiApiAuthorizationAuthorizationMeteringpointsScopeIdentifierParameters(
+        .GetAuthorizedMeteringPointsAsync(
+            new GetAuthorizedMeteringPointsParameters(
                 Scope: scope,
                 Identifier: identifier))
         .ConfigureAwait(false);
@@ -151,8 +151,8 @@ try
     Console.WriteLine("4. POST /thirdpartyapi/api/meteringpoint/meteringpoint/getdetails");
 
     var detailsResponse = await client
-        .PostThirdpartyapiApiMeteringpointGetdetailsAsync(
-            new PostThirdpartyapiApiMeteringpointGetdetailsParameters(
+        .GetMeteringPointDetailsAsync(
+            new GetMeteringPointDetailsParameters(
                 Request: new MeteringPointsRequest(
                     new MeteringPoints(meteringPointIds))))
         .ConfigureAwait(false);
