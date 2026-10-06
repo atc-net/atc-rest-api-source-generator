@@ -83,7 +83,8 @@ public static class RuleIdentifiers
     public const string HandlerStubShadowed = "ATC_API_GEN012";
 
     /// <summary>
-    /// ATC_API_GEN013: A marker file could not be deserialized; default configuration was used.
+    /// ATC_API_GEN013: A marker file could not be read - no JSON, or a setting with a value of the wrong kind (named);
+    /// nothing is generated until it is fixed. Error.
     /// </summary>
     public const string MarkerConfigParseError = "ATC_API_GEN013";
 
@@ -117,6 +118,12 @@ public static class RuleIdentifiers
     /// access); it is still part of the build's compilation.
     /// </summary>
     public const string HandlerScaffoldNotWritten = "ATC_API_GEN019";
+
+    /// <summary>
+    /// ATC_API_GEN020: A project has two marker files of one kind (two '.atc-rest-api-server', say): the generator
+    /// takes one configuration per project, and names both files; nothing is generated until one is removed. Error.
+    /// </summary>
+    public const string MultipleMarkerFiles = "ATC_API_GEN020";
 
     // ========== Dependency Rules (DEP) ==========
 

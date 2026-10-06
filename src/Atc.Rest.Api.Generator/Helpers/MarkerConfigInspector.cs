@@ -52,6 +52,40 @@ public static class MarkerConfigInspector
     }
 
     /// <summary>
+    /// What went wrong reading a marker file, for the person who wrote it: a value of the wrong kind names the
+    /// setting and the kind expected (<c>'generate' has a value of the wrong kind: true or false is expected</c>);
+    /// anything else is the reader's message without its position suffix.
+    /// </summary>
+    /// <param name="exception">The exception the read threw.</param>
+    /// <param name="configType">The configuration class the marker file is read into.</param>
+    /// <returns>One sentence.</returns>
+    public static string DescribeReadError(
+        Exception exception,
+        Type configType)
+    {
+        if (exception is null)
+        {
+            throw new ArgumentNullException(nameof(exception));
+        }
+
+        if (configType is null)
+        {
+            throw new ArgumentNullException(nameof(configType));
+        }
+
+        if (exception is JsonException { Path: { Length: > 2 } path } && path.StartsWith("$.", StringComparison.Ordinal) &&
+            SettingAt(configType, path.Substring(2)) is { } setting)
+        {
+            return $"'{path.Substring(2)}' has a value of the wrong kind: {KindOf(setting.PropertyType)} is expected";
+        }
+
+        // "... Path: $.x | LineNumber: 0 | BytePositionInLine: 12." says where, which the diagnostic does better
+        var message = exception.Message;
+        var position = message.IndexOf(" Path: ", StringComparison.Ordinal);
+        return (position > 0 ? message.Substring(0, position) : message).TrimEnd('.', ' ');
+    }
+
+    /// <summary>
     /// The values a setting accepts: those of its converter or of its <see cref="MarkerValuesAttribute"/>.
     /// </summary>
     /// <param name="property">The setting.</param>
@@ -145,6 +179,54 @@ public static class MarkerConfigInspector
         return names.Count == 1
             ? names[0]
             : string.Join(", ", names.Take(names.Count - 1)) + " or " + names[names.Count - 1];
+    }
+
+    // The setting a JSON path ("healthChecks.enabled", "overlays[0]") names, through the sections
+    private static PropertyInfo? SettingAt(
+        Type configType,
+        string path)
+    {
+        PropertyInfo? setting = null;
+        var type = configType;
+        foreach (var segment in path.Split('.'))
+        {
+            var name = segment.Split('[')[0];
+            setting = SettingsOf(type).FirstOrDefault(p => string.Equals(JsonNameOf(p), name, StringComparison.OrdinalIgnoreCase));
+            if (setting is null)
+            {
+                return null;
+            }
+
+            type = SectionTypeOf(setting, out _) ?? setting.PropertyType;
+        }
+
+        return setting;
+    }
+
+    private static string KindOf(Type type)
+    {
+        var underlying = Nullable.GetUnderlyingType(type) ?? type;
+        if (underlying == typeof(bool))
+        {
+            return "true or false";
+        }
+
+        if (underlying == typeof(string) || underlying.IsEnum)
+        {
+            return "a string";
+        }
+
+        if (underlying.IsPrimitive || underlying == typeof(decimal))
+        {
+            return "a number";
+        }
+
+        if (typeof(IEnumerable).IsAssignableFrom(underlying) && !typeof(IDictionary).IsAssignableFrom(underlying))
+        {
+            return "an array";
+        }
+
+        return "an object";
     }
 
     private static IReadOnlyList<string> Inspect(

@@ -162,14 +162,25 @@ internal static class DiagnosticHelpers
         isEnabledByDefault: true);
 
     /// <summary>
-    /// ATC_API_GEN013: A marker file could not be deserialized; default configuration was used.
+    /// ATC_API_GEN013: A marker file could not be read - no JSON, or a value of the wrong kind; nothing is generated.
     /// </summary>
     public static readonly DiagnosticDescriptor MarkerConfigParseError = new(
         RuleIdentifiers.MarkerConfigParseError,
-        "Marker File Could Not Be Parsed",
-        "The marker file '{0}' could not be parsed ({1}); using default configuration. Fix the JSON to apply your settings.",
+        "Marker File Could Not Be Read",
+        "The marker file '{0}' could not be read: {1}. Nothing is generated until it is fixed.",
         RuleIdentifiers.Category,
-        DiagnosticSeverity.Warning,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// ATC_API_GEN020: A project has two marker files of one kind; nothing is generated.
+    /// </summary>
+    public static readonly DiagnosticDescriptor MultipleMarkerFiles = new(
+        RuleIdentifiers.MultipleMarkerFiles,
+        "More Than One Marker File",
+        "The project has {0} '{1}' marker files ({2}); the generator takes one configuration per project. Nothing is generated until one is left.",
+        RuleIdentifiers.Category,
+        DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     /// <summary>
@@ -656,13 +667,29 @@ internal static class DiagnosticHelpers
     public static void ReportMarkerConfigParseError(
         SourceProductionContext context,
         string markerPath,
-        Exception exception)
+        Exception exception,
+        Type configType)
     {
         context.ReportDiagnostic(Diagnostic.Create(
             MarkerConfigParseError,
             Location.None,
             markerPath,
-            exception.Message));
+            MarkerConfigInspector.DescribeReadError(exception, configType)));
+    }
+
+    /// <summary>
+    /// Reports that a project has more than one marker file of one kind (ATC_API_GEN020).
+    /// </summary>
+    public static void ReportMultipleMarkerFiles(
+        SourceProductionContext context,
+        IReadOnlyList<string> markerPaths)
+    {
+        context.ReportDiagnostic(Diagnostic.Create(
+            MultipleMarkerFiles,
+            Location.None,
+            markerPaths.Count,
+            Path.GetFileName(markerPaths[0]),
+            string.Join(", ", markerPaths)));
     }
 
     /// <summary>

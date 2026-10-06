@@ -97,7 +97,14 @@ public class ApiServerGenerator : IIncrementalGenerator
             return;
         }
 
-        var marker = markers.Values.First();
+        // One configuration per project: two marker files are a mistake, not a choice
+        if (markers.Values.Length > 1)
+        {
+            DiagnosticHelpers.ReportMultipleMarkerFiles(productionContext, markers.Values.Select(m => m.Path).ToList());
+            return;
+        }
+
+        var marker = markers.Values[0];
 
         ServerConfig config;
         try
@@ -107,8 +114,10 @@ public class ApiServerGenerator : IIncrementalGenerator
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, marker.Path, ex);
-            config = new ServerConfig();
+            // A marker that cannot be read is no configuration at all: generating from the defaults would be a
+            // different project
+            DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, marker.Path, ex, typeof(ServerConfig));
+            return;
         }
 
         // Skip if generation is disabled

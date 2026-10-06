@@ -78,7 +78,14 @@ public class ApiClientGenerator : IIncrementalGenerator
             return;
         }
 
-        var marker = markers.Values.First();
+        // One configuration per project: two marker files are a mistake, not a choice
+        if (markers.Values.Length > 1)
+        {
+            DiagnosticHelpers.ReportMultipleMarkerFiles(productionContext, markers.Values.Select(m => m.Path).ToList());
+            return;
+        }
+
+        var marker = markers.Values[0];
 
         ClientConfig config;
         try
@@ -88,8 +95,9 @@ public class ApiClientGenerator : IIncrementalGenerator
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, marker.Path, ex);
-            config = new ClientConfig();
+            // A marker that cannot be read is no configuration at all
+            DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, marker.Path, ex, typeof(ClientConfig));
+            return;
         }
 
         // Skip if generation is disabled in config

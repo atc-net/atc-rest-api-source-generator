@@ -74,7 +74,14 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
                 return;
             }
 
-            var markerInfo = markers.Values.First();
+            // One configuration per project: two marker files are a mistake, not a choice
+            if (markers.Values.Length > 1)
+            {
+                DiagnosticHelpers.ReportMultipleMarkerFiles(productionContext, markers.Values.Select(m => m.Path).ToList());
+                return;
+            }
+
+            var markerInfo = markers.Values[0];
             var markerDirectory = Path.GetDirectoryName(markerInfo.Path) ?? string.Empty;
 
             ServerDomainConfig config;
@@ -85,8 +92,9 @@ public class ApiServerDomainGenerator : IIncrementalGenerator
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, markerInfo.Path, ex);
-                config = new ServerDomainConfig();
+                // A marker that cannot be read is no configuration at all
+                DiagnosticHelpers.ReportMarkerConfigParseError(productionContext, markerInfo.Path, ex, typeof(ServerDomainConfig));
+                return;
             }
 
             // Skip if generation is disabled

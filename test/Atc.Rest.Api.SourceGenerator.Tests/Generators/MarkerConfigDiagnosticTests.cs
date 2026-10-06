@@ -1,9 +1,10 @@
 namespace Atc.Rest.Api.SourceGenerator.Tests.Generators;
 
 /// <summary>
-/// Verifies that the generators surface a diagnostic (instead of silently swallowing) when a
-/// marker file cannot be deserialized, so a user with a typo'd marker JSON gets a signal rather
-/// than silent default generation.
+/// A marker file the generator cannot read is an error that stops generation, not a warning and a build from the
+/// defaults: JSON that is no JSON, a value of the wrong kind (named with the setting and the kind expected), two
+/// marker files of one kind in a project. A setting the generator does not have, or a value it does not know, is a
+/// warning naming it and the value used instead.
 /// </summary>
 public class MarkerConfigDiagnosticTests
 {
@@ -22,54 +23,72 @@ public class MarkerConfigDiagnosticTests
                   description: ok
         """;
 
-    [Fact]
-    public void ClientGenerator_MalformedMarkerJson_ReportsGEN013Warning()
+    [Theory]
+    [InlineData(".atc-rest-api-client")]
+    [InlineData(".atc-rest-api-server")]
+    [InlineData(".atc-rest-api-server-handlers")]
+    public void Generator_MalformedMarkerJson_ReportsGEN013Error_AndGeneratesNothing(
+        string markerFileName)
     {
-        // Arrange & Act
-        var diagnostics = RunGenerator(
-            new ApiClientGenerator(),
-            ".atc-rest-api-client",
-            "{ this is not valid json ");
+        var (diagnostics, generated) = RunGenerator(GeneratorFor(markerFileName), markerFileName, "{ this is not valid json ");
 
-        // Assert
-        var parseWarning = diagnostics.FirstOrDefault(d =>
-            string.Equals(d.Id, Generator.RuleIdentifiers.MarkerConfigParseError, StringComparison.Ordinal));
-
-        Assert.NotNull(parseWarning);
-        Assert.Equal(DiagnosticSeverity.Warning, parseWarning.Severity);
+        var error = Assert.Single(diagnostics, d => string.Equals(d.Id, Generator.RuleIdentifiers.MarkerConfigParseError, StringComparison.Ordinal));
+        Assert.Equal(DiagnosticSeverity.Error, error.Severity);
+        Assert.Contains("Nothing is generated", error.GetMessage(CultureInfo.InvariantCulture), StringComparison.Ordinal);
+        Assert.Equal(0, generated);
     }
 
     [Fact]
-    public void ClientGenerator_ValidMarkerJson_NoGEN013Warning()
+    public void ClientGenerator_ValidMarkerJson_NoGEN013()
     {
-        // Arrange & Act
-        var diagnostics = RunGenerator(
-            new ApiClientGenerator(),
-            ".atc-rest-api-client",
-            "{ \"generate\": true }");
+        var (diagnostics, _) = RunGenerator(new ApiClientGenerator(), ".atc-rest-api-client", "{ \"generate\": true }");
 
-        // Assert
-        var parseWarning = diagnostics.FirstOrDefault(d =>
-            string.Equals(d.Id, Generator.RuleIdentifiers.MarkerConfigParseError, StringComparison.Ordinal));
-
-        Assert.Null(parseWarning);
+        Assert.DoesNotContain(diagnostics, d => string.Equals(d.Id, Generator.RuleIdentifiers.MarkerConfigParseError, StringComparison.Ordinal));
     }
 
-    [Fact]
-    public void ServerGenerator_MalformedMarkerJson_ReportsGEN013Warning()
+    [Theory]
+    [InlineData(".atc-rest-api-server", """{ "generate": "yes" }""", "'generate'", "true or false")]
+    [InlineData(".atc-rest-api-server", """{ "namespace": 5 }""", "'namespace'", "a string")]
+    [InlineData(".atc-rest-api-server", """{ "overlays": "Contoso.overlay.yaml" }""", "'overlays'", "an array")]
+    [InlineData(".atc-rest-api-server", """{ "healthChecks": { "enabled": "on" } }""", "'healthChecks.enabled'", "true or false")]
+    [InlineData(".atc-rest-api-client", """{ "generate": 1 }""", "'generate'", "true or false")]
+    [InlineData(".atc-rest-api-server-handlers", """{ "generate": [] }""", "'generate'", "true or false")]
+    public void Generator_AValueOfTheWrongKind_IsAGEN013ErrorNamingTheSetting_AndGeneratesNothing(
+        string markerFileName,
+        string markerContent,
+        string setting,
+        string expectedKind)
     {
-        // Arrange & Act
-        var diagnostics = RunGenerator(
-            new ApiServerGenerator(),
-            ".atc-rest-api-server",
-            "{ this is not valid json ");
+        var (diagnostics, generated) = RunGenerator(GeneratorFor(markerFileName), markerFileName, markerContent);
 
-        // Assert
-        var parseWarning = diagnostics.FirstOrDefault(d =>
-            string.Equals(d.Id, Generator.RuleIdentifiers.MarkerConfigParseError, StringComparison.Ordinal));
+        var error = Assert.Single(diagnostics, d => string.Equals(d.Id, Generator.RuleIdentifiers.MarkerConfigParseError, StringComparison.Ordinal));
+        Assert.Equal(DiagnosticSeverity.Error, error.Severity);
+        var message = error.GetMessage(CultureInfo.InvariantCulture);
+        Assert.Contains(setting, message, StringComparison.Ordinal);
+        Assert.Contains(expectedKind, message, StringComparison.Ordinal);
+        Assert.DoesNotContain("LineNumber", message, StringComparison.Ordinal);
+        Assert.Equal(0, generated);
+    }
 
-        Assert.NotNull(parseWarning);
-        Assert.Equal(DiagnosticSeverity.Warning, parseWarning.Severity);
+    [Theory]
+    [InlineData(".atc-rest-api-client")]
+    [InlineData(".atc-rest-api-server")]
+    [InlineData(".atc-rest-api-server-handlers")]
+    public void Generator_TwoMarkerFilesOfOneKind_ReportsGEN020Error_AndGeneratesNothing(
+        string markerFileName)
+    {
+        var first = Path.Combine("Api", markerFileName);
+        var second = Path.Combine("Api", "Legacy", markerFileName);
+        var (diagnostics, generated) = RunGenerator(
+            GeneratorFor(markerFileName),
+            [(first, "{}"), (second, "{}")]);
+
+        var error = Assert.Single(diagnostics, d => string.Equals(d.Id, Generator.RuleIdentifiers.MultipleMarkerFiles, StringComparison.Ordinal));
+        Assert.Equal(DiagnosticSeverity.Error, error.Severity);
+        var message = error.GetMessage(CultureInfo.InvariantCulture);
+        Assert.Contains(first, message, StringComparison.Ordinal);
+        Assert.Contains(second, message, StringComparison.Ordinal);
+        Assert.Equal(0, generated);
     }
 
     [Theory]
@@ -81,12 +100,9 @@ public class MarkerConfigDiagnosticTests
         string markerContent,
         string expectedProblem)
     {
-        // Arrange & Act
-        var diagnostics = RunGenerator(GeneratorFor(markerFileName), markerFileName, markerContent);
+        var (diagnostics, _) = RunGenerator(GeneratorFor(markerFileName), markerFileName, markerContent);
 
-        // Assert
-        var warning = Assert.Single(diagnostics, d =>
-            string.Equals(d.Id, Generator.RuleIdentifiers.MarkerConfigUnknownSetting, StringComparison.Ordinal));
+        var warning = Assert.Single(diagnostics, d => string.Equals(d.Id, Generator.RuleIdentifiers.MarkerConfigUnknownSetting, StringComparison.Ordinal));
         Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
         Assert.Equal($"The marker file '{markerFileName}': {expectedProblem}", warning.GetMessage(CultureInfo.InvariantCulture));
     }
@@ -98,12 +114,9 @@ public class MarkerConfigDiagnosticTests
         string markerFileName,
         string markerContent)
     {
-        // Arrange & Act
-        var diagnostics = RunGenerator(GeneratorFor(markerFileName), markerFileName, markerContent);
+        var (diagnostics, _) = RunGenerator(GeneratorFor(markerFileName), markerFileName, markerContent);
 
-        // Assert
-        Assert.DoesNotContain(diagnostics, d =>
-            string.Equals(d.Id, Generator.RuleIdentifiers.MarkerConfigUnknownSetting, StringComparison.Ordinal));
+        Assert.DoesNotContain(diagnostics, d => string.Equals(d.Id, Generator.RuleIdentifiers.MarkerConfigUnknownSetting, StringComparison.Ordinal));
     }
 
     private static IIncrementalGenerator GeneratorFor(string markerFileName)
@@ -114,26 +127,29 @@ public class MarkerConfigDiagnosticTests
             _ => new ApiServerGenerator(),
         };
 
-    private static ImmutableArray<Diagnostic> RunGenerator(
+    private static (ImmutableArray<Diagnostic> Diagnostics, int GeneratedSources) RunGenerator(
         IIncrementalGenerator generator,
         string markerFileName,
         string markerContent)
+        => RunGenerator(generator, [(markerFileName, markerContent)]);
+
+    private static (ImmutableArray<Diagnostic> Diagnostics, int GeneratedSources) RunGenerator(
+        IIncrementalGenerator generator,
+        (string Path, string Content)[] markers)
     {
-        var additionalTexts = ImmutableArray.Create<AdditionalText>(
-            new InMemoryAdditionalText("Test.yaml", MinimalYaml),
-            new InMemoryAdditionalText(markerFileName, markerContent));
+        var additionalTexts = ImmutableArray.Create<AdditionalText>(new InMemoryAdditionalText("Test.yaml", MinimalYaml))
+            .AddRange(markers.Select(m => (AdditionalText)new InMemoryAdditionalText(m.Path, m.Content)));
 
         var compilation = CSharpCompilation.Create(
             "TestAssembly",
             references: [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)],
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-        CSharpGeneratorDriver
+        var driver = CSharpGeneratorDriver
             .Create(generator)
             .AddAdditionalTexts(additionalTexts)
-            .RunGeneratorsAndUpdateCompilation(
-                compilation, out _, out var generatorDiagnostics, CancellationToken.None);
+            .RunGeneratorsAndUpdateCompilation(compilation, out _, out var generatorDiagnostics, CancellationToken.None);
 
-        return generatorDiagnostics;
+        return (generatorDiagnostics, driver.GetRunResult().GeneratedTrees.Length);
     }
 }
