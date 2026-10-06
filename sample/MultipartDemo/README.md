@@ -29,7 +29,7 @@ MultipartDemo.Merged.yaml       <-- The merged document (generated with `spec me
 |---------|---------|
 | `MultipartDemo.Api` | ASP.NET Core server with generated endpoints |
 | `MultipartDemo.Api.Contracts` | Generated server contracts (models, handlers, endpoints) |
-| `MultipartDemo.Api.Domain` | Handler implementations |
+| `MultipartDemo.Api.Domain` | Handler scaffolds - deliberately left as the generated `NotImplementedException` stubs: this sample demonstrates the merge, not the handlers (see Showcase for implemented ones) |
 | `MultipartDemo.ClientApp` | Generated typed HTTP client |
 
 ## CLI Commands

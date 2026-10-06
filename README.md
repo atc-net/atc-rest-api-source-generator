@@ -187,6 +187,10 @@ The project uses a **three-layer architecture**:
 
 **Benefits**: Testability, reusability across CLI and source generators, clear separation of concerns.
 
+## 🧪 Samples
+
+Every sample under [`sample/`](sample/README.md) builds its code at compile time from the specification next to it and runs: the Swagger Petstore in a three-operation and a full version, the Showcase (every feature, with Blazor and React apps and Playwright end-to-end tests), a multi-part specification, an IoT API with role-based authorization, and clients for third-party specifications in both client modes. The [index](sample/README.md) says what each one shows, how its host is wired and how to run it.
+
 ## ✅ Quality - how we know it works
 
 Every release is proven, not promised. The **[test-suite report](https://html-preview.github.io/?url=https://github.com/atc-net/atc-rest-api-source-generator/blob/main/docs/test-suite-report.html)** ([`docs/test-suite-report.html`](https://github.com/atc-net/atc-rest-api-source-generator/blob/main/docs/test-suite-report.html), regenerated from a real run) is the one page to read:

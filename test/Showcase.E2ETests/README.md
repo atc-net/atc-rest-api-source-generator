@@ -60,7 +60,7 @@ npx playwright test --debug                         # step-by-step debugger
 
 ## Test Coverage
 
-15 spec files covering all Showcase pages, run once per project (48 tests per project × 3 projects = 144 tests total):
+20 spec files covering all Showcase pages, run once per project (68 tests per project × 3 projects = 204 tests total):
 
 | Spec | Route | What it tests |
 |------|-------|---------------|
