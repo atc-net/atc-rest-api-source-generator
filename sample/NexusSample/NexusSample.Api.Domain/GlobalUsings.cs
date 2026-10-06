@@ -1,16 +1,26 @@
 global using System;
+global using System.Collections.Generic;
+global using System.Globalization;
+global using System.Linq;
+global using System.Runtime.CompilerServices;
 global using System.Threading;
 global using System.Threading.Tasks;
 
 global using Contoso.Data.Nexus.Api.Contracts.Generated.DeviceManagement.Handlers;
+global using Contoso.Data.Nexus.Api.Contracts.Generated.DeviceManagement.Models;
 global using Contoso.Data.Nexus.Api.Contracts.Generated.DeviceManagement.Parameters;
 global using Contoso.Data.Nexus.Api.Contracts.Generated.DeviceManagement.Results;
 global using Contoso.Data.Nexus.Api.Contracts.Generated.Devices.Handlers;
+global using Contoso.Data.Nexus.Api.Contracts.Generated.Devices.Models;
 global using Contoso.Data.Nexus.Api.Contracts.Generated.Devices.Parameters;
 global using Contoso.Data.Nexus.Api.Contracts.Generated.Devices.Results;
 global using Contoso.Data.Nexus.Api.Contracts.Generated.EdgeProvider.Handlers;
 global using Contoso.Data.Nexus.Api.Contracts.Generated.EdgeProvider.Parameters;
 global using Contoso.Data.Nexus.Api.Contracts.Generated.EdgeProvider.Results;
 global using Contoso.Data.Nexus.Api.Contracts.Generated.Insights.Handlers;
+global using Contoso.Data.Nexus.Api.Contracts.Generated.Insights.Models;
 global using Contoso.Data.Nexus.Api.Contracts.Generated.Insights.Parameters;
 global using Contoso.Data.Nexus.Api.Contracts.Generated.Insights.Results;
+global using Contoso.Data.Nexus.Api.Contracts.Generated.Models;
+
+global using NexusSample.Api.Domain.Repositories;

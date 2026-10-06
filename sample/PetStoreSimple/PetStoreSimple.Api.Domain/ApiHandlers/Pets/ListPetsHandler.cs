@@ -5,11 +5,13 @@ namespace PetStoreSimple.Api.Domain.ApiHandlers.Pets;
 /// </summary>
 public sealed class ListPetsHandler : IListPetsHandler
 {
+    private readonly PetInMemoryRepository repository;
+
+    public ListPetsHandler(PetInMemoryRepository repository)
+        => this.repository = repository;
+
     public Task<ListPetsResult> ExecuteAsync(
         ListPetsParameters parameters,
         CancellationToken cancellationToken = default)
-    {
-        // TODO: Implement listPets logic
-        throw new NotImplementedException("listPets not implemented");
-    }
+        => Task.FromResult(ListPetsResult.Ok(repository.GetAll(parameters.Limit)));
 }

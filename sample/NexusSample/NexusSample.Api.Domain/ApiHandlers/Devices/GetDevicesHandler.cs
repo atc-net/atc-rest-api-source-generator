@@ -5,11 +5,14 @@ namespace NexusSample.Api.Domain.ApiHandlers.Devices;
 /// </summary>
 public sealed class GetDevicesHandler : IGetDevicesHandler
 {
+    private readonly DeviceInMemoryRepository repository;
+
+    public GetDevicesHandler(DeviceInMemoryRepository repository)
+        => this.repository = repository;
+
     public Task<GetDevicesResult> ExecuteAsync(
         GetDevicesParameters parameters,
         CancellationToken cancellationToken = default)
-    {
-        // TODO: Implement getDevices logic
-        throw new NotImplementedException("getDevices not implemented");
-    }
+        => Task.FromResult(GetDevicesResult.Ok(
+            repository.GetIdentitiesStreaming(parameters.Filter, parameters.DeviceType, cancellationToken)));
 }
