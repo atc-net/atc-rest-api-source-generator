@@ -89,6 +89,20 @@ public class TypeScriptRetryInterceptorExtractorTests
     }
 
     [Fact]
+    public void Generate_ReadsTheFinalResponseInsideTheAttempt()
+    {
+        // The body is read while the per-attempt signal and timeout are live, so a stalled body or an abort
+        // during the read is cancelled like the request; a retried attempt's unread body is released.
+        var result = TypeScriptRetryInterceptorExtractor.Generate(headerContent: null);
+
+        Assert.Contains("export async function retryWithBackoff<T = Response>(", result, StringComparison.Ordinal);
+        Assert.Contains("read: (response: Response) => Promise<T> = (response) => Promise.resolve(response as unknown as T),", result, StringComparison.Ordinal);
+        Assert.Contains("return await read(response);", result, StringComparison.Ordinal);
+        Assert.Contains("void response.body?.cancel().catch(() => undefined);", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("lastResponse", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Generate_ResolveRetryPolicy_DoesNotRetryPostOrPatchUnlessOptedIn()
     {
         // POST/PATCH are not idempotent; "no retry" keeps the policy (and its timeout) with zero retries.

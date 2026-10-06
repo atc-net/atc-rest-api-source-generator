@@ -129,20 +129,22 @@ export class ApiClient {
       init = await interceptor(url, init);
     }
 
-    let response: Response;
     const retryPolicy = resolveRetryPolicy(method, this.retryPolicy, options?.retry);
     if (retryPolicy) {
-      // Wire the per-attempt signal through so policy.timeoutMs actually cancels the
-      // in-flight fetch and parent aborts propagate to every retry attempt.
-      response = await retryWithBackoff(
+      // Each attempt gets its own signal, so policy.timeoutMs cancels the in-flight fetch and a parent abort
+      // reaches every attempt; the body is read inside the attempt, so both cover the body read too.
+      return retryWithBackoff(
         (attemptSignal) => fetch(url, { ...init, signal: attemptSignal }),
         retryPolicy,
         options?.signal,
+        (response) => this.readResponse<T>(response, options),
       );
-    } else {
-      response = await fetch(url, init);
     }
 
+    return this.readResponse<T>(await fetch(url, init), options);
+  }
+
+  private async readResponse<T>(response: Response, options?: RequestOptions): Promise<ApiResult<T>> {
     for (const interceptor of this.options.responseInterceptors ?? []) {
       response = await interceptor(response);
     }
@@ -327,7 +329,12 @@ export class ApiClient {
       try {
         data = isText ? await response.text() : isJson ? await response.json() : await response.blob();
       } catch (parseError) {
-        return { status: 'parseError', error: parseError as Error, response };
+        // Only a malformed body is a parseError; a body read that is aborted or cut off rejects like the request.
+        if (!(parseError instanceof SyntaxError)) {
+          throw parseError;
+        }
+
+        return { status: 'parseError', error: parseError, response };
       }
       const status = response.status === 201
         ? 'created' as const

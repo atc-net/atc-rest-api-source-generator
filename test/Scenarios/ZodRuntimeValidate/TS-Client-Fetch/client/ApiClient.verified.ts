@@ -133,8 +133,10 @@ export class ApiClient {
       init = await interceptor(url, init);
     }
 
-    let response = await fetch(url, init);
+    return this.readResponse<T>(await fetch(url, init), options);
+  }
 
+  private async readResponse<T>(response: Response, options?: RequestOptions): Promise<ApiResult<T>> {
     for (const interceptor of this.options.responseInterceptors ?? []) {
       response = await interceptor(response);
     }
@@ -319,7 +321,12 @@ export class ApiClient {
       try {
         data = isText ? await response.text() : isJson ? await response.json() : await response.blob();
       } catch (parseError) {
-        return { status: 'parseError', error: parseError as Error, response };
+        // Only a malformed body is a parseError; a body read that is aborted or cut off rejects like the request.
+        if (!(parseError instanceof SyntaxError)) {
+          throw parseError;
+        }
+
+        return { status: 'parseError', error: parseError, response };
       }
 
       if (parseSchema && isJson) {

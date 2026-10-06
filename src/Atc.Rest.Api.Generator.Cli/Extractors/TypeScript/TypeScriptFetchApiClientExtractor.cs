@@ -268,26 +268,25 @@ public static class TypeScriptFetchApiClientExtractor
 
         if (hasRetry)
         {
-            sb.AppendLine("    let response: Response;");
             sb.AppendLine("    const retryPolicy = resolveRetryPolicy(method, this.retryPolicy, options?.retry);");
             sb.AppendLine("    if (retryPolicy) {");
-            sb.AppendLine("      // Wire the per-attempt signal through so policy.timeoutMs actually cancels the");
-            sb.AppendLine("      // in-flight fetch and parent aborts propagate to every retry attempt.");
-            sb.AppendLine("      response = await retryWithBackoff(");
+            sb.AppendLine("      // Each attempt gets its own signal, so policy.timeoutMs cancels the in-flight fetch and a parent abort");
+            sb.AppendLine("      // reaches every attempt; the body is read inside the attempt, so both cover the body read too.");
+            sb.AppendLine("      return retryWithBackoff(");
             sb.AppendLine("        (attemptSignal) => fetch(url, { ...init, signal: attemptSignal }),");
             sb.AppendLine("        retryPolicy,");
             sb.AppendLine("        options?.signal,");
+            sb.AppendLine("        (response) => this.readResponse<T>(response, options),");
             sb.AppendLine("      );");
-            sb.AppendLine("    } else {");
-            sb.AppendLine("      response = await fetch(url, init);");
             sb.AppendLine("    }");
-        }
-        else
-        {
-            sb.AppendLine("    let response = await fetch(url, init);");
+            sb.AppendLine();
         }
 
+        sb.AppendLine("    return this.readResponse<T>(await fetch(url, init), options);");
+        sb.AppendLine("  }");
         sb.AppendLine();
+
+        sb.AppendLine("  private async readResponse<T>(response: Response, options?: RequestOptions): Promise<ApiResult<T>> {");
         sb.AppendLine("    for (const interceptor of this.options.responseInterceptors ?? []) {");
         sb.AppendLine("      response = await interceptor(response);");
         sb.AppendLine("    }");
@@ -518,7 +517,12 @@ public static class TypeScriptFetchApiClientExtractor
         sb.AppendLine("      try {");
         sb.Append("        data = isText ? await response.text() : isJson ? ").Append(parseJson).AppendLine(" : await response.blob();");
         sb.AppendLine("      } catch (parseError) {");
-        sb.AppendLine("        return { status: 'parseError', error: parseError as Error, response };");
+        sb.AppendLine("        // Only a malformed body is a parseError; a body read that is aborted or cut off rejects like the request.");
+        sb.AppendLine("        if (!(parseError instanceof SyntaxError)) {");
+        sb.AppendLine("          throw parseError;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        return { status: 'parseError', error: parseError, response };");
         sb.AppendLine("      }");
 
         if (hasWireNames)

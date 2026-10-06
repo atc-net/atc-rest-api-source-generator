@@ -48,13 +48,30 @@ public class TypeScriptFetchApiClientExtractorTests
     public void Generate_SuccessPath_WrapsJsonParseInTryCatch()
     {
         // A 200 OK response with malformed JSON used to bubble a raw SyntaxError. Wrap
-        // the parse so the discriminated 'parseError' ApiResult arm fires instead.
+        // the parse so the discriminated 'parseError' ApiResult arm fires instead. Only a
+        // malformed body is a parseError: an aborted or cut-off body read rejects like the request.
         var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null);
 
         Assert.Contains(
-            "return { status: 'parseError', error: parseError as Error, response };",
+            "return { status: 'parseError', error: parseError, response };",
             result,
             StringComparison.Ordinal);
+        Assert.Contains(
+            "if (!(parseError instanceof SyntaxError)) {\n          throw parseError;",
+            result.Replace("\r\n", "\n", StringComparison.Ordinal),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generate_WithRetry_ReadsTheBodyInsideTheAttempt()
+    {
+        // The response interceptors and handleResponse run inside the attempt, so the per-attempt
+        // timeout and the caller's signal cover the body read, not only the request.
+        var result = TypeScriptFetchApiClientExtractor.Generate(headerContent: null, hasRetry: true);
+
+        Assert.Contains("(response) => this.readResponse<T>(response, options),", result, StringComparison.Ordinal);
+        Assert.Contains("return this.readResponse<T>(await fetch(url, init), options);", result, StringComparison.Ordinal);
+        Assert.Contains("private async readResponse<T>(response: Response, options?: RequestOptions): Promise<ApiResult<T>> {", result, StringComparison.Ordinal);
     }
 
     [Fact]
