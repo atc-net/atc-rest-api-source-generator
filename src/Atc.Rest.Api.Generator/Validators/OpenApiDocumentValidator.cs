@@ -86,6 +86,7 @@ public static class OpenApiDocumentValidator
         diagnostics.AddRange(DanglingReferenceValidator.Validate(document, sourceFilePath));
         diagnostics.AddRange(ValidateParameterSchemas(document, sourceFilePath));
         diagnostics.AddRange(ValidateNullOnlyTypes(document, sourceFilePath));
+        diagnostics.AddRange(SchemaConstraintValidator.Validate(document, sourceFilePath));
         diagnostics.AddRange(ValidateNoOperations(document, sourceFilePath));
 
         if (strategy == ValidateSpecificationStrategy.None)

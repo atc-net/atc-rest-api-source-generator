@@ -504,6 +504,15 @@ public static class RuleIdentifiers
     /// </summary>
     public const string SchemaTypeOnlyNull = "ATC_API_SCH024";
 
+    /// <summary>
+    /// ATC_API_SCH025: A schema constraint the generated code cannot carry - bounds the wrong way round
+    /// (minLength past maxLength, minimum past maximum, minItems past maxItems), a bound that is no finite number,
+    /// a 'pattern' that is no regular expression, an integer enum with a member that is no integer, an enum with no
+    /// member but null. The generated attribute would throw at run time, or a type be named that is never generated.
+    /// Error, every strategy.
+    /// </summary>
+    public const string SchemaConstraintNotGeneratable = "ATC_API_SCH025";
+
     // ========== Path Rules (PTH) ==========
 
     /// <summary>
