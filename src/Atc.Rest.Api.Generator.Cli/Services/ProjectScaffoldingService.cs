@@ -103,20 +103,20 @@ public sealed class ProjectScaffoldingService
             if (!Directory.Exists(srcPath))
             {
                 Directory.CreateDirectory(srcPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created directory: src/");
+                AnsiConsole.MarkupLine("[green]✓[/] Created directory: src/");
             }
 
             if (!Directory.Exists(testPath))
             {
                 Directory.CreateDirectory(testPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created directory: test/");
+                AnsiConsole.MarkupLine("[green]✓[/] Created directory: test/");
             }
 
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating directory structure: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating directory structure: {ex.Message}");
             return false;
         }
     }
@@ -168,17 +168,17 @@ public sealed class ProjectScaffoldingService
 
             if (File.Exists(slnxPath))
             {
-                AnsiConsole.MarkupLine($"[dim]✓[/] Solution file already exists: {solutionName}.slnx");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Solution file already exists: {solutionName}.slnx");
                 return true;
             }
 
             File.WriteAllText(slnxPath, sb.ToString());
-            AnsiConsole.MarkupLine($"[green]✓[/] Created solution file: {solutionName}.slnx");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created solution file: {solutionName}.slnx");
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating solution file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating solution file: {ex.Message}");
             return false;
         }
     }
@@ -210,7 +210,7 @@ public sealed class ProjectScaffoldingService
             {
                 var csprojContent = GenerateTestProjectContent(projectName);
                 File.WriteAllText(csprojPath, csprojContent);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created test project: {testProjectName}.csproj");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created test project: {testProjectName}.csproj");
 
                 // Create a sample test file
                 var testFilePath = Path.Combine(testProjectPath, "UnitTest1.cs");
@@ -218,19 +218,19 @@ public sealed class ProjectScaffoldingService
                 {
                     var testContent = GenerateTestFileContent(testProjectName);
                     File.WriteAllText(testFilePath, testContent);
-                    AnsiConsole.MarkupLine($"[green]✓[/] Created sample test: UnitTest1.cs");
+                    AnsiConsole.MarkupLine("[green]✓[/] Created sample test: UnitTest1.cs");
                 }
             }
             else
             {
-                AnsiConsole.MarkupLine($"[dim]✓[/] Test project already exists: {testProjectName}.csproj");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Test project already exists: {testProjectName}.csproj");
             }
 
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating test project: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating test project: {ex.Message}");
             return false;
         }
     }
@@ -271,7 +271,7 @@ public sealed class ProjectScaffoldingService
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error adding coding rules files: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error adding coding rules files: {ex.Message}");
             return false;
         }
     }
@@ -333,10 +333,10 @@ public sealed class ProjectScaffoldingService
 
             if (process.ExitCode != 0)
             {
-                AnsiConsole.MarkupLine($"[yellow]![/] atc-coding-rules-updater exited with code {process.ExitCode}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] atc-coding-rules-updater exited with code {process.ExitCode}");
                 if (!string.IsNullOrWhiteSpace(error))
                 {
-                    AnsiConsole.MarkupLine($"[dim]{Markup.Escape(error.Trim())}[/]");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]{error.Trim()}[/]");
                 }
 
                 return true; // Don't fail the whole process, just warn
@@ -347,7 +347,7 @@ public sealed class ProjectScaffoldingService
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[yellow]![/] Could not run atc-coding-rules-updater: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Could not run atc-coding-rules-updater: {ex.Message}");
             AnsiConsole.MarkupLine("[dim]Run './atc-coding-rules-updater.ps1' manually to download coding rules.[/]");
             return true; // Don't fail the whole process, just warn
         }
@@ -376,7 +376,7 @@ public sealed class ProjectScaffoldingService
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating .gitignore: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating .gitignore: {ex.Message}");
             return false;
         }
     }
@@ -413,7 +413,7 @@ public sealed class ProjectScaffoldingService
             if (!Directory.Exists(hostProjectPath))
             {
                 Directory.CreateDirectory(hostProjectPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created directory: {hostProjectName}/");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created directory: {hostProjectName}/");
             }
 
             // Create .csproj file
@@ -426,11 +426,11 @@ public sealed class ProjectScaffoldingService
                     hostUi,
                     hostNamespace);
                 File.WriteAllText(csprojPath, csprojContent);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {hostProjectName}.csproj");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {hostProjectName}.csproj");
             }
             else
             {
-                AnsiConsole.MarkupLine($"[dim]✓[/] Project file already exists: {hostProjectName}.csproj");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Project file already exists: {hostProjectName}.csproj");
             }
 
             // Create Program.cs file
@@ -464,7 +464,7 @@ public sealed class ProjectScaffoldingService
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating host project: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating host project: {ex.Message}");
             return false;
         }
     }
@@ -493,7 +493,7 @@ public sealed class ProjectScaffoldingService
             if (!Directory.Exists(aspireProjectPath))
             {
                 Directory.CreateDirectory(aspireProjectPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created directory: {aspireProjectName}/");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created directory: {aspireProjectName}/");
             }
 
             // Create .csproj file
@@ -501,11 +501,11 @@ public sealed class ProjectScaffoldingService
             {
                 var csprojContent = GenerateAspireProjectContent(apiProjectName, targetFramework);
                 File.WriteAllText(csprojPath, csprojContent);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {aspireProjectName}.csproj");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {aspireProjectName}.csproj");
             }
             else
             {
-                AnsiConsole.MarkupLine($"[dim]✓[/] Project file already exists: {aspireProjectName}.csproj");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Project file already exists: {aspireProjectName}.csproj");
             }
 
             // Create Program.cs file
@@ -524,7 +524,7 @@ public sealed class ProjectScaffoldingService
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating Aspire project: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating Aspire project: {ex.Message}");
             return false;
         }
     }

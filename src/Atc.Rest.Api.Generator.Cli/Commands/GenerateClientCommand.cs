@@ -48,7 +48,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Error:[/] {ex.Message}");
             return 1;
         }
 
@@ -59,15 +59,15 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         // Apply CLI argument overrides
         var clientConfig = ApplyCliOverrides(options, settings);
 
-        AnsiConsole.MarkupLine($"[blue]Specification:[/] {specPath}");
-        AnsiConsole.MarkupLine($"[blue]Output path:[/] {outputPath}");
-        AnsiConsole.MarkupLine($"[blue]Project name:[/] {projectName}");
-        AnsiConsole.MarkupLine($"[blue]Validation mode:[/] {clientConfig.ValidateSpecificationStrategy}");
-        AnsiConsole.MarkupLine($"[blue]Generation mode:[/] {clientConfig.GenerationMode}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Specification:[/] {specPath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Output path:[/] {outputPath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Project name:[/] {projectName}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Validation mode:[/] {clientConfig.ValidateSpecificationStrategy}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Generation mode:[/] {clientConfig.GenerationMode}");
 
         if (!string.IsNullOrWhiteSpace(clientConfig.Namespace))
         {
-            AnsiConsole.MarkupLine($"[blue]Namespace:[/] {clientConfig.Namespace}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Namespace:[/] {clientConfig.Namespace}");
         }
 
         AnsiConsole.WriteLine();
@@ -113,7 +113,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                     foreach (var diagnostic in merge.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
                     {
                         var location = diagnostic.FilePath is null ? string.Empty : " (" + Path.GetFileName(diagnostic.FilePath) + ")";
-                        AnsiConsole.MarkupLine($"  [red][[{diagnostic.RuleId}]] {Markup.Escape(diagnostic.Message + location)}[/]");
+                        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red][[{diagnostic.RuleId}]] {diagnostic.Message + location}[/]");
                     }
 
                     return 1;
@@ -147,12 +147,12 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                     if (!Directory.Exists(outputPath))
                     {
                         Directory.CreateDirectory(outputPath);
-                        AnsiConsole.MarkupLine($"[green]✓[/] Created output directory: {outputPath}");
+                        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    AnsiConsole.MarkupLine($"[red]✗[/] Error creating output directory: {ex.Message}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating output directory: {ex.Message}");
                     return 1;
                 }
 
@@ -236,11 +236,11 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             {
                 var reportPath = Path.Combine(outputPath, ".generation-report.md");
                 ReportService.WriteToFile(finalStats, reportPath);
-                AnsiConsole.MarkupLine($"[dim]Report written to: {reportPath}[/]");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]Report written to: {reportPath}[/]");
             }
         }
 
-        AnsiConsole.MarkupLine($"[dim]Run 'dotnet build' in {outputPath} to generate the client code.[/]");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]Run 'dotnet build' in {outputPath} to generate the client code.[/]");
 
         return 0;
     }
@@ -346,8 +346,8 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
             var fileName = Path.GetFileName(csprojFile);
             if (!fileName.Equals(expectedCsprojName, StringComparison.OrdinalIgnoreCase))
             {
-                AnsiConsole.MarkupLine($"[red]✗[/] Output directory contains a different project file: {fileName}");
-                AnsiConsole.MarkupLine($"  [red]Expected:[/] {expectedCsprojName}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Output directory contains a different project file: {fileName}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]Expected:[/] {expectedCsprojName}");
                 AnsiConsole.MarkupLine("  [yellow]Please use a different output directory or project name.[/]");
                 return false;
             }
@@ -398,25 +398,25 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
                 if (sourceLastWrite <= destLastWrite)
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Specification file up to date: {fileName}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Specification file up to date: {fileName}");
                     return true;
                 }
 
                 // Source is newer, update the file
                 File.Copy(sourcePath, destinationPath, overwrite: true);
-                AnsiConsole.MarkupLine($"[green]✓[/] Updated specification file: {fileName}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated specification file: {fileName}");
             }
             else
             {
                 File.Copy(sourcePath, destinationPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Copied specification file: {fileName}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Copied specification file: {fileName}");
             }
 
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error copying specification file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error copying specification file: {ex.Message}");
             return false;
         }
     }
@@ -438,24 +438,24 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                 var existingContent = File.ReadAllText(markerFilePath);
                 if (existingContent.Trim() == json.Trim())
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Marker file up to date: {Constants.MarkerFile.Client}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Marker file up to date: {Constants.MarkerFile.Client}");
                     return true;
                 }
 
                 File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Updated marker file: {Constants.MarkerFile.Client}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated marker file: {Constants.MarkerFile.Client}");
             }
             else
             {
                 File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created marker file: {Constants.MarkerFile.Client}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created marker file: {Constants.MarkerFile.Client}");
             }
 
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating marker file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating marker file: {ex.Message}");
             return false;
         }
     }
@@ -482,7 +482,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
                     UpdateProjectFileIfNeeded(csprojPath, partFileName);
                 }
 
-                AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
             {
@@ -494,11 +494,11 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
 
                 if (updated)
                 {
-                    AnsiConsole.MarkupLine($"[green]✓[/] Updated project file: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated project file: {projectName}.csproj");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Project file up to date: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Project file up to date: {projectName}.csproj");
                 }
             }
 
@@ -506,7 +506,7 @@ public sealed class GenerateClientCommand : Command<GenerateClientCommandSetting
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating/updating project file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating/updating project file: {ex.Message}");
             return false;
         }
     }

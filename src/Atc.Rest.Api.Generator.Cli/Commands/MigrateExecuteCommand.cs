@@ -182,12 +182,12 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
         if (!string.IsNullOrEmpty(globalUsingsResult.Error))
         {
-            AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(globalUsingsResult.Error)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {globalUsingsResult.Error}");
         }
 
         if (!string.IsNullOrEmpty(programResult.Error))
         {
-            AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(programResult.Error)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {programResult.Error}");
         }
     }
 
@@ -212,11 +212,11 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         var solutionPath = Path.GetFullPath(settings.SolutionPath);
         var specPath = Path.GetFullPath(settings.SpecificationPath);
 
-        AnsiConsole.MarkupLine($"[blue]Solution:[/]      {Markup.Escape(solutionPath)}");
-        AnsiConsole.MarkupLine($"[blue]Specification:[/] {Markup.Escape(specPath)}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Solution:[/]      {solutionPath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Specification:[/] {specPath}");
         foreach (var note in settings.PathNotes)
         {
-            AnsiConsole.MarkupLine($"[yellow]Note:[/]          {Markup.Escape(note)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Note:[/]          {note}");
         }
 
         if (settings.DryRun)
@@ -242,7 +242,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
                 AnsiConsole.MarkupLine("[red]✗ Project cannot be migrated. Please fix the blocking issues first.[/]");
                 foreach (var issue in report.BlockingIssues)
                 {
-                    AnsiConsole.MarkupLine($"  [red]•[/] {Markup.Escape(issue)}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]•[/] {issue}");
                 }
 
                 return 1;
@@ -270,7 +270,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗ Error:[/] {Markup.Escape(ex.Message)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗ Error:[/] {ex.Message}");
             return 1;
         }
     }
@@ -594,7 +594,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             }
             else if (!string.IsNullOrEmpty(result.Error))
             {
-                AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(result.Error)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {result.Error}");
             }
         }
 
@@ -615,7 +615,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             }
             else if (!string.IsNullOrEmpty(result.Error))
             {
-                AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(result.Error)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {result.Error}");
             }
         }
     }
@@ -711,7 +711,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
             if (!string.IsNullOrEmpty(addResult.Error))
             {
-                AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(addResult.Error)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {addResult.Error}");
             }
         }
 
@@ -778,7 +778,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
             if (!string.IsNullOrEmpty(result.Error))
             {
-                AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(result.Error)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] {result.Error}");
             }
         }
     }
@@ -842,7 +842,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Files to Create[/]");
             foreach (var file in summary.CreatedFiles)
             {
-                AnsiConsole.MarkupLine($"  [green]+[/] {Markup.Escape(file)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [green]+[/] {file}");
             }
 
             AnsiConsole.WriteLine();
@@ -853,12 +853,12 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Files/Folders to Delete[/]");
             foreach (var folder in summary.DeletedFolders)
             {
-                AnsiConsole.MarkupLine($"  [red]-[/] {Markup.Escape(folder)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]-[/] {folder}");
             }
 
             foreach (var file in summary.DeletedFiles)
             {
-                AnsiConsole.MarkupLine($"  [red]-[/] {Markup.Escape(file)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]-[/] {file}");
             }
 
             AnsiConsole.WriteLine();
@@ -866,15 +866,15 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
         if (summary.CallShapeFindings.Count > 0)
         {
-            AnsiConsole.MarkupLine($"[blue]Code written for the old generator's shapes ({summary.CallShapeFindings.Count}, best-effort - review each)[/]");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Code written for the old generator's shapes ({summary.CallShapeFindings.Count}, best-effort - review each)[/]");
             foreach (var finding in summary.CallShapeFindings.Take(100))
             {
-                AnsiConsole.MarkupLine($"  [yellow]![/] {Markup.Escape(finding)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]![/] {finding}");
             }
 
             if (summary.CallShapeFindings.Count > 100)
             {
-                AnsiConsole.MarkupLine($"  [dim]... and {summary.CallShapeFindings.Count - 100} more[/]");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]... and {summary.CallShapeFindings.Count - 100} more[/]");
             }
 
             AnsiConsole.WriteLine();
@@ -885,7 +885,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Packages the source generator makes obsolete (remove them when nothing else uses them)[/]");
             foreach (var package in summary.ObsoletePackages)
             {
-                AnsiConsole.MarkupLine($"  [yellow]![/] {Markup.Escape(package)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]![/] {package}");
             }
 
             AnsiConsole.WriteLine();
@@ -896,7 +896,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Hand-written files kept in the generated folders (move them where they belong)[/]");
             foreach (var file in summary.PreservedFiles)
             {
-                AnsiConsole.MarkupLine($"  [yellow]![/] {Markup.Escape(file)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]![/] {file}");
             }
 
             AnsiConsole.WriteLine();
@@ -907,7 +907,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Files to Modify[/]");
             foreach (var file in summary.ModifiedFiles.Distinct(StringComparer.Ordinal))
             {
-                AnsiConsole.MarkupLine($"  [yellow]~[/] {Markup.Escape(file)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]~[/] {file}");
             }
 
             AnsiConsole.WriteLine();
@@ -918,7 +918,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Projects to Rename[/]");
             foreach (var rename in summary.RenamedProjects)
             {
-                AnsiConsole.MarkupLine($"  [cyan]↳[/] {Markup.Escape(rename)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [cyan]↳[/] {rename}");
             }
 
             AnsiConsole.WriteLine();
@@ -929,7 +929,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Project References to Update[/]");
             foreach (var reference in summary.UpdatedReferences)
             {
-                AnsiConsole.MarkupLine($"  [cyan]↳[/] {Markup.Escape(reference)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [cyan]↳[/] {reference}");
             }
 
             AnsiConsole.WriteLine();
@@ -940,7 +940,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]GlobalUsings.cs Namespace Updates[/]");
             foreach (var update in summary.UpdatedGlobalUsings)
             {
-                AnsiConsole.MarkupLine($"  [cyan]↳[/] {Markup.Escape(update)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [cyan]↳[/] {update}");
             }
 
             AnsiConsole.WriteLine();
@@ -949,21 +949,21 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         if (summary.DirectoryBuildPropsUpgraded)
         {
             AnsiConsole.MarkupLine("[blue]Directory.Build.props Upgrade[/]");
-            AnsiConsole.MarkupLine($"  [cyan]↳[/] TargetFramework → {summary.UpgradedTargetFramework}");
-            AnsiConsole.MarkupLine($"  [cyan]↳[/] LangVersion → {summary.UpgradedLangVersion}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [cyan]↳[/] TargetFramework → {summary.UpgradedTargetFramework}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [cyan]↳[/] LangVersion → {summary.UpgradedLangVersion}");
             AnsiConsole.WriteLine();
         }
 
         if (summary.DomainCodeUpdates.Count > 0)
         {
-            AnsiConsole.MarkupLine($"[blue]Domain Code Namespace Updates ({summary.DomainCodeTotalReplacements} replacements)[/]");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Domain Code Namespace Updates ({summary.DomainCodeTotalReplacements} replacements)[/]");
             foreach (var fileUpdate in summary.DomainCodeUpdates)
             {
                 var relativePath = Path.GetFileName(fileUpdate.FilePath);
-                AnsiConsole.MarkupLine($"  [yellow]~[/] {Markup.Escape(relativePath)} ({fileUpdate.Replacements.Count} replacements)");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]~[/] {relativePath} ({fileUpdate.Replacements.Count} replacements)");
                 foreach (var replacement in fileUpdate.Replacements)
                 {
-                    AnsiConsole.MarkupLine($"    [cyan]↳[/] {Markup.Escape(replacement)}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"    [cyan]↳[/] {replacement}");
                 }
             }
 
@@ -975,7 +975,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Host Project Updates[/]");
             foreach (var update in summary.HostProjectUpdates)
             {
-                AnsiConsole.MarkupLine($"  [cyan]↳[/] {Markup.Escape(update)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [cyan]↳[/] {update}");
             }
 
             AnsiConsole.WriteLine();
@@ -986,7 +986,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.MarkupLine("[blue]Parameter Name Migrations[/]");
             foreach (var migration in summary.ParameterMigrations)
             {
-                AnsiConsole.MarkupLine($"  [cyan]↳[/] {Markup.Escape(migration)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [cyan]↳[/] {migration}");
             }
 
             AnsiConsole.WriteLine();
@@ -998,11 +998,11 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
             AnsiConsole.WriteLine();
         }
 
-        AnsiConsole.MarkupLine($"[dim]Summary: " +
-                               $"{summary.CreatedFiles.Count} create, " +
-                               $"{summary.DeletedFolders.Count + summary.DeletedFiles.Count} delete, " +
-                               $"{summary.ModifiedFiles.Distinct(StringComparer.Ordinal).Count()} modify, " +
-                               $"{summary.RenamedProjects.Count} rename[/]");
+        var deleteCount = summary.DeletedFolders.Count + summary.DeletedFiles.Count;
+        var modifyCount = summary.ModifiedFiles.Distinct(StringComparer.Ordinal).Count();
+        AnsiConsole.MarkupLineInterpolated(
+            CultureInfo.InvariantCulture,
+            $"[dim]Summary: {summary.CreatedFiles.Count} create, {deleteCount} delete, {modifyCount} modify, {summary.RenamedProjects.Count} rename[/]");
     }
 
     private static MigrationValidationReport RunValidation(
@@ -1107,7 +1107,7 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
 
         if (gitStatus.GitCommandFailed)
         {
-            AnsiConsole.MarkupLine($"[yellow]![/] Git command failed: {gitStatus.ErrorMessage}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Git command failed: {gitStatus.ErrorMessage}");
             return true;
         }
 
@@ -1115,14 +1115,14 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         {
             if (dryRun)
             {
-                AnsiConsole.MarkupLine($"[yellow]⚠ Git status: {gitStatus.UncommittedFiles.Count} uncommitted changes detected[/]");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]⚠ Git status: {gitStatus.UncommittedFiles.Count} uncommitted changes detected[/]");
                 AnsiConsole.MarkupLine("  [dim](Use --force to skip this check)[/]");
                 return true;
             }
 
             if (force)
             {
-                AnsiConsole.MarkupLine($"[yellow]⚠ Git status: {gitStatus.UncommittedFiles.Count} uncommitted changes (--force specified)[/]");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]⚠ Git status: {gitStatus.UncommittedFiles.Count} uncommitted changes (--force specified)[/]");
                 return true;
             }
 
@@ -1139,12 +1139,12 @@ public sealed class MigrateExecuteCommand : Command<MigrateExecuteCommandSetting
         AnsiConsole.MarkupLine("[yellow]![/] Target framework and language version upgrade required");
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("[dim]Current configuration:[/]");
-        AnsiConsole.MarkupLine($"  • Target framework: {report.TargetFramework.CurrentTargetFramework ?? "unknown"} → {TargetFrameworkResult.RequiredTargetFramework}");
-        AnsiConsole.MarkupLine($"  • Language version: C# {report.TargetFramework.CurrentLangVersion ?? "unknown"} → C# {TargetFrameworkResult.RequiredLangVersion}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  • Target framework: {report.TargetFramework.CurrentTargetFramework ?? "unknown"} → {TargetFrameworkResult.RequiredTargetFramework}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  • Language version: C# {report.TargetFramework.CurrentLangVersion ?? "unknown"} → C# {TargetFrameworkResult.RequiredLangVersion}");
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine($"The source generator requires .NET 10 with C# {TargetFrameworkResult.RequiredLangVersion}. Migration will update:");
-        AnsiConsole.MarkupLine($"  • Directory.Build.props: TargetFramework → {TargetFrameworkResult.RequiredTargetFramework}");
-        AnsiConsole.MarkupLine($"  • Directory.Build.props: LangVersion → {TargetFrameworkResult.RequiredLangVersion}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"The source generator requires .NET 10 with C# {TargetFrameworkResult.RequiredLangVersion}. Migration will update:");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  • Directory.Build.props: TargetFramework → {TargetFrameworkResult.RequiredTargetFramework}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  • Directory.Build.props: LangVersion → {TargetFrameworkResult.RequiredLangVersion}");
         AnsiConsole.WriteLine();
 
         return AnsiConsole.Confirm("Do you want to proceed with the upgrade?", defaultValue: true);

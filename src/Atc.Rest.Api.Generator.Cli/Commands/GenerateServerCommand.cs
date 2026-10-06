@@ -50,7 +50,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Error:[/] {ex.Message}");
             return 1;
         }
 
@@ -104,32 +104,32 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             ? Path.Combine(srcPath, domainProjectName)
             : Path.GetFullPath(settings.DomainOutputPath);
 
-        AnsiConsole.MarkupLine($"[blue]Specification:[/] {specPath}");
-        AnsiConsole.MarkupLine($"[blue]Project structure:[/] {scaffoldingConfig.ProjectStructure}");
-        AnsiConsole.MarkupLine($"[blue]Repository root:[/] {outputPath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Specification:[/] {specPath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Project structure:[/] {scaffoldingConfig.ProjectStructure}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Repository root:[/] {outputPath}");
 
         if (isThreeProjects)
         {
-            AnsiConsole.MarkupLine($"[blue]Host project:[/] {hostProjectName}");
-            AnsiConsole.MarkupLine($"[blue]Contracts project:[/] {contractsProjectName}");
-            AnsiConsole.MarkupLine($"[blue]Domain project:[/] {domainProjectName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Host project:[/] {hostProjectName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Contracts project:[/] {contractsProjectName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Domain project:[/] {domainProjectName}");
         }
         else if (isTwoProjects)
         {
-            AnsiConsole.MarkupLine($"[blue]Host+Contracts project:[/] {contractsProjectName}");
-            AnsiConsole.MarkupLine($"[blue]Domain project:[/] {domainProjectName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Host+Contracts project:[/] {contractsProjectName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Domain project:[/] {domainProjectName}");
         }
         else
         {
-            AnsiConsole.MarkupLine($"[blue]Project:[/] {contractsProjectName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Project:[/] {contractsProjectName}");
         }
 
-        AnsiConsole.MarkupLine($"[blue]Validation mode:[/] {serverConfig.ValidateSpecificationStrategy}");
-        AnsiConsole.MarkupLine($"[blue]Versioning strategy:[/] {serverConfig.VersioningStrategy}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Validation mode:[/] {serverConfig.ValidateSpecificationStrategy}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Versioning strategy:[/] {serverConfig.VersioningStrategy}");
 
         if (!string.IsNullOrWhiteSpace(serverConfig.Namespace))
         {
-            AnsiConsole.MarkupLine($"[blue]Namespace:[/] {serverConfig.Namespace}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Namespace:[/] {serverConfig.Namespace}");
         }
 
         if (scaffoldingConfig.NoCodingRules)
@@ -355,7 +355,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             {
                 var reportPath = Path.Combine(outputPath, ".generation-report.md");
                 ReportService.WriteToFile(finalStats, reportPath);
-                AnsiConsole.MarkupLine($"[dim]Report written to: {reportPath}[/]");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]Report written to: {reportPath}[/]");
             }
         }
 
@@ -599,12 +599,12 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             if (!Directory.Exists(outputPath))
             {
                 Directory.CreateDirectory(outputPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created output directory: {outputPath}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
             }
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating output directory: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating output directory: {ex.Message}");
             return false;
         }
 
@@ -624,7 +624,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         else
         {
             var specFileName = Path.GetFileName(specPath);
-            AnsiConsole.MarkupLine($"[dim]✓[/] Using existing specification: {specFileName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Using existing specification: {specFileName}");
         }
 
         // Build list of relative spec paths for the project file
@@ -681,12 +681,12 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             if (!Directory.Exists(outputPath))
             {
                 Directory.CreateDirectory(outputPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created output directory: {outputPath}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
             }
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating output directory: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating output directory: {ex.Message}");
             return false;
         }
 
@@ -706,7 +706,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         else
         {
             var specFileName = Path.GetFileName(specPath);
-            AnsiConsole.MarkupLine($"[dim]✓[/] Using existing specification: {specFileName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Using existing specification: {specFileName}");
         }
 
         // Build list of relative spec paths for the project file
@@ -766,12 +766,12 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             if (!Directory.Exists(outputPath))
             {
                 Directory.CreateDirectory(outputPath);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created output directory: {outputPath}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created output directory: {outputPath}");
             }
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating output directory: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating output directory: {ex.Message}");
             return false;
         }
 
@@ -791,7 +791,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         else
         {
             var specFileName = Path.GetFileName(specPath);
-            AnsiConsole.MarkupLine($"[dim]✓[/] Using existing specification: {specFileName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Using existing specification: {specFileName}");
         }
 
         // Build list of relative spec paths for the project file
@@ -849,8 +849,8 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             var fileName = Path.GetFileName(csprojFile);
             if (!fileName.Equals(expectedCsprojName, StringComparison.OrdinalIgnoreCase))
             {
-                AnsiConsole.MarkupLine($"[red]✗[/] Output directory contains a different project file: {fileName}");
-                AnsiConsole.MarkupLine($"  [red]Expected:[/] {expectedCsprojName}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Output directory contains a different project file: {fileName}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]Expected:[/] {expectedCsprojName}");
                 AnsiConsole.MarkupLine("  [yellow]Please use a different output directory or project name.[/]");
                 return false;
             }
@@ -934,11 +934,11 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                     File.GetLastWriteTimeUtc(sourcePath) > File.GetLastWriteTimeUtc(destPath))
                 {
                     File.Copy(sourcePath, destPath, overwrite: true);
-                    AnsiConsole.MarkupLine($"[green]✓[/] Copied specification file to ScriptsAndSpecifications/{fileName}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Copied specification file to ScriptsAndSpecifications/{fileName}");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Specification file up to date: ScriptsAndSpecifications/{fileName}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Specification file up to date: ScriptsAndSpecifications/{fileName}");
                 }
             }
 
@@ -946,7 +946,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error copying specification files: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error copying specification files: {ex.Message}");
             return false;
         }
     }
@@ -975,12 +975,12 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 {
                     Directory.CreateDirectory(specBasePath);
                     File.Copy(source, destination, overwrite: true);
-                    AnsiConsole.MarkupLine($"[green]✓[/] Copied overlay next to the specification: {fileName}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Copied overlay next to the specification: {fileName}");
                 }
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[red]✗[/] Error copying overlay {fileName}: {ex.Message}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error copying overlay {fileName}: {ex.Message}");
                 return null;
             }
 
@@ -1022,24 +1022,24 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 var existingContent = File.ReadAllText(markerFilePath);
                 if (existingContent.Trim() == json.Trim())
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Marker file up to date: {Constants.MarkerFile.Server}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Marker file up to date: {Constants.MarkerFile.Server}");
                     return true;
                 }
 
                 File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Updated marker file: {Constants.MarkerFile.Server}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated marker file: {Constants.MarkerFile.Server}");
             }
             else
             {
                 File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created marker file: {Constants.MarkerFile.Server}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created marker file: {Constants.MarkerFile.Server}");
             }
 
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating marker file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating marker file: {ex.Message}");
             return false;
         }
     }
@@ -1061,24 +1061,24 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
                 var existingContent = File.ReadAllText(markerFilePath);
                 if (existingContent.Trim() == json.Trim())
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Marker file up to date: {Constants.MarkerFile.ServerHandlers}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Marker file up to date: {Constants.MarkerFile.ServerHandlers}");
                     return true;
                 }
 
                 File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Updated marker file: {Constants.MarkerFile.ServerHandlers}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated marker file: {Constants.MarkerFile.ServerHandlers}");
             }
             else
             {
                 File.WriteAllText(markerFilePath, json);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created marker file: {Constants.MarkerFile.ServerHandlers}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created marker file: {Constants.MarkerFile.ServerHandlers}");
             }
 
             return true;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating marker file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating marker file: {ex.Message}");
             return false;
         }
     }
@@ -1097,18 +1097,18 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             {
                 var csprojContent = GenerateContractsProjectFileContent(specFilePaths, sourceGeneratorVersion);
                 File.WriteAllText(csprojPath, csprojContent);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
             {
                 var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, Constants.MarkerFile.Server);
                 if (updated)
                 {
-                    AnsiConsole.MarkupLine($"[green]✓[/] Updated project file: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated project file: {projectName}.csproj");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Project file up to date: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Project file up to date: {projectName}.csproj");
                 }
             }
 
@@ -1116,7 +1116,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating/updating project file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating/updating project file: {ex.Message}");
             return false;
         }
     }
@@ -1136,18 +1136,18 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             {
                 var csprojContent = GenerateDomainProjectFileContent(specFilePaths, contractsProjectName, sourceGeneratorVersion);
                 File.WriteAllText(csprojPath, csprojContent);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
             {
                 var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, Constants.MarkerFile.ServerHandlers);
                 if (updated)
                 {
-                    AnsiConsole.MarkupLine($"[green]✓[/] Updated project file: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated project file: {projectName}.csproj");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Project file up to date: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Project file up to date: {projectName}.csproj");
                 }
             }
 
@@ -1155,7 +1155,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating/updating project file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating/updating project file: {ex.Message}");
             return false;
         }
     }
@@ -1251,18 +1251,18 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
             {
                 var csprojContent = GenerateCombinedHostContractsProjectFileContent(specFilePaths, domainProjectName, targetFramework, hostUi, sourceGeneratorVersion);
                 File.WriteAllText(csprojPath, csprojContent);
-                AnsiConsole.MarkupLine($"[green]✓[/] Created project file: {projectName}.csproj");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Created project file: {projectName}.csproj");
             }
             else
             {
                 var updated = UpdateProjectFileIfNeeded(csprojPath, specFilePaths, Constants.MarkerFile.Server);
                 if (updated)
                 {
-                    AnsiConsole.MarkupLine($"[green]✓[/] Updated project file: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Updated project file: {projectName}.csproj");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"[dim]✓[/] Project file up to date: {projectName}.csproj");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]✓[/] Project file up to date: {projectName}.csproj");
                 }
             }
 
@@ -1270,7 +1270,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating/updating project file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating/updating project file: {ex.Message}");
             return false;
         }
     }
@@ -1368,7 +1368,7 @@ public sealed class GenerateServerCommand : Command<GenerateServerCommandSetting
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error creating Program.cs: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error creating Program.cs: {ex.Message}");
             return false;
         }
     }

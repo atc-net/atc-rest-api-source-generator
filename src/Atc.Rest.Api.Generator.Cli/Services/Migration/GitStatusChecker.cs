@@ -107,24 +107,28 @@ internal static class GitStatusChecker
 
         foreach (var file in result.UncommittedFiles.Take(10))
         {
-            var statusDisplay = file.Status switch
+            var (statusColor, statusText) = file.Status switch
             {
-                "M " => "[yellow]M[/]",
-                " M" => "[yellow]M[/]",
-                "MM" => "[yellow]M[/]",
-                "A " => "[green]+[/]",
-                " A" => "[green]+[/]",
-                "D " => "[red]-[/]",
-                " D" => "[red]-[/]",
-                "??" => "[dim]?[/]",
-                _ => $"[dim]{file.Status}[/]",
+                "M " => (Color.Yellow, "M"),
+                " M" => (Color.Yellow, "M"),
+                "MM" => (Color.Yellow, "M"),
+                "A " => (Color.Green, "+"),
+                " A" => (Color.Green, "+"),
+                "D " => (Color.Red, "-"),
+                " D" => (Color.Red, "-"),
+                "??" => (Color.Grey, "?"),
+                _ => (Color.Grey, file.Status),
             };
-            AnsiConsole.MarkupLine($"  {statusDisplay} {Markup.Escape(file.FilePath)}");
+
+            // Text never parses markup, so the status and the path are printed as they are.
+            AnsiConsole.Write(new Text("  "));
+            AnsiConsole.Write(new Text(statusText, new Style(statusColor)));
+            AnsiConsole.Write(new Text($" {file.FilePath}{Environment.NewLine}"));
         }
 
         if (result.UncommittedFiles.Count > 10)
         {
-            AnsiConsole.MarkupLine($"  [dim]... and {result.UncommittedFiles.Count - 10} more files[/]");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]... and {result.UncommittedFiles.Count - 10} more files[/]");
         }
 
         AnsiConsole.WriteLine();

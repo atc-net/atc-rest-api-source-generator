@@ -36,7 +36,7 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
                 }
                 catch (Exception ex)
                 {
-                    AnsiConsole.MarkupLine($"[red]✗[/] Error during split: {Markup.Escape(ex.Message)}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error during split: {ex.Message}");
                     return 1;
                 }
             });
@@ -53,14 +53,14 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
 
         if (spec.Document is null)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Failed to parse specification: {Path.GetFileName(specPath)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Failed to parse specification: {Path.GetFileName(specPath)}");
             return 1;
         }
 
-        AnsiConsole.MarkupLine($"[blue]Source file:[/] {Path.GetFileName(specPath)}");
-        AnsiConsole.MarkupLine($"[blue]Split strategy:[/] {settings.Strategy}");
-        AnsiConsole.MarkupLine($"[blue]Extract common:[/] {(settings.ShouldExtractCommon ? "Yes" : "No")}");
-        AnsiConsole.MarkupLine($"[blue]Min operations per part:[/] {settings.MinOperations.ToString(CultureInfo.InvariantCulture)}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Source file:[/] {Path.GetFileName(specPath)}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Split strategy:[/] {settings.Strategy}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Extract common:[/] {(settings.ShouldExtractCommon ? "Yes" : "No")}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Min operations per part:[/] {settings.MinOperations.ToString(CultureInfo.InvariantCulture)}");
         AnsiConsole.WriteLine();
 
         // Split the specification
@@ -84,10 +84,10 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
 
         if (errors.Count > 0)
         {
-            AnsiConsole.MarkupLine($"[red]Split errors ({errors.Count}):[/]");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Split errors ({errors.Count}):[/]");
             foreach (var error in errors)
             {
-                AnsiConsole.MarkupLine($"  [red]•[/] {Markup.Escape(error.Message)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]•[/] {error.Message}");
             }
 
             AnsiConsole.WriteLine();
@@ -95,10 +95,10 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
 
         if (warnings.Count > 0)
         {
-            AnsiConsole.MarkupLine($"[yellow]Split warnings ({warnings.Count}):[/]");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Split warnings ({warnings.Count}):[/]");
             foreach (var warning in warnings)
             {
-                AnsiConsole.MarkupLine($"  [yellow]•[/] {Markup.Escape(warning.Message)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]•[/] {warning.Message}");
             }
 
             AnsiConsole.WriteLine();
@@ -144,10 +144,10 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
                 ? "[dim]Base[/]"
                 : file.IsCommonFile
                     ? "[dim]Common[/]"
-                    : file.PartName ?? string.Empty;
+                    : Markup.Escape(file.PartName ?? string.Empty);
 
             table.AddRow(
-                $"{fileLabel}: {file.FileName}",
+                $"{fileLabel}: {Markup.Escape(file.FileName)}",
                 file.PathCount.ToString(CultureInfo.InvariantCulture),
                 file.SchemaCount.ToString(CultureInfo.InvariantCulture),
                 file.EstimatedLines.ToString(CultureInfo.InvariantCulture));
@@ -157,8 +157,8 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
         AnsiConsole.WriteLine();
 
         // Summary
-        AnsiConsole.MarkupLine($"[blue]Total files:[/] {splitResult.AllFiles.Count.ToString(CultureInfo.InvariantCulture)}");
-        AnsiConsole.MarkupLine($"[blue]Part files:[/] {splitResult.PartFiles.Count.ToString(CultureInfo.InvariantCulture)}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Total files:[/] {splitResult.AllFiles.Count.ToString(CultureInfo.InvariantCulture)}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Part files:[/] {splitResult.PartFiles.Count.ToString(CultureInfo.InvariantCulture)}");
         if (splitResult.CommonFile is not null)
         {
             AnsiConsole.MarkupLine("[blue]Common file:[/] Yes");
@@ -172,12 +172,12 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
         foreach (var file in splitResult.AllFiles)
         {
             var header = file.IsBaseFile
-                ? "[blue]Base File[/]"
+                ? "Base File"
                 : file.IsCommonFile
-                    ? "[blue]Common File[/]"
-                    : $"[blue]Part: {file.PartName}[/]";
+                    ? "Common File"
+                    : $"Part: {file.PartName}";
 
-            AnsiConsole.MarkupLine($"{header} - {file.FileName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]{header}[/] - {file.FileName}");
             AnsiConsole.WriteLine();
 
             // Show first 20 lines of each file
@@ -193,7 +193,7 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
 
             if (file.EstimatedLines > 20)
             {
-                AnsiConsole.MarkupLine($"[dim]... ({file.EstimatedLines - 20} more lines)[/]");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]... ({file.EstimatedLines - 20} more lines)[/]");
             }
 
             AnsiConsole.WriteLine();
@@ -218,11 +218,11 @@ public sealed class SpecSplitCommand : Command<SpecSplitCommandSettings>
         {
             var outputPath = Path.Combine(outputDir, file.FileName);
             File.WriteAllText(outputPath, file.Content);
-            AnsiConsole.MarkupLine($"[green]✓[/] Written: {file.FileName}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Written: {file.FileName}");
         }
 
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine($"[green]✓ Split specification written to:[/] {outputDir}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓ Split specification written to:[/] {outputDir}");
     }
 
     private static void WriteHeader()

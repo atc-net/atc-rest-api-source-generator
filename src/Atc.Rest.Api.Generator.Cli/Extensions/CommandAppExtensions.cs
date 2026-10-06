@@ -24,12 +24,35 @@ public static class CommandAppExtensions
                 // An option the command does not have is an error, not silently ignored (a typo would do nothing)
                 config.UseStrictParsing();
 
+                config.SetExceptionHandler(ReportException);
+
                 config.AddBranch("spec", ConfigureSpecCommands());
                 config.AddBranch("generate", ConfigureGenerateCommands());
                 config.AddBranch("options", ConfigureOptionsCommands());
                 config.AddBranch("migrate", ConfigureMigrateCommands());
             });
         }
+    }
+
+    /// <summary>
+    /// Prints a parse or validation failure (or an unexpected exception) as a single red line and
+    /// exits with 1, like the commands do. The message is interpolated, never parsed as markup, so a
+    /// path or a file name with a <c>[</c> in it is printed as it is.
+    /// </summary>
+    private static int ReportException(
+        Exception exception,
+        ITypeResolver? resolver)
+    {
+        if (exception is CommandAppException { Pretty: { } pretty })
+        {
+            AnsiConsole.Write(pretty);
+        }
+        else
+        {
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Error:[/] {exception.Message}");
+        }
+
+        return 1;
     }
 
     private static Action<IConfigurator<CommandSettings>> ConfigureSpecCommands()

@@ -60,10 +60,9 @@ public static class Program
 
         AnsiConsole.WriteLine();
         AnsiConsole.Write(new Panel(
-            new Markup($"[yellow]A new version is available![/]\n\n" +
-                       $"  Current: [dim]{currentVersion}[/]\n" +
-                       $"  Latest:  [green]{latestVersion}[/]\n\n" +
-                       $"[blue]dotnet tool update --global atc-rest-api-gen[/]"))
+            Markup.FromInterpolated(
+                CultureInfo.InvariantCulture,
+                $"[yellow]A new version is available![/]\n\n  Current: [dim]{currentVersion}[/]\n  Latest:  [green]{latestVersion}[/]\n\n[blue]dotnet tool update --global atc-rest-api-gen[/]"))
             .Header("[yellow] ⬆ Update Available [/]")
             .BorderColor(Color.Yellow)
             .Padding(1, 0, 1, 0));

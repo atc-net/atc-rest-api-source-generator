@@ -12,7 +12,7 @@ public static class ReportService
     public static void WriteToConsole(GenerationStatistics stats)
     {
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine($"[blue]Generation Summary[/] ({Markup.Escape(stats.SpecificationName)}):");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Generation Summary[/] ({stats.SpecificationName}):");
 
         var table = new Table()
             .Border(TableBorder.Rounded)
@@ -31,7 +31,7 @@ public static class ReportService
         table.AddEmptyRow();
         table.AddRow(
             new Markup("[bold]Total[/]"),
-            new Markup($"[bold]{stats.TotalTypesGenerated.ToString(CultureInfo.InvariantCulture)}[/]"));
+            Markup.FromInterpolated(CultureInfo.InvariantCulture, $"[bold]{stats.TotalTypesGenerated.ToString(CultureInfo.InvariantCulture)}[/]"));
 
         AnsiConsole.Write(table);
 
@@ -106,14 +106,14 @@ public static class ReportService
             var warningIds = stats.WarningRuleIds.Count > 0
                 ? $" ({string.Join(", ", stats.WarningRuleIds)})"
                 : string.Empty;
-            AnsiConsole.MarkupLine($"[green]\u2713[/] Validation: 0 errors, [yellow]{stats.WarningCount.ToString(CultureInfo.InvariantCulture)} warnings{warningIds}[/]");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]\u2713[/] Validation: 0 errors, [yellow]{stats.WarningCount.ToString(CultureInfo.InvariantCulture)} warnings{warningIds}[/]");
         }
         else
         {
             var errorIds = stats.ErrorRuleIds.Count > 0
                 ? $" ({string.Join(", ", stats.ErrorRuleIds)})"
                 : string.Empty;
-            AnsiConsole.MarkupLine($"[red]\u2717[/] Validation: [red]{stats.ErrorCount.ToString(CultureInfo.InvariantCulture)} errors{errorIds}[/], [yellow]{stats.WarningCount.ToString(CultureInfo.InvariantCulture)} warnings[/]");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]\u2717[/] Validation: [red]{stats.ErrorCount.ToString(CultureInfo.InvariantCulture)} errors{errorIds}[/], [yellow]{stats.WarningCount.ToString(CultureInfo.InvariantCulture)} warnings[/]");
         }
     }
 
@@ -257,7 +257,7 @@ public static class ReportService
     {
         if (count > 0)
         {
-            table.AddRow(category, count.ToString(CultureInfo.InvariantCulture));
+            table.AddRow(Markup.Escape(category), count.ToString(CultureInfo.InvariantCulture));
         }
     }
 

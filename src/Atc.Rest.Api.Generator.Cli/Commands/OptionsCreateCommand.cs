@@ -28,13 +28,13 @@ public sealed class OptionsCreateCommand : Command<OptionsCommandSettings>
             ? Path.Combine(outputPath, ApiGeneratorOptions.FileName)
             : outputPath;
 
-        AnsiConsole.MarkupLine($"[blue]Output path:[/] {filePath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Output path:[/] {filePath}");
         AnsiConsole.WriteLine();
 
         // Check if file already exists
         if (File.Exists(filePath) && !settings.Force)
         {
-            AnsiConsole.MarkupLine($"[yellow]File already exists:[/] {filePath}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]File already exists:[/] {filePath}");
             AnsiConsole.MarkupLine("[yellow]Use --force to overwrite.[/]");
             return 1;
         }
@@ -46,7 +46,7 @@ public sealed class OptionsCreateCommand : Command<OptionsCommandSettings>
             return 1;
         }
 
-        AnsiConsole.MarkupLine($"[green]Created:[/] {filePath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]Created:[/] {filePath}");
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("[dim]You can now customize the options file for your project.[/]");
 

@@ -23,10 +23,10 @@ public sealed class SpecOverlayApplyCommand : Command<SpecOverlayApplyCommandSet
         ArgumentNullException.ThrowIfNull(settings);
         cancellationToken.ThrowIfCancellationRequested();
 
-        AnsiConsole.MarkupLine($"[blue]Specification:[/] {Markup.Escape(settings.SpecificationPath)}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Specification:[/] {settings.SpecificationPath}");
         foreach (var overlay in settings.Overlays)
         {
-            AnsiConsole.MarkupLine($"[blue]Overlay:[/] {Markup.Escape(OverlayCliHelper.FullPath(overlay))}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Overlay:[/] {OverlayCliHelper.FullPath(overlay)}");
         }
 
         try
@@ -49,7 +49,7 @@ public sealed class SpecOverlayApplyCommand : Command<SpecOverlayApplyCommandSet
                 AnsiConsole.MarkupLine("[red]✗[/] The overlays make a document that is no OpenAPI specification:");
                 foreach (var error in diagnostic?.Errors ?? [])
                 {
-                    AnsiConsole.MarkupLine($"  [red]•[/] {Markup.Escape(error.Message)}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]•[/] {error.Message}");
                 }
 
                 return 1;
@@ -66,12 +66,12 @@ public sealed class SpecOverlayApplyCommand : Command<SpecOverlayApplyCommandSet
             }
 
             File.WriteAllText(settings.OutputPath, output);
-            AnsiConsole.MarkupLine($"[green]✓[/] Written: {Markup.Escape(settings.OutputPath)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Written: {settings.OutputPath}");
             return 0;
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error: {Markup.Escape(ex.Message)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error: {ex.Message}");
             return 1;
         }
     }

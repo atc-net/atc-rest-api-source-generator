@@ -25,7 +25,7 @@ internal static class SpecificationValidationHelper
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error reading file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error reading file: {ex.Message}");
             return (false, null, []);
         }
 
@@ -51,7 +51,7 @@ internal static class SpecificationValidationHelper
                 {
                     foreach (var error in openApiDiagnostic.Errors)
                     {
-                        AnsiConsole.MarkupLine($"  [red]{Markup.Escape(error.Message)}[/]");
+                        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]{error.Message}[/]");
                     }
                 }
 
@@ -71,10 +71,10 @@ internal static class SpecificationValidationHelper
 
             if (errors.Count > 0)
             {
-                AnsiConsole.MarkupLine($"[red]✗[/] Validation failed with {errors.Count} error(s):");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Validation failed with {errors.Count} error(s):");
                 foreach (var error in errors)
                 {
-                    AnsiConsole.MarkupLine($"  [red][[{error.RuleId}]] {Markup.Escape(error.Message)}[/]");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red][[{error.RuleId}]] {error.Message}[/]");
                 }
 
                 return (false, parsedDoc, diagnostics);
@@ -86,10 +86,10 @@ internal static class SpecificationValidationHelper
 
             if (warnings.Count > 0)
             {
-                AnsiConsole.MarkupLine($"[yellow]![/] Validation passed with {warnings.Count} warning(s):");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Validation passed with {warnings.Count} warning(s):");
                 foreach (var warning in warnings)
                 {
-                    AnsiConsole.MarkupLine($"  [yellow][[{warning.RuleId}]] {Markup.Escape(warning.Message)}[/]");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow][[{warning.RuleId}]] {warning.Message}[/]");
                 }
             }
             else
@@ -101,7 +101,7 @@ internal static class SpecificationValidationHelper
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Error parsing OpenAPI specification: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error parsing OpenAPI specification: {ex.Message}");
             return (false, null, []);
         }
     }

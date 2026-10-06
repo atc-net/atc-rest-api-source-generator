@@ -57,17 +57,18 @@ public static class OverlayCliHelper
             var where = Path.GetFileName(problem.OverlayPath) + problem.Where;
             if (problem.Problem.IsError)
             {
-                AnsiConsole.MarkupLine($"[red]✗[/] [[{RuleIdentifiers.OverlayInvalid}]] {Markup.Escape(where)}: {Markup.Escape(problem.Problem.Message)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] [[{RuleIdentifiers.OverlayInvalid}]] {where}: {problem.Problem.Message}");
             }
             else
             {
-                AnsiConsole.MarkupLine($"[yellow]![/] [[{RuleIdentifiers.OverlayTargetSelectsNothing}]] {Markup.Escape(where)}: {Markup.Escape(problem.Problem.Message)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] [[{RuleIdentifiers.OverlayTargetSelectsNothing}]] {where}: {problem.Problem.Message}");
             }
         }
 
         if (effective is not null)
         {
-            AnsiConsole.MarkupLine($"[green]✓[/] Applied {files.Count} overlay(s): {Markup.Escape(string.Join(", ", files.Select(f => Path.GetFileName(f.FilePath))))}");
+            var fileNames = string.Join(", ", files.Select(f => Path.GetFileName(f.FilePath)));
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Applied {files.Count} overlay(s): {fileNames}");
         }
 
         return effective;

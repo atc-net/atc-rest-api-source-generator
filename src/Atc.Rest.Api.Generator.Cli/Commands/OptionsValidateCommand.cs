@@ -31,7 +31,7 @@ public sealed class OptionsValidateCommand : Command<OptionsCommandSettings>
             filePath = Path.Combine(filePath, ApiGeneratorOptions.FileName);
         }
 
-        AnsiConsole.MarkupLine($"[blue]Validating:[/] {filePath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Validating:[/] {filePath}");
         AnsiConsole.WriteLine();
 
         return AnsiConsole
@@ -44,10 +44,10 @@ public sealed class OptionsValidateCommand : Command<OptionsCommandSettings>
 
                 if (result.Errors.Count > 0)
                 {
-                    AnsiConsole.MarkupLine($"[red]✗[/] Validation failed with {result.Errors.Count} error(s):");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Validation failed with {result.Errors.Count} error(s):");
                     foreach (var error in result.Errors)
                     {
-                        AnsiConsole.MarkupLine($"  [red]{Markup.Escape(error)}[/]");
+                        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]{error}[/]");
                     }
 
                     return 1;
@@ -55,10 +55,10 @@ public sealed class OptionsValidateCommand : Command<OptionsCommandSettings>
 
                 if (result.Warnings.Count > 0)
                 {
-                    AnsiConsole.MarkupLine($"[yellow]![/] Validation passed with {result.Warnings.Count} warning(s):");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Validation passed with {result.Warnings.Count} warning(s):");
                     foreach (var warning in result.Warnings)
                     {
-                        AnsiConsole.MarkupLine($"  [yellow]{Markup.Escape(warning)}[/]");
+                        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]{warning}[/]");
                     }
                 }
                 else
@@ -97,22 +97,22 @@ public sealed class OptionsValidateCommand : Command<OptionsCommandSettings>
         table.AddRow("general", "includeDeprecated", options.General.IncludeDeprecated.ToString());
 
         // Server settings
-        table.AddRow("server", "namespace", options.Server.Namespace ?? "(auto-detect)");
+        table.AddRow("server", "namespace", Markup.Escape(options.Server.Namespace ?? "(auto-detect)"));
         table.AddRow("server", "subFolderStrategy", options.Server.SubFolderStrategy.ToString());
         table.AddRow("server", "versioningStrategy", options.Server.VersioningStrategy.ToString());
-        table.AddRow("server", "defaultApiVersion", options.Server.DefaultApiVersion);
+        table.AddRow("server", "defaultApiVersion", Markup.Escape(options.Server.DefaultApiVersion));
 
         // Server domain settings
-        table.AddRow("server.domain", "generateHandlersOutput", options.Server.Domain.GenerateHandlersOutput);
-        table.AddRow("server.domain", "handlerSuffix", options.Server.Domain.HandlerSuffix);
-        table.AddRow("server.domain", "stubImplementation", options.Server.Domain.StubImplementation);
+        table.AddRow("server.domain", "generateHandlersOutput", Markup.Escape(options.Server.Domain.GenerateHandlersOutput));
+        table.AddRow("server.domain", "handlerSuffix", Markup.Escape(options.Server.Domain.HandlerSuffix));
+        table.AddRow("server.domain", "stubImplementation", Markup.Escape(options.Server.Domain.StubImplementation));
 
         // Client settings
-        table.AddRow("client", "namespace", options.Client.Namespace ?? "(auto-detect)");
+        table.AddRow("client", "namespace", Markup.Escape(options.Client.Namespace ?? "(auto-detect)"));
         table.AddRow("client", "generationMode", options.Client.GenerationMode.ToString());
-        table.AddRow("client", "clientSuffix", options.Client.ClientSuffix);
+        table.AddRow("client", "clientSuffix", Markup.Escape(options.Client.ClientSuffix));
         table.AddRow("client", "clientGranularity", options.Client.ClientGranularity.ToString());
-        table.AddRow("client", "clientName", options.Client.ClientName ?? "(derived)");
+        table.AddRow("client", "clientName", Markup.Escape(options.Client.ClientName ?? "(derived)"));
         table.AddRow("client", "generateOAuthTokenManagement", options.Client.GenerateOAuthTokenManagement.ToString());
         table.AddRow("client", "extensibleEnums", options.Client.ExtensibleEnums.ToString());
 

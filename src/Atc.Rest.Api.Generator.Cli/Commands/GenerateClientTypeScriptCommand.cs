@@ -32,21 +32,21 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         // Build configuration from CLI options
         var config = BuildConfig(settings);
 
-        AnsiConsole.MarkupLine($"[blue]Specification:[/] {specPath}");
-        AnsiConsole.MarkupLine($"[blue]Output path:[/] {outputPath}");
-        AnsiConsole.MarkupLine($"[blue]Validation mode:[/] {config.ValidateSpecificationStrategy}");
-        AnsiConsole.MarkupLine($"[blue]Enum style:[/] {config.EnumStyle}");
-        AnsiConsole.MarkupLine($"[blue]Hooks style:[/] {config.HooksStyle}");
-        AnsiConsole.MarkupLine($"[blue]Client type:[/] {config.HttpClient}");
-        AnsiConsole.MarkupLine($"[blue]Naming strategy:[/] {config.NamingStrategy}");
-        AnsiConsole.MarkupLine($"[blue]Convert dates:[/] {config.ConvertDates}");
-        AnsiConsole.MarkupLine($"[blue]Mutable models:[/] {config.MutableModels}");
-        AnsiConsole.MarkupLine($"[blue]Zod schemas:[/] {config.GenerateZodSchemas}");
-        AnsiConsole.MarkupLine($"[blue]Zod runtime validate:[/] {config.ZodRuntimeValidate}");
-        AnsiConsole.MarkupLine($"[blue]Scaffold:[/] {config.Scaffold}");
-        AnsiConsole.MarkupLine($"[blue]Branded IDs:[/] {config.BrandedIds}");
-        AnsiConsole.MarkupLine($"[blue]Enum runtime values:[/] {config.EnumRuntimeValues}");
-        AnsiConsole.MarkupLine($"[blue]Extensible enums:[/] {config.ExtensibleEnums}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Specification:[/] {specPath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Output path:[/] {outputPath}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Validation mode:[/] {config.ValidateSpecificationStrategy}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Enum style:[/] {config.EnumStyle}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Hooks style:[/] {config.HooksStyle}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Client type:[/] {config.HttpClient}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Naming strategy:[/] {config.NamingStrategy}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Convert dates:[/] {config.ConvertDates}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Mutable models:[/] {config.MutableModels}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Zod schemas:[/] {config.GenerateZodSchemas}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Zod runtime validate:[/] {config.ZodRuntimeValidate}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Scaffold:[/] {config.Scaffold}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Branded IDs:[/] {config.BrandedIds}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Enum runtime values:[/] {config.EnumRuntimeValues}");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[blue]Extensible enums:[/] {config.ExtensibleEnums}");
         if (config.DryRun)
         {
             AnsiConsole.MarkupLine("[blue]Dry run:[/] True");
@@ -102,12 +102,12 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
                         if (!Directory.Exists(outputPath))
                         {
                             Directory.CreateDirectory(outputPath);
-                            AnsiConsole.MarkupLine($"[green]\u2713[/] Created output directory: {outputPath}");
+                            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]\u2713[/] Created output directory: {outputPath}");
                         }
                     }
                     catch (Exception ex)
                     {
-                        AnsiConsole.MarkupLine($"[red]\u2717[/] Error creating output directory: {ex.Message}");
+                        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]\u2717[/] Error creating output directory: {ex.Message}");
                         return 1;
                     }
                 }
@@ -123,7 +123,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
                 }
                 catch (Exception ex)
                 {
-                    AnsiConsole.MarkupLine($"[red]\u2717[/] Error generating TypeScript files: {ex.Message}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]\u2717[/] Error generating TypeScript files: {ex.Message}");
                     return 1;
                 }
 
@@ -152,27 +152,30 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         TimeSpan elapsed,
         bool dryRun)
     {
-        var dryRunLabel = dryRun ? "[dim](dry run)[/] " : string.Empty;
+        if (dryRun)
+        {
+            AnsiConsole.Markup("[dim](dry run)[/] ");
+        }
 
-        AnsiConsole.MarkupLine($"{dryRunLabel}[green]TypeScript client generation completed successfully.[/]");
+        AnsiConsole.MarkupLine("[green]TypeScript client generation completed successfully.[/]");
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine($"  Models generated:      [blue]{generationResult.ModelCount}[/]");
-        AnsiConsole.MarkupLine($"  Enums generated:       [blue]{generationResult.EnumCount}[/]");
-        AnsiConsole.MarkupLine($"  Error types generated: [blue]{generationResult.ErrorTypeCount}[/]");
-        AnsiConsole.MarkupLine($"  Types generated:       [blue]{generationResult.TypeCount}[/]");
-        AnsiConsole.MarkupLine($"  Clients generated:     [blue]{generationResult.ClientCount}[/]");
-        AnsiConsole.MarkupLine($"  Hooks generated:       [blue]{generationResult.HookCount}[/]");
-        AnsiConsole.MarkupLine($"  Zod schemas generated: [blue]{generationResult.ZodSchemaCount}[/]");
-        AnsiConsole.MarkupLine($"  Scaffold generated:    [blue]{generationResult.ScaffoldGenerated}[/]");
-        AnsiConsole.MarkupLine($"  Duration:              [dim]{elapsed.TotalSeconds:F1}s[/]");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  Models generated:      [blue]{generationResult.ModelCount}[/]");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  Enums generated:       [blue]{generationResult.EnumCount}[/]");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  Error types generated: [blue]{generationResult.ErrorTypeCount}[/]");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  Types generated:       [blue]{generationResult.TypeCount}[/]");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  Clients generated:     [blue]{generationResult.ClientCount}[/]");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  Hooks generated:       [blue]{generationResult.HookCount}[/]");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  Zod schemas generated: [blue]{generationResult.ZodSchemaCount}[/]");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  Scaffold generated:    [blue]{generationResult.ScaffoldGenerated}[/]");
+        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  Duration:              [dim]{elapsed.TotalSeconds:F1}s[/]");
         AnsiConsole.WriteLine();
 
         if (generationResult.Warnings.Count > 0)
         {
-            AnsiConsole.MarkupLine($"[yellow]![/] Generation completed with {generationResult.Warnings.Count} warning(s):");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Generation completed with {generationResult.Warnings.Count} warning(s):");
             foreach (var warning in generationResult.Warnings)
             {
-                AnsiConsole.MarkupLine($"  [yellow]{Markup.Escape(warning)}[/]");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]{warning}[/]");
             }
 
             AnsiConsole.WriteLine();
@@ -184,7 +187,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         }
         else
         {
-            AnsiConsole.MarkupLine($"[dim]Output written to: {outputPath}[/]");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[dim]Output written to: {outputPath}[/]");
         }
     }
 
@@ -214,7 +217,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         var regeneration = new SerialRunner(() =>
         {
             AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine($"[yellow]Change detected at {DateTime.Now:HH:mm:ss}[/]");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Change detected at {DateTime.Now:HH:mm:ss}[/]");
 
             var stopwatch = Stopwatch.StartNew();
             try
@@ -223,7 +226,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
             }
             catch (Exception ex)
             {
-                AnsiConsole.MarkupLine($"[red]\u2717[/] Error during re-generation: {ex.Message}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]\u2717[/] Error during re-generation: {ex.Message}");
             }
 
             AnsiConsole.WriteLine();
@@ -381,7 +384,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]\u2717[/] Error reading file: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]\u2717[/] Error reading file: {ex.Message}");
             return (false, null);
         }
 
@@ -397,7 +400,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
                 {
                     foreach (var error in openApiDiagnostic.Errors)
                     {
-                        AnsiConsole.MarkupLine($"  [red]{Markup.Escape(error.Message)}[/]");
+                        AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]{error.Message}[/]");
                     }
                 }
 
@@ -413,7 +416,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
                 foreach (var diagnostic in merge.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
                 {
                     var location = diagnostic.FilePath is null ? string.Empty : " (" + Path.GetFileName(diagnostic.FilePath) + ")";
-                    AnsiConsole.MarkupLine($"  [red][[{diagnostic.RuleId}]] {Markup.Escape(diagnostic.Message + location)}[/]");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red][[{diagnostic.RuleId}]] {diagnostic.Message + location}[/]");
                 }
 
                 return (false, null);
@@ -423,7 +426,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
             {
                 parsedDoc = merged.Document;
                 yamlContent = merged.Content;
-                AnsiConsole.MarkupLine($"[green]✓[/] Merged {merge.PartFiles.Count} part file(s) into the specification");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓[/] Merged {merge.PartFiles.Count} part file(s) into the specification");
             }
 
             // The overlays apply to the whole (merged) specification, as in the C# build
@@ -458,10 +461,10 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
 
             if (errors.Count > 0)
             {
-                AnsiConsole.MarkupLine($"[red]\u2717[/] Validation failed with {errors.Count} error(s):");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]\u2717[/] Validation failed with {errors.Count} error(s):");
                 foreach (var error in errors)
                 {
-                    AnsiConsole.MarkupLine($"  [red][[{error.RuleId}]] {Markup.Escape(error.Message)}[/]");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red][[{error.RuleId}]] {error.Message}[/]");
                 }
 
                 return (false, null);
@@ -473,10 +476,10 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
 
             if (warnings.Count > 0)
             {
-                AnsiConsole.MarkupLine($"[yellow]![/] Validation passed with {warnings.Count} warning(s):");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]![/] Validation passed with {warnings.Count} warning(s):");
                 foreach (var warning in warnings)
                 {
-                    AnsiConsole.MarkupLine($"  [yellow][[{warning.RuleId}]] {Markup.Escape(warning.Message)}[/]");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow][[{warning.RuleId}]] {warning.Message}[/]");
                 }
             }
             else
@@ -488,7 +491,7 @@ public sealed class GenerateClientTypeScriptCommand : Command<GenerateClientType
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]\u2717[/] Error parsing OpenAPI specification: {ex.Message}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]\u2717[/] Error parsing OpenAPI specification: {ex.Message}");
             return (false, null);
         }
     }

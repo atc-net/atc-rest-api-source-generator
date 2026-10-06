@@ -36,7 +36,7 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
                 }
                 catch (Exception ex)
                 {
-                    AnsiConsole.MarkupLine($"[red]✗[/] Error during merge: {Markup.Escape(ex.Message)}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Error during merge: {ex.Message}");
                     return 1;
                 }
             });
@@ -57,7 +57,7 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
         AnsiConsole.MarkupLine("[blue]Files to merge:[/]");
         foreach (var file in filesToMerge)
         {
-            AnsiConsole.MarkupLine($"  [dim]•[/] {Path.GetFileName(file)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [dim]•[/] {Path.GetFileName(file)}");
         }
 
         AnsiConsole.WriteLine();
@@ -69,7 +69,7 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
 
         if (baseSpec.Document is null)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Failed to parse base specification: {Path.GetFileName(baseFile)}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]✗[/] Failed to parse base specification: {Path.GetFileName(baseFile)}");
             return 1;
         }
 
@@ -81,7 +81,7 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
             var spec = SpecificationService.ReadFromFile(partFile);
             if (spec.Document is null)
             {
-                AnsiConsole.MarkupLine($"[yellow]Warning:[/] Failed to parse part file: {Path.GetFileName(partFile)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] Failed to parse part file: {Path.GetFileName(partFile)}");
                 continue;
             }
 
@@ -110,10 +110,10 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
 
         if (errors.Count > 0)
         {
-            AnsiConsole.MarkupLine($"[red]Merge errors ({errors.Count}):[/]");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Merge errors ({errors.Count}):[/]");
             foreach (var error in errors)
             {
-                AnsiConsole.MarkupLine($"  [red]•[/] {Markup.Escape(error.Message)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]•[/] {error.Message}");
             }
 
             AnsiConsole.WriteLine();
@@ -121,10 +121,10 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
 
         if (warnings.Count > 0)
         {
-            AnsiConsole.MarkupLine($"[yellow]Merge warnings ({warnings.Count}):[/]");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Merge warnings ({warnings.Count}):[/]");
             foreach (var warning in warnings)
             {
-                AnsiConsole.MarkupLine($"  [yellow]•[/] {Markup.Escape(warning.Message)}");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [yellow]•[/] {warning.Message}");
             }
 
             AnsiConsole.WriteLine();
@@ -154,10 +154,10 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
 
             if (validationErrors.Count > 0)
             {
-                AnsiConsole.MarkupLine($"[red]Validation errors ({validationErrors.Count}):[/]");
+                AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[red]Validation errors ({validationErrors.Count}):[/]");
                 foreach (var error in validationErrors)
                 {
-                    AnsiConsole.MarkupLine($"  [red]•[/] {Markup.Escape(error.Message)}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"  [red]•[/] {error.Message}");
                 }
 
                 AnsiConsole.MarkupLine("[red]✗ Merged specification has validation errors.[/]");
@@ -212,7 +212,7 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
             }
 
             File.WriteAllText(outputPath, outputContent);
-            AnsiConsole.MarkupLine($"[green]✓ Merged specification written to:[/] {outputPath}");
+            AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[green]✓ Merged specification written to:[/] {outputPath}");
         }
 
         return 0;
@@ -242,7 +242,7 @@ public sealed class SpecMergeCommand : Command<SpecMergeCommandSettings>
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"[yellow]Warning:[/] File not found: {file}");
+                    AnsiConsole.MarkupLineInterpolated(CultureInfo.InvariantCulture, $"[yellow]Warning:[/] File not found: {file}");
                 }
             }
 
